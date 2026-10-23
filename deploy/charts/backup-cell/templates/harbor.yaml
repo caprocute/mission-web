@@ -1,0 +1,69 @@
+{{- /* Kéo thử theo digest từ harbor-sn hằng ngày (INF-18, TL-04 bảng lịch sao lưu): ServiceAccount chỉ đọc danh sách pod
+toàn cụm để lấy digest ảnh đang chạy. */}}
+{{- $v := .Values }}
+{{- $h := $v.harbor }}
+{{- if $h.enabled }}
+{{- $ns := $v.saoLuu.namespace }}
+{{- $ma := include "bk.ma" . }}
+{{- $data := dict "chung.sh" (.Files.Get "files/chung.sh") "kiem-keo-harbor.sh" (.Files.Get "files/kiem-keo-harbor.sh") }}
+{{- $cfg := printf "harbor-%s" (toJson $data | sha256sum | trunc 10) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $cfg }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+data:
+  {{- range $k := keys $data | sortAlpha }}
+  {{ $k }}: {{ index $data $k | quote }}
+  {{- end }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kiem-keo-harbor
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: vt-kiem-keo-harbor
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vt-kiem-keo-harbor
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: vt-kiem-keo-harbor }
+subjects:
+  - { kind: ServiceAccount, name: kiem-keo-harbor, namespace: {{ $ns }} }
+{{- if $v.externalSecrets.enabled }}
+---
+{{ include "bk.externalSecretMot" (dict "root" . "ten" $h.robot.secretName "ns" $ns "khoa" ($h.robot.path | default (printf "kv/mgmt/harbor-sn/robots/pull-cell-%s" $ma)) "thuocTinh" "secret") }}
+{{- end }}
+{{- $env := list
+  (dict "name" "REGISTRY_GOC" "value" $h.registryGoc)
+  (dict "name" "HARBOR_SN" "value" $h.harborSn)
+  (dict "name" "HARBOR_USER" "value" ($h.robot.user | default (printf "robot$pull-cell-%s" $ma)))
+  (dict "name" "HARBOR_PASSWORD_FILE" "value" "/robot/password")
+  (dict "name" "HARBOR_CA" "value" "/ca/ca.crt")
+  (dict "name" "DU_AN" "value" (join " " $h.duAn))
+  (dict "name" "TOI_DA" "value" (toString $h.toiDa)) }}
+{{- /* Token ServiceAccount gắn tự động (kubectl đọc cấu hình trong cụm). */}}
+{{- $mounts := list (dict "name" "robot" "mountPath" "/robot" "readOnly" true) }}
+{{- $vols := list (dict "name" "robot" "secret" (dict "secretName" $h.robot.secretName)) }}
+---
+{{ include "bk.cronJobSaoLuu" (dict "root" . "ten" "kiem-keo-harbor" "cfg" $cfg "schedule" $h.schedule "deadline" 1800 "script" "kiem-keo-harbor.sh" "env" $env "mounts" $mounts "volumes" $vols "sa" "kiem-keo-harbor") }}
+---
+{{ include "bk.mangJob" (dict "root" . "ten" "kiem-keo-harbor" "dich" (list (dict "to" $h.egressTo "ports" (list $h.egressPort)))) }}
+{{- end }}

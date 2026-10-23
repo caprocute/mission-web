@@ -1,0 +1,22 @@
+# Cụm quản trị tại phía Nam (INF-20; TL-05 "Vùng điều phối toàn cục và cụm quản trị", TL-04 mục 2.6). Dựng bằng khuôn
+# deploy/clusters/cell-cluster. QM-1 chỉ có cụm ở Hoà Lạc (TL-05); cụm phía Nam dựng từ QM-2 với kích thước bằng Hoà Lạc vì phải
+# tiếp quản Argo CD, Harbor và quan sát khi chuyển vùng toàn phần. Ở QM-2 cụm này gộp cả vùng điều phối rút gọn (SVC-03, PowerDNS, APISIX lớp ngoài, kho
+# Policy Pack và UI Pack): 3 × VM-16-64, một node mỗi vùng sự cố; dùng lại cụm quản trị dựng ở đợt 0b. Khi lên QM-3,
+# tách vùng điều phối sang global-hl và nâng cụm này lên 4 × VM-32-128 (đổi perZone và flavor dưới đây).
+# Thông số hạ tầng thật đặt ở deploy/environments/viettel-cloud/mgmt-sn.yaml; mẫu để kiểm tĩnh ở values-mau-ha-tang.yaml.
+clusterName: mgmt-sn
+cell: mgmt
+namespace: capi-mgmt
+zones: [sn-a, sn-b, sn-c]
+racks: { sn-a: sn-a-r01, sn-b: sn-b-r01, sn-c: sn-c-r01 }
+controlPlane:
+  replicas: 3
+pools:
+  app-general:
+    enabled: true
+    perZone: [1, 1, 1]
+    capacity: { cpu: "16", memory: 64Gi }
+    labels: { vt.io/pool: app-general, vt.io/vai-tro: mgmt }
+# Pool cố định, không co giãn.
+clusterAutoscaler:
+  enabled: false

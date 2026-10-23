@@ -1,8 +1,12 @@
 import { HttpParams } from '@angular/common/http';
 import { MAX_PAGE_LIMIT } from '../../lib/paging';
 import {
+  BlockerEscalation,
+  BlockerPatch,
   BlockerReport,
+  BlockerStatus,
   CHANGE_REQUEST_STATUS_LABEL,
+  ChangeRequestDecision,
   ChangeRequest,
   ChangeRequestDraft,
   ChangeRequestPreview,
@@ -14,7 +18,9 @@ import {
   ProgressUpdate,
   TASK_STATUS_LABEL,
   TaskDetail,
+  TaskBlocker,
   TaskRegistration,
+  TaskRegistrationDecision,
   TaskStatus,
   TaskSummary,
 } from '../../lib/models/task';
@@ -28,6 +34,7 @@ import {
   resolveRelativeDates,
 } from '../mock-router';
 import { MOCK_ME } from '../mock-session';
+import { ORG_PERSONS } from '../org/org.mock';
 import catalogFixture from '../catalog/catalog.json';
 import fixture from './tasks.json';
 import { ASSIGN_MOCK, draftView } from './assign.mock';
@@ -379,9 +386,98 @@ function reportBlocker(req: MockRequest): MockResponse {
     resolveBy: b.resolveBy,
     status: 'MO',
     createdAt: new Date().toISOString(),
+    rowVersion: 0,
   });
   t.rowVersion += 1;
   return { status: 201, body: derive(structuredClone(t)), headers: etag(t) };
+}
+
+// ── Người giao xử lý điểm nghẽn (SCR-0601, QT-06 bước 4) ──
+
+/** Bảng chuyển điểm nghẽn như `BlockerRules` của MOD-02. */
+const BLOCKER_NEXT: Record<BlockerStatus, BlockerStatus[]> = {
+  MO: ['DANG_XU_LY', 'DONG'],
+  DANG_XU_LY: ['DA_GIAI_QUYET', 'DONG'],
+  DA_GIAI_QUYET: ['DONG'],
+  DONG: [],
+};
+
+function findBlocker(req: MockRequest): { t: StoredTask; b: TaskBlocker } | MockResponse {
+  const t = find(req.pathParams['id']);
+  if (!t) return notFound(req.pathParams['id']);
+  const b = t.blockers.find((x) => x.id === req.pathParams['bid']);
+  if (!b) return problem(404, 'Không tìm thấy điểm nghẽn');
+  const im = req.headers.get('If-Match');
+  if (im && im !== `"${b.rowVersion ?? 0}"`) {
+    return problem(409, 'Dữ liệu đã được người khác cập nhật, vui lòng tải lại', {
+      detail: 'Điểm nghẽn đã có thay đổi sau lần tải trước.',
+    });
+  }
+  return { t, b };
+}
+
+function handleBlocker(req: MockRequest): MockResponse {
+  const hit = findBlocker(req);
+  if (!('t' in hit)) return hit;
+  const { t, b } = hit;
+  const p = (req.body ?? {}) as BlockerPatch;
+  const handler = p.handlerPersonId
+    ? ORG_PERSONS.find((x) => x.id === p.handlerPersonId)
+    : undefined;
+  if (p.handlerPersonId && !handler) {
+    return problem(422, 'Dữ liệu không hợp lệ', {
+      errors: [{ field: 'handlerPersonId', message: 'Người xử lý không thuộc phạm vi đơn vị' }],
+    });
+  }
+  const hasHandler = !!handler || !!b.handlerName;
+  const to = p.status ?? (handler && b.status === 'MO' ? 'DANG_XU_LY' : b.status);
+  const note = (p.resolutionNote ?? '').trim();
+  if (to !== b.status) {
+    if (!BLOCKER_NEXT[b.status].includes(to)) {
+      return problem(409, 'Không chuyển được trạng thái điểm nghẽn', {
+        detail: 'Điểm nghẽn đã được xử lý xong hoặc trạng thái chọn không hợp lệ.',
+      });
+    }
+    if (to === 'DANG_XU_LY' && !hasHandler) {
+      return problem(422, 'Dữ liệu không hợp lệ', {
+        errors: [{ field: 'handlerPersonId', message: 'Chọn người xử lý điểm nghẽn' }],
+      });
+    }
+    if ((to === 'DA_GIAI_QUYET' || (to === 'DONG' && b.status !== 'DA_GIAI_QUYET')) && !note) {
+      return problem(422, 'Dữ liệu không hợp lệ', {
+        errors: [{ field: 'resolutionNote', message: 'Ghi kết quả xử lý điểm nghẽn' }],
+      });
+    }
+  }
+  if (handler) b.handlerName = handler.name;
+  if (p.resolveBy !== undefined) b.resolveBy = p.resolveBy || undefined;
+  b.status = to;
+  b.rowVersion = (b.rowVersion ?? 0) + 1;
+  t.rowVersion += 1;
+  return ok(structuredClone(b), { ETag: `"${b.rowVersion}"` });
+}
+
+function escalateBlocker(req: MockRequest): MockResponse {
+  const hit = findBlocker(req);
+  if (!('t' in hit)) return hit;
+  const { t, b } = hit;
+  const body = (req.body ?? {}) as Partial<BlockerEscalation>;
+  if (b.status !== 'MO' && b.status !== 'DANG_XU_LY') {
+    return problem(422, 'Điểm nghẽn đã xử lý xong, không chuyển cấp trên được');
+  }
+  const note = (body.note ?? '').trim();
+  const to = ORG_PERSONS.find((x) => x.id === body.targetPersonId);
+  const errors: { field: string; message: string }[] = [];
+  if (note.length < 5 || note.length > 2000)
+    errors.push({ field: 'note', message: 'Ghi chú chuyển cấp trên từ 5 đến 2.000 ký tự' });
+  if (!to && !body.targetUnitId)
+    errors.push({ field: 'targetPersonId', message: 'Chưa chọn người hoặc đơn vị tiếp nhận' });
+  if (errors.length) return problem(422, 'Dữ liệu không hợp lệ', { errors });
+  if (to) b.handlerName = to.name;
+  b.status = 'DANG_XU_LY';
+  b.rowVersion = (b.rowVersion ?? 0) + 1;
+  t.rowVersion += 1;
+  return ok(structuredClone(b), { ETag: `"${b.rowVersion}"` });
 }
 
 /** Hệ số tiến độ C = 1 − 0,05 × số ngày làm việc chậm, không nhỏ hơn 0 (BR-06-01). */
@@ -493,6 +589,84 @@ function withdraw(req: MockRequest): MockResponse {
     });
   }
   cr.status = 'DA_RUT';
+  t.rowVersion += 1;
+  return ok(derive(structuredClone(t)), etag(t));
+}
+
+/** Người duyệt quyết định đề nghị (QT-06 bước 6): chấp nhận đổi hạn, số lượng, sản phẩm hoặc trạng thái. */
+function decideChangeRequest(req: MockRequest): MockResponse {
+  const t = find(req.pathParams['id']);
+  if (!t) return notFound(req.pathParams['id']);
+  const cr = t.changeRequests.find((c) => c.id === req.pathParams['cid']);
+  if (!cr) return problem(404, 'Không tìm thấy đề nghị');
+  if (cr.status !== 'CHO_DUYET') {
+    return problem(409, 'Đề nghị đã được xử lý', {
+      detail: `Trạng thái hiện tại: ${CHANGE_REQUEST_STATUS_LABEL[cr.status]}.`,
+    });
+  }
+  const d = (req.body ?? {}) as Partial<ChangeRequestDecision>;
+  const errors: { field: string; message: string }[] = [];
+  if (typeof d.approve !== 'boolean')
+    errors.push({ field: 'approve', message: 'Chọn duyệt hoặc từ chối' });
+  if (d.causeDecided !== 'KHACH_QUAN' && d.causeDecided !== 'CHU_QUAN')
+    errors.push({
+      field: 'causeDecided',
+      message: 'Xác định nguyên nhân khách quan hoặc chủ quan',
+    });
+  if (d.approve === false && !(d.note ?? '').trim())
+    errors.push({ field: 'note', message: 'Nhập lý do từ chối' });
+  if (errors.length) return problem(422, 'Dữ liệu không hợp lệ', { errors });
+  cr.status = d.approve ? 'DA_DUYET' : 'TU_CHOI';
+  cr.causeDecided = d.causeDecided;
+  cr.decisionNote = d.note?.trim() || undefined;
+  cr.decidedAt = new Date().toISOString();
+  if (d.approve) {
+    if (cr.type === 'GIA_HAN' && cr.newDueDate) {
+      t.dueDate = cr.newDueDate;
+      // nguyên nhân khách quan dời cả hạn tính điểm (BR-06-04, BR-06-05)
+      if (d.causeDecided === 'KHACH_QUAN') t.scoreDueDate = cr.newDueDate;
+    }
+    if (cr.type === 'DOI_SO_LUONG' && cr.newQuantity) t.plannedQuantity = cr.newQuantity;
+    if (cr.type === 'TAM_DUNG') transition(t, 'TAM_DUNG', 'TAM_DUNG', cr.reason);
+    if (cr.type === 'HUY') transition(t, 'HUY', 'HUY', cr.reason);
+  }
+  t.rowVersion += 1;
+  return ok(derive(structuredClone(t)), etag(t));
+}
+
+/** Người quản lý trực tiếp quyết định nhiệm vụ đăng ký (QT-05 bước 1c). */
+function decideRegistration(req: MockRequest): MockResponse {
+  const t = find(req.pathParams['id']);
+  if (!t) return notFound(req.pathParams['id']);
+  const conflict = checkIfMatch(t, req.headers.get('If-Match'));
+  if (conflict) return conflict;
+  if (t.source !== 'DANG_KY' || t.status !== 'NHAP') {
+    return problem(422, 'Nhiệm vụ không phải đăng ký đang chờ duyệt');
+  }
+  const d = (req.body ?? {}) as Partial<TaskRegistrationDecision>;
+  const errors: { field: string; message: string }[] = [];
+  if (typeof d.approve !== 'boolean')
+    errors.push({ field: 'approve', message: 'Chọn duyệt hoặc từ chối' });
+  if (d.approve === false && !(d.reason ?? '').trim())
+    errors.push({ field: 'reason', message: 'Nhập lý do từ chối' });
+  if (d.dueDate && (d.dueDate < todayIso() || d.dueDate > currentPeriod().endDate))
+    errors.push({ field: 'dueDate', message: 'Hạn phải nằm trong kỳ, từ hôm nay trở đi' });
+  if (
+    d.quantity !== undefined &&
+    !(Number.isInteger(d.quantity) && d.quantity >= 1 && d.quantity <= 99)
+  )
+    errors.push({ field: 'quantity', message: 'Số lượng từ 1 đến 99' });
+  if (errors.length) return problem(422, 'Dữ liệu không hợp lệ', { errors });
+  if (d.approve) {
+    if (d.dueDate) t.dueDate = t.scoreDueDate = d.dueDate;
+    if (d.quantity) t.plannedQuantity = t.products.required = d.quantity;
+    t.assignerName = MOCK_ME.name;
+    t.acceptorName = MOCK_ME.name;
+    t.assignedAt = new Date().toISOString();
+    transition(t, 'DA_GIAO', 'DUYET_DANG_KY');
+  } else {
+    transition(t, 'HUY', 'TU_CHOI_DANG_KY', d.reason!.trim());
+  }
   t.rowVersion += 1;
   return ok(derive(structuredClone(t)), etag(t));
 }
@@ -615,6 +789,22 @@ export const TASKS_MOCK: MockModule = {
       method: 'POST',
       pattern: '/api/v1/tasks/:id/change-requests/:cid/withdraw',
       handle: withdraw,
+    },
+    {
+      method: 'POST',
+      pattern: '/api/v1/tasks/:id/change-requests/:cid/decision',
+      handle: decideChangeRequest,
+    },
+    { method: 'PATCH', pattern: '/api/v1/tasks/:id/blockers/:bid', handle: handleBlocker },
+    {
+      method: 'POST',
+      pattern: '/api/v1/tasks/:id/blockers/:bid/escalate',
+      handle: escalateBlocker,
+    },
+    {
+      method: 'POST',
+      pattern: '/api/v1/tasks/:id/registration-decision',
+      handle: decideRegistration,
     },
     ...ASSIGN_MOCK.routes,
   ],

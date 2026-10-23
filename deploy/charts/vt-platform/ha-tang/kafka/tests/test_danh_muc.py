@@ -22,9 +22,11 @@ def render(*args):
     return [d for d in yaml.safe_load_all(out) if d]
 
 
-def test_du_26_evt_va_topic_ky_thuat():
+def test_du_evt_va_topic_ky_thuat():
     ma = {t["ma"] for t in DM["topics"] if "ma" in t}
-    assert ma == {f"EVT-{i:02d}" for i in range(1, 27)}
+    # EVT-01..EVT-26 của baseline cộng mã bổ sung trong hợp đồng (EVT-27, CORE-08-16).
+    assert {f"EVT-{i:02d}" for i in range(1, 27)} <= ma
+    assert ma == {e["code"] for e in CAT["events"]}
     ten = {t["ten"] for t in DM["topics"]}
     assert {e["topic"] for e in CAT["technicalTopics"]} <= ten
 
@@ -87,6 +89,29 @@ def test_render_topic_va_acl():
     # Mỗi bên tiêu thụ đọc, ghi đúng hàng đợi thử lại và thư chết mang tên mình.
     acl_search = {a["resource"]["name"] for a in users["search"]["spec"]["authorization"]["acls"]}
     assert {"task.task.assigned.v1.retry.search", "task.task.assigned.v1.dlq.search"} <= acl_search
+
+
+def test_inf19_topic_an_ninh_va_siem_forwarder():
+    docs = render()
+    topics = {d["spec"].get("topicName", d["metadata"]["name"]): d for d in docs if d["kind"] == "KafkaTopic"}
+    # Cùng nhóm hệ thống với sys.audit.v1 (TL-04 mục 4.6); không có lược đồ Avro nên không đăng ký Apicurio.
+    for t in ("sys.security.runtime.v1", "sys.siem.v1"):
+        for k in ("partitions", "replicas", "config"):
+            assert topics[t]["spec"][k] == topics["sys.audit.v1"]["spec"][k], (t, k)
+        assert t not in {a["artifactId"].rsplit("-value", 1)[0] for a in DM["avro"]}
+    users = {d["metadata"]["name"]: d for d in docs if d["kind"] == "KafkaUser"}
+    acl = {}
+    for a in users["siem-forwarder"]["spec"]["authorization"]["acls"]:
+        acl.setdefault((a["resource"]["type"], a["resource"]["name"]), set()).update(a["operations"])
+    for t in ("sys.siem.v1", "sys.security.runtime.v1"):
+        assert "Write" in acl[("topic", t)]
+    for t in ("sys.security.runtime.v1", "sys.audit.v1", "sys.siem.v1"):
+        assert "Read" in acl[("topic", t)]
+    assert "Write" not in acl[("topic", "sys.audit.v1")]
+    assert "Read" in acl[("group", "siem-forwarder")]
+    # Chỉ siem-forwarder ghi hai topic an ninh.
+    ghi = {u for u, x in DM["nguoiDung"].items() if {"sys.siem.v1", "sys.security.runtime.v1"} & set(x["ghi"])}
+    assert ghi == {"siem-forwarder"}
 
 
 def test_render_compact_gop_cum_va_ket_hop():

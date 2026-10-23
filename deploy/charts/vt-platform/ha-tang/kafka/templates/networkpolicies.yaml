@@ -110,3 +110,27 @@ spec:
     - toEntities: [kube-apiserver]
 {{- end }}
 {{- end }}
+{{- $mm2 := fromYaml (include "kafka.mm2" .) }}
+{{- if $mm2.lienTtdlMo }}
+---
+# INF-28: listener liên TTDL của broker chỉ nhận từ dải node của TTDL kia (MirrorMaker 2).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kafka-lien-ttdl
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { strimzi.io/cluster: {{ $v.cluster }}, strimzi.io/broker-role: "true" }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        {{- range $mm2.lienTtdl.peerCIDRs }}
+        - ipBlock: { cidr: {{ . }} }
+        {{- else }}
+        - ipBlock: { cidr: 192.0.2.0/32 }
+        {{- end }}
+      ports: [{ port: {{ $mm2.lienTtdl.port }}, protocol: TCP }]
+{{- end }}

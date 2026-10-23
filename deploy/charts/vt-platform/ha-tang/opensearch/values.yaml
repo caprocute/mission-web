@@ -24,8 +24,8 @@ hoSo:
 
 storageClass: nvme-local
 placement:
-  nodeSelector: { vt.io/pool: data-search }
-  tolerations: [{ key: vt.io/pool, operator: Equal, value: data-search, effect: NoSchedule }]
+  nodeSelector: { vt.io/pool: search }
+  tolerations: [{ key: vt.io/pool, operator: Equal, value: search, effect: NoSchedule }]
   # vm.max_map_count=262144 đặt sẵn trên node pool data-search (kubeadm của Cluster API); Pod Security restricted
   # không cho init container đặc quyền nên không bật setVMMaxMapCount.
   setVMMaxMapCount: false
@@ -50,9 +50,46 @@ roles:
     indexPatterns: ["okr-*", "mission-*", "evidence-*", "org-*"]
     allowedActions: [crud, create_index, manage_aliases, indices_monitor]
     clusterPermissions: [cluster_monitor, cluster_composite_ops]
+  # Khôi phục thử hằng tuần của backup-cell (INF-18): đọc danh mục snapshot, khôi phục vào khoi-phuc-thu-*, đếm tài liệu
+  # của chỉ mục gốc rồi xoá chỉ mục tạm; không ghi được chỉ mục thật.
+  sao-luu:
+    indexPatterns: ["okr-*", "mission-*", "evidence-*", "org-*"]
+    allowedActions: [indices_monitor]
+    them:
+      - { indexPatterns: ["khoi-phuc-thu-*"], allowedActions: [indices_all] }
+    clusterPermissions: [cluster_monitor, "cluster:admin/snapshot/get", "cluster:admin/repository/get", "cluster:admin/snapshot/restore"]
 users:
   search-service: { roles: [search-service], namespace: platform }
+  sao-luu: { roles: [sao-luu], namespace: sao-luu }
   vt-giam-sat: { roles: [readall_and_monitor] }
 
 observabilityNamespace: observability
 operatorNamespace: opensearch-operator-system
+
+# Snapshot sang kho sao lưu phía Nam (INF-18, TL-04 mục 8.8, bảng lịch sao lưu): repo bk-sn trên bucket
+# bk-cell-<mã>-os (Object Lock 14 ngày), chính sách Snapshot Management daily-to-sn tạo 02:00, xoá 04:00, giữ 7–14
+# bản. Plugin repository-s3 cài lúc khởi động (operator chạy opensearch-plugin install); môi trường không ra Internet
+# đặt plugin là URL tệp zip trên kho nội bộ cùng phiên bản OpenSearch (suy luận). Khoá S3 ở OpenBao
+# kv/cell-<mã>/backup/os (ACCESS_KEY_ID, ACCESS_SECRET_KEY), quyền đọc, ghi, liệt kê và tạo delete marker.
+snapshot:
+  enabled: true
+  repository: bk-sn
+  bucket: ""             # rỗng: bk-cell-<global.cell>-os
+  basePath: opensearch
+  endpoint: s3-bk.sn.vt.local
+  protocol: https
+  region: sn-bk
+  plugin: repository-s3
+  credentials: { secretName: bk-sn-s3-os, path: "" }   # path rỗng: kv/cell-<mã>/backup/os
+  policy:
+    name: daily-to-sn
+    description: Snapshot hằng ngày sang kho sao lưu phía Nam
+    timezone: Asia/Ho_Chi_Minh
+    tao: "0 2 * * *"
+    xoa: "0 4 * * *"
+    maxCount: 14
+    minCount: 7
+    indices: "okr-*,mission-*,evidence-*,org-*"
+  # Đích mạng tới RGW kho sao lưu (NetworkPolicyPeer), khai theo cell như backup-cell.
+  egressTo: []
+  egressPort: 443

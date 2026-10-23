@@ -107,6 +107,12 @@ spec:
             matchLabels: { app.kubernetes.io/name: egress-gateway }
       ports:
         - { protocol: TCP, port: 443 }
+    # Pod ở mesh ambient: ztunnel gửi HBONE (15008) tới waypoint của namespace egress rồi tới gateway (cell-mesh).
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: egress }
+      ports:
+        - { protocol: TCP, port: 15008 }
     {{- end }}
 {{- end }}
 {{- if $v.kubeBench.enabled }}

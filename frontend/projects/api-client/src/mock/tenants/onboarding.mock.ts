@@ -158,6 +158,7 @@ function registryCells(): RegistryCell[] {
       name: c.name,
       primaryDc: c.primaryDc as RegistryCell['primaryDc'],
       standbyDc: c.standbyDc ?? null,
+      activeDc: c.primaryDc as RegistryCell['activeDc'],
       tenancyModel: registryModel(c.tenancyModel as TenancyModel),
       apiBaseUrl: `https://api.${c.code.toLowerCase()}.okrkpi.vn`,
       capacityAccounts: c.capacityAccounts,

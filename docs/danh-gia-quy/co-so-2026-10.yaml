@@ -1,0 +1,500 @@
+# Bản chấm cơ sở: chép kết quả 110 tiêu chí của bản đánh giá kiến trúc 10/2026 (hệ thống cũ).
+# Dùng để kiểm bộ chấm (phải ra 17,4) và làm mốc so sánh cho lần chấm quý đầu tiên. Không sửa.
+# Trục H: bản đánh giá chỉ in Đạt/Một phần/Chưa đạt nhưng điểm trục 31% dùng mức 0–4; mức từng
+# tiêu chí dưới đây là suy luận (tổng 11/36), xem quy-trinh.md mục 3.
+ky: Cơ sở 10/2026
+loai: co-so
+he_thong: Hệ thống hiện hữu được đánh giá (backend-missions, dhtn_fe, backend2.0, web-spring, twd_mission)
+ngay_cham: 2026-10
+nguoi_cham: Nhóm đánh giá kiến trúc (bản đánh giá kiến trúc công nghệ 10/2026)
+doc_lap: true
+giai_doan: van-hanh
+ket_qua:
+  A1:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Distributed Monolith: service và core dùng chung DB, Redis'
+  A2:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 23/23 bảng mới tạo trong schema "VOFFICE"'
+  A3:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Vòng services↔database↔utils; DocumentDAO 22.798 dòng'
+  A4:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 0 Kafka/JMS/outbox; side-effect chạy trong bộ nhớ'
+  A5:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Có routing datasource đọc/ghi nhưng cùng một DB'
+  A6:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Cập nhật đè tại chỗ, xoá mềm'
+  A7:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 0 @Operation; 35 endpoint form- urlencoded legacy'
+  A8:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 1 remote chứa 20 feature, chung một image'
+  L1:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Remote mission nhúng được vào shell; logout vẫn trỏ ZK login.zul'
+  L2:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: SSO tập trung + token riêng trong USER_TOKENS'
+  L3:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Có ở core, web; thiếu state/nonce; BE chỉ có cấu hình'
+  L4:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Đọc trực tiếp VHR_ORG, VHR_EMPLOYEE'
+  L5:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: document-kpi/create-from- transfer; chỉ với vOffice cùng DB'
+  L6:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Core có thư viện com.vpcp (45 tệp); KPI chưa dùng'
+  L7:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Cấu hình X-Road adapter chưa dùng'
+  L8:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Không có'
+  L9:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Ký số chỉ cho văn bản legacy'
+  L10:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Không có; 0 mô tả OpenAPI'
+  L11:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Mô hình theo bảng vOffice'
+  L12:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Không có'
+  B1:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Agent có trong image, không nạp'
+  B2:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: BE 0 MDC; WEB header tự chế X- FEATURE-TRACE-ID'
+  B3:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Chỉ WEB có registry; BE, CORE thiếu'
+  B4:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 0 MeterRegistry/@Timed'
+  B5:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Elastic APM có trong image, chưa bật'
+  B6:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: App bật probe; manifest không dùng'
+  B7:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: hibernate.log_slow_query=1000 ms (BE)'
+  B8:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: FE: 0 ErrorHandler, 0 RUM'
+  C1:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: FE, WEB non-root; BE/CORE base maven, chmod 777'
+  C2:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: BE dùng manifest monolith; WEB, FE không có'
+  C3:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 0 probe'
+  C4:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: -Xmx8192m bằng limit 8Gi → OOMKill'
+  C5:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 0 HPA/KEDA'
+  C6:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: sessionAffinity ClientIP; hostPath; phiên ZK'
+  C7:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 2 replica cùng 1 node; 0 PDB'
+  C8:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 5 volume hostPath /data*'
+  C9:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: FE cấu hình lúc build; YAML thô'
+  C10:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 4/4 pipeline bỏ qua test; không ký, không quét image'
+  D1:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: kubeconfig kèm client key; private key RSA; ~65 bí mật'
+  D2:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 2FA bỏ qua bằng source=WEB_APPS; không khoá tài khoản'
+  D3:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 9 user test lấy token; URL chứa “/public” bỏ qua JWT'
+  D4:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: SHA-256 không salt; mật khẩu rõ trong cookie'
+  D5:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Access 24 h, refresh 30 ngày; thiếu Secure, SameSite'
+  D6:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: CORE 1/2.020 endpoint @PreAuthorize; BE 57/224 @Secured'
+  D7:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: SQLi DocumentDAO:4871; CORS * + credentials; 0 CSRF'
+  D8:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: DES; PBEWithMD5AndDES; TLS trust-all toàn JVM'
+  D9:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Ghi JWT, refresh token; không audit thay đổi quyền'
+  D10:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: pdf.js 2.0.943 (CVE-2024-4367), Axis 1.4, jQuery 1.11.3'
+  D11:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: WEB có CSP, HSTS; FE nginx 0 header'
+  D12:
+    kq: Đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: mission-confidential mã hoá theo chứng thư người nhận'
+  E1:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Java 21, Boot 3.5, Angular 21 đạt; ZK 6.5.3 (2013)'
+  E2:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Oracle; >1.000 câu SQL đặc thù'
+  E3:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Không có'
+  E4:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Đĩa cục bộ'
+  E5:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Redis dùng chung không prefix; cache cả PII'
+  E6:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Axis 1.4; ZK 6.5.3; iText7 AGPL- 3.0'
+  E7:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 50 CCU → 11,5 s; mục tiêu ~70.000'
+  E8:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 0 LLM/OCR; dashboard tự viết'
+  F1:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 0 trong 4 repo'
+  F2:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: WEB 31/33 không read timeout; CORE query timeout 600 s'
+  F3:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: FE 1 chỗ; BE chống trùng theo eventId'
+  F4:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 0 ở app và nginx'
+  F5:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: CORE 41 pool (~36 tạo mỗi request); BE queue 20 bỏ việc'
+  F6:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: API mới clamp 20–200; WEB upload 20 GB/200 GB'
+  F7:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: BE 250+250, CORE 500+500 mỗi pod'
+  F8:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Tính điểm đồng bộ trong API'
+  F9:
+    kq: Đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: VO_VERSION / voVersion'
+  F10:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: BE 403 catch(Exception), 59 System.out'
+  F11:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: BE 12 lớp >2.000 dòng; WEB 17 lớp >10.000'
+  G1:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: BE, CORE có; WEB không'
+  G2:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Văn bản tự do'
+  G3:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Chỉ CORE'
+  G4:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: DROP_OLDEST, giữ ~5% khi bão hoà'
+  G5:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Tệp cục bộ 30 ngày; ES không có chính sách'
+  G6:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Không'
+  G7:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Ghi JWT, refresh token, body request'
+  H1:
+    muc: 0
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 0 entity, API, màn hình'
+    ghi_chu: Bản đánh giá ghi 'Chưa đạt'; mức 0–4 suy luận để điểm trục khớp 31%.
+  H2:
+    muc: 2
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Chủ trì/phối hợp, danh mục, import 5.000 dòng'
+    ghi_chu: Bản đánh giá ghi 'Một phần'; mức 0–4 suy luận để điểm trục khớp 31%.
+  H3:
+    muc: 2
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Thiếu phiên bản, chất lượng 5 mức'
+    ghi_chu: Bản đánh giá ghi 'Một phần'; mức 0–4 suy luận để điểm trục khớp 31%.
+  H4:
+    muc: 2
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Công thức đúng; 3 bộ máy song song; chỉ kỳ quý'
+    ghi_chu: Bản đánh giá ghi 'Một phần'; mức 0–4 suy luận để điểm trục khớp 31%.
+  H5:
+    muc: 0
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Không sinh mẫu, không ký số'
+    ghi_chu: Bản đánh giá ghi 'Chưa đạt'; mức 0–4 suy luận để điểm trục khớp 31%.
+  H6:
+    muc: 1
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Chỉ khoá hồ sơ'
+    ghi_chu: Bản đánh giá ghi 'Một phần'; mức 0–4 suy luận để điểm trục khớp 31%.
+  H7:
+    muc: 2
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 7 khối cố định'
+    ghi_chu: Bản đánh giá ghi 'Một phần'; mức 0–4 suy luận để điểm trục khớp 31%.
+  H8:
+    muc: 1
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Không tenant, không Policy Pack'
+    ghi_chu: Bản đánh giá ghi 'Một phần'; mức 0–4 suy luận để điểm trục khớp 31%.
+  H9:
+    muc: 1
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 1 hồ sơ/người/kỳ'
+    ghi_chu: Bản đánh giá ghi 'Một phần'; mức 0–4 suy luận để điểm trục khớp 31%.
+  I1:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Không có trước/sau/lý do/người duyệt'
+  I2:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Không có'
+  I3:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Chỉ khoá từng hồ sơ'
+  I4:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Không có'
+  I5:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: hostPath, ghi đè được'
+  I6:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Có snapshot, không băm, không ký'
+  I7:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Chỉ dòng hiện hành'
+  I8:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Không có'
+  J1:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: BE 11,3/kLOC; CORE 0,15; WEB 0,008'
+  J2:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 4/4 pipeline bỏ qua'
+  J3:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Không'
+  J4:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 165 test Oracle bị bỏ qua'
+  J5:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Không'
+  J6:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Có số cố định cho V27, chưa ký duyệt'
+  J7:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 1 lần JMeter 50 CCU'
+  J8:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Fortify; FE không ESLint'
+  J9:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Feature map 15/37 controller'
+  K1:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 0 công cụ; app tự ALTER TABLE'
+  K2:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Kiểm token qua bảng USER_TOKENS'
+  K3:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: VHR_ORG 32 tệp, VHR_EMPLOYEE 30 tệp'
+  K4:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Ghi thẳng bảng vOffice'
+  K5:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: 1 tenant/bản cài'
+  K6:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: BE đạt; FE cấu hình lúc build'
+  K7:
+    kq: Một phần
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Cờ okr.flag'
+  K8:
+    kq: Chưa đạt
+    bang_chung:
+    - 'Bản đánh giá 10/2026: Core còn ~100,8 nghìn dòng mã KPI'
+chi_so:
+  van-de-nghiem-trong:
+    gia_tri: 12
+    nguoi_do: Nhóm đánh giá
+    ghi_chu: 64 vấn đề, 12 nghiêm trọng
+  secret-scanning:
+    gia_tri: 65
+    nguoi_do: Nhóm đánh giá
+    ghi_chu: khoảng 65
+  circuit-breaker:
+    gia_tri: 0.0
+    nguoi_do: Nhóm đánh giá
+  trace-dau-cuoi:
+    gia_tri: 0.0
+    nguoi_do: Nhóm đánh giá
+  pipeline-quality-gate:
+    gia_tri: 0/4
+    nguoi_do: Nhóm đánh giá
+  phien-dat-slo:
+    gia_tri: < 50
+    nguoi_do: Nhóm đánh giá
+  node-toi-thieu:
+    gia_tri: 1
+    nguoi_do: Nhóm đánh giá
+  bang-moi-voffice:
+    gia_tri: 23
+    nguoi_do: Nhóm đánh giá
+  lo-hong-nghiem-trong-cao:
+    gia_tri: 16
+    nguoi_do: Nhóm đánh giá
+  p95-ghi:
+    gia_tri: Trên 10 s
+    nguoi_do: Nhóm đánh giá
+  thoi-gian-ap-dung-quy-dinh:
+    gia_tri: Nhiều tuần
+    nguoi_do: Nhóm đánh giá
+  ty-le-nguoi-dung-moi:
+    gia_tri: 0
+    nguoi_do: Nhóm đánh giá

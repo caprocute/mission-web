@@ -1,0 +1,207 @@
+{{- /* Snapshot Raft mỗi giờ (INF-18, TL-04 mục 8.10 và bảng lịch sao lưu: hằng giờ, giữ 90 ngày, Object Lock 90 ngày).
+Container chụp (ảnh OpenBao, có bao CLI) đăng nhập auth kubernetes vai trò sao-luu-raft (chính sách chỉ đọc
+sys/storage/raft/snapshot, deploy/openbao/chinh-sach/sao-luu-raft.hcl) và ghi snapshot vào emptyDir; container tải lên
+(ảnh backup-tools của chart backup-cell) kiểm tệp gzip rồi đẩy lên s3://bk-cell-<mã>-bao/raft/<năm>/<tháng>/ trên kho
+sao lưu bằng khoá không có quyền xoá. Nội dung snapshot đã mã hoá bằng khoá của OpenBao, chỉ khôi phục được khi có HSM
+chứa khoá mở tương ứng (ops/runbooks/sao-luu-openbao.md). */}}
+{{- $v := .Values }}
+{{- $s := $v.saoLuuRaft }}
+{{- if $s.enabled }}
+{{- $ns := $v.namespace }}
+{{- $ma := include "openbao.cell" . | lower }}
+{{- $tl := $s.anhTaiLen }}
+{{- if not (regexMatch "^sha256:[a-f0-9]{64}$" (toString $tl.digest)) }}{{ fail "openbao: saoLuuRaft.anhTaiLen phải ghim digest sha256 (SEC-55)" }}{{ end }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sao-luu-raft
+  namespace: {{ $ns }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openbao-sao-luu-raft
+  namespace: {{ $ns }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+data:
+  chup.sh: |
+    #!/bin/sh
+    set -eu
+    if [ -z "${BAO_TOKEN:-}" ]; then
+      BAO_TOKEN=$(bao write -field=token auth/{{ include "openbao.authMount" . }}/login role=sao-luu-raft \
+        jwt=@/var/run/secrets/openbao/token)
+    fi
+    export BAO_TOKEN
+    bao operator raft snapshot save /tam/raft.snap
+    echo "đã chụp $(wc -c < /tam/raft.snap) byte"
+  tai-len.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+    s3() { aws --endpoint-url "$S3_ENDPOINT" --region "$S3_REGION" ${AWS_CA_BUNDLE:+--ca-bundle "$AWS_CA_BUNDLE"} "$@"; }
+    chi_so() {
+      if [ -z "$PUSHGATEWAY" ]; then cat; return 0; fi
+      curl -sS --fail --max-time 30 --data-binary @- "$PUSHGATEWAY/metrics/job/sao-luu-raft/cell/$CELL"
+    }
+    tep=/tam/raft.snap
+    # Snapshot Raft là tệp tar nén gzip; tệp rỗng hoặc hỏng thì không tải lên và báo lỗi.
+    if [ ! -s "$tep" ] || ! gzip -t "$tep"; then
+      echo "LỖI: snapshot Raft rỗng hoặc hỏng" >&2
+      printf '# TYPE backup_openbao_snapshot_success gauge\nbackup_openbao_snapshot_success 0\n' | chi_so
+      exit 1
+    fi
+    khoa="raft/$(date -u +%Y/%m/%Y%m%dT%H%MZ).snap"
+    s3 s3 cp --only-show-errors "$tep" "s3://$BUCKET/$khoa"
+    rm -f "$tep"
+    echo "đã đẩy s3://$BUCKET/$khoa"
+    printf '# TYPE backup_openbao_snapshot_success gauge\nbackup_openbao_snapshot_success 1\nbackup_openbao_snapshot_last_success_timestamp_seconds %s\n' "$(date +%s)" | chi_so
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $s.credentials.secretName }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+spec:
+  refreshInterval: 1h
+  secretStoreRef: { kind: ClusterSecretStore, name: {{ $v.eso.storeName }} }
+  target:
+    name: {{ $s.credentials.secretName }}
+    creationPolicy: Owner
+  data:
+    {{- range $k := list "ACCESS_KEY_ID" "ACCESS_SECRET_KEY" }}
+    - secretKey: {{ $k }}
+      remoteRef: { key: {{ $s.credentials.path | default (printf "kv/cell-%s/backup/bao" $ma) }}, property: {{ $k }} }
+    {{- end }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: openbao-sao-luu-raft
+  namespace: {{ $ns }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+spec:
+  schedule: {{ $s.schedule | quote }}
+  timeZone: Asia/Ho_Chi_Minh
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: openbao-sao-luu-raft
+            app.kubernetes.io/part-of: vt-platform
+        spec:
+          serviceAccountName: sao-luu-raft
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            fsGroup: 65532
+            seccompProfile: { type: RuntimeDefault }
+          {{- with $v.placement.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          initContainers:
+            - name: chup
+              image: {{ include "openbao.anh" . }}
+              command: [sh, /cfg/chup.sh]
+              env:
+                - { name: BAO_ADDR, value: {{ include "openbao.addr" . }} }
+                - { name: BAO_CACERT, value: /openbao/tls/ca.crt }
+                - { name: HOME, value: /tmp }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              resources: { requests: { cpu: 50m, memory: 64Mi }, limits: { cpu: "1", memory: 256Mi } }
+              volumeMounts:
+                - { name: cfg, mountPath: /cfg, readOnly: true }
+                - { name: tam, mountPath: /tam }
+                - { name: tmp, mountPath: /tmp }
+                - { name: ca, mountPath: /openbao/tls, readOnly: true }
+                - { name: token, mountPath: /var/run/secrets/openbao, readOnly: true }
+          containers:
+            - name: tai-len
+              image: "{{ $tl.repository }}:{{ $tl.tag }}@{{ $tl.digest }}"
+              command: [bash, /cfg/tai-len.sh]
+              env:
+                - { name: HOME, value: /tmp }
+                - { name: S3_ENDPOINT, value: {{ $s.khoSaoLuu.endpoint | quote }} }
+                - { name: S3_REGION, value: {{ $s.khoSaoLuu.region | quote }} }
+                - { name: BUCKET, value: {{ $s.bucket | default (printf "bk-cell-%s-bao" $ma) | quote }} }
+                - { name: PUSHGATEWAY, value: {{ $s.pushgateway | quote }} }
+                - { name: CELL, value: {{ $ma | quote }} }
+                {{- with $s.khoSaoLuu.caBundle }}
+                - { name: AWS_CA_BUNDLE, value: /ca-kho/{{ .key }} }
+                {{- end }}
+                - { name: AWS_ACCESS_KEY_ID, valueFrom: { secretKeyRef: { name: {{ $s.credentials.secretName }}, key: ACCESS_KEY_ID } } }
+                - { name: AWS_SECRET_ACCESS_KEY, valueFrom: { secretKeyRef: { name: {{ $s.credentials.secretName }}, key: ACCESS_SECRET_KEY } } }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { cpu: "1", memory: 512Mi } }
+              volumeMounts:
+                - { name: cfg, mountPath: /cfg, readOnly: true }
+                - { name: tam, mountPath: /tam }
+                - { name: tmp, mountPath: /tmp }
+                {{- with $s.khoSaoLuu.caBundle }}
+                - { name: ca-kho, mountPath: /ca-kho, readOnly: true }
+                {{- end }}
+          volumes:
+            - name: cfg
+              configMap: { name: openbao-sao-luu-raft }
+            - name: tam
+              emptyDir: { sizeLimit: {{ $s.tamGioiHan }} }
+            - name: tmp
+              emptyDir: { sizeLimit: 64Mi }
+            - name: ca
+              secret: { secretName: openbao-tls, items: [{ key: ca.crt, path: ca.crt }] }
+            {{- with $s.khoSaoLuu.caBundle }}
+            - name: ca-kho
+              secret: { secretName: {{ .secret }} }
+            {{- end }}
+            - name: token
+              projected:
+                sources:
+                  - serviceAccountToken: { path: token, audience: openbao, expirationSeconds: 600 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: openbao-sao-luu-raft
+  namespace: {{ $ns }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: openbao-sao-luu-raft } }
+  policyTypes: [Ingress, Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "openbao.selector" . | nindent 14 }}
+      ports: [{ port: 8200, protocol: TCP }]
+    {{- with $s.khoSaoLuu.egressTo }}
+    - to:
+        {{- toYaml . | nindent 8 }}
+      ports: [{ port: {{ $s.khoSaoLuu.egressPort }}, protocol: TCP }]
+    {{- end }}
+    {{- if $s.pushgateway }}
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $v.observabilityNamespace }} } }
+      ports: [{ port: 9091, protocol: TCP }]
+    {{- end }}
+{{- end }}

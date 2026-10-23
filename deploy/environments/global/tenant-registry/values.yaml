@@ -1,0 +1,4 @@
+# SVC-03 tenant-registry production (INF-20). Ảnh dịch vụ theo digest do ApplicationSet truyền từ digests.yaml; ảnh
+# Flyway của Job migrate ghim digest (SEC-55) qua proxy Docker Hub của Harbor.
+migration:
+  image: harbor.vt.local/dockerhub/flyway/flyway:11@sha256:782c5c207ffb5ac6336139fda4f4295bd9991ef63ad36919406d4268740069bb

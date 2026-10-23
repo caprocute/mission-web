@@ -78,12 +78,43 @@ vt.io/cell: {{ . | quote }}
 {{- toYaml ($l | uniq | sortAlpha) -}}
 {{- end -}}
 
-{{/* Khối SQL initdb cho bao_admin (INF-13). Đối số: a (tên vai trò), schemas, matKhau (chuỗi đã sẵn để chèn). */}}
+{{/* Khối SQL initdb cho bao_admin (INF-13). Đối số: a (tên vai trò), schemas, matKhau (chuỗi đã sẵn để chèn).
+       bao_admin chỉ cần ADMIN OPTION để tạo người dùng động "IN ROLE svc_<schema>": cấp INHERIT FALSE, SET FALSE và
+       không đặt createrole_self_grant, nên bao_admin không đọc được bảng nghiệp vụ, kể cả qua người dùng động do nó
+       tạo (SEC-58, INF-27). pg_signal_backend để câu thu hồi ngắt phiên còn mở của người dùng động. */}}
 {{- define "data-pg.baoAdminSql" -}}
-CREATE ROLE {{ .a }} WITH LOGIN CREATEROLE INHERIT NOBYPASSRLS CONNECTION LIMIT {{ .gioiHan }} PASSWORD '{{ .matKhau }}';
-ALTER ROLE {{ .a }} SET createrole_self_grant = 'set, inherit';
+CREATE ROLE {{ .a }} WITH LOGIN CREATEROLE NOINHERIT NOBYPASSRLS CONNECTION LIMIT {{ .gioiHan }} PASSWORD '{{ .matKhau }}';
+GRANT pg_signal_backend TO {{ .a }} WITH INHERIT TRUE;
 {{- range .schemas }}
 CREATE ROLE svc_{{ . }} WITH NOLOGIN NOINHERIT NOBYPASSRLS;
-GRANT svc_{{ . }} TO {{ $.a }} WITH ADMIN TRUE, INHERIT TRUE, SET TRUE;
+GRANT svc_{{ . }} TO {{ $.a }} WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
 {{- end }}
+{{- end -}}
+
+{{- /* INF-28: vai trò của TTDL này trong replica cluster. Trả enabled, self, peer, primary (mã TTDL). */ -}}
+{{- define "data-pg.replica" -}}
+{{- $v := .Values }}
+{{- if $v.replica.enabled }}
+{{- $self := toString $v.global.site }}
+{{- $role := toString $v.global.siteRole }}
+{{- if not (has $self $v.replica.sites) }}{{ fail (printf "data-pg: replica.enabled cần global.site thuộc %v, có %q" $v.replica.sites $self) }}{{ end }}
+{{- if not (has $role (list "primary" "standby")) }}{{ fail (printf "data-pg: replica.enabled cần global.siteRole primary hoặc standby, có %q" $role) }}{{ end }}
+{{- if ne (len $v.replica.sites) 2 }}{{ fail "data-pg: replica.sites phải có đúng hai TTDL" }}{{ end }}
+{{- if not $v.global.cell }}{{ fail "data-pg: replica.enabled cần global.cell" }}{{ end }}
+{{- $peer := first (without $v.replica.sites $self) }}
+enabled: true
+self: {{ $self }}
+peer: {{ $peer }}
+primary: {{ ternary $self $peer (eq $role "primary") }}
+standby: {{ eq $role "standby" }}
+{{- else }}
+enabled: false
+standby: false
+{{- end }}
+{{- end -}}
+{{/* serverName của cụm trong kho Barman Cloud (INF-17, INF-28): khi bật replica, TTDL khác initdbSite thêm hậu tố
+-<ttdl> để hai TTDL không ghi WAL vào cùng đường dẫn. */}}
+{{- define "data-pg.serverName" -}}
+{{- $v := .root.Values -}}
+{{- if and $v.replica.enabled .site (ne .site $v.replica.initdbSite) }}{{ .ten }}-{{ .site }}{{ else }}{{ .ten }}{{ end -}}
 {{- end -}}

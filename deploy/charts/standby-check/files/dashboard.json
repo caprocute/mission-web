@@ -1,0 +1,137 @@
+{
+ "title": "Bản sao ấm",
+ "uid": "ban-sao-am",
+ "schemaVersion": 39,
+ "time": {
+  "from": "now-24h",
+  "to": "now"
+ },
+ "panels": [
+  {
+   "type": "timeseries",
+   "title": "Độ trễ WAL theo cụm",
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 12,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    }
+   },
+   "targets": [
+    {
+     "expr": "max by (cluster) (cnpg_pg_replication_lag)",
+     "legendFormat": "{{cluster}}{{target}}"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Replica đang phục hồi",
+   "gridPos": {
+    "x": 12,
+    "y": 0,
+    "w": 12,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    }
+   },
+   "targets": [
+    {
+     "expr": "min by (cluster) (cnpg_pg_replication_in_recovery)",
+     "legendFormat": "{{cluster}}{{target}}"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Độ trễ MirrorMaker 2",
+   "gridPos": {
+    "x": 0,
+    "y": 8,
+    "w": 12,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "ms"
+    }
+   },
+   "targets": [
+    {
+     "expr": "max by (target) (kafka_connect_mirror_source_connector_replication_latency_ms_max)",
+     "legendFormat": "{{cluster}}{{target}}"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Thông điệp nhân bản mỗi giây",
+   "gridPos": {
+    "x": 12,
+    "y": 8,
+    "w": 12,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "ops"
+    }
+   },
+   "targets": [
+    {
+     "expr": "sum(rate(kafka_connect_mirror_source_connector_record_count[5m]))",
+     "legendFormat": "{{cluster}}{{target}}"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "RGW: shard chưa đồng bộ",
+   "gridPos": {
+    "x": 0,
+    "y": 16,
+    "w": 12,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    }
+   },
+   "targets": [
+    {
+     "expr": "max by (source_zone) (ceph_rgw_sync_behind_shards)",
+     "legendFormat": "{{cluster}}{{target}}"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Kiểm sẵn sàng hằng ngày đạt",
+   "gridPos": {
+    "x": 12,
+    "y": 16,
+    "w": 12,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    }
+   },
+   "targets": [
+    {
+     "expr": "vt:ban_sao_am_kiem_tra_dat",
+     "legendFormat": "{{cluster}}{{target}}"
+    }
+   ]
+  }
+ ]
+}

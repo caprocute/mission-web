@@ -82,3 +82,5 @@ Bảng theo TL-04 mục 11.1. Cột "Sổ tay chi tiết" là sổ tay thành ph
 | `nang-bac` | [canh-bao](canh-bao/nang-bac.md) | NG01..NG14 | Ngưỡng nâng bậc của TL-05 và quy trình nâng bậc |
 
 Sổ tay thành phần khác ở thư mục gốc: `phat-lai-outbox.md` (phát lại sự kiện từ outbox, NEN-022), `suy-giam-ba-muc.md` (bộ điều khiển suy giảm ba mức, INF-25), `org-republish.md`, `luu-tru-xoa-khoi-phuc.md`, `an-ninh-pam-rbac.md`, `an-ninh-soc-quy-tac.md`, `an-ninh-falco.md`, `openbao-hsm.md`.
+
+Sổ tay đã có: `phat-lai-outbox.md` (phát lại sự kiện từ outbox, NEN-022), `degradation.md` (bật, tắt mức suy giảm của cổng API, DV-01-02), `geodns.md` (GeoDNS, chuyển vùng cell và `pg-registry`, INF-20), `ban-sao-am.md` (bản sao ấm ở TTDL thứ hai, INF-28).

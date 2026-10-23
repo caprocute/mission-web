@@ -282,6 +282,58 @@ func TestProvisionAndActivate(t *testing.T) {
 	if rec = f.activate(t, adminToken(), v.ID, sus.RowVersion, ""); rec.Code != 200 || decode[cfgTenant](t, rec).Status != "DANG_VAN_HANH" {
 		t.Fatalf("vận hành lại sau tạm ngừng: %d %s", rec.Code, rec.Body.String())
 	}
+
+	// Chấm dứt (VH-04): chỉ từ TAM_NGUNG, lý do và biên bản bàn giao bắt buộc, AAL2, chỉ quản trị nền tảng.
+	const chamDut = `{"reason":"Thanh lý hợp đồng số 45/HĐ","handoverRef":"BB-BG-2026-07"}`
+	if err := specs.ValidateRequest(configYAML, "/config/tenants/{id}/terminate", "post", "application/json", []byte(chamDut)); err != nil {
+		t.Fatalf("thân yêu cầu lệch hợp đồng: %v", err)
+	}
+	g = f.get(t, v.ID)
+	expectProblem(t, f.terminate(t, adminToken(), v.ID, g.RowVersion, chamDut), 409, "CONFIG-409-TENANT-STATE")
+	rec = f.suspend(t, adminToken(), v.ID, g.RowVersion, lyDo)
+	if rec.Code != 200 {
+		t.Fatalf("tạm ngừng lần 2: %d %s", rec.Code, rec.Body.String())
+	}
+	g = decode[cfgTenant](t, rec)
+	p = expectProblem(t, f.terminate(t, adminToken(), v.ID, g.RowVersion, `{"reason":"Thanh lý","handoverRef":" "}`), 422, "COMMON-422-VALIDATION")
+	if len(p.Errors) != 1 || p.Errors[0].Field != "handoverRef" {
+		t.Fatalf("lỗi trường: %+v", p.Errors)
+	}
+	expectProblem(t, f.terminate(t, aal1Admin(), v.ID, g.RowVersion, chamDut), 401, "COMMON-401-STEP-UP")
+	expectProblem(t, f.terminate(t, tenantAdminToken(v.Code), v.ID, g.RowVersion, chamDut), 403, "")
+	expectProblem(t, f.terminate(t, adminToken(), v.ID, g.RowVersion+1, chamDut), 409, "CONFIG-409-VERSION-CONFLICT")
+	before = outboxTopic(t, v.ID, "registry.tenant.changed.v1")
+	rec = f.terminate(t, adminToken(), v.ID, g.RowVersion, chamDut)
+	if rec.Code != 200 {
+		t.Fatalf("chấm dứt: %d %s", rec.Code, rec.Body.String())
+	}
+	var end struct {
+		Status     string `json:"status"`
+		RowVersion int    `json:"rowVersion"`
+		StatusLog  []struct {
+			ToStatus string `json:"toStatus"`
+			Reason   string `json:"reason"`
+		} `json:"statusLog"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &end)
+	if end.Status != "DA_CHAM_DUT" || end.StatusLog[0].ToStatus != "DA_CHAM_DUT" || !strings.Contains(end.StatusLog[0].Reason, "45/HĐ") ||
+		!strings.Contains(end.StatusLog[0].Reason, "BB-BG-2026-07") || rec.Header().Get("ETag") != fmt.Sprintf(`"%d"`, end.RowVersion) {
+		t.Fatalf("sau chấm dứt: %s", rec.Body.String())
+	}
+	if n := outboxTopic(t, v.ID, "registry.tenant.changed.v1"); n < before+1 {
+		t.Fatalf("phải phát registry.tenant.changed.v1 khi chấm dứt")
+	}
+	// Trạng thái cuối: không kích hoạt lại, không chấm dứt lần nữa.
+	expectProblem(t, f.activate(t, adminToken(), v.ID, end.RowVersion, ""), 409, "CONFIG-409-TENANT-STATE")
+	expectProblem(t, f.terminate(t, adminToken(), v.ID, end.RowVersion, chamDut), 409, "CONFIG-409-TENANT-STATE")
+}
+
+func (f *sagaFixture) terminate(t *testing.T, tok string, id uuid.UUID, version int, body string) *httpRec {
+	t.Helper()
+	rec := f.do(t, http.MethodPost, "/api/v1/config/tenants/"+id.String()+"/terminate", tok, []byte(body),
+		map[string]string{"Idempotency-Key": uuid.NewString(), "If-Match": fmt.Sprintf(`"%d"`, version), "Content-Type": "application/json"})
+	conform(t, configYAML, "/config/tenants/{id}/terminate", "post", rec)
+	return rec
 }
 
 func outboxTopic(t *testing.T, tid uuid.UUID, topic string) int {

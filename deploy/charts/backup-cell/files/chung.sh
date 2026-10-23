@@ -18,3 +18,13 @@ day_chi_so() {
   fi
   curl -sS --fail --max-time 30 --data-binary @- "$PUSHGATEWAY/metrics/$duong"
 }
+# INF-18 · Gọi HTTP của ClickHouse (CH_URL, CH_USER, CH_PASSWORD_FILE, CH_CA): câu lệnh đọc từ stdin, kết quả TSV.
+ch() {
+  curl -sS --fail-with-body --max-time "${CH_THOI_GIAN:-300}" ${CH_CA:+--cacert "$CH_CA"} \
+    -H "X-ClickHouse-User: $CH_USER" -H "X-ClickHouse-Key: $(cat "$CH_PASSWORD_FILE")" --data-binary @- "$CH_URL/"
+}
+# INF-18 · Gọi REST của OpenSearch (OS_URL, OS_USER, OS_PASSWORD_FILE, OS_CA): os_api <phương thức> <đường dẫn> [thân JSON].
+os_api() {
+  curl -sS --fail-with-body --max-time "${OS_THOI_GIAN:-3600}" ${OS_CA:+--cacert "$OS_CA"} -u "$OS_USER:$(cat "$OS_PASSWORD_FILE")" \
+    -X "$1" -H 'Content-Type: application/json' ${3:+--data-binary "$3"} "$OS_URL$2"
+}

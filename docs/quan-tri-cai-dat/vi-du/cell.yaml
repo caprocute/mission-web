@@ -1,0 +1,13 @@
+# Mẫu deploy/cells/<mã cell>/cell.yaml cho bản cài đám mây riêng (VH-06), cùng khuôn với deploy/cells/nb/cell.yaml.
+cell:
+  name: kh01
+  displayName: CELL-KH01
+  sizing: compact
+  tenancy: silo
+  # Một địa điểm: không có bản sao ấm (TL-05 mục 9.1), standbySite để trống.
+  primarySite: chinh
+  standbySite: ""
+  releaseWave: "0"
+  # Trùng giá trị instance của chart deploy/argocd cài tại chỗ.
+  argocd: tai-cho
+  silos: []

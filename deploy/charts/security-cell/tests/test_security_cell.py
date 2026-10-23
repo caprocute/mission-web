@@ -200,6 +200,20 @@ class Falcosidekick(CoSo):
         self.assertIn("secretKeyRef", env["WEBHOOK_ADDRESS"]["valueFrom"])
         self.assertEqual(env["HTTPS_PROXY"]["value"], "http://egress-gateway.egress.svc:443")
 
+    def test_vao_mesh_de_goi_egress_gateway(self):
+        """Pod Falcosidekick vào mesh ambient (danh tính namespace cho AuthorizationPolicy của cell-egress); cổng 2801
+        nhận Falco ngoài mesh qua PERMISSIVE riêng; NetworkPolicy mở HBONE tới namespace egress (INF-19)."""
+        nhan = tim(self.d, "Deployment", "falcosidekick")[0]["spec"]["template"]["metadata"]["labels"]
+        self.assertEqual(nhan["istio.io/dataplane-mode"], "ambient")
+        self.assertNotIn("istio.io/dataplane-mode", tim(self.d, "Namespace", "platform-privileged")[0]["metadata"]["labels"])
+        pa = tim(self.d, "PeerAuthentication", "falcosidekick")[0]["spec"]
+        self.assertEqual(pa["mtls"]["mode"], "STRICT")
+        self.assertEqual(pa["portLevelMtls"], {2801: {"mode": "PERMISSIVE"}})
+        ra = tim(self.d, "NetworkPolicy", "falcosidekick-egress")[0]["spec"]["egress"]
+        self.assertIn([{"protocol": "TCP", "port": 15008}], [r["ports"] for r in ra])
+        tat = docs("--set", "falcosidekick.soc.enabled=false")
+        self.assertFalse(tim(tat, "PeerAuthentication"))
+
 
 class Tetragon(CoSo):
     def test_chan_ptrace_o_secure(self):

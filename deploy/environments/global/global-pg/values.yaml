@@ -1,0 +1,3 @@
+# pg-registry production (INF-20): primary ở Hoà Lạc. Chuyển vùng có kế hoạch (DR-16) hoặc khi IC duyệt sau DR-13 thì
+# đổi primarySite ở tệp này và ở global-dns/values.yaml trong cùng một commit (áp cho cả hai TTDL).
+primarySite: hl

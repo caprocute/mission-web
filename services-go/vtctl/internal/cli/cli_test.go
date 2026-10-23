@@ -256,6 +256,13 @@ func registryFake(w http.ResponseWriter, r *http.Request, c call) {
 			return
 		}
 		problem(w, 409, "CONFIG-409-TENANT-STATE")
+	case r.Method == "POST" && c.Path == "/api/v1/config/tenants/"+tenantID+"/terminate":
+		if c.IfMatch != `"5"` {
+			problem(w, 428, "COMMON-428-PRECONDITION-REQUIRED")
+			return
+		}
+		w.Header().Set("ETag", `"6"`)
+		_ = json.NewEncoder(w).Encode(map[string]any{"id": tenantID, "status": "DA_CHAM_DUT"})
 	case r.Method == "GET" && c.Path == "/api/v1/registry/cells?limit=200":
 		_ = json.NewEncoder(w).Encode(map[string]any{"items": []map[string]any{{"id": cellID, "code": "CELL-NB", "status": "HOAT_DONG", "apiBaseUrl": "http://cell-nb.invalid"}}})
 	case r.Method == "POST" && c.Path == "/api/v1/registry/tenants/"+tenantID+"/move":
@@ -334,6 +341,26 @@ func TestTamNgungTenant(t *testing.T) {
 		t.Fatalf("lời gọi ghi: %+v", w)
 	}
 	if rs := e.audits(); len(rs) != 1 || rs[0].Command != "tenant suspend" || rs[0].Outcome != audit.OutcomeFailed {
+		t.Fatalf("kiểm toán: %+v", rs)
+	}
+}
+
+// Chấm dứt tenant gọi terminateConfigTenant với lý do và số biên bản bàn giao; thiếu biên bản là lỗi dùng lệnh.
+func TestChamDutTenant(t *testing.T) {
+	e := newEnv(t, registryFake, nil, nil)
+	if code, _, _ := e.vtctl("tenant", "terminate", tenantID, "--reason", "Thanh lý hợp đồng 45/HĐ", "--confirm"); code != 2 {
+		t.Fatal("thiếu --handover-ref phải là lỗi dùng lệnh")
+	}
+	code, out, errs := e.vtctl("tenant", "terminate", tenantID, "--reason", "Thanh lý hợp đồng 45/HĐ", "--handover-ref", "BB-BG-2026-07", "--confirm")
+	if code != 0 || !strings.Contains(out, "DA_CHAM_DUT") {
+		t.Fatalf("mã %d\n%s%s", code, out, errs)
+	}
+	w := e.reg.writes()
+	if len(w) != 1 || w[0].Path != "/api/v1/config/tenants/"+tenantID+"/terminate" || w[0].IfMatch != `"5"` || w[0].ACR != "aal2" ||
+		w[0].Body["reason"] != "Thanh lý hợp đồng 45/HĐ" || w[0].Body["handoverRef"] != "BB-BG-2026-07" {
+		t.Fatalf("lời gọi ghi: %+v", w)
+	}
+	if rs := e.audits(); len(rs) != 1 || rs[0].Command != "tenant terminate" || rs[0].Outcome != audit.OutcomeOK {
 		t.Fatalf("kiểm toán: %+v", rs)
 	}
 }

@@ -248,7 +248,7 @@
       "cheDoCaoTuoi": true,
       "kichBanUat": ["UAT-04"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-12",
@@ -271,7 +271,7 @@
       "cheDoCaoTuoi": false,
       "kichBanUat": ["UAT-04"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-13",
@@ -300,7 +300,7 @@
       "cheDoCaoTuoi": true,
       "kichBanUat": ["UAT-06"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-14",
@@ -323,7 +323,7 @@
       "cheDoCaoTuoi": false,
       "kichBanUat": ["UAT-06"],
       "ghiChu": "Văn bản đến nạp bằng dữ liệu khởi tạo (EVT-24 giả lập).",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-15",
@@ -346,7 +346,7 @@
       "cheDoCaoTuoi": false,
       "kichBanUat": ["UAT-06"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-16",
@@ -387,7 +387,7 @@
       "cheDoCaoTuoi": true,
       "kichBanUat": ["UAT-07"],
       "ghiChu": "Hành trình mẫu của QA-03.",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-18",
@@ -405,7 +405,7 @@
       "cheDoCaoTuoi": false,
       "kichBanUat": ["UAT-07"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-19",
@@ -432,7 +432,7 @@
       "cheDoCaoTuoi": false,
       "kichBanUat": ["UAT-07"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-20",
@@ -465,7 +465,7 @@
       "cheDoCaoTuoi": true,
       "kichBanUat": ["UAT-08"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-21",
@@ -502,7 +502,7 @@
       "cheDoCaoTuoi": false,
       "kichBanUat": ["UAT-09"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-22",

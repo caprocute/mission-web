@@ -133,7 +133,7 @@ roleLimits: { ro: 20, cdc: 5, mig: 10 }
 clients:
   pg-core:     { rw: [core], ro: [core, analytics] }
   pg-flowable: { rw: [core, workers] }
-  pg-platform: { rw: [platform, workers, analytics], ro: [analytics] }
+  pg-platform: { rw: [platform, workers, analytics], ro: [analytics, sao-luu] }   # sao-luu: kiểm mẫu minh chứng (INF-18)
   pg-iam:      { rw: [identity] }
   pg-ledger:   { rw: [secure] }
   pg-secure:   { rw: [secure] }
@@ -148,8 +148,8 @@ placement:
     nodeSelector: { vt.io/pool: postgres }
     tolerations: [{ key: vt.io/pool, operator: Equal, value: postgres, effect: NoSchedule }]
   secure:
-    nodeSelector: { vt.io/pool: security-zone }
-    tolerations: [{ key: vt.io/pool, operator: Equal, value: security-zone, effect: NoSchedule }]
+    nodeSelector: { vt.io/zone: secure }
+    tolerations: [{ key: vt.io/zone, operator: Equal, value: secure, effect: NoSchedule }]
   # required ở cụm thật (ba vùng sự cố); compact chỉ một vùng nên hạ về preferred và khoá theo hostname.
   antiAffinity: required
 
@@ -221,3 +221,30 @@ backup:
   # ở kind là pod MinIO trong cụm.
   egressTo: []
   egressPort: 443
+
+# INF-28 · Bản sao ấm ở TTDL thứ hai (TL-04 "PostgreSQL: CloudNativePG và Barman Cloud", replica cluster; DR-10,
+# DR-16). Bật ở values của cả hai TTDL (cells/<cell>/values-<site>.yaml): mỗi cụm khai cùng một manifest theo
+# distributed topology của CNPG (replica.self, replica.primary, externalClusters cho cả hai TTDL). Cụm nào là
+# primary suy ra từ global.siteRole do ApplicationSet tính từ primarySite trong cells/<cell>/cell.yaml, nên chuyển
+# vùng có kế hoạch là một commit đổi primarySite: CNPG hạ cấp cụm cũ, ghi WAL cuối rồi promote cụm mới.
+replica:
+  enabled: false
+  sites: [hl, sn]
+  # TTDL khởi tạo cụm bằng initdb (giữ cố định sau lần dựng đầu, bootstrap không đổi khi chuyển vùng); TTDL kia
+  # dựng bằng pg_basebackup từ cụm này.
+  initdbSite: hl
+  # Địa chỉ dịch vụ rw của cụm ở từng TTDL, các %s lần lượt: tên cụm, namespace, mã cell, TTDL (TL-04: ví dụ
+  # pg-core-rw.data-pg.cell-hcm-hl.vt.local). Mạng liên TTDL và DNS nội bộ xuất các tên này.
+  hostFormat: "%s-rw.%s.cell-%s-%s.vt.local"
+  # Chứng thư client streaming_replica (do CA của cụm bên kia ký) và CA máy chủ của cụm bên kia, đồng bộ qua
+  # OpenBao PKI (tên Secret: %s là tên cụm, rồi TTDL của CA).
+  replicationSecretFormat: "%s-replication"
+  caSecretFormat: "%s-ca-%s"
+  # Dải địa chỉ node của cụm TTDL kia được mở 5432 tới instance (luồng WAL hai chiều để quay về, DR-16).
+  peerCIDRs: []
+  # Nguồn WAL dự phòng từ kho Barman Cloud của INF-17 (ObjectStore <backup.objectStorePrefix>-<cụm>, cần
+  # backup.enabled): khi luồng streaming đứt, cụm chờ đọc WAL của TTDL kia từ kho. Hai TTDL ghi chung một bucket nên
+  # serverName phải khác nhau: TTDL initdbSite giữ tên cụm (restore-check và runbook sao lưu của INF-17 không đổi),
+  # TTDL kia dùng <cụm>-<ttdl> (cùng quy ước với global-pg).
+  walArchive:
+    enabled: true

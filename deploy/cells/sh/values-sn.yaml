@@ -1,0 +1,113 @@
+# INF-28 · Values của CELL-SH tại TTDL phía Nam ở vai trò chờ ấm (TL-04 "Topology hai trung tâm dữ liệu").
+# Chồng sau values.yaml của cell. Lớp dữ liệu giữ đủ kích thước của hồ sơ M và nhận dữ liệu liên tục (CNPG
+# replica cluster, MirrorMaker 2); lớp ứng dụng mỗi workload 1 replica (min của HPA, KEDA), max giữ nguyên để tăng
+# khi chuyển vùng; ai-gateway và vLLM tắt (TL-04: AI tạm ngừng khi chuyển vùng). Vai trò chờ hay primary do
+# ApplicationSet suy ra từ primarySite trong cell.yaml, nên khi chuyển vùng tệp này vẫn áp: cần nâng lớp ứng dụng
+# thì sửa ở đây trong cùng commit (sổ tay ops/runbooks/ban-sao-am.md).
+# Dải node của cụm TTDL kia (peerCIDRs) khai ở deploy/environments/<môi trường> khi được cấp.
+global:
+  topology:
+    zones:
+    - sn-a
+    - sn-b
+    - sn-c
+data-pg:
+  replica:
+    enabled: true
+kafka:
+  mirrorMaker2:
+    vaiTro: ttdl
+ai-gateway:
+  enabled: false
+api-gateway:
+  apisix:
+    autoscaling:
+      minReplicas: 1
+iam:
+  mayChu:
+    autoscaling:
+      hpa:
+        minReplicas: 1
+org-service:
+  replicaCount: 1
+mission-core:
+  autoscaling:
+    keda:
+      minReplicas: 1
+workflow-service:
+  api:
+    replicaCount: 1
+    hpa:
+      minReplicas: 1
+  executor:
+    replicaCount: 1
+    keda:
+      minReplicaCount: 1
+scoring-service:
+  autoscaling:
+    keda:
+      minReplicas: 1
+evidence-service:
+  thanhPhan:
+    evidence-service:
+      autoscaling:
+        keda:
+          minReplicas: 1
+        hpa:
+          minReplicas: 1
+    scan-worker:
+      autoscaling:
+        keda:
+          minReplicas: 1
+    clamav:
+      autoscaling:
+        hpa:
+          minReplicas: 1
+ledger-service:
+  autoscaling:
+    keda:
+      minReplicas: 1
+esign-service:
+  autoscaling:
+    hpa:
+      minReplicas: 1
+document-service:
+  thanhPhan:
+    document-service:
+      autoscaling:
+        keda:
+          minReplicas: 1
+    gotenberg:
+      autoscaling:
+        keda:
+          minReplicas: 1
+notification-service:
+  autoscaling:
+    keda:
+      minReplicas: 1
+integration-gateway:
+  autoscaling:
+    hpa:
+      minReplicas: 1
+analytics:
+  thanhPhan:
+    analytics-api:
+      autoscaling:
+        hpa:
+          minReplicas: 1
+    cube:
+      autoscaling:
+        hpa:
+          minReplicas: 1
+    superset:
+      autoscaling:
+        hpa:
+          minReplicas: 1
+search:
+  autoscaling:
+    keda:
+      minReplicas: 1
+web-frontend:
+  autoscaling:
+    hpa:
+      minReplicas: 1

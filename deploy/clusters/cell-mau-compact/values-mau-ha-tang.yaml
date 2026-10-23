@@ -1,0 +1,17 @@
+# MẪU thông số hạ tầng (không phải giá trị thật): dùng để render và kiểm schema khuôn compact.
+infrastructure:
+  cloudName: ha-tang-mau
+  identitySecret: cell-kh01-chinh-cloud-config
+  externalNetwork: public-mau
+  nodeCIDR: 10.30.0.0/24
+  image: ubuntu-2404-kube-v1.36.0
+  sshKeyName: ""
+controlPlane:
+  flavor: vm.8c16g
+# Keycloak vận hành của khách hàng (mẫu, tên miền nội bộ).
+apiServer:
+  oidc:
+    issuerUrl: https://sso-ops.kh01.local/realms/platform-ops
+pools:
+  hoi-tu: { flavor: vm.32c128g }
+  du-lieu: { flavor: bm.32c128g-2nvme-2hdd }

@@ -1,0 +1,45 @@
+# INF-20 · Cụm PostgreSQL toàn cục pg-registry (TL-04 mục 2.5, 2.6; DR-13). Một bản chart cho mỗi cụm global-<site>.
+# Hai cụm CNPG ở hai TTDL dùng topology phân tán của CNPG (spec.replica.primary/self): cụm có self bằng primary là
+# primary ghi được, cụm kia là replica cluster nhận WAL trực tiếp. Đây là ngoại lệ duy nhất sao chép ĐỒNG BỘ chéo TTDL
+# (TL-04 mục 2.5): synchronous_commit = remote_apply, danh sách đồng bộ ưu tiên instance chỉ định của TTDL bên kia.
+# Tần suất ghi rất thấp (đăng ký tenant, bảng định tuyến) nên chấp nhận thêm 20–30 ms mỗi lần ghi.
+site: hl
+namespace: registry-db
+name: pg-registry
+# TTDL đang giữ primary; đổi ở cả hai bản values khi chuyển vùng có kế hoạch (DR-16) hoặc khi IC duyệt (DR-13).
+primarySite: hl
+sites: [hl, sn]
+instances: 3
+imageName: harbor.vt.local/platform/postgresql@sha256:a62c149a342b2b1955dda3a9d75e2c6851622e43302a577f393271c19a3c8622
+storage:
+  size: 50Gi
+  storageClass: local-nvme
+walStorage:
+  size: 20Gi
+  storageClass: local-nvme
+resources:
+  requests: { cpu: "2", memory: 8Gi }
+  limits: { cpu: "4", memory: 8Gi }
+# Đồng bộ chéo TTDL (suy luận cách diễn đạt bằng CNPG 1.26): FIRST 1 với tên các instance của TTDL bên kia đứng
+# trước, nên commit chờ instance chỉ định ở TTDL bên kia áp WAL (remote_apply); khi kênh liên TTDL đứt, danh sách
+# rơi về replica cùng TTDL (vẫn RPO 0 trong TTDL) và cảnh báo PgRegistryCrossSiteSyncLost báo cho SRE.
+synchronous:
+  method: first
+  number: 1
+  dataDurability: required
+# Địa chỉ của cụm ở TTDL khác mà cụm này đọc WAL (dịch vụ rw xuất qua mạng liên TTDL); TLS bằng chứng chỉ
+# streaming_replica do cert-manager cấp (Secret tên dưới), không có mật khẩu.
+peers:
+  hl: { host: pg-registry-rw.global-hl.internal, port: 5432 }
+  sn: { host: pg-registry-rw.global-sn.internal, port: 5432 }
+replicationSecrets:
+  ca: pg-registry-ca
+  clientCert: pg-registry-streaming-replica
+# Sao lưu liên tục lên Ceph RGW của TTDL (plugin barman-cloud).
+backup:
+  objectStore: pg-registry-backup
+  retention: 30d
+# CSDL: registry (SVC-03, vai trò svc_registry do migration của tenant-registry tạo) và pdns (PowerDNS gpgsql).
+databases:
+  registry: { owner: registry_owner }
+  pdns: { owner: pdns }

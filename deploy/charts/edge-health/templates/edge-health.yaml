@@ -1,0 +1,87 @@
+{{- $v := .Values }}
+{{- if not (regexMatch "@sha256:[a-f0-9]{64}$" $v.image) }}{{ fail "edge-health: ảnh phải ghim digest (SEC-55)" }}{{ end }}
+{{- $w := $v.workload }}
+{{- $wpath := printf "/apis/%s/%s/namespaces/%s/%s/%s" $w.group $w.version $w.namespace $w.resource $w.name }}
+{{- if eq $w.group "" }}{{ $wpath = printf "/api/%s/namespaces/%s/%s/%s" $w.version $w.namespace $w.resource $w.name }}{{ end }}
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: edge-health, namespace: {{ $v.namespace }} }
+{{- range $ns, $quyen := dict $w.namespace (list $w.group $w.resource $w.name) $v.pg.namespace (list "postgresql.cnpg.io" "clusters" $v.pg.name) }}
+---
+# Chỉ đọc đúng một tài nguyên (resourceNames), không liệt kê được gì khác.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: edge-health-doc, namespace: {{ $ns }} }
+rules:
+  - apiGroups: [{{ index $quyen 0 | quote }}]
+    resources: [{{ index $quyen 1 }}]
+    resourceNames: [{{ index $quyen 2 }}]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: edge-health-doc, namespace: {{ $ns }} }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: edge-health-doc }
+subjects: [{ kind: ServiceAccount, name: edge-health, namespace: {{ $v.namespace }} }]
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge-health
+  namespace: {{ $v.namespace }}
+  labels: { app.kubernetes.io/name: edge-health }
+spec:
+  replicas: {{ $v.replicas }}
+  selector: { matchLabels: { app.kubernetes.io/name: edge-health } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: edge-health }
+    spec:
+      serviceAccountName: edge-health
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: edge-health } } }
+      containers:
+        - name: edge-health
+          image: {{ $v.image }}
+          command: ["/usr/local/bin/edge-health"]
+          env:
+            - { name: WORKLOAD_PATH, value: {{ $wpath | quote }} }
+            - { name: PG_PATH, value: {{ printf "/apis/postgresql.cnpg.io/v1/namespaces/%s/clusters/%s" $v.pg.namespace $v.pg.name | quote }} }
+            - { name: CACHE_FOR, value: {{ $v.cacheFor | quote }} }
+          ports: [{ name: http, containerPort: 8080 }]
+          readinessProbe: { httpGet: { path: /healthz, port: http }, periodSeconds: 5 }
+          livenessProbe: { httpGet: { path: /healthz, port: http }, periodSeconds: 10 }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+          resources: {{ toJson $v.resources }}
+---
+apiVersion: v1
+kind: Service
+metadata: { name: edge-health, namespace: {{ $v.namespace }} }
+spec:
+  selector: { app.kubernetes.io/name: edge-health }
+  ports: [{ name: http, port: 8080, targetPort: http }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: edge-health, namespace: {{ $v.namespace }} }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app.kubernetes.io/name: edge-health } }
+{{- if $v.apisixRoute.enabled }}
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata: { name: healthz-edge, namespace: {{ $v.namespace }} }
+spec:
+  http:
+    - name: healthz-edge
+      priority: 100
+      match:
+        hosts: {{ toJson $v.apisixRoute.hosts }}
+        paths: ["/healthz/edge"]
+        methods: ["GET", "HEAD"]
+      backends:
+        - { serviceName: edge-health, servicePort: 8080 }
+{{- end }}

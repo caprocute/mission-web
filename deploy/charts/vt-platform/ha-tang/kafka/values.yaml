@@ -29,6 +29,11 @@ brokers:
 controllers:
   replicas: 3
   resources: { cpu: "1", memory: 4Gi }
+# Bố trí node (TL-04 mục 3.3): broker và controller trên pool data-kafka (nhãn vt.io/pool=kafka, taint cùng tên).
+# Strimzi không có nodeSelector trong template pod nên chart dựng nodeAffinity bắt buộc từ nodeSelector này.
+placement:
+  nodeSelector: { vt.io/pool: kafka }
+  tolerations: [{ key: vt.io/pool, operator: Equal, value: kafka, effect: NoSchedule }]
 # Ổ dữ liệu broker theo hồ sơ (TL-05: lưu giữ 0,1 / 0,6 / 1,5 / 2,2 TB sau nhân bản, NVMe dư 7–10 lần; M lấy
 # 3500Gi của Phụ lục A, các hồ sơ khác suy luận cùng tỷ lệ). Controller giữ siêu dữ liệu KRaft, 20Gi.
 luuTru:
@@ -161,3 +166,56 @@ containerSecurityContext:
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
   capabilities: { drop: [ALL] }
+
+# Nhân bản một chiều sang TTDL còn lại bằng MirrorMaker 2 (INF-18, TL-04 mục 8.3; INF-28 bản sao ấm, TL-04 "Kafka:
+# MirrorMaker 2"). Mô hình chủ động, thụ động: MM2 chạy ở cụm thụ động, kéo từ cụm chủ động; IdentityReplicationPolicy
+# giữ nguyên tên topic nên chỉ một chiều tại một thời điểm, đảo chiều khi chuyển vùng (ops/runbooks/sao-luu-kafka.md,
+# ops/runbooks/ban-sao-am.md). Vai trò:
+#   nguon: chỉ tạo KafkaUser chỉ đọc (nguoiDungNguon) cho MM2 phía kia;
+#   dich:  chạy MM2 kéo từ nguon.bootstrapServers;
+#   ttdl:  (INF-28, đặt ở cells/<cell>/values-<site>.yaml) suy từ global.siteRole: primary là nguon, standby là dich;
+#          bí danh, tên CR (mm2-<nguồn>-to-<đích>), tài khoản (mm2-<ttdl>-user), CA (kafka-<ttdl>-cluster-ca-cert) và
+#          bootstrap liên TTDL suy từ global.site, nên chiều nhân bản đảo cùng commit đổi primarySite (DR-10, DR-16);
+#          broker mở listener liên TTDL (lienTtdl) ở cả hai TTDL để quay về được.
+mirrorMaker2:
+  vaiTro: ""            # "", nguon, dich, ttdl
+  ten: mm2-hl-to-sn
+  replicas: 3
+  # Bí danh và địa chỉ cụm nguồn (chủ động), CA và chứng thư khách do cụm nguồn cấp, chép sang qua ESO từ OpenBao
+  # (kv/cell-<mã>/kafka/mm2-nguon: ca.crt, user.crt, user.key; suy luận cách chuyển Secret giữa hai TTDL).
+  nguon:
+    alias: hl
+    bootstrapServers: ""    # ví dụ kafka-hl-bootstrap.cell-hcm-hl.vt.local:9093
+    caSecret: kafka-hl-cluster-ca-cert
+    userSecret: mm2-hl-user
+    openbaoPath: ""         # rỗng: kv/cell-<mã>/kafka/mm2-nguon
+  # Bí danh của cụm đích (cụm có chart này); người dùng mTLS của MM2 trên cụm đích do chart tạo.
+  dich:
+    alias: sn
+    user: mm2-sn-user
+  # Tên KafkaUser trên cụm nguồn cho MM2 đọc (vaiTro: nguon).
+  nguoiDungNguon: mm2-hl-user
+  topicsPattern: "^(okr|task|product|config|scoring|appraisal|policy|org|dossier|esign|ledger|analytics|notify|oversight|integ|sys|iam)\\..*"
+  topicsExcludePattern: ".*\\.(retry|replay)\\..*"
+  groupsPattern: ".*"
+  sourceTasksMax: 24
+  checkpointTasksMax: 4
+  dongBoOffsetGiay: 30
+  resources:
+    requests: { cpu: "2", memory: 4Gi }
+    limits: { cpu: "4", memory: 4Gi }
+  # Đích mạng tới broker cụm nguồn (NetworkPolicyPeer, khối địa chỉ khai theo cell). Với vaiTro ttdl, rỗng thì lấy
+  # lienTtdl.peerCIDRs.
+  egressTo: []
+  # vaiTro ttdl: hai TTDL của cell và bootstrap listener liên TTDL ở TTDL nguồn (%s lần lượt: mã cell, TTDL).
+  ttdl:
+    sites: [hl, sn]
+    bootstrapFormat: "kafka-cell-kafka-lienttdl-bootstrap.data-kafka.cell-%s-%s.vt.local:9094"
+  # Listener liên TTDL của broker (loadbalancer, mTLS), luôn mở khi vaiTro ttdl. peerCIDRs là dải node của TTDL kia
+  # (rỗng: không mở cho ai, dùng địa chỉ tài liệu 192.0.2.0/32).
+  lienTtdl:
+    enabled: false
+    port: 9094
+    type: loadbalancer
+    alternativeNames: []
+    peerCIDRs: []

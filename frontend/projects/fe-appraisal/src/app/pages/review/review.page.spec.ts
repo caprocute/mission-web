@@ -177,6 +177,21 @@ describe('ReviewPage (SCR-0902, WEB-036)', () => {
     expect(text(await until(again.el, '.msg.err'))).toContain('2/2 lần');
   });
 
+  it('ẩn ký và trả lại khi máy chủ không cho phép trên hồ sơ (permittedActions, YC-PT-21)', async () => {
+    const { el, harness } = await render(`/tham-dinh/${P}0a31`);
+    expect(button(el, 'Ký số và chuyển đề xuất')).toBeDefined();
+    const page = harness.routeDebugElement!.componentInstance as {
+      profile: { update(f: (p: object | undefined) => object | undefined): void };
+    };
+    page.profile.update((p) => (p ? { ...p, permittedActions: ['SCR-0902.tra-lai'] } : p));
+    harness.fixture.detectChanges();
+    expect(button(el, 'Ký số và chuyển đề xuất')).toBeUndefined();
+    expect(button(el, 'Trả lại bổ sung')).toBeDefined();
+    page.profile.update((p) => (p ? { ...p, permittedActions: [] } : p));
+    harness.fixture.detectChanges();
+    expect(button(el, 'Trả lại bổ sung')).toBeUndefined();
+  });
+
   it('ẩn nút theo ma trận quyền; chế độ cao tuổi ẩn bảng so sánh và xuất; xuất danh sách sinh liên kết tải', async () => {
     const view = await render(`/tham-dinh/${P}0a31`, {
       can: (k) => k === 'SCR-0902.xem',

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: global-cdn-origin
+description: INF-20 · origin CDN cho tài nguyên tĩnh của SVC-17 và UI Pack ở vùng điều phối toàn cục
+type: application
+version: 0.1.0

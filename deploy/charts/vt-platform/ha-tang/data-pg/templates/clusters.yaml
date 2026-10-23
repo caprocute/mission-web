@@ -3,6 +3,7 @@
 {{- if not (regexMatch "^sha256:[a-f0-9]{64}$" (toString $v.image.digest)) }}{{ fail "data-pg: ảnh PostgreSQL phải ghim digest sha256 (SEC-55)" }}{{ end }}
 {{- $hs := index $v.hoSo (include "data-pg.sizing" .) }}
 {{- $cums := fromYaml (include "data-pg.clusters" .) }}
+{{- $rp := fromYaml (include "data-pg.replica" .) }}
 {{- range $ten, $c := $cums }}
 {{- $k := fromYaml (include "data-pg.size" (dict "root" $root "ten" $ten)) }}
 {{- $pl := ternary $v.placement.secure $v.placement.app (eq $c.zone "secure") }}
@@ -33,7 +34,35 @@ spec:
       isWALArchiver: true
       parameters:
         barmanObjectName: {{ $v.backup.objectStorePrefix }}-{{ $ten }}
-        serverName: {{ $ten }}
+        serverName: {{ include "data-pg.serverName" (dict "root" $root "ten" $ten "site" $rp.self) }}
+  {{- end }}
+  {{- if $rp.enabled }}
+  {{- $ns := include "data-pg.ns" (dict "root" $root "zone" $c.zone) }}
+  # INF-28: distributed topology, cùng manifest ở hai TTDL; primary là {{ $ten }}-{{ $rp.primary }}.
+  replica:
+    self: {{ $ten }}-{{ $rp.self }}
+    primary: {{ $ten }}-{{ $rp.primary }}
+    source: {{ $ten }}-{{ $rp.peer }}
+  externalClusters:
+    {{- range $site := $v.replica.sites }}
+    - name: {{ $ten }}-{{ $site }}
+      connectionParameters:
+        host: {{ printf $v.replica.hostFormat $ten $ns $v.global.cell $site }}
+        user: streaming_replica
+        dbname: postgres
+        sslmode: verify-full
+      sslKey: { name: {{ printf $v.replica.replicationSecretFormat $ten }}, key: tls.key }
+      sslCert: { name: {{ printf $v.replica.replicationSecretFormat $ten }}, key: tls.crt }
+      sslRootCert: { name: {{ printf $v.replica.caSecretFormat $ten $site }}, key: ca.crt }
+      {{- if $v.replica.walArchive.enabled }}
+      {{- if not $v.backup.enabled }}{{ fail "data-pg: replica.walArchive cần backup.enabled (ObjectStore của INF-17)" }}{{ end }}
+      plugin:
+        name: {{ $v.backup.plugin }}
+        parameters:
+          barmanObjectName: {{ $v.backup.objectStorePrefix }}-{{ $ten }}
+          serverName: {{ include "data-pg.serverName" (dict "root" $root "ten" $ten "site" $site) }}
+      {{- end }}
+    {{- end }}
   {{- end }}
   postgresql:
     synchronous:
@@ -98,6 +127,10 @@ spec:
       - {{ $ten }}-pooler-{{ $loai }}.{{ include "data-pg.ns" (dict "root" $root "zone" $c.zone) }}.svc
       {{- end }}
   bootstrap:
+    {{- if and $rp.enabled (ne $rp.self $v.replica.initdbSite) }}
+    pg_basebackup:
+      source: {{ $ten }}-{{ $v.replica.initdbSite }}
+    {{- else }}
     initdb:
       database: khoi_tao
       owner: khoi_tao
@@ -106,6 +139,7 @@ spec:
         secretRefs:
           - { name: {{ $ten }}-bao-admin-khoi-tao, key: khoi-tao.sql }
       {{- end }}
+    {{- end }}
   resources:
     requests:
       cpu: {{ sub (int $k.cpu) (ternary 2 0 (gt (int $k.cpu) 8)) | quote }}

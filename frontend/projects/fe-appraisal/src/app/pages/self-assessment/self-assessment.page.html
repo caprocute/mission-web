@@ -32,7 +32,7 @@
           Lưu nháp
         </button>
       }
-      @if (isMine() && p.status === 'TU_DANH_GIA' && can('SCR-0901.ky-nop')) {
+      @if (isMine() && p.status === 'TU_DANH_GIA' && mayFileSign()) {
         <button
           type="button"
           class="btn primary"

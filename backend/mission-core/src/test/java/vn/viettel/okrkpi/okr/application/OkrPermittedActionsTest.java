@@ -28,7 +28,8 @@ class OkrPermittedActionsTest {
   void pendingObjectiveReviewedByAnotherPerson() {
     assertThat(OkrPermittedActions.objective("CHO_DUYET", "DON_VI", null, OTHER, ME))
         .containsExactly(OkrPermittedActions.DUYET, OkrPermittedActions.TRA_LAI);
-    assertThat(OkrPermittedActions.objective("CHO_DUYET", "DON_VI", null, ME, ME)).isEmpty();
+    assertThat(OkrPermittedActions.objective("CHO_DUYET", "DON_VI", null, ME, ME))
+        .containsExactly(OkrPermittedActions.TRA_LAI);
     assertThat(OkrPermittedActions.objective("DA_DUYET", "DON_VI", null, OTHER, ME)).isEmpty();
     assertThat(OkrPermittedActions.objective("NHAP", "DON_VI", null, OTHER, null)).isEmpty();
   }

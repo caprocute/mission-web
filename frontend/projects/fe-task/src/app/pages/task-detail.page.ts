@@ -6,7 +6,10 @@
  * Thẻ: Tổng quan, Tiến độ, Điểm nghẽn, Sản phẩm (sang SCR-0603), Đề nghị (rút lại khi Chờ duyệt), Lịch sử trạng thái.
  * Bên phải: thông tin giao việc, đề nghị đang chờ, vòng đời.
  * API: GET /tasks/{id}; POST /tasks/{id}/progress | /accept | /blockers | /change-requests | /change-requests/{cid}/withdraw.
- * Duyệt đề nghị, xử lý điểm nghẽn là việc của người giao (SCR-0505), không thuộc màn hình này.
+ * Phần của người giao trên cùng màn hình (TL-02 QT-06 bước 4, 6; QT-05 bước 1c): xử lý điểm nghẽn
+ *   (PATCH /tasks/{id}/blockers/{bid}, POST …/escalate), duyệt đề nghị (POST …/change-requests/{cid}/decision),
+ *   duyệt nhiệm vụ cán bộ đăng ký (POST /tasks/{id}/registration-decision); nút chỉ hiện khi có quyền theo ma
+ *   trận, ràng buộc theo đối tượng (người giao, người duyệt khác người gửi) do máy chủ kiểm.
  */
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
@@ -33,8 +36,10 @@ import { TabsModule } from 'primeng/tabs';
 import { TagModule } from 'primeng/tag';
 import { TASK_CAN } from '../task-permissions';
 import { TagSeverity, formatDate, statusSeverity } from '../task-ui';
+import { BlockerHandleDialog, BlockerHandleMode } from './task-detail/blocker-handle.dialog';
 import { BlockerReportDialog } from './task-detail/blocker-report.dialog';
 import { ChangeRequestDialog } from './task-detail/change-request.dialog';
+import { ManagerDecisionDialog } from './task-detail/manager-decision.dialog';
 import { ProgressUpdateDialog } from './task-detail/progress-update.dialog';
 
 const ACTIVE = new Set(['DA_GIAO', 'DANG_THUC_HIEN']);
@@ -63,8 +68,10 @@ export function coefficient(lateWorkingDays: number): number {
     MessageModule,
     TabsModule,
     TagModule,
+    BlockerHandleDialog,
     BlockerReportDialog,
     ChangeRequestDialog,
+    ManagerDecisionDialog,
     ProgressUpdateDialog,
   ],
   template: `
@@ -123,7 +130,7 @@ export function coefficient(lateWorkingDays: number): number {
               (onClick)="changeOpen.set(true)"
             />
           }
-          @if (can('SCR-0601.nop-sp') && !simple()) {
+          @if (can('SCR-0601.nop-sp') && (!simple() || needsProduct(t))) {
             <p-button
               label="Nộp sản phẩm"
               icon="pi pi-upload"
@@ -142,6 +149,25 @@ export function coefficient(lateWorkingDays: number): number {
           }
         }
       </div>
+
+      @if (registrationPending(t) && can('SCR-0501.giao')) {
+        <section class="box decide" aria-labelledby="dk-h">
+          <h2 id="dk-h" class="h">Đăng ký nhiệm vụ chờ duyệt</h2>
+          <p>
+            Cán bộ đăng ký thực hiện {{ t.plannedQuantity }} {{ t.unit }}, hạn đề xuất
+            {{ date(t.dueDate) }}. Duyệt để giao việc, hoặc từ chối kèm lý do.
+          </p>
+          <div class="actions">
+            <p-button label="Duyệt đăng ký" icon="pi pi-check" (onClick)="decide(null, true)" />
+            <p-button
+              label="Từ chối đăng ký"
+              severity="danger"
+              [outlined]="true"
+              (onClick)="decide(null, false)"
+            />
+          </div>
+        </section>
+      }
 
       @if (notice(); as n) {
         <p-message severity="success" [text]="n" styleClass="msg" role="status" />
@@ -272,6 +298,26 @@ export function coefficient(lateWorkingDays: number): number {
                     }
                     · báo {{ date(b.createdAt) }}
                   </p>
+                  @if (b.status !== 'DONG' && can('SCR-0601.xu-ly-nghen')) {
+                    <div class="row-actions" role="group" [attr.aria-label]="'Xử lý ' + b.code">
+                      <p-button
+                        label="Xử lý"
+                        severity="contrast"
+                        [outlined]="true"
+                        size="small"
+                        (onClick)="handle(b, 'xu-ly')"
+                      />
+                      @if (b.status === 'MO' || b.status === 'DANG_XU_LY') {
+                        <p-button
+                          label="Báo cáo cấp trên"
+                          severity="contrast"
+                          [outlined]="true"
+                          size="small"
+                          (onClick)="handle(b, 'cap-tren')"
+                        />
+                      }
+                    </div>
+                  }
                 </article>
               } @empty {
                 <p class="muted">Không có điểm nghẽn.</p>
@@ -314,6 +360,18 @@ export function coefficient(lateWorkingDays: number): number {
                     </p>
                     @if (r.decisionNote) {
                       <p class="small">Ý kiến người duyệt: {{ r.decisionNote }}</p>
+                    }
+                    @if (r.status === 'CHO_DUYET' && can('SCR-0601.duyet-de-nghi')) {
+                      <div class="row-actions" role="group" aria-label="Quyết định đề nghị">
+                        <p-button label="Duyệt" size="small" (onClick)="decide(r, true)" />
+                        <p-button
+                          label="Từ chối"
+                          severity="danger"
+                          [outlined]="true"
+                          size="small"
+                          (onClick)="decide(r, false)"
+                        />
+                      </div>
                     }
                     @if (r.status === 'CHO_DUYET' && can('SCR-0602.rut')) {
                       <p-button
@@ -387,6 +445,18 @@ export function coefficient(lateWorkingDays: number): number {
                 >: {{ crDetail(p) }}
               </p>
               <p class="muted small">Chờ đồng chí {{ p.approverName }} duyệt.</p>
+              @if (can('SCR-0601.duyet-de-nghi')) {
+                <div class="row-actions" role="group" aria-label="Quyết định đề nghị đang chờ">
+                  <p-button label="Duyệt" size="small" (onClick)="decide(p, true)" />
+                  <p-button
+                    label="Từ chối"
+                    severity="danger"
+                    [outlined]="true"
+                    size="small"
+                    (onClick)="decide(p, false)"
+                  />
+                </div>
+              }
             </section>
           }
           @if (!simple()) {
@@ -425,6 +495,20 @@ export function coefficient(lateWorkingDays: number): number {
         [task]="t"
         [(visible)]="changeOpen"
         (saved)="onSaved($event.task, 'Đã gửi đề nghị tới đồng chí ' + $event.approverName + '.')"
+      />
+      <vt-blocker-handle-dialog
+        [task]="t"
+        [blocker]="handling()"
+        [mode]="handleMode()"
+        [(visible)]="handleOpen"
+        (saved)="onBlockerSaved($event.toName)"
+      />
+      <vt-manager-decision-dialog
+        [task]="t"
+        [request]="deciding()"
+        [approve]="decideApprove()"
+        [(visible)]="decideOpen"
+        (saved)="onDecided($event)"
       />
     } @else {
       <p class="muted" aria-busy="true">Đang tải nhiệm vụ…</p>
@@ -590,6 +674,18 @@ export function coefficient(lateWorkingDays: number): number {
     .row-card p {
       margin: 6px 0;
     }
+    .row-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .decide {
+      margin: 8px 0;
+    }
+    .decide .actions {
+      margin: 8px 0 0;
+    }
     .row-head {
       display: flex;
       align-items: center;
@@ -662,6 +758,12 @@ export class TaskDetailPage {
   protected readonly blockerOpen = signal(false);
   protected readonly changeOpen = signal(false);
   protected readonly accepting = signal(false);
+  protected readonly handleOpen = signal(false);
+  protected readonly handling = signal<TaskBlocker | null>(null);
+  protected readonly handleMode = signal<BlockerHandleMode>('xu-ly');
+  protected readonly decideOpen = signal(false);
+  protected readonly deciding = signal<ChangeRequest | null>(null);
+  protected readonly decideApprove = signal(true);
   protected readonly withdrawing = signal<string | null>(null);
 
   protected readonly lifecycle = [
@@ -763,6 +865,14 @@ export class TaskDetailPage {
   protected pending(t: TaskDetail) {
     return t.changeRequests.find((r) => r.status === 'CHO_DUYET') ?? null;
   }
+  /** Nhiệm vụ cán bộ đăng ký đang chờ người quản lý duyệt (QT-05 bước 1c). */
+  protected registrationPending(t: TaskDetail) {
+    return t.status === 'NHAP' && t.source === 'DANG_KY';
+  }
+  /** Còn sản phẩm chưa nộp: chế độ cao tuổi vẫn giữ lối vào trang nộp (NFR-11). */
+  protected needsProduct(t: TaskDetail) {
+    return t.products.confirmed + t.products.pendingReview < t.products.required;
+  }
   protected lifeIndex(t: TaskDetail) {
     return this.lifecycle.indexOf(t.status as (typeof this.lifecycle)[number]);
   }
@@ -776,6 +886,41 @@ export class TaskDetailPage {
     this.progressOpen.set(false);
     this.notice.set(null);
     this.task.reload();
+  }
+
+  protected handle(b: TaskBlocker, mode: BlockerHandleMode): void {
+    this.handling.set(b);
+    this.handleMode.set(mode);
+    this.handleOpen.set(true);
+  }
+  protected onBlockerSaved(toName: string | null): void {
+    this.errorText.set(null);
+    this.notice.set(
+      this.handleMode() === 'cap-tren'
+        ? `Đã báo cáo điểm nghẽn lên đồng chí ${toName ?? ''}.`.replace(' .', '.')
+        : 'Đã lưu kết quả xử lý điểm nghẽn.',
+    );
+    // điểm nghẽn mới đổi cả phiên bản nhiệm vụ: tải lại để các thao tác sau gửi đúng If-Match
+    this.task.reload();
+  }
+  protected decide(r: ChangeRequest | null, approve: boolean): void {
+    this.deciding.set(r);
+    this.decideApprove.set(approve);
+    this.decideOpen.set(true);
+  }
+  protected onDecided(u: TaskDetail): void {
+    const r = this.deciding();
+    const ok = this.decideApprove();
+    this.onSaved(
+      u,
+      r
+        ? ok
+          ? 'Đã duyệt đề nghị; người thực hiện được thông báo.'
+          : 'Đã từ chối đề nghị; người thực hiện được thông báo.'
+        : ok
+          ? 'Đã duyệt đăng ký và giao nhiệm vụ.'
+          : 'Đã từ chối đăng ký nhiệm vụ.',
+    );
   }
 
   protected accept(t: TaskDetail): void {

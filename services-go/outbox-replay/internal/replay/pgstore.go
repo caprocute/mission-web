@@ -149,6 +149,18 @@ func (s *PGOutboxStore) RetentionPolicy(ctx context.Context, schema string) (str
 	return retention, nil
 }
 
+// LastReplayTimestamp implements SafePointSource with pg_last_xact_replay_timestamp().
+func (s *PGOutboxStore) LastReplayTimestamp(ctx context.Context) (time.Time, bool, error) {
+	var ts *time.Time
+	if err := s.querier.QueryRow(ctx, `SELECT pg_last_xact_replay_timestamp()`).Scan(&ts); err != nil {
+		return time.Time{}, false, err
+	}
+	if ts == nil {
+		return time.Time{}, false, nil
+	}
+	return *ts, true, nil
+}
+
 // SimulatedPoolOutboxStore adapts `vtplatform/db.SimulatedPool` to `OutboxStore` so tests can
 // write rows via `vtplatform/outbox.Writer` inside `db.InTenantTx` and replay them directly.
 type SimulatedPoolOutboxStore struct {

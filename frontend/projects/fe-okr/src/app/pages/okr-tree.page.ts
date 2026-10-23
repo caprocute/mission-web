@@ -33,6 +33,7 @@ import {
   ProblemPresenter,
   jobLocation,
 } from '@vt/api-client';
+import { permittedOn } from '@vt/auth';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
@@ -690,7 +691,8 @@ export class OkrTreePage {
       !!kr.viewerIsOwner &&
       o?.status === 'DA_DUYET' &&
       this.data()?.period.status === 'MO' &&
-      this.can('SCR-0201.check-in')
+      this.can('SCR-0201.check-in') &&
+      permittedOn(kr, 'SCR-0201.check-in')
     );
   }
 

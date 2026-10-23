@@ -1,0 +1,25 @@
+# Mẫu values của chart deploy/argocd cho Argo CD đặt tại hạ tầng khách hàng (mô hình 2, VH-06). Đặt thành
+# deploy/argocd/values-tai-cho.yaml trong kho GitOps nhân bản, rồi khai trong ứng dụng gốc (valueFiles).
+gitops:
+  # Kho nhân bản của khách hàng; địa chỉ thật ghi trong biên bản bàn giao, không ghi ở đây.
+  repoURL: https://<máy chủ Git của khách hàng>/okr/gitops.git
+  revision: main
+  root: deploy
+# Trùng cell.argocd trong deploy/cells/<mã>/cell.yaml.
+instance: tai-cho
+# Kho nhân bản chỉ chứa thư mục cell của khách hàng, nên không cần loại cell nào.
+cellsExclude: []
+environment: rieng-kh01
+deploymentModel: private
+# Một địa điểm; tên cụm đích là cell-<mã>-<địa điểm>, ví dụ cell-kh01-chinh.
+sites: [chinh]
+# Một cell, không có đợt phát hành; khách hàng duyệt và đồng bộ từng lần cập nhật.
+rollingSync:
+  enabled: false
+# Commit trên kho nhân bản phải có chữ ký GPG (TL-04 mục 9.6). Giữ khoá phát hành của Viettel và thêm khoá của người
+# duyệt phía khách hàng; mã khoá thật ghi trong biên bản bàn giao.
+projects:
+  okr-apps:
+    signatureKeys: [4AEE18F83AFDEB23, <mã khoá GPG của người duyệt phía khách hàng>]
+  okr-nen-tang:
+    signatureKeys: [4AEE18F83AFDEB23, <mã khoá GPG của người duyệt phía khách hàng>]

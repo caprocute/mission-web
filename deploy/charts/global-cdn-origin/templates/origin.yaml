@@ -1,0 +1,95 @@
+{{- $v := .Values }}
+{{- if not (regexMatch "@sha256:[a-f0-9]{64}$" $v.image) }}{{ fail "global-cdn-origin: ảnh phải ghim digest (SEC-55)" }}{{ end }}
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: cdn-origin, namespace: {{ $v.namespace }} }
+data:
+  default.conf: |
+    proxy_cache_path /var/cache/nginx/origin levels=1:2 keys_zone=origin:20m max_size=2g inactive=1h use_temp_path=off;
+    map $uri $cc {
+      ~*/ui-packs/[^/]+/current\.json$                               "public, max-age=60, stale-while-revalidate=600";
+      ~*(federation\.manifest\.json|remoteEntry\.json|config\.json)$  "public, max-age=60";
+      ~*/ui-packs/[^/]+/[^/]+/                                        "public, max-age=31536000, immutable";
+      ~*\.(?:js|css|woff2?|svg|png|ico)$                              "public, max-age=31536000, immutable";
+      default                                                          "no-store";
+    }
+    server {
+      listen 8080;
+      server_name {{ $v.host }};
+      server_tokens off;
+      location = /healthz { return 200 "ok"; }
+      location = /404-khong-co { internal; add_header Cache-Control "public, max-age=10" always; return 404; }
+      # Chỉ đọc: origin không nhận phương thức ghi.
+      if ($request_method !~ ^(GET|HEAD)$) { return 405; }
+      location /ui-packs/ {
+        proxy_pass {{ $v.bucket.endpoint }}/{{ $v.bucket.uiPacks }}/;
+        include /etc/nginx/conf.d/chung.inc;
+      }
+      location / {
+        proxy_pass {{ $v.bucket.endpoint }}/{{ $v.bucket.web }}/;
+        include /etc/nginx/conf.d/chung.inc;
+      }
+    }
+  chung.inc: |
+    proxy_cache origin;
+    proxy_cache_valid 200 60s;
+    proxy_cache_use_stale error timeout updating;
+    proxy_hide_header Cache-Control;
+    proxy_hide_header Set-Cookie;
+    proxy_ignore_headers Set-Cookie Cache-Control Expires;
+    add_header Cache-Control $cc always;
+    add_header Access-Control-Allow-Origin "*" always;
+    add_header X-Content-Type-Options nosniff always;
+    # Bucket trả 403 cho khoá không tồn tại; đổi thành 404 để CDN không lưu nhầm lỗi quyền (khớp deploy/web/nginx.conf:
+    # tệp thiếu trả 404, không rơi về index.html).
+    proxy_intercept_errors on;
+    error_page 403 =404 /404-khong-co;
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cdn-origin
+  namespace: {{ $v.namespace }}
+  labels: { app.kubernetes.io/name: cdn-origin }
+spec:
+  replicas: {{ $v.replicas }}
+  selector: { matchLabels: { app.kubernetes.io/name: cdn-origin } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: cdn-origin }
+      annotations: { checksum/conf: {{ toJson $v.bucket | sha256sum | trunc 16 }} }
+    spec:
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 101, runAsGroup: 101, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: cdn-origin } } }
+      containers:
+        - name: nginx
+          image: {{ $v.image }}
+          ports: [{ name: http, containerPort: 8080 }]
+          readinessProbe: { httpGet: { path: /healthz, port: http }, periodSeconds: 5 }
+          livenessProbe: { httpGet: { path: /healthz, port: http }, periodSeconds: 10 }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+          resources: {{ toJson $v.resources }}
+          volumeMounts:
+            - { name: conf, mountPath: /etc/nginx/conf.d, readOnly: true }
+            - { name: cache, mountPath: /var/cache/nginx }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - { name: conf, configMap: { name: cdn-origin } }
+        - { name: cache, emptyDir: { sizeLimit: 3Gi } }
+        - { name: tmp, emptyDir: {} }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: cdn-origin, namespace: {{ $v.namespace }} }
+spec:
+  selector: { app.kubernetes.io/name: cdn-origin }
+  ports: [{ name: http, port: 8080, targetPort: http }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: cdn-origin, namespace: {{ $v.namespace }} }
+spec:
+  minAvailable: 2
+  selector: { matchLabels: { app.kubernetes.io/name: cdn-origin } }

@@ -894,20 +894,29 @@ func (s *Service) Cancel(ctx context.Context, tx pgx.Tx, a Actor, id uuid.UUID, 
 	if err := store.DeleteIdps(ctx, tx, id, nil); err != nil {
 		return err
 	}
-	if b, err := store.LatestTenantCell(ctx, tx, id); err == nil {
-		at := s.Now()
-		if !at.After(b.ValidFrom) {
-			at = b.ValidFrom.Add(time.Microsecond)
-		}
-		if b.ValidTo.After(at) {
-			if err := store.CloseTenantCell(ctx, tx, b.ID, at, a.ID); err != nil {
-				return err
-			}
-		}
-	} else if !errors.Is(err, store.ErrNotFound) {
+	if err := s.closeCell(ctx, tx, a, id); err != nil {
 		return err
 	}
 	return s.Transition(ctx, tx, a, t, expected, DaChamDut, "Huỷ yêu cầu khởi tạo")
+}
+
+// closeCell đóng khoảng gắn cell hiện hành của tenant (giải phóng phần giữ chỗ trên cell, giữ lịch sử).
+func (s *Service) closeCell(ctx context.Context, tx pgx.Tx, a Actor, id uuid.UUID) error {
+	b, err := store.LatestTenantCell(ctx, tx, id)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	at := s.Now()
+	if !at.After(b.ValidFrom) {
+		at = b.ValidFrom.Add(time.Microsecond)
+	}
+	if b.ValidTo.After(at) {
+		return store.CloseTenantCell(ctx, tx, b.ID, at, a.ID)
+	}
+	return nil
 }
 
 // Suspend: suspendConfigTenant, DANG_VAN_HANH → TAM_NGUNG (hết hạn hợp đồng, sự cố an ninh; TL-02a QT-01
@@ -931,6 +940,36 @@ func (s *Service) Suspend(ctx context.Context, tx pgx.Tx, a Actor, id uuid.UUID,
 		return nil, &StateError{Status: t.Status}
 	}
 	if err := s.Transition(ctx, tx, a, t, expected, TamNgung, "Tạm ngừng tenant: "+reason); err != nil {
+		return nil, err
+	}
+	return s.Get(ctx, tx, a, id)
+}
+
+// Terminate: terminateConfigTenant, TAM_NGUNG → DA_CHAM_DUT (TL-02a QT-01 "Trạng thái đối tượng"; TL-04 mục
+// 11.4) sau khi đã xuất trả dữ liệu theo hợp đồng. Trạng thái cuối: đóng khoảng gắn cell để cổng ngừng định
+// tuyến và giải phóng dung lượng; giữ bản ghi, tên miền, nhật ký. Outbox TENANT_STATUS_CHANGED báo các service
+// và quy trình huỷ KEK (TL-04 mục 8.4, chạy sau thời gian lưu giữ, ngoài SVC-03).
+func (s *Service) Terminate(ctx context.Context, tx pgx.Tx, a Actor, id uuid.UUID, expected int, reason, handoverRef string) (*ConfigTenant, error) {
+	if !a.PlatformAdmin {
+		return nil, ErrForbidden
+	}
+	t, err := store.GetTenantForUpdate(ctx, tx, id)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if t.RowVersion != expected {
+		return nil, &VersionError{Sent: expected, Current: t.RowVersion}
+	}
+	if t.Status != TamNgung {
+		return nil, &StateError{Status: t.Status}
+	}
+	if err := s.closeCell(ctx, tx, a, id); err != nil {
+		return nil, err
+	}
+	if err := s.Transition(ctx, tx, a, t, expected, DaChamDut, "Chấm dứt tenant: "+reason+". Biên bản bàn giao dữ liệu: "+handoverRef); err != nil {
 		return nil, err
 	}
 	return s.Get(ctx, tx, a, id)

@@ -30,6 +30,8 @@ export type TaskPermissionKey =
   | 'SCR-0601.tien-do'
   | 'SCR-0601.bao-nghen'
   | 'SCR-0601.nop-sp'
+  | 'SCR-0601.xu-ly-nghen'
+  | 'SCR-0601.duyet-de-nghi'
   | 'SCR-0602.gui'
   | 'SCR-0602.rut';
 

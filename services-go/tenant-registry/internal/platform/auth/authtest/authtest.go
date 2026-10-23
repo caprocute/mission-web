@@ -56,6 +56,7 @@ type Claims struct {
 	ACR      string
 	AuthTime time.Time
 	TTL      time.Duration
+	AZP      string // client_id của token dịch vụ
 }
 
 // Token ký token RS256.
@@ -73,6 +74,9 @@ func (k *Keys) Token(c Claims) string {
 	}
 	if c.Cell != "" {
 		m["cell"] = c.Cell
+	}
+	if c.AZP != "" {
+		m["azp"] = c.AZP
 	}
 	if c.ACR != "" {
 		m["acr"] = c.ACR

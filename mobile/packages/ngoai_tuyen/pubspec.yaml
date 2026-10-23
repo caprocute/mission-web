@@ -1,0 +1,28 @@
+name: ngoai_tuyen
+description: >-
+  Lưu trữ ngoại tuyến mã hoá SQLCipher và hàng đợi đồng bộ có Idempotency-Key cho ứng dụng di động
+  Mission (MOB-02, SVC-18).
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.13.5
+
+dependencies:
+  crypto: ^3.0.7
+  http: ^1.6.0
+  sqlite3: ^3.7.1
+  uuid: ^4.6.0
+
+dev_dependencies:
+  lints: ^6.1.0
+  test: ^1.33.0
+
+# Khi chạy kiểm thử của riêng package này (máy dựng Linux), sqlite3 nạp libsqlcipher.so của hệ điều hành
+# (gói libsqlcipher-dev). Ứng dụng mobile/ là gói gốc khi dựng Android, iOS nên tự khai user_defines của nó,
+# thường là `source: sqlcipher` để dùng bản SQLCipher đóng sẵn của package:sqlite3 (xem README.md).
+hooks:
+  user_defines:
+    sqlite3:
+      source: system
+      name: sqlcipher
