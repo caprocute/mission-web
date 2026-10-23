@@ -18,6 +18,8 @@ RUN set -eu; \
 
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
+ARG GIT_REVISION=unknown
+LABEL org.opencontainers.image.revision="${GIT_REVISION}"
 COPY --from=extract /workspace/layers/dependencies/ ./
 COPY --from=extract /workspace/layers/spring-boot-loader/ ./
 COPY --from=extract /workspace/layers/snapshot-dependencies/ ./
