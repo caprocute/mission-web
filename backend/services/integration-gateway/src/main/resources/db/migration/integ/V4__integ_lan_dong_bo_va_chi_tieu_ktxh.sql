@@ -33,7 +33,7 @@ CREATE TABLE ${flyway:defaultSchema}.sync_run (
     CONSTRAINT ck_sync_run__counts CHECK (pages >= 0 AND messages >= 0 AND duplicates >= 0 AND dead_letters >= 0),
     CONSTRAINT ck_sync_run__finished CHECK ((status IN ('XONG', 'LOI')) = (finished_at IS NOT NULL))
 );
-CREATE UNIQUE INDEX uq_sync_run__dang_mo ON ${flyway:defaultSchema}.sync_run (tenant_id, connector_id)
+CREATE UNIQUE INDEX ix_sync_run__dang_mo ON ${flyway:defaultSchema}.sync_run (tenant_id, connector_id)
     WHERE status IN ('CHO', 'DANG_CHAY');
 CREATE INDEX ix_sync_run__connector ON ${flyway:defaultSchema}.sync_run (tenant_id, connector_id, kind, requested_at DESC);
 CREATE INDEX ix_sync_run__can_chay ON ${flyway:defaultSchema}.sync_run (requested_at)
@@ -64,7 +64,7 @@ CREATE TABLE ${flyway:defaultSchema}.ktxh_value (
     indicator_code varchar(64) NOT NULL,
     period_code varchar(16) NOT NULL,
     area_code varchar(64) NOT NULL,
-    value numeric(24, 6) NOT NULL,
+    value numeric(18, 4) NOT NULL,
     unit varchar(32),
     da_cong_bo boolean NOT NULL DEFAULT false,
     published_at timestamptz,

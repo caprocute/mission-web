@@ -69,7 +69,7 @@ class LgspIndicatorTranslator implements Translator {
     } catch (NumberFormatException e) {
       throw reject("Giá trị chỉ tiêu không phải số");
     }
-    if (value.abs().compareTo(new BigDecimal("1e18")) >= 0) {
+    if (value.abs().compareTo(new BigDecimal("1e14")) >= 0) {
       throw reject("Giá trị chỉ tiêu vượt miền cho phép");
     }
     Instant updated = LgspIndicatorConnector.instant(text(item, "capNhatLuc"));
