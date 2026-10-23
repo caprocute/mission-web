@@ -3,10 +3,12 @@ package vn.viettel.okrkpi.workflow.application.periodclose;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import vn.viettel.okrkpi.shared.error.BusinessException;
+import vn.viettel.okrkpi.workflow.application.WorkflowNotFoundException;
 import vn.viettel.okrkpi.workflow.application.saga.SagaJournal.Action;
 import vn.viettel.okrkpi.workflow.application.saga.SagaService;
 import vn.viettel.okrkpi.workflow.domain.saga.SagaInstance;
@@ -16,7 +18,8 @@ import vn.viettel.okrkpi.workflow.domain.saga.SagaType;
  * Lệnh điều khiển riêng của saga chốt kỳ (DV-06-07, QT-08 bước 9): huỷ và bù trừ toàn bộ sau khi
  * hai người duyệt (BR-08-09), chạy lại hồ sơ tính lỗi thành lô mới, chấp nhận để lại hồ sơ lỗi kèm
  * lý do. MOD-08 kiểm vai trò và bốn mắt; SVC-06 kiểm lại người duyệt khác người đề nghị và trạng
- * thái saga. Hợp đồng chưa có điểm vào HTTP cho các lệnh này (wiki trang 14).
+ * thái saga. Điểm vào HTTP là {@code controlPeriodCloseSaga}, nơi MOD-08 chuyển từng dòng hộp lệnh
+ * {@code config.period_lock_command} (wiki trang 14).
  */
 public class PeriodCloseControlService {
 
@@ -46,11 +49,28 @@ public class PeriodCloseControlService {
     return sagas.control(sagaId, SagaService.Control.BU_TRU);
   }
 
+  /** Tạm dừng sau bước hiện tại. */
+  public SagaInstance pause(UUID sagaId) {
+    requireCloseSaga(sagaId);
+    return sagas.control(sagaId, SagaService.Control.TAM_DUNG);
+  }
+
+  /** Tiếp tục saga đã tạm dừng. */
+  public SagaInstance resume(UUID sagaId) {
+    requireCloseSaga(sagaId);
+    return sagas.control(sagaId, SagaService.Control.TIEP_TUC);
+  }
+
+  /** Chạy lại toàn bộ hàng đợi hồ sơ lỗi. */
+  public UUID retryFailedProfiles(UUID sagaId, String idempotencyKey) {
+    return retryFailedProfiles(sagaId, idempotencyKey, List.of());
+  }
+
   /**
    * Chạy lại hồ sơ tính lỗi: một lô mới chỉ gồm hồ sơ trong hàng đợi lỗi, mã lô tất định theo
    * {@code Idempotency-Key} nên gọi trùng không tạo lô thứ hai. Trả mã tác vụ của lô.
    */
-  public UUID retryFailedProfiles(UUID sagaId, String idempotencyKey) {
+  public UUID retryFailedProfiles(UUID sagaId, String idempotencyKey, List<UUID> profileIds) {
     if (idempotencyKey == null || idempotencyKey.isBlank()) {
       throw new BusinessException(VALIDATION, "Thiếu khoá chống lặp của yêu cầu chạy lại.");
     }
@@ -59,11 +79,14 @@ public class PeriodCloseControlService {
         UUID.nameUUIDFromBytes(
             (sagaId + ":chay-lai-ho-so-loi:" + idempotencyKey.strip())
                 .getBytes(StandardCharsets.UTF_8));
+    Map<String, Object> notes = new LinkedHashMap<>();
+    notes.put(PeriodCloseSteps.Scoring.RETRY_NOTE, jobId.toString());
+    // Rỗng là toàn bộ hàng đợi lỗi; bên tính điểm đọc danh sách từ ghi chú khi nhận lệnh.
+    notes.put(
+        PeriodCloseSteps.Scoring.RETRY_PROFILES_NOTE,
+        profileIds == null ? List.of() : profileIds.stream().map(UUID::toString).toList());
     sagas.annotateWaitingStep(
-        sagaId,
-        PeriodCloseSaga.TINH_DIEM_CHOT_KY,
-        Action.CHAY_LAI_LOI,
-        Map.of(PeriodCloseSteps.Scoring.RETRY_NOTE, jobId.toString()));
+        sagaId, PeriodCloseSaga.TINH_DIEM_CHOT_KY, Action.CHAY_LAI_LOI, notes);
     return jobId;
   }
 
@@ -85,15 +108,10 @@ public class PeriodCloseControlService {
         Map.of(PeriodCloseSteps.Scoring.ACCEPT_NOTE, note));
   }
 
+  /** Saga khác loại hoặc khác tenant (RLS) đều là không tìm thấy. */
   private void requireCloseSaga(UUID sagaId) {
-    SagaInstance saga =
-        sagas
-            .find(sagaId)
-            .filter(s -> s.type() == SagaType.CHOT_KY)
-            .orElseThrow(
-                () ->
-                    new BusinessException(
-                        VALIDATION, "Không tìm thấy quy trình chốt kỳ được yêu cầu."));
-    Objects.requireNonNull(saga);
+    if (sagas.find(sagaId).filter(s -> s.type() == SagaType.CHOT_KY).isEmpty()) {
+      throw new WorkflowNotFoundException();
+    }
   }
 }

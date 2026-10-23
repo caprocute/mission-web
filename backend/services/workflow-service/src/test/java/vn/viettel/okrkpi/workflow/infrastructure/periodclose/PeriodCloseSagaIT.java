@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -30,6 +31,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -415,20 +417,18 @@ class PeriodCloseSagaIT {
         driveUntil(id, s -> s.currentStepNo() == 6 && s.status() == SagaStatus.CHO_SU_KIEN);
     assertThat(last.pointOfNoReturnPassed()).isTrue();
 
+    // Qua hộp lệnh của MOD-08: cùng người bị 403, khác người nhưng đã ký xong bị 409.
     UUID same = UUID.randomUUID();
-    assertThatThrownBy(
-            () -> TenantContext.run(TenantId.of(TENANT), () -> control.cancel(id, same, same)))
-        .isInstanceOfSatisfying(
-            BusinessException.class,
-            e -> assertThat(e.errorCode().code()).isEqualTo("PERIOD-403-SAME-PERSON"));
-    assertThatThrownBy(
-            () ->
-                TenantContext.run(
-                    TenantId.of(TENANT),
-                    () -> control.cancel(id, UUID.randomUUID(), UUID.randomUUID())))
-        .isInstanceOfSatisfying(
-            BusinessException.class,
-            e -> assertThat(e.errorCode().code()).isEqualTo("PERIOD-409-POINT-OF-NO-RETURN"));
+    command(id, Map.of("command", "BU_TRU", "requestedBy", same, "approvedBy", same))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.code").value("PERIOD-403-SAME-PERSON"));
+    command(id, Map.of("command", "BU_TRU", "requestedBy", same))
+        .andExpect(status().isUnprocessableEntity());
+    command(id, Map.of("command", "BU_TRU", "requestedBy", same, "approvedBy", UUID.randomUUID()))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("PERIOD-409-POINT-OF-NO-RETURN"));
+    command(UUID.randomUUID(), Map.of("command", "TAM_DUNG", "requestedBy", same))
+        .andExpect(status().isNotFound());
     fake.held.remove(period);
     assertThat(drive(id).status()).isEqualTo(SagaStatus.HOAN_TAT);
     assertThat(fake.undone).doesNotContainKey(period);
@@ -443,11 +443,18 @@ class PeriodCloseSagaIT {
     assertThat(stuck.currentStepNo()).isEqualTo(3);
     assertThat(stuck.step(3).lastError()).contains("Còn 100 hồ sơ");
 
-    UUID first =
-        TenantContext.call(TenantId.of(TENANT), () -> control.retryFailedProfiles(id, "lan-1"));
+    // Cùng dòng hộp lệnh chuyển hai lần (cùng Idempotency-Key và mã lệnh) chỉ tạo một lô.
+    UUID commandId = UUID.randomUUID();
+    Map<String, Object> retry =
+        Map.of("command", "CHAY_LAI_LOI", "commandId", commandId, "requestedBy", UUID.randomUUID());
+    String key = UUID.randomUUID().toString();
+    command(id, retry, key).andExpect(status().isAccepted());
+    command(id, retry, key).andExpect(status().isAccepted());
     UUID again =
-        TenantContext.call(TenantId.of(TENANT), () -> control.retryFailedProfiles(id, "lan-1"));
-    assertThat(again).isEqualTo(first);
+        TenantContext.call(
+            TenantId.of(TENANT), () -> control.retryFailedProfiles(id, commandId.toString()));
+    assertThat(sagas.find(id).orElseThrow().notes())
+        .containsEntry("chayLaiHoSoLoi", again.toString());
     SagaInstance done = drive(id);
 
     assertThat(done.status()).isEqualTo(SagaStatus.HOAN_TAT);
@@ -471,11 +478,17 @@ class PeriodCloseSagaIT {
                     () -> control.acceptFailedProfiles(id, UUID.randomUUID(), " ")))
         .isInstanceOf(BusinessException.class);
 
-    TenantContext.run(
-        TenantId.of(TENANT),
-        () ->
-            control.acceptFailedProfiles(
-                id, UUID.randomUUID(), "Hồ sơ chuyển công tác, xử lý ở kỳ sau"));
+    command(
+            id,
+            Map.of(
+                "command",
+                "CHAP_NHAN_LOI",
+                "requestedBy",
+                UUID.randomUUID(),
+                "reason",
+                "Hồ sơ chuyển công tác, xử lý ở kỳ sau"))
+        .andExpect(status().isAccepted())
+        .andExpect(header().string("Location", "/api/v1/jobs/" + id));
     SagaInstance done = drive(id);
     assertThat(done.status()).isEqualTo(SagaStatus.HOAN_TAT);
     assertThat(done.notes()).containsKey("chapNhanHoSoLoi");
@@ -506,6 +519,22 @@ class PeriodCloseSagaIT {
         .andReturn()
         .getResponse()
         .getHeader("Location");
+  }
+
+  private ResultActions command(UUID sagaId, Map<String, Object> fields) throws Exception {
+    return command(sagaId, fields, UUID.randomUUID().toString());
+  }
+
+  /** Một dòng hộp lệnh {@code config.period_lock_command} do MOD-08 chuyển tới. */
+  private ResultActions command(UUID sagaId, Map<String, Object> fields, String key)
+      throws Exception {
+    Map<String, Object> body = new java.util.LinkedHashMap<>(fields);
+    body.putIfAbsent("commandId", UUID.randomUUID());
+    return mvc.perform(
+        asClient(post("/api/v1/workflow/sagas/period-close/" + sagaId + "/commands"))
+            .header("Idempotency-Key", key)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(json.writeValueAsString(body)));
   }
 
   private static UUID idOf(String location) {

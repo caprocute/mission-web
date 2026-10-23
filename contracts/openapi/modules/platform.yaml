@@ -1101,6 +1101,75 @@ paths:
         rules: [BR-08-01, BR-08-02]
         source: TL-01 PL C Dịch vụ nền ("Client nội bộ"); TL-01 SVC-06; TL-03 `flowable.saga_instance`
 
+  /workflow/sagas/period-close/{sagaId}/commands:
+    post:
+      tags: [Workflow]
+      operationId: controlPeriodCloseSaga
+      summary: Gửi lệnh điều khiển saga chốt kỳ
+      description: >-
+        Client nội bộ MOD-08 chuyển một lệnh trong hộp lệnh `config.period_lock_command` tới saga `CHOT_KY`
+        (QT-08 bước 9, DV-06-07) sau khi giao dịch của MOD-08 đã commit; mỗi dòng hộp lệnh là một lần gọi, với
+        `Idempotency-Key` là mã lệnh nên chuyển lại không làm lệnh có tác dụng hai lần. MOD-08 kiểm vai trò, bốn
+        mắt và MFA; SVC-06 kiểm lại loại saga, trạng thái và người duyệt khác người đề nghị. `BU_TRU` chỉ được
+        trước khi bước ký số lô hoàn tất, sau đó 409 `PERIOD-409-POINT-OF-NO-RETURN` (BR-08-09); bù trừ chạy
+        ngược và kết thúc bằng kỳ trở về `MO` (EVT-26). `CHAY_LAI_LOI` tạo một lô mới chỉ gồm hồ sơ lỗi, mã lô
+        tất định theo mã lệnh (BR-08-11). `CHAP_NHAN_LOI` chấp nhận để lại hồ sơ lỗi kèm lý do để bước tính
+        điểm hoàn tất. Trả 202 với tác vụ của saga.
+      security:
+        - serviceClient: []
+      parameters:
+        - name: sagaId
+          in: path
+          required: true
+          description: Mã saga do `startPeriodCloseSaga` trả (`config.period_lock_command.saga_id`).
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PeriodCloseSagaCommand' }
+            examples:
+              huy-bu-tru:
+                value:
+                  command: BU_TRU
+                  commandId: 0192f6a8-9102-73b4-c5d6-e7f8091a2b45
+                  requestedBy: 0192f1a2-1111-7aaa-8bbb-000000000a02
+                  approvedBy: 0192f1a2-1111-7aaa-8bbb-000000000a03
+              chap-nhan-loi:
+                value:
+                  command: CHAP_NHAN_LOI
+                  commandId: 0192f6a8-9102-73b4-c5d6-e7f8091a2b46
+                  requestedBy: 0192f1a2-1111-7aaa-8bbb-000000000a02
+                  reason: Hồ sơ của cán bộ đã nghỉ hưu giữa kỳ, đánh giá theo quy trình riêng.
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: Người duyệt huỷ trùng người đề nghị (`PERIOD-403-SAME-PERSON`) hoặc không phải client nội bộ.
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Saga đã qua điểm không quay lại (`PERIOD-409-POINT-OF-NO-RETURN`) hoặc không ở trạng thái nhận lệnh
+            (`WORKFLOW-409-VERSION-CONFLICT`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: SVC-06
+        evt: [EVT-26]
+        roles: [service_client]
+        scope: Tn
+        rules: [BR-08-09, BR-08-11]
+        source: TL-02a QT-08 bước 9 và ngoại lệ; TL-03 `flowable.saga_instance`; wiki 14 DV-06-07
+
   /workflow/templates:
     get:
       tags: [Workflow]
@@ -3461,6 +3530,26 @@ components:
           description: Danh sách đơn vị; rỗng là toàn tenant.
           items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         requestedBy: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    PeriodCloseSagaCommand:
+      description: Một lệnh của hộp lệnh `config.period_lock_command` chuyển tới saga `CHOT_KY`.
+      type: object
+      required: [command, commandId, requestedBy]
+      properties:
+        command:
+          type: string
+          description: >-
+            `TAM_DUNG`, `TIEP_TUC`, `BU_TRU` cùng tên điều khiển của khung saga; `CHAY_LAI_LOI` chạy lại hồ sơ lỗi;
+            `CHAP_NHAN_LOI` chấp nhận để lại hồ sơ lỗi kèm lý do.
+          enum: [TAM_DUNG, TIEP_TUC, CHAY_LAI_LOI, CHAP_NHAN_LOI, BU_TRU]
+        commandId: { $ref: '../common/common.yaml#/components/schemas/Uuid', description: 'Mã dòng hộp lệnh (`config.period_lock_command.id`).' }
+        requestedBy: { $ref: '../common/common.yaml#/components/schemas/Uuid', description: 'Người đề nghị; với `BU_TRU` là người lập đề nghị huỷ.' }
+        approvedBy: { $ref: '../common/common.yaml#/components/schemas/Uuid', description: 'Người duyệt thứ hai, bắt buộc với `BU_TRU`.' }
+        profileIds:
+          type: array
+          maxItems: 5000
+          description: Hồ sơ cần chạy lại với `CHAY_LAI_LOI`; rỗng là toàn bộ hàng đợi lỗi.
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        reason: { type: string, maxLength: 1000, description: 'Lý do, bắt buộc với `CHAP_NHAN_LOI`.' }
     WorkflowTemplateStatus:
       description: Trạng thái `flowable.wf_template.status` mở rộng theo BS-01.
       type: string

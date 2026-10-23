@@ -211,6 +211,7 @@ public final class PeriodCloseSteps {
 
     static final String RETRY_NOTE = "chayLaiHoSoLoi";
     static final String ACCEPT_NOTE = "chapNhanHoSoLoi";
+    static final String RETRY_PROFILES_NOTE = "hoSoChayLai";
 
     Scoring(PeriodCloseGateway gateway, PeriodCloseAlarms alarms, Clock clock) {
       super(PeriodCloseSaga.TINH_DIEM_CHOT_KY, Command.TINH_DIEM, gateway, alarms, clock);

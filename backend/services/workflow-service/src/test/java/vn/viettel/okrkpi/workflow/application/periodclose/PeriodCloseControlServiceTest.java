@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import vn.viettel.okrkpi.shared.error.BusinessException;
+import vn.viettel.okrkpi.workflow.application.WorkflowNotFoundException;
 import vn.viettel.okrkpi.workflow.application.saga.SagaJournal.Action;
 import vn.viettel.okrkpi.workflow.application.saga.SagaService;
 import vn.viettel.okrkpi.workflow.domain.saga.SagaInstance;
@@ -60,9 +62,14 @@ class PeriodCloseControlServiceTest {
     when(packaging.type()).thenReturn(SagaType.DONG_GOI_HO_SO);
     when(sagas.find(other)).thenReturn(Optional.of(packaging));
     assertThatThrownBy(() -> control.cancel(other, a, UUID.randomUUID()))
-        .isInstanceOf(BusinessException.class);
-    assertThatThrownBy(() -> control.cancel(UUID.randomUUID(), a, UUID.randomUUID()))
-        .isInstanceOf(BusinessException.class);
+        .isInstanceOf(WorkflowNotFoundException.class);
+    assertThatThrownBy(() -> control.pause(UUID.randomUUID()))
+        .isInstanceOf(WorkflowNotFoundException.class);
+
+    control.pause(sagaId);
+    control.resume(sagaId);
+    verify(sagas).control(sagaId, SagaService.Control.TAM_DUNG);
+    verify(sagas).control(sagaId, SagaService.Control.TIEP_TUC);
   }
 
   @Test
@@ -77,7 +84,21 @@ class PeriodCloseControlServiceTest {
             sagaId,
             PeriodCloseSaga.TINH_DIEM_CHOT_KY,
             Action.CHAY_LAI_LOI,
-            Map.of(PeriodCloseSteps.Scoring.RETRY_NOTE, first.toString()));
+            Map.of(
+                PeriodCloseSteps.Scoring.RETRY_NOTE,
+                first.toString(),
+                PeriodCloseSteps.Scoring.RETRY_PROFILES_NOTE,
+                List.of()));
+    UUID profile = UUID.randomUUID();
+    control.retryFailedProfiles(sagaId, "k-3", List.of(profile));
+    control.retryFailedProfiles(sagaId, "k-4", null);
+    verify(sagas)
+        .annotateWaitingStep(
+            eq(sagaId),
+            eq(PeriodCloseSaga.TINH_DIEM_CHOT_KY),
+            eq(Action.CHAY_LAI_LOI),
+            org.mockito.ArgumentMatchers.argThat(
+                m -> List.of(profile.toString()).equals(m.get("hoSoChayLai"))));
     assertThatThrownBy(() -> control.retryFailedProfiles(sagaId, " "))
         .isInstanceOf(BusinessException.class);
     assertThatThrownBy(() -> control.retryFailedProfiles(sagaId, null))
