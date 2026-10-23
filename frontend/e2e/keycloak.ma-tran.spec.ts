@@ -1,8 +1,8 @@
-import { Page, expect, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { SECTIONS, CHILD_ROUTES, checkSection, checkChild } from './kiem-tra';
-import { totp } from './totp';
+import { OTP_SECRET, PASSWORD, completeKeycloak, completePopup } from './dang-nhap-keycloak';
 
 /**
  * Chế độ Keycloak dev: đăng nhập thật bằng từng tài khoản thử của realm dev (WEB-056), kỳ vọng tính
@@ -12,53 +12,11 @@ import { totp } from './totp';
 const REALM = JSON.parse(
   readFileSync(join(__dirname, '..', '..', 'infra/dev/keycloak/realm-mission.json'), 'utf8'),
 ) as { users: { username: string; realmRoles: string[] }[] };
-const PASSWORD = process.env.KC_TEST_USER_PASSWORD ?? '';
-const OTP_SECRET = process.env.KC_TEST_OTP_SECRET ?? '';
-
-/** Hoàn tất trang đăng nhập Keycloak (mật khẩu, rồi OTP nếu luồng yêu cầu) và chờ quay về ứng dụng. */
-async function completeKeycloak(page: Page, username: string) {
-  const origin = new URL(test.info().project.use.baseURL ?? 'http://localhost:4200').origin;
-  // ứng dụng nạp xong mới chuyển sang Keycloak, nên chờ rời khỏi ứng dụng trước
-  await page.waitForURL((u) => u.origin !== origin);
-  for (let step = 0; step < 4 && !page.url().startsWith(origin); step++) {
-    const user = page.locator('#username');
-    const otp = page.locator('#otp');
-    await expect(user.or(page.locator('#password')).or(otp).first()).toBeVisible();
-    if (await otp.isVisible()) {
-      await otp.fill(totp(OTP_SECRET));
-    } else {
-      if (await user.isVisible()) await user.fill(username);
-      await page.locator('#password').fill(PASSWORD);
-    }
-    await page.locator('#kc-login').click();
-    await page.waitForLoadState('load');
-  }
-  await page.waitForURL((u) => u.origin === origin);
-  await expect(page.getByRole('navigation', { name: 'Menu chính' })).toBeVisible();
-}
 
 /** Đọc claim của JWT (không kiểm chữ ký, chỉ để kiểm `acr` trong kiểm thử). */
 function claims(jwt: string): Record<string, unknown> {
   const b = jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
   return JSON.parse(Buffer.from(b, 'base64').toString('utf8'));
-}
-
-/** Nhập mật khẩu và OTP trong cửa sổ bước lên cho tới khi cửa sổ tự đóng. */
-async function completePopup(popup: Page, username: string) {
-  for (let step = 0; step < 4 && !popup.isClosed(); step++) {
-    const otp = popup.locator('#otp');
-    const pwd = popup.locator('#password');
-    await expect(pwd.or(otp).first()).toBeVisible();
-    if (await otp.isVisible()) await otp.fill(totp(OTP_SECRET));
-    else {
-      if (await popup.locator('#username').isVisible())
-        await popup.locator('#username').fill(username);
-      await pwd.fill(PASSWORD);
-    }
-    await popup.locator('#kc-login').click();
-    await popup.waitForEvent('close', { timeout: 5_000 }).catch(() => undefined);
-  }
-  expect(popup.isClosed()).toBe(true);
 }
 
 test.beforeEach(() => {

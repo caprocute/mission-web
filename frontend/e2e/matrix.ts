@@ -134,30 +134,58 @@ function parentPaths(src: string, at: number): string[] {
   return out;
 }
 
+/** Hằng nhóm khoá trong tệp tuyến và các tệp nó import tương đối (`./studio-layout`...). */
+function keyConsts(file: string, src: string): Map<string, string[]> {
+  const dir = join(REPO, 'frontend/projects', file, '..');
+  const sources = [src];
+  for (const m of src.matchAll(/from '(\.{1,2}\/[^']+)'/g)) {
+    try {
+      sources.push(read(join(dir, `${m[1]}.ts`)));
+    } catch {
+      // import không phải tệp .ts cùng cây (thư mục có index): không có hằng khoá cần đọc
+    }
+  }
+  const consts = new Map<string, string[]>();
+  for (const text of sources) {
+    for (const m of text.matchAll(/const (\w+) = screenKeys\(([^)]*)\)/g))
+      consts.set(m[1], screenKeys(screensIn(m[2])));
+    for (const m of text.matchAll(/const (\w+)(?:: \w+\[\])? = \[([^\]]*)\]/g)) {
+      const keys = [...m[2].matchAll(/'(SCR-\d{4}\.[a-z0-9-]+)'/g)].map((k) => k[1]);
+      if (keys.length) consts.set(m[1], keys);
+    }
+  }
+  return consts;
+}
+
 export function childRoutes(file: string, base: string): ChildRoute[] {
   const src = read(join(REPO, 'frontend/projects', file));
-  const consts = new Map<string, string[]>();
-  for (const m of src.matchAll(/const (\w+) = screenKeys\(([^)]*)\)/g))
-    consts.set(m[1], screenKeys(screensIn(m[2])));
+  const consts = keyConsts(file, src);
   const out: ChildRoute[] = [];
-  for (const m of src.matchAll(
-    /path: '([^']*)',[^{}]*?canActivate: \[permissionGuard\(([^\]]*)\)\]/g,
-  )) {
-    const args = m[2].trim();
+  const add = (path: string, at: number, args: string) => {
+    args = args.trim();
     const keys = args.startsWith('...screenKeys(')
       ? screenKeys(screensIn(args))
       : args.startsWith('...')
         ? (consts.get(args.slice(3)) ?? [])
         : [...args.matchAll(/'(SCR-\d{4}\.[a-z0-9-]+)'/g)].map((k) => k[1]);
-    const segs = [...parentPaths(src, m.index), m[1]].filter(Boolean);
+    const segs = [...parentPaths(src, at), path].filter(Boolean);
     const full = segs.length ? `${base}/${segs.join('/')}` : base;
     out.push({
-      path: m[1],
+      path,
       url: full.replace(/:\w+/g, 'E2E-1'),
       pattern: new RegExp(`^${full.replace(/:\w+/g, '[^/]+')}$`),
       keys,
     });
-  }
+  };
+  for (const m of src.matchAll(
+    /path: '([^']*)',[^{}]*?canActivate: \[permissionGuard\(([^\]]*)\)\]/g,
+  ))
+    add(m[1], m.index, m[2]);
+  // Nhiều tuyến chung guard: `...['a', 'a/:id'].map((path) => ({ path, canActivate: [...] }))`
+  for (const m of src.matchAll(
+    /\.\.\.\[([^\]]*)\]\.map\(\(path\) => \(\{\s*path,[^{}]*?canActivate: \[permissionGuard\(([^\]]*)\)\]/g,
+  ))
+    for (const p of m[1].matchAll(/'([^']*)'/g)) add(p[1], m.index, m[2]);
   return out;
 }
 

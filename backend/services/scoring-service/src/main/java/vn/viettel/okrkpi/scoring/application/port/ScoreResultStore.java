@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.scoring.application.port;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import vn.viettel.okrkpi.scoring.domain.ScoreBatch;
 
@@ -12,6 +13,14 @@ public interface ScoreResultStore {
 
   /** Ghi một lô trong giao dịch đang mở của bên gọi. */
   Appended append(ScoreBatch batch);
+
+  /**
+   * Kết quả {@code OK} của lô trùng kết quả mới nhất của cùng hồ sơ và luồng ở cả {@code
+   * input_hash} lẫn {@code policy_content_hash} (tính lại luỹ đẳng, DV-07-05).
+   *
+   * @return mã kết quả ({@code resultId}) của các phần tử không cần ghi
+   */
+  Set<UUID> unchanged(ScoreBatch batch);
 
   /**
    * Kết quả ghi lô.

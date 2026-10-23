@@ -281,6 +281,7 @@ const VARIABLE_HINT: Record<string, string> = {
           <h2 id="h-tpl">Mẫu câu giải thích</h2>
           <label class="sr-only" for="tpl">Mẫu câu khi chuyển xuống mức liền kề</label>
           <textarea
+            #tplBox
             id="tpl"
             class="text"
             rows="5"
@@ -293,11 +294,26 @@ const VARIABLE_HINT: Record<string, string> = {
           @if (tplError(); as e) {
             <p class="small err" role="alert" data-testid="template-error">{{ e }}</p>
           }
-          <p class="small muted">Có thể dùng:</p>
-          <ul class="vars">
+          <!-- Tên biến là cú pháp của mẫu câu, không hiện cho người soạn: nút chèn biến theo nhãn
+               nghiệp vụ, ô soạn giữ nguyên dạng {ten_bien} để máy chủ thay giá trị (wiki/16) -->
+          <p class="small muted" id="tpl-vars">
+            {{ canEdit() ? 'Chèn nội dung tự điền vào mẫu câu:' : 'Nội dung tự điền dùng được:' }}
+          </p>
+          <ul class="vars" aria-labelledby="tpl-vars">
             @for (v of variables(); track v.name) {
               <li>
-                <code>{{ token(v.name) }}</code> {{ v.hint }}
+                @if (canEdit()) {
+                  <button
+                    type="button"
+                    class="var"
+                    [attr.data-var]="v.name"
+                    (click)="insertVariable(v.name, tplBox)"
+                  >
+                    {{ v.hint || 'nội dung tự điền' }}
+                  </button>
+                } @else {
+                  {{ v.hint || 'nội dung tự điền' }}
+                }
               </li>
             }
           </ul>
@@ -451,10 +467,28 @@ const VARIABLE_HINT: Record<string, string> = {
       margin: 6px 0 0;
     }
     .vars {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 8px;
+      list-style: none;
       margin: 4px 0 0;
-      padding-left: 18px;
+      padding: 0;
       font-size: 0.875rem;
       color: #374151;
+    }
+    .var {
+      min-height: 32px;
+      padding: 4px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 16px;
+      background: #f8fafc;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+    .var:focus-visible {
+      outline: 2px solid var(--p-primary-color, #0f5bd8);
+      outline-offset: 2px;
     }
     .muted {
       color: #4b5563;
@@ -571,6 +605,20 @@ export class DecisionTablePage {
 
   protected token(v: string) {
     return `{${v}}`;
+  }
+
+  /** Chèn `{biến}` vào vị trí con trỏ của ô mẫu câu rồi đặt con trỏ ngay sau biến vừa chèn. */
+  protected insertVariable(name: string, box: HTMLTextAreaElement): void {
+    const value = this.tpl();
+    const start = box.selectionStart ?? value.length;
+    const end = box.selectionEnd ?? start;
+    const token = this.token(name);
+    const next = value.slice(0, start) + token + value.slice(end);
+    // ghi thẳng vào ô trước: ngModel ghi lại cùng giá trị sau đó nên con trỏ không nhảy về cuối
+    box.value = next;
+    box.focus();
+    box.setSelectionRange(start + token.length, start + token.length);
+    this.tpl.set(next);
   }
 
   protected ruleOf(key: string): PolicyRule | undefined {

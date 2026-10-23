@@ -27,6 +27,7 @@ import {
   loadSheddingInterceptor,
   mockApiInterceptor,
   FeatureFlagService,
+  mockApiActive,
   setMockHomeBase,
 } from '@vt/api-client';
 import { SessionService, authInterceptor, provideVtAuth } from '@vt/auth';
@@ -131,7 +132,7 @@ export function buildAppConfig(
           .then(() => plugins.init())
           .then(() => {
             // giả lập không biết tenant: bố cục trang chủ gốc lấy theo UI Pack đã nạp, như máy chủ
-            if (cfg.useMockApi) setMockHomeBase(loader.layout('home'));
+            if (mockApiActive(cfg)) setMockHomeBase(loader.layout('home'));
           });
       }),
       // Khám phá cell sau đăng nhập (WEB-075); dữ liệu giả lập thì giữ gốc API của config.json

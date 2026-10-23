@@ -132,6 +132,23 @@ describe('Config Studio · Bảng quyết định (SCR-1502)', () => {
     expect(button(el, 'save').disabled).toBe(true);
   });
 
+  it('nút chèn nội dung tự điền: hiện nhãn nghiệp vụ, chèn biến vào vị trí con trỏ', async () => {
+    const el = await render(DecisionTablePage, true, '[data-row="6"]');
+    const vars = el.querySelector('ul.vars') as HTMLElement;
+    expect(text(vars)).toContain('mức phía trên');
+    expect(text(vars)).not.toMatch(/[{}]|_/);
+    const box = el.querySelector('[data-testid=template]') as HTMLTextAreaElement;
+    type(box, 'Chưa đạt  vì thiếu');
+    box.setSelectionRange(9, 9);
+    (vars.querySelector('[data-var=muc_tren]') as HTMLButtonElement).click();
+    await until(el, '[data-testid=template]', (e) =>
+      (e as HTMLTextAreaElement).value.includes('{muc_tren}'),
+    );
+    expect(box.value).toBe('Chưa đạt {muc_tren} vì thiếu');
+    expect(box.selectionStart).toBe(9 + '{muc_tren}'.length);
+    expect(el.querySelector('[data-testid=template-error]')).toBeNull();
+  });
+
   it('chỉ xem: hiện nhãn mức, không có ô nhập', async () => {
     const el = await render(DecisionTablePage, false, '[data-row="6"]');
     expect(el.querySelector('[data-testid=decision-table] input')).toBeNull();

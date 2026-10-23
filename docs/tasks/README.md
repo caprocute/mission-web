@@ -20,7 +20,7 @@ Công việc được chia thành năm luồng chạy song song, mỗi luồng l
 | Màn hình OKR, minh chứng, đánh giá | `okr-danh-gia` | fe-okr, fe-appraisal, fe-dossier | WEB-021..WEB-024, WEB-035..WEB-041, WEB-049 |
 | Màn hình giám sát, điều hành, cấu hình | `giam-sat-cau-hinh` | fe-config-studio, fe-admin | WEB-016..WEB-019, WEB-045, WEB-046, WEB-050, WEB-061, WEB-062 |
 
-Nền tảng mà các luồng màn hình cần đã có trên `main`: WEB-001 (lint, test), WEB-003 (ngân sách), WEB-006 (đăng nhập, chọn phân công, step-up), WEB-007 (api-client sinh từ OpenAPI, JobTracker), WEB-008 (mock API), WEB-015 (khung 8 remote, cổng dev 4202–4209), WEB-054 (bảng quyền `can()`). WEB-010 (form engine) đang làm; các task dùng biểu mẫu động (WEB-022, WEB-035, WEB-045, WEB-050) làm phần khung trước, nối form engine khi WEB-010 lên `main`.
+Nền tảng mà các luồng màn hình cần đã có trên `main`: WEB-001 (lint, test), WEB-003 (ngân sách), WEB-006 (đăng nhập, chọn phân công, step-up), WEB-007 (api-client sinh từ OpenAPI, JobTracker), WEB-008 (mock API), WEB-015 (khung 8 remote, cổng dev 4202–4209), WEB-054 (bảng quyền `can()`). WEB-010 (form engine) xong phần ngân sách dựng, chờ gộp; các task dùng biểu mẫu động (WEB-022, WEB-035, WEB-045, WEB-050) làm phần khung trước, nối form engine khi WEB-010 lên `main`.
 
 Cân lại 19/10/2026: luồng Màn hình nghiệp vụ đã xong phần được giao nên nhận thêm WEB-034 (khoá kỳ), WEB-042 (khiếu nại), WEB-043 (mở lại kỳ, sổ cái) và WEB-044 (trung tâm cảnh báo), tức toàn bộ remote fe-oversight; lần cân thứ hai cùng ngày chuyển tiếp WEB-047 và WEB-048 (remote fe-dashboard). Luồng Giám sát, điều hành, cấu hình giữ fe-dashboard, fe-config-studio, fe-admin và WEB-019; nếu luồng này đã lỡ bắt đầu một task vừa chuyển đi thì báo lại để giữ task đó.
 
@@ -41,7 +41,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-007](WEB-007-api-client-openapi.md) | `@vt/api-client`: sinh client từ OpenAPI, xử lý lỗi, 409, job 202 | M | WEB-001 | Hoàn thành (hợp đồng mẫu, chờ OpenAPI thật của mission-core) |
 | [WEB-008](WEB-008-mock-api.md) | Tách dữ liệu giả lập thành interceptor và fixture theo module | S | WEB-007 | Hoàn thành (axe còn lỗi có sẵn, xem WEB-059) |
 | [WEB-009](WEB-009-sdui-chu-ky.md) | SDUI: kiểm chữ ký UI Pack, kiểm phiên bản registry, telemetry | M | WEB-004 | Xong, chờ gộp (nhánh `claude/b8-ha-tang-g7g48k`) |
-| [WEB-010](WEB-010-form-engine.md) | Form engine: widget, test CEL dùng chung, benchmark | M | WEB-001 | Hoàn thành một phần (nhánh `feat/WEB-010-form-engine`): ngân sách dựng 50 trường ≤ 50 ms chưa đạt (khoảng 95 ms trên Chromium), xem wiki/09 |
+| [WEB-010](WEB-010-form-engine.md) | Form engine: widget, test CEL dùng chung, benchmark | M | WEB-001 | Xong, chờ gộp (nhánh `claude/b8-ha-tang-g7g48k`): biểu mẫu lớn dựng dần theo nhóm, lượt vẽ đầu 13–20 ms, không tác vụ dài trên 50 ms, xem wiki/09 |
 | [WEB-011](WEB-011-telemetry-faro.md) | Telemetry: Grafana Faro + OpenTelemetry web | S | WEB-001 | Xong, chờ gộp (nhánh `claude/b8-ha-tang-g7g48k`) |
 | [WEB-012](WEB-012-shell-hoan-thien.md) | Shell: thông báo thời gian thực, tìm kiếm, xử lý lỗi toàn cục | M | WEB-006, WEB-007 | Xong, chờ gộp |
 | [WEB-013](WEB-013-web-component-nhung.md) | Chế độ nhúng `<vt-okr-app>` cho cổng văn phòng số | M | WEB-006 | Xong, chờ gộp |
