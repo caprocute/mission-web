@@ -2,7 +2,7 @@
 
 Thư mục này sinh manifest Strimzi cho luồng thứ hai trong ba luồng dữ liệu được phép giữa các cell (TL-03 "Đồng bộ giữa các cell", baseline mục 8 cơ chế 7): MirrorMaker 2 của mỗi cell chỉ sao chép họ topic `agg.*`, tức số liệu tổng hợp C0 cấp tỉnh đã che nhóm nhỏ, sang Kafka của kho phân tích quốc gia ở vùng toàn cục (TL-01). Không topic nghiệp vụ chi tiết nào, không topic `cdc.*` nào rời cell.
 
-Dữ liệu đi theo đường: bảng `fact_*` của ClickHouse cell → job làm mới `agg_*` mỗi giờ và khung xuất `v_agg_xuat` (`analytics/clickhouse/migrations/V014__tong_hop_quoc_gia.sql`) → bộ xuất `analytics/clickhouse/agg_export.py` phát Avro lên `agg.province.metric.v1` của cell → MirrorMaker 2 ở đây → topic `<cell>.agg.province.metric.v1` ở Kafka quốc gia.
+Dữ liệu đi theo đường: bảng `fact_*` của ClickHouse cell → job làm mới `agg_*` mỗi giờ và khung xuất `v_agg_xuat` (`analytics/clickhouse/migrations/V015__tong_hop_quoc_gia.sql`) → bộ xuất `analytics/clickhouse/agg_export.py` phát Avro lên `agg.province.metric.v1` của cell → MirrorMaker 2 ở đây → topic `<cell>.agg.province.metric.v1` ở Kafka quốc gia.
 
 ## Thành phần
 

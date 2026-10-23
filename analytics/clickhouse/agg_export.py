@@ -1,6 +1,6 @@
 """Bộ xuất số liệu tổng hợp cấp tỉnh lên topic `agg.province.metric.v1` (DV-15-11, TL-03 "Đồng bộ giữa các cell").
 
-Đọc khung `v_agg_xuat` (V014: đã che nhóm nhỏ, không mã người), mã hoá Avro theo lược đồ khung
+Đọc khung `v_agg_xuat` (V015: đã che nhóm nhỏ, không mã người), mã hoá Avro theo lược đồ khung
 `contracts/events/avro/agg/AggregateMetric.avsc` và phát lên Kafka của cell; MirrorMaker 2 luồng phân tích
 (`analytics/mirrormaker`) chỉ sao chép họ topic `agg.*` sang Kafka của kho phân tích quốc gia.
 
@@ -38,7 +38,7 @@ TOPIC = "agg.province.metric.v1"
 ARTIFACT_ID = f"{TOPIC}-value"
 CLASSIFICATION = "C0"
 SOURCES = ("task", "score", "rating")
-# Ngưỡng che nhóm nhỏ (wiki/14 DV-15-11). V014 đã lọc; bộ xuất lọc lần nữa để một khung xuất sửa sai không lọt ô nhỏ.
+# Ngưỡng che nhóm nhỏ (wiki/14 DV-15-11). V015 đã lọc; bộ xuất lọc lần nữa để một khung xuất sửa sai không lọt ô nhỏ.
 K_MIN = 10
 NAMESPACE = uuid.UUID("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
 SCHEMA = (pathlib.Path(__file__).resolve().parents[2] / "contracts" / "events" / "avro" / "agg"

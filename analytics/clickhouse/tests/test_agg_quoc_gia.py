@@ -2,7 +2,7 @@
 
 1. Lược đồ Avro họ `agg.*` không có trường nào mang tên hay phân loại mã người (`person_key`, `user_id`…) hoặc C2, C3;
    topic `agg.*` trong danh mục chỉ là C0 và dùng lược đồ trong `avro/agg/`.
-2. Job tổng hợp V014 và bảng V007 không đưa mã người ra ngoài: `person_key` chỉ xuất hiện trong hàm đếm; khung xuất
+2. Job tổng hợp V015 và bảng V007 không đưa mã người ra ngoài: `person_key` chỉ xuất hiện trong hàm đếm; khung xuất
    áp ngưỡng che nhóm nhỏ k = 10 cho cả ba nguồn.
 3. Bộ xuất: chặn ô dưới ngưỡng, mã hoá đúng lược đồ, tiêu đề Apicurio 8 byte, chỉ ghi mốc khi Kafka xác nhận hết."""
 
@@ -23,7 +23,7 @@ from tests.conftest import REPO, ROOT
 AVRO = REPO / "contracts" / "events" / "avro" / "agg"
 CATALOG = REPO / "contracts" / "events" / "catalog.yaml"
 V007 = ROOT / "migrations" / "V007__bang_tong_hop_tinh.sql"
-V014 = ROOT / "migrations" / "V014__tong_hop_quoc_gia.sql"
+V015 = ROOT / "migrations" / "V015__tong_hop_quoc_gia.sql"
 # Tên (dạng snake, chữ thường) mang mã hay thuộc tính định danh một người cụ thể (TL-03 phân loại cột, test_phan_loai).
 PERSON = re.compile(r"(^|_)(person|user|actor|assigner|acceptor|assignee|approver|appraiser|decider|verifier|owner"
                     r"|created_by|updated_by|verified_by|approved_by|decided_by|locked_by|subject_id|profile|cbccvc"
@@ -98,7 +98,7 @@ def test_aggregate_tables_hold_only_counts() -> None:
 
 
 def test_job_uses_person_key_only_inside_counts() -> None:
-    sql = re.sub(r"--[^\n]*", "", V014.read_text(encoding="utf-8"))
+    sql = re.sub(r"--[^\n]*", "", V015.read_text(encoding="utf-8"))
     uses = re.findall(r"[\w(]*\(?[\w.]*person_key[^,\n]*", sql)
     assert uses
     for u in uses:
@@ -106,7 +106,7 @@ def test_job_uses_person_key_only_inside_counts() -> None:
 
 
 def test_export_view_applies_k_threshold_to_every_source() -> None:
-    sql = re.sub(r"--[^\n]*", "", V014.read_text(encoding="utf-8"))
+    sql = re.sub(r"--[^\n]*", "", V015.read_text(encoding="utf-8"))
     view = sql[sql.index("CREATE VIEW"):sql.index("CREATE TABLE")]
     assert re.findall(r"WHERE (\w+) >= (\d+)", view) == [("n_task", "10"), ("n_person", "10"), ("n_person", "10")]
     assert agg_export.K_MIN == 10
@@ -116,7 +116,7 @@ def test_export_view_applies_k_threshold_to_every_source() -> None:
 
 
 def test_refresh_hourly_append() -> None:
-    sql = V014.read_text(encoding="utf-8")
+    sql = V015.read_text(encoding="utf-8")
     for table in ("agg_task_tinh", "agg_score_tinh", "agg_rating_tinh"):
         head = f"mv_{table} ON CLUSTER '{{{{cluster}}}}'\nREFRESH EVERY 1 HOUR APPEND\nTO {{{{db}}}}.{table}\n"
         assert head in sql, table
