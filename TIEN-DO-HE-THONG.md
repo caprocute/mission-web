@@ -12,37 +12,37 @@
 
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
-- **Tổng tiến độ đã gộp `main`**: **337 / 408 task (82.6%)** — Khối lượng quy đổi đã gộp: **397.5 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **342 / 408 task (83.8%)** (gồm **337** đã gộp `main` + **5** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **3 task** (0 đang làm, 3 làm một phần).
-- **Chưa bắt đầu**: **63 task**.
+- **Tổng tiến độ đã gộp `main`**: **359 / 408 task (88.0%)** — Khối lượng quy đổi đã gộp: **426 / 492.5 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **359 / 408 task (88.0%)** (gồm **359** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **2 task** (0 đang làm, 2 làm một phần).
+- **Chưa bắt đầu**: **47 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
 
 | Mã nhóm | Phân hệ / Phạm vi | Tổng task | Khối lượng | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tỷ lệ gộp `main` |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **68** | 0 | 2 | 2 | **94.4%** |
+| **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **71** | 0 | 1 | 0 | **98.6%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **113** | 0 | 1 | 3 | **96.6%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **88** | 5 | 0 | 11 | **84.6%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **116** | 0 | 1 | 0 | **99.1%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **104** | 0 | 0 | 0 | **100.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **13** | 0 | 0 | 0 | **100.0%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **337** | **5** | **3** | **63** | **82.6%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **359** | **0** | **2** | **47** | **88.0%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
 | Mốc triển khai | Tổng task | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tiến độ gộp `main` |
 |---|---:|---:|---:|---:|---:|---:|
 | **M0 – Nền móng phát triển & CSDL** | 60 | **60** | 0 | 0 | 0 | **100.0%** |
-| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **35** | 4 | 0 | 1 | **87.5%** |
+| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **40** | 0 | 0 | 0 | **100.0%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **107** | 1 | 2 | 10 | **89.2%** |
-| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **67** | 0 | 0 | 5 | **93.1%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **119** | 0 | 1 | 0 | **99.2%** |
+| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **16** | 0 | 1 | 25 | **38.1%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **4** | 0 | 0 | 19 | **17.4%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **1** | 0 | 0 | 3 | **25.0%** |
@@ -97,7 +97,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [WEB-017](docs/tasks/WEB-017-wizard-tenant.md) | SCR-0102 Khởi tạo tenant (wizard) | M | W-Giám sát/CH | – | WEB-016 | **Đã gộp main** | Đã gộp `main` (SCR-0102 Wizard khởi tạo tenant) |
 | [WEB-018](docs/tasks/WEB-018-cay-to-chuc.md) | SCR-0103 Cây tổ chức có lịch sử | L | W-Giám sát/CH | – | WEB-015 | **Đã gộp main** | Đã gộp `main` (SCR-0103 Cây tổ chức có lịch sử hai trục thời gian) |
 | [WEB-019](docs/tasks/WEB-019-doi-soat-nhan-su.md) | SCR-0104 Đồng bộ và đối soát nhân sự | M | W-Giám sát/CH | – | WEB-018 | **Đã gộp main** | Đã gộp `main` (SCR-0104 Đồng bộ và đối soát nhân sự) |
-| [WEB-020](docs/tasks/WEB-020-theme-keycloak.md) | SCR-0001 Giao diện trang đăng nhập (theme Keycloak) | M | W-Nền tảng | – | WEB-004, WEB-006 | **Đã gộp main** | Theme Keycloak mission (SCR-0001) đã triển khai live trên 14.232.210.125:35080 |
+| [WEB-020](docs/tasks/WEB-020-theme-keycloak.md) | SCR-0001 Giao diện trang đăng nhập (theme Keycloak) | M | W-Nền tảng | – | WEB-004, WEB-006 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
 | [WEB-021](docs/tasks/WEB-021-cay-okr.md) | SCR-0201 Cây mục tiêu OKR | L | W-OKR/Đánh giá | – | WEB-015 | **Đã gộp main** | Đã gộp `main` (SCR-0201 Cây mục tiêu OKR) |
 | [WEB-022](docs/tasks/WEB-022-tao-sua-okr.md) | SCR-0202 Tạo/sửa O và KR | M | W-OKR/Đánh giá | – | WEB-021 | **Đã gộp main** | Đã gộp `main` (SCR-0202 Tạo/sửa O và KR) |
 | [WEB-023](docs/tasks/WEB-023-duyet-okr.md) | SCR-0203 Phê duyệt OKR | M | W-OKR/Đánh giá | – | WEB-022 | **Đã gộp main** | Đã gộp `main` (SCR-0203 Phê duyệt OKR) |
@@ -229,7 +229,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-05-08](docs/tasks/CORE-05-08-so-sanh-xem-truoc.md) | So sánh phiên bản và đánh giá xem trước | S | B2 | 14 | CORE-05-04 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [CORE-05-09](docs/tasks/CORE-05-09-trinh-phe-duyet-ky-so.md) | Trình và phê duyệt: người duyệt khác người soạn, ký số, ghi sổ cái | M | B2 | 15 | CORE-05-07, DV-10-01 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [CORE-05-10](docs/tasks/CORE-05-10-saga-phat-hanh-chinh-sach.md) | Phát hành: saga đa cell có bù trừ, `policy_binding`, EVT-13 | L | B2 | 16 | CORE-05-09, DV-06-05, CORE-08-12 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
-| [CORE-05-11](docs/tasks/CORE-05-11-cong-bo-workflow-bindings.md) | Lớp công bố `/policies/.../workflow-bindings` thuộc MOD-05, gọi API `wf_binding` của workflow-service | S | B2 | 13 | CORE-05-02, DV-06-08 | **Đã gộp main** | Đã gộp main (fcfdd4ab) |
+| [CORE-05-11](docs/tasks/CORE-05-11-cong-bo-workflow-bindings.md) | Lớp công bố `/policies/.../workflow-bindings` thuộc MOD-05, gọi API `wf_binding` của workflow-service | S | B2 | 13 | CORE-05-02, DV-06-08 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
 | [CORE-05-12](docs/tasks/CORE-05-12-ho-so-tap-khach-hang.md) | Hồ sơ tập khách hàng có phiên bản (bản kê, ký, hai người), khung tham số kế thừa có giới hạn, ghim phiên bản hồ sơ vào `policy_binding` | L | B2 | 14 | NEN-044, CORE-05-02, CORE-05-04 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 
 ### CORE-01 · MOD-01 okr (14/14 đã gộp `main`, 0 chờ gộp, 0 đang làm)
@@ -251,7 +251,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-01-13](docs/tasks/CORE-01-13-tro-ly-ai-okr.md) | Trợ lý AI cho OKR qua ai-gateway: soát KR, ghi `ai.suggestion_log`, cờ `content_source` | M | B2 | 18 | CORE-01-04, DV-14-04 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [CORE-01-14](docs/tasks/CORE-01-14-kieu-do-moc.md) | Kiểu đo `MOC` với bảng `okr.kr_milestone`, chiều `TOI_DA`, nhãn tử số và mẫu số cho KR tỷ lệ; ghi ngày đạt và số ngày làm việc chậm | M | B2 | 13 | NEN-044, CORE-01-01, CORE-08-04 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 
-### CORE-02 · MOD-02 task: danh mục, kế hoạch, nhiệm vụ (26/28 đã gộp `main`, 0 chờ gộp, 1 đang làm)
+### CORE-02 · MOD-02 task: danh mục, kế hoạch, nhiệm vụ (27/28 đã gộp `main`, 0 chờ gộp, 1 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -270,7 +270,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-02-13](docs/tasks/CORE-02-13-may-trang-thai-nhiem-vu.md) | Máy trạng thái nhiệm vụ khai báo, bảng chuyển trạng thái từ Policy Pack, guard CEL, `task_state_log`, EVT-06 | L | B3 | 15 | CORE-02-02, CORE-05-03, NEN-041, DL-04 | **Đã gộp main** | Gộp main (cherry-pick 0c363cd); máy trạng thái nhiệm vụ, task_state_log, EVT-06 |
 | [CORE-02-14](docs/tasks/CORE-02-14-giao-viec.md) | Giao việc: nháp, sửa, xoá, giao đơn lẻ và đồng loạt 202, kiểm BR-05-01..05, BR-05-09, EVT-04 | L | B3 | 16 | CORE-02-13, CORE-00-03 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [CORE-02-15](docs/tasks/CORE-02-15-nhiem-vu-gan-giong.md) | Phát hiện nhiệm vụ gần giống và gộp có lý do | M | B3 | 17 | CORE-02-14, DV-16-01 | **Đã gộp main** | Đã gộp main (74591707) |
-| [CORE-02-16](docs/tasks/CORE-02-16-nhiem-vu-tu-van-ban.md) | Nhiệm vụ từ văn bản chỉ đạo: consumer EVT-24, trích bằng AI, xác nhận và khoá đoạn | L | B3 | 17 | CORE-02-14, DV-13-03, DV-14-04 | **Chưa bắt đầu** |  |
+| [CORE-02-16](docs/tasks/CORE-02-16-nhiem-vu-tu-van-ban.md) | Nhiệm vụ từ văn bản chỉ đạo: consumer EVT-24, trích bằng AI, xác nhận và khoá đoạn | L | B3 | 17 | CORE-02-14, DV-13-03, DV-14-04 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
 | [CORE-02-17](docs/tasks/CORE-02-17-dang-ky-nhiem-vu.md) | Đăng ký nhiệm vụ, duyệt hoặc từ chối, đưa vào điều chỉnh kế hoạch | M | B3 | 17 | CORE-02-14, NEN-042 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 | [CORE-02-18](docs/tasks/CORE-02-18-viec-cua-toi.md) | Việc của tôi: danh sách con trỏ, lọc nhanh, nhận việc, xuất 202, cảnh báo khối lượng | M | B3 | 17 | CORE-02-14 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [CORE-02-19](docs/tasks/CORE-02-19-cap-nhat-tien-do.md) | Cập nhật tiến độ chỉ thêm, EVT-05, xung đột 409, cập nhật hàng loạt | M | B3 | 16 | CORE-02-13 | **Đã gộp main** | Đã gộp main (f74d95f1) |
@@ -295,7 +295,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-03-05](docs/tasks/CORE-03-05-ocr-goi-y-nhiem-vu.md) | OCR và trích thông tin minh chứng, gợi ý nhiệm vụ khớp | M | B3 | 18 | CORE-03-03, DV-08-05 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [CORE-03-06](docs/tasks/CORE-03-06-mo-nghiem-thu-toan-ven.md) | Mở nghiệm thu và kiểm toàn vẹn tệp | S | B3 | 18 | CORE-03-03 | **Đã gộp main** | Gộp main 22/10 |
 | [CORE-03-07](docs/tasks/CORE-03-07-nghiem-thu-nam-muc.md) | Nghiệm thu năm mức: AAL2, tách vai trò, nhận xét C2, EVT-08 | L | B3 | 19 | CORE-03-06, NEN-014, NEN-015 | **Đã gộp main** | Gộp main 2026-10-22 |
-| [CORE-03-08](docs/tasks/CORE-03-08-nhac-qua-han-nghiem-thu.md) | Nhắc quá hạn nghiệm thu và nghiệm thu thay theo uỷ quyền | S | B3 | 20 | CORE-03-07, CORE-08-04, CORE-08-16 | **Đã gộp main** | Đã gộp main (f74d95f1) |
+| [CORE-03-08](docs/tasks/CORE-03-08-nhac-qua-han-nghiem-thu.md) | Nhắc quá hạn nghiệm thu và nghiệm thu thay theo uỷ quyền | S | B3 | 20 | CORE-03-07, CORE-08-04, CORE-08-16 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
 
 ### CORE-04 · MOD-04 appraisal: đánh giá, xếp loại (13/13 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -315,7 +315,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-04-12](docs/tasks/CORE-04-12-phan-nhom-trien-vong.md) | Phân nhóm triển vọng: lưu nháp, BR-10-07..09, trình tập thể, ký danh sách | M | B4 | 21 | CORE-04-10 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [CORE-04-13](docs/tasks/CORE-04-13-dau-vao-diem-cong-viec-su-viec.md) | Đầu vào `workItems` và `responsibilityScope` trong `inputs`, bảng `appraisal.incident`, bắt buộc lý do khi mức của `rating_proposal` khác mức gợi ý | L | B4 | 18 | NEN-044, CORE-04-06, CORE-02-27, CORE-02-28, CORE-01-14 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 
-### CORE-06 · MOD-06 dossier: kiểm điểm, hồ sơ số (7/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### CORE-06 · MOD-06 dossier: kiểm điểm, hồ sơ số (8/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -326,9 +326,9 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-06-05](docs/tasks/CORE-06-05-truong-hop-dac-thu.md) | Phát hiện 13 trường hợp đặc thù theo bảng trong Policy Pack | L | B4 | 14 | CORE-06-01, CORE-05-03, CORE-00-03 | **Đã gộp main** | Đã gộp main (ad623eff) |
 | [CORE-06-06](docs/tasks/CORE-06-06-tao-goi-ho-so.md) | Tạo gói hồ sơ khi có EVT-12, theo dõi job sinh biểu mẫu, sinh lại tệp lỗi | M | B4 | 20 | CORE-06-01, CORE-04-08, DV-11-04 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [CORE-06-07](docs/tasks/CORE-06-07-ky-khoa-goi.md) | Manifest SHA-256, danh sách kiểm tra, ký gói, khoá `DA_NOP`, phiên bản gói mới khi EVT-22 | M | B4 | 21 | CORE-06-06, DV-10-02 | **Đã gộp main** | Đợt 10, main c7d74c17 |
-| [CORE-06-08](docs/tasks/CORE-06-08-xuat-goi-edxml.md) | Xuất gói ZIP có manifest ký và gửi gói con diện Trung ương qua EdXML | M | B4 | 22 | CORE-06-07, DV-13-05 | **Chưa bắt đầu** |  |
+| [CORE-06-08](docs/tasks/CORE-06-08-xuat-goi-edxml.md) | Xuất gói ZIP có manifest ký và gửi gói con diện Trung ương qua EdXML | M | B4 | 22 | CORE-06-07, DV-13-05 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
 
-### CORE-07 · MOD-07 oversight: khiếu nại, hậu kiểm, cảnh báo (11/12 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### CORE-07 · MOD-07 oversight: khiếu nại, hậu kiểm, cảnh báo (12/12 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -340,28 +340,28 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-07-06](docs/tasks/CORE-07-06-ma-hoa-dau-cuoi-c3.md) | Mã hoá đầu cuối C3 phía máy chủ: lưu bản mã, khoá công khai người nhận, bọc khoá, phục hồi tổ chức Shamir | L | B4 | 21 | CORE-07-02, NEN-015, NEN-042 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 | [CORE-07-07](docs/tasks/CORE-07-07-yeu-cau-mo-lai.md) | Yêu cầu mở lại kỳ và mô phỏng ảnh hưởng | M | B4 | 18 | CORE-07-01, DV-07-08 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [CORE-07-08](docs/tasks/CORE-07-08-bon-mat-phe-duyet.md) | Bốn mắt: chọn hai người duyệt qua OPA, phê duyệt có step-up và ký số, EVT-22 | M | B4 | 19 | CORE-07-07, NEN-040, DV-10-02, DV-06-04 | **Đã gộp main** | Đã gộp main (984a7ba1) |
-| [CORE-07-09](docs/tasks/CORE-07-09-dieu-phoi-tinh-lai.md) | Điều phối tính lại, sinh lại, ký lại sau EVT-22; hậu kiểm có bằng chứng sổ cái | M | B4 | 20 | CORE-07-08, CORE-08-06, DV-09-05 | **Chưa bắt đầu** |  |
+| [CORE-07-09](docs/tasks/CORE-07-09-dieu-phoi-tinh-lai.md) | Điều phối tính lại, sinh lại, ký lại sau EVT-22; hậu kiểm có bằng chứng sổ cái | M | B4 | 20 | CORE-07-08, CORE-08-06, DV-09-05 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
 | [CORE-07-10](docs/tasks/CORE-07-10-tiep-nhan-canh-bao.md) | Cảnh báo bất thường: consumer EVT-20, chống trùng, gộp, hành động tự động, cờ chặn minh chứng | M | B4 | 12 | CORE-07-01, DV-15-07 | **Đã gộp main** | Đã gộp main (ad623eff) |
 | [CORE-07-11](docs/tasks/CORE-07-11-xu-ly-canh-bao.md) | Xử lý cảnh báo: hợp lệ, giao kiểm tra, kết luận; quyền inspector; ngưỡng phát hiện có phiên bản | M | B4 | 19 | CORE-07-10, CORE-08-07, CORE-07-07 | **Đã gộp main** | Đã gộp main (fcfdd4ab) |
 | [CORE-07-12](docs/tasks/CORE-07-12-chi-muc-tra-cuu-nhat-ky-c2.md) | Chỉ mục kiểm toán và API tra cứu nhật ký truy cập dữ liệu C2 | M | B4 | 12 | CORE-00-05 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 
-### DV-01 · SVC-01 api-gateway (0/4 đã gộp `main`, 4 chờ gộp, 0 đang làm)
+### DV-01 · SVC-01 api-gateway (4/4 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
-| [DV-01-01](docs/tasks/DV-01-01-tuyen-apisix-xac-thuc.md) | Tuyến APISIX theo module (ApisixRoute), xác thực JWT qua JWKS, plugin gán claim tenant | M | B5 | 2 | INF-08, DV-02-01 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: bảng tuyến theo module, vt-claims ES256, kiểm tĩnh và APISIX thật xanh |
-| [DV-01-02](docs/tasks/DV-01-02-gioi-han-toc-do-waf.md) | Giới hạn tốc độ ba tầng, plugin bảo vệ API, cắt tải, WAF Coraza với OWASP CRS 4 | M | B5 | 3 | DV-01-01 | **Xong, chờ gộp** | Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: ba tầng giới hạn, lớp ưu tiên, bộ điều khiển suy giảm, Coraza CRS 4; đã hợp nhất mô hình tuyến của DV-01-01; kiểm thử tĩnh và APISIX thật trên Docker xanh |
-| [DV-01-03](docs/tasks/DV-01-03-tuyen-cong-khai-ci.md) | Danh sách tuyến công khai tường minh và kiểm thử CI quét toàn bộ CRD | S | B5 | 3 | DV-01-01 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: public-routes.yaml sinh từ hợp đồng, kiểm CRD và fixture âm tính |
-| [DV-01-04](docs/tasks/DV-01-04-apisix-lop-ngoai.md) | APISIX lớp ngoài ở vùng toàn cục: phân giải tenant sang cell, đệm 5 phút, khám phá cell | M | B5 | 9 | DV-01-01, DV-03-02 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: lớp toàn cục + mã tác vụ có tiền tố ở 6 service (org-, wf-, score-, doc-, ledger-, ana-), kiểm thử xanh |
+| [DV-01-01](docs/tasks/DV-01-01-tuyen-apisix-xac-thuc.md) | Tuyến APISIX theo module (ApisixRoute), xác thực JWT qua JWKS, plugin gán claim tenant | M | B5 | 2 | INF-08, DV-02-01 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
+| [DV-01-02](docs/tasks/DV-01-02-gioi-han-toc-do-waf.md) | Giới hạn tốc độ ba tầng, plugin bảo vệ API, cắt tải, WAF Coraza với OWASP CRS 4 | M | B5 | 3 | DV-01-01 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
+| [DV-01-03](docs/tasks/DV-01-03-tuyen-cong-khai-ci.md) | Danh sách tuyến công khai tường minh và kiểm thử CI quét toàn bộ CRD | S | B5 | 3 | DV-01-01 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
+| [DV-01-04](docs/tasks/DV-01-04-apisix-lop-ngoai.md) | APISIX lớp ngoài ở vùng toàn cục: phân giải tenant sang cell, đệm 5 phút, khám phá cell | M | B5 | 9 | DV-01-01, DV-03-02 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
 
-### DV-02 · SVC-02 iam (Keycloak) (7/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-02 · SVC-02 iam (Keycloak) (8/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-02-01](docs/tasks/DV-02-01-mau-realm-production.md) | Mẫu realm production theo cell với Organizations, PKCE, chính sách mật khẩu, khoá sau 5 lần sai, thời hạn phiên | M | B5 | 1 | – | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main |
 | [DV-02-02](docs/tasks/DV-02-02-claim-ngu-canh.md) | Protocol mapper claim ngữ cảnh và API chọn đơn vị, vai trò (`PUT /org/me/context`) | M | B5 | 12 | DV-02-01, DV-04-04 | **Đã gộp main** | Đã gộp main (nhánh B1 d598b9e) |
 | [DV-02-03](docs/tasks/DV-02-03-mfa-step-up.md) | MFA theo vai trò, thiết bị, rủi ro; step-up `acr` và `auth_time` | M | B5 | 2 | DV-02-01 | **Đã gộp main** | Luồng đăng nhập theo bậc xác thực, MFA theo vai trò, thiết bị, rủi ro |
-| [DV-02-04](docs/tasks/DV-02-04-moi-gioi-vneid.md) | Môi giới VNeID: state, nonce, PKCE, liên kết danh tính bằng HMAC | L | B5 | 10 | DV-02-01, DV-04-01, NEN-015 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần môi trường thử VNeID |
+| [DV-02-04](docs/tasks/DV-02-04-moi-gioi-vneid.md) | Môi giới VNeID: state, nonce, PKCE, liên kết danh tính bằng HMAC | L | B5 | 10 | DV-02-01, DV-04-01, NEN-015 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
 | [DV-02-05](docs/tasks/DV-02-05-su-kien-keycloak.md) | Event listener Keycloak đẩy `iam.auth.event.v1`, báo truy cập bất thường, thu hồi phiên | M | B5 | 4 | DV-02-01, NEN-007 | **Đã gộp main** | Đã gộp main (nhánh B1 37a1606) |
 | [DV-02-06](docs/tasks/DV-02-06-dong-bo-nguoi-dung.md) | Consumer EVT-16 đồng bộ người dùng qua Admin API | M | B5 | 12 | DV-02-01, DV-04-03 | **Đã gộp main** | Đã gộp main (nhánh B1 6389317) |
 | [DV-02-07](docs/tasks/DV-02-07-consumer-evt14-keycloak.md) | Consumer EVT-14 cập nhật Organizations Keycloak khi tổ chức thay đổi | S | B5 | 12 | DV-02-01, DV-04-03 | **Đã gộp main** | Đã gộp main (nhánh B1 6389317) |
@@ -392,7 +392,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-04-07](docs/tasks/DV-04-07-doi-soat-nhan-su.md) | Đối soát nhân sự: khớp người bằng HMAC và ngày sinh, bảng lệch, phân loại, API giải quyết | L | B5 | 12 | DV-04-04, DV-13-06 | **Đã gộp main** | Đã gộp main (8b84e3a) |
 | [DV-04-08](docs/tasks/DV-04-08-org-republish.md) | Lệnh phát lại sự kiện tổ chức (`org-republish`) cho bên nhận bị lệch | S | B5 | 12 | DV-04-03, NEN-022 | **Đã gộp main** | Đã gộp main (nhánh B1 7dca3d2) |
 
-### DV-06 · SVC-06 workflow-service (Flowable) (9/12 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-06 · SVC-06 workflow-service (Flowable) (12/12 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -404,10 +404,10 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-06-06](docs/tasks/DV-06-06-saga-chot-ky.md) | Saga chốt kỳ: tiền điều kiện, khoá, tính điểm, sinh biểu mẫu, ký lô, niêm phong, lập hồ sơ | L | B6 | 19 | DV-06-05, CORE-08-05, DV-07-06, DV-11-04, DV-10-06, DV-09-03 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [DV-06-07](docs/tasks/DV-06-07-bu-tru-chot-ky.md) | Bù trừ saga chốt kỳ, chạy lại hồ sơ lỗi, kiểm tất định bằng chạy lại mẫu | L | B6 | 20 | DV-06-06 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [DV-06-08](docs/tasks/DV-06-08-api-wf-binding.md) | API `wf_binding`: lưu, linter tham số, mô phỏng trên engine thử | M | B6 | 12 | DV-06-03 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
-| [DV-06-09](docs/tasks/DV-06-09-mau-luong-noi-bo.md) | Mẫu luồng nội bộ (BS-01): mở rộng `wf_template`, `wf_template_rollout`, linter, saga phát hành cuốn chiếu | L | B6 | 13 | DV-06-08 | **Chưa bắt đầu** |  |
-| [DV-06-10](docs/tasks/DV-06-10-giam-sat-tien-trinh.md) | API giám sát tiến trình theo mẫu (BS-01): chuyển người xử lý, gia hạn, sơ đồ | M | B6 | 11 | DV-06-02 | **Chưa bắt đầu** |  |
-| [DV-06-11](docs/tasks/DV-06-11-chieu-lich-su-g2.md) | Chiếu lịch sử tiến trình sang kho phân tích và chỉ số giám sát G2 | M | B6 | 11 | DV-06-02, DV-15-01 | **Chưa bắt đầu** |  |
-| [DV-06-12](docs/tasks/DV-06-12-mau-duyet-kep-chi-huy.md) | Mẫu BPMN duyệt kép chỉ huy và cấp uỷ (`duyet-kep-chi-huy-cap-uy`) | M | B6 | 13 | DV-06-04 | **Đã gộp main** | Đợt 10, main c7d74c17 |
+| [DV-06-09](docs/tasks/DV-06-09-mau-luong-noi-bo.md) | Mẫu luồng nội bộ (BS-01): mở rộng `wf_template`, `wf_template_rollout`, linter, saga phát hành cuốn chiếu | L | B6 | 13 | DV-06-08 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
+| [DV-06-10](docs/tasks/DV-06-10-giam-sat-tien-trinh.md) | API giám sát tiến trình theo mẫu (BS-01): chuyển người xử lý, gia hạn, sơ đồ | M | B6 | 11 | DV-06-02 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
+| [DV-06-11](docs/tasks/DV-06-11-chieu-lich-su-g2.md) | Chiếu lịch sử tiến trình sang kho phân tích và chỉ số giám sát G2 | M | B6 | 11 | DV-06-02, DV-15-01 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
+| [DV-06-12](docs/tasks/DV-06-12-mau-duyet-kep-chi-huy.md) | Mẫu BPMN duyệt kép chỉ huy và cấp uỷ (`duyet-kep-chi-huy-cap-uy`) | M | B6 | 13 | DV-06-04 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
 
 ### DV-07 · SVC-07 scoring-service (8/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -438,21 +438,21 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-09-01](docs/tasks/DV-09-01-khung-ledger-migration.md) | Khung service và migration CSDL `ledger` chỉ ghi thêm | M | B6 | 7 | NEN-017 | **Đã gộp main** | Đã gộp main (40e7b32): khung SVC-09 ledger-service Go, schema sổ cái bất biến và phân vùng 2 tầng |
-| [DV-09-02](docs/tasks/DV-09-02-ghi-chuoi-bam.md) | Consumer ghi chuỗi băm 64 phân vùng theo tenant, chuẩn hoá RFC 8785 | L | B6 | 8 | DV-09-01 | **Đã gộp main** | Đợt 10, main c7d74c17 |
+| [DV-09-02](docs/tasks/DV-09-02-ghi-chuoi-bam.md) | Consumer ghi chuỗi băm 64 phân vùng theo tenant, chuẩn hoá RFC 8785 | L | B6 | 8 | DV-09-01 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
 | [DV-09-03](docs/tasks/DV-09-03-niem-phong-merkle.md) | Niêm phong Merkle hai cấp mỗi giờ, dấu thời gian RFC 3161, ký qua esign, EVT-19, bản neo | L | B6 | 11 | DV-09-02, DV-10-03 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [DV-09-04](docs/tasks/DV-09-04-kiem-tra-toan-ven.md) | Kiểm tra toàn vẹn định kỳ, chỉ ra bản ghi bị phá, phát EVT-20 | M | B6 | 12 | DV-09-03 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [DV-09-05](docs/tasks/DV-09-05-tra-cuu-xuat-bang-chung.md) | API tra cứu, xuất bằng chứng có ký và công cụ kiểm chứng độc lập `ledger-verify` | L | B6 | 12 | DV-09-03 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 
-### DV-10 · SVC-10 esign-service (2/6 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-10 · SVC-10 esign-service (6/6 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-10-01](docs/tasks/DV-10-01-khung-esign-provider.md) | Khung service, migration schema `esign`, giao diện nhà cung cấp `SignatureProvider` | M | B6 | 9 | NEN-019, NEN-033 | **Đã gộp main** | Đã gộp main (nhánh B6 bd3538e) |
 | [DV-10-02](docs/tasks/DV-10-02-nha-cung-cap-mysign.md) | Nhà cung cấp MySign (CSC API) ký từ xa bất đồng bộ, EVT-18 | L | B6 | 10 | DV-10-01 | **Đã gộp main** | Gộp main 22/10 |
-| [DV-10-03](docs/tasks/DV-10-03-hsm-pkcs11-tsa.md) | Nhà cung cấp HSM qua PKCS#11 và dấu thời gian TSA | L | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Dev dùng SoftHSM |
-| [DV-10-04](docs/tasks/DV-10-04-viettel-ca-ca-chinh-phu.md) | Nhà cung cấp Viettel-CA và CA chuyên dùng Chính phủ | M | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần môi trường thử CA |
-| [DV-10-05](docs/tasks/DV-10-05-ban-co-yeu-cach-ly.md) | Nhà cung cấp Ban Cơ yếu cho bản cách ly qua `CryptoProvider` | M | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần thư viện Ban Cơ yếu |
-| [DV-10-06](docs/tasks/DV-10-06-ky-lo-quyet-dinh.md) | Ký lô 100.000 phiếu trong 4 giờ: phiên ký một lần xác nhận, worker co giãn | M | B6 | 11 | DV-10-03 | **Chưa bắt đầu** |  |
+| [DV-10-03](docs/tasks/DV-10-03-hsm-pkcs11-tsa.md) | Nhà cung cấp HSM qua PKCS#11 và dấu thời gian TSA | L | B6 | 10 | DV-10-01 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
+| [DV-10-04](docs/tasks/DV-10-04-viettel-ca-ca-chinh-phu.md) | Nhà cung cấp Viettel-CA và CA chuyên dùng Chính phủ | M | B6 | 10 | DV-10-01 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
+| [DV-10-05](docs/tasks/DV-10-05-ban-co-yeu-cach-ly.md) | Nhà cung cấp Ban Cơ yếu cho bản cách ly qua `CryptoProvider` | M | B6 | 10 | DV-10-01 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
+| [DV-10-06](docs/tasks/DV-10-06-ky-lo-quyet-dinh.md) | Ký lô 100.000 phiếu trong 4 giờ: phiên ký một lần xác nhận, worker co giãn | M | B6 | 11 | DV-10-03 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
 
 ### DV-11 · SVC-11 document-service (4/4 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -473,21 +473,21 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-12-04](docs/tasks/DV-12-04-thong-bao-hang-loat.md) | Thông báo hàng loạt cuối kỳ chia theo tenant, giới hạn tốc độ theo kênh | S | B7 | 9 | DV-12-03 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DV-12-05](docs/tasks/DV-12-05-thiet-bi-day-tuy-chon-kenh.md) | Đăng ký thiết bị nhận thông báo đẩy và tuỳ chọn kênh: bảng `notify`, API | S | B7 | 8 | DV-12-01, NEN-043 | **Đã gộp main** | Gộp main; notification-service Go |
 
-### DV-13 · SVC-13 integration-gateway (8/11 đã gộp `main`, 1 chờ gộp, 0 đang làm)
+### DV-13 · SVC-13 integration-gateway (11/11 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-13-01](docs/tasks/DV-13-01-khung-camel-acl.md) | Khung Camel, migration schema `integ`, khung lớp chống ô nhiễm, `mapping_xref`, dead letter | L | B5 | 9 | NEN-019, NEN-033 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 | [DV-13-02](docs/tasks/DV-13-02-cloudevents-jws-mtls.md) | CloudEvents ra ngoài có JWS và mTLS | M | B5 | 10 | DV-13-01 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [DV-13-03](docs/tasks/DV-13-03-ket-noi-voffice.md) | Bộ kết nối vOffice: văn bản chỉ đạo đến (EVT-24) và văn bản đã ban hành | L | B5 | 10 | DV-13-01 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
-| [DV-13-04](docs/tasks/DV-13-04-ket-noi-ioffice.md) | Bộ kết nối iOffice | M | B5 | 11 | DV-13-03 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần môi trường thử iOffice |
+| [DV-13-04](docs/tasks/DV-13-04-ket-noi-ioffice.md) | Bộ kết nối iOffice | M | B5 | 11 | DV-13-03 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
 | [DV-13-05](docs/tasks/DV-13-05-truc-lien-thong-edxml.md) | Trục liên thông văn bản quốc gia (EdXML, X-Road) | L | B5 | 10 | DV-13-01 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [DV-13-06](docs/tasks/DV-13-06-lgsp-ndxp-cbccvc.md) | LGSP, NDXP và CSDL cán bộ, công chức, viên chức (đồng bộ đêm, `sync_cursor`) | L | B5 | 10 | DV-13-01 | **Đã gộp main** | Đợt 10, main c7d74c17 |
-| [DV-13-07](docs/tasks/DV-13-07-csdl-dang-vien.md) | CSDL đảng viên | M | B5 | 11 | DV-13-06 | **Đã gộp main** | Đợt 10, main c7d74c17 |
+| [DV-13-07](docs/tasks/DV-13-07-csdl-dang-vien.md) | CSDL đảng viên | M | B5 | 11 | DV-13-06 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
 | [DV-13-08](docs/tasks/DV-13-08-hrm-so-lieu-kr.md) | HRM và số liệu nguồn cho KR | M | B5 | 10 | DV-13-01 | **Đã gộp main** | Đợt 10, main c7d74c17 |
-| [DV-13-09](docs/tasks/DV-13-09-ban-neo-chia-se-xep-loai.md) | Gửi bản neo sổ cái cho bên thứ ba và chia sẻ quyết định xếp loại ra ngoài | M | B5 | 12 | DV-13-02, DV-09-03 | **Đã gộp main** | Đợt 10, main c7d74c17 |
-| [DV-13-10](docs/tasks/DV-13-10-goi-chuyen-ho-so-lien-cell.md) | Gói chuyển hồ sơ cán bộ liên cell có ký số | M | B5 | 11 | DV-13-02, DV-10-01 | **Xong, chờ gộp** | Nhánh claude/project-thread-z7s8x3: nối đủ cổng thu thập/nhập MOD-04, MOD-06, SVC-04, org gọi đóng gói, esign ký tổ chức |
-| [DV-13-11](docs/tasks/DV-13-11-pact-he-ngoai.md) | Kiểm thử hợp đồng Pact với từng hệ ngoài bằng đối tác giả lập | M | B5 | 11 | DV-13-03, QA-02 | **Chưa bắt đầu** |  |
+| [DV-13-09](docs/tasks/DV-13-09-ban-neo-chia-se-xep-loai.md) | Gửi bản neo sổ cái cho bên thứ ba và chia sẻ quyết định xếp loại ra ngoài | M | B5 | 12 | DV-13-02, DV-09-03 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
+| [DV-13-10](docs/tasks/DV-13-10-goi-chuyen-ho-so-lien-cell.md) | Gói chuyển hồ sơ cán bộ liên cell có ký số | M | B5 | 11 | DV-13-02, DV-10-01 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
+| [DV-13-11](docs/tasks/DV-13-11-pact-he-ngoai.md) | Kiểm thử hợp đồng Pact với từng hệ ngoài bằng đối tác giả lập | M | B5 | 11 | DV-13-03, QA-02 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
 
 ### DV-14 · SVC-14 ai-gateway (Python) (7/7 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -501,7 +501,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-14-06](docs/tasks/DV-14-06-nhat-ky-goi-y-tom-tat.md) | Nhật ký gợi ý (chấp nhận, bỏ qua, nguồn) và tóm tắt tuần cho lãnh đạo | M | B7 | 8 | DV-14-04 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DV-14-07](docs/tasks/DV-14-07-chuyen-giong-noi-van-ban.md) | Chuyển giọng nói thành văn bản (`transcribeSpeech`) | M | B7 | 6 | DV-14-01 | **Đã gộp main** | Gộp main 2026-10-22 |
 
-### DV-15 · SVC-15 analytics (10/11 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-15 · SVC-15 analytics (11/11 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -515,7 +515,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-15-08](docs/tasks/DV-15-08-dau-hieu-3-5-7.md) | Dấu hiệu bất thường 3, 5, 7 | M | B7 | 6 | DV-15-07 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [DV-15-09](docs/tasks/DV-15-09-dau-hieu-6-8.md) | Dấu hiệu bất thường 6, 8 và tự đóng khi hết dấu hiệu; dấu hiệu tỷ lệ chấp nhận khách quan | M | B7 | 6 | DV-15-07 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [DV-15-10](docs/tasks/DV-15-10-du-bao-tre-han.md) | Dự báo nguy cơ trễ nhiệm vụ | M | B7 | 14 | DV-15-01, CORE-02-26 | **Đã gộp main** | Đã gộp main (f74d95f1) |
-| [DV-15-11](docs/tasks/DV-15-11-mirrormaker-kho-quoc-gia.md) | MirrorMaker 2 đẩy dữ liệu tổng hợp lên kho phân tích quốc gia | M | B7 | 5 | DV-15-01, INF-10 | **Chưa bắt đầu** |  |
+| [DV-15-11](docs/tasks/DV-15-11-mirrormaker-kho-quoc-gia.md) | MirrorMaker 2 đẩy dữ liệu tổng hợp lên kho phân tích quốc gia | M | B7 | 5 | DV-15-01, INF-10 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
 
 ### DV-16 · SVC-16 search (2/2 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -625,13 +625,13 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [VH-08](docs/tasks/VH-08-thi-diem-chuyen-tenant.md) | Kế hoạch đưa tenant thí điểm vào sử dụng và mở rộng theo nhóm tenant (hệ thống mới độc lập, không chuyển từ hệ cũ) | M | B11 | 25 | QA-16 | **Chưa bắt đầu** |  |
 | [VH-09](docs/tasks/VH-09-cham-checklist-quy.md) | Chấm lại checklist 110 tiêu chí và bảng chỉ số chuyển đổi mỗi quý | S | B11 | 6 | VH-03 | **Chưa bắt đầu** |  |
 
-### WEB · Phân hệ web: phần còn thiếu so với toàn hệ thống (4/7 đã gộp `main`, 0 chờ gộp, 1 đang làm)
+### WEB · Phân hệ web: phần còn thiếu so với toàn hệ thống (7/7 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
-| [WEB-070](docs/tasks/WEB-070-noi-api-that-okr-viec-minh-chung.md) | Nối các màn hình OKR, giao việc, minh chứng với API thật, tắt giả lập theo module bằng cấu hình | L | W | 20 | QA-03, CORE-01-08, CORE-02-19, CORE-03-07 | **Làm một phần** | Công tắc giả lập và kịch bản e2e đã gộp main (fcfdd4ab); chạy với máy chủ thật chờ QA-03 |
-| [WEB-071](docs/tasks/WEB-071-noi-api-that-danh-gia-giam-sat.md) | Nối các màn hình đánh giá, hồ sơ số, giám sát với API thật | L | W | 23 | WEB-070, CORE-04-10, CORE-06-08, CORE-07-11 | **Chưa bắt đầu** |  |
-| [WEB-072](docs/tasks/WEB-072-noi-api-that-quan-tri-cau-hinh.md) | Nối các màn hình quản trị, cấu hình, Policy Pack, bảng điều hành với API thật | L | W | 21 | WEB-070, CORE-05-10, CORE-08-11, DV-15-04 | **Chưa bắt đầu** |  |
+| [WEB-070](docs/tasks/WEB-070-noi-api-that-okr-viec-minh-chung.md) | Nối các màn hình OKR, giao việc, minh chứng với API thật, tắt giả lập theo module bằng cấu hình | L | W | 20 | QA-03, CORE-01-08, CORE-02-19, CORE-03-07 | **Đã gộp main** | Đợt gộp 11; còn ngoại lệ: chạy với backend thật chờ QA-03 |
+| [WEB-071](docs/tasks/WEB-071-noi-api-that-danh-gia-giam-sat.md) | Nối các màn hình đánh giá, hồ sơ số, giám sát với API thật | L | W | 23 | WEB-070, CORE-04-10, CORE-06-08, CORE-07-11 | **Đã gộp main** | Đợt gộp 11; còn ngoại lệ: chạy với backend thật chờ QA-03 |
+| [WEB-072](docs/tasks/WEB-072-noi-api-that-quan-tri-cau-hinh.md) | Nối các màn hình quản trị, cấu hình, Policy Pack, bảng điều hành với API thật | L | W | 21 | WEB-070, CORE-05-10, CORE-08-11, DV-15-04 | **Đã gộp main** | Đợt gộp 11; còn ngoại lệ: chạy với backend thật chờ QA-03 |
 | [WEB-073](docs/tasks/WEB-073-xu-ly-cat-tai-retry-after.md) | Xử lý 429 và 503 có `Retry-After`, thử lại có backoff, giữ bản nháp | S | W | 1 | WEB-007 | **Đã gộp main** | Đã gộp main (f4fca53); máy chủ thật chờ CORE tương ứng |
 | [WEB-074](docs/tasks/WEB-074-traceparent-telemetry.md) | Gắn `traceparent` vào mọi lời gọi của `@vt/api-client` và liên kết với telemetry | S | W | 1 | WEB-011 | **Đã gộp main** | Đã gộp main (f4fca53); máy chủ thật chờ CORE tương ứng |
 | [WEB-075](docs/tasks/WEB-075-kham-pha-cell.md) | Khám phá cell khi đăng nhập (chuyển hướng 307, mã 421) | S | W | 10 | WEB-006, DV-01-04 | **Đã gộp main** | Đã gộp main (f4fca53); máy chủ thật chờ CORE tương ứng |
@@ -998,4 +998,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 06:11 | B2 (luồng B6) | `DV-01-02` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: ba tầng giới hạn, lớp ưu tiên, bộ điều khiển suy giảm, Coraza CRS 4; đã hợp nhất mô hình tuyến của DV-01-01; kiểm thử tĩnh và APISIX thật trên Docker xanh |
 | 23/10/2026 06:58 | B1 (Claude) | `DV-01-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: lớp toàn cục + mã tác vụ có tiền tố ở 6 service (org-, wf-, score-, doc-, ledger-, ana-), kiểm thử xanh |
 | 23/10/2026 07:49 | B9 | `DV-13-10` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: nối đủ cổng thu thập/nhập MOD-04, MOD-06, SVC-04, org gọi đóng gói, esign ký tổ chức |
+| 23/10/2026 08:50 | Điều phối (main) | `WEB-020`, `CORE-02-16`, `CORE-03-08`, `CORE-06-08`, `CORE-07-09`, `DV-01-01`, `DV-01-02`, `DV-01-03`, `DV-01-04`, `DV-02-04`, `DV-06-09`, `DV-06-10`, `DV-06-11`, `DV-06-12`, `DV-10-03`, `DV-10-04`, `DV-10-05`, `DV-10-06`, `DV-13-04`, `DV-13-07`, `DV-13-09`, `DV-13-10`, `DV-13-11`, `DV-15-11`, `CORE-05-11`, `DV-09-02` | Chuyển trạng thái sang **Đã gộp main** — Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
+| 23/10/2026 08:50 | Điều phối (main) | `WEB-070`, `WEB-071`, `WEB-072` | Chuyển trạng thái sang **Đã gộp main** — Đợt gộp 11; còn ngoại lệ: chạy với backend thật chờ QA-03 |
 <!-- PROGRESS_LOG_END -->
