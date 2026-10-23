@@ -1,0 +1,36 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/api/v1/van-ban-den",
+    "queryParameters": {
+      "tuThoiDiem": { "equalTo": "1970-01-01T00:00:00Z" },
+      "soLuong": { "equalTo": "200" }
+    },
+    "headers": { "Authorization": { "equalTo": "Bearer ma-gia-lap" } }
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "duLieu": [
+        {
+          "vanBanId": "IO-2026-0001",
+          "phienBan": 1,
+          "soKyHieu": "12/CT-UBND",
+          "ngayBanHanh": "19/10/2026",
+          "coQuanBanHanh": "Uỷ ban nhân dân tỉnh",
+          "trichYeu": "Chỉ đạo triển khai nhiệm vụ trọng tâm quý IV năm 2026",
+          "doKhan": "THUONG",
+          "doMat": "THUONG",
+          "nguoiKy": "Người ký giả lập",
+          "soDen": "125",
+          "ngayDen": "20/10/2026",
+          "noiNhan": [{ "maDonVi": "DV-01", "tenDonVi": "Ban giả lập" }],
+          "tepDinhKem": [{ "maTep": "F-0001", "tenTep": "12-CT-UBND.pdf" }],
+          "thoiDiemCapNhat": "2026-10-20T08:00:00+07:00"
+        }
+      ],
+      "thoiDiemTiepTheo": "2026-10-20T01:00:00Z"
+    }
+  }
+}

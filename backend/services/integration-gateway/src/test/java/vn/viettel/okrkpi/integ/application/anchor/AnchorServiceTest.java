@@ -241,6 +241,20 @@ class AnchorServiceTest {
   }
 
   @Test
+  void packageEndingBeforeMidnightIsAccepted() throws IOException {
+    UUID w = UUID.randomUUID();
+    CellAnchor a = anchor();
+    when(records.lockDueWindows(OPERATOR, NOW, 10))
+        .thenReturn(List.of(new Window(w, "cell-hcm", a.windowEnd().plusSeconds(3600), 0)));
+    when(ledger.cellAnchor(any(), any())).thenReturn(Optional.of(a));
+    when(connectors.findByCode(eq(OPERATOR), any())).thenReturn(Optional.of(connector("NEO_KHO")));
+    when(pipeline.enqueue(any(), any(), any(), any(), any()))
+        .thenReturn(new Enqueued(Result.QUEUED, UUID.randomUUID()));
+
+    assertThat(service.fanOutDue(10)).isEqualTo(1);
+  }
+
+  @Test
   void minimalPackageOmitsOptionalFields() {
     CellAnchor a =
         new CellAnchor(

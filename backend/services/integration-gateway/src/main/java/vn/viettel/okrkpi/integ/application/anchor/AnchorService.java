@@ -164,7 +164,12 @@ public class AnchorService {
       return false;
     }
     CellAnchor a = anchor.get();
-    if (!a.cellCode().equals(w.cellCode()) || !a.windowEnd().equals(w.windowEnd())) {
+    // ledger-service chọn niêm phong cell có cuối cửa sổ muộn nhất trong ngày
+    // (seal.Anchorer.DailyAnchor),
+    // có thể sớm hơn nửa đêm khi giờ cuối chưa niêm phong.
+    if (!a.cellCode().equals(w.cellCode())
+        || a.windowEnd().isAfter(w.windowEnd())
+        || !a.windowEnd().isAfter(w.windowEnd().minus(Duration.ofDays(1)))) {
       throw new IllegalStateException("Gói neo không khớp ngày cần neo");
     }
     UUID eventId = eventIdOf(a);

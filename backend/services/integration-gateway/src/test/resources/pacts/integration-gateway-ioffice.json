@@ -1,0 +1,110 @@
+{
+  "consumer": {
+    "name": "integration-gateway"
+  },
+  "provider": {
+    "name": "ioffice-van-ban-den"
+  },
+  "interactions": [
+    {
+      "description": "kéo trang văn bản đến đầu tiên qua REST",
+      "providerStates": [
+        {
+          "name": "có một văn bản đến cho đơn vị DV-01",
+          "params": {
+            "giaoThuc": "REST",
+            "tuThoiDiem": "1970-01-01T00:00:00Z"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/van-ban-den",
+        "query": {
+          "tuThoiDiem": [
+            "1970-01-01T00:00:00Z"
+          ],
+          "soLuong": [
+            "200"
+          ]
+        },
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer ma-gia-lap"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "duLieu": [
+            {
+              "vanBanId": "IO-2026-0001",
+              "phienBan": 1,
+              "soKyHieu": "12/CT-UBND",
+              "ngayBanHanh": "19/10/2026",
+              "coQuanBanHanh": "Uỷ ban nhân dân tỉnh",
+              "trichYeu": "Chỉ đạo triển khai nhiệm vụ trọng tâm quý IV năm 2026",
+              "doKhan": "THUONG",
+              "doMat": "THUONG",
+              "nguoiKy": "Người ký giả lập",
+              "soDen": "125",
+              "ngayDen": "20/10/2026",
+              "noiNhan": [
+                {
+                  "maDonVi": "DV-01",
+                  "tenDonVi": "Ban giả lập"
+                }
+              ],
+              "tepDinhKem": [
+                {
+                  "maTep": "F-0001",
+                  "tenTep": "12-CT-UBND.pdf"
+                }
+              ],
+              "thoiDiemCapNhat": "2026-10-20T08:00:00+07:00"
+            }
+          ],
+          "thoiDiemTiepTheo": "2026-10-20T01:00:00Z"
+        }
+      }
+    },
+    {
+      "description": "kéo trang văn bản đến đầu tiên qua SOAP",
+      "providerStates": [
+        {
+          "name": "có một văn bản đến gửi hai đơn vị",
+          "params": {
+            "giaoThuc": "SOAP",
+            "tuThoiDiem": "1970-01-01T00:00:00Z"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/ws/VanBanDenService",
+        "headers": {
+          "Content-Type": "text/xml; charset=utf-8",
+          "SOAPAction": "\"layDanhSachVanBanDen\"",
+          "Authorization": "Bearer ma-gia-lap"
+        },
+        "body": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:vb=\"urn:ioffice:vanban:v1\"><soapenv:Body><vb:layDanhSachVanBanDen><vb:tuThoiDiem>1970-01-01T00:00:00Z</vb:tuThoiDiem><vb:soLuong>200</vb:soLuong></vb:layDanhSachVanBanDen></soapenv:Body></soapenv:Envelope>"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/xml; charset=utf-8"
+        },
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:vb=\"urn:ioffice:vanban:v1\"><soapenv:Body><vb:layDanhSachVanBanDenResponse><vb:vanBan><vb:vanBanId>IO-2026-0002</vb:vanBanId><vb:phienBan>3</vb:phienBan><vb:soKyHieu>08/KH-UBND</vb:soKyHieu><vb:ngayBanHanh>2026-10-18</vb:ngayBanHanh><vb:coQuanBanHanh>Uỷ ban nhân dân huyện</vb:coQuanBanHanh><vb:trichYeu>Kế hoạch kiểm tra công tác quý IV</vb:trichYeu><vb:doMat>THUONG</vb:doMat><vb:noiNhan><vb:donVi><vb:maDonVi>DV-02</vb:maDonVi><vb:tenDonVi>Phòng giả lập</vb:tenDonVi></vb:donVi><vb:donVi><vb:maDonVi>DV-01</vb:maDonVi><vb:tenDonVi>Ban giả lập</vb:tenDonVi></vb:donVi></vb:noiNhan><vb:tepDinhKem><vb:tep><vb:maTep>F-0002</vb:maTep><vb:tenTep>08-KH.pdf</vb:tenTep></vb:tep></vb:tepDinhKem><vb:thoiDiemCapNhat>2026-10-20T09:30:00+07:00</vb:thoiDiemCapNhat></vb:vanBan></vb:layDanhSachVanBanDenResponse></soapenv:Body></soapenv:Envelope>"
+      }
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "3.0.0"
+    },
+    "ghiChu": "Hợp đồng phía tiêu dùng lưu tệp vì Pact Broker của QA-02 chưa có; giao diện suy luận, chưa đối chiếu bản ghi tương tác thật (DV-13-04)."
+  }
+}
