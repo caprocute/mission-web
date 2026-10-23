@@ -7,9 +7,14 @@
 -- Sau đó từ chối token có claim cell khác cell của cổng (403), đăng ký biến vt_tenant, vt_sub làm khoá giới hạn,
 -- ghi đè X-Tenant-Id gửi lên upstream bằng claim tenant (bỏ giá trị client tự gửi). Mọi lỗi do cổng sinh trả
 -- Problem Details RFC 9457, kể cả 401 do openid-connect sinh.
+-- Cookie định tuyến (DV-01-04): cookie `mission_route` do SVC-03 hoặc APISIX lớp ngoài ký HMAC-SHA256. Có cookie thì
+-- phải đúng chữ ký (sửa một byte là 403), cùng tenant với token (403) và cùng cell với cổng (421 tenant đã chuyển).
+-- Cookie hết hạn bị bỏ qua như không có; request không có cookie (ứng dụng di động, client nội bộ) vẫn qua.
 local core = require("apisix.core")
 local http = require("resty.http")
 local pkey = require("resty.openssl.pkey")
+local hmac = require("resty.openssl.hmac")
+local bit = require("bit")
 local ngx = ngx
 
 local schema = {
@@ -25,6 +30,15 @@ local schema = {
                        default = { "ES256" } },
         jwks_ttl = { type = "integer", minimum = 10, default = 300 },
         leeway = { type = "integer", minimum = 0, default = 30 },
+        route_cookie = {
+            type = "object",
+            properties = {
+                cell_code = { type = "string", minLength = 1 },
+                key_env = { type = "string", default = "VT_ROUTE_COOKIE_KEY" },
+                key_previous_env = { type = "string", default = "VT_ROUTE_COOKIE_KEY_PREVIOUS" },
+            },
+            required = { "cell_code" },
+        },
     },
     required = { "required_cell" },
 }
@@ -150,6 +164,46 @@ local function verified_claims(conf, token)
     return claims
 end
 
+-- Cookie định tuyến: cùng định dạng gói routecookie của SVC-03 (v1.<b64url JSON {t,c,exp}>.<b64url HMAC>).
+local route_keys
+local function cookie_keys(rc)
+    if route_keys then return route_keys end
+    local out = {}
+    for _, name in ipairs({ rc.key_env, rc.key_previous_env }) do
+        local raw = os.getenv(name)
+        local k = raw and raw ~= "" and ngx.decode_base64(raw)
+        if k and #k >= 32 then out[#out + 1] = k end
+    end
+    route_keys = out
+    return out
+end
+
+local function equal(a, b)
+    if #a ~= #b then return false end
+    local d = 0
+    for i = 1, #a do d = bit.bor(d, bit.bxor(a:byte(i), b:byte(i))) end
+    return d == 0
+end
+
+-- Trả "ok", "absent" (không có hoặc hết hạn), "bad" (sai định dạng, sai chữ ký), "tenant", "cell".
+local function check_route_cookie(rc, value, tenant)
+    if not value or value == "" then return "absent" end
+    local v, p, s = value:match("^(v1)%.([%w_-]+)%.([%w_-]+)$")
+    local sig = s and b64url_decode(s)
+    if not v or not sig then return "bad" end
+    local ok = false
+    for _, k in ipairs(cookie_keys(rc)) do
+        if equal(sig, hmac.new(k, "sha256"):final(v .. "." .. p)) then ok = true end
+    end
+    if not ok then return "bad" end
+    local c = core.json.decode(b64url_decode(p) or "")
+    if type(c) ~= "table" or not c.t or not c.c or type(c.exp) ~= "number" then return "bad" end
+    if ngx.time() >= c.exp then return "absent" end
+    if tenant and tostring(c.t) ~= tenant then return "tenant" end
+    if tostring(c.c):lower() ~= rc.cell_code:lower() then return "cell" end
+    return "ok"
+end
+
 function _M.check_schema(conf)
     local ok, err = core.schema.check(schema, conf)
     if not ok then return false, err end
@@ -185,6 +239,17 @@ function _M.rewrite(conf, ctx)
     ctx.vt_claims = claims
     local tenant = claims[conf.tenant_claim]
     ctx.vt_tenant = tenant ~= nil and tostring(tenant) or nil
+    if conf.route_cookie then
+        local r = check_route_cookie(conf.route_cookie, ctx.var.cookie_mission_route, ctx.vt_tenant)
+        if r == "bad" or r == "tenant" then
+            core.log.warn("vt-claims: tu choi cookie dinh tuyen: ", r)
+            return problem(403, "Phiên làm việc không hợp lệ, vui lòng tải lại trang")
+        elseif r == "cell" then
+            core.response.set_header("Content-Type", "application/problem+json")
+            return 421, { type = "about:blank", title = "Đơn vị đã chuyển sang hệ thống phục vụ khác", status = 421,
+                          code = "REGISTRY-421-TENANT-MOVED", detail = "Vui lòng tải lại trang để tiếp tục." }
+        end
+    end
     -- Không tin header tenant của client: xoá rồi đặt lại từ claim (thiếu claim thì upstream không thấy header).
     core.request.set_header(ctx, conf.tenant_header, ctx.vt_tenant)
 end

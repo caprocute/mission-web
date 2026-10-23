@@ -2,7 +2,7 @@
 # Kiểm thử tích hợp DV-01-01 với APISIX 3.13 thật trong Docker, không cần cụm: dựng ConfigMap ở chế độ standalone từ
 # chart, chạy Keycloak giả lập (discovery + JWKS ES256) và upstream phản hồi lại header với bí danh mạng
 # <service>.<namespace>.svc.cluster.local, rồi thử các ca: không token 401, sai chữ ký 401, token RS256 401,
-# hết hạn, sai iss, alg none 401, sai cell 403, header X-Tenant-Id giả bị ghi đè bằng claim, tuyến chặn nội bộ 404, JWKS công khai không cần token; mọi lỗi là Problem Details.
+# hết hạn, sai iss, alg none 401, sai cell 403, header X-Tenant-Id giả bị ghi đè bằng claim, tuyến chặn nội bộ 404, JWKS công khai không cần token, cookie định tuyến sửa một byte 403, khác cell 421; mọi lỗi là Problem Details.
 # Cần docker, helm, python3 có PyJWT + cryptography + PyYAML.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -51,6 +51,17 @@ toks = {"dung": tok(k, "ES256", "thu"), "sai_chu_ky": tok(khac, "ES256", "thu"),
         "sai_cell": tok(k, "ES256", "thu", cell="hcm1"), "het_han": tok(k, "ES256", "thu", exp=now - 600),
         "sai_iss": tok(k, "ES256", "thu", iss="http://khac/realms/mission"),
         "none": jwt.encode({"iss": iss, "sub": "u", "cell": "dn1", "exp": now + 600}, None, algorithm="none")}
+# Cookie định tuyến (DV-01-04): cùng định dạng routecookie của SVC-03.
+import hmac as _h, hashlib, os as _os
+rk = _os.urandom(32); open(f"{d}/route-key", "w").write(base64.b64encode(rk).decode())
+def b64u(b): return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+def ck(t, c, exp):
+    head = "v1." + b64u(json.dumps({"t": t, "c": c, "exp": exp}).encode())
+    return head + "." + b64u(_h.new(rk, head.encode(), hashlib.sha256).digest())
+good = ck("t-thu", "dn1", now + 300)
+bad = good[:-2] + ("A" if good[-2] != "A" else "B") + good[-1]
+toks.update(ck_dung=good, ck_sua=bad, ck_cell_khac=ck("t-thu", "hcm1", now + 300),
+            ck_tenant_khac=ck("t-khac", "dn1", now + 300), ck_het_han=ck("t-thu", "dn1", now - 10))
 json.dump(toks, open(f"{d}/toks.json", "w"))
 PY
 cat > "$W/echo.py" <<'PY'
@@ -77,6 +88,7 @@ docker run -d --name "$NET-echo" --network "$NET" "${ALIASES[@]}" -e TEN=chung -
 docker run -d --name "$NET-scoring" --network "$NET" --network-alias scoring-service.workers.svc.cluster.local -e TEN=scoring \
   -v "$W/echo.py:/echo.py:ro" "$PY_IMG" python /echo.py >/dev/null
 docker run -d --name "$NET-apisix" --network "$NET" -p 127.0.0.1::9080 -e APISIX_OIDC_CLIENT_SECRET=khong-dung \
+  -e VT_ROUTE_COOKIE_KEY="$(cat "$W/route-key")" \
   -e APISIX_STAND_ALONE=true \
   -v "$W/config.yaml:/usr/local/apisix/conf/config.yaml:ro" -v "$W/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro" \
   -v "$W/vt-claims.lua:/opt/vt/lua/apisix/plugins/vt-claims.lua:ro" "$APISIX_IMG" >/dev/null

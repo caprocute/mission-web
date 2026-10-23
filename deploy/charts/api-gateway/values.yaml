@@ -77,6 +77,23 @@ oidc:
     cell: cell
 
 # TL-04 mục 6.8.
+# Cookie định tuyến ký HMAC (DV-01-04, TL-01 "Định tuyến tới cell"): cổng kiểm chữ ký, tenant và cell của cookie.
+# Khoá HMAC dùng chung với SVC-03 và APISIX lớp ngoài, đồng bộ từ OpenBao vào Secret dưới đây (không đặt trong values).
+routingCookie:
+  enabled: true
+  # Mã cell trong registry.cell (ví dụ CELL-HN); trống thì dùng giá trị cell ở trên.
+  cellCode: ""
+  secretName: apisix-routing-key
+  keyCurrent: ROUTING_COOKIE_KEY
+  keyPrevious: ROUTING_COOKIE_KEY_PREVIOUS
+  externalSecret:
+    enabled: true
+    refreshInterval: 1h
+    storeKind: ClusterSecretStore
+    storeName: openbao
+    # Đường dẫn khoá trong OpenBao (cùng khoá với tenant-registry), không phải giá trị.
+    path: mission/global/tenant-registry/routing-cookie
+
 rateLimit:
   user: { count: 600, timeWindow: 60 }
   tenant: { rate: 400, burst: 200 }

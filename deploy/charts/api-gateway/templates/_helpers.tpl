@@ -106,6 +106,11 @@ vt-claims:
   algorithms: [{{ $v.oidc.signingAlg }}]
   jwks_ttl: {{ $v.oidc.jwksTtl | int }}
   {{- end }}
+  {{- if $v.routingCookie.enabled }}
+  # Cookie định tuyến ký HMAC của SVC-03 và APISIX lớp ngoài (DV-01-04).
+  route_cookie:
+    cell_code: {{ default $v.cell $v.routingCookie.cellCode | quote }}
+  {{- end }}
 limit-count:
   count: {{ $r.user.count | int }}
   time_window: {{ $r.user.timeWindow | int }}

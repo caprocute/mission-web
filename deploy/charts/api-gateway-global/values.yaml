@@ -1,0 +1,85 @@
+# APISIX lớp ngoài của vùng điều phối toàn cục (DV-01-04). Tách khỏi chart api-gateway của cell: không etcd, không
+# Ingress Controller, cấu hình tĩnh ở chế độ standalone; bảng định tuyến tenant → cell lấy động từ SVC-03.
+namespace: edge
+
+apisix:
+  image:
+    repository: docker.io/apache/apisix
+    digest: sha256:c5c7a55ebb5c07abc210dbb963a37f41030e12c91d23bacedbaa168fec633bd7
+  # 3 vùng sẵn sàng của vùng điều phối toàn cục (TL-04 mục 2): mỗi vùng ít nhất một bản sao.
+  replicas: 3
+  autoscaling: { enabled: true, minReplicas: 3, maxReplicas: 9, cpuUtilization: 70 }
+  pdb: { minAvailable: 2 }
+  nodePool: ingress
+  workerProcesses: 4
+  resources:
+    requests: { cpu: "1", memory: 1Gi }
+    limits: { cpu: "2", memory: 1Gi }
+  ports: { http: 9080, https: 9443 }
+  service:
+    type: LoadBalancer
+    annotations: {}
+  tls:
+    protocols: TLSv1.3
+  trustedAddresses: []
+
+# Tên miền chung để khám phá tenant (TL-04 WI-08); mọi host khác coi là tên miền riêng của tenant.
+commonHosts: ["app.danhgia.vn"]
+
+registry:
+  # SVC-03 tenant-registry cùng vùng toàn cục.
+  url: http://tenant-registry.global.svc.cluster.local:8080
+  timeoutMs: 1000
+  # Client credentials của client nội bộ (vai trò service_client) để gọi registry/resolve.
+  tokenUrl: https://sso.global.danhgia.vn/realms/platform/protocol/openid-connect/token
+  clientId: apisix-global
+  clientSecretRef: { name: apisix-global-registry-client, key: client-secret }
+
+cache:
+  # Đệm phân giải theo tên miền tenant: 300 giây theo Cache-Control của hợp đồng resolveTenantCell (TL-01 ghi
+  # 5 phút). Khám phá trên tên miền chung: TL-04 WI-08 ghi 60 giây, mặc định giữ 300 (wiki 14 DV-01-04).
+  ttlSeconds: 300
+  discoveryTtlSeconds: 300
+  # Registry ngừng: phục vụ tiếp từ mục đệm đã quá hạn tươi trong cửa sổ này (TL-01: sự cố mặt phẳng toàn cục
+  # không làm gián đoạn người dùng đã đăng nhập).
+  staleSeconds: 3600
+  # Đệm kết quả 404 để tên miền lạ không dội registry.
+  negativeSeconds: 30
+  sharedDictSize: 64m
+
+routingCookie:
+  # Cùng khoá HMAC với SVC-03 và cổng cell (OpenBao → External Secrets, base64, tối thiểu 32 byte).
+  secretName: apisix-global-routing-key
+  keyCurrent: ROUTING_COOKIE_KEY
+  keyPrevious: ROUTING_COOKIE_KEY_PREVIOUS
+  domain: .danhgia.vn
+
+externalSecrets:
+  enabled: true
+  refreshInterval: 1h
+  secretStoreRef: { kind: ClusterSecretStore, name: openbao-global }
+  routingKeyPath: mission/global/tenant-registry/routing-cookie
+  registryClientPath: mission/global/apisix-global/registry-client
+
+# Cell dự phòng khi mục đệm cell chưa có (mã cell → apiBaseUrl). Bình thường lấy từ kết quả registry.
+cells: {}
+
+# Đường quản trị nền tảng ở lớp toàn cục (DV-01-01 notInCell): chuyển thẳng tới SVC-03, xác thực ở SVC-03.
+globalRoutes:
+  - name: registry
+    paths: ["/api/v1/registry*", "/api/v1/config/tenants*"]
+    service: tenant-registry
+    namespace: global
+    port: 8080
+
+securityHeaders:
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+
+metrics:
+  port: 9091
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile: { type: RuntimeDefault }

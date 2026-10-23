@@ -25,6 +25,7 @@ grep -q 'ssl_protocols: "TLSv1.3"' "$OUT/ci.yaml" && ok "TLS 1.3" || hong "TLS"
 grep -qF 'regex_uri: ["^/api/v1/iam/(.*)$", "/realms/mission/mission-iam/$1"]' "$OUT/ci.yaml" && ok "tuyến /api/v1/iam/* đổi sang SPI mission-iam của Keycloak (DV-02-08)" || hong "tuyến mission-iam"
 grep -q 'read: 10s' "$OUT/ci.yaml" && ok "tuyến mission-core timeout đọc 10 s" || hong "timeout"
 grep -A1 'algorithms:' "$OUT/ci.yaml" | grep -q -- '- ES256' && grep -q 'verify: true' "$OUT/ci.yaml" && ok "protected-api kiểm JWT ES256 qua JWKS" || hong "kiểm JWT ES256"
+grep -q 'route_cookie:' "$OUT/ci.yaml" && grep -q 'name: VT_ROUTE_COOKIE_KEY' "$OUT/ci.yaml" && ok "kiểm cookie định tuyến HMAC, khoá từ Secret (DV-01-04)" || hong "cookie định tuyến"
 grep -q 'tenant_claim: tenant_id' "$OUT/ci.yaml" && ok "claim tenant cấu hình từ values (tenant_id)" || hong "claim tenant"
 python3 tests/doi-chieu-hop-dong.py --rendered "$OUT/ci.yaml" > "$OUT/dc" 2>&1 && ok "$(tail -1 "$OUT/dc")" || { hong "đối chiếu hợp đồng"; cat "$OUT/dc"; }
 # DV-01-03: tuyến không xác thực chỉ từ public-routes.yaml, tệp này khớp hợp đồng; fixture âm tính phải bị bắt.

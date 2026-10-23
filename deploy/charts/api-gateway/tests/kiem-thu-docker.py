@@ -88,5 +88,19 @@ ca("tuyến công khai chỉ nhận đúng phương thức GET", s == 404, f"(m�
 s, h, b = goi("GET", "/.well-known/openid-configuration")
 ca("đường /.well-known khác không công khai", s == 404, f"(mã {s})")
 
+# Cookie định tuyến ký HMAC (DV-01-04).
+def ck(ten):
+    return {"Cookie": "mission_route=" + TOKS[ten]}
+s, h, b = goi("GET", "/api/v1/tasks", TOKS["dung"], ck("ck_dung"))
+ca("cookie định tuyến hợp lệ đúng cell: qua", s == 200, f"(mã {s})")
+s, h, b = goi("GET", "/api/v1/tasks", TOKS["dung"], ck("ck_sua"))
+ca("cookie định tuyến sửa một byte: 403 Problem Details", problem(s, h, b, 403), f"(mã {s}, {b[:200]!r})")
+s, h, b = goi("GET", "/api/v1/tasks", TOKS["dung"], ck("ck_cell_khac"))
+ca("cookie của cell khác: 421 tenant đã chuyển", problem(s, h, b, 421), f"(mã {s}, {b[:200]!r})")
+s, h, b = goi("GET", "/api/v1/tasks", TOKS["dung"], ck("ck_tenant_khac"))
+ca("cookie của tenant khác token: 403", problem(s, h, b, 403), f"(mã {s})")
+s, h, b = goi("GET", "/api/v1/tasks", TOKS["dung"], ck("ck_het_han"))
+ca("cookie hết hạn bị bỏ qua như không có", s == 200, f"(mã {s})")
+
 print(f"Tổng: {dat} đạt, {hong} hỏng")
 sys.exit(1 if hong else 0)

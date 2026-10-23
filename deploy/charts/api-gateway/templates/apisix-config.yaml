@@ -35,7 +35,7 @@ data:
           http_latency: { extra_labels: [{ kind: $vt_kind }] }
     nginx_config:
       worker_processes: {{ $v.apisix.workerProcesses | int }}
-      envs: [APISIX_OIDC_CLIENT_SECRET]
+      envs: [APISIX_OIDC_CLIENT_SECRET, VT_ROUTE_COOKIE_KEY, VT_ROUTE_COOKIE_KEY_PREVIOUS]
       error_log_level: warn
     deployment:
       {{- if eq $v.mode "standalone" }}
