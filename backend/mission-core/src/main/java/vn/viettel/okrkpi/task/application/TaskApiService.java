@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.task.application;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -23,6 +24,7 @@ import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository.AssigneeKind;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository.TaskRow;
+import vn.viettel.okrkpi.task.application.lifecycle.port.TaskScoringReads;
 import vn.viettel.okrkpi.task.domain.assign.TaskDraftSpec;
 import vn.viettel.okrkpi.task.domain.lifecycle.TaskActor;
 import vn.viettel.okrkpi.task.domain.lifecycle.TaskCommand;
@@ -45,6 +47,7 @@ public class TaskApiService implements TaskApi {
 
   private final TaskLifecycleRepository tasks;
   private final TaskTransitionService transitions;
+  private TaskScoringReads scoring;
   private final Supplier<TaskDraftService> drafts;
   private final Supplier<TaskAssignService> assigns;
 
@@ -108,6 +111,45 @@ public class TaskApiService implements TaskApi {
     DraftRow draft = draftService.createDraft(tenant, spec, actor);
     assignService.assignTask(tenant, draft.id(), draft.rowVersion(), DIRECTED_REASON, null, actor);
     return draft.id();
+  }
+
+  /** Nối đọc đầu vào tính điểm (CORE-04-13); vắng thì các hàm đọc đó trả rỗng như mặc định. */
+  public void setScoringReads(TaskScoringReads scoring) {
+    this.scoring = scoring;
+  }
+
+  @Override
+  @Transactional(transactionManager = TX, readOnly = true)
+  public List<WorkItemSnapshot> listWorkItems(
+      TenantId tenant, PeriodId period, UUID personId, UUID afterId, int limit) {
+    Objects.requireNonNull(period, "period");
+    Objects.requireNonNull(personId, "personId");
+    if (scoring == null) {
+      return List.of();
+    }
+    return scoring.workItems(
+        tenant, period.value(), personId, afterId, Math.max(1, Math.min(limit, MAX_LIMIT + 1)));
+  }
+
+  @Override
+  @Transactional(transactionManager = TX, readOnly = true)
+  public Map<UUID, List<WorkItemSnapshot>> listWorkItems(
+      TenantId tenant, PeriodId period, Collection<UUID> personIds, int limitPerPerson) {
+    Objects.requireNonNull(period, "period");
+    if (scoring == null || personIds.isEmpty()) {
+      return Map.of();
+    }
+    return scoring.workItems(
+        tenant, period.value(), personIds, Math.max(1, Math.min(limitPerPerson, MAX_LIMIT + 1)));
+  }
+
+  @Override
+  @Transactional(transactionManager = TX, readOnly = true)
+  public List<ResponsibleItem> listResponsibleItems(
+      TenantId tenant, PeriodId period, UUID personId) {
+    Objects.requireNonNull(period, "period");
+    Objects.requireNonNull(personId, "personId");
+    return scoring == null ? List.of() : scoring.responsibleItems(tenant, period.value(), personId);
   }
 
   @Override

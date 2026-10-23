@@ -1,5 +1,6 @@
 package vn.viettel.okrkpi.policy.application;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -18,6 +19,7 @@ public class DefaultPolicyQueryService implements PolicyQueryApi {
   private final PeriodApi periodApi;
   private final Map<PolicyKey, PolicyFormulaView> policies = new ConcurrentHashMap<>();
   private PolicyResolutionService resolution;
+  private CustomerProfileService profiles;
 
   public DefaultPolicyQueryService(PeriodApi periodApi) {
     this.periodApi = Objects.requireNonNull(periodApi, "periodApi must not be null");
@@ -27,6 +29,20 @@ public class DefaultPolicyQueryService implements PolicyQueryApi {
   @org.springframework.beans.factory.annotation.Autowired(required = false)
   public void setResolution(PolicyResolutionService resolution) {
     this.resolution = resolution;
+  }
+
+  /** Hồ sơ tập khách hàng (CORE-05-12); chưa nối thì không có hồ sơ, điểm cắm giữ mặc định. */
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  public void setCustomerProfiles(CustomerProfileService profiles) {
+    this.profiles = profiles;
+  }
+
+  @Override
+  public Optional<ResolvedProfile> customerProfile(
+      TenantId tenantId, PeriodId periodId, String flow, UUID subjectGroupId, UUID orgUnitId) {
+    return profiles == null
+        ? Optional.empty()
+        : profiles.resolve(tenantId, periodId, flow, subjectGroupId, orgUnitId);
   }
 
   @Override
@@ -45,6 +61,11 @@ public class DefaultPolicyQueryService implements PolicyQueryApi {
   @Override
   public Optional<Map<String, Object>> taskLifecycle(TenantId tenantId, UUID versionId) {
     return resolution == null ? Optional.empty() : resolution.taskLifecycle(tenantId, versionId);
+  }
+
+  @Override
+  public List<InputDeclaration> inputs(TenantId tenantId, UUID versionId) {
+    return resolution == null ? List.of() : resolution.inputs(tenantId, versionId);
   }
 
   @Override

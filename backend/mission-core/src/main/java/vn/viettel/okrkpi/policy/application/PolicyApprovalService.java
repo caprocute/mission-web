@@ -73,6 +73,13 @@ public class PolicyApprovalService {
   private final PolicyApprovers approvers;
   private final PolicyAudit audit;
   private final Clock clock;
+  private PublishGuard publishGuard = (tenant, pack, version) -> {};
+
+  /** Kiểm bổ sung khi gửi phát hành, ví dụ khung tham số kế thừa của hồ sơ (CORE-05-12, DC-02). */
+  @FunctionalInterface
+  public interface PublishGuard {
+    void check(TenantId tenant, PolicyPack pack, PolicyPackVersion version);
+  }
 
   public PolicyApprovalService(
       PolicyPackRepository packs,
@@ -97,6 +104,11 @@ public class PolicyApprovalService {
     this.clock = Objects.requireNonNull(clock, "clock");
   }
 
+  /** Nối kiểm bổ sung khi gửi phát hành (BS-03 DC-02). */
+  public void setPublishGuard(PublishGuard guard) {
+    this.publishGuard = Objects.requireNonNull(guard, "guard");
+  }
+
   /** Gửi phê duyệt phát hành: {@code DAT_KIEM_THU} → {@code CHO_PHE_DUYET}, phát EVT-21. */
   @Transactional(PolicyPackService.TX)
   public PolicyPackVersion submit(
@@ -105,6 +117,7 @@ public class PolicyApprovalService {
     PolicyPack pack = packs.findPack(tenant, packId).orElseThrow(NoSuchElementException::new);
     PolicyPackVersion current = current(tenant, packId, version, expected);
     requireTested(tenant, current);
+    publishGuard.check(tenant, pack, current);
     String note = cmd.note() == null || cmd.note().isBlank() ? null : cmd.note().strip();
     if (note != null && note.length() > TEXT_MAX) {
       throw invalid("note", "Ghi chú tối đa 2000 ký tự");

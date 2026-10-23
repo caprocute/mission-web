@@ -35,6 +35,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import vn.viettel.okrkpi.cel.application.CelEngine;
+import vn.viettel.okrkpi.cel.domain.CelSandboxOptions;
 import vn.viettel.okrkpi.cel.domain.StaticWorkingCalendar;
 import vn.viettel.okrkpi.scoring.application.policy.CompiledPolicy;
 import vn.viettel.okrkpi.scoring.application.policy.PolicyCompiler;
@@ -94,8 +95,24 @@ class ScoreSimulationApiContractTest {
   static void compile() {
     tables = new FlowableDecisionTables();
     policy =
-        new PolicyCompiler(new CelEngine(StaticWorkingCalendar.weekendsOnly()), tables)
+        new PolicyCompiler(
+                new CelEngine(StaticWorkingCalendar.weekendsOnly(), relaxedTimeout()), tables)
             .compile(SamplePolicyPack.content());
+  }
+
+  /**
+   * Lần chạy đầu trong JVM nguội có thể vượt 50 ms; kiểm thử chức năng không đo thời gian
+   * (YC-PT-19).
+   */
+  private static CelSandboxOptions relaxedTimeout() {
+    CelSandboxOptions d = CelSandboxOptions.defaults();
+    return new CelSandboxOptions(
+        d.maxExpressionLength(),
+        d.maxAstDepth(),
+        d.maxAstNodeCount(),
+        d.maxComprehensionIterations(),
+        java.time.Duration.ofSeconds(5),
+        d.programCacheMaxSize());
   }
 
   @AfterAll

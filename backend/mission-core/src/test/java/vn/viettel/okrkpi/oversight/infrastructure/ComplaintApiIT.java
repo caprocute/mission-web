@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -48,6 +49,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.MissionCoreApplication;
 import vn.viettel.okrkpi.MissionCoreTestDatabase;
 import vn.viettel.okrkpi.appraisal.application.profile.port.AppraisalStepEvents;
+import vn.viettel.okrkpi.config.api.RoleHolderApi;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
 import vn.viettel.okrkpi.oversight.application.complaint.ComplaintService;
@@ -97,6 +99,9 @@ class ComplaintApiIT extends ContractConformanceTest {
   static class Beans {
     static volatile UUID user = UUID.randomUUID();
     static volatile String acr = "aal2";
+    static volatile List<String> roles = List.of("member");
+    static volatile UUID unitId;
+    static final Map<UUID, List<UUID>> APPRAISERS = new ConcurrentHashMap<>();
     static final List<UUID> SIGNED = new CopyOnWriteArrayList<>();
 
     @Bean
@@ -109,7 +114,12 @@ class ComplaintApiIT extends ContractConformanceTest {
 
         @Override
         public List<String> roles() {
-          return List.of("member");
+          return roles;
+        }
+
+        @Override
+        public Optional<UUID> unitId() {
+          return Optional.ofNullable(unitId);
         }
 
         @Override
@@ -122,6 +132,16 @@ class ComplaintApiIT extends ContractConformanceTest {
           return Optional.of(Instant.now().getEpochSecond() - 30);
         }
       };
+    }
+
+    /** Người giữ vai trò {@code appraiser} theo đơn vị, thay {@code config.role_binding}. */
+    @Bean
+    @Primary
+    RoleHolderApi complaintTestRoles() {
+      return (tenant, role, unit, at) ->
+          APPRAISERS.getOrDefault(unit, List.of()).stream()
+              .map(p -> new RoleHolderApi.Holder(p, false))
+              .toList();
     }
 
     @Bean
@@ -211,8 +231,7 @@ class ComplaintApiIT extends ContractConformanceTest {
   @Test
   void nhapMaHoaGuiCoKyVaChuyenHoSoKhieuNai() throws Exception {
     seed();
-    Beans.user = person;
-    Beans.acr = "aal2";
+    as(person, "member");
 
     // Kết quả còn khiếu nại được: hồ sơ quá hạn chỉ còn bảo lưu ý kiến.
     MvcResult eligible = perform(get(BASE + "/eligible-profiles"));
@@ -315,6 +334,174 @@ class ComplaintApiIT extends ContractConformanceTest {
     // Người khác không thấy khiếu nại.
     Beans.user = UUID.randomUUID();
     assertThat(status(perform(get(BASE + "/" + id)))).isEqualTo(404);
+  }
+
+  @Test
+  void tiepNhanTachVaiTroKhongThuLyVaRut() throws Exception {
+    seed();
+    UUID handler = UUID.randomUUID();
+    UUID reviewer = UUID.randomUUID();
+    Beans.APPRAISERS.put(unit, List.of(handler, reviewer));
+    reviewed(fresh, reviewer);
+    String id = fileFresh();
+    assertThat(profileStatus(fresh)).isEqualTo("KHIEU_NAI");
+
+    // Người đã thẩm định hồ sơ: 403 tách vai trò (MSG-12-05), khiếu nại giữ MOI.
+    as(reviewer, "appraiser");
+    MvcResult sod = perform(write(post(BASE + "/" + id + "/accept"), "{}", etag(id)));
+    assertThat(status(sod)).as(text(sod)).isEqualTo(403);
+    assertThat(body(sod).get("code").asText()).isEqualTo("OVERSIGHT-403-SEPARATION-OF-DUTIES");
+    assertThat(body(sod).get("detail").asText()).contains("thẩm định");
+    assertResponseConforms(sod, "/oversight/complaints/{id}/accept", PathItem.HttpMethod.POST);
+
+    // Người xử lý hợp lệ thấy khiếu nại trong danh sách, đọc được nội dung.
+    as(handler, "appraiser");
+    MvcResult list = perform(get(BASE));
+    assertThat(status(list)).as(text(list)).isEqualTo(200);
+    assertResponseConforms(list, "/oversight/complaints", PathItem.HttpMethod.GET);
+    assertThat(body(list).get("items")).hasSize(1);
+    MvcResult detail = perform(get(BASE + "/" + id));
+    assertThat(status(detail)).as(text(detail)).isEqualTo(200);
+    assertThat(body(detail).get("content").asText()).isEqualTo(CONTENT);
+
+    // Không thụ lý thiếu lý do: 422.
+    MvcResult noReason =
+        perform(
+            write(
+                post(BASE + "/" + id + "/reject"),
+                "{\"reasonCode\":\"QUA_HAN\",\"reason\":\"ngắn\"}",
+                etag(id)));
+    assertThat(status(noReason)).as(text(noReason)).isEqualTo(422);
+    assertResponseConforms(noReason, "/oversight/complaints/{id}/reject", PathItem.HttpMethod.POST);
+
+    // Tiếp nhận: DA_TIEP_NHAN, có người xử lý và dòng thời gian.
+    MvcResult accepted =
+        perform(write(post(BASE + "/" + id + "/accept"), "{\"note\":\"Đã nhận\"}", etag(id)));
+    assertThat(status(accepted)).as(text(accepted)).isEqualTo(200);
+    assertResponseConforms(accepted, "/oversight/complaints/{id}/accept", PathItem.HttpMethod.POST);
+    JsonNode a = body(accepted);
+    assertThat(a.get("status").asText()).isEqualTo("DA_TIEP_NHAN");
+    assertThat(a.at("/handler/id").asText()).isEqualTo(handler.toString());
+    assertThat(a.get("timeline")).hasSize(2);
+
+    // Rút sau khi đã có văn bản trả lời: 409; trước kết luận: DONG, hồ sơ về DA_KY_SO.
+    as(person, "member");
+    setStatus(id, "DA_TRA_LOI");
+    MvcResult late =
+        perform(
+            write(
+                post(BASE + "/" + id + "/withdraw"),
+                reason("Đồng chí muốn rút khiếu nại."),
+                etag(id)));
+    assertThat(status(late)).as(text(late)).isEqualTo(409);
+    assertThat(body(late).get("code").asText()).isEqualTo("OVERSIGHT-409-INVALID-STATE");
+    setStatus(id, "DA_TIEP_NHAN");
+    MvcResult withdrawn =
+        perform(
+            write(
+                post(BASE + "/" + id + "/withdraw"),
+                reason("Đã trao đổi trực tiếp với người nghiệm thu và thống nhất kết quả."),
+                etag(id)));
+    assertThat(status(withdrawn)).as(text(withdrawn)).isEqualTo(200);
+    assertResponseConforms(
+        withdrawn, "/oversight/complaints/{id}/withdraw", PathItem.HttpMethod.POST);
+    assertThat(body(withdrawn).get("status").asText()).isEqualTo("DONG");
+    assertThat(profileStatus(fresh)).isEqualTo("DA_KY_SO");
+    assertThat(plaintextStored(UUID.fromString(id))).isFalse();
+
+    // Khiếu nại thứ hai không thụ lý vì trùng nội dung: DONG, hồ sơ về DA_KY_SO.
+    String second = fileFresh();
+    as(handler, "appraiser");
+    MvcResult rejected =
+        perform(
+            write(
+                post(BASE + "/" + second + "/reject"),
+                "{\"reasonCode\":\"TRUNG_NOI_DUNG\",\"reason\":\"Nội dung trùng khiếu nại đã"
+                    + " được trả lời, không có căn cứ mới.\"}",
+                etag(second)));
+    assertThat(status(rejected)).as(text(rejected)).isEqualTo(200);
+    assertResponseConforms(rejected, "/oversight/complaints/{id}/reject", PathItem.HttpMethod.POST);
+    assertThat(body(rejected).get("status").asText()).isEqualTo("DONG");
+    assertThat(closeReason(second)).isEqualTo("TRUNG_NOI_DUNG");
+    assertThat(profileStatus(fresh)).isEqualTo("DA_KY_SO");
+    assertThat(outbox("notify.message.requested.v1")).isEqualTo(5);
+  }
+
+  /** Lưu nháp có cấu phần, gửi và nhận EVT-18: khiếu nại MOI. */
+  private String fileFresh() throws Exception {
+    as(person, "member");
+    Map<String, Object> in = inputMap(fresh, "KHIEU_NAI", false);
+    in.put("targets", List.of(Map.of("key", "TONG_DIEM", "stage", "THAM_DINH")));
+    MvcResult created = perform(write(post(BASE), json.writeValueAsString(in), null));
+    assertThat(status(created)).as(text(created)).isEqualTo(201);
+    String id = body(created).get("id").asText();
+    int before = Beans.SIGNED.size();
+    MvcResult submitted = perform(write(post(BASE + "/" + id + "/submit"), "", etag(id)));
+    assertThat(status(submitted)).as(text(submitted)).isEqualTo(202);
+    assertThat(signed(UUID.fromString(id), Beans.SIGNED.get(before))).isTrue();
+    return id;
+  }
+
+  private void as(UUID user, String role) {
+    Beans.unitId = "member".equals(role) ? null : unit;
+    Beans.user = user;
+    Beans.roles = List.of(role);
+    Beans.acr = "aal2";
+  }
+
+  private String reason(String text) throws Exception {
+    return json.writeValueAsString(Map.of("reason", text));
+  }
+
+  private String etag(String id) throws Exception {
+    return "\""
+        + in(
+            oversightDataSource,
+            oversightTm,
+            jdbc ->
+                jdbc.sql("SELECT row_version FROM oversight.complaint WHERE id = ?")
+                    .params(UUID.fromString(id))
+                    .query(Integer.class)
+                    .single())
+        + "\"";
+  }
+
+  private void setStatus(String id, String status) throws Exception {
+    in(
+        oversightDataSource,
+        oversightTm,
+        jdbc ->
+            jdbc.sql("UPDATE oversight.complaint SET status = ? WHERE id = ?")
+                .params(status, UUID.fromString(id))
+                .update());
+  }
+
+  private String closeReason(String id) throws Exception {
+    return in(
+        oversightDataSource,
+        oversightTm,
+        jdbc ->
+            jdbc.sql("SELECT close_reason_code FROM oversight.complaint WHERE id = ?")
+                .params(UUID.fromString(id))
+                .query(String.class)
+                .single());
+  }
+
+  /** Người thẩm định của hồ sơ ({@code rating_proposal} mức {@code THAM_DINH}). */
+  private void reviewed(UUID profile, UUID reviewer) throws Exception {
+    in(
+        appraisalDataSource,
+        appraisalTm,
+        jdbc ->
+            jdbc.sql(
+                    "INSERT INTO appraisal.rating_proposal (id, created_by, updated_by, period_id,"
+                        + " period_bucket, profile_id, level_kind, rating_code, score_snapshot_id,"
+                        + " actor_id, actor_role, proposed_at)"
+                        + " SELECT gen_random_uuid(), ?, ?, period_id, period_bucket, id,"
+                        + " 'THAM_DINH', 'HTTNV', current_snapshot_id, ?, 'appraiser', now()"
+                        + " FROM appraisal.appraisal_profile WHERE id = ?")
+                .params(reviewer, reviewer, reviewer, profile)
+                .update());
   }
 
   private boolean signed(UUID id, UUID signRequest) throws Exception {

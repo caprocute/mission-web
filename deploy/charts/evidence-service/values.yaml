@@ -65,6 +65,13 @@ thanhPhan:
             app.kubernetes.io/name: mission-core
           ports:
             - port: 8080
+        # DV-08-05: ai-gateway đọc nội dung tệp cần OCR qua GET /internal/v1/ocr-objects (chỉ trong mesh,
+        # AuthorizationPolicy của Istio giới hạn đúng danh tính ai-gateway).
+        - namespace: secure
+          podLabels:
+            app.kubernetes.io/name: ai-gateway
+          ports:
+            - port: 8080
       egressTo:
         - namespace: data-pg
           podLabels:
@@ -123,6 +130,21 @@ thanhPhan:
         value: '3310'
       - name: GOTENBERG_URL
         value: http://gotenberg.workers.svc:3000
+      # DV-08-05: đọc chữ tệp minh chứng sạch (ảnh, PDF; không bao giờ C3) qua ai-gateway.
+      # Token dịch vụ lấy bằng client credentials; bí mật đồng bộ từ OpenBao vào Secret
+      # evidence-scan-worker-secrets (ExternalSecret của cell), không có giá trị trong repo.
+      - name: AI_GATEWAY_URL
+        value: http://ai-gateway.secure.svc:8080
+      - name: EVIDENCE_OCR_TOKEN_URL
+        value: https://sso.invalid/realms/mission/protocol/openid-connect/token
+      - name: EVIDENCE_OCR_CLIENT_ID
+        value: evidence-service
+      - name: EVIDENCE_OCR_CLIENT_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: evidence-scan-worker-secrets
+            key: ocr-client-secret
+            optional: true
     autoscaling:
       keda:
         enabled: true
@@ -160,6 +182,17 @@ thanhPhan:
             app.kubernetes.io/name: gotenberg
           ports:
             - port: 3000
+        # ai-gateway đọc chữ (DV-08-05) và Keycloak cấp token dịch vụ cho lời gọi đó.
+        - namespace: secure
+          podLabels:
+            app.kubernetes.io/name: ai-gateway
+          ports:
+            - port: 8080
+        - namespace: identity
+          podLabels:
+            app.kubernetes.io/name: keycloak
+          ports:
+            - port: 8080
         - namespace: egress
           podLabels:
             app.kubernetes.io/name: egress-gateway

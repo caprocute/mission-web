@@ -160,6 +160,20 @@ class AppraisalTenantIsolationIT extends TenantIsolationCatalogTest {
           r.put("org_unit_id", id(tenant, "org"));
           return r;
         });
+    f.put(
+        "appraisal.incident",
+        (tenant, seed) -> {
+          Map<String, Object> r = new LinkedHashMap<>();
+          r.put("id", id(tenant, "incident"));
+          r.put("created_by", id(tenant, "user"));
+          r.put("updated_by", id(tenant, "user"));
+          r.put("person_id", id(tenant, "person"));
+          r.put("org_unit_id", id(tenant, "org"));
+          r.put("incident_type", "KY_LUAT");
+          r.put("concluded_on", LocalDate.parse("2027-02-10"));
+          r.put("document_no", "12-QĐ/" + seed);
+          return r;
+        });
     return f;
   }
 

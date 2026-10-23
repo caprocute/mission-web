@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgDiscrepancies200Response;
 import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgPersons200Response;
+import vn.viettel.okrkpi.org.infrastructure.web.model.ListE2eeRecoveries200Response;
 import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgSyncRuns200Response;
 import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgUnitAssignments200Response;
 import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgUnitHistory200Response;
@@ -29,6 +30,7 @@ public class JacksonConfig {
         .mixIn(ListOrgUnitAssignments200Response.class, NextCursorAlways.class)
         .mixIn(ListOrgDiscrepancies200Response.class, NextCursorAlways.class)
         .mixIn(ListOrgSyncRuns200Response.class, NextCursorAlways.class)
+        .mixIn(ListE2eeRecoveries200Response.class, NextCursorAlways.class)
         .mixIn(OrgUnitRef.class, ParentIdAlways.class);
   }
 

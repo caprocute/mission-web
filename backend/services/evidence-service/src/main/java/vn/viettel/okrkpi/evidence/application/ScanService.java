@@ -182,6 +182,9 @@ public class ScanService {
                   if (verdict == ScanVerdict.SACH && !f.e2ee()) {
                     queue.schedulePreview(f.versionId());
                   }
+                  if (verdict == ScanVerdict.SACH && OcrService.needsOcr(f)) {
+                    queue.scheduleOcr(f.versionId());
+                  }
                   if (verdict.quarantined()) {
                     events.quarantined(f, r);
                   }

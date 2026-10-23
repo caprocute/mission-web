@@ -8,6 +8,8 @@ Chính sách uỷ quyền tập trung theo ADR-21 và TL-01 "Uỷ quyền tập 
 | `okrkpi/generated/data.json` | `data.okrkpi.generated`: vai trò, chức năng, API, mức dữ liệu, ràng buộc đã chuẩn hoá | Không, sinh bằng `gen_matrix.py --rego` |
 | `okrkpi/matrix_cases_test.rego` | Ca kiểm thử theo từng ô ma trận, chia theo QT | Không, sinh cùng lúc |
 | `okrkpi/matrix_test.rego` | Bộ chạy ca kiểm thử ma trận (dựng đầu vào theo phạm vi của ô) | Có |
+| `okrkpi/complaint_handler.rego` | Gói `okrkpi.complaint`: ứng viên xử lý khiếu nại (CORE-07-03, BR-12-04), nâng cấp trên khi đơn vị không còn ai; SVC-06 hỏi `POST /v1/data/okrkpi/complaint/decision` | Có |
+| `okrkpi/complaint_handler_test.rego` | Ca kiểm thử chọn người xử lý khiếu nại | Có |
 | `okrkpi/authz_test.rego` | Ca tay cho cây tổ chức, luồng, C0..C3, AAL2, bước lên, tách vai trò, bốn mắt, cờ | Có |
 | `.manifest` | Gốc bundle `okrkpi`, Rego v1 | Có |
 | `build-bundle.sh` | Kiểm tra, kiểm thử, đóng gói, ký | Có |

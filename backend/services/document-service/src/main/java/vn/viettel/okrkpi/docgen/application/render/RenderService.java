@@ -22,6 +22,7 @@ import org.springframework.transaction.support.TransactionOperations;
 import vn.viettel.okrkpi.docgen.application.render.DocumentPorts.DocxMerger;
 import vn.viettel.okrkpi.docgen.application.render.DocumentPorts.ObjectStore;
 import vn.viettel.okrkpi.docgen.application.render.DocumentPorts.PdfConverter;
+import vn.viettel.okrkpi.docgen.application.render.DocumentPorts.PdfStamper;
 import vn.viettel.okrkpi.docgen.application.render.DocumentPorts.PdfaValidator;
 import vn.viettel.okrkpi.docgen.application.render.DocumentPorts.RejectedDocument;
 import vn.viettel.okrkpi.docgen.application.render.DocumentPorts.TransientFailure;
@@ -48,6 +49,10 @@ import vn.viettel.okrkpi.shared.kernel.Ids;
  *       dossier} theo khoá có băm, rồi ghi {@code render_output} và EVT-17 trong cùng một giao
  *       dịch.
  * </ol>
+ *
+ * <p>DV-11-04: mẫu chọn theo phiên bản mà Policy Pack của kỳ chỉ định (kỳ cũ sinh đúng mẫu cũ), mỗi
+ * tệp mang tem phiên bản ở chân trang và trong XMP (BR-11-03), và tem được đóng trước khi kiểm
+ * veraPDF nên {@code pdfa_validated} luôn nói về đúng tệp đã lưu và đã phát EVT-17.
  */
 public class RenderService {
 
@@ -69,6 +74,7 @@ public class RenderService {
   private final DocxMerger merger;
   private final PdfConverter converter;
   private final PdfaValidator validator;
+  private final PdfStamper stamper;
   private final ObjectStore store;
   private final RenderEvents events;
   private final RenderMetrics metrics;
@@ -87,6 +93,7 @@ public class RenderService {
       DocxMerger merger,
       PdfConverter converter,
       PdfaValidator validator,
+      PdfStamper stamper,
       ObjectStore store,
       RenderEvents events,
       RenderMetrics metrics,
@@ -102,6 +109,7 @@ public class RenderService {
     this.merger = merger;
     this.converter = converter;
     this.validator = validator;
+    this.stamper = stamper;
     this.store = store;
     this.events = events;
     this.metrics = metrics;
@@ -140,18 +148,21 @@ public class RenderService {
     }
     Instant now = clock.instant();
     for (RenderInputPort.FormRef form : forms) {
-      Template template = activeTemplate(form.formCode(), form.subjectGroupCode());
+      Template template = template(form);
       jobs.insertIfAbsent(
           RenderJob.create(
-              Ids.newUuidV7(),
-              command.tenantId(),
-              template.id(),
-              requestEventId(command.requestId(), form.formInstanceId()),
-              command.requestId(),
-              form.formInstanceId(),
-              form.dataSnapshotHash(),
-              command.caller(),
-              now));
+                  Ids.newUuidV7(),
+                  command.tenantId(),
+                  template.id(),
+                  requestEventId(command.requestId(), form.formInstanceId()),
+                  command.requestId(),
+                  form.formInstanceId(),
+                  form.dataSnapshotHash(),
+                  command.caller(),
+                  now)
+              .withProvenance(
+                  new RenderJob.Provenance(
+                      command.packageId(), form.policyPackCode(), form.policyPackVersion())));
     }
     return job(command.requestId()).orElseThrow();
   }
@@ -167,6 +178,29 @@ public class RenderService {
         .putLong(formInstanceId.getMostSignificantBits())
         .putLong(formInstanceId.getLeastSignificantBits());
     return UUID.nameUUIDFromBytes(buffer.array());
+  }
+
+  /**
+   * Mẫu của một biểu mẫu: đúng phiên bản Policy Pack của kỳ chỉ định khi có (kể cả phiên bản đã
+   * ngừng, để kỳ cũ sinh lại đúng mẫu cũ), ngược lại phiên bản đang hiệu lực mới nhất.
+   */
+  private Template template(RenderInputPort.FormRef form) {
+    if (form.templateVersion() == null) {
+      return activeTemplate(form.formCode(), form.subjectGroupCode());
+    }
+    int pinned = form.templateVersion();
+    return templates.findByFormCode(form.formCode()).stream()
+        .filter(t -> t.pinnedFor(pinned, form.subjectGroupCode()))
+        .findFirst()
+        .orElseThrow(
+            () ->
+                new BusinessException(
+                    NO_TEMPLATE,
+                    "Chưa có mẫu biểu mẫu "
+                        + form.formCode()
+                        + " phiên bản "
+                        + pinned
+                        + " theo bộ quy tắc của kỳ."));
   }
 
   private Template activeTemplate(String formCode, String subjectGroupCode) {
@@ -279,8 +313,9 @@ public class RenderService {
       throw new RejectedDocument("Tệp mẫu " + template + " không khớp băm đã đăng ký.");
     }
     Map<String, String> fields = renderer(template).fields(parse(data.canonicalJson()));
-    byte[] merged = merger.merge(docx, fields);
-    byte[] pdf = converter.toPdfA2b(merged, template.formCode() + ".docx");
+    RenderStamp stamp = stamp(job, template);
+    byte[] merged = merger.merge(docx, fields, stamp.footerText());
+    byte[] pdf = stamper.stamp(converter.toPdfA2b(merged, template.formCode() + ".docx"), stamp);
     PdfaValidator.Result check = validator.validate(pdf);
     if (!check.compliant()) {
       throw new RejectedDocument("Tệp sinh ra không đạt chuẩn PDF/A-2b: " + check.summary());
@@ -289,6 +324,17 @@ public class RenderService {
     String key = objectKey(job, template, sha);
     store.put(DOSSIER_BUCKET, key, pdf, "application/pdf");
     return new Rendered(key, sha, pdf.length);
+  }
+
+  static RenderStamp stamp(RenderJob job, Template template) {
+    RenderJob.Provenance p = job.provenance();
+    return new RenderStamp(
+        p.policyPackCode(),
+        p.policyPackVersion(),
+        template.formCode(),
+        template.versionNo(),
+        p.packageId(),
+        job.inputSha256());
   }
 
   /** Tác vụ đã nhận cùng mẫu của nó. */

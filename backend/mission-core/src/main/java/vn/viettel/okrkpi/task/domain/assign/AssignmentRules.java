@@ -34,7 +34,19 @@ public final class AssignmentRules {
       LocalDate periodEnd,
       boolean planItemApproved,
       UUID defaultAcceptor,
-      Collection<String> vagueWords) {}
+      Collection<String> vagueWords,
+      boolean registrationApproved) {
+
+    /** Ngữ cảnh giao thông thường: nhiệm vụ đăng ký chưa được duyệt (BR-05-08). */
+    public Context(
+        LocalDate periodStart,
+        LocalDate periodEnd,
+        boolean planItemApproved,
+        UUID defaultAcceptor,
+        Collection<String> vagueWords) {
+      this(periodStart, periodEnd, planItemApproved, defaultAcceptor, vagueWords, false);
+    }
+  }
 
   public static final String MSG_05_01 = "Mỗi nhiệm vụ chỉ có đúng một người chủ trì.";
   public static final String MSG_05_02 = "Người nghiệm thu phải khác người thực hiện nhiệm vụ.";
@@ -45,6 +57,8 @@ public final class AssignmentRules {
       "Nhiệm vụ từ kế hoạch phải thuộc phiên bản kế hoạch đã duyệt đang có hiệu lực.";
   static final String BR_05_09 =
       "Nhiệm vụ phát sinh ngoài kế hoạch phải có căn cứ (văn bản hoặc chỉ đạo ghi rõ).";
+  static final String BR_05_08 =
+      "Nhiệm vụ do cán bộ đăng ký phải được người quản lý trực tiếp duyệt trước khi giao.";
   static final String VAGUE = "Tên nhiệm vụ chứa từ mơ hồ, nên ghi rõ kết quả cần đạt.";
 
   private static final Set<String> OUTSIDE_PLAN = Set.of("DOT_XUAT", "VAN_BAN");
@@ -92,6 +106,11 @@ public final class AssignmentRules {
     boolean basis =
         !OUTSIDE_PLAN.contains(s.source()) || filled(s.basis()) || filled(s.sourceDocNumber());
     items.add(new CheckItem("BR-05-09", Level.CHAN, basis, BR_05_09));
+
+    if ("DANG_KY".equals(s.source())) {
+      // CORE-02-17: chỉ thao tác duyệt đăng ký mới giao được nhiệm vụ cán bộ tự đăng ký.
+      items.add(new CheckItem("BR-05-08", Level.CHAN, c.registrationApproved(), BR_05_08));
+    }
 
     items.add(new CheckItem("BR-04-03", Level.CANH_BAO, !vague(s.title(), c.vagueWords()), VAGUE));
     return List.copyOf(items);

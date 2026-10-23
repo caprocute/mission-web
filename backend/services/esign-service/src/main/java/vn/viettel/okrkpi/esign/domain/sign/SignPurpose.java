@@ -8,5 +8,7 @@ public enum SignPurpose {
   BIEN_BAN,
   GOI_HO_SO,
   PHE_DUYET_MO_LAI,
-  PHAT_HANH_POLICY
+  PHAT_HANH_POLICY,
+  /** Quyết định giải quyết khiếu nại kết quả đánh giá (CORE-07-02). */
+  KHIEU_NAI
 }

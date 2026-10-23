@@ -25,6 +25,7 @@
     <contract.dir>${project.basedir}/../../../contracts/openapi</contract.dir>
     <awssdk.version>2.31.6</awssdk.version>
     <verapdf.version>1.28.2</verapdf.version>
+    <pdfbox.version>3.0.8</pdfbox.version>
     <!-- Microservice API dùng Generational ZGC theo TL-04 WI-20. -->
     <jib.jvm.gc>-XX:+UseZGC</jib.jvm.gc>
   </properties>
@@ -36,6 +37,17 @@
         <groupId>commons-logging</groupId>
         <artifactId>commons-logging</artifactId>
         <version>1.3.5</version>
+      </dependency>
+      <!-- docx4j 11.5.14 kéo pdfbox-io, fontbox 3.0.7; thống nhất với pdfbox 3.0.8 (DV-11-04). -->
+      <dependency>
+        <groupId>org.apache.pdfbox</groupId>
+        <artifactId>pdfbox-io</artifactId>
+        <version>${pdfbox.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.pdfbox</groupId>
+        <artifactId>fontbox</artifactId>
+        <version>${pdfbox.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -80,13 +92,23 @@
       <artifactId>docx4j-JAXB-ReferenceImpl</artifactId>
     </dependency>
     <!--
-      OpenPDF (thay iText 7 vì AGPL): DV-11-01 chỉ dùng trong kiểm thử để đọc số trang; ghép gói
-      hồ sơ và gắn siêu dữ liệu ở DV-11-04 sẽ chuyển sang phạm vi compile.
+      OpenPDF (thay iText 7 vì AGPL): chỉ dùng trong kiểm thử để đọc số trang; tem phiên bản của
+      DV-11-04 dùng PDFBox (xem bên dưới).
     -->
     <dependency>
       <groupId>com.github.librepdf</groupId>
       <artifactId>openpdf</artifactId>
       <scope>test</scope>
+    </dependency>
+    <!--
+      DV-11-04: đóng tem phiên bản vào XMP của tệp PDF/A (Apache PDFBox 3, Apache 2.0, cùng phiên bản
+      với esign-service, evidence-service; đã duyệt ở DV-08-06 theo YC-PT-18). Không dùng OpenPDF vì
+      PdfStamper tự đổi Producer/ModDate của từ điển Info làm lệch XMP, tệp không còn đạt PDF/A.
+    -->
+    <dependency>
+      <groupId>org.apache.pdfbox</groupId>
+      <artifactId>pdfbox</artifactId>
+      <version>${pdfbox.version}</version>
     </dependency>
     <!-- DV-11-01: kiểm PDF/A-2b (veraPDF, MPL 2.0) và kho đối tượng S3 (Ceph RGW). -->
     <dependency>

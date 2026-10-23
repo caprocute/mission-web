@@ -21,15 +21,20 @@ import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.transaction.PlatformTransactionManager;
 import vn.viettel.okrkpi.appraisal.api.ComplaintProfilesApi;
+import vn.viettel.okrkpi.config.api.AccessDirectory;
 import vn.viettel.okrkpi.config.api.PeriodApi;
+import vn.viettel.okrkpi.config.api.RoleHolderApi;
 import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
 import vn.viettel.okrkpi.events.EventTopics;
+import vn.viettel.okrkpi.oversight.application.complaint.ComplaintHandlingService;
 import vn.viettel.okrkpi.oversight.application.complaint.ComplaintService;
 import vn.viettel.okrkpi.oversight.application.port.ComplaintSealer;
 import vn.viettel.okrkpi.oversight.application.port.ComplaintSigner;
 import vn.viettel.okrkpi.oversight.infrastructure.client.EsignComplaintSigner;
+import vn.viettel.okrkpi.oversight.infrastructure.client.ModuleComplaintHandlerDirectory;
 import vn.viettel.okrkpi.oversight.infrastructure.listener.ComplaintSignedListener;
 import vn.viettel.okrkpi.oversight.infrastructure.web.ComplaintSignJobs;
+import vn.viettel.okrkpi.product.api.EvidenceQueryApi;
 import vn.viettel.okrkpi.shared.crypto.FieldEncryptor;
 import vn.viettel.okrkpi.shared.inbox.InboxEndpoint;
 import vn.viettel.okrkpi.shared.inbox.InboxEnvelope;
@@ -76,13 +81,7 @@ public class ComplaintConfiguration {
       @Value("${mission.oversight.esign.base-url:}") String esignUrl,
       ObjectProvider<OutboxPayloadSerializer> serializer,
       ObjectProvider<ObjectMapper> json) {
-    OutboxWriter outbox =
-        new OutboxWriter(
-            new JdbcTemplate(dataSource),
-            "oversight",
-            serializer.getIfAvailable(() -> new ApicurioPayloadSerializer(registry, Map.of())),
-            json.getIfAvailable(ObjectMapper::new),
-            Clock.systemUtc());
+    OutboxWriter outbox = outbox(dataSource, registry, serializer, json);
     FieldEncryptor e = encryptor.getIfAvailable();
     return new ComplaintService(
         complaintRepository,
@@ -99,6 +98,44 @@ public class ComplaintConfiguration {
         new OutboxComplaintEvents(outbox),
         new OutboxOversightAudit(outbox),
         java.time.Clock.systemUTC());
+  }
+
+  @Bean
+  ComplaintHandlingService complaintHandlingService(
+      JdbcComplaintRepository complaintRepository,
+      ComplaintService complaintService,
+      ComplaintProfilesApi profiles,
+      RoleHolderApi roleHolders,
+      ObjectProvider<AccessDirectory> units,
+      ObjectProvider<EvidenceQueryApi> evidence,
+      @Qualifier("oversightDataSource") DataSource dataSource,
+      @Value("${mission.oversight.outbox.registry-url:${okrkpi.inbox.registry.url:}}")
+          String registry,
+      ObjectProvider<OutboxPayloadSerializer> serializer,
+      ObjectProvider<ObjectMapper> json) {
+    OutboxWriter outbox = outbox(dataSource, registry, serializer, json);
+    return new ComplaintHandlingService(
+        complaintRepository,
+        complaintService,
+        profiles,
+        new ModuleComplaintHandlerDirectory(
+            roleHolders, units.getIfAvailable(), profiles, evidence.getIfAvailable()),
+        new OutboxComplaintEvents(outbox),
+        new OutboxOversightAudit(outbox),
+        java.time.Clock.systemUTC());
+  }
+
+  private static OutboxWriter outbox(
+      DataSource dataSource,
+      String registry,
+      ObjectProvider<OutboxPayloadSerializer> serializer,
+      ObjectProvider<ObjectMapper> json) {
+    return new OutboxWriter(
+        new JdbcTemplate(dataSource),
+        "oversight",
+        serializer.getIfAvailable(() -> new ApicurioPayloadSerializer(registry, Map.of())),
+        json.getIfAvailable(ObjectMapper::new),
+        Clock.systemUtc());
   }
 
   @Bean

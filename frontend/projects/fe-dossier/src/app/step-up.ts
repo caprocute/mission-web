@@ -1,5 +1,5 @@
 import { InjectionToken, Injector, inject } from '@angular/core';
-import { RUNTIME_CONFIG, mockStepUp } from '@vt/api-client';
+import { RUNTIME_CONFIG, mockApiActive, mockStepUp } from '@vt/api-client';
 import { SessionService } from '@vt/auth';
 
 /** Cửa sổ MFA cho thao tác lập biên bản: 15 phút (TL-01 PL C, BR-00-02). */
@@ -32,7 +32,7 @@ export const DOSSIER_STEP_UP = new InjectionToken<(reason: string) => Promise<bo
             return false;
           }
         }
-        if (cfg.useMockApi) mockStepUp();
+        if (mockApiActive(cfg)) mockStepUp();
         return true;
       };
     },

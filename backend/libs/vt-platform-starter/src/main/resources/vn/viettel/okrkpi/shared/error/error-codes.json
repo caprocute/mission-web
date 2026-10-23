@@ -1,7 +1,7 @@
 {
   "description": "Danh mục mã lỗi <MODULE>-<HTTP>-<TÊN> trích từ contracts/openapi (NEN-009). Không sửa tay: chạy tools/extract-error-codes.mjs.",
   "source": "contracts/openapi/**/*.yaml",
-  "count": 203,
+  "count": 204,
   "codes": [
     {
       "code": "AI-403-C3-FORBIDDEN",
@@ -1073,6 +1073,16 @@
       "status": 409,
       "name": "ASSIGNMENT-OVERLAP",
       "type": "https://okrkpi.vn/problems/assignment-overlap",
+      "sources": [
+        "modules/org.yaml"
+      ]
+    },
+    {
+      "code": "ORG-409-PUBLIC-KEY-EXISTS",
+      "module": "ORG",
+      "status": 409,
+      "name": "PUBLIC-KEY-EXISTS",
+      "type": "https://okrkpi.vn/problems/public-key-exists",
       "sources": [
         "modules/org.yaml"
       ]
