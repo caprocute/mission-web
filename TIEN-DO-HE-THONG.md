@@ -97,7 +97,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [WEB-017](docs/tasks/WEB-017-wizard-tenant.md) | SCR-0102 Khởi tạo tenant (wizard) | M | W-Giám sát/CH | – | WEB-016 | **Đã gộp main** | Đã gộp `main` (SCR-0102 Wizard khởi tạo tenant) |
 | [WEB-018](docs/tasks/WEB-018-cay-to-chuc.md) | SCR-0103 Cây tổ chức có lịch sử | L | W-Giám sát/CH | – | WEB-015 | **Đã gộp main** | Đã gộp `main` (SCR-0103 Cây tổ chức có lịch sử hai trục thời gian) |
 | [WEB-019](docs/tasks/WEB-019-doi-soat-nhan-su.md) | SCR-0104 Đồng bộ và đối soát nhân sự | M | W-Giám sát/CH | – | WEB-018 | **Đã gộp main** | Đã gộp `main` (SCR-0104 Đồng bộ và đối soát nhân sự) |
-| [WEB-020](docs/tasks/WEB-020-theme-keycloak.md) | SCR-0001 Giao diện trang đăng nhập (theme Keycloak) | M | W-Nền tảng | – | WEB-004, WEB-006 | **Đã gộp main** | Theme Keycloak mission (SCR-0001) đã triển khai live trên 14.232.210.125:35080 |
+| [WEB-020](docs/tasks/WEB-020-theme-keycloak.md) | SCR-0001 Giao diện trang đăng nhập (theme Keycloak) | M | W-Nền tảng | – | WEB-004, WEB-006 | **Đã gộp main** | Nhánh feat/WEB-020-dang-nhap-gon: rút gọn trang đăng nhập thành một thẻ giữa trang; đã triển khai lên Keycloak dev; chờ gộp |
 | [WEB-021](docs/tasks/WEB-021-cay-okr.md) | SCR-0201 Cây mục tiêu OKR | L | W-OKR/Đánh giá | – | WEB-015 | **Đã gộp main** | Đã gộp `main` (SCR-0201 Cây mục tiêu OKR) |
 | [WEB-022](docs/tasks/WEB-022-tao-sua-okr.md) | SCR-0202 Tạo/sửa O và KR | M | W-OKR/Đánh giá | – | WEB-021 | **Đã gộp main** | Đã gộp `main` (SCR-0202 Tạo/sửa O và KR) |
 | [WEB-023](docs/tasks/WEB-023-duyet-okr.md) | SCR-0203 Phê duyệt OKR | M | W-OKR/Đánh giá | – | WEB-022 | **Đã gộp main** | Đã gộp `main` (SCR-0203 Phê duyệt OKR) |
@@ -985,4 +985,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 00:50 | Điều phối | `CORE-05-11` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (fcfdd4ab) |
 | 23/10/2026 00:50 | Điều phối | `WEB-070` | Chuyển trạng thái sang **Làm một phần** — Công tắc giả lập và kịch bản e2e đã gộp main (fcfdd4ab); chạy với máy chủ thật chờ QA-03 |
 | 23/10/2026 02:34 | Điều phối | `CORE-05-10`, `DV-06-08`, `CORE-05-12`, `CORE-04-13`, `DV-11-04`, `CORE-02-17`, `DV-13-01`, `DV-13-03`, `DV-08-05`, `CORE-04-09`, `CORE-04-10`, `CORE-04-11`, `DV-07-08`, `CORE-07-03`, `CORE-07-06`, `CORE-02-24` | Chuyển trạng thái sang **Đã gộp main** — Đợt 8–9, main ff7be5b8 |
+| 23/10/2026 12:47 | Claude - nối API thật | `WEB-020` | Chuyển trạng thái sang **Đã gộp main** — Nhánh feat/WEB-020-dang-nhap-gon: rút gọn trang đăng nhập thành một thẻ giữa trang; đã triển khai lên Keycloak dev; chờ gộp |
 <!-- PROGRESS_LOG_END -->
