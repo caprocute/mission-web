@@ -21,6 +21,7 @@
     "e2e:prepare": "npm run build:all && node tools/remotes/workspace.mjs assemble dist/e2e",
     "e2e": "playwright test -c e2e/playwright.config.ts",
     "e2e:he-thong": "playwright test -c e2e/playwright.config.ts",
+    "e2e:hanh-trinh": "playwright test -c e2e/playwright.config.ts",
     "storybook": "ng run vt-storybook:storybook",
     "build-storybook": "ng run vt-storybook:build-storybook",
     "test:visual": "npm run build-storybook && playwright test -c e2e/playwright.visual.config.ts"

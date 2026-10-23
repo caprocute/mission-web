@@ -34,7 +34,7 @@
       "caPhuDinh": ["Sai mật khẩu năm lần thì tài khoản bị khoá tạm"],
       "cheDoCaoTuoi": true,
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-02",
@@ -51,7 +51,7 @@
       "caPhuDinh": ["Chọn đơn vị không thuộc phân công của mình bị từ chối"],
       "cheDoCaoTuoi": false,
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-03",
@@ -68,7 +68,7 @@
       "caPhuDinh": ["Phê duyệt khi chưa xác thực lại bị yêu cầu bậc hai"],
       "cheDoCaoTuoi": false,
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-04",
@@ -85,7 +85,7 @@
       "caPhuDinh": ["Tài khoản VNeID mức 1 bị từ chối", "Không khớp hồ sơ thì không tạo tài khoản"],
       "cheDoCaoTuoi": false,
       "ghiChu": "VNeID dùng bản giả lập trên server dev (YC-PT-13).",
-      "trangThai": "chua_viet"
+      "trangThai": "tam_hoan"
     },
     {
       "ma": "HT-05",
@@ -108,7 +108,7 @@
       "caPhuDinh": ["Tài khoản quản trị tenant không mở được danh sách tenant"],
       "cheDoCaoTuoi": true,
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-06",
@@ -125,7 +125,7 @@
       "caPhuDinh": ["Cập nhật đơn vị với phiên bản cũ nhận xung đột và được mời tải lại"],
       "cheDoCaoTuoi": false,
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-07",
@@ -142,7 +142,7 @@
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-08",
@@ -172,7 +172,7 @@
       "caPhuDinh": ["Tài khoản không có quyền phê duyệt bị máy chủ từ chối"],
       "cheDoCaoTuoi": true,
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-09",
@@ -189,7 +189,7 @@
       "caPhuDinh": ["Gửi lại cùng khoá chống lặp không tạo check-in thứ hai"],
       "cheDoCaoTuoi": true,
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-10",
