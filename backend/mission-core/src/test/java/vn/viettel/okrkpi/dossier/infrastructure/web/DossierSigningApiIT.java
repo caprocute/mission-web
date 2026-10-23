@@ -132,7 +132,23 @@ class DossierSigningApiIT extends ContractConformanceTest {
         String provider,
         String idempotencyKey,
         String authorization) {
-      DossierSigningService.SignSource source = signing.signSource(tenant, packageId).orElseThrow();
+      // Như SVC-10 thật: hỏi nguồn ký trên luồng và kết nối khác, nên chỉ thấy manifest đã commit.
+      DossierSigningService.SignSource source;
+      try {
+        source =
+            java.util.concurrent.CompletableFuture.supplyAsync(
+                    () -> {
+                      try {
+                        return TenantContext.call(
+                            tenant, () -> signing.signSource(tenant, packageId).orElseThrow());
+                      } catch (Exception e) {
+                        throw new IllegalStateException(e);
+                      }
+                    })
+                .get(30, java.util.concurrent.TimeUnit.SECONDS);
+      } catch (Exception e) {
+        throw new IllegalStateException("Không đọc được nguồn ký", e);
+      }
       if (!source.ready() || !source.signers().contains(OFFICER)) {
         throw new IllegalStateException("Tài liệu cần ký chưa sẵn sàng");
       }

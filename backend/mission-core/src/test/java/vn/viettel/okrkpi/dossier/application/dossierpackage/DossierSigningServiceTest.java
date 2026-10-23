@@ -97,6 +97,7 @@ class DossierSigningServiceTest {
         recorder,
         () -> settings,
         TransactionOperations.withoutTransaction(),
+        TransactionOperations.withoutTransaction(),
         Clock.fixed(NOW, ZoneOffset.UTC));
   }
 

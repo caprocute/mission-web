@@ -14,6 +14,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -48,8 +49,10 @@ import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
  * cùng consumer gói bằng {@code mission.dossier.package.consumer.enabled=false}.
  *
  * <p>SVC-10 hỏi lại tài liệu cần ký của MOD-06 ngay trong lời gọi tạo yêu cầu ký, trong khi API ký
- * còn giữ kết nối {@code dossier} của giao dịch khoá lặp; vùng kết nối {@code dossier} cần ít nhất
- * hai kết nối ({@code DB_DOSSIER_POOL_MAX}) khi nối SVC-10 thật (wiki trang 14).
+ * còn giữ kết nối {@code dossier} của giao dịch khoá lặp: manifest và mã yêu cầu ký ghi trong giao
+ * dịch riêng ({@code REQUIRES_NEW}) đã commit trước khi gọi SVC-10, nên vùng kết nối {@code
+ * dossier} cần ít nhất hai kết nối ({@code DB_DOSSIER_POOL_MAX}) (wiki trang 14, mẫu "chốt trước,
+ * gọi sau").
  */
 @Configuration(proxyBeanMethods = false)
 public class DossierSigningConfiguration {
@@ -118,6 +121,8 @@ public class DossierSigningConfiguration {
       ObjectProvider<TenantSettingApi> settings,
       @Qualifier("dossierTransactionManager") PlatformTransactionManager tm) {
     TransactionTemplate tx = new TransactionTemplate(tm);
+    TransactionTemplate committed = new TransactionTemplate(tm);
+    committed.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     return new DossierSigningService(
         DossierPackageConfiguration.inTransaction(dossierPackageRepository, tx),
         profiles::getIfAvailable,
@@ -126,6 +131,7 @@ public class DossierSigningConfiguration {
         dossierPackageEvents,
         settings::getIfAvailable,
         tx,
+        committed,
         java.time.Clock.systemUTC());
   }
 
