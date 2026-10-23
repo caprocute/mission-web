@@ -57,6 +57,8 @@ func runCLI(
 		tenantFlag         = fs.String("tenant", "", "Tenant UUID to filter outbox_event (required)")
 		fromFlag           = fs.String("from", "", "Inclusive start timestamp in RFC3339 format (created_at >= from)")
 		toFlag             = fs.String("to", "", "Inclusive end timestamp in RFC3339 format (created_at <= to)")
+		safePointFlag      = fs.Bool("from-safe-point", false, "Failover (DR-10 step 8): start from last replayed WAL commit (pg_last_xact_replay_timestamp) minus --safe-point-margin")
+		safeMarginFlag     = fs.Duration("safe-point-margin", 15*time.Minute, "Margin subtracted from the last replayed WAL commit for --from-safe-point")
 		eventIDFlag        = fs.String("event-id", "", "Optional specific event UUID (id)")
 		aggregateIDFlag    = fs.String("aggregate-id", "", "Optional specific aggregate_id filter")
 		eventTypeFlag      = fs.String("event-type", "", "Optional specific event_type filter")
@@ -159,6 +161,11 @@ func runCLI(
 		opts.Filter.AfterID = strings.TrimSpace(*afterIDFlag)
 	}
 
+	if *safePointFlag && strings.TrimSpace(*fromFlag) != "" {
+		_, _ = fmt.Fprintln(stderr, "outbox-replay: --from-safe-point và --from không dùng cùng nhau")
+		return 2
+	}
+
 	// Without injected test doubles, read and publish against the cell's real PostgreSQL and Kafka
 	// configured through environment variables (internal/connect, INF-26 Job envFrom).
 	conn := connect.FromEnv(getenv)
@@ -170,6 +177,20 @@ func runCLI(
 		}
 		defer closeStore()
 		store = pg
+	}
+	if *safePointFlag {
+		src, ok := store.(replay.SafePointSource)
+		if !ok {
+			_, _ = fmt.Fprintln(stderr, "outbox-replay: kho outbox không hỗ trợ --from-safe-point")
+			return 1
+		}
+		from, err := replay.SafePoint(ctx, src, *safeMarginFlag)
+		if err != nil {
+			_, _ = fmt.Fprintf(stderr, "outbox-replay: %v\n", err)
+			return 1
+		}
+		opts.Filter.From = from
+		_, _ = fmt.Fprintf(stderr, "ĐIỂM AN TOÀN: --from=%s (WAL cuối trừ %s)\n", from.Format(time.RFC3339Nano), *safeMarginFlag)
 	}
 	if producer == nil && !opts.DryRun {
 		kp, err := connect.NewKafkaProducer(conn)

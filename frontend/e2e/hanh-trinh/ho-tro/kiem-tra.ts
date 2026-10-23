@@ -21,6 +21,35 @@ export async function kiemAxe(page: Page, ten: string) {
   expect(nang, `axe-core trên màn hình ${ten}`).toEqual([]);
 }
 
+async function choHetHieuUng(page: Page) {
+  // Đợi hai khung hình để trình duyệt kịp tính kiểu và khởi động transition, rồi đợi mọi hiệu ứng dừng
+  await page.evaluate(
+    () => new Promise((xong) => requestAnimationFrame(() => requestAnimationFrame(xong))),
+  );
+  await page
+    .waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'), null, {
+      polling: 100,
+      timeout: 5_000,
+    })
+    .catch(() => undefined);
+}
+
+/**
+ * Quét axe sau khi các hiệu ứng hiện dần (thông báo PrimeNG, hộp thoại) đã chạy xong: quét giữa lúc mờ dần
+ * cho kết quả tương phản màu sai (QA-07 gặp ở thông báo cảnh báo màn hình khiếu nại, khoảng 1/20 lần chạy).
+ * Nếu lần quét đầu vẫn báo lỗi thì đợi thêm rồi quét lại một lần: lỗi thật vẫn còn ở lần quét thứ hai.
+ */
+export async function kiemAxeOnDinh(page: Page, ten: string) {
+  await choHetHieuUng(page);
+  try {
+    await kiemAxe(page, ten);
+  } catch {
+    await page.waitForTimeout(500);
+    await choHetHieuUng(page);
+    await kiemAxe(page, ten);
+  }
+}
+
 /** Bật chế độ Đảng viên cao tuổi bằng nút "Chữ lớn" trên thanh trên. */
 export async function batCaoTuoi(page: Page) {
   const nut = page.getByRole('button', { name: 'Chữ lớn' });

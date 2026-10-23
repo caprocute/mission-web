@@ -11,10 +11,21 @@ public class InboxHealthIndicator implements HealthIndicator {
 
   private final String schema;
   private final InboxListenerRegistrar registrar;
+  private final boolean autoStartup;
 
   public InboxHealthIndicator(String schema, InboxListenerRegistrar registrar) {
+    this(schema, registrar, true);
+  }
+
+  /**
+   * @param autoStartup {@code false} khi listener cố ý không tự chạy (TTDL chờ, INF-28): container
+   *     dừng không làm health DOWN.
+   */
+  public InboxHealthIndicator(
+      String schema, InboxListenerRegistrar registrar, boolean autoStartup) {
     this.schema = Objects.requireNonNull(schema, "schema");
     this.registrar = Objects.requireNonNull(registrar, "registrar");
+    this.autoStartup = autoStartup;
   }
 
   @Override
@@ -25,12 +36,15 @@ public class InboxHealthIndicator implements HealthIndicator {
         containers.stream().filter(ConcurrentMessageListenerContainer::isRunning).count();
 
     Health.Builder builder =
-        !containers.isEmpty() && runningCount < containers.size() ? Health.down() : Health.up();
+        autoStartup && !containers.isEmpty() && runningCount < containers.size()
+            ? Health.down()
+            : Health.up();
     return builder
         .withDetail("schema", schema)
         .withDetail("registeredEndpoints", endpoints.size())
         .withDetail("totalContainers", containers.size())
         .withDetail("runningContainers", runningCount)
+        .withDetail("autoStartup", autoStartup)
         .build();
   }
 }

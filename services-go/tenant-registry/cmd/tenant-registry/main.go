@@ -111,7 +111,7 @@ func main() {
 		go runPurge(ctx, runner, cfg.Move.Purge, log)
 		defer runner.DB.Close()
 	}
-	srv := api.New(api.Deps{Pool: pool, Log: log, Verifier: verifier, StepUpMaxAge: cfg.StepUpMaxAge,
+	srv := api.New(api.Deps{Pool: pool, Log: log, Verifier: verifier, StepUpMaxAge: cfg.StepUpMaxAge, CellReaderClients: cfg.CellReaderClients,
 		Resolver: resolver, Cookies: signer, CookieDomain: cfg.CookieDomain, Tenants: tenants, Provision: saga,
 		Moves: moves, MoveRunner: runner})
 

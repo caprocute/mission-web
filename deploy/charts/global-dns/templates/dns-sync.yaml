@@ -1,0 +1,90 @@
+{{- $v := .Values }}
+{{- $d := $v.dnsSync }}
+{{- /* Chỉ chạy ở TTDL giữ primary của pg-registry: PowerDNS bên kia dùng bản sao chỉ đọc nên API không ghi được. */}}
+{{- if and $d.enabled (eq $v.site $v.primarySite) }}
+{{- include "gdns.digest" (list $d.image "dnsSync.image") }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dns-sync
+  namespace: {{ $v.namespace }}
+data:
+  config.json: {{ dict "zone" $v.zone "ttl" $d.ttl "cells" $d.cells | toJson | quote }}
+---
+# Một bản: hai bản cùng ghi một giá trị là vô hại nhưng nhật ký thay đổi trùng lặp; Recreate để không có hai bản lúc
+# triển khai. Ở mỗi TTDL có một bản (cùng đọc SVC-03, cùng ghi một vùng) nên mất một TTDL vẫn còn bản kia.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dns-sync
+  namespace: {{ $v.namespace }}
+  labels: { app.kubernetes.io/name: dns-sync }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app.kubernetes.io/name: dns-sync } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: dns-sync }
+      annotations:
+        checksum/config: {{ dict "zone" $v.zone "cells" $d.cells | toJson | sha256sum | trunc 16 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: dns-sync
+          image: {{ $d.image }}
+          args: []
+          command: ["/usr/local/bin/dns-sync"]
+          env:
+            - { name: CONFIG_FILE, value: /etc/dns-sync/config.json }
+            - { name: INTERVAL, value: {{ $d.interval | quote }} }
+            - { name: REGISTRY_URL, value: {{ $d.registryUrl | quote }} }
+            - { name: TOKEN_URL, value: {{ $d.tokenUrl | quote }} }
+            - { name: CLIENT_ID, value: {{ $d.clientId | quote }} }
+            - { name: CLIENT_SECRET_FILE, value: /etc/dns-sync-bi-mat/client-secret }
+            - { name: PDNS_URL, value: "http://pdns-api.{{ $v.namespace }}.svc:8081" }
+            - { name: PDNS_API_KEY_FILE, value: /etc/dns-sync-bi-mat/pdns-api-key }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+          resources: { requests: { cpu: 50m, memory: 64Mi }, limits: { cpu: 200m, memory: 64Mi } }
+          volumeMounts:
+            - { name: config, mountPath: /etc/dns-sync, readOnly: true }
+            - { name: bi-mat, mountPath: /etc/dns-sync-bi-mat, readOnly: true }
+      volumes:
+        - { name: config, configMap: { name: dns-sync } }
+        - { name: bi-mat, secret: { secretName: dns-sync-bi-mat } }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dns-sync
+  namespace: {{ $v.namespace }}
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: dns-sync } }
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress:
+    - to: [{ podSelector: { matchLabels: { app.kubernetes.io/name: pdns } } }]
+      ports: [{ port: 8081 }]
+    - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: global } }, podSelector: { matchLabels: { app.kubernetes.io/name: tenant-registry } } }]
+      ports: [{ port: 8080 }]
+    - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: keycloak } } }]
+      ports: [{ port: 8443 }, { port: 443 }]
+    - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } } }]
+      ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+{{- if $v.externalSecrets.enabled }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: dns-sync-bi-mat
+  namespace: {{ $v.namespace }}
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {{ toJson $v.externalSecrets.secretStoreRef }}
+  target: { name: dns-sync-bi-mat }
+  data:
+    - { secretKey: client-secret, remoteRef: { key: {{ $v.externalSecrets.dnsSyncPath }}, property: client-secret } }
+    - { secretKey: pdns-api-key, remoteRef: { key: {{ $v.externalSecrets.pdnsPath }}, property: api-key } }
+{{- end }}
+{{- end }}

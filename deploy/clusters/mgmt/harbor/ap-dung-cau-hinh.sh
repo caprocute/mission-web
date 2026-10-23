@@ -2,11 +2,14 @@
 # Áp cau-hinh.yaml vào Harbor qua API v2.0 (INF-07). Chạy lại được nhiều lần: thứ gì đã có thì cập nhật metadata,
 # robot đã có thì giữ nguyên (thêm --xoay để sinh lại mật khẩu). Mật khẩu robot ghi thẳng vào OpenBao, không in ra.
 # Cần: curl, jq, python3 + PyYAML, bao (OpenBao CLI, đã đăng nhập). Biến: HARBOR_URL, HARBOR_USER, HARBOR_PASS_FILE
-# (tệp chứa mật khẩu admin, lấy từ OpenBao kv/mgmt/harbor/admin), CAU_HINH (mặc định cau-hinh.yaml cạnh script).
+# (tệp chứa mật khẩu admin, lấy từ OpenBao kv/mgmt/harbor/admin), CAU_HINH (mặc định cau-hinh.yaml cạnh script),
+# BAO_ROBOT (nơi ghi mật khẩu robot, mặc định kv/mgmt/harbor/robots; harbor-sn dùng cau-hinh-sn.yaml và
+# kv/mgmt/harbor-sn/robots, INF-18).
 # Dùng: HARBOR_URL=https://harbor.vt.local ap-dung-cau-hinh.sh [--xoay] [--thu]   (--thu: chỉ in việc sẽ làm)
 set -euo pipefail
 D=$(cd "$(dirname "$0")" && pwd)
 CAU_HINH=${CAU_HINH:-$D/cau-hinh.yaml}
+BAO_ROBOT=${BAO_ROBOT:-kv/mgmt/harbor/robots}
 XOAY=0; THU=0
 for a in "$@"; do case $a in --xoay) XOAY=1;; --thu) THU=1;; *) echo "tham số lạ: $a" >&2; exit 2;; esac; done
 J=$(python3 -c 'import json,sys,yaml; print(json.dumps(yaml.safe_load(open(sys.argv[1]))))' "$CAU_HINH")
@@ -31,7 +34,7 @@ while read -r pc; do
   co_project "$ten" || api POST /projects "$(jq -nc --arg n "$ten" --argjson r "${rid:-0}" --argjson m "$md" \
     '{project_name:$n,registry_id:$r,metadata:$m,storage_limit:-1}')" >/dev/null
   echo "  proxy-cache $ten"
-done < <(jq -c '.proxyCache[]' <<<"$J")
+done < <(jq -c '.proxyCache // [] | .[]' <<<"$J")
 while read -r p; do
   ten=$(jq -r .ten <<<"$p"); md=$(jq -c .metadata <<<"$p")
   if co_project "$ten"; then api PUT "/projects/$ten" "$(jq -nc --argjson m "$md" '{metadata:$m}')" >/dev/null
@@ -52,10 +55,12 @@ while read -r r; do
       --argjson q "$quyen" '{name:$n,description:$d,duration:$h,level:"system",disable:false,permissions:$q}')" | jq -r '.secret // empty')
   fi
   # Mật khẩu chỉ đi qua stdin của bao, không nằm trong tham số dòng lệnh hay log.
-  [ "$THU" = 1 ] || printf '%s' "$mk" | bao kv put "kv/mgmt/harbor/robots/$ten" secret=- >/dev/null
-  echo "  đã tạo/xoay $ten (mật khẩu ở OpenBao kv/mgmt/harbor/robots/$ten)"
+  [ "$THU" = 1 ] || printf '%s' "$mk" | bao kv put "$BAO_ROBOT/$ten" secret=- >/dev/null
+  echo "  đã tạo/xoay $ten (mật khẩu ở OpenBao $BAO_ROBOT/$ten)"
 done < <(jq -c '.robots[]' <<<"$J")
 
+# harbor-sn chỉ nhận ảnh, không nhân bản đi đâu (cau-hinh-sn.yaml không có nhanBan).
+if [ "$(jq -r '.nhanBan // empty | type' <<<"$J")" != object ]; then echo "== Không có nhân bản"; exit 0; fi
 echo "== Nhân bản sang harbor-sn"
 dich=$(jq -c .nhanBan.dich <<<"$J"); tdich=$(jq -r .ten <<<"$dich")
 did=$(api GET "/registries?q=name%3D$tdich" | jq -r '.[0].id // empty')
@@ -66,7 +71,7 @@ if [ -z "$did" ] && [ "$THU" = 0 ]; then
       '{name:$d.ten,type:$d.loai,url:$d.url,insecure:false,credential:{type:"basic",access_key:"robot$replicate-sn",access_secret:$s}}')" >/dev/null
     did=$(api GET "/registries?q=name%3D$tdich" | jq -r '.[0].id // empty')
   else
-    echo "  bỏ qua: chưa có robot replicate-sn của harbor-sn trong OpenBao (INF-18 tạo)"; exit 0
+    echo "  bỏ qua: chưa có robot replicate-sn của harbor-sn trong OpenBao (chạy trước với cau-hinh-sn.yaml)"; exit 0
   fi
 fi
 while read -r q; do

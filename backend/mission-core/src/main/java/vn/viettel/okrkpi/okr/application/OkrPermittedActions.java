@@ -24,8 +24,8 @@ public final class OkrPermittedActions {
 
   /**
    * Soạn và trình khi mục tiêu {@code NHAP} (mục tiêu cá nhân chỉ của chính mình, như {@code
-   * OkrComposeService}); duyệt, trả lại khi {@code CHO_DUYET} và người gọi không phải người soạn
-   * (BR-02-08, {@code OkrReviewService}).
+   * OkrComposeService}); duyệt khi {@code CHO_DUYET} và người gọi không phải người soạn (BR-02-08),
+   * trả lại khi {@code CHO_DUYET} ({@code OkrReviewService.sendBack} không xét người soạn).
    */
   public static Set<String> objective(
       String status, String ownerType, UUID ownerPersonId, UUID createdBy, UUID actor) {
@@ -44,6 +44,8 @@ public final class OkrPermittedActions {
     }
     if (ObjectiveLifecycle.next(status, Event.DUYET).isPresent() && !actor.equals(createdBy)) {
       out.add(DUYET);
+    }
+    if (ObjectiveLifecycle.next(status, Event.TRA_LAI).isPresent()) {
       out.add(TRA_LAI);
     }
     return out;

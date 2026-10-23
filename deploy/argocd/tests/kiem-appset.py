@@ -8,6 +8,8 @@ Kiểm:
   3. Số Application = số cell × số TTDL × số service, tên không trùng, nhãn wave thuộc một bước RollingSync.
   4. digests.yaml của môi trường có mục cho mọi service nhận digest.
   5. Biểu thức goTemplate của từng ApplicationSet dịch được với tham số của mọi cell (missingkey=error).
+  7. Vùng điều phối toàn cục (INF-20, nhãn vt.io/toan-cuc): mỗi thành phần × TTDL một Application, đích theo
+     destinationNameFormat, chart và tệp values của vùng tồn tại, tệp digest có mục cho mọi tham số ảnh.
   6. Bản staging (INF-21, --values values-staging.yaml): ApplicationSet môi trường tạm theo PR dịch được với tệp
      digest mẫu, đặt mọi service bật vào namespace pr-<số>, có finalizer để dọn khi PR đóng.
 In ra danh sách tham số Helm cho bước render thử (đối số --xuat).
@@ -134,7 +136,7 @@ def main():
 
     # 3, 5. mô phỏng sinh Application
     appset = [d for d in render if d["kind"] == "ApplicationSet"
-              and d["metadata"]["labels"].get("vt.io/moi-truong") != "pr"]
+              and d["metadata"]["labels"].get("vt.io/moi-truong") != "pr" and "vt.io/toan-cuc" not in d["metadata"]["labels"]]
     buoc = []
     if values["rollingSync"]["enabled"]:
         buoc = [st["matchExpressions"][0]["values"] for st in appset[0]["spec"]["strategy"]["rollingSync"]["steps"]]
@@ -164,6 +166,7 @@ def main():
                                     "path": a["spec"]["source"]["path"]})
     if values["prEnvironments"]["enabled"]:
         kiem_pr(render, values)
+    so_tc = kiem_toan_cuc(render, values, du_an)
     mong = len(cell_dung) * len(values["sites"]) * len(svc_sinh)
     ten = [a["metadata"]["name"] for a in apps]
     if len(apps) != mong:
@@ -176,7 +179,8 @@ def main():
         print("  LỖI:", m)
     print(f"{len(cell_dung)} cell × {len(values['sites'])} TTDL × {len(svc_sinh)} service = {len(apps)} Application"
           f" (mong {mong}); đợt RollingSync {[b[0] for b in buoc] or 'tắt'}"
-          + ("; môi trường tạm PR đạt" if values["prEnvironments"]["enabled"] else ""))
+          + ("; môi trường tạm PR đạt" if values["prEnvironments"]["enabled"] else "")
+          + (f"; vùng toàn cục {so_tc} Application" if so_tc else ""))
     return 1 if loi else 0
 
 
@@ -212,6 +216,52 @@ def kiem_pr(render, values):
     xuat_pr = os.environ.get("KIEM_PR_XUAT")
     if xuat_pr:
         json.dump(a["spec"]["sources"], open(xuat_pr, "w", encoding="utf-8"), ensure_ascii=False)
+
+
+def kiem_toan_cuc(render, values, du_an):
+    g = values["toanCuc"]
+    tc = [d for d in render if d["kind"] == "ApplicationSet" and "vt.io/toan-cuc" in d["metadata"]["labels"]]
+    if not g["enabled"]:
+        if tc:
+            sai("toanCuc tắt nhưng vẫn sinh ApplicationSet vùng toàn cục")
+        return 0
+    if len(tc) != len(g["apps"]):
+        sai(f"vùng toàn cục: {len(tc)} ApplicationSet, mong {len(g['apps'])}")
+    digests = yaml.safe_load(open(os.path.join(DEPLOY, g["digests"]), encoding="utf-8"))
+    for a in g["apps"]:
+        for p in a.get("params", []):
+            if p["image"] not in digests["images"]:
+                sai(f"{g['digests']} thiếu ảnh {p['image']} cho {a['name']}")
+    apps, tham_so = [], []
+    for d in tc:
+        if d["spec"]["template"]["spec"]["project"] not in du_an:
+            sai(f"{d['metadata']['name']}: AppProject không được sinh")
+        gen = d["spec"]["generators"][0]["matrix"]["generators"]
+        for site in [e["site"] for e in gen[0]["list"]["elements"]]:
+            try:
+                a = dich_cay(d["spec"]["template"], {"site": site, "images": digests["images"]})
+            except (KeyError, ValueError, TypeError) as e:
+                sai(f"{d['metadata']['name']} × {site}: {e}")
+                continue
+            apps.append(a)
+            src = a["spec"]["source"]
+            if a["spec"]["destination"]["name"] != g["destinationNameFormat"] % site:
+                sai(f"{a['metadata']['name']}: đích {a['spec']['destination']['name']}")
+            chart = os.path.join(GOC, src["path"])
+            if not os.path.isfile(os.path.join(chart, "Chart.yaml")):
+                sai(f"{a['metadata']['name']}: không có chart {src['path']}")
+            tep = [os.path.normpath(os.path.join(chart, f)) for f in src["helm"]["valueFiles"]]
+            if not os.path.isfile(tep[0]):
+                sai(f"{a['metadata']['name']}: thiếu {os.path.relpath(tep[0], GOC)}")
+            tham_so.append({"ten": a["metadata"]["name"], "chart": chart, "namespace": a["spec"]["destination"]["namespace"],
+                            "valueFiles": [f for f in tep if os.path.isfile(f)], "helm": src["helm"]})
+    ten = [a["metadata"]["name"] for a in apps]
+    if len(set(ten)) != len(ten) or len(ten) != len(g["apps"]) * len(g["sites"]):
+        sai(f"vùng toàn cục: {len(ten)} Application, tên trùng hoặc thiếu")
+    xuat = os.environ.get("KIEM_TOAN_CUC_XUAT")
+    if xuat:
+        json.dump(tham_so, open(xuat, "w", encoding="utf-8"), ensure_ascii=False)
+    return len(apps)
 
 
 if __name__ == "__main__":

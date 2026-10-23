@@ -199,6 +199,25 @@ func NewDefaultOptions() Options {
 	}
 }
 
+// SafePointSource gives the commit time of the last WAL transaction replayed on a cluster promoted after
+// failover (DR-10 step 8, INF-18): pg_last_xact_replay_timestamp() keeps that value after promotion.
+// ok is false when the cluster has never been in recovery.
+type SafePointSource interface {
+	LastReplayTimestamp(ctx context.Context) (ts time.Time, ok bool, err error)
+}
+
+// SafePoint returns the replay start for failover: last replayed WAL commit minus margin (TL-04: 15 minutes).
+func SafePoint(ctx context.Context, src SafePointSource, margin time.Duration) (time.Time, error) {
+	ts, ok, err := src.LastReplayTimestamp(ctx)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("đọc mốc WAL cuối: %w", err)
+	}
+	if !ok {
+		return time.Time{}, errors.New("cụm chưa từng ở chế độ khôi phục (pg_last_xact_replay_timestamp() rỗng): không xác định được điểm an toàn, dùng --from")
+	}
+	return ts.UTC().Add(-margin), nil
+}
+
 // OutboxStore reads outbox rows and partition retention metadata from PostgreSQL.
 type OutboxStore interface {
 	// QueryBatch returns up to `limit` rows matching `filter` ordered by `(created_at ASC, id ASC)`

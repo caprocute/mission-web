@@ -206,11 +206,13 @@ func ListStatusLog(ctx context.Context, q Querier, tenantID uuid.UUID, limit int
 
 // Cell ánh xạ registry.cell, kèm tải hiện tại khi đọc qua ListCells.
 type Cell struct {
-	ID               uuid.UUID
-	Code             string
-	Name             string
-	PrimaryDC        string
-	StandbyDC        *string
+	ID        uuid.UUID
+	Code      string
+	Name      string
+	PrimaryDC string
+	StandbyDC *string
+	// ActiveDC là TTDL đang phục vụ cell (cột active_dc, NULL thì bằng PrimaryDC; INF-20, DR-10).
+	ActiveDC         string
 	TenancyModel     string
 	APIBaseURL       string
 	CapacityAccounts int
@@ -223,11 +225,11 @@ type Cell struct {
 	Reserved int
 }
 
-const cellCols = `c.id, c.code, c.name, c.primary_dc, c.standby_dc, c.tenancy_model, c.api_base_url, c.capacity_accounts, c.status, c.row_version`
+const cellCols = `c.id, c.code, c.name, c.primary_dc, c.standby_dc, coalesce(c.active_dc, c.primary_dc), c.tenancy_model, c.api_base_url, c.capacity_accounts, c.status, c.row_version`
 
 func scanCell(row pgx.Row) (*Cell, error) {
 	var c Cell
-	err := row.Scan(&c.ID, &c.Code, &c.Name, &c.PrimaryDC, &c.StandbyDC, &c.TenancyModel, &c.APIBaseURL,
+	err := row.Scan(&c.ID, &c.Code, &c.Name, &c.PrimaryDC, &c.StandbyDC, &c.ActiveDC, &c.TenancyModel, &c.APIBaseURL,
 		&c.CapacityAccounts, &c.Status, &c.RowVersion)
 	if err != nil {
 		return nil, mapErr(err)
@@ -282,7 +284,7 @@ func ListCells(ctx context.Context, q Querier, f CellFilter) ([]Cell, error) {
 	}
 	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Cell, error) {
 		var c Cell
-		err := r.Scan(&c.ID, &c.Code, &c.Name, &c.PrimaryDC, &c.StandbyDC, &c.TenancyModel, &c.APIBaseURL,
+		err := r.Scan(&c.ID, &c.Code, &c.Name, &c.PrimaryDC, &c.StandbyDC, &c.ActiveDC, &c.TenancyModel, &c.APIBaseURL,
 			&c.CapacityAccounts, &c.Status, &c.RowVersion, &c.TenantCount, &c.AccountCount, &c.Reserved)
 		return c, err
 	})

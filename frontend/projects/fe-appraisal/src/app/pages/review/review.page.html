@@ -245,7 +245,9 @@
             <p class="muted">Lý do khác mức tự đề xuất: {{ a.reason }}</p>
           }
         </section>
-      } @else if (p.status === 'CHO_THAM_DINH' && (can('SCR-0902.ky') || can('SCR-0902.tra-lai'))) {
+      } @else if (
+        p.status === 'CHO_THAM_DINH' && (allowed('SCR-0902.ky') || allowed('SCR-0902.tra-lai'))
+      ) {
         <div class="decide" [class.simple]="simple()">
           <section class="card" aria-labelledby="conc-title">
             <h2 id="conc-title">Kết luận thẩm định</h2>
@@ -361,7 +363,7 @@
                   Trả lại bổ sung
                 </button>
               }
-              @if (can('SCR-0902.ky')) {
+              @if (allowed('SCR-0902.ky')) {
                 <button
                   type="button"
                   class="btn primary"

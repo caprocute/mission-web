@@ -1,0 +1,47 @@
+{{- /* Gương và bundle kho Git (INF-18, TL-04 bảng lịch sao lưu). Chỉ bật ở bản phát hành cạnh máy chủ Git. */}}
+{{- $v := .Values }}
+{{- $g := $v.git }}
+{{- if $g.enabled }}
+{{- $ns := $v.saoLuu.namespace }}
+{{- $data := dict "chung.sh" (.Files.Get "files/chung.sh") "sao-luu-git.sh" (.Files.Get "files/sao-luu-git.sh") }}
+{{- $cfg := printf "git-%s" (toJson $data | sha256sum | trunc 10) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $cfg }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+data:
+  {{- range $k := keys $data | sortAlpha }}
+  {{ $k }}: {{ index $data $k | quote }}
+  {{- end }}
+{{- if $v.externalSecrets.enabled }}
+---
+{{ include "bk.externalSecret" (dict "root" . "ten" $g.credentials.secretName "ns" $ns "khoa" (include "bk.khoa" (dict "root" . "path" $g.credentials.path "loai" "git"))) }}
+---
+{{ include "bk.externalSecretMot" (dict "root" . "ten" $g.token.secretName "ns" $ns "khoa" $g.token.path "thuocTinh" $g.token.property "secretKey" "token") }}
+---
+{{ include "bk.externalSecretMot" (dict "root" . "ten" $g.tokenGuong.secretName "ns" $ns "khoa" $g.tokenGuong.path "thuocTinh" $g.tokenGuong.property "secretKey" "token") }}
+{{- end }}
+{{- range $cheDo := list "guong" "bundle" }}
+{{- $env := list
+  (dict "name" "CHE_DO" "value" $cheDo)
+  (dict "name" "GIT_NGUON" "value" $g.nguon)
+  (dict "name" "GIT_GUONG" "value" $g.guong)
+  (dict "name" "KHO" "value" (join " " $g.kho))
+  (dict "name" "GIT_USER" "value" $g.user)
+  (dict "name" "GIT_TOKEN_FILE" "value" "/git/token")
+  (dict "name" "GIT_TOKEN_GUONG_FILE" "value" "/git-sn/token")
+  (dict "name" "TAM" "value" "/tam")
+  (dict "name" "BUCKET" "value" (include "bk.bucket" (dict "root" $ "bucket" $g.bucket "loai" "git")))
+  (dict "name" "AWS_ACCESS_KEY_ID" "valueFrom" (dict "secretKeyRef" (dict "name" $g.credentials.secretName "key" "ACCESS_KEY_ID")))
+  (dict "name" "AWS_SECRET_ACCESS_KEY" "valueFrom" (dict "secretKeyRef" (dict "name" $g.credentials.secretName "key" "ACCESS_SECRET_KEY"))) }}
+{{- $mounts := list (dict "name" "tam" "mountPath" "/tam") (dict "name" "git" "mountPath" "/git" "readOnly" true) (dict "name" "git-sn" "mountPath" "/git-sn" "readOnly" true) }}
+{{- $vols := list (dict "name" "tam" "emptyDir" (dict "sizeLimit" $g.tamGioiHan)) (dict "name" "git" "secret" (dict "secretName" $g.token.secretName)) (dict "name" "git-sn" "secret" (dict "secretName" $g.tokenGuong.secretName)) }}
+---
+{{ include "bk.cronJobSaoLuu" (dict "root" $ "ten" (printf "sao-luu-git-%s" $cheDo) "cfg" $cfg "schedule" (ternary $g.guongSchedule $g.bundleSchedule (eq $cheDo "guong")) "deadline" 3600 "script" "sao-luu-git.sh" "env" $env "mounts" $mounts "volumes" $vols) }}
+---
+{{ include "bk.mangJob" (dict "root" $ "ten" (printf "sao-luu-git-%s" $cheDo) "dich" (list (dict "to" $g.egressTo "ports" (list $g.egressPort)))) }}
+{{- end }}
+{{- end }}

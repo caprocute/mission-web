@@ -1,0 +1,186 @@
+# Bảng chỉ số chuyển đổi (VH-09), lấy nguyên chín dòng của TL-04 mục 12.8 "Bảng chỉ số theo dõi
+# và cách đo", cộng bốn dòng riêng của TL-01 "Chỉ số theo dõi chuyển đổi" (đánh dấu nguon_tl).
+# Giá trị đo của từng quý ghi trong bản chấm quý, khoá `chi_so.<ma>`; cham.py đối chiếu với mốc.
+#
+# nguon: tu-dong  → lấy từ Prometheus bằng `truy_van` (chạy ở Grafana Explore hoặc promtool query).
+#        thu-cong → người đo ghi giá trị, ngày đo và nơi lưu bằng chứng vào bản chấm quý.
+# Tên metric chưa có trong repo được đánh dấu (suy luận) trong `ghi_chu`; khi metric được hiện
+# thực, sửa truy vấn ở đây cho khớp và bỏ dấu.
+phien_ban: 1
+chi_so:
+  - ma: diem-tong-hop
+    ten: Điểm đáp ứng tổng hợp (/100)
+    nguon_tl: TL-04 12.8; TL-01
+    co_so: "17,4"
+    muc_tieu_dot_0: 40
+    muc_tieu_dot_0_hien_thi: "≥ 40"
+    muc_tieu_nen_tang: "≥ 75 (sau đợt 3); ≥ 60 sau đợt 2"
+    phep_so_sanh: ">="
+    nguon: thu-cong
+    cach_do: Chấm lại checklist mỗi quý theo quy-trinh.md; cham.py tự điền giá trị từ bản chấm.
+    nguoi_do: Người chấm độc lập (quy-trinh.md mục 2)
+
+  - ma: van-de-nghiem-trong
+    ten: Vấn đề nghiêm trọng còn mở
+    nguon_tl: TL-04 12.8
+    co_so: "12"
+    muc_tieu_dot_0: 4
+    muc_tieu_dot_0_hien_thi: "≤ 4"
+    muc_tieu_nen_tang: "0"
+    phep_so_sanh: "<="
+    nguon: thu-cong
+    cach_do: Đếm vấn đề mở có nhãn `danh-gia/nghiem-trong` trong hệ thống quản lý công việc.
+    nguoi_do: Trưởng nhóm kiến trúc
+
+  - ma: secret-scanning
+    ten: Phát hiện secret scanning
+    nguon_tl: TL-04 12.8 (SEC-09)
+    co_so: "khoảng 65"
+    muc_tieu_dot_0: 0
+    muc_tieu_dot_0_hien_thi: "0"
+    muc_tieu_nen_tang: "0"
+    phep_so_sanh: "<="
+    nguon: tu-dong
+    truy_van: max(vt_gitleaks_findings{scope="full-history"})
+    cach_do: gitleaks quét toàn bộ lịch sử hằng tuần, số phát hiện đẩy lên Prometheus.
+    ghi_chu: >-
+      Tên metric là suy luận; pipeline hiện chạy gitleaks (`.gitleaks.toml`, `Jenkinsfile`) nhưng
+      chưa đẩy số phát hiện lên Prometheus. Trong lúc chờ, người đo chạy
+      `gitleaks detect --log-opts="--all"` và ghi số phát hiện.
+
+  - ma: circuit-breaker
+    ten: Lời gọi liên service có circuit breaker
+    nguon_tl: TL-04 12.8
+    co_so: "0%"
+    muc_tieu_dot_0: 1.0
+    muc_tieu_dot_0_hien_thi: "100% core với service"
+    muc_tieu_nen_tang: "100%"
+    phep_so_sanh: ">="
+    nguon: tu-dong
+    truy_van: >-
+      count(count by (service, name) (resilience4j_circuitbreaker_state))
+      / count(count by (service, client) (http_client_requests_seconds_count))
+    cach_do: Metric Resilience4j; tỷ lệ client HTTP, Kafka có circuit breaker trên tổng client.
+    ghi_chu: >-
+      `resilience4j_circuitbreaker_state` đã có ở dashboard service (deploy/charts/observability-mgmt);
+      mẫu số theo nhãn `client` là suy luận, cần đối chiếu nhãn Micrometer thực tế.
+
+  - ma: trace-dau-cuoi
+    ten: Request có trace end-to-end
+    nguon_tl: TL-04 12.8 (mục 10.2, NFR-10)
+    co_so: "0%"
+    muc_tieu_dot_0: 0.9
+    muc_tieu_dot_0_hien_thi: "≥ 90%"
+    muc_tieu_nen_tang: "≥ 99%"
+    phep_so_sanh: ">="
+    nguon: tu-dong
+    truy_van: avg_over_time(trace_completeness_ratio[7d])
+    cach_do: Tỷ lệ span con có span cha trong cùng trace trên tập trace được lấy mẫu.
+    ghi_chu: Cảnh báo TraceCompletenessLow đã có trong deploy/charts/observability-cell/rules/canh-bao-toi-thieu.yaml.
+
+  - ma: pipeline-quality-gate
+    ten: Pipeline có quality gate
+    nguon_tl: TL-04 12.8
+    co_so: "0/4"
+    muc_tieu_dot_0: "4/4"
+    muc_tieu_dot_0_hien_thi: "4/4"
+    muc_tieu_nen_tang: "4/4"
+    phep_so_sanh: "=="
+    nguon: thu-cong
+    cach_do: Thư viện `vt-pipeline` ghi nhãn phiên bản; báo cáo pipeline nào chưa dùng thư viện.
+    nguoi_do: Kỹ sư nền tảng phụ trách CI
+    ghi_chu: Ghi dạng "n/m" (số kho dùng vt-pipeline trên tổng số kho có pipeline); cham.py không tự so sánh dạng chuỗi.
+
+  - ma: phien-dat-slo
+    ten: Phiên đồng thời đạt SLO (p95 ≤ 1 s)
+    nguon_tl: TL-04 12.8 (PERF-03)
+    co_so: "< 50"
+    muc_tieu_dot_0: 500
+    muc_tieu_dot_0_hien_thi: "500"
+    muc_tieu_nen_tang: "70.000 (đợt 3); 300.000 (NFR-01)"
+    phep_so_sanh: ">="
+    nguon: tu-dong
+    truy_van: >-
+      max_over_time(k6_vus{testid="PERF-03"}[1d])
+      and on() (histogram_quantile(0.95, sum(rate(k6_http_req_duration_seconds_bucket{testid="PERF-03"}[5m])) by (le)) <= 1)
+    cach_do: PERF-03 trên CELL-PERF; giờ cao điểm thật đo số người dùng hoạt động bằng Faro.
+    ghi_chu: >-
+      Giai đoạn phát triển không chạy thử tải (YC-PT-19), dòng này để "chưa đo". Tên metric k6 theo
+      remote write `experimental-prometheus-rw` của TL-04 (suy luận).
+
+  - ma: node-toi-thieu
+    ten: Node tối thiểu cho mỗi service
+    nguon_tl: TL-04 12.8 (SEC-28)
+    co_so: "1"
+    muc_tieu_dot_0: 3
+    muc_tieu_dot_0_hien_thi: "3"
+    muc_tieu_nen_tang: "3 mỗi cell × 2 TTDL"
+    phep_so_sanh: ">="
+    nguon: tu-dong
+    truy_van: >-
+      min(count by (deployment) (count by (deployment, node) (
+        kube_pod_info{namespace=~"core|services"} * on(pod, namespace) group_left(deployment)
+        label_replace(kube_pod_owner{owner_kind="ReplicaSet"}, "deployment", "$1", "owner_name", "(.*)-[^-]+$"))))
+    cach_do: Kyverno `vt-require-ha` chặn manifest dưới ba bản sao; kube-state-metrics đếm node thực chạy.
+    ghi_chu: Chính sách có ở deploy/policies; truy vấn đếm node là suy luận, chỉ đo được khi có cụm vận hành.
+
+  - ma: bang-moi-voffice
+    ten: Bảng mới trong schema VOFFICE
+    nguon_tl: TL-04 12.8
+    co_so: "23"
+    muc_tieu_dot_0: 0
+    muc_tieu_dot_0_hien_thi: "0 bảng mới"
+    muc_tieu_nen_tang: "0"
+    phep_so_sanh: "<="
+    nguon: thu-cong
+    cach_do: So sánh danh mục bảng Oracle hằng tuần.
+    nguoi_do: Quản trị CSDL hệ thống cũ
+    ghi_chu: Nền tảng mới chạy độc lập trên PostgreSQL (bỏ Strangler Fig), nên chỉ số chỉ còn ý nghĩa với hệ thống cũ.
+
+  - ma: lo-hong-nghiem-trong-cao
+    ten: Lỗ hổng nghiêm trọng và cao còn mở
+    nguon_tl: TL-01 (chỉ số theo dõi chuyển đổi)
+    co_so: "16"
+    muc_tieu_dot_0: 0
+    muc_tieu_dot_0_hien_thi: "0 nghiêm trọng"
+    muc_tieu_nen_tang: "0"
+    phep_so_sanh: "<="
+    nguon: thu-cong
+    cach_do: Dependency-Track và báo cáo kiểm thử ATTT (QA-13); đếm lỗ hổng Critical, High chưa xử lý.
+    nguoi_do: Nhóm ATTT
+
+  - ma: p95-ghi
+    ten: p95 thao tác ghi khi tải cao
+    nguon_tl: TL-01 (chỉ số theo dõi chuyển đổi)
+    co_so: "Trên 10 s"
+    muc_tieu_dot_0: null
+    muc_tieu_dot_0_hien_thi: "Dưới 3 s ở 500 CCU"
+    muc_tieu_nen_tang: "Dưới 800 ms ở 70.000 phiên"
+    phep_so_sanh: "<="
+    nguon: tu-dong
+    truy_van: histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{method=~"POST|PUT|PATCH|DELETE"}[5m])) by (le))
+    cach_do: SLO-WRITE trong thử tải PERF-03; ghi giá trị giây kèm mức CCU trong ghi chú.
+
+  - ma: thoi-gian-ap-dung-quy-dinh
+    ten: Thời gian áp dụng thay đổi quy định
+    nguon_tl: TL-01 (chỉ số theo dõi chuyển đổi)
+    co_so: "Nhiều tuần"
+    muc_tieu_dot_0: null
+    muc_tieu_dot_0_hien_thi: "Nhiều tuần (mốc ≤ 5 ngày làm việc tính từ đợt 2)"
+    muc_tieu_nen_tang: "≤ 5 ngày làm việc"
+    phep_so_sanh: "<="
+    nguon: thu-cong
+    cach_do: Từ ngày có văn bản tới ngày phát hành Policy Pack mới (OPS-10), tính bằng ngày làm việc.
+    nguoi_do: Quản trị nghiệp vụ
+
+  - ma: ty-le-nguoi-dung-moi
+    ten: Tỉ lệ người dùng trên nền tảng mới
+    nguon_tl: TL-01 (chỉ số theo dõi chuyển đổi)
+    co_so: "0"
+    muc_tieu_dot_0: null
+    muc_tieu_dot_0_hien_thi: "0"
+    muc_tieu_nen_tang: "Tenant thí điểm (đợt 2); 100% (đợt 3)"
+    phep_so_sanh: ">="
+    nguon: thu-cong
+    cach_do: Số tài khoản hoạt động trên nền tảng mới chia tổng tài khoản thuộc phạm vi.
+    nguoi_do: Quản trị nền tảng

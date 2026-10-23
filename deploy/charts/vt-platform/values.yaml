@@ -13,6 +13,12 @@ global:
   egress:
     allowInternet: true
   featureFlags: {}
+  # Đổi kho ảnh (VH-06): bảng tiền tố ảnh gốc → tiền tố ở Harbor nội bộ của khách hàng, ví dụ
+  # { "harbor.vt.local/": "harbor.kh01.local/", "quay.io/": "harbor.kh01.local/quay/" }. Rỗng ở SaaS. Khi có giá trị,
+  # cell-base sinh ClusterPolicy Kyverno vt-doi-kho-anh đổi ảnh của mọi pod lúc tạo (cả chart bên thứ ba, operator,
+  # hook), nên không chart nào phải có khoá registry riêng. Không đặt tên imageRegistry: chart con
+  # kube-prometheus-stack đọc global.imageRegistry dạng chuỗi.
+  doiKhoAnh: {}
 
 # Dịch vụ trong cell. tenant-registry (SVC-03) là chart toàn cục, cài ở vùng điều phối, không nằm ở đây.
 api-gateway:

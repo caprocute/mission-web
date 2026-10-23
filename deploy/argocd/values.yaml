@@ -99,6 +99,16 @@ projects:
     namespaceResourceBlacklist:
       - { group: "", kind: ResourceQuota }
 
+  # INF-20 · Vùng điều phối toàn cục (templates/toan-cuc.yaml): SVC-03, PowerDNS, pg-registry, origin CDN, APISIX lớp
+  # ngoài. Được tạo Role/RoleBinding trong namespace của mình (edge-health chỉ đọc đúng một tài nguyên).
+  okr-toan-cuc:
+    description: Vùng điều phối toàn cục (SVC-01 lớp ngoài, SVC-03, GeoDNS, PostgreSQL toàn cục, origin CDN)
+    signatureKeys: [4AEE18F83AFDEB23]
+    namespaces: [global, registry-db, dns, edge, cdn-origin]
+    clusterResourceWhitelist: []
+    namespaceResourceBlacklist:
+      - { group: "", kind: ResourceQuota }
+
 # Chỉ vai trò release-manager được sync; nhóm lấy từ Keycloak vận hành (đăng nhập có MFA, TL-04 mục 9.6).
 releaseManagers:
   role: release-manager
@@ -107,9 +117,19 @@ releaseManagers:
 # Cửa sổ đóng băng OPS-06 (TL-04 "Đóng băng thay đổi"): chặn đồng bộ tự động, vẫn cho release-manager sync tay
 # khi CAB khẩn duyệt. syncWindowsBoSung do deploy/argocd/lich-dong-bang/sinh_lich.py sinh từ kỳ đánh giá của
 # tenant (config.period, GET /api/v1/periods) qua merge request, người trực duyệt rồi mới gộp.
+# Cửa sổ cuối quý tách theo độ dài tháng để luôn hết lúc 00:00 ngày 11 (đủ "tới hết ngày 10" của TL-04): tháng
+# 3 và 12 có 31 ngày nên cần 18 ngày (432h), tháng 6 và 9 có 30 ngày nên 17 ngày (408h). Một lịch chung 408h cho
+# cả bốn quý làm cửa sổ quý I, IV hết lúc 00:00 ngày 10 (VH-03, diễn tập DT-SEV1-04). sinh_lich.py dựng cùng các
+# cửa sổ này (cua_so_co_dinh_argocd) và kiểm thử đối chiếu với khoá dưới đây.
 syncWindows:
   - kind: deny
-    schedule: "0 0 24 3,6,9,12 *"
+    schedule: "0 0 24 3,12 *"
+    duration: 432h
+    applications: ["*"]
+    manualSync: true
+    timeZone: Asia/Ho_Chi_Minh
+  - kind: deny
+    schedule: "0 0 24 6,9 *"
     duration: 408h
     applications: ["*"]
     manualSync: true
@@ -165,6 +185,31 @@ services:
 servicesTat: []
 # Hậu tố tên AppProject (khoá của projects); bản staging dùng -stg để hai bản cùng chạy trên cụm quản trị.
 projectSuffix: ""
+
+# INF-20 · Thành phần của vùng điều phối toàn cục, một ApplicationSet mỗi thành phần × TTDL. Đích global-<site> từ QM-3;
+# ở QM-1, QM-2 vùng điều phối gộp vào cụm quản trị (TL-05) thì đặt destinationNameFormat "mgmt-%s" và sites [hl].
+# params: tham số Helm lấy từ tệp digest của vùng (REPO, DIGEST thay bằng repository, digest của mục images.<image>).
+toanCuc:
+  enabled: true
+  project: okr-toan-cuc
+  sites: [hl, sn]
+  destinationNameFormat: "global-%s"
+  digests: environments/global/digests.yaml
+  apps:
+    - { name: global-pg, namespace: registry-db }
+    - name: global-dns
+      namespace: dns
+      params: [{ name: dnsSync.image, image: dns-sync, format: "REPO@DIGEST" }]
+    - name: edge-health
+      namespace: edge
+      params: [{ name: image, image: dns-sync, format: "REPO@DIGEST" }]
+    - name: tenant-registry
+      namespace: global
+      params:
+        - { name: image.repository, image: tenant-registry, format: "REPO" }
+        - { name: image.tag, image: tenant-registry, format: "gitops@DIGEST" }
+    - { name: api-gateway-global, namespace: edge }
+    - { name: global-cdn-origin, namespace: cdn-origin }
 
 # Môi trường tạm theo nhánh cho pull request (INF-21, templates/moi-truong-pr.yaml): chỉ bật ở bản staging.
 prEnvironments:

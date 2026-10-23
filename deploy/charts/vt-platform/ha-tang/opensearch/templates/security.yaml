@@ -130,4 +130,8 @@ spec:
   indexPermissions:
     - indexPatterns: {{ toJson $r.indexPatterns }}
       allowedActions: {{ toJson $r.allowedActions }}
+    {{- range $r.them }}
+    - indexPatterns: {{ toJson .indexPatterns }}
+      allowedActions: {{ toJson .allowedActions }}
+    {{- end }}
 {{- end }}

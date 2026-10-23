@@ -289,6 +289,46 @@ func TestListCells(t *testing.T) {
 	}
 	conform(t, platformYAML, "/registry/cells", "get", rec)
 
+	// INF-20: client dịch vụ chỉ đọc trong CellReaderClients (dns-sync) đọc được không cần step-up; client khác 403.
+	if rec := f.do(t, http.MethodGet, "/api/v1/registry/cells", serviceToken(), nil, nil); rec.Code != http.StatusForbidden {
+		t.Fatalf("client dịch vụ ngoài danh sách muốn 403, có %d", rec.Code)
+	}
+	dnsSync := keys.Token(authtest.Claims{Subject: "0192f1a2-2222-7000-8000-000000000003", Roles: []string{"service_client"}, AZP: "dns-sync"})
+	activeDc := func() map[string]string {
+		rec := f.do(t, http.MethodGet, "/api/v1/registry/cells?limit=200", dnsSync, nil, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("dns-sync muốn 200, có %d: %s", rec.Code, rec.Body)
+		}
+		conform(t, platformYAML, "/registry/cells", "get", rec)
+		var p struct {
+			Items []struct{ Code, PrimaryDc, ActiveDc string }
+		}
+		_ = json.Unmarshal(rec.Body.Bytes(), &p)
+		m := map[string]string{}
+		for _, it := range p.Items {
+			if it.Code == "CELL-HN" && it.ActiveDc != it.PrimaryDc {
+				t.Fatalf("chưa chuyển vùng thì activeDc bằng primaryDc: %+v", it)
+			}
+			m[it.Code] = it.ActiveDc
+		}
+		return m
+	}
+	if got := activeDc()["CELL-G4"]; got != "PHIANAM" {
+		t.Fatalf("CELL-G4 muốn activeDc PHIANAM, có %q", got)
+	}
+	if _, err := f.pool.Exec(context.Background(), `UPDATE registry.cell SET active_dc = 'HOALAC' WHERE code = 'CELL-G4'`); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = f.pool.Exec(context.Background(), `UPDATE registry.cell SET active_dc = NULL WHERE code = 'CELL-G4'`)
+	})
+	if got := activeDc()["CELL-G4"]; got != "HOALAC" {
+		t.Fatalf("sau chuyển vùng CELL-G4 muốn activeDc HOALAC, có %q", got)
+	}
+	if _, err := f.pool.Exec(context.Background(), `UPDATE registry.cell SET active_dc = 'TAICHO' WHERE code = 'CELL-G4'`); err == nil {
+		t.Fatal("active_dc ngoài primary_dc/standby_dc phải bị CHECK chặn")
+	}
+
 	var codes []string
 	cursor := ""
 	for page := 0; page < 5; page++ {

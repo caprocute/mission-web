@@ -36,6 +36,7 @@ import {
   OkrSubmitResult,
   ProblemPresenter,
 } from '@vt/api-client';
+import { permittedOn } from '@vt/auth';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
@@ -126,7 +127,7 @@ const newKey = () => `k${++seq}`;
               [disabled]="saving()"
               (onClick)="saveDraft()"
             />
-            @if (can('SCR-0202.trinh')) {
+            @if (canSubmit()) {
               <p-button
                 label="Trình phê duyệt"
                 styleClass="primary"
@@ -903,8 +904,15 @@ export class ObjectiveComposePage {
     () => !!this.ctx()?.aiEnabled && this.can('SCR-0202.ai-soat') && !this.simple(),
   );
 
+  /** Mục tiêu đã lưu: thêm điều kiện theo đối tượng máy chủ trả (YC-PT-21). */
+  private readonly detail = computed(() => this.loaded()?.detail ?? null);
   private readonly canCompose = computed(
-    () => this.can('SCR-0202.soan-don-vi') || this.can('SCR-0202.soan-ca-nhan'),
+    () =>
+      (this.can('SCR-0202.soan-don-vi') && permittedOn(this.detail(), 'SCR-0202.soan-don-vi')) ||
+      (this.can('SCR-0202.soan-ca-nhan') && permittedOn(this.detail(), 'SCR-0202.soan-ca-nhan')),
+  );
+  protected readonly canSubmit = computed(
+    () => this.can('SCR-0202.trinh') && permittedOn(this.detail(), 'SCR-0202.trinh'),
   );
   private readonly periodLocked = computed(() => {
     const s = this.ctx()?.period.status;
