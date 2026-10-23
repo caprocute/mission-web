@@ -121,7 +121,7 @@ public class StageScheduler {
         UUID base =
             in.chosenUnitId() != null && in.template() == StageTemplate.XU_LY_KHIEU_NAI
                 ? in.chosenUnitId()
-                : base(in, planned, today);
+                : base(in.tenantId(), in.subjectUnitId(), in.flow(), planned, today);
         unit = base;
         if (in.overdueCount() > 0) {
           OverdueAction action = planned.overdue();
@@ -150,15 +150,52 @@ public class StageScheduler {
     return new Assignment(group, assignee, s.due(), s.remind());
   }
 
-  private UUID base(Inputs in, StagePlan.Planned planned, LocalDate today) {
-    OrgUnit unit = unit(in.tenantId(), in.subjectUnitId(), today);
+  /**
+   * Người làm, nhóm, hạn của một bước giao theo vai trò ngoài bốn mẫu phần 2 (nhánh của mẫu duyệt
+   * kép DV-06-12): cùng quy tắc phạm vi, quá hạn và lịch ngày làm việc với bước vai trò của {@link
+   * #schedule}.
+   */
+  public Assignment forRole(
+      UUID tenantId,
+      ApprovalFlow flow,
+      UUID subjectUnitId,
+      StagePlan.Planned planned,
+      int overdueCount) {
+    Instant now = clock.instant();
+    LocalDate today = LocalDate.ofInstant(now, StageDeadlines.ZONE);
+    UUID unit = base(tenantId, subjectUnitId, flow, planned, today);
+    UUID assignee = null;
+    if (overdueCount > 0) {
+      OverdueAction action = planned.overdue();
+      if (action == OverdueAction.CHUYEN_CAP_PHO_UY_QUYEN && planned.substituteId() != null) {
+        assignee = planned.substituteId();
+      } else if (action != OverdueAction.NHAC_LAI) {
+        unit = ancestor(tenantId, unit, flow, overdueCount, today);
+      }
+    }
+    Map<LocalDate, Boolean> overrides =
+        calendar.overrides(tenantId, today.minusDays(31), today.plusDays(90));
+    LocalDate dueDay = StageDeadlines.dueDay(today, planned.workingDays(), overrides);
+    StageDeadlines.Schedule s =
+        StageDeadlines.schedule(now, dueDay, planned.remindBefore(), overrides);
+    String group = new CandidateGroup(tenantId, planned.role(), unit).groupId();
+    return new Assignment(group, assignee, s.due(), s.remind());
+  }
+
+  private UUID base(
+      UUID tenantId,
+      UUID subjectUnitId,
+      ApprovalFlow flow,
+      StagePlan.Planned planned,
+      LocalDate today) {
+    OrgUnit unit = unit(tenantId, subjectUnitId, today);
     return switch (planned.scope()) {
       case DON_VI_TRUC_TIEP, QUAN_LY_TRUC_TIEP -> unit.id();
       case CAP_TREN_TRUC_TIEP -> {
-        UUID parent = unit.parentOn(in.flow());
+        UUID parent = unit.parentOn(flow);
         yield parent == null ? unit.id() : parent;
       }
-      case CAP_UY_CO_THAM_QUYEN -> committee(in.tenantId(), unit, today);
+      case CAP_UY_CO_THAM_QUYEN -> committee(tenantId, unit, today);
     };
   }
 

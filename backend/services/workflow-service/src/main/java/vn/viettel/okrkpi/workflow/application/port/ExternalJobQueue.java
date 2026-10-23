@@ -60,7 +60,11 @@ public interface ExternalJobQueue {
       Objects.requireNonNull(processInstanceId, "processInstanceId");
       Objects.requireNonNull(elementId, "elementId");
       Objects.requireNonNull(businessKey, "businessKey");
-      variables = variables == null ? Map.of() : Map.copyOf(variables);
+      // Biến có giá trị null (người được giao của việc nhóm) hợp lệ; Map.copyOf không nhận null.
+      variables =
+          variables == null
+              ? Map.of()
+              : java.util.Collections.unmodifiableMap(new java.util.HashMap<>(variables));
     }
   }
 }

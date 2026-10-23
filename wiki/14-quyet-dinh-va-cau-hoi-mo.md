@@ -1782,6 +1782,22 @@ Worker chọn người `wf-chon-nguoi` chạy ở Deployment worker. Khiếu n�
 - Tên mẫu `duyet-phat-hanh-policy-pack` là suy luận vì TL-02b chưa đặt tên; `sourceRefId` của EVT-18 `PHAT_HANH_POLICY` được hiểu là mã phiên bản Policy Pack. Sau phê duyệt, external worker `core-policy-pack-publish` do lõi (CORE-05-10) xử lý để khởi chạy saga phát hành, rồi tiến trình chờ EVT-13.
 - Bốn consumer dùng inbox `flowable.inbox_processed`, `flowable.inbox_aggregate_version` (V4). `CatalogTemplateDirectory` của DV-06-08 vẫn chỉ liệt kê ba mẫu phần 1.
 
+### Ghi chú, mặc định và câu hỏi mở từ mẫu duyệt kép chỉ huy và cấp uỷ (DV-06-12, 23/10/2026)
+
+Nguồn: TL-02b SCR-1504 vùng 1 (một dòng mô tả mẫu `duyet-kep-chi-huy-cap-uy` v1 "lực lượng vũ trang, chỉ huy song song chính uỷ"), BR-15-11, BR-15-12; TL-01 "Khoá lạc quan trên bảng ACT_RU". TL chỉ có một dòng mô tả, nên mọi hành vi dưới đây là mặc định suy luận để mẫu chạy được, chờ người phụ trách nghiệp vụ xác nhận; đổi mặc định chỉ cần sửa mẫu và `DualApprovalPlanner`, không đổi hợp đồng.
+
+- Mẫu là tiến trình con được luồng cha gọi bằng call activity ở bước duyệt (một tầng, đúng BR-15-12): cha truyền `tenantId`, `khoi`, `donViId`, `tieuDe`, đặt `flowable:inheritBusinessKey="true"` và nhận lại `decision`. Hai nhánh là việc trong hộp việc chung (SCR-0203), hoàn thành qua `POST /api/v1/workflow/tasks/{taskId}/complete`. Việc của tiến trình con lấy đối tượng và người trình từ tiến trình gốc (`FlowableTaskEngine.findOpen`).
+- Tham số đọc từ `flowable.wf_binding` loại `DUYET_KEP_CHI_HUY_CAP_UY` với cùng khoá như các mẫu khác: `cap[]` (`buoc` là `CHI_HUY` hoặc `CAP_UY`, `vai_tro`, `pham_vi`, `han_ngay_lam_viec` từ 1 đến 15, `ky_so`), `nhac_truoc`, `khi_qua_han`, `allowDelegation`, `nguoi_thay`. Mặc định: cả hai nhánh vai trò `leader`, chỉ huy ở đơn vị của hồ sơ, cấp uỷ ở tổ chức Đảng có cấp uỷ gần nhất phía trên, hạn 3 ngày làm việc, nhắc trước 1 ngày (EVT-21), không ký số, quá hạn chuyển người được uỷ quyền của nhánh, không khai người thay thì lên cấp trên.
+- Câu hỏi (a), hai nhánh song song hay tuần tự khi một bên vắng: mặc định luôn song song; bên vắng xử lý bằng quá hạn chuyển người được uỷ quyền (suy luận).
+- Câu hỏi (b), một bên trả lại thì bên kia có cần ý kiến không: mặc định không; một nhánh trả lại thì sự kiện lỗi `KEP_TRA_LAI` huỷ việc và timer của nhánh kia, cả lượt về người trình (suy luận).
+- Câu hỏi (c), bất đồng (một duyệt, một trả lại) có chuyển cấp trên không: mặc định không, kết quả là trả lại (suy luận).
+- Câu hỏi (d), "chính uỷ, chính trị viên" ánh xạ vai trò nào: mặc định `leader` tại tổ chức Đảng của đơn vị (phạm vi `CAP_UY_CO_THAM_QUYEN`), tenant đổi được bằng `vai_tro` và `pham_vi` của nhánh `CAP_UY` (suy luận). Baseline chưa có vai trò riêng cho chính uỷ.
+- Tách vai trò (BR-01-18, BR-02-08): `CompleteTaskService` chặn người trình duyệt bất kỳ nhánh nào (`WORKFLOW-403-SELF-APPROVAL`, MSG-02-11) và chặn một người duyệt cả hai nhánh (`WORKFLOW-403-SELF-APPROVAL`, không gắn MSG vì MSG-02-11 nói về người soạn). Kiểm ở dịch vụ vì đầu vào OPA của việc không mang người đã duyệt nhánh kia (suy luận); nên bổ sung ràng buộc vào ma trận phân quyền khi chốt ngữ nghĩa.
+- Ký số tuỳ chọn mỗi nhánh: nhánh có `ky_so` chờ message `ky-so-hoan-tat`; EVT-18 không thuộc bốn mẫu phần 2 được chuyển sang `DualApprovalService`, khớp nhánh theo người ký là người đã duyệt nhánh; ký lô không có người ký chỉ áp khi đúng một nhánh đang chờ.
+- Hai nhánh kết thúc cùng lúc: giao dịch đến sau gặp `FlowableOptimisticLockingException`, được đổi thành 409 `WORKFLOW-409-VERSION-CONFLICT` để client thử lại (đã có ở `FlowableTaskEngine`); kiểm thử chạy hai luồng đồng thời có thử lại.
+- Chưa làm: chưa nối mẫu vào các mẫu cha (`duyet-okr`, `duyet-ke-hoach-quy`, `duyet-ho-so-danh-gia`) vì linter cấm `calledElement` động, nên chọn mẫu theo `wf_binding` cần một cổng rẽ nhánh trong mẫu cha hoặc một phiên bản mẫu cha riêng cho khối lực lượng vũ trang; nên làm sau khi bốn câu hỏi được trả lời.
+- Bẫy kỹ thuật: cổng song song gộp chờ đủ mọi luồng vào, nên mỗi nhánh có hai đường (đã ký, chờ ký) phải gộp bằng cổng loại trừ trước cổng gộp song song; `CallbackJob` và ảnh chụp tiến trình không dùng `Map.copyOf` vì biến người được giao của việc nhóm có giá trị null.
+
 ## Liên quan
 
 - [README của wiki](README.md)

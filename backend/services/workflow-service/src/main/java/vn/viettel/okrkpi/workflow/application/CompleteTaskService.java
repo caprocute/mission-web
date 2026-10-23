@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,7 @@ import vn.viettel.okrkpi.workflow.domain.BusinessKey;
 import vn.viettel.okrkpi.workflow.domain.CompletionRules;
 import vn.viettel.okrkpi.workflow.domain.Decision;
 import vn.viettel.okrkpi.workflow.domain.OpenTask;
+import vn.viettel.okrkpi.workflow.domain.dual.DualApproval;
 import vn.viettel.okrkpi.workflow.domain.stage.StageTemplate;
 
 /**
@@ -75,6 +77,7 @@ public class CompleteTaskService {
       throw new BusinessException(
           "COMMON-403-OUT-OF-SCOPE", "Bạn không phải người được giao xử lý việc này.");
     }
+    checkDualSeparation(task, approver);
     AuthzResource resource = resourceOf(task, approver);
     if (command.decision() == Decision.TRA_LAI) {
       policy.checkReturn(resource);
@@ -91,6 +94,33 @@ public class CompleteTaskService {
         command.decision(),
         done.completedAt(),
         done.processEnded());
+  }
+
+  /**
+   * Tách vai trò của lượt duyệt kép chỉ huy và cấp uỷ (DV-06-12, BR-01-18): người trình không duyệt
+   * nhánh nào, một người không duyệt cả hai nhánh. Kiểm ở đây vì đầu vào OPA của việc không mang
+   * người đã duyệt nhánh kia.
+   */
+  private void checkDualSeparation(OpenTask task, Approver approver) {
+    Optional<List<UUID>> others = engine.otherBranchApprovers(approver.tenantId(), task.taskId());
+    if (others.isEmpty()) {
+      return;
+    }
+    Optional<DualApproval.Violation> violation =
+        DualApproval.check(approver.actorId(), task.initiatorId(), others.get());
+    if (violation.isEmpty()) {
+      return;
+    }
+    if (violation.get() == DualApproval.Violation.INITIATOR) {
+      throw new BusinessException(
+          "WORKFLOW-403-SELF-APPROVAL",
+          "Đồng chí là người trình hồ sơ này nên không thể duyệt.",
+          List.of(),
+          "MSG-02-11");
+    }
+    throw new BusinessException(
+        "WORKFLOW-403-SELF-APPROVAL",
+        "Đồng chí đã duyệt ở nhánh còn lại của lượt duyệt kép nên không thể duyệt nhánh này.");
   }
 
   private RuntimeException missing(Approver approver, String taskId) {

@@ -1,5 +1,6 @@
 package vn.viettel.okrkpi.workflow.infrastructure.stage;
 
+import java.util.UUID;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import vn.viettel.okrkpi.events.EventTopics;
@@ -7,6 +8,7 @@ import vn.viettel.okrkpi.shared.inbox.InboxEnvelope;
 import vn.viettel.okrkpi.shared.inbox.InboxListener;
 import vn.viettel.okrkpi.shared.inbox.PermanentInboxException;
 import vn.viettel.okrkpi.workflow.application.approval.ApprovalSetupException;
+import vn.viettel.okrkpi.workflow.application.dual.DualApprovalService;
 import vn.viettel.okrkpi.workflow.application.stage.StageProcessService;
 import vn.vtokr.appraisal.v1.HoSoDanhGiaChuyenBuoc;
 import vn.vtokr.esign.v1.KySoDaHoanTat;
@@ -26,9 +28,11 @@ public class StageEventConsumers {
   static final String PREFIX = "workflow.stage.";
 
   private final StageProcessService service;
+  private final DualApprovalService dual;
 
-  public StageEventConsumers(StageProcessService service) {
+  public StageEventConsumers(StageProcessService service, DualApprovalService dual) {
     this.service = service;
+    this.dual = dual;
   }
 
   @InboxListener(topic = EventTopics.EVT_11_HO_SO_DANH_GIA_CHUYEN_BUOC, consumer = PREFIX + "evt11")
@@ -52,14 +56,19 @@ public class StageEventConsumers {
   @InboxListener(topic = EventTopics.EVT_18_KY_SO_DA_HOAN_TAT, consumer = PREFIX + "evt18")
   public void onSigned(InboxEnvelope<KySoDaHoanTat> e) {
     KySoDaHoanTat p = e.payload();
+    UUID tenant = e.tenantId().value();
+    UUID signer = e.actorId() == null ? null : e.actorId().value();
     permanent(
-        () ->
-            service.onSigned(
-                e.tenantId().value(),
-                p.getSourceModule(),
-                p.getPurpose(),
-                p.getSourceRefId(),
-                e.actorId() == null ? null : e.actorId().value()));
+        () -> {
+          StageProcessService.Outcome outcome =
+              service.onSigned(
+                  tenant, p.getSourceModule(), p.getPurpose(), p.getSourceRefId(), signer);
+          if (outcome == StageProcessService.Outcome.IGNORED
+              || outcome == StageProcessService.Outcome.NO_PROCESS) {
+            // Chữ ký không thuộc bốn mẫu phần 2: có thể là bước ký của một nhánh duyệt kép.
+            dual.onSigned(tenant, p.getSourceRefId(), signer);
+          }
+        });
   }
 
   @InboxListener(topic = EventTopics.EVT_25_KHIEU_NAI_DA_GUI, consumer = PREFIX + "evt25")

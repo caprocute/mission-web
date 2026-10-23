@@ -61,7 +61,8 @@ class TemplateLinterTest {
             "duyet-ho-so-danh-gia",
             "xu-ly-khieu-nai",
             "mo-lai-ky-hai-nguoi",
-            "duyet-phat-hanh-policy-pack");
+            "duyet-phat-hanh-policy-pack",
+            "duyet-kep-chi-huy-cap-uy");
     assertThat(catalog.decisionKeys()).contains("chon-cap-duyet");
     List<LintViolation> violations =
         LINTER.lint(catalog.templates(), catalog.decisionKeys(), RuntimeSnapshot.EMPTY);
@@ -148,18 +149,18 @@ class TemplateLinterTest {
           new TemplateDeployer(engine.getRepositoryService(), engine.getRuntimeService(), JSON);
       deployer.deploy(TemplateCatalog.load(JSON));
       deployer.deploy(TemplateCatalog.load(JSON));
-      assertThat(engine.getRepositoryService().createProcessDefinitionQuery().count()).isEqualTo(7);
+      assertThat(engine.getRepositoryService().createProcessDefinitionQuery().count()).isEqualTo(8);
       assertThat(
               engine
                   .getRepositoryService()
                   .createProcessDefinitionQuery()
                   .processDefinitionWithoutTenantId()
                   .count())
-          .isEqualTo(7);
+          .isEqualTo(8);
       assertThatThrownBy(() -> deployer.deploy(fixture("r4")))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("R4_KHONG_GOI_DONG_BO");
-      assertThat(engine.getRepositoryService().createProcessDefinitionQuery().count()).isEqualTo(7);
+      assertThat(engine.getRepositoryService().createProcessDefinitionQuery().count()).isEqualTo(8);
     } finally {
       engine.close();
     }
