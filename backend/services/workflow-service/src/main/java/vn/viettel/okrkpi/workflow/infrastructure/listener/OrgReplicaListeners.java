@@ -1,5 +1,11 @@
 package vn.viettel.okrkpi.workflow.infrastructure.listener;
 
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import vn.viettel.okrkpi.events.EventTopics;
 import vn.viettel.okrkpi.shared.inbox.InboxEnvelope;
@@ -7,10 +13,12 @@ import vn.viettel.okrkpi.shared.inbox.InboxListener;
 import vn.viettel.okrkpi.shared.inbox.PermanentInboxException;
 import vn.viettel.okrkpi.workflow.application.replica.AssignmentReplicaService;
 import vn.viettel.okrkpi.workflow.application.replica.OrgReplicaService;
+import vn.viettel.okrkpi.workflow.application.replica.ReplicaCheckpointService;
 import vn.viettel.okrkpi.workflow.domain.replica.AssignmentReplica;
 import vn.viettel.okrkpi.workflow.domain.replica.OrgTreeCycleException;
 import vn.viettel.okrkpi.workflow.domain.replica.OrgUnitReplica;
 import vn.viettel.okrkpi.workflow.domain.replica.PersonReplica;
+import vn.viettel.okrkpi.workflow.domain.replica.ReplicaEntityType;
 import vn.vtokr.org.v1.DonViDaThayDoi;
 import vn.vtokr.org.v1.NhanSuDaThayDoi;
 import vn.vtokr.org.v1.OrgBootstrap;
@@ -25,6 +33,10 @@ import vn.vtokr.org.v1.PhanCongDaThayDoi;
  * trùng, thứ tự phiên bản theo thực thể gốc, thử lại và thư chết; dữ liệu sai và vòng trên cây tổ
  * chức là lỗi vĩnh viễn, vào thẳng thư chết.
  *
+ * <p>Mỗi sự kiện đã qua consumer (kể cả khi bản sao đã mới hơn) ghi mốc {@code
+ * org_replica.replica_checkpoint} và cập nhật số đo {@code org_replica_lag_ms} theo nhãn {@code
+ * tenant_id}, {@code entity_type}, như consumer bản sao tổ chức của mission-core.
+ *
  * <p>Tên consumer cũng là nhóm consumer Kafka, nên phải khác tên của mission-core ({@code
  * org-replica.*}); trùng tên thì hai dịch vụ chia nhau thông điệp và mỗi bên thiếu một phần.
  */
@@ -36,12 +48,24 @@ public class OrgReplicaListeners {
   static final String CONSUMER_PERSON = "workflow.org-replica.person";
   static final String CONSUMER_BOOTSTRAP = "workflow.org-replica.bootstrap";
 
+  /** Tên số đo độ trễ áp dụng (TL-03 {@code org_replica.replica_checkpoint}). */
+  static final String LAG_METRIC = "org_replica_lag_ms";
+
   private final AssignmentReplicaService assignments;
   private final OrgReplicaService org;
+  private final ReplicaCheckpointService checkpoints;
+  private final MeterRegistry meters;
+  private final Map<String, AtomicLong> lags = new ConcurrentHashMap<>();
 
-  public OrgReplicaListeners(AssignmentReplicaService assignments, OrgReplicaService org) {
+  public OrgReplicaListeners(
+      AssignmentReplicaService assignments,
+      OrgReplicaService org,
+      ReplicaCheckpointService checkpoints,
+      ObjectProvider<MeterRegistry> meters) {
     this.assignments = assignments;
     this.org = org;
+    this.checkpoints = checkpoints;
+    this.meters = meters.getIfAvailable();
   }
 
   /** EVT-14: trạng thái đầy đủ của một lát hiệu lực đơn vị. */
@@ -104,6 +128,7 @@ public class OrgReplicaListeners {
     } catch (OrgTreeCycleException cycle) {
       throw new PermanentInboxException("ORG-REPLICA-CYCLE", cycle.getMessage(), cycle);
     }
+    record(e, ReplicaEntityType.ORG_UNIT);
   }
 
   private void apply(InboxEnvelope<?> e, PhanCongDaThayDoi payload) {
@@ -114,6 +139,7 @@ public class OrgReplicaListeners {
       throw invalid("Phân công " + payload.getAssignmentId(), invalid);
     }
     assignments.apply(e.tenantId().value(), assignment, e.eventId());
+    record(e, ReplicaEntityType.ASSIGNMENT);
   }
 
   private void apply(InboxEnvelope<?> e, NhanSuDaThayDoi payload) {
@@ -124,6 +150,28 @@ public class OrgReplicaListeners {
       throw invalid("Nhân sự " + payload.getPersonId(), invalid);
     }
     org.applyPerson(e.tenantId().value(), person, e.eventId());
+    record(e, ReplicaEntityType.PERSON);
+  }
+
+  /** Ghi mốc và số đo {@code org_replica_lag_ms} theo tenant và loại thực thể. */
+  private void record(InboxEnvelope<?> e, ReplicaEntityType type) {
+    long lag = checkpoints.record(e.tenantId().value(), type, e.eventId(), e.occurredAt());
+    if (meters == null) {
+      return;
+    }
+    String tenant = e.tenantId().value().toString();
+    lags.computeIfAbsent(
+            tenant + '|' + type,
+            k -> {
+              AtomicLong holder = new AtomicLong();
+              Gauge.builder(LAG_METRIC, holder, AtomicLong::get)
+                  .description("Độ trễ áp dụng bản sao tổ chức của workflow-service (ms)")
+                  .tag("tenant_id", tenant)
+                  .tag("entity_type", type.name())
+                  .register(meters);
+              return holder;
+            })
+        .set(lag);
   }
 
   private static PermanentInboxException invalid(String what, IllegalArgumentException cause) {

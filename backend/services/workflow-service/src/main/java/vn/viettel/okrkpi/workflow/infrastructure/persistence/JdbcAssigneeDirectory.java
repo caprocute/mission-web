@@ -2,14 +2,16 @@ package vn.viettel.okrkpi.workflow.infrastructure.persistence;
 
 import java.sql.Date;
 import java.time.LocalDate;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import vn.viettel.okrkpi.workflow.application.port.AssigneeDirectory;
 
 /**
- * {@link AssigneeDirectory} trên bản sao {@code org_replica.assignment_v} (TL-03), theo trục hiệu
- * lực {@code [valid_from, valid_to)} và RLS theo tenant.
+ * {@link AssigneeDirectory} trên bản sao {@code org_replica.assignment_v} (trục hiệu lực {@code
+ * [valid_from, valid_to)}) và {@code org_replica.person_v} (tình trạng công tác) của TL-03, RLS
+ * theo tenant.
  */
 @Repository
 public class JdbcAssigneeDirectory implements AssigneeDirectory {
@@ -34,5 +36,18 @@ public class JdbcAssigneeDirectory implements AssigneeDirectory {
             ? jdbc.queryForObject(sql, Boolean.class, tenantId, personId, day, day)
             : jdbc.queryForObject(sql, Boolean.class, tenantId, personId, day, day, unitId);
     return Boolean.TRUE.equals(found);
+  }
+
+  @Override
+  public Optional<String> employmentStatus(UUID tenantId, UUID personId) {
+    TenantBinding.bind(jdbc, tenantId);
+    return jdbc
+        .queryForList(
+            "SELECT employment_status FROM org_replica.person_v WHERE tenant_id = ? AND id = ?",
+            String.class,
+            tenantId,
+            personId)
+        .stream()
+        .findFirst();
   }
 }
