@@ -19,16 +19,19 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -148,8 +151,25 @@ class ComplaintApiIT extends ContractConformanceTest {
     }
 
     @Bean
-    ComplaintSigner complaintTestSigner() {
+    ComplaintSigner complaintTestSigner(ObjectProvider<ComplaintService> complaints) {
       return (tenant, id, key, authorization) -> {
+        // Như SVC-10 thật: hỏi tài liệu cần ký trên luồng và kết nối khác ngay trong lời gọi, nên
+        // chỉ thấy dữ liệu đã commit (đỏ khi bước chốt chạy lại trong giao dịch khoá lặp).
+        try {
+          CompletableFuture.supplyAsync(
+                  () -> {
+                    try {
+                      return TenantContext.call(
+                          tenant,
+                          () -> complaints.getObject().signSource(tenant, id).orElseThrow());
+                    } catch (Exception e) {
+                      throw new IllegalStateException(e);
+                    }
+                  })
+              .get(30, TimeUnit.SECONDS);
+        } catch (Exception e) {
+          throw new IllegalStateException("Tài liệu cần ký chưa sẵn sàng", e);
+        }
         UUID sign = UUID.randomUUID();
         SIGNED.add(sign);
         return sign;
@@ -396,6 +416,16 @@ class ComplaintApiIT extends ContractConformanceTest {
     assertThat(a.get("status").asText()).isEqualTo("DA_TIEP_NHAN");
     assertThat(a.at("/handler/id").asText()).isEqualTo(handler.toString());
     assertThat(a.get("timeline")).hasSize(2);
+
+    // Xem trước văn bản trả lời qua cổng của MOD-06: người xử lý đọc được, người khác 404.
+    MvcResult preview = perform(previewRequest(handler, id));
+    assertThat(status(preview)).as(text(preview)).isEqualTo(200);
+    JsonNode data = json.readTree(body(preview).get("data").asText());
+    assertThat(data.at("/complaint/id").asText()).isEqualTo(id);
+    assertThat(data.at("/complaint/handlerId").asText()).isEqualTo(handler.toString());
+    assertThat(data.at("/complaint/status").asText()).isEqualTo("DA_TIEP_NHAN");
+    assertThat(data.at("/complaint").has("content")).isFalse();
+    assertThat(status(perform(previewRequest(reviewer, id)))).isEqualTo(404);
 
     // Rút sau khi đã có văn bản trả lời: 409; trước kết luận: DONG, hồ sơ về DA_KY_SO.
     as(person, "member");
@@ -872,6 +902,18 @@ class ComplaintApiIT extends ContractConformanceTest {
       throws Exception {
     return TenantContext.call(
         tenant, () -> new TransactionTemplate(tm).execute(s -> work.apply(JdbcClient.create(ds))));
+  }
+
+  private MockHttpServletRequestBuilder previewRequest(UUID actor, String id) {
+    return post("/internal/v1/dossier-form-previews")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(
+            "{\"actor\":\""
+                + actor
+                + "\",\"formCode\":\"TRA_LOI_KN\",\"sourceModule\":\"oversight\","
+                + "\"sourceRefId\":\""
+                + id
+                + "\"}");
   }
 
   private MvcResult perform(MockHttpServletRequestBuilder request) throws Exception {

@@ -19,6 +19,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 import vn.viettel.okrkpi.appraisal.api.ComplaintProfilesApi;
 import vn.viettel.okrkpi.appraisal.api.ComplaintProfilesApi.Profile;
 import vn.viettel.okrkpi.config.api.PeriodApi;
@@ -78,6 +79,7 @@ public class ComplaintService {
   private final ComplaintSigner signer;
   private final ComplaintEvents events;
   private final OversightAuditLog audit;
+  private final TransactionOperations committed;
   private final Clock clock;
 
   public ComplaintService(
@@ -89,6 +91,7 @@ public class ComplaintService {
       ComplaintSigner signer,
       ComplaintEvents events,
       OversightAuditLog audit,
+      TransactionOperations committed,
       Clock clock) {
     this.complaints = Objects.requireNonNull(complaints, "complaints");
     this.profiles = Objects.requireNonNull(profiles, "profiles");
@@ -98,6 +101,7 @@ public class ComplaintService {
     this.signer = signer;
     this.events = Objects.requireNonNull(events, "events");
     this.audit = Objects.requireNonNull(audit, "audit");
+    this.committed = Objects.requireNonNull(committed, "committed");
     this.clock = Objects.requireNonNull(clock, "clock");
   }
 
@@ -282,8 +286,12 @@ public class ComplaintService {
   /**
    * Kiểm đủ trường, hình thức, thời hạn rồi mở yêu cầu ký ở SVC-10 (bước lên AAL2). Trả mã yêu cầu
    * ký; khiếu nại chỉ thành {@code MOI} khi nhận EVT-18.
+   *
+   * <p>Mẫu "chốt trước, gọi sau" (wiki trang 14): đánh dấu nháp đang mở yêu cầu ký ({@code
+   * sign_pending_at}) và commit trong giao dịch riêng, vì SVC-10 hỏi lại tài liệu cần ký ({@link
+   * #signSource}) bằng kết nối khác ngay trong lời gọi; rồi gọi SVC-10 ngoài mọi giao dịch ghi và
+   * gắn mã yêu cầu ký. SVC-10 lỗi thì gỡ dấu, nháp giữ nguyên để gửi lại.
    */
-  @Transactional(TX)
   public UUID submit(
       TenantId tenant,
       Actor actor,
@@ -291,6 +299,24 @@ public class ComplaintService {
       String ifMatch,
       String idempotencyKey,
       String authorization) {
+    Complaint c = committed.execute(st -> reserveSubmit(tenant, actor, id, ifMatch));
+    UUID sign;
+    try {
+      sign = signer.request(tenant, id, idempotencyKey, authorization);
+    } catch (RuntimeException e) {
+      committed.executeWithoutResult(st -> complaints.markSignPending(tenant, c, null));
+      throw e;
+    }
+    committed.executeWithoutResult(
+        st -> {
+          save(tenant, c.withSignRequest(sign), c.rowVersion(), actor.userId());
+          audit.record(
+              tenant, actor.userId(), ACTION_SUBMIT, OBJECT_TYPE, id.toString(), null, ROLE_MEMBER);
+        });
+    return sign;
+  }
+
+  private Complaint reserveSubmit(TenantId tenant, Actor actor, UUID id, String ifMatch) {
     Complaint c = complaints.lock(tenant, id).orElseThrow(NotFoundException::new);
     requireOwner(actor, c);
     ETags.requireMatch(ifMatch, c.rowVersion(), "OVERSIGHT");
@@ -311,11 +337,10 @@ public class ComplaintService {
     if (signer == null) {
       throw new SigningUnavailableException();
     }
-    UUID sign = signer.request(tenant, c.id(), idempotencyKey, authorization);
-    save(tenant, c.withSignRequest(sign), c.rowVersion(), actor.userId());
-    audit.record(
-        tenant, actor.userId(), ACTION_SUBMIT, OBJECT_TYPE, id.toString(), null, ROLE_MEMBER);
-    return sign;
+    if (!complaints.markSignPending(tenant, c, clock.instant())) {
+      throw new BusinessException(VERSION_CONFLICT, "Khiếu nại đã được cập nhật ở nơi khác.");
+    }
+    return c;
   }
 
   /**
@@ -367,12 +392,29 @@ public class ComplaintService {
         .map(c -> new SignJob(c.id(), c.complainantId(), !c.draft(), c.filedAt()));
   }
 
-  /** Tài liệu cho SVC-10: băm các trường khiếu nại và bản mã nội dung (không mở C2). */
+  /**
+   * Khiếu nại làm dữ liệu văn bản trả lời (SCR-1202): chỉ người khiếu nại và người xử lý đã tiếp
+   * nhận được đọc; rỗng khi không có hoặc không được đọc.
+   */
+  @Transactional(transactionManager = TX, readOnly = true)
+  public Optional<Complaint> forDocument(TenantId tenant, UUID actor, UUID id) {
+    if (actor == null || id == null) {
+      return Optional.empty();
+    }
+    return complaints
+        .find(tenant, id)
+        .filter(c -> actor.equals(c.complainantId()) || actor.equals(c.handling().handlerId()));
+  }
+
+  /**
+   * Tài liệu cho SVC-10: băm các trường khiếu nại và bản mã nội dung (không mở C2). Sẵn sàng khi
+   * nháp đã có yêu cầu ký hoặc đang mở yêu cầu ký.
+   */
   @Transactional(transactionManager = TX, readOnly = true)
   public Optional<SignSource> signSource(TenantId tenant, UUID id) {
     return complaints
         .find(tenant, id)
-        .filter(Complaint::awaitingSignature)
+        .filter(c -> c.awaitingSignature() || (c.draft() && complaints.signPending(tenant, id)))
         .map(c -> new SignSource(c.complainantId(), digest(c), c.code()));
   }
 
