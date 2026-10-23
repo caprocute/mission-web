@@ -267,6 +267,308 @@
           }
         }
       }
+    },
+    {
+      "description": "tạo minh chứng cho sản phẩm của nhiệm vụ",
+      "providerStates": [
+        {
+          "name": "cán bộ chủ trì một nhiệm vụ có sản phẩm chưa có minh chứng",
+          "params": {
+            "taskId": "01927a02-0000-7000-8000-00000000c502",
+            "deliverableId": "01927a02-0000-7000-8000-00000000c521"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/evidences",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "deliverableId": "01927a02-0000-7000-8000-00000000c521",
+          "title": "Báo cáo chuyên đề",
+          "sourceType": "TAI_LEN"
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "id": "01927a02-0000-7000-8000-00000000c522",
+          "deliverableId": "01927a02-0000-7000-8000-00000000c521",
+          "task": {
+            "id": "01927a02-0000-7000-8000-00000000c502",
+            "code": "NV-PACT-01",
+            "name": "Báo cáo chuyên đề"
+          },
+          "title": "Báo cáo chuyên đề",
+          "sourceType": "TAI_LEN",
+          "rowVersion": 0
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.id": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.deliverableId": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.task.id": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.rowVersion": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "minh chứng của tôi",
+      "providerStates": [
+        {
+          "name": "cán bộ đã tạo một minh chứng cho sản phẩm của nhiệm vụ mình chủ trì",
+          "params": {
+            "taskId": "01927a02-0000-7000-8000-00000000c502",
+            "deliverableId": "01927a02-0000-7000-8000-00000000c521"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/evidences",
+        "query": {
+          "submitter": [
+            "me"
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "items": [
+            {
+              "id": "01927a02-0000-7000-8000-00000000c522",
+              "deliverableId": "01927a02-0000-7000-8000-00000000c521",
+              "task": {
+                "id": "01927a02-0000-7000-8000-00000000c502",
+                "code": "NV-PACT-01",
+                "name": "Báo cáo chuyên đề"
+              },
+              "title": "Báo cáo chuyên đề",
+              "sourceType": "TAI_LEN",
+              "rowVersion": 0
+            }
+          ],
+          "nextCursor": null
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items": {
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.items[*].id": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.items[*].deliverableId": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.items[*].task.id": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.items[*].rowVersion": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "hồ sơ đánh giá của tôi",
+      "providerStates": [
+        {
+          "name": "cán bộ có một hồ sơ đánh giá đang tự đánh giá trong kỳ hiện hành",
+          "params": {
+            "profileId": "01927a02-0000-7000-8000-00000000c531"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/appraisals/profiles/mine",
+        "query": {
+          "limit": [
+            "50"
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "items": [
+            {
+              "id": "01927a02-0000-7000-8000-00000000c531",
+              "flow": "DANG",
+              "status": "TU_DANH_GIA",
+              "rowVersion": 1
+            }
+          ],
+          "nextCursor": null
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items": {
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.items[*].id": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.items[*].rowVersion": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "mở phiếu tự đánh giá",
+      "providerStates": [
+        {
+          "name": "cán bộ có một hồ sơ đánh giá đang tự đánh giá trong kỳ hiện hành",
+          "params": {
+            "profileId": "01927a02-0000-7000-8000-00000000c531"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/appraisals/profiles/01927a02-0000-7000-8000-00000000c531"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "id": "01927a02-0000-7000-8000-00000000c531",
+          "flow": "DANG",
+          "status": "TU_DANH_GIA",
+          "rowVersion": 1
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.id": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.rowVersion": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            }
+          }
+        }
+      }
     }
   ],
   "metadata": {

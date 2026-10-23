@@ -34,11 +34,14 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.MissionCoreApplication;
 import vn.viettel.okrkpi.MissionCoreTestDatabase;
 import vn.viettel.okrkpi.okr.infrastructure.web.OkrCaller;
+import vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver;
+import vn.viettel.okrkpi.shared.authz.OpaInput;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer.SerializedPayload;
@@ -98,7 +101,22 @@ class MissionWebPactIT {
   @MockitoBean(name = "testOkrCaller")
   private OkrCaller okrCaller;
 
+  /** Người gọi của MOD-03 và MOD-04 (không có caller riêng của kiểm thử như MOD-01, MOD-02). */
+  @MockitoBean private AuthzSubjectResolver subjects;
+
   @Autowired private MockMvc mvc;
+
+  @Autowired
+  @Qualifier("productDataSource") private DataSource productDataSource;
+
+  @Autowired
+  @Qualifier("productTransactionManager") private PlatformTransactionManager productTm;
+
+  @Autowired
+  @Qualifier("appraisalDataSource") private DataSource appraisalDataSource;
+
+  @Autowired
+  @Qualifier("appraisalTransactionManager") private PlatformTransactionManager appraisalTm;
 
   @Autowired
   @Qualifier("taskDataSource") private DataSource taskDataSource;
@@ -122,6 +140,10 @@ class MissionWebPactIT {
   void caller() {
     when(okrCaller.currentUserId()).thenReturn(Optional.of(ME));
     when(okrCaller.currentUnitId()).thenReturn(Optional.empty());
+    when(subjects.currentSubject())
+        .thenReturn(
+            new OpaInput.Subject(
+                "user", ME.toString(), null, null, null, List.of("member"), null, null, null));
   }
 
   @Test
@@ -137,13 +159,23 @@ class MissionWebPactIT {
   void doiTenTruongWebDocThiXacMinhDo() {
     ObjectNode raw = Pact.load(PACT).copyRaw();
     for (JsonNode i : raw.path("interactions")) {
-      if (i.path("description").asText().equals("danh sách việc của tôi trong kỳ hiện hành")) {
-        ObjectNode item = (ObjectNode) i.at("/response/body/items/0");
-        item.set("titleText", item.remove("title"));
+      switch (i.path("description").asText()) {
+        case "danh sách việc của tôi trong kỳ hiện hành" ->
+            rename(i, "/response/body/items/0", "title");
+        case "minh chứng của tôi" -> rename(i, "/response/body/items/0/task", "name");
+        case "hồ sơ đánh giá của tôi" -> rename(i, "/response/body/items/0", "flow");
+        default -> {}
       }
     }
     assertThat(verifier().failures(Pact.of(raw)))
-        .anySatisfy(e -> assertThat(e).contains("$.items[0].titleText: thiếu"));
+        .anySatisfy(e -> assertThat(e).contains("$.items[0].titleX: thiếu"))
+        .anySatisfy(e -> assertThat(e).contains("$.items[0].task.nameX: thiếu"))
+        .anySatisfy(e -> assertThat(e).contains("$.items[0].flowX: thiếu"));
+  }
+
+  private static void rename(JsonNode interaction, String pointer, String field) {
+    ObjectNode node = (ObjectNode) interaction.at(pointer);
+    node.set(field + "X", node.remove(field));
   }
 
   private MockMvcPactVerifier verifier() {
@@ -157,6 +189,15 @@ class MissionWebPactIT {
           taskInProgress(tenant, currentPeriod(tenant), uuid(s, "taskId"));
       case "cán bộ sở hữu một kết quả then chốt đã duyệt trong kỳ hiện hành" ->
           approvedKeyResult(tenant, currentPeriod(tenant), uuid(s, "keyResultId"));
+      case "cán bộ chủ trì một nhiệm vụ có sản phẩm chưa có minh chứng" ->
+          deliverable(tenant, currentPeriod(tenant), uuid(s, "taskId"), uuid(s, "deliverableId"));
+      case "cán bộ đã tạo một minh chứng cho sản phẩm của nhiệm vụ mình chủ trì" -> {
+        UUID deliverable = uuid(s, "deliverableId");
+        deliverable(tenant, currentPeriod(tenant), uuid(s, "taskId"), deliverable);
+        evidence(tenant, deliverable);
+      }
+      case "cán bộ có một hồ sơ đánh giá đang tự đánh giá trong kỳ hiện hành" ->
+          selfAssessmentProfile(tenant, currentPeriod(tenant), uuid(s, "profileId"));
       default -> throw new IllegalArgumentException("Chưa có trạng thái: " + s.name());
     }
     return () -> TenantContext.call(tenant, request);
@@ -254,6 +295,105 @@ class MissionWebPactIT {
                   ASSIGNER,
                   ME,
                   ME)
+              .update();
+          return null;
+        });
+  }
+
+  // ---------------------------------------------------------------- MOD-03
+
+  /** Nhiệm vụ do tôi chủ trì kèm một sản phẩm báo cáo chưa có minh chứng. */
+  private void deliverable(TenantId tenant, Period period, UUID task, UUID deliverable)
+      throws Exception {
+    taskInProgress(tenant, period, task);
+    int bucket = period.bucket();
+    in(
+        tenant,
+        productDataSource,
+        productTm,
+        jdbc -> {
+          for (String table :
+              List.of(
+                  "deliverable",
+                  "evidence",
+                  "evidence_version",
+                  "evidence_version_file",
+                  "acceptance")) {
+            jdbc.sql("SELECT product.fn_create_period_partitions(?::regclass, ?)")
+                .params("product." + table, bucket)
+                .query()
+                .listOfRows();
+          }
+          jdbc.sql(
+                  "INSERT INTO product.deliverable (id, created_by, updated_by, period_id,"
+                      + " period_bucket, task_id, name, deliverable_type, unit, quantity_planned)"
+                      + " VALUES (?, ?, ?, ?, ?, ?, 'Báo cáo chuyên đề', 'BAO_CAO', 'báo cáo', 1)")
+              .params(deliverable, ME, ME, period.id(), bucket, task)
+              .update();
+          return null;
+        });
+  }
+
+  /** Minh chứng tạo qua API như màn hình, để danh sách "của tôi" có một dòng. */
+  private void evidence(TenantId tenant, UUID deliverable) throws Exception {
+    MvcResult r =
+        TenantContext.call(
+            tenant,
+            () ->
+                mvc.perform(
+                        MockMvcRequestBuilders.post("/api/v1/evidences")
+                            .principal(() -> ME.toString())
+                            .header("Idempotency-Key", UUID.randomUUID().toString())
+                            .contentType("application/json")
+                            .content(
+                                ("{\"deliverableId\":\"%s\",\"title\":\"Báo cáo chuyên đề\","
+                                        + "\"sourceType\":\"TAI_LEN\"}")
+                                    .formatted(deliverable)
+                                    .getBytes(StandardCharsets.UTF_8)))
+                    .andReturn());
+    assertThat(r.getResponse().getStatus()).isEqualTo(201);
+  }
+
+  // ---------------------------------------------------------------- MOD-04
+
+  /** Hồ sơ luồng Đảng của tôi đã mở bước tự đánh giá (chưa có nội dung C2). */
+  private void selfAssessmentProfile(TenantId tenant, Period period, UUID profile)
+      throws Exception {
+    int bucket = period.bucket();
+    in(
+        tenant,
+        appraisalDataSource,
+        appraisalTm,
+        jdbc -> {
+          for (String table :
+              List.of(
+                  "appraisal_profile",
+                  "score_snapshot",
+                  "rating_proposal",
+                  "rating_explanation",
+                  "self_assessment",
+                  "general_criteria_result")) {
+            jdbc.sql("SELECT appraisal.fn_create_period_partitions(?::regclass, ?)")
+                .params("appraisal." + table, bucket)
+                .query()
+                .listOfRows();
+          }
+          jdbc.sql(
+                  "INSERT INTO appraisal.appraisal_profile (id, created_by, updated_by, row_version,"
+                      + " period_id, period_bucket, person_id, flow, org_unit_id, assignment_id,"
+                      + " job_title_id, policy_pack_version_id, status) VALUES (?, ?, ?, 1, ?, ?, ?,"
+                      + " 'DANG', ?, ?, ?, ?, 'TU_DANH_GIA')")
+              .params(
+                  profile,
+                  ME,
+                  ME,
+                  period.id(),
+                  bucket,
+                  ME,
+                  UUID.randomUUID(),
+                  UUID.randomUUID(),
+                  UUID.randomUUID(),
+                  UUID.randomUUID())
               .update();
           return null;
         });
