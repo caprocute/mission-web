@@ -42,6 +42,9 @@ public final class SagaInstance {
   private boolean compensating;
   private Instant finishedAt;
 
+  /** Ghi chú của bộ xử lý bước (ví dụ lần chạy lại hồ sơ lỗi, chấp nhận để lại lỗi), lưu bền. */
+  private final Map<String, Object> notes = new LinkedHashMap<>();
+
   public SagaInstance(
       UUID id,
       UUID tenantId,
@@ -243,6 +246,48 @@ public final class SagaInstance {
     return new FailureDecision.NeedsOperator();
   }
 
+  /**
+   * Bước đang chờ cần người vận hành quyết định (ví dụ còn hồ sơ tính lỗi, kiểm tất định lệch):
+   * bước giữ lệnh đang chờ, saga chuyển {@code LOI_CAN_XU_LY}; {@link #resumeAwaiting} đưa về chờ.
+   */
+  public void holdForOperator(int stepNo, String reason) {
+    requireCurrent(stepNo);
+    step(stepNo).compensationFailed(reason);
+    status = SagaStatus.LOI_CAN_XU_LY;
+  }
+
+  /** Bước đang giữ lệnh quay lại chờ trả lời sau khi người vận hành đã xử lý. */
+  public void resumeAwaiting(int stepNo, Instant now) {
+    requireActive();
+    requireCurrent(stepNo);
+    if (compensating
+        || step(stepNo).status() != SagaStepStatus.DANG_CHAY
+        || step(stepNo).commandEventId() == null) {
+      throw new SagaRuleViolation(
+          SagaRuleViolation.Reason.KHONG_O_TRANG_THAI_LOI,
+          "Bước " + stepNo + " của saga " + id + " không đang chờ kết quả");
+    }
+    // Thời hạn chờ trả lời tính lại từ lúc người vận hành xử lý.
+    step(stepNo).restartWaiting(now);
+    status = SagaStatus.CHO_SU_KIEN;
+  }
+
+  public Map<String, Object> notes() {
+    return Collections.unmodifiableMap(notes);
+  }
+
+  public void putNote(String key, Object value) {
+    notes.put(Objects.requireNonNull(key, "key"), value);
+  }
+
+  /** Nạp lại ghi chú đã lưu (kho bền). */
+  public void restoreNotes(Map<String, Object> stored) {
+    notes.clear();
+    if (stored != null) {
+      notes.putAll(stored);
+    }
+  }
+
   /** Bù trừ của bước hiện tại đã xong; lùi về bước trước. */
   public boolean compensated(int stepNo, Instant now) {
     requireCurrent(stepNo);
@@ -327,8 +372,13 @@ public final class SagaInstance {
     }
     int lastDone = Math.min(currentStepNo, steps.size());
     if (lastDone >= 1 && step(lastDone).status() != SagaStepStatus.XONG) {
-      step(lastDone).resetPending();
-      lastDone--;
+      if (isInFlight(step(lastDone))) {
+        // Lệnh của bước đã phát mà chưa xong (ví dụ yêu cầu ký đang chờ): hoàn tác cả bước này.
+        step(lastDone).markInFlightForCompensation();
+      } else {
+        step(lastDone).resetPending();
+        lastDone--;
+      }
     }
     beginCompensation(lastDone);
   }
@@ -344,6 +394,12 @@ public final class SagaInstance {
         && stepNo <= steps.size()
         && step(stepNo).status() == SagaStepStatus.DANG_CHAY
         && step(stepNo).commandEventId() != null;
+  }
+
+  private static boolean isInFlight(SagaStep step) {
+    return step.commandEventId() != null
+        && step.compensationCode() != null
+        && (step.status() == SagaStepStatus.DANG_CHAY || step.status() == SagaStepStatus.LOI);
   }
 
   private void beginCompensation(int fromStepNo) {

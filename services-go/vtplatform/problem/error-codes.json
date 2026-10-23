@@ -1212,7 +1212,8 @@
       "name": "SAME-PERSON",
       "type": "https://okrkpi.vn/problems/same-person",
       "sources": [
-        "modules/config.yaml"
+        "modules/config.yaml",
+        "modules/platform.yaml"
       ]
     },
     {
@@ -1252,7 +1253,8 @@
       "name": "POINT-OF-NO-RETURN",
       "type": "https://okrkpi.vn/problems/point-of-no-return",
       "sources": [
-        "modules/config.yaml"
+        "modules/config.yaml",
+        "modules/platform.yaml"
       ]
     },
     {
