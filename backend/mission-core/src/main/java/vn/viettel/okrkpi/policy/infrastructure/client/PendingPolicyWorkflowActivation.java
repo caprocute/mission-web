@@ -7,8 +7,9 @@ import vn.viettel.okrkpi.policy.domain.PolicyPackVersion;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 
 /**
- * Kích hoạt {@code wf_binding} khi chưa có cổng của workflow-service (DV-06-08) và lớp công bố
- * CORE-05-11: chỉ ghi nhật ký, saga vẫn đi tiếp (suy luận, wiki trang 14).
+ * Kích hoạt {@code wf_binding} khi chưa cấu hình địa chỉ workflow-service ({@code
+ * mission.policy.workflow.base-url}): chỉ ghi nhật ký, saga vẫn đi tiếp (môi trường dev và kiểm
+ * thử; suy luận, wiki trang 14).
  */
 public class PendingPolicyWorkflowActivation implements PolicyWorkflowActivation {
 
