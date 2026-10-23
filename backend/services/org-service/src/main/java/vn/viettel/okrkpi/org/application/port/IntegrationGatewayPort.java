@@ -20,4 +20,12 @@ public interface IntegrationGatewayPort {
 
   /** Ghi ánh xạ mã ngoài với đơn vị; ném {@code OrgConflictException} ORG-409-XREF-EXISTS khi mã đã gắn đơn vị khác. */
   void mapUnitXref(UUID tenantId, String connector, String externalId, UUID unitId);
+
+  /** DV-13-10 · Yêu cầu đóng gói chuyển hồ sơ liên cell; {@code packageId} là khoá chống trùng ở gateway. */
+  record CellTransferRequest(UUID packageId, UUID personId, String sourceTenantCode, String targetCell,
+      UUID targetTenantId, String targetTenantCode) {
+  }
+
+  /** Gửi yêu cầu đóng gói, trả trạng thái gói ở gateway ({@code DONG_GOI}, {@code DA_GUI}...). */
+  String requestCellTransfer(UUID tenantId, CellTransferRequest request);
 }

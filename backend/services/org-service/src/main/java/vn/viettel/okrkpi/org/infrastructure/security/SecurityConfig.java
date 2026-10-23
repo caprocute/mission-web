@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpMethod;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -18,6 +19,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import vn.viettel.okrkpi.org.infrastructure.web.InternalSyncController;
+import vn.viettel.okrkpi.org.infrastructure.web.InternalTransferController;
 import vn.viettel.okrkpi.org.infrastructure.web.ScimController;
 
 /**
@@ -54,11 +56,14 @@ public class SecurityConfig {
    */
   @Bean
   SecurityFilterChain internal(HttpSecurity http, ProblemAuthenticationEntryPoint entryPoint,
-      @Value("${okrkpi.org.auth-enabled:true}") boolean authEnabled) throws Exception {
+      @Value("${okrkpi.org.auth-enabled:true}") boolean authEnabled,
+      @Value("${okrkpi.org.cross-cell.caller-roles:svc_mission_core}") String[] crossCellCallers) throws Exception {
     JwtAuthenticationConverter converter = realmRoles();
     http.securityMatcher("/internal/**")
         .authorizeHttpRequests(a -> {
           if (authEnabled) {
+            // DV-13-10: điều động liên cell đã duyệt do dịch vụ giữ luồng phê duyệt gọi (suy luận, wiki trang 14).
+            a.requestMatchers(HttpMethod.POST, InternalTransferController.CROSS_CELL).hasAnyRole(crossCellCallers);
             a.anyRequest().hasRole(InternalSyncController.SERVICE_ROLE);
           } else {
             a.anyRequest().permitAll();

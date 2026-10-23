@@ -16,7 +16,8 @@ import vn.viettel.okrkpi.org.domain.OrgConflictException;
 /**
  * Cổng nội bộ tới integration-gateway (SVC-13) qua mạng lưới dịch vụ (mTLS của Istio ambient, TL-04). Đường dẫn là
  * suy luận, chốt cùng DV-13-06 (wiki trang 14): {@code POST /internal/v1/integ/sync-runs},
- * {@code POST /internal/v1/integ/sync-runs/{id}/retry}, {@code PUT /internal/v1/integ/mapping-xref}.
+ * {@code POST /internal/v1/integ/sync-runs/{id}/retry}, {@code PUT /internal/v1/integ/mapping-xref}; DV-13-10 thêm
+ * {@code POST /internal/v1/integ/cell-transfers} (tenant nguồn ở {@code X-Tenant-Id}).
  */
 @Component
 public class HttpIntegrationGatewayAdapter implements IntegrationGatewayPort {
@@ -48,6 +49,32 @@ public class HttpIntegrationGatewayAdapter implements IntegrationGatewayPort {
   @Override
   public void mapUnitXref(UUID tenantId, String connector, String externalId, UUID unitId) {
     putXref(tenantId, connector, externalId, "ORG_UNIT", unitId, "Mã đơn vị trên CSDL CBCCVC đã gắn với đơn vị khác.");
+  }
+
+  @Override
+  public String requestCellTransfer(UUID tenantId, CellTransferRequest r) {
+    require();
+    Map<String, Object> body = new java.util.LinkedHashMap<>();
+    body.put("packageId", r.packageId());
+    body.put("personId", r.personId());
+    body.put("sourceTenantCode", r.sourceTenantCode());
+    body.put("targetCell", r.targetCell());
+    body.put("targetTenantId", r.targetTenantId());
+    body.put("targetTenantCode", r.targetTenantCode());
+    try {
+      Map<?, ?> view = http.post().uri("/internal/v1/integ/cell-transfers").header("X-Tenant-Id", tenantId.toString())
+          .contentType(MediaType.APPLICATION_JSON).body(body).retrieve().body(Map.class);
+      Object status = view == null ? null : view.get("status");
+      return status == null ? "" : status.toString();
+    } catch (HttpClientErrorException e) {
+      if (e.getStatusCode().value() == 422 || e.getStatusCode() == HttpStatus.BAD_REQUEST
+          || e.getStatusCode() == HttpStatus.CONFLICT) {
+        throw new OrgConflictException("ORG-409-CELL-TRANSFER", "Cổng tích hợp từ chối yêu cầu chuyển hồ sơ liên cell.");
+      }
+      throw unavailable(e);
+    } catch (RestClientException e) {
+      throw unavailable(e);
+    }
   }
 
   private void putXref(UUID tenantId, String connector, String externalId, String type, UUID internalId,
