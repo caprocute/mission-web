@@ -56,6 +56,20 @@ ok(sc is not None and sc["receivers"]["kafka/cell"]["logs"]["topic"] == "sys.sie
    and {"ca_file", "cert_file", "key_file"} <= set(sc["exporters"]["kafka/soc"]["tls"]), "chặng ra SOC đọc sys.siem.v1, ghi SOC bằng mTLS")
 ok(not [r for r in sc["receivers"] if not r.startswith("kafka")], "chặng ra SOC không mở cổng nhận nào")
 
+# Khớp với chart khác (INF-19): nhóm tiêu thụ nằm trong tiền tố ACL của KafkaUser siem-forwarder; thiết bị kiểm toán
+# socket của OpenBao trỏ đúng cổng tcplog/openbao.
+DEPLOY = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+nhom = [r["group_id"] for r in [*c["receivers"].values(), *sc["receivers"].values()] if "group_id" in r]
+ok(nhom and all(g.startswith("siem-forwarder") for g in nhom), f"nhóm tiêu thụ trong tiền tố ACL siem-forwarder: {sorted(set(nhom))}")
+dm = yaml.safe_load(open(os.path.join(DEPLOY, "charts/vt-platform/ha-tang/kafka/files/danh-muc.yaml")))
+sf = dm["nguoiDung"]["siem-forwarder"]
+ok({"sys.security.runtime.v1", "sys.siem.v1"} <= set(sf["ghi"]) and {"sys.audit.v1", "sys.security.runtime.v1", "sys.siem.v1"} <= set(sf["doc"]),
+   "danh mục Kafka cấp cho siem-forwarder đủ quyền ghi, đọc của otel-siem và chặng ra SOC")
+ob = yaml.safe_load(open(os.path.join(DEPLOY, "charts/vt-platform/ha-tang/openbao/values.yaml")))["audit"]["socket"]
+cong = c["receivers"].get("tcplog/openbao", {}).get("listen_address", ":").rsplit(":", 1)[1]
+ok(ob["enabled"] and ob["address"] == f"otel-siem.observability.svc:{cong}",
+   f"OpenBao gửi kiểm toán socket tới otel-siem cổng {cong}")
+
 # Phần 2: chạy thật bộ xử lý ECS.
 MAU = [
     {"kind": "Event", "apiVersion": "audit.k8s.io/v1", "auditID": "a1", "verb": "create",

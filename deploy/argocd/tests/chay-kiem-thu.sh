@@ -52,8 +52,13 @@ ts, w = json.load(open(sys.argv[1])), sys.argv[2]
 with open(f"{w}/lenh", "w") as out:
     for a in ts:
         h = a["helm"]
+        # Nguồn dạng <root>/charts/<chart>; chart riêng ngoài vt-platform (security-cell) không chồng values-ci.yaml.
+        chart = os.path.join("..", os.path.basename(a["path"]))
+        rieng = chart != "../vt-platform"
         yaml.safe_dump(h["valuesObject"], open(f"{w}/{a['ten']}.yaml", "w"))
-        args = [f"-f {f}" for f in h.get("valueFiles", []) if os.path.exists(f)] + [f"-f {w}/{a['ten']}.yaml"]
+        args = [] if rieng else ["-f ci/values-ci.yaml"]
+        args += [f"-f {os.path.join(chart, f)}" for f in h.get("valueFiles", []) if os.path.exists(os.path.join(chart, f))]
+        args += [f"-f {w}/{a['ten']}.yaml"]
         gia = "sha256:" + "1" * 64
         for p in h.get("parameters", []):
             v = p["value"]
@@ -62,13 +67,13 @@ with open(f"{w}/lenh", "w") as out:
             elif p["name"].endswith(".tag"):
                 v = "gitops@" + gia
             args.append(f"--set {p['name']}={v}")
-        out.write(f"{a['ten']}\t{' '.join(args)}\n")
+        out.write(f"{a['ten']}\t{chart}\t{' '.join(args)}\n")
 EOF
 LOI_RENDER=0; SO=0
-while IFS=$'\t' read -r ten args; do
+while IFS=$'\t' read -r ten chart args; do
   SO=$((SO+1))
   # shellcheck disable=SC2086
-  if ! helm template "$ten" . -f ci/values-ci.yaml $args > "$W/app.yaml" 2> "$W/loi-app"; then
+  if ! helm template "$ten" "$chart" $args > "$W/app.yaml" 2> "$W/loi-app"; then
     LOI_RENDER=$((LOI_RENDER+1)); echo "    $ten: $(tail -1 "$W/loi-app")"
   fi
 done < "$W/lenh"

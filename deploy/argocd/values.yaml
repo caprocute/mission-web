@@ -85,7 +85,8 @@ projects:
   okr-nen-tang:
     description: Hạ tầng của cell (cell-base, quan sát, dữ liệu, OpenBao, cổng API)
     signatureKeys: [4AEE18F83AFDEB23]
-    namespaces: [edge, egress, core, identity, platform, workers, secure, secure-data, analytics, data-pg, data-kafka, data-search, observability, cert-manager, kube-system, default]
+    # platform-privileged: Falco, Falcosidekick, kube-bench, kured của security-cell (SEC-26, INF-19).
+    namespaces: [edge, egress, core, identity, platform, workers, secure, secure-data, analytics, data-pg, data-kafka, data-search, observability, cert-manager, kube-system, default, platform-privileged]
     clusterResourceWhitelist:
       - { group: "", kind: Namespace }
       - { group: rbac.authorization.k8s.io, kind: ClusterRole }
@@ -127,6 +128,8 @@ syncWindowsBoSung: []
 #   namespace: namespace đích mặc định của Application (chart tự đặt namespace cho từng tài nguyên).
 #   image:     khoá values nhận repository và digest từ digests.yaml; bỏ trống với chart ghim ảnh trong values.
 #   imageFormat: định dạng giá trị digest (org-service nhận tag nên ghép "gitops@<digest>").
+#   chart:     chart riêng ngoài vt-platform (đường dẫn dưới gitops.root); Application dùng thẳng chart này với values
+#              riêng của cell (cells/<cell>/<name>.yaml, <name>-<site>.yaml), không bật tắt trong vt-platform.
 services:
   - { name: api-gateway, project: okr-nen-tang, namespace: edge }
   - { name: iam, project: okr-apps, namespace: identity }
@@ -153,6 +156,9 @@ services:
   - { name: opensearch, project: okr-nen-tang, namespace: data-search }
   - { name: clickhouse, project: okr-nen-tang, namespace: data-search }
   - { name: openbao, project: okr-nen-tang, namespace: secure-data }
+  # Bảo mật nền của cell (INF-19, SEC-26/43/50/52): chart riêng vì chạy DaemonSet đặc quyền và RBAC cấp cụm, không
+  # thuộc mô hình phân phối của vt-platform. Cùng nhãn đợt (wave) theo cell như mọi Application của cell.
+  - { name: security-cell, project: okr-nen-tang, namespace: platform-privileged, chart: charts/security-cell }
 
 # Service không triển khai ở môi trường này: không sinh ApplicationSet, và vẫn đặt enabled: false trong Application
 # của service khác. Production để trống; staging liệt kê tầng dữ liệu chạy trên máy ảo (values-staging.yaml).

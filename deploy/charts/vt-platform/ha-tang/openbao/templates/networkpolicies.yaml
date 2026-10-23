@@ -39,6 +39,13 @@ spec:
           podSelector: { matchLabels: { cnpg.io/podRole: instance } }
         {{- end }}
       ports: [{ port: 5432, protocol: TCP }]
+    {{- if $v.audit.socket.enabled }}
+    # Thiết bị kiểm toán socket tới otel-siem (SEC-43, INF-19); chiều nhận khai ở chart otel-collector.
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $v.observabilityNamespace }} } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: otel-siem } }
+      ports: [{ port: {{ (split ":" $v.audit.socket.address)._1 | int }}, protocol: TCP }]
+    {{- end }}
     {{- with $v.hsmCidrs }}
     - to:
         {{- range . }}

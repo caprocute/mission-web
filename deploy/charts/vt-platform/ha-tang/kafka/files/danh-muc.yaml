@@ -83,6 +83,9 @@ topics:
 - ten: config.period.unlocked.v1
   nhom: dauVaoTinhDiem
   ma: EVT-26
+- ten: config.access.changed.v1
+  nhom: nghiepVuCao
+  ma: EVT-27
 - ten: sys.ledger.append.v1
   nhom: soCai
   phanVung: 24
@@ -123,6 +126,10 @@ topics:
   nhom: theoDanhMuc
   phanVung: 6
   luuGiu: 30d
+- ten: sys.security.runtime.v1
+  nhom: heThong
+- ten: sys.siem.v1
+  nhom: heThong
 capLoi:
 - topic: analytics.anomaly.detected.v1
   consumer: mission-core
@@ -141,6 +148,10 @@ capLoi:
 - topic: appraisal.rating.decided.v1
   consumer: ledger-service
 - topic: appraisal.rating.decided.v1
+  consumer: mission-core
+- topic: config.access.changed.v1
+  consumer: iam
+- topic: config.access.changed.v1
   consumer: mission-core
 - topic: config.period.locked.v1
   consumer: ledger-service
@@ -262,6 +273,10 @@ capLoi:
   consumer: mission-core
 - topic: sys.ledger.append.v1
   consumer: ledger-service
+- topic: sys.security.runtime.v1
+  consumer: siem-forwarder
+- topic: sys.siem.v1
+  consumer: siem-forwarder
 - topic: task.plan.approved.v1
   consumer: analytics
 - topic: task.plan.approved.v1
@@ -338,6 +353,7 @@ nguoiDung:
     ghi:
     - iam.auth.event.v1
     doc:
+    - config.access.changed.v1
     - org.bootstrap.v1
     - org.person.changed.v1
     - org.unit.changed.v1
@@ -350,11 +366,13 @@ nguoiDung:
     ghi:
     - appraisal.profile.stepcompleted.v1
     - appraisal.rating.decided.v1
+    - config.access.changed.v1
     - config.period.locked.v1
     - config.period.unlocked.v1
     - config.uipack.published.v1
     - dossier.form.generated.v1
     - esign.signature.completed.v1
+    - evidence.object.scanned.v1
     - integ.document.received.v1
     - ledger.seal.created.v1
     - notify.message.requested.v1
@@ -403,6 +421,7 @@ nguoiDung:
     doc:
     - analytics.anomaly.detected.v1
     - appraisal.rating.decided.v1
+    - config.access.changed.v1
     - config.period.locked.v1
     - config.period.unlocked.v1
     - dossier.form.generated.v1
@@ -450,10 +469,14 @@ nguoiDung:
     - task.task.assigned.v1
     ghi: []
   siem-forwarder:
+    ghi:
+    - sys.security.runtime.v1
+    - sys.siem.v1
     doc:
     - iam.auth.event.v1
     - sys.audit.v1
-    ghi: []
+    - sys.security.runtime.v1
+    - sys.siem.v1
   web-frontend:
     doc:
     - config.uipack.published.v1
@@ -511,6 +534,8 @@ avro:
   tep: avro/appraisal/HoSoDanhGiaChuyenBuoc.avsc
 - artifactId: appraisal.rating.decided.v1-value
   tep: avro/appraisal/XepLoaiDaQuyetDinh.avsc
+- artifactId: config.access.changed.v1-value
+  tep: avro/config/VaiTroDaThayDoi.avsc
 - artifactId: config.period.locked.v1-value
   tep: avro/config/KyDaKhoa.avsc
 - artifactId: config.period.unlocked.v1-value

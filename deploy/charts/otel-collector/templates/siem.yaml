@@ -463,7 +463,8 @@ data:
     receivers:
       kafka/cell:
         brokers: {{ $brokers }}
-        group_id: siem-soc-forwarder
+        # Nhóm tiêu thụ nằm trong tiền tố ACL của KafkaUser siem-forwarder (danh mục Kafka, INF-19).
+        group_id: {{ $s.kafka.groupId }}-soc
         client_id: siem-soc-forwarder
         initial_offset: earliest
         logs: { topic: {{ $t.siem }}, encoding: raw }

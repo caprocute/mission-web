@@ -35,4 +35,6 @@ esign:
 
 # Namespace trong mesh (khớp nhãn ambient của cell-base): nguồn được gửi HBONE tới waypoint. Điều khiển ai được
 # gọi service nào nằm ở AuthorizationPolicy của waypoint; NetworkPolicy chỉ mở cổng HBONE 15008 giữa các pod mesh.
-meshNamespaces: [edge, core, identity, platform, workers, analytics, secure, egress]
+# platform-privileged: chỉ pod Falcosidekick gắn nhãn ambient riêng (namespace không vào mesh) để gọi egress gateway
+# với danh tính của namespace (chart security-cell, INF-19).
+meshNamespaces: [edge, core, identity, platform, workers, analytics, secure, egress, platform-privileged]

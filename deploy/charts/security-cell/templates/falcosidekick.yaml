@@ -64,6 +64,11 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: falcosidekick
+        {{- if $s.soc.enabled }}
+        # Riêng pod này vào mesh ambient (namespace platform-privileged ở ngoài mesh) để mang danh tính SPIFFE của
+        # namespace khi gọi egress gateway: AuthorizationPolicy của cell-egress chỉ nhận người gọi có mTLS (INF-19).
+        istio.io/dataplane-mode: ambient
+        {{- end }}
         {{- include "sec.labels" . | nindent 8 }}
       annotations:
         checksum/config: {{ toJson $s | sha256sum | trunc 16 }}
@@ -161,4 +166,22 @@ spec:
     matchLabels: { app.kubernetes.io/name: falcosidekick }
   podMetricsEndpoints:
     - { port: http, path: /metrics, interval: 30s }
+{{- if $s.soc.enabled }}
+---
+# Falco và Prometheus ở ngoài mesh gửi tới cổng 2801 không qua mTLS của ztunnel; mesh đặt STRICT toàn cụm (cell-mesh)
+# nên mở PERMISSIVE riêng cổng này của Falcosidekick, NetworkPolicy falcosidekick-ingress vẫn giới hạn người gửi.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: falcosidekick
+  namespace: {{ $ns }}
+spec:
+  selector:
+    matchLabels: { app.kubernetes.io/name: falcosidekick }
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    2801:
+      mode: PERMISSIVE
+{{- end }}
 {{- end }}
