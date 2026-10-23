@@ -833,7 +833,7 @@ public class ComplaintResolutionService {
 
   /** Không đổi trạng thái, chỉ tăng {@code row_version}. */
   private static Complaint bump(Complaint c) {
-    return c.moved(c.status());
+    return c.touched();
   }
 
   private Complaint lockFiled(TenantId tenant, UUID id) {

@@ -132,6 +132,11 @@ public record Complaint(
     return copy(to, filedAt, responseDeadline, handlerUnitId, signRequestId, handling);
   }
 
+  /** Giữ trạng thái, chỉ tăng {@code row_version} (ghi thêm giải trình, kết luận, yêu cầu ký). */
+  public Complaint touched() {
+    return copy(status, filedAt, responseDeadline, handlerUnitId, signRequestId, handling);
+  }
+
   private void requireMove(ComplaintStatus to) {
     if (!ComplaintTransitions.allowed(status, to)) {
       throw new IllegalStateException("Không chuyển được khiếu nại từ " + status + " sang " + to);
