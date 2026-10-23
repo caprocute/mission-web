@@ -208,6 +208,40 @@ REMOTE
     remote "t=\$(mktemp -d) && tar -C \"\$t\" -xf - && GEN_ENV_FILE=$(printf '%q' "${env_src}") GEN_ENV_EXAMPLE=\"\$t/.env.example\" bash \"\$t/scripts/gen-env.sh\" --kiem; rc=\$?; rm -rf \"\$t\"; exit \$rc"
 }
 
+# Ảnh kéo từ registry của các profile sẽ áp: có sẵn trên máy chủ, hoặc registry còn phục vụ. Ảnh dựng từ repo
+# (tiền tố mission) bỏ qua. Một ảnh không kéo được làm hỏng cả đợt `docker compose up` (ví dụ MinIO đã gỡ ảnh
+# khỏi Docker Hub), nên chặn từ bước kiểm.
+check_images() {
+  echo "==> Ảnh của profile ${DEV_SERVER_PROFILES} trên máy chủ"
+  if ! docker compose version >/dev/null 2>&1; then
+    echo "  Máy trạm không có docker compose; bỏ qua."
+    return 0
+  fi
+  local p args=() images
+  for p in ${DEV_SERVER_PROFILES}; do args+=(--profile "${p}"); done
+  images="$(cd "${INFRA_DIR}" && docker compose -p "${PROJECT}" --env-file .env.example "${args[@]}" config --images 2>/dev/null |
+    grep -v '^mission' | sort -u)"
+  [[ -n "${images}" ]] || return 0
+  # shellcheck disable=SC2016
+  remote "bash -s -- $(tr '\n' ' ' <<<"${images}")" <<'REMOTE' || die "có ảnh không kéo được; sửa tag trong docker-compose.yml trước khi apply"
+bad=0
+docker manifest inspect --help >/dev/null 2>&1 || { echo "  docker trên máy chủ không có 'manifest inspect'; chỉ kiểm ảnh có sẵn."; nm=1; }
+for img in "$@"; do
+  if docker image inspect "${img}" >/dev/null 2>&1; then
+    echo "  có sẵn        ${img}"
+  elif [ -n "${nm:-}" ]; then
+    echo "  chưa có, không kiểm được ${img}"
+  elif timeout 60 docker manifest inspect "${img}" >/dev/null 2>&1; then
+    echo "  kéo được      ${img}"
+  else
+    echo "  [DỪNG] không kéo được ${img}"
+    bad=1
+  fi
+done
+exit "${bad}"
+REMOTE
+}
+
 # --- các bước áp ------------------------------------------------------------------
 copy_source() {
   local commit
@@ -244,6 +278,7 @@ cmd_plan() {
   check_compose_profiles
   echo "  Service sẽ triển khai: ${SERVICES[*]:-không có}; dựng jar ở: $(jar_mode)"
   check_server
+  check_images
   sync_server plan
 }
 
@@ -253,6 +288,7 @@ cmd_apply() {
   git -C "${REPO_ROOT}" pull -q --ff-only || die "không fast-forward được; xử lý nhánh trên máy trạm trước"
   check_compose_profiles
   check_server
+  check_images
   copy_source
   ensure_env
   echo "==> Bổ sung khoá còn thiếu vào .env máy chủ (bí mật sinh ngẫu nhiên, không đè giá trị có sẵn, không in)"

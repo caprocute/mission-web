@@ -434,8 +434,10 @@ services:
   # ---------------------------------------------------------------------------
   # PROFILE: search — MinIO (S3) & OpenSearch 2.x
   # ---------------------------------------------------------------------------
+  # MinIO đã ngừng phát hành ảnh trên Docker Hub và quay.io (10/2025): tag cũ không kéo được nữa. Ghim đúng tag
+  # đang có sẵn trên máy chủ dev; máy mới không có ảnh này thì dùng ảnh tương thích (xem README mục 2.1).
   minio:
-    image: minio/minio:RELEASE.2025-02-18T16-25-55Z
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
     container_name: mission-dev-minio
     restart: unless-stopped
     profiles: ["search", "all"]
@@ -456,8 +458,9 @@ services:
     networks:
       - mission-net
 
+  # Ảnh minio đã có sẵn `mc` (healthcheck ở trên dùng nó), nên tạo bucket bằng chính ảnh đó, không cần ảnh minio/mc.
   minio-init:
-    image: minio/mc:RELEASE.2025-02-15T10-36-16Z
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
     container_name: mission-dev-minio-init
     profiles: ["search", "all"]
     depends_on:
@@ -480,7 +483,7 @@ services:
       - mission-net
 
   opensearch:
-    image: opensearchproject/opensearch:2.18.0
+    image: opensearchproject/opensearch:2.19.2
     container_name: mission-dev-opensearch
     restart: unless-stopped
     profiles: ["search", "all"]
