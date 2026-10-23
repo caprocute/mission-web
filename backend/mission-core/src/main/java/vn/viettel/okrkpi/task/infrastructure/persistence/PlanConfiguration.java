@@ -24,6 +24,8 @@ import vn.viettel.okrkpi.shared.outbox.ApicurioPayloadSerializer;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
 import vn.viettel.okrkpi.shared.routing.TenantDirectory;
 import vn.viettel.okrkpi.task.application.catalog.CatalogPolicy;
+import vn.viettel.okrkpi.task.application.fromplan.ConfirmedLinePlanChecker;
+import vn.viettel.okrkpi.task.application.fromplan.LeadConfirmationService;
 import vn.viettel.okrkpi.task.application.plan.PlanChecker;
 import vn.viettel.okrkpi.task.application.plan.PlanDeadlineReminders;
 import vn.viettel.okrkpi.task.application.plan.PlanDeadlines;
@@ -44,10 +46,16 @@ public class PlanConfiguration {
     return new JdbcPlanRepository(dataSource, json.getIfAvailable(ObjectMapper::new));
   }
 
-  /** CORE-02-06: BR-04-02..07; BR-04-03, BR-04-04 biên dịch CEL một lần khi khởi động. */
+  /**
+   * CORE-02-06: BR-04-02..07; BR-04-03, BR-04-04 biên dịch CEL một lần khi khởi động. CORE-02-11
+   * thêm kiểm tra xác nhận dòng liên đơn vị.
+   */
   @Bean
-  PlanChecker planChecker() {
-    return new PlanChecker(new CelEngine());
+  PlanChecker planChecker(LeadConfirmationService leadConfirmationService) {
+    return new ConfirmedLinePlanChecker(
+        new CelEngine(),
+        leadConfirmationService,
+        () -> vn.viettel.okrkpi.shared.tenant.TenantContext.current().orElse(null));
   }
 
   @Bean

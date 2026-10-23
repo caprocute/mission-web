@@ -239,6 +239,29 @@ public class JdbcPolicyPackRepository implements PolicyPackRepository {
   }
 
   @Override
+  public boolean storeWorkflowBinding(
+      TenantId tenant, UUID versionId, String processKind, String bindingJson, UUID actor) {
+    return jdbc.sql(
+                """
+                UPDATE policy.policy_pack_version
+                   SET manifest = jsonb_set(
+                         CASE WHEN jsonb_typeof(manifest -> 'workflow_bindings') = 'object'
+                              THEN manifest
+                              ELSE manifest || '{"workflow_bindings": {}}'::jsonb END,
+                         ARRAY['workflow_bindings', ?], ?::jsonb, true),
+                       updated_at = now(), updated_by = ?
+                 WHERE tenant_id = ? AND id = ? AND status = 'NHAP'
+                """)
+            .param(processKind)
+            .param(bindingJson)
+            .param(actor)
+            .param(tenant.value())
+            .param(versionId)
+            .update()
+        == 1;
+  }
+
+  @Override
   public boolean storeStatus(TenantId tenant, PolicyPackVersion v, long expected) {
     return jdbc.sql(
                 """
