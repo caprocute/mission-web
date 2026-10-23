@@ -288,7 +288,7 @@ class InternalBindingApiIT extends WorkflowIntegrationTest {
     JsonNode undone = call("/bindings/deactivate", v2);
     assertThat(undone.path("items").get(0).path("status").asText()).isEqualTo("NGUNG");
     assertThat(startParams().orElseThrow().levels()).hasSize(2);
-    // Gỡ phiên bản mới trả lại cả phiên bản gói của dòng cũ (V9).
+    // Gỡ phiên bản mới trả lại cả phiên bản gói của dòng cũ (V10).
     assertThat(bindingVersion()).isEqualTo(v1);
     mvc.perform(svc(get(BASE + "/bindings").param("policyPackVersionId", v1.toString())))
         .andExpect(jsonPath("$.items[0].status").value("HIEU_LUC"));

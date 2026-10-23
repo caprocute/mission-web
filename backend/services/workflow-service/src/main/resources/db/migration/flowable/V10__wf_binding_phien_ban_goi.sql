@@ -3,7 +3,7 @@
 -- policy_pack_version_id và cột này nằm trong khoá duy nhất (tenant_id, policy_pack_version_id,
 -- process_kind, subject_group_id, flow, period_type). Dòng có sẵn lấy phiên bản từ scope_json
 -- (kích hoạt của DV-06-08 đã ghi khoá policyPackVersionId); dòng nạp tay trước đó để NULL.
--- V8 dành cho DV-06-11.
+-- V8 dành cho DV-06-11, V9 cho DV-06-09.
 -- =============================================================================
 
 ALTER TABLE flowable.wf_binding ADD COLUMN policy_pack_version_id uuid;

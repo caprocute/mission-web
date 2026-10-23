@@ -32,7 +32,7 @@ import vn.viettel.okrkpi.workflow.infrastructure.template.TemplateCatalog;
  * {@link BindingDraftStore} trên {@code flowable.wf_binding_draft} (bảng bổ sung của DV-06-08) và
  * {@code flowable.wf_binding} (TL-03). Kích hoạt ghi đè dòng {@code wf_binding} cùng khoá (tenant,
  * loại quy trình, khối đối tượng, luồng, loại kỳ) và ghi phiên bản gói vào {@code
- * policy_pack_version_id} (V9, khoá duy nhất của TL-03 có cột này), nhớ giá trị cũ trong {@code
+ * policy_pack_version_id} (V10, khoá duy nhất của TL-03 có cột này), nhớ giá trị cũ trong {@code
  * replaced_json} để gỡ kích hoạt trả lại đúng dòng cũ; dòng {@code wf_template} được tra theo mã và
  * phiên bản mẫu (mọi tenant đọc được), thiếu thì đăng ký cho tenant từ danh mục mẫu đóng gói.
  */
