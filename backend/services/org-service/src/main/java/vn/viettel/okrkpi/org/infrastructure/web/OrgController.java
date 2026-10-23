@@ -49,6 +49,7 @@ import vn.viettel.okrkpi.org.infrastructure.web.model.WorkContext;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgChangeRequest;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgTree;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgTreeKind;
+import vn.viettel.okrkpi.org.infrastructure.web.model.OrgImportReport;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgUnit;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgUnitInput;
 import vn.viettel.okrkpi.org.infrastructure.web.model.SearchOrgUnits200Response;
@@ -261,6 +262,11 @@ public class OrgController implements OrgApi {
         hasher.of(idempotencyKey, "POST", request.getRequestURI(), fingerprint), file, content, effectiveFrom);
     return ResponseEntity.accepted().location(URI.create("/api/v1/jobs/" + job.id())).header("Retry-After", "2")
         .body(JobWebMapper.toDto(job));
+  }
+
+  @Override
+  public ResponseEntity<OrgImportReport> getOrgImportReport(UUID id) {
+    return ResponseEntity.ok(JobWebMapper.toReport(imports.report(actor(), id)));
   }
 
   private static byte[] sha256(byte[] content) {

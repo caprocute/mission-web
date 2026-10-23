@@ -135,6 +135,14 @@ public class OrgImportService {
         .orElseThrow(() -> new OrgNotFoundException("Không tìm thấy tác vụ."));
   }
 
+  /** {@code GET /org/imports/{id}/report}: báo cáo của tác vụ nhập, đích {@code resultLocation} khi tệp có lỗi. */
+  @Transactional(readOnly = true)
+  public ImportJobView report(Actor actor, UUID id) {
+    policy.authorize(actor, "getOrgImportReport");
+    return jobs.find(id).map(OrgImportService::view)
+        .orElseThrow(() -> new OrgNotFoundException("Không tìm thấy lần nhập."));
+  }
+
   /** Thân tác vụ nền; mọi lỗi được ghi vào tác vụ, không lan ra luồng chạy nền. */
   public void process(Actor actor, UUID jobId) {
     try {
