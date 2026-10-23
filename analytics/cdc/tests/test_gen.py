@@ -19,15 +19,16 @@ def test_committed_config_matches_regenerated() -> None:
 
 def test_each_database_has_one_connector_with_own_slot() -> None:
     plans = gen.build()
-    assert sorted(p.db for p in plans) == ["org", "tenant_data"]
+    assert sorted(p.db for p in plans) == ["flowable", "org", "tenant_data"]
     slots = [gen.connector_config(p)["slot.name"] for p in plans]
-    assert sorted(slots) == ["dbz_cdc_org", "dbz_cdc_tenant_data"]
+    assert sorted(slots) == ["dbz_cdc_flowable", "dbz_cdc_org", "dbz_cdc_tenant_data"]
     for p in plans:
         cfg = gen.connector_config(p)
         assert cfg["publication.name"] == "pub_analytics" and cfg["topic.prefix"] == f"cdc.{p.db}"
         assert cfg["transforms.unwrap.add.fields"] == "op,lsn,source.ts_ms"
         assert "password" not in "".join(v for k, v in cfg.items() if k != "database.password").lower()
-        assert cfg["database.password"].startswith("${env:") and cfg["transforms.pseudo.key"].startswith("${env:")
+        assert cfg["database.password"].startswith("${env:")
+        assert cfg.get("transforms.pseudo.key", "${env:").startswith("${env:")
 
 
 def _write(tmp: pathlib.Path, sql: str) -> pathlib.Path:

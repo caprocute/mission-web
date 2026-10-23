@@ -40,8 +40,10 @@ EXTRA = REPO / "analytics" / "clickhouse" / "phan-loai-ngoai-repo.json"
 MIGRATIONS = {
     "tenant_data": [REPO / "backend" / "mission-core" / "src" / "main" / "resources" / "db" / "migration"],
     "org": [REPO / "backend" / "services" / "org-service" / "src" / "main" / "resources" / "db" / "migration"],
+    "flowable": [REPO / "backend" / "services" / "workflow-service" / "src" / "main" / "resources" / "db"
+                 / "migration"],
 }
-TOPIC_DB = {"core": "tenant_data", "org": "org"}
+TOPIC_DB = {"core": "tenant_data", "org": "org", "workflow": "flowable"}
 
 # Cột mã một con người cụ thể (TL-03: person_id, actor_id, created_by và các cột cùng nghĩa).
 PERSON_COLUMNS = frozenset({
@@ -215,7 +217,7 @@ def _regex(qualified: str) -> str:
 def connector_config(p: Plan) -> dict[str, str]:
     """Cấu hình Debezium của connector phân tích (khoá theo thứ tự cố định để đầu ra ổn định)."""
     db = p.db
-    return {
+    cfg = {
         "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
         "plugin.name": "pgoutput",
         "database.hostname": "${env:PG_HOST}",
@@ -253,6 +255,11 @@ def connector_config(p: Plan) -> dict[str, str]:
         "producer.override.enable.idempotence": "true",
         "producer.override.compression.type": "zstd",
     }
+    if not p.pseudonymized:
+        # CSDL không có cột giả danh (ví dụ flowable): bỏ SMT, vì SMT bắt buộc có danh sách cột.
+        cfg = {k: v for k, v in cfg.items() if not k.startswith("transforms.pseudo.")}
+        cfg["transforms"] = "unwrap"
+    return cfg
 
 
 HEADER = "# Sinh bởi analytics/cdc/cdc_config_gen.py (DV-15-02). Không sửa tay; chạy lại công cụ.\n"
