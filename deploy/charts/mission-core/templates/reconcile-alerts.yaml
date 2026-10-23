@@ -1,6 +1,6 @@
 {{- /*
 DL-12 · TL-03 "Đối soát và kiểm tra nhất quán", TL-04 "Quan sát hệ thống": cảnh báo chung của các job đối soát
-trong mission-core (R1 bản sao tổ chức, R3 điểm ↔ ảnh chụp, R5 kho phân tích, R7 outbox ↔ Kafka; R4 ở chart scoring-service,
+trong mission-core (R1 bản sao tổ chức, R2 sổ cái ↔ bảng nguồn, R3 điểm ↔ ảnh chụp, R5 kho phân tích, R7 outbox ↔ Kafka; R4 ở chart scoring-service,
 R6 ở chart evidence-service).
 Chỉ số do thư viện vt-reconcile xuất: mission_reconcile_runs_total{reconcile,status},
 mission_reconcile_mismatches_total{reconcile}, mission_reconcile_repaired_total{reconcile},
@@ -44,6 +44,20 @@ spec:
             summary: "Ảnh chụp điểm lệch kết quả tính: ký số các hồ sơ liên quan đang bị chặn"
             description: "Tra appraisal.reconcile_run job R3_DIEM_ANH_CHUP có status LOI; detail.profiles là các hồ sơ bị chặn ký."
             runbook_url: {{ $rb }}/doi-soat-diem-anh-chup
+        - alert: MissionDoiSoatR2SoCaiLechNguon
+          expr: sum(increase(mission_reconcile_mismatches_total{reconcile="R2_SO_CAI_NGUON"}[6h])) > 0
+          labels: { severity: critical, doi: soc }
+          annotations:
+            summary: "Sổ cái lệch dữ liệu nghiệp vụ: có thể dữ liệu nguồn bị sửa ngoài luồng (cảnh báo SOC mức cao)"
+            description: "Tra <schema>.reconcile_run job R2_SO_CAI_NGUON có status LOI; detail.mismatches ghi đối tượng, mã sự kiện và loại lệch."
+            runbook_url: {{ $rb }}/doi-soat-so-cai
+        - alert: MissionDoiSoatR2NgungChay
+          expr: (time() - max(mission_reconcile_last_finished_seconds{reconcile="R2_SO_CAI_NGUON"})) > 30 * 3600
+          for: 30m
+          labels: { severity: warning, doi: van-hanh-du-lieu }
+          annotations:
+            summary: "Đối soát sổ cái ↔ bảng nguồn chưa có lần nào kết thúc trong 30 giờ (chỉ bật khi đã cấu hình mission.reconcile.ledger.base-url)"
+            runbook_url: {{ $rb }}/doi-soat-so-cai
         - alert: MissionDoiSoatR7NgungChay
           expr: (time() - max(mission_reconcile_last_finished_seconds{reconcile="R7_OUTBOX_KAFKA"})) > 3 * 3600
           for: 15m
