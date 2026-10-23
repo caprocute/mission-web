@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -221,8 +222,24 @@ class TaskRegistrationApiIT extends ContractConformanceTest {
     assertThat(body(created).get("status").asText()).isEqualTo("NHAP");
     verify(notices).submitted(eq(tenant), eq(UUID.fromString(r1)), any(), eq(List.of(HEAD)));
 
-    // Giao thông thường bị chặn (BR-05-08); người đăng ký tự duyệt bị 403.
+    // Hàng đăng ký chờ duyệt của người giao việc (QT-05 bước 3): lọc NHAP nguồn DANG_KY.
     as(HEAD, "manager");
+    MvcResult queue = perform(unitTasks("status=NHAP&source=DANG_KY"));
+    assertThat(queue.getResponse().getStatus())
+        .as(queue.getResponse().getContentAsString(StandardCharsets.UTF_8))
+        .isEqualTo(200);
+    assertResponseConforms(queue, "/tasks", PathItem.HttpMethod.GET);
+    assertThat(body(queue).get("items").findValuesAsText("id")).containsExactly(r1);
+    assertThat(body(queue).get("items").get(0).get("source").asText()).isEqualTo("DANG_KY");
+    assertThat(body(perform(unitTasks("source=KE_HOACH"))).get("items")).isEmpty();
+    assertThat(body(perform(unitTasks("pendingChangeRequest=true"))).get("items")).isEmpty();
+    assertThat(
+            body(perform(unitTasks("pendingChangeRequest=false")))
+                .get("items")
+                .findValuesAsText("id"))
+        .containsExactly(r1);
+
+    // Giao thông thường bị chặn (BR-05-08); người đăng ký tự duyệt bị 403.
     MvcResult blocked = perform(write(post("/api/v1/tasks/" + r1 + "/assign"), etag));
     assertThat(blocked.getResponse().getStatus()).isEqualTo(422);
     assertThat(blocked.getResponse().getContentAsString(StandardCharsets.UTF_8))
@@ -354,6 +371,10 @@ class TaskRegistrationApiIT extends ContractConformanceTest {
                     END.toString(),
                     "note",
                     "Đề xuất theo nhu cầu đơn vị")));
+  }
+
+  private MockHttpServletRequestBuilder unitTasks(String query) {
+    return get("/api/v1/tasks?unit=" + UNIT + "&period=" + period + "&" + query);
   }
 
   private MockHttpServletRequestBuilder decide(String id, String etag, Map<String, Object> body)

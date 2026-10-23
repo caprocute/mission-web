@@ -36,6 +36,7 @@ import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
 import { debounceTime, filter, map, switchMap, take, takeWhile, timer } from 'rxjs';
+import { RouterLink } from '@angular/router';
 import { TASK_CAN } from '../task-permissions';
 import { formatDate } from '../task-ui';
 import { CatalogItemDialog } from './catalog/catalog-item.dialog';
@@ -61,8 +62,12 @@ interface Filters {
     SelectModule,
     TagModule,
     CatalogItemDialog,
+    RouterLink,
   ],
   template: `
+    @if (can('SCR-0501.giao') || can('SCR-0601.duyet-de-nghi')) {
+      <a routerLink="/tasks/approvals" class="approvals">Đăng ký và đề nghị chờ duyệt</a>
+    }
     @if (catalogs.error()) {
       <p-message severity="error" styleClass="msg">
         <span>{{ loadError() }}</span>
@@ -420,6 +425,11 @@ interface Filters {
     }
   `,
   styles: `
+    .approvals {
+      display: inline-block;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
     .head {
       display: flex;
       align-items: flex-start;
