@@ -29,4 +29,4 @@ Mỗi cảnh báo trong `deploy/charts/observability-cell/rules/` và `deploy/ch
 | `release-freeze` | ErrorBudgetHalfSpent | Dừng phát hành khi tiêu quá nửa ngân sách lỗi trước ngày 15 (OPS-19) |
 | `nang-bac` | NG01..NG14 | Ngưỡng nâng bậc của TL-05 và quy trình nâng bậc |
 
-Sổ tay đã có: `phat-lai-outbox.md` (phát lại sự kiện từ outbox, NEN-022).
+Sổ tay đã có: `phat-lai-outbox.md` (phát lại sự kiện từ outbox, NEN-022), `degradation.md` (bật, tắt mức suy giảm của cổng API, DV-01-02).
