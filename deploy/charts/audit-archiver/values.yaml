@@ -1,0 +1,137 @@
+# INF-24 audit-archiver: consumer sys.audit.v1 ghi lô Parquet ký số vào bucket Object Lock COMPLIANCE 10 năm của
+# kho sao lưu (TL-04 "Kafka: MirrorMaker 2" đoạn audit-archiver, "Bảng lịch sao lưu" dòng sys.audit.v1; NFR-09, G6).
+# Digest ảnh toàn số 0 là giả lập; CI thay bằng digest thật (INF-05). Khoá values chung xem vt-service/_defaults.tpl.
+global:
+  cell: ''
+  sizing: M
+name: audit-archiver
+namespace: secure
+image:
+  repository: harbor.vt.local/platform/audit-archiver
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+runtime: go
+nodePool: secure
+# Hai pod cùng nhóm tiêu thụ chia phân vùng; một pod dừng thì pod còn lại nhận phân vùng và khôi phục từ kho.
+workload:
+  replicas: 2
+  strategy:
+    maxSurge: 1
+    maxUnavailable: 0
+  terminationGracePeriodSeconds: 30
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: '1'
+    memory: 512Mi
+pdb:
+  maxUnavailable: 1
+# Dịch vụ không có API nghiệp vụ: chỉ cổng quản trị (/healthz, /readyz, /metrics).
+ports:
+  http: 8081
+  mgmt: 8081
+tmpSizeLimit: 64Mi
+
+# Tham số lưu trữ. retentionYears theo TL-04 (10 năm); NFR-09 ghi "≥ 10 năm, cần đối chiếu quy định lưu trữ hồ sơ
+# cán bộ" còn TL-03 giữ hồ sơ cán bộ 20 năm: đổi tham số này khi chủ đầu tư chốt (wiki/14).
+archive:
+  topics: [sys.audit.v1]
+  group: audit-archiver
+  # Tuổi tối đa của bản ghi cũ nhất trong lô trước khi ghi: 4 phút để độ trễ sự kiện tới tệp ≤ 5 phút (TL-04).
+  batchWindow: 4m
+  batchMaxRecords: '200000'
+  batchMaxBytes: '67108864'
+  lockMode: COMPLIANCE
+  retentionYears: '10'
+  kafkaBootstrap: kafka-cell-kafka-bootstrap.data-kafka.svc:9093
+  # Secret KafkaUser của Strimzi (INF-10): ca.crt, user.crt, user.key; ACL Read sys.audit.v1, nhóm audit-archiver.
+  kafkaTlsSecret: kafka-audit-archiver-tls
+  # Kho sao lưu phía Nam (INF-17): bucket audit-<cell> bật Object Lock, người dùng S3 audit-archiver chỉ có
+  # PutObject, PutObjectRetention, GetObject, GetObjectRetention, ListBucket (runbook audit-archiver).
+  s3Endpoint: rgw-bk.backup.vt.local:443
+  s3Tls: 'true'
+  s3Region: ''
+  # Rỗng: audit-<global.cell>.
+  s3Bucket: ''
+  openBaoAddr: https://openbao.secure-data.svc:8200
+  transitMount: transit
+  signKey: audit-archiver
+  k8sAuthRole: audit-archiver
+  k8sAuthMount: kubernetes
+  # Rỗng ở production (đăng nhập Kubernetes). Môi trường thử không có vai trò Kubernetes thì trỏ tới tệp token.
+  openBaoTokenFile: ''
+  # Chỉ dùng ở kiểm thử: hạn giữ dạng thời lượng Go (ví dụ 24h) thay cho retentionYears.
+  lockRetention: ''
+  # Pushgateway nhận chỉ số của job kiểm hằng ngày; rỗng thì chỉ ghi nhật ký và mã thoát.
+  pushgatewayUrl: http://prometheus-pushgateway.observability.svc:9091
+
+# Khoá S3 của người dùng audit-archiver lấy từ OpenBao qua External Secrets, gắn dạng tệp.
+externalSecret:
+  enabled: true
+  targetName: audit-archiver-s3
+  data:
+    - secretKey: access-key
+      remoteRef: { key: kv/ceph/backup/audit-archiver, property: access-key }
+    - secretKey: secret-key
+      remoteRef: { key: kv/ceph/backup/audit-archiver, property: secret-key }
+
+extraVolumes:
+  - name: kafka-tls
+    secret: { secretName: kafka-audit-archiver-tls, defaultMode: 0440 }
+  - name: s3
+    secret: { secretName: audit-archiver-s3, defaultMode: 0440 }
+  # Token tài khoản dịch vụ ngắn hạn cho đăng nhập Kubernetes của OpenBao (pod không tự gắn token mặc định).
+  - name: openbao-token
+    projected:
+      sources:
+        - serviceAccountToken: { audience: openbao, expirationSeconds: 3600, path: token }
+extraVolumeMounts:
+  - { name: kafka-tls, mountPath: /etc/vt/kafka, readOnly: true }
+  - { name: s3, mountPath: /etc/vt/s3, readOnly: true }
+  - { name: openbao-token, mountPath: /var/run/secrets/openbao, readOnly: true }
+
+networkPolicy:
+  ingressFrom:
+    - namespace: observability
+      ports:
+        - port: 8081
+  egressTo:
+    - namespace: data-kafka
+      podLabels:
+        strimzi.io/cluster: kafka-cell
+      ports:
+        - port: 9093
+    - namespace: secure-data
+      podLabels:
+        app.kubernetes.io/name: openbao
+      ports:
+        - port: 8200
+    # Kho sao lưu ở TTDL phía Nam, ngoài cụm: đi qua egress gateway như các service ghi kho đối tượng.
+    - namespace: egress
+      podLabels:
+        app.kubernetes.io/name: egress-gateway
+      ports:
+        - port: 443
+      objectStore: true
+
+# Kiểm hằng ngày (TL-04 "Bảng lịch sao lưu": kiểm chữ ký và đếm bản ghi hằng ngày).
+dailyCheck:
+  enabled: true
+  schedule: '30 3 * * *'
+  timeZone: Asia/Ho_Chi_Minh
+  # Cửa sổ chồng hai ngày để mọi mắt xích giữa hai lần chạy đều được kiểm.
+  window: 48h
+  activeDeadlineSeconds: 3600
+  # Đích mạng của Pushgateway (khớp archive.pushgatewayUrl).
+  pushgateway:
+    namespace: observability
+    podLabels: { app.kubernetes.io/name: prometheus-pushgateway }
+    port: 9091
+  resources:
+    requests: { cpu: 250m, memory: 256Mi }
+    limits: { cpu: '1', memory: 512Mi }
+
+alerts:
+  enabled: true
+  runbookBase: https://runbook.vt.local/okr
