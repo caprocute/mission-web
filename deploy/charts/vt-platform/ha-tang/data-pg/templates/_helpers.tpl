@@ -112,3 +112,9 @@ enabled: false
 standby: false
 {{- end }}
 {{- end -}}
+{{/* serverName của cụm trong kho Barman Cloud (INF-17, INF-28): khi bật replica, TTDL khác initdbSite thêm hậu tố
+-<ttdl> để hai TTDL không ghi WAL vào cùng đường dẫn. */}}
+{{- define "data-pg.serverName" -}}
+{{- $v := .root.Values -}}
+{{- if and $v.replica.enabled .site (ne .site $v.replica.initdbSite) }}{{ .ten }}-{{ .site }}{{ else }}{{ .ten }}{{ end -}}
+{{- end -}}

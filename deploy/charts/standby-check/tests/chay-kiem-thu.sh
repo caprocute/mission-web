@@ -56,13 +56,16 @@ for ten in cp:
         assert s["replica"] == {"self": f"{ten}-{site}", "primary": f"{ten}-{pr}", "source": f"{ten}-{sb if site == pr else pr}"}, (ten, site, s["replica"])
         assert sorted(e["name"] for e in s["externalClusters"]) == sorted([f"{ten}-{pr}", f"{ten}-{sb}"])
         assert all(e["connectionParameters"]["sslmode"] == "verify-full" for e in s["externalClusters"])
+        # WAL dự phòng từ kho INF-17: TTDL khởi tạo giữ serverName là tên cụm, TTDL kia thêm hậu tố.
+        assert {e["name"]: e["plugin"]["parameters"]["serverName"] for e in s["externalClusters"]} == {f"{ten}-{pr}": ten, f"{ten}-{sb}": f"{ten}-{sb}"}, (ten, site)
+        assert [p["parameters"]["serverName"] for p in s["plugins"]] == [ten if site == pr else f"{ten}-{sb}"], (ten, site)
     assert "initdb" in cp[ten]["bootstrap"] and cs[ten]["bootstrap"] == {"pg_basebackup": {"source": f"{ten}-{pr}"}}
     assert cp[ten]["storage"] == cs[ten]["storage"] and cp[ten]["resources"] == cs[ten]["resources"], f"{ten}: lớp dữ liệu phải đủ kích thước"
 assert not any(d["kind"] == "Database" for d in S) and any(d["kind"] == "Database" for d in P)
 assert not any(d["kind"] == "Job" and d["metadata"]["name"].startswith("pg-") and "quyen" in d["metadata"]["name"] for d in S)
 k = lambda ds, kind: [d["metadata"]["name"] for d in ds if d["kind"] == kind]
 assert k(S, "KafkaMirrorMaker2") == [f"mm2-{pr}-to-{sb}"] and not k(P, "KafkaMirrorMaker2")
-assert "mm2-nguon" in k(P, "KafkaUser") and "mm2" in k(S, "KafkaUser")
+assert f"mm2-{pr}-user" in k(P, "KafkaUser") and f"mm2-{sb}-user" in k(S, "KafkaUser") and f"mm2-{pr}-user" not in k(S, "KafkaUser")
 assert k(P, "KafkaConnect") and not k(S, "KafkaConnect"), "Debezium chỉ ở TTDL primary"
 z = [n for d in S if d["kind"] == "KafkaNodePool" for n in [d]]
 lt = [l for d in S if d["kind"] == "Kafka" for l in d["spec"]["kafka"]["listeners"]]

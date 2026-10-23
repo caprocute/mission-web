@@ -4,5 +4,5 @@ data-pg:
   replica:
     enabled: true
 kafka:
-  mirrorMaker:
-    enabled: true
+  mirrorMaker2:
+    vaiTro: ttdl
