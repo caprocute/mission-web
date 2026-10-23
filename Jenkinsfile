@@ -135,6 +135,7 @@ spec:
       steps {
         dir('contracts') { sh 'npm run lint' }                 // Redocly lint contracts/openapi
         dir('frontend') { sh 'npm run api:check' }             // kiểu sinh trong @vt/api-client khớp hợp đồng
+        dir('frontend') { sh 'npm run pact:check' }            // QA-02: pact bên tiêu dùng chạy xanh, tệp đã commit khớp
       }
     }
 

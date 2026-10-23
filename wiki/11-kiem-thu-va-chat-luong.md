@@ -11,8 +11,8 @@ Bảng dưới liệt kê các loại kiểm thử theo TL-01 và TL-04, kèm hi
 | Loại | Công cụ | Phạm vi | Hiện trạng |
 |---|---|---|---|
 | Đơn vị | Vitest qua `@angular/build:unit-test`, jsdom | Hàm thuần, service, component | Đã có (WEB-001): spec cho `@vt/design-system`, `@vt/form-engine`, `@vt/api-client` (giả lập), `app.spec.ts` của hai ứng dụng |
-| Hợp đồng | Pact (frontend là bên tiêu dùng) | Hợp đồng frontend với API mission-core | Chưa có |
-| Hợp đồng hệ ngoài | Pact đặc tả v3, tệp hợp đồng trong repo | SVC-13 với vOffice, HRM, LGSP (DV-13-11) | Đã có, chạy trong `mvn verify` của integration-gateway; Pact Broker chờ QA-02 |
+| Hợp đồng | Pact đặc tả v3, tệp hợp đồng trong repo (QA-02, không dựng Pact Broker) | Web với API mission-core; mission-core với org-service | Đã có: `npm run pact` và `npm run pact:check` trong `frontend/`, xác minh phía cung cấp bằng `MissionWebPactIT` (mission-core) và `MissionCorePactIT` (org-service) trong `verify` |
+| Hợp đồng hệ ngoài | Pact đặc tả v3, tệp hợp đồng trong repo | SVC-13 với vOffice, HRM, LGSP (DV-13-11) | Đã có, chạy trong `mvn verify` của integration-gateway; không dùng Pact Broker (quyết định QA-02) |
 | Đầu cuối | Playwright, khoảng 40 hành trình chính | Luồng nghiệp vụ trên trình duyệt thật | Có bộ đối chiếu ma trận phân quyền (WEB-057) và kịch bản luồng chính (WEB-070); danh mục 42 hành trình đã chốt ở QA-01 (mục "Chiến lược kiểm thử toàn hệ thống"), mã hành trình viết ở QA-03..QA-07 |
 | Giao diện theo token | Storybook, Playwright chụp ảnh, axe-core | Component registry × 4 bộ token | Đã có (WEB-005): 6 story × 4 bộ token và chế độ cao tuổi, `npm run test:visual` |
 | Hiệu năng trang | Lighthouse CI, WebPageTest 4G | PERF-21 mỗi bản build | Đã cấu hình (WEB-003), số đo chưa đạt |
@@ -79,7 +79,7 @@ Mọi cổng thất bại đều dừng pipeline. Theo hướng hợp đồng tr
 |---|---|---|
 | Quét bí mật | `gitleaks git --config deploy/web/ci/gitleaks.toml --redact` (main quét toàn lịch sử, nhánh khác quét `origin/main..HEAD`) | Có bí mật thì dừng; giá trị bị che trong log và báo cáo SARIF |
 | Cài phụ thuộc | `npm ci` trong `frontend/` và `contracts/` (song song) | Lệch `package-lock.json` thì dừng |
-| Hợp đồng API | `npm run lint` trong `contracts/` (Redocly), rồi `npm run api:check` | Hợp đồng sai hoặc kiểu sinh lệch hợp đồng |
+| Hợp đồng API | `npm run lint` trong `contracts/` (Redocly), rồi `npm run api:check` và `npm run pact:check` | Hợp đồng sai, kiểu sinh lệch hợp đồng, hoặc pact bên tiêu dùng đỏ hay lệch tệp đã commit |
 | Lint, nội dung giao diện và phân quyền | `npm run lint`; `npm run check:ui-text`; `python3 docs/phan-quyen/gen_matrix.py --check` (cùng lệnh `npm run check:permissions`), chạy song song | Vi phạm ESLint; văn bản giao diện có mã thiết kế, mã trạng thái thô, tên kỹ thuật hoặc ghi chú giải pháp (`AGENTS.md` quy tắc 9); ma trận Markdown, TypeScript lệch `ma-tran.json` |
 | Kiểm thử đơn vị | `npm run test:all` | Một test đỏ |
 | Build | `npm run build:all` | Lỗi build hoặc vượt mức lỗi `budgets` của `angular.json` |
@@ -131,6 +131,18 @@ Kiểm thử hiệu năng PERF-01..PERF-10 cần dữ liệu có hình dạng gi
 
 Một bẫy cần biết khi nạp: PostgreSQL không cho COPY FROM vào bảng bật RLS với vai trò không có BYPASSRLS, còn `svc_` không có quyền TEMP, nên bộ nạp dùng tài khoản quản trị rồi kiểm RLS sau bằng `svc_<schema>`; CELL-PERF cần một vai trò nạp riêng có BYPASSRLS. Ở hệ số 0,01 cell L, sinh mất khoảng 1 phút và nạp khoảng 8 phút; ngoại suy quy mô đầy đủ khoảng 1 giờ 45 phút để sinh và 13 giờ rưỡi để nạp bằng một kết nối, nên phải nạp song song theo tenant và phân vùng. Hồ sơ đánh giá (chờ CORE-04-01) và dữ liệu Flowable (DL-08b) chưa sinh. Chi tiết ở `infra/perf/datagen/README.md`.
 
+## Kiểm thử hợp đồng Pact giữa các phân hệ (QA-02)
+
+QA-02 đưa kiểm thử hợp đồng bên tiêu dùng vào giữa web và mission-core, và giữa mission-core với org-service, theo cùng cách DV-13-11 đã làm cho hệ ngoài: hợp đồng là tệp Pact đặc tả v3 nằm trong repo, không dựng Pact Broker và không có bước `can-i-deploy`. Lý do là cả bên tiêu dùng lẫn bên cung cấp nằm chung một repo và một lần gộp, nên tệp đã commit đóng vai trò "phiên bản hợp đồng"; một thay đổi máy chủ làm lệch trường mà web đọc sẽ làm đỏ kiểm thử bên cung cấp trong chính lần gộp đó. Bước `Pact can-i-deploy` trong `vtJavaPipeline` vẫn để tắt (`pact: false`) và chỉ bật nếu sau này tách repo và dựng Broker.
+
+Quy ước quan trọng nhất là pact chỉ mô tả phần bên tiêu dùng thực sự dùng: yêu cầu mà hàm của client gửi (phương thức, đường dẫn, tham số, header như `If-Match`) và các trường phản hồi mà màn hình đọc, kèm luật so khớp để chỉ ràng buộc kiểu chứ không ràng buộc giá trị mẫu. Không chép toàn bộ OpenAPI vào pact; hợp đồng OpenAPI vẫn là nguồn sự thật (ADR-32) và `api:check`, `openapi-diff`, `ContractConformanceTest` vẫn kiểm phần còn lại. Pact là lưới an toàn bổ sung cho câu hỏi "máy chủ còn trả đúng những gì bên gọi đang đọc không".
+
+Phía web, các tương tác khai ở `frontend/pact/tuong-tac/mission-core.ts`: mỗi mục gọi đúng hàm của `@vt/api-client` (hiện có `TaskApi.myTasks`, `TaskApi.updateProgress`, `OkrApi.myKeyResults`), mô tả yêu cầu và phản hồi bằng bộ dựng luật ở `frontend/pact/khop.ts`, và liệt kê các trường màn hình đọc. Kiểm thử `npm run pact` chạy bằng Vitest với TestBed và `HttpTestingController`: gọi hàm thật, so yêu cầu bắt được với pact, trả phản hồi mẫu, kiểm các trường cần đọc đều có, rồi ghi `frontend/pact/pacts/mission-web-mission-core.json`. `npm run pact:check` chạy cùng kiểm thử nhưng chỉ so với tệp đã commit, lệch thì đỏ; Jenkinsfile của web chạy lệnh này trong stage "Hợp đồng API". `Idempotency-Key` không nằm trong pact vì interceptor của client sinh ngẫu nhiên cho mọi yêu cầu ghi; bên xác minh tự thêm.
+
+Phía mission-core, `MissionWebPactIT` (gói `vn.viettel.okrkpi.contract.pact`, chạy trong `verify` bằng failsafe) dựng ngữ cảnh mission-core trên PostgreSQL Testcontainers, dựng trạng thái theo tên `providerStates` (mỗi tương tác một tenant mới và một kỳ quý đang mở chứa hôm nay, vì màn hình mở lần đầu không ghi kỳ), phát lại yêu cầu qua `MockMvcPactVerifier` rồi so phản hồi bằng `PactMatcher` (bản chép từ integration-gateway). Kiểm thử âm tính đổi tên một trường web đọc và đòi xác minh đỏ. Chiều service với service: `OrgServicePactTest` của mission-core cho `OrgRecoveryKeyClient` gọi vào máy giả lập dựng từ `backend/mission-core/src/test/resources/pacts/mission-core-org-service.json`, còn `MissionCorePactIT` của org-service xác minh cùng tệp, thay header `Authorization` giả lập bằng token dịch vụ ký bằng khoá kiểm thử.
+
+Thêm một tương tác mới gồm ba bước. Thứ nhất, thêm mục vào `tuong-tac/*.ts` (hoặc tệp pact của service tiêu dùng) với tên trạng thái mô tả dữ liệu cần có, chỉ khai các trường đang đọc. Thứ hai, chạy `npm run pact` và commit tệp pact sinh ra. Thứ ba, thêm nhánh dựng trạng thái cùng tên trong lớp `*PactIT` của bên cung cấp; trạng thái chưa có thì xác minh đỏ với thông báo "Chưa có trạng thái". Pact với workflow-service chưa có vì mission-core gọi workflow-service qua saga client riêng, sẽ thêm khi chốt tương tác.
+
 ## Kiểm thử hợp đồng Pact với hệ ngoài (DV-13-11)
 
 integration-gateway (SVC-13) là bên tiêu dùng của mọi hệ ngoài, nên mỗi bộ kết nối có một tệp hợp đồng Pact đặc tả v3 ở `backend/services/integration-gateway/src/test/resources/pacts/integration-gateway-<hệ ngoài>.json`. Tệp mô tả yêu cầu SVC-13 gửi (phương thức, đường dẫn, đủ tham số truy vấn, header) và phần phản hồi SVC-13 thật sự đọc, kèm luật so khớp (`type`, `regex`, `integer`, `number`, `date`, `timestamp`, `null`, `min`) để hợp đồng chỉ ràng buộc dạng dữ liệu chứ không ràng buộc giá trị mẫu. Phản hồi của đối tác được phép có trường thừa, vì đối tác thêm trường không làm vỡ SVC-13; yêu cầu SVC-13 gửi thì không được thừa tham số. Hiện có bốn tệp: vOffice (sáu tương tác REST), tin nhắn văn bản chỉ đạo vOffice đẩy vào (message pact), HRM qua REST (ba tương tác) và LGSP chỉ tiêu kinh tế xã hội (một tương tác).
@@ -165,7 +177,7 @@ Mục này áp cho toàn hệ thống Mission: phân hệ web, mission-core, cá
 | Tích hợp | Testcontainers (PostgreSQL 17, Kafka, Valkey, Keycloak 26, OpenBao, MinIO hoặc S3 giả) | – | task: repository, RLS hai tenant, outbox tới Kafka, consumer idempotent | task, cùng danh mục | task (container cùng loại) | `integration_test` với máy chủ giả lập (task) | cài lên kind hoặc k3d, pod sẵn sàng (task) |
 | Module và kiến trúc | Spring Modulith `verify()`, `@ApplicationModuleTest`, ArchUnit | ranh giới thư viện `@vt/*` (task) | task | ArchUnit (task) | – | – | Kyverno, kiểm ba mô hình phân phối (INF-06) |
 | Hợp đồng API | `openapi-diff`, so khớp phản hồi với OpenAPI | `@vt/api-client` sinh từ hợp đồng | task | task | task | client sinh từ hợp đồng | – |
-| Hợp đồng tiêu dùng | Pact, Pact Broker, `can-i-deploy` | QA-02 (bên tiêu dùng) | QA-02 (bên cung cấp) | QA-02; hệ ngoài DV-13-11 | QA-02 | QA-02 (khi có) | – |
+| Hợp đồng tiêu dùng | Pact bằng tệp trong repo (không Broker) | QA-02 (bên tiêu dùng) | QA-02 (bên cung cấp) | QA-02; hệ ngoài DV-13-11 | QA-02 | QA-02 (khi có) | – |
 | Ca mẫu vàng | bộ ca ký số, đạt 100% | – | Policy Pack, hai engine | scoring-service | – | – | `vtPolicyPackPipeline` |
 | Đầu cuối | Playwright (web); `integration_test` hoặc Patrol (di động, suy luận) | QA-03 khung, QA-04..QA-07 hành trình | qua hành trình | qua hành trình | qua hành trình | bộ MOB | – |
 | Bảo mật | SpotBugs + Find Security Bugs, govulncheck, pip-audit, Semgrep, gitleaks, Trivy; OWASP ZAP, ASVS 4.0.3 | CSP, Trusted Types, ZAP thụ động (QA-13) | task + QA-13 | task + QA-13 | task + QA-13 | Semgrep Dart (INF-06) | Trivy, Kyverno |
@@ -185,7 +197,7 @@ Ngưỡng dưới đây lấy từ TL-01 (J2, J3, J6) và TL-04 mục 9.8. Ngư�
 | Ca mẫu vàng Policy Pack | 100% đạt trên cả hai engine | `runPolicyTests` | phát hành Policy Pack |
 | Lỗi phân tích tĩnh | không có lỗi Blocker, Critical mới; SpotBugs không có lỗi mức cao | SonarQube, SpotBugs | hợp nhất |
 | Lỗ hổng thư viện | không có CVSS ≥ 7,0 chưa có ngoại lệ được duyệt | Trivy, Dependency-Track | hợp nhất |
-| Hợp đồng | không thay đổi phá tương thích; `can-i-deploy` đạt | `openapi-diff`, Pact Broker | hợp nhất, phát hành |
+| Hợp đồng | không thay đổi phá tương thích; pact hai phía đạt | `openapi-diff`, `pact:check`, `*PactIT` | hợp nhất, phát hành |
 | Hành trình đầu cuối | 100% hành trình ở trạng thái `dat` qua | Playwright | phát hành |
 | ZAP | không có cảnh báo High | ZAP quét thụ động và chủ động | phát hành vào staging |
 | ASVS | 100% mục áp dụng ở mức 2; mức 3 cho V2, V3, V6 | bảng tự đánh giá QA-13 | phát hành chính |

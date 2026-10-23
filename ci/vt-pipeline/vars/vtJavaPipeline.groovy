@@ -60,7 +60,7 @@ def call(Map thamSo = [:]) {
             steps { script { kiemHopDong(cfg) } }
           }
           stage('Pact can-i-deploy') {
-            when { expression { return cfg.pact } }   // bật khi QA-02 dựng xong Pact Broker
+            when { expression { return cfg.pact } }   // chỉ khi có Broker; không Broker thì *PactIT chạy trong verify -Pci
             steps { script { kiemPact(cfg) } }
           }
         }
