@@ -1,6 +1,7 @@
 {{- /*
 DL-12 · TL-03 "Đối soát và kiểm tra nhất quán", TL-04 "Quan sát hệ thống": cảnh báo chung của các job đối soát
-trong mission-core (R1 bản sao tổ chức, R3 điểm ↔ ảnh chụp, R7 outbox ↔ Kafka; R4 ở chart scoring-service).
+trong mission-core (R1 bản sao tổ chức, R3 điểm ↔ ảnh chụp, R5 kho phân tích, R7 outbox ↔ Kafka; R4 ở chart scoring-service,
+R6 ở chart evidence-service).
 Chỉ số do thư viện vt-reconcile xuất: mission_reconcile_runs_total{reconcile,status},
 mission_reconcile_mismatches_total{reconcile}, mission_reconcile_repaired_total{reconcile},
 mission_reconcile_last_finished_seconds{reconcile}. Bật mặc định; values.yaml chưa khai khoá reconcile nên mọi
@@ -50,6 +51,13 @@ spec:
           annotations:
             summary: "Đối soát outbox ↔ Kafka chưa chạy xong trong 3 giờ"
             runbook_url: {{ $rb }}/doi-soat-outbox-kafka
+        - alert: MissionDoiSoatR5NgungChay
+          expr: (time() - max(mission_reconcile_last_finished_seconds{reconcile="R5_KHO_PHAN_TICH"})) > 3 * 3600
+          for: 15m
+          labels: { severity: warning, doi: van-hanh-du-lieu }
+          annotations:
+            summary: "Đối soát PostgreSQL ↔ ClickHouse chưa chạy xong trong 3 giờ (chỉ bật khi đã cấu hình mission.reconcile.analytics.url)"
+            runbook_url: {{ $rb }}/doi-soat-kho-phan-tich
         - alert: MissionDoiSoatR1NgungChay
           expr: (time() - max(mission_reconcile_last_finished_seconds{reconcile="R1_BAN_SAO_TO_CHUC"})) > 30 * 3600
           for: 30m
