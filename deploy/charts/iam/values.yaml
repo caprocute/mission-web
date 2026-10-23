@@ -26,8 +26,9 @@ realm:
   # Điểm lệch tên realm (wiki/14): TL-01 `okrkpi`, TL-04 `platform`, dev `mission`. Để là biến, mặc định theo TL-01.
   name: okrkpi
   displayName: Mission
-  # Mã cell, ghi vào thuộc tính realm `mission.cell`.
-  cell: cell-01
+  # Mã cell, ghi vào thuộc tính realm `mission.cell` và phát thành claim `cell`. Phải đúng registry.cell.code của
+  # SVC-03 (nguồn chuẩn, ví dụ CELL-HN), vì cổng API cell (cellCode) và cookie định tuyến so claim với mã này.
+  cell: CELL-G4
   # Production bắt buộc HTTPS mọi kết nối.
   sslRequired: all
 

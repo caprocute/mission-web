@@ -26,7 +26,8 @@ def plugins(obj): return {p["name"]: p["config"] for p in obj["spec"]["plugins"]
 def pcs(ds): return {(o["metadata"]["namespace"], o["metadata"]["name"]): o for o in ds if o["kind"] == "ApisixPluginConfig"}
 
 m0 = docs("m0"); pc = pcs(m0)
-routes = {o["metadata"]["name"]: o for o in m0 if o["kind"] == "ApisixRoute"}
+# Tuyến công khai (DV-01-03, nhãn vt.io/public) không qua protected-api nên không thuộc lớp ưu tiên nào.
+routes = {o["metadata"]["name"]: o for o in m0 if o["kind"] == "ApisixRoute" and "vt.io/public" not in o["metadata"].get("labels", {})}
 nss = {o["metadata"]["namespace"] for o in routes.values()}
 kq(all((ns, n) in pc for ns in nss for n in ("protected-api", "protected-api-p1", "protected-api-p3")),
    f"mỗi namespace có tuyến ({len(nss)}) có đủ ba ApisixPluginConfig theo lớp ưu tiên")
@@ -52,14 +53,17 @@ kq("fault-injection" not in p2 and p2["proxy-rewrite"]["headers"]["set"]["X-Vt-D
 kq(all("vt.io/priority-class" in o["metadata"]["labels"] for o in routes.values()), f"mọi ApisixRoute ({len(routes)}) có nhãn lớp ưu tiên")
 cls = {n: o["metadata"]["labels"]["vt.io/priority-class"] for n, o in routes.items()}
 kq(cls.get("core-submit") == "1" and cls.get("esign") == "1" and cls.get("core-export") == "3" and cls.get("ai") == "3"
-   and cls.get("mission-core") == "2", f"nộp, ký ở lớp 1; nghiệp vụ lớp 2; xuất, AI ở lớp 3: {cls}")
+   and cls.get("analytics") == "3" and cls.get("search") == "3" and cls.get("mission-core") == "2",
+   f"nộp, ký ở lớp 1; nghiệp vụ lớp 2; xuất, AI, phân tích, tìm kiếm ở lớp 3: {cls}")
 def rplug(n): return {p["name"]: p["config"] for p in routes[n]["spec"]["http"][0].get("plugins", [])}
 ex = rplug("core-export")["limit-count"]
 kq((ex["count"], ex["time_window"]) == (10, 60) and routes["core-export"]["spec"]["http"][0]["match"]["methods"] == ["POST"],
    "tầng 3: lệnh xuất 10 lần mỗi phút mỗi người (TL-04), chỉ POST")
 kq(rplug("files-uploads")["client-control"]["max_body_size"] == 16 * 1024 * 1024, "tuyến tải lên: max_body_size 16 MiB theo hợp đồng phần tải lên")
-paths = [p for o in routes.values() for p in o["spec"]["http"][0]["match"]["paths"]]
-kq(not any(p.startswith(("/api/v1/ai/ocr", "/api/v1/esign/seals")) for p in paths), "không công bố thao tác serviceClient (POST /ai/ocr, /esign/seals)")
+# Tuyến chặn (deny, DV-01-03) khớp chính các thao tác serviceClient để trả 404, nên bỏ qua khi kiểm.
+paths = [p for o in routes.values() for h in o["spec"]["http"] if not any(x["name"] == "fault-injection" and x["config"]["abort"]["http_status"] == 404 for x in h.get("plugins", []))
+         for p in h["match"]["paths"]]
+kq(not any(p.startswith(("/api/v1/ai/ocr", "/api/v1/esign/seals")) for p in paths), "không công bố thao tác serviceClient (POST /ai/ocr, /esign/seals) ngoài tuyến chặn 404")
 gr = [o for o in m0 if o["kind"] == "ApisixGlobalRule"][0]; g = plugins(gr)
 cz = json.loads(g["coraza-filter"]["conf"])["directives_map"]["default"]
 kq("SecRuleEngine On" in cz and any("blocking_paranoia_level=2" in x for x in cz) and any("inbound_anomaly_score_threshold=5" in x for x in cz)
@@ -117,7 +121,7 @@ phai_hong() { local mota=$1 mau=$2; shift 2
   if helm template g . -f tests/values-ci.yaml "$@" >/dev/null 2>"$OUT/e"; then hong "$mota: lẽ ra phải thất bại"
   elif grep -q "$mau" "$OUT/e"; then ok "$mota bị từ chối"; else hong "$mota: thông báo không rõ"; cat "$OUT/e"; fi; }
 tuyen() { printf 'classRoutes:\n  - { name: thu, namespace: core, service: s, port: 8080, hosts: ["*.danhgia.vn"], paths: ["/api/v1/thu"], pluginConfig: protected-api, timeout: { connect: 2, send: 10, read: 10 }, %s }\n' "$1" > "$OUT/tuyen.yaml"; }
-tuyen 'priority: 4'; phai_hong "lớp ưu tiên ngoài 1..3" "chỉ nhận 1, 2 hoặc 3" -f "$OUT/tuyen.yaml"
+tuyen 'priorityClass: 4'; phai_hong "lớp ưu tiên ngoài 1..3" "chỉ nhận 1, 2 hoặc 3" -f "$OUT/tuyen.yaml"
 tuyen 'rateLimit: khong-co'; phai_hong "tầng 3 không khai trong routeTiers" "không có trong rateLimit.routeTiers" -f "$OUT/tuyen.yaml"
 if command -v luac >/dev/null || command -v luac5.1 >/dev/null; then
   for f in files/vt-problem.lua files/vt-waf-body.lua; do

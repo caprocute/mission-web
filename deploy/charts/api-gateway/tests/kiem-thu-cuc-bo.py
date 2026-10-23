@@ -133,11 +133,11 @@ if pha == "muc0":
     # WAF chế độ chặn.
     s, h, b = goi("/api/v1/tasks?id=1%27%20OR%20%271%27=%271%27--", token())
     kq(s == 403, f"Coraza chặn SQLi trong query → {s}")
-    s, h, b = goi("/api/v1/catalog/items?q=%3Cscript%3Ealert(1)%3C/script%3E")
+    s, h, b = goi("/api/v1/catalog/items?q=%3Cscript%3Ealert(1)%3C/script%3E", token())
     kq(s == 403, f"Coraza chặn XSS trong query → {s}")
-    s, h, b = goi("/api/v1/catalog/items", None, "POST", {"title": "<script>alert(document.cookie)</script>"})
+    s, h, b = goi("/api/v1/catalog/items", token(), "POST", {"title": "<script>alert(document.cookie)</script>"})
     kq(s == 403, f"Coraza chặn XSS trong thân JSON → {s}")
-    s, h, b = goi("/api/v1/catalog/items", None, "POST", {"note": "x' UNION SELECT password FROM users--"})
+    s, h, b = goi("/api/v1/catalog/items", token(), "POST", {"note": "x' UNION SELECT password FROM users--"})
     kq(s == 403, f"Coraza chặn SQLi trong thân JSON → {s}")
     # Ví dụ request của hợp đồng không bị chặn nhầm.
     tong, chan = 0, []
@@ -155,7 +155,7 @@ elif pha == "valkey-ngung":
     kq(all(s == 200 for s in ss), f"Valkey ngừng: request vẫn qua → {ss}")
 
 elif pha == "phat-hien":
-    s, h, b = goi("/api/v1/catalog/items?q=%3Cscript%3Ealert(1)%3C/script%3E")
+    s, h, b = goi("/api/v1/catalog/items?q=%3Cscript%3Ealert(1)%3C/script%3E", token())
     kq(s == 200, f"chế độ phát hiện (dev): payload XSS không bị chặn, chỉ ghi nhật ký → {s}")
 
 elif pha == "muc1":

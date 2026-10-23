@@ -104,3 +104,28 @@ networkPolicy:
 serviceAccount:
   create: true
   name: ""
+
+# DV-06-11 · TL-01 bảng "Chỉ số giám sát Flowable" (G2): cảnh báo hai ngưỡng và bảng Grafana. Ngưỡng lấy đúng bảng
+# TL-01; đổi theo cell khi đo thực tế (YC-PT-19: chưa đo tải ở giai đoạn này).
+monitoring:
+  alerts:
+    enabled: true
+    runbookBase: https://runbook.vt.local/okr
+    namespace: core
+    thresholds:
+      dueUnlocked: { warning: 2000, critical: 10000 }
+      acquireLagP95Seconds: { warning: 10, critical: 60 }
+      deadletterPerHour: { warning: 10, critical: 100 }
+      optimisticLockingRatio: { warning: 0.005, critical: 0.02 }
+      completeP95Seconds: { warning: 0.3, critical: 0.8 }
+      externalWorkerP95Seconds: { warning: 30, critical: 300 }
+      ruExecutionRows: { warning: 5000000, critical: 10000000 }
+      historyGrowthFactor: { warning: 1.5 }
+      definitionCacheMissRatio: { warning: 0.01, critical: 0.05 }
+      poolUsageRatio: { warning: 0.7, critical: 0.9 }
+      activeDefinitions: { warning: 300, critical: 1000 }
+  dashboard:
+    enabled: true
+    # Nhãn để sidecar Grafana nạp ConfigMap (kube-prometheus-stack mặc định grafana_dashboard="1").
+    label: grafana_dashboard
+    folder: Mission / Workflow

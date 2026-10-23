@@ -4,7 +4,7 @@
 realm:
   name: okrkpi
   displayName: Mission
-  cell: cell-01
+  cell: CELL-01   # thay bằng registry.cell.code của cell (ví dụ CELL-HN)
   sslRequired: all
   web:
     hosts:

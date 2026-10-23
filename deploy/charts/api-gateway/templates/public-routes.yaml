@@ -1,0 +1,43 @@
+{{- /*
+Tuyến công khai (DV-01-03): chỉ dựng từ public-routes.yaml (sinh bởi scripts/sinh-tuyen-cong-khai.py), mỗi dòng là
+một ApisixRoute khớp chính xác đường dẫn và phương thức, không gắn protected-api. Plugin toàn cục (Coraza, header bảo
+mật, request-id) vẫn áp; thêm limit-req theo địa chỉ client vì tuyến không có khoá tenant.
+*/ -}}
+{{- $v := .Values }}
+{{- if eq $v.mode "controller" }}
+{{- range $i, $r := .Files.Get "public-routes.yaml" | fromYamlArray }}
+{{- $u := index $v.publicUpstreams $r.service | default dict }}
+{{- if not $u.service }}{{ fail (printf "api-gateway: publicUpstreams thiếu service %s của tuyến công khai %s" $r.service $r.path) }}{{ end }}
+{{- if regexMatch "[*{}?]" $r.path }}{{ fail (printf "api-gateway: tuyến công khai %s phải khớp chính xác" $r.path) }}{{ end }}
+{{- $name := printf "public-%s-%s" (lower $r.method) (regexReplaceAll "[^a-z0-9]+" (lower $r.path) "-" | trimAll "-") | trunc 63 | trimSuffix "-" }}
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: {{ $name }}
+  namespace: {{ $u.namespace }}
+  labels:
+    vt.io/public: "true"
+spec:
+  http:
+    - name: {{ $name }}
+      priority: 50
+      match:
+        hosts: {{ include "api-gateway.hosts" $ }}
+        paths: [{{ $r.path | quote }}]
+        methods: [{{ $r.method | quote }}]
+      backends:
+        - serviceName: {{ $u.service }}
+          servicePort: {{ $u.port | default 8080 }}
+          resolveGranularity: service
+      plugins:
+        - name: limit-req
+          enable: true
+          config:
+            {{- include "api-gateway.publicLimit" $ | nindent 12 }}
+      timeout:
+        connect: {{ $v.routeDefaults.timeout.connect }}s
+        send: {{ $v.routeDefaults.timeout.send }}s
+        read: {{ $v.routeDefaults.timeout.read }}s
+{{- end }}
+{{- end }}

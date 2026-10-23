@@ -67,6 +67,11 @@ response-rewrite:
       {{- toYaml $v.securityHeaders | nindent 6 }}
 {{ include "api-gateway.problemPlugin" . }}
 prometheus: {}
+# Mã yêu cầu cho mọi tuyến; giữ X-Request-Id client gửi nếu có, trả lại trong phản hồi.
+request-id:
+  header_name: X-Request-Id
+  include_in_response: true
+  algorithm: uuid
 {{- if $v.opentelemetry.enabled }}
 opentelemetry:
   sampler:
@@ -79,6 +84,7 @@ opentelemetry:
 ở api-gateway.pluginConfig (_rate-limit.tpl, DV-01-02). */}}
 {{- define "api-gateway.protectedApi" -}}
 {{- $v := .Values -}}
+{{- if eq $v.oidc.verifier "openid-connect" }}
 openid-connect:
   discovery: {{ include "api-gateway.discovery" . }}
   bearer_only: true
@@ -86,8 +92,30 @@ openid-connect:
   client_id: {{ $v.oidc.clientId }}
   client_secret: $env://APISIX_OIDC_CLIENT_SECRET
   set_userinfo_header: false
+  # Chỉ nhận token ký bằng thuật toán của realm, không nhận alg khác hay none.
+  token_signing_alg_values_expected: {{ $v.oidc.signingAlg }}
+  accept_unsupported_alg: false
+{{- else if ne $v.oidc.verifier "vt-claims" }}
+{{- fail "api-gateway: oidc.verifier chỉ nhận vt-claims hoặc openid-connect" }}
+{{- else if not (has $v.oidc.signingAlg (list "ES256" "ES384" "RS256")) }}
+{{- fail "api-gateway: oidc.signingAlg của vt-claims chỉ nhận ES256, ES384, RS256" }}
+{{- end }}
 vt-claims:
-  required_cell: {{ $v.cell | quote }}
+  required_cell: {{ include "api-gateway.cellCode" . | quote }}
+  tenant_claim: {{ $v.oidc.claims.tenant | quote }}
+  cell_claim: {{ $v.oidc.claims.cell | quote }}
+  {{- if eq $v.oidc.verifier "vt-claims" }}
+  # Kiểm chữ ký JWT qua JWKS của realm (openid-connect của APISIX 3.13 không kiểm được ES256, wiki 14 DV-01-01).
+  verify: true
+  discovery: {{ include "api-gateway.discovery" . }}
+  algorithms: [{{ $v.oidc.signingAlg }}]
+  jwks_ttl: {{ $v.oidc.jwksTtl | int }}
+  {{- end }}
+  {{- if $v.routingCookie.enabled }}
+  # Cookie định tuyến ký HMAC của SVC-03 và APISIX lớp ngoài (DV-01-04).
+  route_cookie:
+    cell_code: {{ include "api-gateway.cellCode" . | quote }}
+  {{- end }}
 {{- end -}}
 
 {{/* Metadata của plugin opentelemetry (APISIX 3.13 đọc collector từ plugin_metadata, không từ plugin_attr). */}}
@@ -97,4 +125,54 @@ resource:
 collector:
   address: {{ .Values.opentelemetry.collector }}
   request_timeout: 3
+{{- end -}}
+
+
+{{/* Mã cell theo registry.cell.code (nguồn chuẩn: SVC-03), ví dụ CELL-HN; mặc định "CELL-" + tên cell viết hoa,
+đúng quy ước displayName của deploy/cells/<cell>/cell.yaml. Claim cell của token và cookie định tuyến so với mã này. */}}
+{{- define "api-gateway.cellCode" -}}
+{{- default (printf "CELL-%s" (upper .Values.cell)) .Values.cellCode -}}
+{{- end -}}
+
+{{/* Tên máy của cổng API cell, phải trùng host của registry.cell.api_base_url (SVC-03); APISIX lớp ngoài chuyển tiếp
+với Host này. Mặc định api.cell-<cell>.okrkpi.vn như dữ liệu registry. */}}
+{{- define "api-gateway.apiHost" -}}
+{{- default (printf "api.cell-%s.okrkpi.vn" (lower .Values.cell)) .Values.cellApiHost -}}
+{{- end -}}
+
+{{/* Host mặc định của mọi tuyến: tên máy cổng cell (registry) cộng các tên miền tenant ở routeDefaults.hosts. */}}
+{{- define "api-gateway.hosts" -}}
+{{- uniq (append (default list .Values.routeDefaults.hosts) (include "api-gateway.apiHost" .)) | toJson -}}
+{{- end -}}
+
+{{/* Danh sách tuyến đã trộn routeDefaults (DV-01-01), dạng JSON để template dùng fromJsonArray. */}}
+{{- define "api-gateway.routes" -}}
+{{- $out := list -}}
+{{- range concat (default list .Values.routes) (default list .Values.classRoutes) (default list .Values.extraRoutes) -}}
+{{- $r := mergeOverwrite (deepCopy $.Values.routeDefaults) (deepCopy .) -}}
+{{- if not .hosts }}{{ $_ := set $r "hosts" (include "api-gateway.hosts" $ | fromJsonArray) }}{{ end -}}
+{{- if and $r.uriRegex (not (regexMatch "^\\^" $r.uriRegex)) }}{{ fail (printf "api-gateway: uriRegex của tuyến %s phải neo ^...$" $r.name) }}{{ end -}}
+{{- $out = append $out $r -}}
+{{- end -}}
+{{- toJson $out -}}
+{{- end -}}
+
+{{/* Thân 404 của tuyến chặn (deny): thao tác chỉ cho client nội bộ không ra cổng ngoài (DV-01-03). */}}
+{{- define "api-gateway.denyAbort" -}}
+http_status: 404
+headers:
+  Content-Type: application/problem+json
+body: {{ dict "type" "about:blank" "title" "Không tìm thấy" "status" 404 | toJson | quote }}
+{{- end -}}
+
+
+{{/* Giới hạn tần suất theo địa chỉ client cho tuyến công khai (không có khoá tenant). */}}
+{{- define "api-gateway.publicLimit" -}}
+rate: {{ .Values.rateLimit.public.rate | int }}
+burst: {{ .Values.rateLimit.public.burst | int }}
+key_type: var
+key: remote_addr
+rejected_code: 429
+nodelay: true
+allow_degradation: true
 {{- end -}}

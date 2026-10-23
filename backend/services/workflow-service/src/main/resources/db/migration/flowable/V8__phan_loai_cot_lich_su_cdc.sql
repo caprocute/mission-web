@@ -1,0 +1,82 @@
+-- DV-06-11 · TL-01 G2 "Lịch sử ACT_HI_* được Debezium đọc sang ClickHouse trước khi dọn" · TL-03 phân loại cột.
+-- Chú thích phân loại cho ba bảng lịch sử mà connector CDC phân tích đọc (analytics/cdc/cdc_config_gen.py dừng khi cột
+-- thiếu chú thích). Văn bản tự do là C2 và mã người là thuộc tính định danh (pii): connector loại các cột này, kho
+-- phân tích chỉ nhận mốc thời gian, mã định nghĩa, phần tử BPMN và khoá nghiệp vụ. Không đổi cấu trúc bảng.
+
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.id_ IS '{"cls": "C1", "desc": "Mã bản ghi lịch sử tiến trình"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.rev_ IS '{"cls": "C1", "desc": "Phiên bản dòng"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.proc_inst_id_ IS '{"cls": "C1", "desc": "Mã tiến trình"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.business_key_ IS '{"cls": "C1", "desc": "Khoá nghiệp vụ dạng loại:mã"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.proc_def_id_ IS '{"cls": "C1", "desc": "Mã định nghĩa (khoá:phiên bản:mã)"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.start_time_ IS '{"cls": "C1", "desc": "Thời điểm bắt đầu"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.end_time_ IS '{"cls": "C1", "desc": "Thời điểm kết thúc"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.duration_ IS '{"cls": "C1", "desc": "Thời lượng (ms)"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.start_user_id_ IS '{"cls": "C1", "pii": true, "desc": "Người khởi tạo"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.start_act_id_ IS '{"cls": "C1", "desc": "Phần tử bắt đầu"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.end_act_id_ IS '{"cls": "C1", "desc": "Phần tử kết thúc"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.super_process_instance_id_ IS '{"cls": "C1", "desc": "Tiến trình cha"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.delete_reason_ IS '{"cls": "C2", "desc": "Lý do huỷ, văn bản tự do"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.tenant_id_ IS '{"cls": "C1", "desc": "Tenant"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.name_ IS '{"cls": "C2", "desc": "Tên tiến trình, có thể chứa nội dung nghiệp vụ"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.callback_id_ IS '{"cls": "C1", "desc": "Mã gọi lại"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.callback_type_ IS '{"cls": "C1", "desc": "Loại gọi lại"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.reference_id_ IS '{"cls": "C1", "desc": "Mã tham chiếu"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.reference_type_ IS '{"cls": "C1", "desc": "Loại tham chiếu"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.propagated_stage_inst_id_ IS '{"cls": "C1", "desc": "Giai đoạn lan truyền"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_procinst.business_status_ IS '{"cls": "C1", "desc": "Trạng thái nghiệp vụ"}';
+
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_actinst.id_ IS '{"cls": "C1", "desc": "Mã bản ghi"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_actinst.rev_ IS '{"cls": "C1", "desc": "Phiên bản dòng"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_actinst.proc_def_id_ IS '{"cls": "C1", "desc": "Mã định nghĩa"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_actinst.proc_inst_id_ IS '{"cls": "C1", "desc": "Mã tiến trình"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_actinst.execution_id_ IS '{"cls": "C1", "desc": "Mã nhánh thực thi"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_actinst.act_id_ IS '{"cls": "C1", "desc": "Mã phần tử BPMN"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_actinst.task_id_ IS '{"cls": "C1", "desc": "Mã user task"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_actinst.call_proc_inst_id_ IS '{"cls": "C1", "desc": "Tiến trình con được gọi"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_actinst.act_name_ IS '{"cls": "C1", "desc": "Tên phần tử theo mẫu luồng"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_actinst.act_type_ IS '{"cls": "C1", "desc": "Loại phần tử"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_actinst.assignee_ IS '{"cls": "C1", "pii": true, "desc": "Người xử lý"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_actinst.completed_by_ IS '{"cls": "C1", "pii": true, "desc": "Người hoàn thành"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_actinst.start_time_ IS '{"cls": "C1", "desc": "Thời điểm bắt đầu"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_actinst.end_time_ IS '{"cls": "C1", "desc": "Thời điểm kết thúc"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_actinst.transaction_order_ IS '{"cls": "C1", "desc": "Thứ tự trong giao dịch"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_actinst.duration_ IS '{"cls": "C1", "desc": "Thời lượng (ms)"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_actinst.delete_reason_ IS '{"cls": "C2", "desc": "Lý do huỷ, văn bản tự do"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_actinst.tenant_id_ IS '{"cls": "C1", "desc": "Tenant"}';
+
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.id_ IS '{"cls": "C1", "desc": "Mã user task"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.rev_ IS '{"cls": "C1", "desc": "Phiên bản dòng"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.proc_def_id_ IS '{"cls": "C1", "desc": "Mã định nghĩa"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.task_def_id_ IS '{"cls": "C1", "desc": "Mã định nghĩa task"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.task_def_key_ IS '{"cls": "C1", "desc": "Khoá task theo mẫu luồng"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.proc_inst_id_ IS '{"cls": "C1", "desc": "Mã tiến trình"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.execution_id_ IS '{"cls": "C1", "desc": "Mã nhánh thực thi"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.scope_id_ IS '{"cls": "C1", "desc": "Mã phạm vi"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.sub_scope_id_ IS '{"cls": "C1", "desc": "Mã phạm vi con"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.scope_type_ IS '{"cls": "C1", "desc": "Loại phạm vi"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.scope_definition_id_ IS '{"cls": "C1", "desc": "Định nghĩa phạm vi"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.propagated_stage_inst_id_ IS '{"cls": "C1", "desc": "Giai đoạn lan truyền"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.state_ IS '{"cls": "C1", "desc": "Trạng thái task"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.name_ IS '{"cls": "C1", "desc": "Tên task theo mẫu luồng"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.parent_task_id_ IS '{"cls": "C1", "desc": "Task cha"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.description_ IS '{"cls": "C2", "desc": "Mô tả, văn bản tự do"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.owner_ IS '{"cls": "C1", "pii": true, "desc": "Người sở hữu"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.assignee_ IS '{"cls": "C1", "pii": true, "desc": "Người được giao"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.start_time_ IS '{"cls": "C1", "desc": "Thời điểm tạo"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.in_progress_time_ IS '{"cls": "C1", "desc": "Thời điểm bắt đầu xử lý"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.in_progress_started_by_ IS '{"cls": "C1", "pii": true, "desc": "Người bắt đầu xử lý"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.claim_time_ IS '{"cls": "C1", "desc": "Thời điểm nhận"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.claimed_by_ IS '{"cls": "C1", "pii": true, "desc": "Người nhận"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.suspended_time_ IS '{"cls": "C1", "desc": "Thời điểm tạm dừng"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.suspended_by_ IS '{"cls": "C1", "pii": true, "desc": "Người tạm dừng"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.end_time_ IS '{"cls": "C1", "desc": "Thời điểm kết thúc"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.completed_by_ IS '{"cls": "C1", "pii": true, "desc": "Người hoàn thành"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.duration_ IS '{"cls": "C1", "desc": "Thời lượng (ms)"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.delete_reason_ IS '{"cls": "C2", "desc": "Lý do huỷ, văn bản tự do"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.priority_ IS '{"cls": "C1", "desc": "Độ ưu tiên"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.in_progress_due_date_ IS '{"cls": "C1", "desc": "Hạn bắt đầu xử lý"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.due_date_ IS '{"cls": "C1", "desc": "Hạn xử lý"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.form_key_ IS '{"cls": "C1", "desc": "Khoá biểu mẫu"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.category_ IS '{"cls": "C1", "desc": "Nhóm task"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.tenant_id_ IS '{"cls": "C1", "desc": "Tenant"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.act_hi_taskinst.last_updated_time_ IS '{"cls": "C1", "desc": "Cập nhật gần nhất"}';

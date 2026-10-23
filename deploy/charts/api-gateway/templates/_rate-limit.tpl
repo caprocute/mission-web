@@ -3,15 +3,10 @@ Giới hạn tần suất ba tầng, lớp ưu tiên và cắt tải (DV-01-02; 
 "Hành vi khi bão hoà"; TL-01 mục 12.5, 14.5).
 */}}
 
-{{/* Mọi tuyến: tuyến module (routes) và tuyến theo lớp ưu tiên (classRoutes), dạng JSON để dùng với fromJsonArray. */}}
-{{- define "api-gateway.allRoutes" -}}
-{{- concat (default list .Values.routes) (default list .Values.classRoutes) | toJson -}}
-{{- end -}}
-
-{{/* Lớp ưu tiên của tuyến ("1", "2", "3"). Tham số: dict root, route. */}}
+{{/* Lớp ưu tiên của tuyến ("1", "2", "3"), trường priorityClass; trường priority là độ ưu tiên khớp tuyến của APISIX. Tham số: dict root, route. */}}
 {{- define "api-gateway.routeClass" -}}
-{{- $c := toString (default .root.Values.priority.defaultClass .route.priority) -}}
-{{- if not (has $c (list "1" "2" "3")) }}{{ fail (printf "api-gateway: tuyến %s có priority %s, chỉ nhận 1, 2 hoặc 3" .route.name $c) }}{{ end -}}
+{{- $c := toString (default .root.Values.priorityClasses.defaultClass .route.priorityClass) -}}
+{{- if not (has $c (list "1" "2" "3")) }}{{ fail (printf "api-gateway: tuyến %s có priorityClass %s, chỉ nhận 1, 2 hoặc 3" .route.name $c) }}{{ end -}}
 {{- $c -}}
 {{- end -}}
 
@@ -109,10 +104,10 @@ workflow:
     {{- end }}
 {{- end }}
 limit-conn:
-  {{- $pc := index $v.priority.classes $class }}
+  {{- $pc := index $v.priorityClasses.classes $class }}
   conn: {{ $pc.conn | int }}
   burst: {{ $pc.burst | int }}
-  default_conn_delay: {{ $v.priority.defaultConnDelay }}
+  default_conn_delay: {{ $v.priorityClasses.defaultConnDelay }}
   key_type: var
   key: vt_tenant
   rejected_code: 503

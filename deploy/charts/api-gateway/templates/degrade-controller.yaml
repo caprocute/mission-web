@@ -80,7 +80,7 @@ spec:
         app.kubernetes.io/name: apisix-degrade-controller
         {{- include "api-gateway.labels" . | nindent 8 }}
       annotations:
-        checksum/levels: {{ include "api-gateway.allRoutes" . | cat (toJson $v.rateLimit) (toJson $v.priority) (toJson $v.degrade) | sha256sum }}
+        checksum/levels: {{ include "api-gateway.routes" . | cat (toJson $v.rateLimit) (toJson $v.priorityClasses) (toJson $v.degrade) | sha256sum }}
         checksum/script: {{ .Files.Get "files/degrade-controller.py" | sha256sum }}
     spec:
       serviceAccountName: apisix-degrade-controller

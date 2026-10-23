@@ -1,0 +1,37 @@
+# Fixture âm tính DV-01-03: tuyến không gắn protected-api, không có trong public-routes.yaml; kiểm tra phải hỏng.
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata: { name: lo-khong-xac-thuc, namespace: core }
+spec:
+  http:
+    - name: lo-khong-xac-thuc
+      match: { hosts: ["*.danhgia.vn"], paths: ["/api/v1/tasks*"] }
+      backends: [{ serviceName: mission-core, servicePort: 8080 }]
+---
+# Tuyến công khai dạng tiền tố: dù trùng đầu đường dẫn JWKS vẫn không được nhận (chỉ khớp chính xác).
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata: { name: cong-khai-tien-to, namespace: platform }
+spec:
+  http:
+    - name: cong-khai-tien-to
+      match: { hosts: ["*.danhgia.vn"], paths: ["/.well-known/*"], methods: [GET] }
+      backends: [{ serviceName: integration-gateway, servicePort: 8080 }]
+---
+# protected-api bị bỏ plugin kiểm token.
+apiVersion: apisix.apache.org/v2
+kind: ApisixPluginConfig
+metadata: { name: protected-api, namespace: workers }
+spec:
+  plugins:
+    - { name: vt-claims, enable: true, config: { required_cell: g4 } }
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata: { name: protected-rong, namespace: workers }
+spec:
+  http:
+    - name: protected-rong
+      match: { hosts: ["*.danhgia.vn"], paths: ["/api/v1/appraisals/score-preview"] }
+      backends: [{ serviceName: scoring-service, servicePort: 8080 }]
+      plugin_config_name: protected-api
