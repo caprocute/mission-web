@@ -13,8 +13,8 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **285 / 408 task (69.9%)** — Khối lượng quy đổi đã gộp: **327 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **289 / 408 task (70.8%)** (gồm **285** đã gộp `main` + **4** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **4 task** (1 đang làm, 3 làm một phần).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **290 / 408 task (71.1%)** (gồm **285** đã gộp `main` + **5** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **3 task** (1 đang làm, 2 làm một phần).
 - **Chưa bắt đầu**: **115 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **18 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-10`** (đang xử lý trên nhánh: không).
 
@@ -24,7 +24,7 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **68** | 0 | 1 | 3 | **94.4%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **89** | 4 | 2 | 22 | **76.1%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **89** | 5 | 1 | 22 | **76.1%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **61** | 0 | 1 | 42 | **58.7%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **12** | 0 | 0 | 1 | **92.3%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
@@ -32,7 +32,7 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **285** | **4** | **4** | **115** | **69.9%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **285** | **5** | **3** | **115** | **69.9%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -42,7 +42,7 @@
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **44** | 0 | 0 | 3 | **93.6%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **75** | 1 | 2 | 42 | **62.5%** |
-| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **53** | 3 | 1 | 15 | **73.6%** |
+| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **53** | 4 | 0 | 15 | **73.6%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **16** | 0 | 1 | 25 | **38.1%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **3** | 0 | 0 | 20 | **13.0%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **1** | 0 | 0 | 3 | **25.0%** |
@@ -328,7 +328,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-06-07](docs/tasks/CORE-06-07-ky-khoa-goi.md) | Manifest SHA-256, danh sách kiểm tra, ký gói, khoá `DA_NOP`, phiên bản gói mới khi EVT-22 | M | B4 | 21 | CORE-06-06, DV-10-02 | **Chưa bắt đầu** |  |
 | [CORE-06-08](docs/tasks/CORE-06-08-xuat-goi-edxml.md) | Xuất gói ZIP có manifest ký và gửi gói con diện Trung ương qua EdXML | M | B4 | 22 | CORE-06-07, DV-13-05 | **Chưa bắt đầu** |  |
 
-### CORE-07 · MOD-07 oversight: khiếu nại, hậu kiểm, cảnh báo (4/12 đã gộp `main`, 3 chờ gộp, 1 đang làm)
+### CORE-07 · MOD-07 oversight: khiếu nại, hậu kiểm, cảnh báo (4/12 đã gộp `main`, 4 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -338,7 +338,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-07-04](docs/tasks/CORE-07-04-giai-trinh-ket-luan.md) | Yêu cầu giải trình, timer hạn, kết luận, văn bản trả lời có ký, tạo yêu cầu mở lại | L | B4 | 22 | CORE-07-03, DV-07-08, CORE-07-07 | **Chưa bắt đầu** |  |
 | [CORE-07-05](docs/tasks/CORE-07-05-bao-luu-tu-dong.md) | Bảo lưu, tự đóng, nhật ký giải mã, gợi ý khiếu nại trùng | S | B4 | 23 | CORE-07-04, CORE-00-05 | **Chưa bắt đầu** |  |
 | [CORE-07-06](docs/tasks/CORE-07-06-ma-hoa-dau-cuoi-c3.md) | Mã hoá đầu cuối C3 phía máy chủ: lưu bản mã, khoá công khai người nhận, bọc khoá, phục hồi tổ chức Shamir | L | B4 | 21 | CORE-07-02, NEN-015, NEN-042 | **Xong, chờ gộp** | Nhánh claude/project-thread-z7s8x3: đủ A-D, ma trận quyền, đồng bộ khoá phục hồi, nạp bản bọc sau phục hồi, chặn tải bản mã C3 ở SVC-08; đã qua build & test |
-| [CORE-07-07](docs/tasks/CORE-07-07-yeu-cau-mo-lai.md) | Yêu cầu mở lại kỳ và mô phỏng ảnh hưởng | M | B4 | 18 | CORE-07-01, DV-07-08 | **Làm một phần** | Phần lõi đã gộp main (8d459e44); mô phỏng chờ DV-07-08 |
+| [CORE-07-07](docs/tasks/CORE-07-07-yeu-cau-mo-lai.md) | Yêu cầu mở lại kỳ và mô phỏng ảnh hưởng | M | B4 | 18 | CORE-07-01, DV-07-08 | **Xong, chờ gộp** | Nhánh claude/project-thread-z7s8x3: adapter HTTP simulateAppraisalScore cho ReopenImpactSimulator, thêm inspector vào simulateAppraisalScore, đã qua build & test |
 | [CORE-07-08](docs/tasks/CORE-07-08-bon-mat-phe-duyet.md) | Bốn mắt: chọn hai người duyệt qua OPA, phê duyệt có step-up và ký số, EVT-22 | M | B4 | 19 | CORE-07-07, NEN-040, DV-10-02, DV-06-04 | **Đã gộp main** | Đã gộp main (984a7ba1) |
 | [CORE-07-09](docs/tasks/CORE-07-09-dieu-phoi-tinh-lai.md) | Điều phối tính lại, sinh lại, ký lại sau EVT-22; hậu kiểm có bằng chứng sổ cái | M | B4 | 20 | CORE-07-08, CORE-08-06, DV-09-05 | **Xong, chờ gộp** | Nhánh claude/project-thread-z7s8x3: điều phối tính lại, sinh lại, ký lại sau EVT-22, migration oversight V5, đã qua build & test; phần sổ cái chứng cứ chờ DV-09 |
 | [CORE-07-10](docs/tasks/CORE-07-10-tiep-nhan-canh-bao.md) | Cảnh báo bất thường: consumer EVT-20, chống trùng, gộp, hành động tự động, cờ chặn minh chứng | M | B4 | 12 | CORE-07-01, DV-15-07 | **Đã gộp main** | Đã gộp main (ad623eff) |
@@ -982,4 +982,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 01:43 | B9 | `CORE-07-06` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: đủ A-D, ma trận quyền, đồng bộ khoá phục hồi, nạp bản bọc sau phục hồi, chặn tải bản mã C3 ở SVC-08; đã qua build & test |
 | 23/10/2026 01:44 | B9 | `CORE-07-09` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-z7s8x3: phần lõi điều phối sau EVT-22; bằng chứng sổ cái chờ DV-09 |
 | 23/10/2026 01:57 | B9 | `CORE-07-09` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: điều phối tính lại, sinh lại, ký lại sau EVT-22, migration oversight V5, đã qua build & test; phần sổ cái chứng cứ chờ DV-09 |
+| 23/10/2026 01:57 | B9 | `CORE-07-07` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-z7s8x3: adapter HTTP mô phỏng điểm cho ReopenImpactSimulator |
+| 23/10/2026 02:15 | B9 | `CORE-07-07` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: adapter HTTP simulateAppraisalScore cho ReopenImpactSimulator, thêm inspector vào simulateAppraisalScore, đã qua build & test |
 <!-- PROGRESS_LOG_END -->

@@ -34,6 +34,7 @@ import vn.viettel.okrkpi.oversight.application.reopen.ReopenFollowUpService;
 import vn.viettel.okrkpi.oversight.application.reopen.ReopenRequestService;
 import vn.viettel.okrkpi.oversight.infrastructure.client.EsignApprovalSigner;
 import vn.viettel.okrkpi.oversight.infrastructure.client.ModuleApproverDirectory;
+import vn.viettel.okrkpi.oversight.infrastructure.client.ScoringReopenImpactSimulator;
 import vn.viettel.okrkpi.oversight.infrastructure.listener.ReopenSignedListener;
 import vn.viettel.okrkpi.oversight.infrastructure.scheduling.ReopenExecutionJob;
 import vn.viettel.okrkpi.oversight.infrastructure.web.OversightIdempotency;
@@ -45,6 +46,7 @@ import vn.viettel.okrkpi.shared.inbox.InboxPayloadDeserializer;
 import vn.viettel.okrkpi.shared.inbox.InboxProperties;
 import vn.viettel.okrkpi.shared.inbox.InboxRetryDlqPublisher;
 import vn.viettel.okrkpi.shared.infrastructure.esign.EsignRequestClient;
+import vn.viettel.okrkpi.shared.infrastructure.scoring.ScoringSimulationClient;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.outbox.ApicurioPayloadSerializer;
 import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer;
@@ -55,7 +57,9 @@ import vn.vtokr.esign.v1.KySoDaHoanTat;
 /**
  * Yêu cầu mở lại kỳ (CORE-07-07): kho JDBC trên {@code oversightDataSource}, dịch vụ ứng dụng, sổ
  * cái qua {@code oversight.outbox_event} và Idempotency-Key trên {@code oversight.idempotency_key}.
- * Bộ mô phỏng {@link ReopenImpactSimulator} là bean tuỳ chọn (DV-07-08).
+ * Bộ mô phỏng {@link ReopenImpactSimulator} là bean tuỳ chọn; không có bean thì gọi {@code
+ * simulateAppraisalScore} của SVC-07 (DV-07-08) khi đặt {@code mission.oversight.scoring.base-url},
+ * nếu không thì tính thử trả 503.
  */
 @Configuration(proxyBeanMethods = false)
 public class ReopenRequestConfiguration {
@@ -112,6 +116,8 @@ public class ReopenRequestConfiguration {
       ObjectProvider<WorkingCalendarApi> calendar,
       ObjectProvider<AccessDirectory> directory,
       ObjectProvider<ReopenImpactSimulator> simulator,
+      @Value("${mission.oversight.scoring.base-url:}") String scoringUrl,
+      @Value("${mission.oversight.scoring.timeout:PT5S}") java.time.Duration scoringTimeout,
       @Qualifier("oversightDataSource") DataSource dataSource,
       @Value("${mission.oversight.outbox.registry-url:${okrkpi.inbox.registry.url:}}")
           String registry,
@@ -123,7 +129,12 @@ public class ReopenRequestConfiguration {
         calendar.getIfAvailable(),
         directory.getIfAvailable(),
         new OutboxOversightAudit(outbox(dataSource, registry, serializer, json)),
-        simulator.getIfAvailable(),
+        simulator.getIfAvailable(
+            () ->
+                scoringUrl == null || scoringUrl.isBlank()
+                    ? null
+                    : new ScoringReopenImpactSimulator(
+                        new ScoringSimulationClient(scoringUrl, scoringTimeout))),
         java.time.Clock.systemUTC(),
         approvals);
   }

@@ -15,18 +15,38 @@ public interface ReopenImpactSimulator {
 
   Impact simulate(TenantId tenant, Request request);
 
-  /** Phạm vi cần tính: hồ sơ ({@code HO_SO}), đơn vị ({@code DON_VI}) hoặc cả kỳ. */
+  /**
+   * Phạm vi cần tính: hồ sơ ({@code HO_SO}), đơn vị ({@code DON_VI}) hoặc cả kỳ. {@code
+   * authorization} là header của người gọi để dịch vụ tính điểm kiểm quyền theo người dùng, có thể
+   * {@code null}; không in ra {@link #toString()}.
+   */
   record Request(
       UUID periodId,
       ReopenScope scope,
       List<UUID> scopeIds,
       List<UUID> profileIds,
-      List<Adjustment> adjustments) {
+      List<Adjustment> adjustments,
+      String authorization) {
 
     public Request {
       scopeIds = List.copyOf(scopeIds);
       profileIds = List.copyOf(profileIds);
       adjustments = List.copyOf(adjustments);
+    }
+
+    public Request(
+        UUID periodId,
+        ReopenScope scope,
+        List<UUID> scopeIds,
+        List<UUID> profileIds,
+        List<Adjustment> adjustments) {
+      this(periodId, scope, scopeIds, profileIds, adjustments, null);
+    }
+
+    @Override
+    public String toString() {
+      return "Request[periodId=%s, scope=%s, profiles=%d, adjustments=%d]"
+          .formatted(periodId, scope, profileIds.size(), adjustments.size());
     }
   }
 

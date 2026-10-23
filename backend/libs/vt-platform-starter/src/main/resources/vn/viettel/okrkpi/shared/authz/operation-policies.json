@@ -10281,18 +10281,21 @@
       "path": "/appraisals/profiles/{id}/simulate",
       "owner": "SVC-07",
       "qt": [
-        "QT-12"
+        "QT-12",
+        "QT-13"
       ],
       "scr": [
-        "SCR-1202"
+        "SCR-1202",
+        "SCR-1301"
       ],
       "roles": [
-        "appraiser"
+        "appraiser",
+        "inspector"
       ],
-      "scope": "Gn",
+      "scope": "Gn (appraiser), Tn (inspector)",
       "aal": 1,
       "fourEyes": false,
-      "source": "TL-02b SCR-1202 \"Tính thử\""
+      "source": "TL-02b SCR-1202 \"Tính thử\"; QT-13 bước 4 tính thử ảnh hưởng mở lại kỳ (CORE-07-07)"
     },
     {
       "operationId": "simulateReopenRequest",
