@@ -536,7 +536,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DL-06](docs/tasks/DL-06-ui-pack-mac-dinh.md) | UI Pack mặc định, bộ token người cao tuổi, danh mục công việc mẫu theo khối | M | B11 | 18 | CORE-08-11, CORE-02-04 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DL-07](docs/tasks/DL-07-du-lieu-khoi-tao.md) | Dữ liệu khởi tạo: 9 khối đối tượng, lịch nghỉ lễ quốc gia, danh mục chức danh | S | B11 | 13 | DV-04-01, CORE-08-04 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DL-08](docs/tasks/DL-08-sinh-du-lieu-thu-tai.md) | Bộ sinh dữ liệu thử quy mô (1,2 triệu hồ sơ một cell) cho kiểm thử hiệu năng | M | B9 | 13 | CORE-04-01, CORE-02-02, DV-04-01, CORE-03-01 | **Đã gộp main** | Gộp main 22/10 |
-| [DL-12](docs/tasks/DL-12-job-doi-soat.md) | Job đối soát R1–R8 và bốn job kiểm tra sổ cái | L | B11 | 14 | CORE-04-02, DV-09-04, DV-15-02 | **Đang làm** | Nhánh claude/project-thread-x87cen: DL-12a xong (vt-reconcile, R1, R7, CronJob, cảnh báo, runbook), đã qua build & test; còn DL-12b, DL-12c |
+| [DL-12](docs/tasks/DL-12-job-doi-soat.md) | Job đối soát R1–R8 và bốn job kiểm tra sổ cái | L | B11 | 14 | CORE-04-02, DV-09-04, DV-15-02 | **Đang làm** | Nhánh claude/project-thread-x87cen: DL-12a (khung, R1, R7) và DL-12b (R3 chặn ký số, R4 tái lập) xong, build và IT xanh; R2 chờ DV-09-04; còn DL-12c (R5, R6, bốn kiểm tra sổ cái) |
 | [DL-13](docs/tasks/DL-13-luu-giu-xoa-mat-ma.md) | Lưu giữ, lưu trữ lạnh, giữ pháp lý, xoá bằng mật mã theo bảy lớp lưu giữ | M | B11 | 13 | NEN-015, INF-18, CORE-08-07 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DL-14](docs/tasks/DL-14-xoay-vong-dek-kek.md) | Xoay vòng DEK định kỳ và bọc lại khoá theo KEK mới | M | B11 | 7 | NEN-015, INF-13 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DL-15](docs/tasks/DL-15-an-danh-hoa-phi-san-xuat.md) | Tác vụ ẩn danh hoá dữ liệu cho môi trường phi sản xuất (`anonymize`) | M | B11 | 14 | NEN-015, DL-08, NEN-005, NEN-006 | **Đã gộp main** | Gộp main 2026-10-22 |
@@ -971,4 +971,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 23:24 | B7 | `CORE-07-11` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen (67c312b5): danh sách, chi tiết, hành động xử lý cảnh báo; đã qua build & test |
 | 22/10/2026 23:24 | B7 | `DL-12` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-x87cen: đang làm DL-12a (khung, R1, R7) |
 | 22/10/2026 23:57 | B7 | `DL-12` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-x87cen: DL-12a xong (vt-reconcile, R1, R7, CronJob, cảnh báo, runbook), đã qua build & test; còn DL-12b, DL-12c |
+| 23/10/2026 00:25 | B7 | `DL-12` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-x87cen: DL-12a (khung, R1, R7) và DL-12b (R3 chặn ký số, R4 tái lập) xong, build và IT xanh; R2 chờ DV-09-04; còn DL-12c (R5, R6, bốn kiểm tra sổ cái) |
 <!-- PROGRESS_LOG_END -->

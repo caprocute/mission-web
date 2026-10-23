@@ -1,6 +1,6 @@
 {{- /*
 DL-12 · TL-03 "Đối soát và kiểm tra nhất quán", TL-04 "Quan sát hệ thống": cảnh báo chung của các job đối soát
-trong mission-core (R1 bản sao tổ chức, R7 outbox ↔ Kafka; R2–R6 dùng cùng chỉ số khi DL-12b, DL-12c nối vào).
+trong mission-core (R1 bản sao tổ chức, R3 điểm ↔ ảnh chụp, R7 outbox ↔ Kafka; R4 ở chart scoring-service).
 Chỉ số do thư viện vt-reconcile xuất: mission_reconcile_runs_total{reconcile,status},
 mission_reconcile_mismatches_total{reconcile}, mission_reconcile_repaired_total{reconcile},
 mission_reconcile_last_finished_seconds{reconcile}. Bật mặc định; values.yaml chưa khai khoá reconcile nên mọi
@@ -36,6 +36,13 @@ spec:
           annotations:
             summary: "Đối soát {{ "{{ $labels.reconcile }}" }} đã tự phát lại {{ "{{ $value | humanize }}" }} dòng trong 2 giờ qua"
             runbook_url: {{ $rb }}/doi-soat
+        - alert: MissionDoiSoatR3ChanKySo
+          expr: sum(increase(mission_reconcile_mismatches_total{reconcile="R3_DIEM_ANH_CHUP"}[1h])) > 0
+          labels: { severity: critical, doi: van-hanh-du-lieu }
+          annotations:
+            summary: "Ảnh chụp điểm lệch kết quả tính: ký số các hồ sơ liên quan đang bị chặn"
+            description: "Tra appraisal.reconcile_run job R3_DIEM_ANH_CHUP có status LOI; detail.profiles là các hồ sơ bị chặn ký."
+            runbook_url: {{ $rb }}/doi-soat-diem-anh-chup
         - alert: MissionDoiSoatR7NgungChay
           expr: (time() - max(mission_reconcile_last_finished_seconds{reconcile="R7_OUTBOX_KAFKA"})) > 3 * 3600
           for: 15m
