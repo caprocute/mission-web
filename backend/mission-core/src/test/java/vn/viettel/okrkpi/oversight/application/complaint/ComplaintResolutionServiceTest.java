@@ -84,6 +84,7 @@ class ComplaintResolutionServiceTest {
   private final List<UUID> reopened = new ArrayList<>();
   private final List<UUID> signed = new ArrayList<>();
   private Clock clock;
+  private FakeSealer sealer = new FakeSealer();
   private ComplaintService filing;
   private ComplaintResolutionService service;
   private UUID profileId;
@@ -92,6 +93,7 @@ class ComplaintResolutionServiceTest {
   void setUp() {
     repo = new FakeComplaints();
     process = new FakeProcess();
+    process.complaints = repo;
     profiles = new FakeProfiles(unit);
     profileId = profiles.add(complainant, "KHIEU_NAI", NOW.minusSeconds(86_400));
     profiles.participants.put(
@@ -133,7 +135,7 @@ class ComplaintResolutionServiceTest {
             profiles,
             periods,
             null,
-            new FakeSealer(),
+            sealer,
             null,
             sink,
             (tenant, actor, action, type, id, purpose, role) -> audits.add(action),
@@ -148,7 +150,7 @@ class ComplaintResolutionServiceTest {
             (tenant, role, unitId, at) ->
                 "manager".equals(role) && unit.equals(unitId) ? List.of(manager) : List.of(),
             null,
-            new FakeSealer(),
+            sealer,
             withSigner
                 ? (tenant, id, key, auth) -> {
                   UUID s = UUID.randomUUID();
@@ -610,7 +612,8 @@ class ComplaintResolutionServiceTest {
     assertThat(c(c).status()).isEqualTo(ComplaintStatus.DA_TRA_LOI);
     assertThat(events).containsExactly("KHIEU_NAI_DA_TRA_LOI:DA_TRA_LOI");
     assertThat(recipients.get(recipients.size() - 1)).containsExactly(complainant);
-    assertThat(profiles.returned).containsExactly(profileId);
+    // Hồ sơ còn ở nhánh khiếu nại tới khi khiếu nại đóng (bảo lưu hoặc hết hạn xác nhận).
+    assertThat(profiles.returned).isEmpty();
     assertThat(service.onResponseSigned(T, sign, null)).isFalse();
     assertThat(service.onResponseSigned(T, UUID.randomUUID(), null)).isFalse();
     assertThat(service.responseJob(T, sign))
@@ -728,6 +731,174 @@ class ComplaintResolutionServiceTest {
                     "Nội dung",
                     null))
         .isInstanceOf(ComplaintService.SealingUnavailableException.class);
+  }
+
+  // ---------------------------------------------------------------- bảo lưu, đóng, trùng
+
+  @Test
+  void baoLuuTrongHanDongKhieuNaiVaTraHoSo() {
+    Complaint c = answered(ComplaintResolution.GIU_NGUYEN, NOW);
+    audits.clear();
+    Resolved r = service.reserve(T, owner(), c.id(), etag(c(c)), "  Tôi vẫn giữ ý kiến.  ");
+    assertThat(c(c).status()).isEqualTo(ComplaintStatus.DONG);
+    assertThat(c(c).handling().closedAt()).isEqualTo(NOW);
+    assertThat(r.conclusion().reservedAt()).isEqualTo(NOW);
+    assertThat(
+            sealer.open(
+                T, "oversight.complaint.reserve_opinion_enc", c.id(), process.reserved.get(c.id())))
+        .isEqualTo("Tôi vẫn giữ ý kiến.");
+    assertThat(process.of(c.id(), ComplaintRecordKind.BAO_LUU)).hasSize(1);
+    assertThat(profiles.returned).containsExactly(profileId);
+    assertThat(audits).containsExactly("BAO_LUU_Y_KIEN_KHIEU_NAI", "DONG_KHIEU_NAI");
+    // Người khiếu nại thấy văn bản trả lời và ý kiến bảo lưu của mình.
+    assertThat(service.responses(T, owner(), c.id(), null, null, 50))
+        .extracting(x -> x.response().kind())
+        .containsExactly(ComplaintRecordKind.KET_LUAN, ComplaintRecordKind.BAO_LUU);
+    // Đã đóng: bảo lưu lần hai bị từ chối.
+    assertThatThrownBy(() -> service.reserve(T, owner(), c.id(), etag(c(c)), "Lần hai"))
+        .satisfies(e -> assertThat(code(e)).isEqualTo("OVERSIGHT-409-INVALID-STATE"));
+  }
+
+  @Test
+  void baoLuuQuaNamNgayLamViecBi422() {
+    // Ký thứ Tư 21/10; hạn là thứ Tư 28/10; thứ Năm 29/10 đã quá hạn.
+    Complaint c = answered(ComplaintResolution.GIU_NGUYEN, NOW);
+    clock = Clock.fixed(Instant.parse("2026-10-28T09:00:00Z"), ZoneOffset.UTC);
+    build(true, true);
+    service.responses(T, owner(), c.id(), null, null, 1);
+    clock = Clock.fixed(Instant.parse("2026-10-29T03:00:00Z"), ZoneOffset.UTC);
+    build(true, true);
+    assertThatThrownBy(() -> service.reserve(T, owner(), c.id(), etag(c(c)), "Muộn"))
+        .satisfies(e -> assertThat(code(e)).isEqualTo("OVERSIGHT-422-DEADLINE-PASSED"));
+    assertThat(c(c).status()).isEqualTo(ComplaintStatus.DA_TRA_LOI);
+  }
+
+  @Test
+  void baoLuuKiemNguoiGoiTrangThaiVaNoiDung() {
+    Complaint c = answered(ComplaintResolution.GIU_NGUYEN, NOW);
+    assertThatThrownBy(() -> service.reserve(T, member(witness), c.id(), etag(c(c)), "X"))
+        .isInstanceOf(NotFoundException.class);
+    assertThatThrownBy(() -> service.reserve(T, owner(), c.id(), etag(c(c)), " "))
+        .satisfies(e -> assertThat(code(e)).isEqualTo("COMMON-422-VALIDATION"));
+    Complaint waiting = waiting();
+    assertThatThrownBy(() -> service.reserve(T, owner(), waiting.id(), etag(waiting), "X"))
+        .satisfies(e -> assertThat(code(e)).isEqualTo("OVERSIGHT-409-INVALID-STATE"));
+    // DA_TRA_LOI nhưng không có văn bản đã ký (dữ liệu lệch): 409.
+    Complaint odd = withStatus(accepted(), ComplaintStatus.DA_TRA_LOI);
+    assertThatThrownBy(() -> service.reserve(T, owner(), odd.id(), etag(odd), "X"))
+        .satisfies(e -> assertThat(code(e)).isEqualTo("OVERSIGHT-409-INVALID-STATE"));
+  }
+
+  @Test
+  void baoLuuKhiDekDaXoayThiMaLaiCaDong() {
+    Complaint c = answered(ComplaintResolution.GIU_NGUYEN, NOW);
+    Complaint base = withSealed(c(c));
+    sealer.rotateAfter = sealer.sealed;
+    service.reserve(T, owner(), c.id(), etag(base), "Bảo lưu");
+    Complaint saved = c(c);
+    assertThat(saved.dekId()).isNotEqualTo(base.dekId()).isEqualTo(sealer.dek);
+    assertThat(sealer.dekOf(saved.contentEnc())).isEqualTo(saved.dekId());
+    assertThat(sealer.open(T, "oversight.complaint.content_enc", c.id(), saved.contentEnc()))
+        .isEqualTo("Nội dung khiếu nại");
+  }
+
+  @Test
+  void tuDongDongChayHaiLanChiGhiMotLan() {
+    Complaint expired = answered(ComplaintResolution.GIU_NGUYEN, NOW);
+    Complaint fresh = answered(ComplaintResolution.GIU_NGUYEN, NOW.plusSeconds(6 * 86_400));
+    Complaint executing = answered(ComplaintResolution.CHAP_NHAN_MOT_PHAN, NOW);
+    Complaint pending = answered(ComplaintResolution.CHAP_NHAN_MOT_PHAN, NOW);
+    Complaint rejected = withStatus(filed(), ComplaintStatus.KHONG_THU_LY);
+    process.executed.add(process.conclusions.get(executing.id()).reopenRequestId());
+    // 30/10 (thứ Sáu): đã qua hạn bảo lưu của khiếu nại ký 21/10, chưa qua hạn của khiếu nại ký
+    // 27/10.
+    clock = Clock.fixed(Instant.parse("2026-10-30T03:00:00Z"), ZoneOffset.UTC);
+    build(true, true);
+    audits.clear();
+    events.clear();
+    assertThat(service.closeDue(T, 50)).isEqualTo(3);
+    assertThat(c(expired).status()).isEqualTo(ComplaintStatus.DONG);
+    assertThat(c(executing).status()).isEqualTo(ComplaintStatus.DONG);
+    assertThat(c(rejected).status()).isEqualTo(ComplaintStatus.DONG);
+    assertThat(c(fresh).status()).isEqualTo(ComplaintStatus.DA_TRA_LOI);
+    assertThat(c(pending).status()).isEqualTo(ComplaintStatus.DANG_THI_HANH);
+    assertThat(audits).containsExactly("DONG_KHIEU_NAI", "DONG_KHIEU_NAI", "DONG_KHIEU_NAI");
+    assertThat(events).allMatch(e -> e.equals("KHIEU_NAI_DA_DONG:DONG")).hasSize(3);
+    assertThat(service.closeDue(T, 50)).isZero();
+    assertThat(audits).hasSize(3);
+  }
+
+  @Test
+  void goiYKhieuNaiTrungDaTraLoi() {
+    Complaint old = answered(ComplaintResolution.GIU_NGUYEN, NOW.minusSeconds(86_400));
+    Complaint other = withTargets(filed(), List.of("KHAC"));
+    Complaint current = filed();
+    List<ComplaintResolutionService.Duplicate> d =
+        service.duplicates(T, appraiser(handler), current.id());
+    assertThat(d).extracting(x -> x.complaint().id()).containsExactly(old.id());
+    assertThat(d.get(0).similarity()).isEqualTo(1.0);
+    assertThat(d.get(0).matchedTargets()).containsExactly("TONG_DIEM");
+    assertThat(d.get(0).summary()).isEqualTo("Giữ nguyên kết quả");
+    assertThat(other.status()).isEqualTo(ComplaintStatus.MOI);
+    assertThatThrownBy(() -> service.duplicates(T, member(witness), current.id()))
+        .isInstanceOf(NotFoundException.class);
+    assertThatThrownBy(() -> service.duplicates(T, appraiser(handler), UUID.randomUUID()))
+        .isInstanceOf(NotFoundException.class);
+  }
+
+  /** Khiếu nại đã ký văn bản trả lời lúc {@code at}. */
+  private Complaint answered(ComplaintResolution resolution, Instant at) {
+    Complaint c = waiting();
+    ConclusionInput in = resolution.adjusts() ? adjust("TONG_DIEM", 93) : keep();
+    service.saveConclusion(T, appraiser(handler), c.id(), etag(c), in);
+    UUID sign = service.respond(T, decider(decider), c.id(), etag(c(c)), "k", null, null);
+    service.onResponseSigned(T, sign, at);
+    return c(c);
+  }
+
+  private Complaint withSealed(Complaint c) {
+    ComplaintSealerSealed s =
+        new ComplaintSealerSealed(
+            sealer.seal(T, "oversight.complaint.content_enc", c.id(), "Nội dung khiếu nại"));
+    Complaint changed = c.resealed(s.cipher(), null, s.dek());
+    repo.rows.put(c.id(), changed);
+    return changed;
+  }
+
+  private record ComplaintSealerSealed(byte[] cipher, UUID dek) {
+    ComplaintSealerSealed(vn.viettel.okrkpi.oversight.application.port.ComplaintSealer.Sealed s) {
+      this(s.cipher(), s.dekId());
+    }
+  }
+
+  private Complaint withTargets(Complaint c, List<String> keys) {
+    Complaint changed =
+        new Complaint(
+            c.id(),
+            c.code(),
+            c.periodId(),
+            c.periodBucket(),
+            c.complainantId(),
+            c.profileId(),
+            c.kind(),
+            c.targetStage(),
+            c.subjectLine(),
+            keys.stream().map(k -> new ComplaintTarget(k, ComplaintStage.THAM_DINH, k)).toList(),
+            c.contentEnc(),
+            c.requestTextEnc(),
+            c.dekId(),
+            c.attachmentIds(),
+            c.reserveOpinion(),
+            c.status(),
+            c.filedAt(),
+            c.responseDeadline(),
+            c.handlerUnitId(),
+            c.signRequestId(),
+            c.createdAt(),
+            c.rowVersion(),
+            c.handling());
+    repo.rows.put(c.id(), changed);
+    return changed;
   }
 
   // ---------------------------------------------------------------- hỗ trợ
@@ -922,6 +1093,9 @@ class ComplaintResolutionServiceTest {
   static final class FakeProcess implements ComplaintProcessRepository {
     final Map<UUID, ComplaintConclusion> conclusions = new HashMap<>();
     final List<ComplaintResponse> rows = new ArrayList<>();
+    final Map<UUID, byte[]> reserved = new HashMap<>();
+    final Set<UUID> executed = new java.util.HashSet<>();
+    FakeComplaints complaints;
 
     List<ComplaintResponse> of(UUID complaintId, ComplaintRecordKind kind) {
       return rows.stream()
@@ -931,7 +1105,49 @@ class ComplaintResolutionServiceTest {
 
     @Override
     public Optional<ComplaintConclusion> conclusion(TenantId tenant, Complaint complaint) {
-      return Optional.ofNullable(conclusions.get(complaint.id()));
+      ComplaintConclusion k = conclusions.get(complaint.id());
+      if (k == null) {
+        return Optional.empty();
+      }
+      Instant reservedAt =
+          of(complaint.id(), ComplaintRecordKind.BAO_LUU).stream()
+              .map(ComplaintResponse::respondedAt)
+              .max(Comparator.naturalOrder())
+              .orElse(null);
+      return Optional.of(
+          new ComplaintConclusion(
+              k.resolution(),
+              k.adjustments(),
+              k.textEnc(),
+              k.dekId(),
+              k.docRef(),
+              k.noExplanationNote(),
+              k.concludedBy(),
+              k.concludedAt(),
+              k.reopenRequestId(),
+              k.signRequestId(),
+              k.respondedAt(),
+              reservedAt));
+    }
+
+    @Override
+    public void reserve(TenantId tenant, Complaint complaint, byte[] opinionEnc) {
+      reserved.put(complaint.id(), opinionEnc);
+    }
+
+    @Override
+    public List<UUID> closable(TenantId tenant, Instant respondedBefore, int limit) {
+      return complaints.rows.values().stream()
+          .filter(
+              c ->
+                  (c.status() == ComplaintStatus.DA_TRA_LOI
+                          && conclusions.get(c.id()).respondedAt().isBefore(respondedBefore))
+                      || c.status() == ComplaintStatus.KHONG_THU_LY
+                      || (c.status() == ComplaintStatus.DANG_THI_HANH
+                          && executed.contains(conclusions.get(c.id()).reopenRequestId())))
+          .map(Complaint::id)
+          .limit(limit)
+          .toList();
     }
 
     @Override

@@ -33,6 +33,7 @@ import vn.viettel.okrkpi.contract.oversight.model.ComplainableProfile;
 import vn.viettel.okrkpi.contract.oversight.model.Complaint;
 import vn.viettel.okrkpi.contract.oversight.model.ComplaintConclusion;
 import vn.viettel.okrkpi.contract.oversight.model.ComplaintConclusionInput;
+import vn.viettel.okrkpi.contract.oversight.model.ComplaintDuplicateCandidate;
 import vn.viettel.okrkpi.contract.oversight.model.ComplaintInput;
 import vn.viettel.okrkpi.contract.oversight.model.ComplaintOutcome;
 import vn.viettel.okrkpi.contract.oversight.model.ComplaintResponseRecord;
@@ -42,6 +43,7 @@ import vn.viettel.okrkpi.contract.oversight.model.ComplaintTargetStage;
 import vn.viettel.okrkpi.contract.oversight.model.ComplaintTimelineItem;
 import vn.viettel.okrkpi.contract.oversight.model.ExplanationParty;
 import vn.viettel.okrkpi.contract.oversight.model.ListComplainableProfiles200Response;
+import vn.viettel.okrkpi.contract.oversight.model.ListComplaintDuplicateCandidates200Response;
 import vn.viettel.okrkpi.contract.oversight.model.ListComplaintResponses200Response;
 import vn.viettel.okrkpi.contract.oversight.model.ListComplaints200Response;
 import vn.viettel.okrkpi.contract.oversight.model.OversightReasonInput;
@@ -50,6 +52,7 @@ import vn.viettel.okrkpi.contract.oversight.model.RatingLevel;
 import vn.viettel.okrkpi.contract.oversight.model.Ref;
 import vn.viettel.okrkpi.contract.oversight.model.RejectComplaintRequest;
 import vn.viettel.okrkpi.contract.oversight.model.RequestComplaintExplanationsRequest;
+import vn.viettel.okrkpi.contract.oversight.model.ReserveComplaintOpinionRequest;
 import vn.viettel.okrkpi.contract.oversight.model.RespondComplaintRequest;
 import vn.viettel.okrkpi.contract.oversight.model.SubmitComplaintExplanationRequest;
 import vn.viettel.okrkpi.oversight.application.complaint.ComplaintHandlingService;
@@ -87,7 +90,8 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
  * listComplaints} (khiếu nại của chính người gọi), {@code createComplaint}, {@code getComplaint},
  * {@code updateComplaint}, {@code submitComplaint}. Gửi trả 202 với tác vụ {@code ESIGN}; khiếu nại
  * thành {@code MOI} khi SVC-10 báo ký xong (EVT-18). Tiếp nhận, không thụ lý, rút (CORE-07-03);
- * giải trình, kết luận, ký văn bản trả lời (CORE-07-04, QT-12 bước 5 đến 10).
+ * giải trình, kết luận, ký văn bản trả lời (CORE-07-04, QT-12 bước 5 đến 10); bảo lưu ý kiến và
+ * khiếu nại nghi trùng (CORE-07-05, QT-12 bước 11, 12).
  */
 @RestController
 @RequestMapping(ComplaintController.BASE)
@@ -618,6 +622,63 @@ public class ComplaintController {
             });
   }
 
+  @PostMapping("/{id}/reserve")
+  @RequiresPermission(
+      operationId = "reserveComplaintOpinion",
+      module = "oversight",
+      resourceType = "complaint")
+  public ResponseEntity<Complaint> reserveComplaintOpinion(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody ReserveComplaintOpinionRequest body) {
+    TenantId tenant = TenantContext.require();
+    Actor actor = actor();
+    return idempotency()
+        .run(
+            tenant,
+            actor.userId(),
+            idempotencyKey,
+            "POST",
+            BASE + "/" + id + "/reserve",
+            body,
+            Complaint.class,
+            Complaint::getRowVersion,
+            () -> {
+              ComplaintResolutionService.Resolved r =
+                  guarded(
+                      () -> resolution().reserve(tenant, actor, id, ifMatch, body.getOpinion()));
+              return ETags.ok(toDto(tenant, r.view()), r.view().complaint().rowVersion());
+            });
+  }
+
+  @GetMapping("/{id}/duplicate-candidates")
+  @RequiresPermission(
+      operationId = "listComplaintDuplicateCandidates",
+      module = "oversight",
+      resourceType = "complaint")
+  public ListComplaintDuplicateCandidates200Response listComplaintDuplicateCandidates(
+      @PathVariable("id") UUID id) {
+    TenantId tenant = TenantContext.require();
+    Actor actor = actor();
+    List<ComplaintDuplicateCandidate> items = new ArrayList<>();
+    for (var d : guarded(() -> resolution().duplicates(tenant, actor, id))) {
+      var c = d.complaint();
+      ComplaintDuplicateCandidate dto =
+          new ComplaintDuplicateCandidate()
+              .id(c.id())
+              .code(c.code())
+              .subjectLine(c.subjectLine())
+              .status(status(c.status()))
+              .filedAt(odt(c.filedAt()))
+              .similarityScore(java.math.BigDecimal.valueOf(d.similarity()))
+              .matchedTargets(new ArrayList<>(d.matchedTargets()));
+      dto.setConclusionSummary(d.summary());
+      items.add(dto);
+    }
+    return new ListComplaintDuplicateCandidates200Response().items(items);
+  }
+
   /** OPA với người đã tham gia hồ sơ (ràng buộc 21.1); không có OPA thì chỉ kiểm ở dịch vụ. */
   private void checkHandler(TenantId tenant, UUID id) {
     ComplaintGuard guard = guards.getIfAvailable();
@@ -753,7 +814,9 @@ public class ComplaintController {
     out.setSignRequestId(owner ? null : k.signRequestId());
     dto.setConclusion(out);
     dto.setReopenRequestId(k.reopenRequestId());
-    if (k.respondedAt() != null) {
+    if (k.reservedAt() != null) {
+      dto.setOutcome(ComplaintOutcome.BAO_LUU);
+    } else if (k.respondedAt() != null) {
       dto.setOutcome(ComplaintOutcome.fromValue(k.resolution().outcome()));
     }
   }

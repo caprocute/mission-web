@@ -137,6 +137,37 @@ public record Complaint(
     return copy(status, filedAt, responseDeadline, handlerUnitId, signRequestId, handling);
   }
 
+  /**
+   * Mã lại nội dung và đề nghị bằng DEK mới (DEK đã xoay khi ghi ý kiến bảo lưu, mỗi dòng một
+   * {@code dek_id}); giữ trạng thái.
+   */
+  public Complaint resealed(byte[] content, byte[] request, UUID dek) {
+    return new Complaint(
+        id,
+        code,
+        periodId,
+        periodBucket,
+        complainantId,
+        profileId,
+        kind,
+        targetStage,
+        subjectLine,
+        targets,
+        content,
+        request,
+        dek,
+        attachmentIds,
+        reserveOpinion,
+        status,
+        filedAt,
+        responseDeadline,
+        handlerUnitId,
+        signRequestId,
+        createdAt,
+        rowVersion,
+        handling);
+  }
+
   private void requireMove(ComplaintStatus to) {
     if (!ComplaintTransitions.allowed(status, to)) {
       throw new IllegalStateException("Không chuyển được khiếu nại từ " + status + " sang " + to);
