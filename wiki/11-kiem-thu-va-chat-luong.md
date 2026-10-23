@@ -245,7 +245,7 @@ Phân bổ theo task như sau. QA-04 nhận QT-00 đến QT-03. QA-05 nhận QT-
 | HT-05 | Khởi tạo, cấp phát và kích hoạt tenant mới | AC-01 | QT-01 | SCR-0101, SCR-0102 | `createConfigTenant`, `provisionConfigTenant`, `getJob`, `activateConfigTenant` … | – | QA-04 | Có |
 | HT-06 | Ghi thay đổi đơn vị có hiệu lực từ ngày và phân công cán bộ | AC-02 | QT-01 | SCR-0103 | `getOrgTree`, `changeOrgUnit`, `listOrgUnitHistory`, `createOrgAssignment` | EVT-14, EVT-15 | QA-04 |  |
 | HT-07 | Chạy đồng bộ nhân sự và xử lý sai lệch đối soát | AC-02 | QT-01 | SCR-0104 | `startOrgSyncRun`, `resolveOrgDiscrepancies`, `mapOrgDiscrepancy` | EVT-16 | QA-04 |  |
-| HT-08 | Lập mục tiêu và kết quả then chốt, bị trả lại, sửa và được phê duyệt | AC-06, AC-05 | QT-02 | SCR-0201, SCR-0202, SCR-0203 | `createOkrObjective`, `createOkrKeyResult`, `submitOkrObjective`, `returnOkrObjective` … | EVT-01 | QA-04 | Có |
+| HT-08 | Lập mục tiêu và kết quả then chốt, bị trả lại, sửa và được phê duyệt | AC-05, AC-04 | QT-02 | SCR-0201, SCR-0202, SCR-0203 | `createOkrObjective`, `createOkrKeyResult`, `submitOkrObjective`, `returnOkrObjective` … | EVT-01 | QA-04 | Có |
 | HT-09 | Check-in kết quả then chốt và gửi lại không tạo bản ghi trùng | AC-06 | QT-03 | SCR-0301 | `getOkrObjective`, `createOkrCheckin` | EVT-02 | QA-04 | Có |
 | HT-10 | Check-in kết quả then chốt trên di động trong ba chạm | AC-06 | QT-03 | SCR-0302 | `createOkrCheckin` | EVT-02 | MOB (di động) | Có |
 | HT-11 | Lập kế hoạch quý từ danh mục công việc, bị trả lại và được phê duyệt | AC-05, AC-04 | QT-04 | SCR-0401, SCR-0402, SCR-0403 | `createPlan`, `savePlanVersion`, `checkPlanVersion`, `submitPlanVersion` … | EVT-03 | QA-05 | Có |

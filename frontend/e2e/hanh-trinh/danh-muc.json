@@ -151,8 +151,8 @@
       "nenTang": "web",
       "qt": ["QT-02"],
       "scr": ["SCR-0201", "SCR-0202", "SCR-0203"],
-      "tacNhan": ["AC-06", "AC-05"],
-      "taiKhoan": ["canbo", "quanly"],
+      "tacNhan": ["AC-05", "AC-04"],
+      "taiKhoan": ["quanly", "lanhdao"],
       "operationIds": [
         "createOkrObjective",
         "createOkrKeyResult",
@@ -171,7 +171,7 @@
       ],
       "caPhuDinh": ["Tài khoản không có quyền phê duyệt bị máy chủ từ chối"],
       "cheDoCaoTuoi": true,
-      "ghiChu": "",
+      "ghiChu": "Theo ma trận 15a: AC-05 soạn và trình OKR đơn vị, AC-04 phê duyệt và trả lại.",
       "trangThai": "dang_viet"
     },
     {
