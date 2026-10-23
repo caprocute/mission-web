@@ -19,6 +19,7 @@ import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.listener.AcknowledgingMessageListener;
 import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.PlatformTransactionManager;
 import vn.viettel.okrkpi.appraisal.api.ComplaintProfilesApi;
 import vn.viettel.okrkpi.config.api.AccessDirectory;
@@ -27,12 +28,21 @@ import vn.viettel.okrkpi.config.api.RoleHolderApi;
 import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
 import vn.viettel.okrkpi.events.EventTopics;
 import vn.viettel.okrkpi.oversight.application.complaint.ComplaintHandlingService;
+import vn.viettel.okrkpi.oversight.application.complaint.ComplaintResolutionService;
 import vn.viettel.okrkpi.oversight.application.complaint.ComplaintService;
+import vn.viettel.okrkpi.oversight.application.port.ComplaintResponseSigner;
 import vn.viettel.okrkpi.oversight.application.port.ComplaintSealer;
 import vn.viettel.okrkpi.oversight.application.port.ComplaintSigner;
+import vn.viettel.okrkpi.oversight.application.reopen.ReopenRequestService;
+import vn.viettel.okrkpi.oversight.infrastructure.client.EsignComplaintResponseSigner;
 import vn.viettel.okrkpi.oversight.infrastructure.client.EsignComplaintSigner;
 import vn.viettel.okrkpi.oversight.infrastructure.client.ModuleComplaintHandlerDirectory;
+import vn.viettel.okrkpi.oversight.infrastructure.client.ModuleComplaintPartyDirectory;
+import vn.viettel.okrkpi.oversight.infrastructure.client.ReopenComplaintReopener;
 import vn.viettel.okrkpi.oversight.infrastructure.listener.ComplaintSignedListener;
+import vn.viettel.okrkpi.oversight.infrastructure.scheduling.ComplaintExplanationJob;
+import vn.viettel.okrkpi.oversight.infrastructure.web.ComplaintAdjustmentJson;
+import vn.viettel.okrkpi.oversight.infrastructure.web.ComplaintResponseSignJobs;
 import vn.viettel.okrkpi.oversight.infrastructure.web.ComplaintSignJobs;
 import vn.viettel.okrkpi.product.api.EvidenceQueryApi;
 import vn.viettel.okrkpi.shared.crypto.FieldEncryptor;
@@ -48,6 +58,7 @@ import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.outbox.ApicurioPayloadSerializer;
 import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
+import vn.viettel.okrkpi.shared.routing.TenantDirectory;
 import vn.vtokr.esign.v1.KySoDaHoanTat;
 
 /**
@@ -125,6 +136,89 @@ public class ComplaintConfiguration {
         java.time.Clock.systemUTC());
   }
 
+  /**
+   * Giải trình, kết luận, ký văn bản trả lời (CORE-07-04): ký ở SVC-10 cùng {@code
+   * mission.oversight.esign.base-url} hoặc bean {@link ComplaintResponseSigner}; mở lại kỳ qua
+   * {@link ReopenRequestService#createInternal} khi có.
+   */
+  @Bean
+  ComplaintResolutionService complaintResolutionService(
+      JdbcComplaintRepository complaintRepository,
+      ComplaintService complaintService,
+      ComplaintProfilesApi profiles,
+      RoleHolderApi roleHolders,
+      ObjectProvider<AccessDirectory> units,
+      ObjectProvider<EvidenceQueryApi> evidence,
+      ObjectProvider<WorkingCalendarApi> calendar,
+      ObjectProvider<ComplaintSealer> sealer,
+      ObjectProvider<FieldEncryptor> encryptor,
+      ObjectProvider<ComplaintResponseSigner> signer,
+      ObjectProvider<ReopenRequestService> reopen,
+      @Qualifier("oversightDataSource") DataSource dataSource,
+      @Value("${mission.oversight.outbox.registry-url:${okrkpi.inbox.registry.url:}}")
+          String registry,
+      @Value("${mission.oversight.esign.base-url:}") String esignUrl,
+      ObjectProvider<OutboxPayloadSerializer> serializer,
+      ObjectProvider<ObjectMapper> json) {
+    OutboxWriter outbox = outbox(dataSource, registry, serializer, json);
+    FieldEncryptor e = encryptor.getIfAvailable();
+    ReopenRequestService r = reopen.getIfAvailable();
+    return new ComplaintResolutionService(
+        complaintRepository,
+        new JdbcComplaintProcessRepository(
+            JdbcClient.create(dataSource), json.getIfAvailable(ObjectMapper::new)),
+        complaintService,
+        profiles,
+        new ModuleComplaintHandlerDirectory(
+            roleHolders, units.getIfAvailable(), profiles, evidence.getIfAvailable()),
+        new ModuleComplaintPartyDirectory(roleHolders),
+        calendar.getIfAvailable(),
+        sealer.getIfAvailable(() -> e == null ? null : new FieldEncryptorComplaintSealer(e)),
+        signer.getIfAvailable(
+            () ->
+                esignUrl == null || esignUrl.isBlank()
+                    ? null
+                    : new EsignComplaintResponseSigner(
+                        new EsignRequestClient(esignUrl, json.getIfAvailable(ObjectMapper::new)))),
+        r == null ? null : new ReopenComplaintReopener(r),
+        new OutboxComplaintEvents(outbox),
+        new OutboxOversightAudit(outbox),
+        java.time.Clock.systemUTC());
+  }
+
+  /** Đọc giá trị số hoặc chuỗi của điều chỉnh đề nghị (thân yêu cầu, phát lại idempotency). */
+  @Bean
+  com.fasterxml.jackson.databind.Module complaintAdjustmentJsonModule() {
+    return ComplaintAdjustmentJson.module();
+  }
+
+  @Bean
+  ComplaintResponseSignJobs complaintResponseSignJobs(ComplaintResolutionService service) {
+    return new ComplaintResponseSignJobs(service);
+  }
+
+  /**
+   * Chuyển khiếu nại quá hạn giải trình sang chờ kết luận; tắt bằng {@code
+   * mission.oversight.complaint-explanation.enabled=false}.
+   */
+  @Configuration(proxyBeanMethods = false)
+  @EnableScheduling
+  @ConditionalOnProperty(
+      prefix = "mission.oversight.complaint-explanation",
+      name = "enabled",
+      havingValue = "true",
+      matchIfMissing = true)
+  static class ExplanationJob {
+
+    @Bean
+    ComplaintExplanationJob complaintExplanationJob(
+        ComplaintResolutionService service,
+        ObjectProvider<TenantDirectory> directory,
+        @Value("${mission.config.period-opening.cell:${CELL_ID:}}") String cell) {
+      return new ComplaintExplanationJob(service, directory, cell);
+    }
+  }
+
   private static OutboxWriter outbox(
       DataSource dataSource,
       String registry,
@@ -157,8 +251,9 @@ public class ComplaintConfiguration {
   static class SignedInbox {
 
     @Bean
-    ComplaintSignedListener complaintSignedListener(ComplaintService complaintService) {
-      return new ComplaintSignedListener(complaintService);
+    ComplaintSignedListener complaintSignedListener(
+        ComplaintService complaintService, ComplaintResolutionService resolution) {
+      return new ComplaintSignedListener(complaintService, resolution);
     }
 
     @Bean
