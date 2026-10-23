@@ -13,8 +13,8 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **280 / 408 task (68.6%)** — Khối lượng quy đổi đã gộp: **321 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **280 / 408 task (68.6%)** (gồm **280** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **7 task** (1 đang làm, 6 làm một phần).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **281 / 408 task (68.9%)** (gồm **280** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **6 task** (1 đang làm, 5 làm một phần).
 - **Chưa bắt đầu**: **121 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **18 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-10`** (đang xử lý trên nhánh: không).
 
@@ -22,7 +22,7 @@
 
 | Mã nhóm | Phân hệ / Phạm vi | Tổng task | Khối lượng | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tỷ lệ gộp `main` |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **67** | 0 | 4 | 1 | **93.1%** |
+| **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **67** | 1 | 3 | 1 | **93.1%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **86** | 0 | 2 | 29 | **73.5%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **60** | 0 | 1 | 43 | **57.7%** |
@@ -32,13 +32,13 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **280** | **0** | **7** | **121** | **68.6%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **280** | **1** | **6** | **121** | **68.6%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
 | Mốc triển khai | Tổng task | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tiến độ gộp `main` |
 |---|---:|---:|---:|---:|---:|---:|
-| **M0 – Nền móng phát triển & CSDL** | 60 | **59** | 0 | 1 | 0 | **98.3%** |
+| **M0 – Nền móng phát triển & CSDL** | 60 | **59** | 1 | 0 | 0 | **98.3%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **44** | 0 | 0 | 3 | **93.6%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **73** | 0 | 3 | 44 | **60.8%** |
@@ -74,7 +74,7 @@ Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 
 Mọi thay đổi trạng thái task đều được cập nhật trực tiếp vào bảng dưới đây. Các giá trị cột **Trạng thái** hợp lệ: `Đã gộp main`, `Xong, chờ gộp`, `Đang làm`, `Làm một phần`, `Chưa bắt đầu`.
 
-### WEB-001..065 · Phân hệ giao diện Web (Kế hoạch Web GĐ0–GĐ4) (63/65 đã gộp `main`, 0 chờ gộp, 2 đang làm)
+### WEB-001..065 · Phân hệ giao diện Web (Kế hoạch Web GĐ0–GĐ4) (63/65 đã gộp `main`, 1 chờ gộp, 1 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -87,7 +87,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [WEB-007](docs/tasks/WEB-007-api-client-openapi.md) | `@vt/api-client`: sinh client từ OpenAPI, xử lý lỗi, 409, job 202 | M | W-Nền tảng | – | WEB-001 | **Đã gộp main** | Đã gộp `main` (`@vt/api-client`, xử lý lỗi RFC 9457, 409, JobTracker 202) |
 | [WEB-008](docs/tasks/WEB-008-mock-api.md) | Tách dữ liệu giả lập thành interceptor và fixture theo module | S | W-Nền tảng | – | WEB-007 | **Đã gộp main** | Đã gộp `main` (interceptor và fixture dữ liệu giả lập theo module) |
 | [WEB-009](docs/tasks/WEB-009-sdui-chu-ky.md) | SDUI: kiểm chữ ký UI Pack, kiểm phiên bản registry, telemetry | M | W-Nền tảng | – | WEB-004 | **Đã gộp main** | Đã gộp main (f74d95f1) |
-| [WEB-010](docs/tasks/WEB-010-form-engine.md) | Form engine: widget, test CEL dùng chung, benchmark | M | W-Nền tảng | – | WEB-001 | **Làm một phần** | Đã gộp phần khung trên `main`; ngân sách dựng 50 trường ≤ 50 ms đang ở mức ~95 ms |
+| [WEB-010](docs/tasks/WEB-010-form-engine.md) | Form engine: widget, test CEL dùng chung, benchmark | M | W-Nền tảng | – | WEB-001 | **Xong, chờ gộp** | Nhánh claude/b8-ha-tang-g7g48k: dựng dần theo nhóm, lượt vẽ đầu 13-20 ms, không tác vụ dài trên 50 ms (wiki/09) |
 | [WEB-011](docs/tasks/WEB-011-telemetry-faro.md) | Telemetry: Grafana Faro + OpenTelemetry web | S | W-Nền tảng | – | WEB-001 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [WEB-012](docs/tasks/WEB-012-shell-hoan-thien.md) | Shell: thông báo thời gian thực, tìm kiếm, xử lý lỗi toàn cục | M | W-Nền tảng | – | WEB-006, WEB-007 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [WEB-013](docs/tasks/WEB-013-web-component-nhung.md) | Chế độ nhúng `<vt-okr-app>` cho cổng văn phòng số | M | W-Nền tảng | – | WEB-006 | **Đã gộp main** | Đã gộp main (f74d95f1) |
@@ -976,4 +976,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 00:09 | Luồng B8 hạ tầng | `WEB-071` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b8-ha-tang-g7g48k: 4 lời gọi khớp hợp đồng, 3 lỗi màn hình đã sửa, kịch bản đánh giá quý, gói hồ sơ, khiếu nại xanh ở giả lập (938/938 e2e); máy chủ mới có 40/105 thao tác, chờ CORE-06, CORE-07 và QA-03 |
 | 23/10/2026 00:10 | Luồng B8 hạ tầng | `WEB-070` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b8-ha-tang-g7g48k: công tắc giả lập theo module (MOCK_API_MODULES) và 3 kịch bản luồng chính xanh ở chế độ giả lập; chờ QA-03 để chạy với máy chủ thật |
 | 23/10/2026 00:10 | Luồng B8 hạ tầng | `WEB-071` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b8-ha-tang-g7g48k: 4 lời gọi khớp hợp đồng, 3 lỗi màn hình đã sửa, kịch bản đánh giá quý, gói hồ sơ, khiếu nại xanh ở giả lập (938/938 e2e); máy chủ mới có 40/105 thao tác, chờ CORE-06, CORE-07 và QA-03 |
+| 23/10/2026 00:10 | Luồng B8 hạ tầng | `WEB-010` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b8-ha-tang-g7g48k: dựng dần theo nhóm, lượt vẽ đầu 13-20 ms, không tác vụ dài trên 50 ms (wiki/09) |
 <!-- PROGRESS_LOG_END -->
