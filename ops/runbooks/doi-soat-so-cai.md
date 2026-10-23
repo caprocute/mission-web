@@ -54,3 +54,27 @@ Ledger-service tự khoá ghi chuỗi bị phá (`chain_head.is_locked`) và ph�
 ```
 ledger-service admin incident-recovery --tenant <uuid> --chain <0..63> --last-valid-seal <uuid> --incident <mã> --actor <uuid> --reason <biên bản>
 ```
+
+## 4. Đối soát R2: sổ cái ↔ bảng nguồn
+
+Job R2 (`R2_SO_CAI_NGUON`, DL-12) chạy trong mission-core lúc 02:30 hằng đêm (`mission.reconcile.ledger.cron`) cho ngày hôm trước. Job chỉ bật khi đã khai `mission.reconcile.ledger.base-url`. Mỗi tenant được lấy mẫu 1% số đối tượng có sự kiện pháp lý trong ngày, ít nhất một đối tượng và tối đa 500. Với mỗi đối tượng trong mẫu, job tính lại `payload_hash` từ thân Avro ở `outbox_event`, so với bản ghi cùng mã sự kiện trong sổ cái, rồi so tải trọng với dòng nghiệp vụ hiện hành. Kết quả ghi vào `<schema>.reconcile_run`, mỗi (tenant, ngày) một dòng. Hiện chỉ có nguồn của schema `task` (EVT-04, EVT-05).
+
+Vì outbox chỉ giữ 3 ngày, job phải chạy được trong vòng 2 ngày sau ngày cần đối soát. Ngày đã bị dọn khỏi outbox thì không đối soát lại được.
+
+**`MissionDoiSoatR2SoCaiLechNguon`** (mức critical, đội SOC). Tra các dòng lệch:
+
+```sql
+SELECT started_at, buckets_total, buckets_mismatch, detail -> 'mismatches'
+  FROM task.reconcile_run WHERE job = 'R2_SO_CAI_NGUON' AND status = 'LOI' ORDER BY started_at DESC LIMIT 10;
+```
+
+Mỗi phần tử của `detail.mismatches` mang `aggregateId`, `eventId` (nếu có) và `kind`:
+
+- `LECH_DU_LIEU_NGUON` (trường `field`): dòng nghiệp vụ hiện hành khác tải trọng đã ghi sổ ở trường không được đổi. Đây là dấu hiệu dữ liệu bị sửa ngoài luồng nghiệp vụ. Giữ nguyên dữ liệu, báo SOC, tra nhật ký kiểm toán CSDL theo `aggregateId` và đối chiếu bản ghi sổ cái qua màn hình tra cứu sổ cái của thanh tra.
+- `LECH_BAM_PAYLOAD`: thân sự kiện ở outbox khác bản đã ghi sổ (`ledgerHash`, `recomputedHash`). Hoặc outbox bị sửa, hoặc lược đồ người ghi đã đổi mà bộ chuyển tiếp chưa cập nhật bản chép lược đồ. Kiểm tra lược đồ trước, sau đó xử lý như sự cố toàn vẹn.
+- `THIEU_SO_CAI`: sự kiện đã ở outbox quá 1 giờ (`mission.reconcile.ledger.grace`) mà sổ cái chưa có. Kiểm tra độ trễ của consumer `ledger-forwarder` và `ledger-ingester`, cùng topic thư chết `<topic>.dlq.ledger-forwarder`.
+- `THAN_AVRO_HONG`: thân ở outbox không đọc được theo lược đồ hiện hành.
+
+**Trạng thái `LOI` có `detail.reason = SO_CAI_KHONG_PHAN_HOI`**: job không đọc được sổ cái, chẳng hạn ledger-service ngừng, token dịch vụ bị từ chối hoặc client chưa nằm trong `TENANT_DELEGATING_CLIENTS` của ledger-service. Trường hợp này không tính là lệch. Sửa kết nối xong thì đợi lần chạy đêm sau. Job chỉ đối soát ngày hôm trước, nên ngày bị lỡ không tự chạy lại; chưa có lệnh chạy tay (suy luận: bổ sung khi cần).
+
+**`MissionDoiSoatR2NgungChay`**: không có lần R2 nào kết thúc trong 30 giờ. Kiểm tra cấu hình `mission.reconcile.ledger.base-url` và nhật ký của mission-core lúc 02:30.

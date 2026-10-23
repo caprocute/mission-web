@@ -15,10 +15,12 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import javax.sql.DataSource;
@@ -53,10 +55,12 @@ import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
 import vn.viettel.okrkpi.events.EventTopics;
 import vn.viettel.okrkpi.product.api.EvidenceQueryApi;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceActor;
+import vn.viettel.okrkpi.product.application.evidence.EvidenceExternalDocService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceLifecycleService;
 import vn.viettel.okrkpi.product.application.evidence.port.AiSuggestionDecisions;
 import vn.viettel.okrkpi.product.application.evidence.port.CommentSealer;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceEvents;
+import vn.viettel.okrkpi.product.application.evidence.port.IssuedDocuments;
 import vn.viettel.okrkpi.product.infrastructure.listener.EvidenceObjectListener;
 import vn.viettel.okrkpi.product.infrastructure.persistence.EvidenceSubmissionConfiguration;
 import vn.viettel.okrkpi.product.infrastructure.persistence.FieldEncryptorCommentSealer;
@@ -119,8 +123,90 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
   /** SVC-14 giả quá thời hạn (CORE-03-05). */
   static volatile boolean aiDown;
 
+  /** Đơn vị của người gọi và văn bản đã ban hành trên SVC-13 giả (CORE-03-04). */
+  static final UUID UNIT = UUID.fromString("01927a03-0000-7000-8000-00000000d3a1");
+
+  static final String GOOD_REF = "47-BC/BTCĐUK";
+  static final String BAD_REF = "12-BC/BTCĐUK";
+
+  /** SVC-13 giả không phản hồi; tệp đã chuyển có chữ ký không hợp lệ. */
+  static volatile boolean integDown;
+
+  static volatile boolean tampered;
+
+  /** Đối tượng SVC-08 theo khoá chống ghi trùng của lệnh chuyển. */
+  static final Map<String, UUID> TRANSFERRED = new ConcurrentHashMap<>();
+
   /** Người gọi và outbox giả (không cần registry) chỉ của ngữ cảnh này. */
   static class Beans {
+
+    @Bean
+    EvidenceExternalDocService.Units fakeUnits() {
+      return (tenant, personId, on) -> Optional.of(UNIT);
+    }
+
+    @Bean
+    IssuedDocuments fakeIssuedDocuments() {
+      return new IssuedDocuments() {
+        private final List<Doc> docs =
+            List.of(
+                new Doc(
+                    GOOD_REF,
+                    GOOD_REF,
+                    LocalDate.of(2027, 1, 19),
+                    "Báo cáo chuyên đề công tác kiểm tra quý IV",
+                    "Trần Thị Bình",
+                    true),
+                new Doc(
+                    BAD_REF,
+                    BAD_REF,
+                    LocalDate.of(2027, 1, 12),
+                    "Báo cáo có chữ ký không hợp lệ",
+                    "Nguyễn Văn An",
+                    false));
+
+        @Override
+        public Page search(TenantId t, UUID orgUnitId, String q, int limit, String cursor) {
+          down();
+          return new Page(
+              docs.stream()
+                  .filter(d -> UNIT.equals(orgUnitId))
+                  .filter(d -> q == null || d.ref().contains(q) || d.summary().contains(q))
+                  .limit(limit)
+                  .toList(),
+              null);
+        }
+
+        @Override
+        public Optional<Transferred> transfer(
+            TenantId t, UUID orgUnitId, String ref, UUID requestedBy, String idempotencyKey) {
+          down();
+          return docs.stream()
+              .filter(d -> d.ref().equals(ref) && UNIT.equals(orgUnitId))
+              .findFirst()
+              .map(
+                  d ->
+                      new Transferred(
+                          TRANSFERRED.computeIfAbsent(idempotencyKey, k -> UUID.randomUUID()),
+                          1,
+                          sha(91),
+                          4096,
+                          "application/pdf",
+                          d.signatureValid() && !tampered,
+                          d));
+        }
+
+        private void down() {
+          if (integDown) {
+            throw new DependencyUnavailableException(
+                "integration-gateway",
+                DependencyUnavailableException.Reason.TIMEOUT,
+                java.time.Duration.ofSeconds(5),
+                null);
+          }
+        }
+      };
+    }
 
     @Bean
     AiSuggestionDecisions fakeAiSuggestionDecisions() {
@@ -702,6 +788,115 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
     MvcResult c3Submit = confirmedSubmit(secret, c3Etag);
     assertThat(c3Submit.getResponse().getStatus()).isEqualTo(200);
     assertThat(AI_CALLS).isEmpty();
+  }
+
+  /**
+   * CORE-03-04 · BR-07-13: tìm văn bản của đơn vị, nhận văn bản có chữ ký hợp lệ làm minh chứng,
+   * tệp gốc do SVC-13 chuyển sang SVC-08 thành tệp thứ nhất không sửa được, kết quả kiểm chữ ký ghi
+   * sổ cái; chữ ký sai bị từ chối theo BR-07-13; SVC-13 không phản hồi trả 503 kèm Retry-After.
+   */
+  @Test
+  void vanBanDaBanHanhLamMinhChung() throws Exception {
+    caller = ACTOR;
+    MvcResult found = perform(get("/api/v1/evidences/external-docs").param("q", "BTCĐUK"));
+    assertThat(found.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(found, "/evidences/external-docs", PathItem.HttpMethod.GET);
+    assertThat(body(found).get("items")).hasSize(2);
+    assertThat(body(found).get("items").get(0).get("signatureValid").asBoolean()).isTrue();
+    assertThat(body(found).get("items").get(1).get("signatureValid").asBoolean()).isFalse();
+
+    UUID task = task(ACTOR);
+    String deliverable = deliverable(task);
+    MvcResult refused = perform(evidencePost(), externalBody(deliverable, BAD_REF));
+    assertThat(refused.getResponse().getStatus()).isEqualTo(422);
+    assertThat(body(refused).get("errors").get(0).get("rule").asText()).isEqualTo("BR-07-13");
+
+    MvcResult created = perform(evidencePost(), externalBody(deliverable, GOOD_REF));
+    assertThat(created.getResponse().getStatus()).isEqualTo(201);
+    String evidence = body(created).get("id").asText();
+    long audits = outbox(EventTopics.SYS_AUDIT_V1);
+
+    // Chữ ký của tệp đã chuyển không còn hợp lệ: từ chối, không mở phiên bản.
+    tampered = true;
+    try {
+      MvcResult bad = perform(versionPost(evidence), draftBody(List.of(), null));
+      assertThat(bad.getResponse().getStatus()).isEqualTo(422);
+      assertThat(body(bad).get("errors").get(0).get("rule").asText()).isEqualTo("BR-07-13");
+    } finally {
+      tampered = false;
+    }
+    integDown = true;
+    try {
+      MvcResult down = perform(versionPost(evidence), draftBody(List.of(), null));
+      assertThat(down.getResponse().getStatus()).isEqualTo(503);
+      assertThat(down.getResponse().getHeader("Retry-After")).isNotNull();
+      MvcResult searchDown = perform(get("/api/v1/evidences/external-docs"));
+      assertThat(searchDown.getResponse().getStatus()).isEqualTo(503);
+    } finally {
+      integDown = false;
+    }
+    assertThat(outbox(EventTopics.SYS_AUDIT_V1)).isEqualTo(audits);
+
+    MvcResult opened = perform(versionPost(evidence), draftBody(List.of(), null));
+    assertThat(opened.getResponse().getStatus()).isEqualTo(201);
+    assertResponseConforms(opened, "/evidences/{id}/versions", PathItem.HttpMethod.POST);
+    JsonNode v = body(opened);
+    assertThat(v.get("source").asText()).isEqualTo("VAN_BAN_HE_THONG");
+    assertThat(v.get("sourceDocRef").asText()).isEqualTo(GOOD_REF);
+    assertThat(v.get("docNumber").asText()).isEqualTo(GOOD_REF);
+    assertThat(v.get("docDate").asText()).isEqualTo("2027-01-19");
+    assertThat(v.get("files")).hasSize(1);
+    UUID original = UUID.fromString(v.get("files").get(0).get("objectId").asText());
+    assertThat(TRANSFERRED).containsValue(original);
+    assertThat(outbox(EventTopics.SYS_AUDIT_V1)).isEqualTo(audits + 1);
+
+    // Không thay được tệp gốc, không tự gán nguồn văn bản cho nháp thường.
+    UUID other = UUID.randomUUID();
+    assertThat(stored(UUID.randomUUID(), other, 1, sha(92))).isEqualTo(InboxOutcome.PROCESSED);
+    MvcResult replaced =
+        perform(
+            put("/api/v1/evidences/" + evidence + "/versions/1")
+                .header("Idempotency-Key", UUID.randomUUID().toString())
+                .header("If-Match", opened.getResponse().getHeader("ETag")),
+            draftBody(List.of(other), null));
+    assertThat(replaced.getResponse().getStatus()).isEqualTo(422);
+    assertThat(body(replaced).get("errors").get(0).get("field").asText())
+        .isEqualTo("files[0].objectId");
+    MvcResult appended =
+        perform(
+            put("/api/v1/evidences/" + evidence + "/versions/1")
+                .header("Idempotency-Key", UUID.randomUUID().toString())
+                .header("If-Match", opened.getResponse().getHeader("ETag")),
+            draftBody(List.of(original, other), null)
+                .replace("\"TAI_LEN\"", "\"VAN_BAN_HE_THONG\""));
+    assertThat(appended.getResponse().getStatus())
+        .as(appended.getResponse().getContentAsString())
+        .isEqualTo(200);
+    assertThat(body(appended).get("source").asText()).isEqualTo("VAN_BAN_HE_THONG");
+    assertThat(body(appended).get("files")).hasSize(2);
+
+    String plain = evidence(deliverable(task(ACTOR)));
+    MvcResult forged =
+        perform(
+            versionPost(plain),
+            "{\"source\":\"VAN_BAN_HE_THONG\",\"files\":[{\"objectId\":\"" + other + "\"}]}");
+    assertThat(forged.getResponse().getStatus()).isEqualTo(422);
+  }
+
+  private static MockHttpServletRequestBuilder evidencePost() {
+    return post("/api/v1/evidences").header("Idempotency-Key", UUID.randomUUID().toString());
+  }
+
+  private static MockHttpServletRequestBuilder versionPost(String evidence) {
+    return post("/api/v1/evidences/" + evidence + "/versions")
+        .header("Idempotency-Key", UUID.randomUUID().toString());
+  }
+
+  private static String externalBody(String deliverable, String ref) {
+    return """
+        {"deliverableId":"%s","title":"Báo cáo chuyên đề","sourceType":"VAN_BAN","externalDocRef":"%s"}
+        """
+        .formatted(deliverable, ref);
   }
 
   private MvcResult confirmedSubmit(String evidence, String ifMatch) throws Exception {

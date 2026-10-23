@@ -4,5 +4,9 @@ package vn.viettel.okrkpi.integ.domain;
 public enum EntityType {
   DON_VI,
   NHAN_SU,
-  VAN_BAN
+  VAN_BAN,
+  /** Chỉ số chuyên môn ở hệ nguồn ↔ KR nội bộ (DV-13-08, BR-03-04). */
+  CHI_SO,
+  /** Mã chức danh ở HRM ↔ chức danh nội bộ (DV-13-08). */
+  CHUC_DANH
 }

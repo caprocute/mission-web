@@ -59,6 +59,20 @@ public class JdbcOkrCheckinRepository implements OkrCheckinRepository {
   }
 
   @Override
+  public Optional<String> dataSource(TenantId tenant, UUID keyResultId) {
+    return jdbc
+        .query(
+            "SELECT data_source FROM okr.key_result WHERE tenant_id = :t AND id = :id",
+            new MapSqlParameterSource("t", tenant.value()).addValue("id", keyResultId),
+            (rs, i) -> rs.getString(1))
+        .stream()
+        .filter(Objects::nonNull)
+        .map(String::strip)
+        .filter(v -> !v.isEmpty())
+        .findFirst();
+  }
+
+  @Override
   public Optional<CheckinTarget> lockTarget(
       TenantId tenant, int bucket, UUID objectiveId, UUID keyResultId) {
     MapSqlParameterSource p =

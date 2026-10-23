@@ -43,6 +43,8 @@ import vn.viettel.okrkpi.contract.products.model.EvidenceCreate;
 import vn.viettel.okrkpi.contract.products.model.EvidenceCriterionResult;
 import vn.viettel.okrkpi.contract.products.model.EvidenceDecisionResult;
 import vn.viettel.okrkpi.contract.products.model.EvidenceDuplicateMatch;
+import vn.viettel.okrkpi.contract.products.model.EvidenceExternalDoc;
+import vn.viettel.okrkpi.contract.products.model.EvidenceExternalDocList;
 import vn.viettel.okrkpi.contract.products.model.EvidenceKeyWrap;
 import vn.viettel.okrkpi.contract.products.model.EvidenceKeyWrapBatchInput;
 import vn.viettel.okrkpi.contract.products.model.EvidenceList;
@@ -71,6 +73,7 @@ import vn.viettel.okrkpi.product.application.evidence.EvidenceAcceptanceService.
 import vn.viettel.okrkpi.product.application.evidence.EvidenceAcceptanceService.Decision;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceActor;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceAiConfirmationService;
+import vn.viettel.okrkpi.product.application.evidence.EvidenceExternalDocService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceReviewService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceSubmissionService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceSubmissionService.DraftInput;
@@ -85,6 +88,7 @@ import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRep
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRepository.StoredObject;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRepository.VersionSummary;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRepository.VersionView;
+import vn.viettel.okrkpi.product.application.evidence.port.IssuedDocuments;
 import vn.viettel.okrkpi.product.domain.evidence.CriterionResult;
 import vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver;
 import vn.viettel.okrkpi.shared.authz.OpaInput;
@@ -115,6 +119,7 @@ public class EvidenceController {
 
   private final EvidenceSubmissionService service;
   private final EvidenceAiConfirmationService aiConfirmation;
+  private final EvidenceExternalDocService externalDocs;
   private final EvidenceReviewService reviews;
   private final EvidenceAcceptanceService acceptances;
   private final CursorCodec cursors;
@@ -125,6 +130,7 @@ public class EvidenceController {
   public EvidenceController(
       EvidenceSubmissionService service,
       EvidenceAiConfirmationService aiConfirmation,
+      EvidenceExternalDocService externalDocs,
       EvidenceReviewService reviews,
       EvidenceAcceptanceService acceptances,
       CursorCodec cursors,
@@ -134,6 +140,7 @@ public class EvidenceController {
     this.keyWraps = Objects.requireNonNull(keyWraps, "keyWraps");
     this.service = Objects.requireNonNull(service, "service");
     this.aiConfirmation = Objects.requireNonNull(aiConfirmation, "aiConfirmation");
+    this.externalDocs = Objects.requireNonNull(externalDocs, "externalDocs");
     this.reviews = Objects.requireNonNull(reviews, "reviews");
     this.acceptances = Objects.requireNonNull(acceptances, "acceptances");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
@@ -284,7 +291,7 @@ public class EvidenceController {
       throw invalid("externalDocRef");
     }
     EvidenceDetail d =
-        service.createEvidence(
+        externalDocs.newEvidence(
             TenantContext.require(),
             new EvidenceSubmissionService.EvidenceInput(
                 body.getDeliverableId(),
@@ -296,6 +303,39 @@ public class EvidenceController {
         "/api/v1/evidences/" + d.evidence().id(),
         evidence(d.evidence(), d.task(), d.versions()),
         d.evidence().rowVersion());
+  }
+
+  @GetMapping("/evidences/external-docs")
+  @RequiresPermission(
+      operationId = "searchEvidenceExternalDocs",
+      module = MODULE,
+      resourceType = "evidence")
+  public EvidenceExternalDocList searchEvidenceExternalDocs(
+      @RequestParam(value = "q", required = false) String q,
+      @RequestParam(value = "limit", required = false, defaultValue = "50") int limit,
+      @RequestParam(value = "cursor", required = false) String cursor) {
+    if (limit < 1 || limit > 200) {
+      throw invalid("limit");
+    }
+    if (q != null && q.length() > 200) {
+      throw invalid("q");
+    }
+    IssuedDocuments.Page page =
+        externalDocs.search(TenantContext.require(), q, limit, cursor, actor());
+    return new EvidenceExternalDocList()
+        .items(
+            page.items().stream()
+                .map(
+                    d ->
+                        new EvidenceExternalDoc()
+                            .ref(d.ref())
+                            .docNumber(d.docNumber())
+                            .docDate(d.docDate())
+                            .summary(d.summary())
+                            .signerName(d.signerName())
+                            .signatureValid(d.signatureValid()))
+                .toList())
+        .nextCursor(page.nextCursor());
   }
 
   @GetMapping("/evidences/{id}")
@@ -317,7 +357,8 @@ public class EvidenceController {
       @PathVariable("id") UUID id, @RequestBody EvidenceVersionDraft body) {
     DraftInput input = draft(body);
     EvidenceActor actor = actor();
-    VersionDetail v = found(() -> service.createVersion(TenantContext.require(), id, input, actor));
+    VersionDetail v =
+        found(() -> externalDocs.newVersion(TenantContext.require(), id, input, actor));
     return created(
         "/api/v1/evidences/" + id + "/versions/" + v.version().versionNo(),
         version(v),

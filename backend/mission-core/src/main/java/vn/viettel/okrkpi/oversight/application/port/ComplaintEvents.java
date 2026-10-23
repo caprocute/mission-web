@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.oversight.application.port;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.UUID;
 import vn.viettel.okrkpi.oversight.domain.complaint.Complaint;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
@@ -19,4 +20,17 @@ public interface ComplaintEvents {
    * {@code recipients}; không có người nhận thì không ghi.
    */
   void stateChanged(TenantId tenant, Complaint c, String template, Collection<UUID> recipients);
+
+  /**
+   * Như {@link #stateChanged(TenantId, Complaint, String, Collection)}, thêm tham số mẫu ngoài mã
+   * khiếu nại (CORE-07-04, ví dụ hạn giải trình).
+   */
+  default void stateChanged(
+      TenantId tenant,
+      Complaint c,
+      String template,
+      Collection<UUID> recipients,
+      Map<String, String> params) {
+    stateChanged(tenant, c, template, recipients);
+  }
 }

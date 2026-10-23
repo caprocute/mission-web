@@ -2698,6 +2698,22 @@ components:
         anchors:
           type: array
           items: { $ref: '#/components/schemas/LedgerAnchorReceipt' }
+        chainLinks:
+          description: >-
+            Các mắt chuỗi băm từ bản ghi tới mắt cuối của chuỗi trong cửa sổ niêm phong. Lá Merkle là `entry_hash`
+            của mắt cuối, nên người kiểm tra tính lại từng `entry_hash` theo công thức TL-03 để nối bản ghi lên lá.
+            Rỗng khi bản ghi chính là mắt cuối.
+          type: array
+          items: { $ref: '#/components/schemas/LedgerProofLink' }
+    LedgerProofLink:
+      description: Một mắt chuỗi trong bằng chứng bao hàm, đủ để tính lại `entry_hash` theo TL-03.
+      type: object
+      required: [seqNo, payloadHash, metadataHash, entryHash]
+      properties:
+        seqNo: { type: integer, format: int64 }
+        payloadHash: { $ref: '#/components/schemas/LedgerHashHex' }
+        metadataHash: { $ref: '#/components/schemas/LedgerHashHex' }
+        entryHash: { $ref: '#/components/schemas/LedgerHashHex' }
     ComplaintDuplicateCandidate:
       description: Khiếu nại trước đó nghi trùng nội dung để đối chiếu theo BR-12-11.
       type: object

@@ -90,12 +90,58 @@ func PayloadHash(topic string, value []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: mã hoá JSON Avro: %v", ErrInvalid, err)
 	}
+	if text, err = specUnionNames(text); err != nil {
+		return nil, fmt.Errorf("%w: mã hoá JSON Avro: %v", ErrInvalid, err)
+	}
 	sum, _, err := canon.PayloadHash(text)
 	if err != nil {
 		return nil, fmt.Errorf("%w: chuẩn hoá JCS: %v", ErrInvalid, err)
 	}
 	return sum[:], nil
 }
+
+// specUnionNames đổi tên nhánh union của goavro về tên kiểu theo đặc tả Avro: goavro đặt tên nhánh kiểu
+// logic là "<kiểu gốc>.<logicalType>" (ví dụ "bytes.decimal"), còn đặc tả và JsonEncoder của Avro Java dùng
+// tên kiểu gốc ("bytes"). Tên trường Avro không chứa dấu chấm nên đối tượng một khoá có dạng đó chỉ có thể là
+// nhánh union; kiểu có tên (record, enum, fixed) giữ nguyên tên đầy đủ.
+func specUnionNames(text []byte) ([]byte, error) {
+	dec := json.NewDecoder(bytes.NewReader(text))
+	dec.UseNumber()
+	var v any
+	if err := dec.Decode(&v); err != nil {
+		return nil, err
+	}
+	changed := false
+	var walk func(any) any
+	walk = func(x any) any {
+		switch t := x.(type) {
+		case map[string]any:
+			if len(t) == 1 {
+				for k, inner := range t {
+					if base, _, ok := strings.Cut(k, "."); ok && primitive[base] {
+						changed = true
+						return map[string]any{base: walk(inner)}
+					}
+				}
+			}
+			for k, inner := range t {
+				t[k] = walk(inner)
+			}
+		case []any:
+			for i, inner := range t {
+				t[i] = walk(inner)
+			}
+		}
+		return x
+	}
+	v = walk(v)
+	if !changed {
+		return text, nil
+	}
+	return json.Marshal(v)
+}
+
+var primitive = map[string]bool{"int": true, "long": true, "float": true, "double": true, "bytes": true, "string": true}
 
 // headers gom tiêu đề Kafka: dạng phẳng của OutboxHeadersTransform (id, tenantid, actorid, ce_type,
 // occurredat, classification) và dạng EventRouter (ce_id, ce_tenantid, ce_source, khối JSON ce_headers).

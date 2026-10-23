@@ -39,6 +39,21 @@ public interface EvidenceEvents {
 
   void aiFieldsConfirmed(AiFieldsConfirmed event);
 
+  /**
+   * Đã kiểm chữ ký số gốc của văn bản vOffice gắn làm minh chứng (CORE-03-04, BR-07-13): ghi sổ cái
+   * qua {@code sys.audit.v1} trong cùng giao dịch tạo phiên bản.
+   */
+  record ExternalDocVerified(
+      TenantId tenantId,
+      UUID versionId,
+      String ref,
+      UUID objectId,
+      String signerName,
+      UUID actorId,
+      long aggregateVersion) {}
+
+  void externalDocVerified(ExternalDocVerified event);
+
   /** EVT-21: nhắc người nghiệm thu có minh chứng chờ xem xét. */
   void reviewRequested(
       TenantId tenantId,

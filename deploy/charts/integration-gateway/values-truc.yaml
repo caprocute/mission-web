@@ -1,0 +1,35 @@
+# DV-13-05: Deployment riêng cho Trục liên thông văn bản quốc gia (EdXML qua X-Road), dùng chồng lên
+# values.yaml: helm upgrade integration-gateway-truc . -f values.yaml -f values-truc.yaml.
+# Chỉ chạy route kéo văn bản đến và worker gửi ra cho các mã kết nối Trục, để lỗi hay nghẽn ở Trục
+# không kéo theo vOffice, HRM. Cổng nội bộ edxml-transfers vẫn do Deployment chính phục vụ (chung
+# CSDL), nên Deployment chính đặt INTEG_TRUC_ENABLED=false và INTEG_DISPATCH_EXCLUDE_CODES bằng
+# danh sách mã gửi ra của Trục.
+name: integration-gateway-truc
+resources:
+  requests:
+    cpu: 500m
+    memory: 2Gi
+  limits:
+    cpu: '1'
+    memory: 2Gi
+pdb:
+  minAvailable: 1
+autoscaling:
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 3
+    cpuUtilization: 75
+config:
+  INTEG_TRUC_ENABLED: 'true'
+  INTEG_TRUC_INBOUND_CODES: TRUC
+  INTEG_TRUC_OUTBOUND_CODES: BTC_TW,VPTW
+  INTEG_DISPATCH_INCLUDE_CODES: BTC_TW,VPTW
+  INTEG_VOFFICE_ENABLED: 'false'
+  INTEG_HRM_ENABLED: 'false'
+  INTEG_OUTBOUND_CONSUMER_ENABLED: 'false'
+networkPolicy:
+  ingressFrom:
+    - namespace: observability
+      ports:
+        - port: 8081
