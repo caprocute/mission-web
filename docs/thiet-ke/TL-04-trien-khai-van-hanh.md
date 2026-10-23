@@ -3774,10 +3774,16 @@ metadata:
 spec:
   syncWindows:
     - kind: deny
-      schedule: "0 0 24 3,6,9,12 *"
-      duration: 408h        # 17 ngày: từ 24 tháng cuối quý tới hết 10 tháng đầu quý sau
+      schedule: "0 0 24 3,12 *"
+      duration: 432h        # 18 ngày: từ 24/3, 24/12 (tháng 31 ngày) tới hết 10 tháng đầu quý sau
       applications: ["*"]
       manualSync: true      # cho phép đồng bộ thủ công qua vai trò release-manager khi CAB khẩn duyệt
+      timeZone: Asia/Ho_Chi_Minh
+    - kind: deny
+      schedule: "0 0 24 6,9 *"
+      duration: 408h        # 17 ngày: từ 24/6, 24/9 (tháng 30 ngày) tới hết 10 tháng đầu quý sau
+      applications: ["*"]
+      manualSync: true
       timeZone: Asia/Ho_Chi_Minh
     - kind: deny
       schedule: "0 0 20 1 *"

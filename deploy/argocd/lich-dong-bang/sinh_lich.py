@@ -92,6 +92,24 @@ def cua_so_co_dinh(nam: int) -> list[tuple[dt.date, dt.date]]:
     return kq
 
 
+def cua_so_co_dinh_argocd() -> list[dict]:
+    """syncWindows cố định của values.yaml, dựng từ ngày cuối cửa sổ thay vì một thời lượng chung.
+
+    Argo CD chỉ nhận lịch cron và thời lượng cố định, nên cửa sổ cuối quý tách theo độ dài tháng bắt đầu: từ 24/3
+    và 24/12 (tháng 31 ngày) tới hết ngày 10 là 18 ngày, từ 24/6 và 24/9 (tháng 30 ngày) là 17 ngày. Năm bất kỳ
+    cho cùng kết quả vì các tháng này không đổi độ dài; năm 2027 chỉ là mốc tính.
+    """
+    nhom: dict[int, list[int]] = {}
+    for thang in (3, 6, 9, 12):
+        bd = dt.date(2027, thang, 24)
+        kt = dt.date(2028, 1, 10) if thang == 12 else dt.date(2027, thang + 1, 10)
+        nhom.setdefault((kt - bd).days + 1, []).append(thang)
+    ds = [{"schedule": f"0 0 24 {','.join(map(str, t))} *", "duration": f"{ngay * 24}h"}
+          for ngay, t in sorted(nhom.items(), reverse=True)]
+    ds.append({"schedule": "0 0 20 1 *", "duration": f"{((dt.date(2027, 2, 4) - dt.date(2027, 1, 20)).days + 1) * 24}h"})
+    return [{"kind": "deny", **w, "applications": ["*"], "manualSync": True, "timeZone": "Asia/Ho_Chi_Minh"} for w in ds]
+
+
 def bo_khoang_da_phu(khoang, co_dinh):
     return [(bd, kt) for bd, kt in khoang if not any(a <= bd and kt <= b for a, b in co_dinh)]
 
