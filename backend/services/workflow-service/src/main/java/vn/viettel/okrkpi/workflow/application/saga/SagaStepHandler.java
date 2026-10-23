@@ -41,15 +41,26 @@ public interface SagaStepHandler {
     return Optional.empty();
   }
 
-  /** Kết quả thăm dò: xong, hoặc lỗi (tính là một lần thử thất bại của bước). */
-  record StepReply(boolean success, String error) {
+  /**
+   * Kết quả thăm dò: xong, lỗi (tính là một lần thử thất bại của bước), hoặc giữ bước chờ người vận
+   * hành quyết định ({@code hold}: không tính lần thử, saga sang {@code LOI_CAN_XU_LY}).
+   */
+  record StepReply(boolean success, String error, boolean hold) {
+
+    public StepReply(boolean success, String error) {
+      this(success, error, false);
+    }
 
     public static StepReply done() {
-      return new StepReply(true, null);
+      return new StepReply(true, null, false);
     }
 
     public static StepReply failed(String error) {
-      return new StepReply(false, error);
+      return new StepReply(false, error, false);
+    }
+
+    public static StepReply hold(String reason) {
+      return new StepReply(false, reason, true);
     }
   }
 }

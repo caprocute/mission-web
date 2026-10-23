@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.workflow.infrastructure.periodclose;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -33,9 +34,11 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
+import vn.viettel.okrkpi.workflow.application.periodclose.PeriodCloseControlService;
 import vn.viettel.okrkpi.workflow.application.periodclose.PeriodCloseRequest;
 import vn.viettel.okrkpi.workflow.application.periodclose.port.PeriodCloseGateway;
 import vn.viettel.okrkpi.workflow.application.saga.SagaService;
@@ -91,6 +94,7 @@ class PeriodCloseSagaIT {
   @Autowired private FlowableSagaEngine engine;
   @Autowired private JdbcClient jdbc;
   @Autowired private FakeParticipants fake;
+  @Autowired private PeriodCloseControlService control;
 
   private SagaWorker worker;
 
@@ -128,8 +132,17 @@ class PeriodCloseSagaIT {
     /** Số lần ký số đầu tiên thất bại theo kỳ. */
     final Map<UUID, Integer> signingFailures = new ConcurrentHashMap<>();
 
-    /** Kỳ mà tác vụ tính điểm còn chạy tới khi được thả. */
-    final Set<UUID> scoringHeld = ConcurrentHashMap.newKeySet();
+    /** Kỳ mà tác vụ của một lệnh còn chạy tới khi được thả. */
+    final Map<UUID, Command> held = new ConcurrentHashMap<>();
+
+    /** Số hồ sơ lỗi của lần tính chốt kỳ theo kỳ. */
+    final Map<UUID, Integer> scoringFailures = new ConcurrentHashMap<>();
+
+    /** Số hồ sơ mà các lô chạy lại đã tính, theo kỳ. */
+    final Map<UUID, AtomicInteger> retriedProfiles = new ConcurrentHashMap<>();
+
+    /** Kỳ có một kết quả bị sửa sau khi lưu (kiểm tất định phải phát hiện). */
+    final Set<UUID> tampered = ConcurrentHashMap.newKeySet();
 
     @Override
     public PreconditionReport checkPreconditions(PeriodCloseRequest request) {
@@ -159,11 +172,27 @@ class PeriodCloseSagaIT {
         return JobState.missing();
       }
       int n = polls.computeIfAbsent(jobId, k -> new AtomicInteger()).incrementAndGet();
-      if (command == Command.TINH_DIEM && scoringHeld.contains(request.periodId())) {
+      if (held.get(request.periodId()) == command) {
         return JobState.running(40);
       }
       if (n == 1) {
         return JobState.running(50);
+      }
+      if (command == Command.TINH_DIEM) {
+        return JobState.done(scoringFailures.getOrDefault(request.periodId(), 0));
+      }
+      if (command == Command.TINH_LAI_HO_SO_LOI) {
+        if (n == 2) {
+          // Lô mới chỉ gồm hồ sơ trong hàng đợi lỗi.
+          retriedProfiles
+              .computeIfAbsent(request.periodId(), k -> new AtomicInteger())
+              .addAndGet(scoringFailures.getOrDefault(request.periodId(), 0));
+          scoringFailures.put(request.periodId(), 0);
+        }
+        return JobState.done(0);
+      }
+      if (command == Command.KIEM_TAT_DINH) {
+        return JobState.done(tampered.contains(request.periodId()) ? 1 : 0);
       }
       if (command == Command.KY_SO_LO) {
         long signAttempts = list.stream().filter(s -> s.startsWith("KY_SO_LO:")).count();
@@ -215,7 +244,13 @@ class PeriodCloseSagaIT {
             "HOAN_TAT");
     assertThat(fake.commands(period))
         .containsExactly(
-            "KHOA_KY", "TINH_DIEM", "SINH_BIEU_MAU", "KY_SO_LO", "HOAN_TAT_KY", "NIEM_PHONG");
+            "KHOA_KY",
+            "TINH_DIEM",
+            "KIEM_TAT_DINH",
+            "SINH_BIEU_MAU",
+            "KY_SO_LO",
+            "HOAN_TAT_KY",
+            "NIEM_PHONG");
     assertThat(fake.undone).doesNotContainKey(period);
 
     mvc.perform(asClient(get(location)))
@@ -292,17 +327,19 @@ class PeriodCloseSagaIT {
     assertThat(stuck.step(5).lastError()).contains("HSM");
     assertThat(fake.undone).doesNotContainKey(period);
 
-    // Người vận hành chọn bù trừ toàn bộ: hoàn tác bước 5 về 2, kỳ về MO.
-    TenantContext.run(TenantId.of(TENANT), () -> sagas.control(id, SagaService.Control.BU_TRU));
+    // Hai người duyệt huỷ: hoàn tác từ bước ký (huỷ yêu cầu ký lỗi còn treo) về bước khoá.
+    TenantContext.run(
+        TenantId.of(TENANT), () -> control.cancel(id, UUID.randomUUID(), UUID.randomUUID()));
     SagaInstance undone = drive(id);
     assertThat(undone.status()).isEqualTo(SagaStatus.DA_BU_TRU);
-    assertThat(fake.undone.get(period)).containsExactly("SINH_BIEU_MAU", "TINH_DIEM", "KHOA_KY");
+    assertThat(fake.undone.get(period))
+        .containsExactly("KY_SO_LO", "SINH_BIEU_MAU", "TINH_DIEM", "KHOA_KY");
   }
 
   @Test
   void workerMoiTiepQuanGiuaBuocTinhDiemKhongGiaoLaiTacVu() throws Exception {
     UUID period = UUID.randomUUID();
-    fake.scoringHeld.add(period);
+    fake.held.put(period, PeriodCloseGateway.Command.TINH_DIEM);
     UUID id = idOf(start(period, UUID.randomUUID()));
 
     SagaInstance scoring =
@@ -316,7 +353,7 @@ class PeriodCloseSagaIT {
 
     // Pod chết: worker mới (cùng CSDL, cùng engine) tiếp quản; tác vụ tính điểm giữ nguyên.
     worker = new SagaWorker(engine, sagas, 16, Duration.ofSeconds(1));
-    fake.scoringHeld.remove(period);
+    fake.held.remove(period);
     SagaInstance done = drive(id);
 
     assertThat(done.status()).isEqualTo(SagaStatus.HOAN_TAT);
@@ -337,6 +374,124 @@ class PeriodCloseSagaIT {
                 .content(body(period, UUID.randomUUID())))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.code").value("WORKFLOW-409-SAGA-EXISTS"));
+  }
+
+  // --- DV-06-07: bù trừ, chạy lại hồ sơ lỗi, kiểm tất định ----------------------------------
+
+  @Test
+  void huyOTungBuocTruocDiemKhongQuayLaiDeuVeMoVaPhatHuyKhoaMotLan() throws Exception {
+    Map<Integer, PeriodCloseGateway.Command> steps =
+        Map.of(
+            2, PeriodCloseGateway.Command.KHOA_KY,
+            3, PeriodCloseGateway.Command.TINH_DIEM,
+            4, PeriodCloseGateway.Command.SINH_BIEU_MAU,
+            5, PeriodCloseGateway.Command.KY_SO_LO);
+    for (Map.Entry<Integer, PeriodCloseGateway.Command> at : steps.entrySet()) {
+      UUID period = UUID.randomUUID();
+      fake.held.put(period, at.getValue());
+      UUID id = idOf(start(period, UUID.randomUUID()));
+      driveUntil(id, s -> s.currentStepNo() == at.getKey() && s.status() == SagaStatus.CHO_SU_KIEN);
+
+      TenantContext.run(
+          TenantId.of(TENANT), () -> control.cancel(id, UUID.randomUUID(), UUID.randomUUID()));
+      SagaInstance undone = drive(id);
+
+      assertThat(undone.status()).as("huỷ ở bước %s", at.getKey()).isEqualTo(SagaStatus.DA_BU_TRU);
+      List<String> undo = fake.undone.get(period);
+      // Thứ tự ngược, gồm cả lệnh đang chờ của bước hiện tại; trả kỳ về MO (EVT-26) đúng một lần.
+      assertThat(undo.get(0)).isEqualTo(at.getValue().name());
+      assertThat(undo.get(undo.size() - 1)).isEqualTo("KHOA_KY");
+      assertThat(undo.stream().filter("KHOA_KY"::equals).count()).isEqualTo(1);
+      assertThat(undo).hasSize(at.getKey() - 1);
+    }
+  }
+
+  @Test
+  void huySauDiemKhongQuayLaiBi409VaCungNguoiDuyetBiChan() throws Exception {
+    UUID period = UUID.randomUUID();
+    fake.held.put(period, PeriodCloseGateway.Command.HOAN_TAT_KY);
+    UUID id = idOf(start(period, UUID.randomUUID()));
+    SagaInstance last =
+        driveUntil(id, s -> s.currentStepNo() == 6 && s.status() == SagaStatus.CHO_SU_KIEN);
+    assertThat(last.pointOfNoReturnPassed()).isTrue();
+
+    UUID same = UUID.randomUUID();
+    assertThatThrownBy(
+            () -> TenantContext.run(TenantId.of(TENANT), () -> control.cancel(id, same, same)))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e -> assertThat(e.errorCode().code()).isEqualTo("PERIOD-403-SAME-PERSON"));
+    assertThatThrownBy(
+            () ->
+                TenantContext.run(
+                    TenantId.of(TENANT),
+                    () -> control.cancel(id, UUID.randomUUID(), UUID.randomUUID())))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e -> assertThat(e.errorCode().code()).isEqualTo("PERIOD-409-POINT-OF-NO-RETURN"));
+    fake.held.remove(period);
+    assertThat(drive(id).status()).isEqualTo(SagaStatus.HOAN_TAT);
+    assertThat(fake.undone).doesNotContainKey(period);
+  }
+
+  @Test
+  void chayLai100HoSoLoiChiTinhDung100HoSoVaGoiTrungKhongTaoLoMoi() throws Exception {
+    UUID period = UUID.randomUUID();
+    fake.scoringFailures.put(period, 100);
+    UUID id = idOf(start(period, UUID.randomUUID()));
+    SagaInstance stuck = driveUntil(id, s -> s.status() == SagaStatus.LOI_CAN_XU_LY);
+    assertThat(stuck.currentStepNo()).isEqualTo(3);
+    assertThat(stuck.step(3).lastError()).contains("Còn 100 hồ sơ");
+
+    UUID first =
+        TenantContext.call(TenantId.of(TENANT), () -> control.retryFailedProfiles(id, "lan-1"));
+    UUID again =
+        TenantContext.call(TenantId.of(TENANT), () -> control.retryFailedProfiles(id, "lan-1"));
+    assertThat(again).isEqualTo(first);
+    SagaInstance done = drive(id);
+
+    assertThat(done.status()).isEqualTo(SagaStatus.HOAN_TAT);
+    assertThat(fake.retriedProfiles.get(period).get()).isEqualTo(100);
+    List<String> commands = fake.commands(period);
+    assertThat(commands.stream().filter("TINH_LAI_HO_SO_LOI"::equals).count()).isEqualTo(1);
+    assertThat(commands.stream().filter("TINH_DIEM"::equals).count()).isEqualTo(1);
+    assertThat(done.step(3).attempts()).isEqualTo(1);
+  }
+
+  @Test
+  void chapNhanDeLaiHoSoLoiKemLyDoThiSagaDiTiep() throws Exception {
+    UUID period = UUID.randomUUID();
+    fake.scoringFailures.put(period, 5);
+    UUID id = idOf(start(period, UUID.randomUUID()));
+    driveUntil(id, s -> s.status() == SagaStatus.LOI_CAN_XU_LY);
+    assertThatThrownBy(
+            () ->
+                TenantContext.run(
+                    TenantId.of(TENANT),
+                    () -> control.acceptFailedProfiles(id, UUID.randomUUID(), " ")))
+        .isInstanceOf(BusinessException.class);
+
+    TenantContext.run(
+        TenantId.of(TENANT),
+        () ->
+            control.acceptFailedProfiles(
+                id, UUID.randomUUID(), "Hồ sơ chuyển công tác, xử lý ở kỳ sau"));
+    SagaInstance done = drive(id);
+    assertThat(done.status()).isEqualTo(SagaStatus.HOAN_TAT);
+    assertThat(done.notes()).containsKey("chapNhanHoSoLoi");
+  }
+
+  @Test
+  void kiemTatDinhPhatHienKetQuaBiSuaThiDungChoNguoiVanHanh() throws Exception {
+    UUID period = UUID.randomUUID();
+    fake.tampered.add(period);
+    UUID id = idOf(start(period, UUID.randomUUID()));
+
+    SagaInstance stuck = driveUntil(id, s -> s.status() == SagaStatus.LOI_CAN_XU_LY);
+
+    assertThat(stuck.currentStepNo()).isEqualTo(3);
+    assertThat(stuck.step(3).lastError()).contains("1 hồ sơ cho kết quả khác");
+    assertThat(fake.commands(period)).doesNotContain("SINH_BIEU_MAU");
   }
 
   // --- Tiện ích ----------------------------------------------------------------------------

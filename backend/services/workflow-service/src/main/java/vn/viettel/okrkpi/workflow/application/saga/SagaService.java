@@ -279,6 +279,13 @@ public class SagaService {
     SagaDefinition definition = catalog.definition(saga.type());
     Instant now = now();
     Optional<SagaStepHandler.StepReply> polled = poll(saga);
+    if (polled.isPresent() && polled.get().hold()) {
+      int stepNo = saga.currentStepNo();
+      saga.holdForOperator(stepNo, polled.get().error());
+      journal.record(saga, Action.CHO_XU_LY, stepNo, false);
+      sagas.update(saga);
+      return;
+    }
     if (polled.isPresent()) {
       SagaStep step = saga.step(saga.currentStepNo());
       wakeUnlessBackingOff(
@@ -326,7 +333,7 @@ public class SagaService {
         case BU_TRU -> saga.requestCompensation();
       }
     } catch (SagaRuleViolation e) {
-      throw new BusinessException(VERSION_CONFLICT, e.getMessage());
+      throw violation(saga, e);
     }
     Action action =
         switch (control) {
@@ -343,6 +350,54 @@ public class SagaService {
     return saga;
   }
 
+  /**
+   * Lệnh nội bộ của từng loại saga cho bước đang chờ: ghi chú bền cho bộ xử lý bước rồi đưa bước
+   * đang giữ chờ người vận hành quay lại chờ kết quả (ví dụ chạy lại hồ sơ lỗi, chấp nhận để lại
+   * lỗi của bước tính điểm chốt kỳ, DV-06-07).
+   */
+  @Transactional
+  public SagaInstance annotateWaitingStep(
+      UUID sagaId, String stepCode, Action action, Map<String, Object> notes) {
+    SagaInstance saga = require(sagaId);
+    int stepNo = saga.currentStepNo();
+    if (saga.status().isTerminal()
+        || stepNo < 1
+        || stepNo > saga.steps().size()
+        || !saga.step(stepNo).stepCode().equals(stepCode)) {
+      throw new BusinessException(
+          VERSION_CONFLICT, "Quy trình không ở bước cho phép thao tác này.");
+    }
+    notes.forEach(saga::putNote);
+    try {
+      if (saga.status() == SagaStatus.LOI_CAN_XU_LY) {
+        saga.resumeAwaiting(stepNo, now());
+      } else if (saga.status() != SagaStatus.CHO_SU_KIEN) {
+        throw new SagaRuleViolation(
+            SagaRuleViolation.Reason.KHONG_O_TRANG_THAI_LOI,
+            "Bước " + stepNo + " của saga " + sagaId + " không đang chờ kết quả");
+      }
+    } catch (SagaRuleViolation e) {
+      throw violation(saga, e);
+    }
+    journal.record(saga, action, stepNo, true);
+    sagas.update(saga);
+    return saga;
+  }
+
+  /** Mã lỗi riêng của loại saga cho vi phạm luật điều khiển, mặc định xung đột phiên bản. */
+  private BusinessException violation(SagaInstance saga, SagaRuleViolation e) {
+    String code =
+        e.reason() == SagaRuleViolation.Reason.DA_QUA_DIEM_KHONG_QUAY_LAI
+            ? catalog.blueprint(saga.type()).map(b -> b.pointOfNoReturnCode()).orElse(null)
+            : null;
+    if (code != null) {
+      return new BusinessException(
+          code,
+          "Quy trình đã qua bước không thể hoàn tác, chỉ có thể mở lại theo quy trình hậu kiểm.");
+    }
+    return new BusinessException(VERSION_CONFLICT, e.getMessage());
+  }
+
   // --- Nội bộ ------------------------------------------------------------------------------
 
   private void execute(SagaInstance saga, SagaDefinition definition, int stepNo, Instant now) {
@@ -357,7 +412,9 @@ public class SagaService {
       }
       case StepResult.AwaitingReply awaiting -> {
         saga.awaitReply(stepNo, awaiting.commandEventId());
-        if (definition.step(stepNo).pointOfNoReturn()) {
+        if (definition.step(stepNo).pointOfNoReturn()
+            && definition.step(stepNo).compensationCode() == null) {
+          // Bước điểm không quay lại không có bù trừ: lệnh đã phát là không hoàn tác được nữa.
           saga.passPointOfNoReturn();
         }
         journal.record(saga, Action.CHO_TRA_LOI, stepNo, true);
@@ -427,7 +484,8 @@ public class SagaService {
         step.stepCode(),
         compensation ? step.compensationCode() : null,
         step.attempts(),
-        saga.parameters());
+        saga.parameters(),
+        saga.notes());
   }
 
   private SagaInstance require(UUID sagaId) {
