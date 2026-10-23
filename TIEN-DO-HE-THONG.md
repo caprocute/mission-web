@@ -14,8 +14,8 @@
 
 - **Tổng tiến độ đã gộp `main`**: **274 / 408 task (67.2%)** — Khối lượng quy đổi đã gộp: **313 / 492.5 đơn vị**.
 - **Tổng tiến độ tính cả các task đã xong chờ gộp**: **277 / 408 task (67.9%)** (gồm **274** đã gộp `main` + **3** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **5 task** (1 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **126 task**.
+- **Đang thực hiện / Làm một phần**: **6 task** (1 đang làm, 5 làm một phần).
+- **Chưa bắt đầu**: **125 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **16 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-07`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -24,7 +24,7 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **67** | 0 | 2 | 3 | **93.1%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **82** | 2 | 2 | 31 | **70.1%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **82** | 2 | 3 | 30 | **70.1%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **59** | 0 | 1 | 44 | **56.7%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **11** | 1 | 0 | 1 | **84.6%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
@@ -32,7 +32,7 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **274** | **3** | **5** | **126** | **67.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **274** | **3** | **6** | **125** | **67.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -42,7 +42,7 @@
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **44** | 0 | 0 | 3 | **93.6%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **71** | 0 | 2 | 47 | **59.2%** |
-| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **48** | 2 | 1 | 21 | **66.7%** |
+| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **48** | 2 | 2 | 20 | **66.7%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **16** | 0 | 1 | 25 | **38.1%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **3** | 0 | 0 | 20 | **13.0%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **0** | 1 | 0 | 3 | **0.0%** |
@@ -328,7 +328,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-06-07](docs/tasks/CORE-06-07-ky-khoa-goi.md) | Manifest SHA-256, danh sách kiểm tra, ký gói, khoá `DA_NOP`, phiên bản gói mới khi EVT-22 | M | B4 | 21 | CORE-06-06, DV-10-02 | **Chưa bắt đầu** |  |
 | [CORE-06-08](docs/tasks/CORE-06-08-xuat-goi-edxml.md) | Xuất gói ZIP có manifest ký và gửi gói con diện Trung ương qua EdXML | M | B4 | 22 | CORE-06-07, DV-13-05 | **Chưa bắt đầu** |  |
 
-### CORE-07 · MOD-07 oversight: khiếu nại, hậu kiểm, cảnh báo (3/12 đã gộp `main`, 2 chờ gộp, 1 đang làm)
+### CORE-07 · MOD-07 oversight: khiếu nại, hậu kiểm, cảnh báo (3/12 đã gộp `main`, 2 chờ gộp, 2 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -337,7 +337,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-07-03](docs/tasks/CORE-07-03-tiep-nhan-khieu-nai.md) | Chọn người xử lý qua OPA, máy trạng thái khiếu nại, tiếp nhận, không thụ lý, rút | M | B4 | 21 | CORE-07-02, NEN-040, DV-06-04 | **Xong, chờ gộp** | Nhánh claude/project-thread-z7s8x3: máy trạng thái, tiếp nhận, không thụ lý, rút, Rego chọn người xử lý; đã qua build & test |
 | [CORE-07-04](docs/tasks/CORE-07-04-giai-trinh-ket-luan.md) | Yêu cầu giải trình, timer hạn, kết luận, văn bản trả lời có ký, tạo yêu cầu mở lại | L | B4 | 22 | CORE-07-03, DV-07-08, CORE-07-07 | **Chưa bắt đầu** |  |
 | [CORE-07-05](docs/tasks/CORE-07-05-bao-luu-tu-dong.md) | Bảo lưu, tự đóng, nhật ký giải mã, gợi ý khiếu nại trùng | S | B4 | 23 | CORE-07-04, CORE-00-05 | **Chưa bắt đầu** |  |
-| [CORE-07-06](docs/tasks/CORE-07-06-ma-hoa-dau-cuoi-c3.md) | Mã hoá đầu cuối C3 phía máy chủ: lưu bản mã, khoá công khai người nhận, bọc khoá, phục hồi tổ chức Shamir | L | B4 | 21 | CORE-07-02, NEN-015, NEN-042 | **Chưa bắt đầu** |  |
+| [CORE-07-06](docs/tasks/CORE-07-06-ma-hoa-dau-cuoi-c3.md) | Mã hoá đầu cuối C3 phía máy chủ: lưu bản mã, khoá công khai người nhận, bọc khoá, phục hồi tổ chức Shamir | L | B4 | 21 | CORE-07-02, NEN-015, NEN-042 | **Làm một phần** | Nhánh claude/project-thread-z7s8x3: phần B, C (bản mã nhiệm vụ mật, khoá bọc nhiệm vụ và minh chứng, chia sẻ, thu hồi, khoá phục hồi bắt buộc) đã qua build & test; phần A, D chờ task sửa hợp đồng |
 | [CORE-07-07](docs/tasks/CORE-07-07-yeu-cau-mo-lai.md) | Yêu cầu mở lại kỳ và mô phỏng ảnh hưởng | M | B4 | 18 | CORE-07-01, DV-07-08 | **Làm một phần** | Phần lõi đã gộp main (8d459e44); mô phỏng chờ DV-07-08 |
 | [CORE-07-08](docs/tasks/CORE-07-08-bon-mat-phe-duyet.md) | Bốn mắt: chọn hai người duyệt qua OPA, phê duyệt có step-up và ký số, EVT-22 | M | B4 | 19 | CORE-07-07, NEN-040, DV-10-02, DV-06-04 | **Đã gộp main** | Đã gộp main (984a7ba1) |
 | [CORE-07-09](docs/tasks/CORE-07-09-dieu-phoi-tinh-lai.md) | Điều phối tính lại, sinh lại, ký lại sau EVT-22; hậu kiểm có bằng chứng sổ cái | M | B4 | 20 | CORE-07-08, CORE-08-06, DV-09-05 | **Chưa bắt đầu** |  |
@@ -968,4 +968,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 23:10 | B9 | `CORE-07-02` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: gửi khiếu nại nháp mã hoá, ký số, EVT-25; đã qua build & test |
 | 22/10/2026 23:30 | B9 | `CORE-07-03` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-z7s8x3: máy trạng thái, tiếp nhận, không thụ lý, rút, Rego chọn người xử lý |
 | 22/10/2026 23:31 | B9 | `CORE-07-03` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: máy trạng thái, tiếp nhận, không thụ lý, rút, Rego chọn người xử lý; đã qua build & test |
+| 23/10/2026 00:01 | B9 | `CORE-07-06` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/project-thread-z7s8x3: phần B, C (bản mã nhiệm vụ mật, khoá bọc nhiệm vụ và minh chứng, chia sẻ, thu hồi, khoá phục hồi bắt buộc) đã qua build & test; phần A, D chờ task sửa hợp đồng |
 <!-- PROGRESS_LOG_END -->
