@@ -14,6 +14,11 @@ public interface PolicyPublishRepository {
   /** Yêu cầu đang chờ phê duyệt của phiên bản. */
   Optional<PolicyPublishRequest> findPending(TenantId tenant, UUID versionId);
 
+  Optional<PolicyPublishRequest> findById(TenantId tenant, UUID requestId);
+
+  /** Yêu cầu đã duyệt gần nhất của phiên bản (dùng khi phát hành lại, CORE-05-10). */
+  Optional<PolicyPublishRequest> findApproved(TenantId tenant, UUID versionId);
+
   /** Ghi quyết định nếu {@code row_version} của yêu cầu còn bằng {@code expected}. */
   boolean storeDecision(TenantId tenant, PolicyPublishRequest request, long expected);
 
