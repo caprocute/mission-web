@@ -26,6 +26,15 @@ spec:
   stopDelay: {{ $v.shutdown.stopDelay }}
   switchoverDelay: {{ $v.shutdown.switchoverDelay }}
   enableSuperuserAccess: false
+  {{- if $v.backup.enabled }}
+  # WAL và bản nền ra kho sao lưu qua plugin Barman Cloud (INF-17, templates/sao-luu.yaml).
+  plugins:
+    - name: {{ $v.backup.plugin }}
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: {{ $v.backup.objectStorePrefix }}-{{ $ten }}
+        serverName: {{ $ten }}
+  {{- end }}
   postgresql:
     synchronous:
       method: any

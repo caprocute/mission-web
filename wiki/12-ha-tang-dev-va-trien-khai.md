@@ -383,6 +383,35 @@ Kiểm thử dùng máy chủ giả lập (`httptest`), `kubectl`/`helm` giả v
 
 Kiểm thử chức năng chạy trên API server Kubernetes giả; chưa chạy trên kind với APISIX trong đợt này, không đo tải (YC-PT-19). Runbook: `ops/runbooks/suy-giam-ba-muc.md`.
 
+## Sao lưu phần 1: PostgreSQL, etcd, Velero (INF-17)
+
+Lớp sao lưu theo TL-04 chương 8 độc lập với nhân bản và nằm ở ba chart. Chart `rgw-cell` có bản phát hành thứ hai cho mỗi cell với `values-kho-sao-luu.yaml`, trỏ tới RGW của kho sao lưu riêng `ceph-sn-bk` ở phía Nam. Bản này khai ba bucket `bk-cell-<mã>-pg`, `-ch`, `-k8s` với Object Lock COMPLIANCE 35, 35 và 30 ngày. Khoá S3 của cell chỉ được đọc, ghi, liệt kê và kéo dài hạn giữ. Việc dọn bản cũ do vòng đời bucket làm theo tiền tố, dưới tài khoản quản trị kho; chart từ chối mọi luật dọn chạy trước khi hết hạn khoá. Để làm được điều này, chart có thêm trường `ten` và `uid` (thay `{cell}` bằng mã cell) và khối `vongDoi.don`.
+
+Chart `data-pg` có khối `backup`, tạo cho mỗi cụm một `ObjectStore` `bk-sn-<cụm>` của plugin Barman Cloud, một `ScheduledBackup` `<cụm>-daily`, một ExternalSecret `bk-sn-s3-pg` (lấy từ `kv/cell-<mã>/backup/pg`) và NetworkPolicy `pg-sao-luu`. Cụm khai plugin với `isWALArchiver`. Chart mới `deploy/charts/backup-cell` chứa các phần còn lại:
+
+- CronJob `restore-check` khôi phục thử mỗi ngày một cụm luân phiên vào namespace cách ly `data-pg-restore`.
+- CronJob `giu-dai-han` chép bản nền cuối tháng sang `dai-han/thang/` (giữ 12 tháng) và bản cuối năm của `pg-ledger`, `pg-secure` sang `dai-han/nam/` (giữ 10 năm).
+- CronJob `chup-etcd` trong `kube-system`, chụp etcd và mã hoá bằng `age`.
+- `BackupStorageLocation` cùng hai `Schedule` của Velero.
+- Luật cảnh báo `BackupMissing`, `RestoreCheckStale`, cộng hai luật bổ sung (suy luận) là `RestoreCheckFailed` và `EtcdSnapshotMissing`.
+
+Có bốn bẫy đã gặp khi viết:
+
+1. **Nén bản nền không có zstd.** CRD `ObjectStore` của plugin chỉ nhận `bzip2`, `gzip`, `lz4`, `snappy` cho `data.compression`; zstd chỉ dùng được cho WAL. Mẫu TL-04 ghi zstd cho cả hai, nên chart chọn lz4 cho bản nền. Điểm lệch này cần ghi ở trang 14.
+2. **Lịch tính theo UTC.** CNPG và Velero đọc lịch theo UTC, nên 01:30 giờ Việt Nam được viết là `0 30 18 * * *`. CronJob Kubernetes thì dùng `timeZone: Asia/Ho_Chi_Minh`.
+3. **Không gộp được bản dài hạn vào luật 35 ngày.** S3 lifecycle không loại trừ được tiền tố. Vì vậy luật dọn 36 ngày khai theo từng tiền tố cụm (`pg-core/`, …), và bản dài hạn nằm ở tiền tố riêng `dai-han/`.
+4. **Velero không tự xoá được bản hết TTL.** Khoá không có quyền xoá, nên các bản đó nằm ở trạng thái xoá lỗi cho tới khi vòng đời bucket dọn sau 31 ngày.
+
+Về kiểm thử, `deploy/charts/backup-cell/tests/chay-kiem-thu.sh` chạy các bước sau:
+
+- `helm lint` và `kubeconform -strict` với schema CRD plugin Barman Cloud v0.15.1 và Velero v1.18.4. Schema mới nằm ở `vt-platform/ci/crd-schemas`.
+- `promtool test rules`.
+- Khớp tên giữa ba chart.
+- Các ca chart phải từ chối.
+- Kiểm thử script `kiem-thu-script.sh`, với truy vấn kiểm chạy trên PostgreSQL thật và kubectl, aws giả lập.
+
+Chưa chạy trên kind với RGW đóng vai kho sao lưu, chưa diễn tập DR (YC-PT-19). Runbook: `ops/runbooks/sao-luu-postgresql.md`, `ops/runbooks/sao-luu-kubernetes.md`.
+
 ## Lộ trình theo TL-04
 
 TL-04 chia lộ trình thành các đợt. Đợt 0a kéo dài 2 tuần, xử lý ngay các lỗ hổng S01 đến S05, S07, S08 và S11 của hệ cũ: gitleaks, xoay vòng bí mật, OpenBao tối thiểu, sửa CORS và cookie, bỏ token khỏi URL và log, rồi kiểm tra lại. Đợt 0b kéo dài 6 tuần: chart `vt-service`, đặt APISIX trước hệ cũ để sinh `traceparent`, dựng OTel, Tempo, Prometheus, Fluent Bit và cụm quản trị Argo CD, Harbor, Grafana, với mục tiêu có trace xuyên bốn tầng. Đợt 0c kéo dài 6 tuần: Resilience4j, cổng chất lượng Jenkins, Kyverno chế độ Enforce, Flyway và thử tải 500 người dùng đồng thời với p95 dưới 3 giây.

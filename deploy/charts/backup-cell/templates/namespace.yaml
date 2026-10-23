@@ -1,0 +1,143 @@
+{{- /* Namespace cách ly cho cụm khôi phục thử và job giữ dài hạn (INF-17): nhãn vùng dữ liệu như data-pg để chính sách
+Kyverno và PSA áp như cụm thật; default-deny, DNS, operator CNPG gọi instance manager, instance và job ra kho sao lưu,
+job ra Pushgateway và kube-apiserver. Không có luồng nào từ ứng dụng vào namespace này. */}}
+{{- $v := .Values }}
+{{- if or $v.restoreCheck.enabled $v.giuDaiHan.enabled }}
+{{- $ns := $v.restoreCheck.namespace }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+    vt.io/security-zone: data
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rc-instance
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions: [{ key: cnpg.io/cluster, operator: Exists }]
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $v.operatorNamespace }} } }
+      ports: [{ port: 8000, protocol: TCP }]
+{{- with $v.khoSaoLuu.egressTo }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ra-kho-sao-luu
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" $ | nindent 4 }}
+spec:
+  # Instance khôi phục (plugin Barman Cloud đọc bản nền, WAL) và job giữ dài hạn (chép đối tượng).
+  podSelector:
+    matchExpressions: [{ key: vt.io/ra-kho-sao-luu, operator: In, values: ["true"] }]
+  policyTypes: [Egress]
+  egress:
+    - to:
+        {{- toYaml . | nindent 8 }}
+      ports: [{ port: {{ $v.khoSaoLuu.egressPort }}, protocol: TCP }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rc-instance-ra-kho
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" $ | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions: [{ key: cnpg.io/cluster, operator: Exists }]
+  policyTypes: [Egress]
+  egress:
+    - to:
+        {{- toYaml . | nindent 8 }}
+      ports: [{ port: {{ $v.khoSaoLuu.egressPort }}, protocol: TCP }]
+{{- end }}
+{{- if $v.pushgateway }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ra-pushgateway
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { vt.io/thanh-phan: sao-luu-job }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        {{- toYaml $v.pushgatewayEgressTo | nindent 8 }}
+      ports: [{ port: 9091, protocol: TCP }]
+{{- end }}
+{{- if $v.cilium }}
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: goi-kube-apiserver
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+spec:
+  description: Job sao lưu (kubectl) và instance manager của cụm khôi phục thử gọi kube-apiserver.
+  endpointSelector:
+    matchExpressions:
+      - { key: k8s:vt.io/goi-api, operator: In, values: ["true"] }
+  egress:
+    - toEntities: [kube-apiserver]
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: rc-instance-kube-apiserver
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+spec:
+  description: Instance manager, Job khôi phục của CNPG gọi kube-apiserver.
+  endpointSelector:
+    matchExpressions:
+      - { key: k8s:cnpg.io/cluster, operator: Exists }
+  egress:
+    - toEntities: [kube-apiserver]
+{{- end }}
+{{- end }}
