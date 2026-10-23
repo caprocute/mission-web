@@ -16,6 +16,8 @@ COPY ${SERVICE} ./
 RUN CGO_ENABLED=0 GOOS=linux GOTOOLCHAIN=local go build -trimpath -ldflags="-s -w" -o /out/app ./cmd/${CMD}
 
 FROM alpine:3.20
+ARG GIT_REVISION=unknown
+LABEL org.opencontainers.image.revision="${GIT_REVISION}"
 # Chứng thư gốc bổ sung (BUILD_CA_BUNDLE của compose) chỉ dùng lúc tải gói, không vào ảnh.
 RUN --mount=type=secret,id=ca_bundle,required=false \
     if [ -s /run/secrets/ca_bundle ]; then export SSL_CERT_FILE=/run/secrets/ca_bundle; fi; \

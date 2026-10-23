@@ -148,7 +148,7 @@ export function buildAppConfig(
         });
       }),
       // Cờ tính năng (WEB-076): nạp khi khởi động và nạp lại khi đổi phân công; lỗi thì mọi cờ tắt.
-      // Chờ phiên có token như bước khám phá cell: gọi sớm nhận 401, bộ chặn coi là phiên hết hạn.
+      // Như registry, chờ phiên có token rồi mới gọi để `/ui/feature-flags` không bị 401 ở cổng API.
       provideAppInitializer(() => {
         const flags = inject(FeatureFlagService);
         const session = inject(SessionService);

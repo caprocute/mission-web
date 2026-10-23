@@ -32,3 +32,24 @@ chế độ giả lập và hệ thống thật:
 
 Chạy ở chế độ giả lập: `npx playwright test -c e2e/hanh-trinh/qt04-07/playwright.gia-lap.config.ts`
 (sau `npm run e2e:prepare`); trên hệ thống thật các tệp này chạy cùng bộ QA-03 với `E2E_MODE=he-thong`.
+
+## Điều kiện để chạy thật QA-05 và QA-06 trên bộ hạ tầng dev
+
+Rà tĩnh ngày 23/10/2026 (B4) cho thấy lời gọi API của hai bộ hành trình khớp hợp đồng. Mã người dùng Keycloak
+của tài khoản thử trùng mã cán bộ của `infra/dev/postgres/seed/org-du-lieu-thu.sql`, nên kịch bản dùng `sub`
+làm mã người giao và mã người chủ trì là đúng. Trước khi chạy, môi trường cần đủ các điều kiện sau. Nếu thiếu,
+hành trình sẽ hỏng hoặc ghi "chờ" dù kịch bản đúng:
+
+- **Bản sao tổ chức đã được phát lại.** Nạp `org-du-lieu-thu.sql` bằng SQL không phát sự kiện, nên
+  `org_replica` của mission-core và workflow-service vẫn rỗng. Sau khi nạp, chạy `org-republish` của
+  org-service cho tenant thử (hồ sơ Spring `republish`, xem `ops/runbooks/org-republish.md`).
+- **Minh chứng được quét mã độc.** evidence-service cần clamd và `EVIDENCE_SCAN_ENABLED=true`. Nếu không có,
+  tệp tải lên mãi chờ quét, HT-20 và HT-21 không qua được.
+- **Hồ sơ đánh giá mở được phiếu tự đánh giá (QA-06).** Cần đủ bốn điều kiện:
+  - kỳ quý dài đúng ba tháng đã khoá;
+  - cán bộ thử là đảng viên, vì luồng Nhà nước còn giữ trạng thái chưa lập theo wiki trang 14 mục 59(e);
+  - có Policy Pack đã phát hành cho luồng Đảng và khối đối tượng của đơn vị thử;
+  - scoring-service đang chạy.
+- **Biến môi trường.** `E2E_KC_URL` phải trùng từng ký tự với `KEYCLOAK_PUBLIC_URL` của hạ tầng, nếu không
+  máy chủ từ chối token vì `iss` khác. Bước kiểm sự kiện cần `E2E_KAFKA_UI_URL`; compose dev hiện chưa có
+  kafka-ui.

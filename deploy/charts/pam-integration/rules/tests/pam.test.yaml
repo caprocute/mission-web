@@ -109,3 +109,56 @@ tests:
       exp_annotations:
         summary: "Cụm pg-core: vai trò bao_admin đang được miễn quét theo ngoại lệ có hạn"
         runbook_url: https://runbook.vt.local/okr/pam-pha-kinh
+- interval: 5m
+  input_series:
+  # Lần chép cuối thành công lúc 15 phút, sau đó chỉ còn lỗi (POST giữ nguyên giá trị cũ).
+  - series: vt_pam_ghi_phien_last_success_timestamp_seconds{cell="g4", job="warpgate-ghi-phien"}
+    values: 0 0 0 900x40
+  # Token làm mới đến 20 phút rồi ngừng: token cuối hết hạn lúc 20 phút + 1 giờ.
+  - series: vt_pam_warpgate_bi_mat_het_han_timestamp_seconds{kv="warpgate/kubectl-g4-debug-app", job="warpgate-lam-moi"}
+    values: 3600 3900 4200 4500 4800x40
+  - series: vt_pam_warpgate_lam_moi_last_success_timestamp_seconds{job="warpgate-lam-moi"}
+    values: 0 300 600 900 1200x40
+  alert_rule_test:
+  - eval_time: 2h
+    alertname: PamGhiPhienCu
+    exp_alerts: []
+  - eval_time: 2h20m
+    alertname: PamGhiPhienCu
+    exp_alerts:
+    - exp_labels: { severity: critical, doi: sre-nen-tang, sec: SEC-42, cell: g4 }
+      exp_annotations:
+        summary: "Cell g4: bản ghi phiên Warpgate chưa được chép sang bucket bất biến quá 2 giờ"
+        runbook_url: https://runbook.vt.local/okr/pam-cap-quyen
+  - eval_time: 1h
+    alertname: PamWarpgateBiMatSapHet
+    exp_alerts: []
+  - eval_time: 1h10m
+    alertname: PamWarpgateBiMatSapHet
+    exp_alerts:
+    - exp_labels: { severity: warning, doi: sre-nen-tang, sec: SEC-42, kv: warpgate/kubectl-g4-debug-app }
+      exp_annotations:
+        summary: "Bí mật warpgate/kubectl-g4-debug-app của mục tiêu Warpgate còn dưới 15 phút mà chưa được làm mới"
+        runbook_url: https://runbook.vt.local/okr/pam-cap-quyen
+  - eval_time: 1h15m
+    alertname: PamWarpgateLamMoiLoi
+    exp_alerts: []
+  - eval_time: 1h25m
+    alertname: PamWarpgateLamMoiLoi
+    exp_alerts:
+    - exp_labels: { severity: warning, doi: sre-nen-tang, sec: SEC-42 }
+      exp_annotations:
+        summary: "CronJob warpgate-lam-moi không chạy thành công quá 1 giờ"
+        runbook_url: https://runbook.vt.local/okr/pam-cap-quyen
+- interval: 5m
+  input_series:
+  - series: vt_pam_quet_last_run_timestamp_seconds{job="pam-quet-rbac"}
+    values: 0x30
+  alert_rule_test:
+  - eval_time: 2h30m
+    alertname: PamGhiPhienVangMat
+    exp_alerts:
+    - exp_labels: { severity: critical, doi: sre-nen-tang, sec: SEC-42 }
+      exp_annotations:
+        summary: "Chưa có lần chép bản ghi phiên Warpgate nào thành công trên Pushgateway"
+        runbook_url: https://runbook.vt.local/okr/pam-cap-quyen

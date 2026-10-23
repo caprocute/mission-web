@@ -62,3 +62,5 @@ mission:
 okrkpi:
   opa:
     base-url: ${OPA_URL:http://127.0.0.1:8181}
+    connect-timeout: ${OPA_CONNECT_TIMEOUT:50ms}
+    read-timeout: ${OPA_READ_TIMEOUT:100ms}

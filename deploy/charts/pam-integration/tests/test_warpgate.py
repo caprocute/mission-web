@@ -62,7 +62,9 @@ class Render(unittest.TestCase):
         self.assertEqual(ns["pod-security.kubernetes.io/enforce"], "restricted")
         self.assertTrue(tim(D, "NetworkPolicy", "default-deny-all", "pam"))
         np = tim(D, "NetworkPolicy", "warpgate", "pam")[0]["spec"]
-        self.assertEqual(np["ingress"], [], "không khai nguonCIDRs thì không ai vào được")
+        # Không khai nguonCIDRs thì người không vào được; chỉ CronJob warpgate-lam-moi gọi API quản trị (cổng HTTPS).
+        self.assertEqual(np["ingress"], [{"from": [{"podSelector": {"matchLabels": {"app.kubernetes.io/name": "warpgate-lam-moi"}}}],
+                                          "ports": [{"protocol": "TCP", "port": 8888}]}])
         ra = json.dumps(np["egress"])
         self.assertIn('"port": 6514', ra)
         self.assertIn("otel-siem", ra)
@@ -114,7 +116,8 @@ class Render(unittest.TestCase):
                 if k in ("token", "password", "private_key"):
                     self.assertTrue(v.startswith("secret://openbao-cell/kv/warpgate/"), (k, v))
             self.assertTrue(json.dumps(m).count(".vt.local") or "svc" in json.dumps(m))
-        self.assertEqual(json.loads(d["vai-tro.json"]), ["pam-kubectl", "pam-psql", "pam-ssh"])
+        self.assertEqual(json.loads(d["vai-tro.json"]), ["pam-kubectl-debug-app", "pam-kubectl-operate-data",
+                                                          "pam-kubectl-platform-admin", "pam-psql", "pam-ssh"])
 
     def test_tat_warpgate(self):
         d = docs(CHART, "--set", "warpgate.enabled=false")
@@ -334,6 +337,35 @@ class ChayThat(unittest.TestCase):
                          ("nguoi.van.hanh", "pam-psql", ["change"]))
         self.assertEqual(hd.get("pam.thu-hoi", {}).get("event.type"), ["deletion"])
         self.assertTrue(all(r.get("event.module") == "pam" and "Z" in r.get("@timestamp", "") for r in kq))
+
+    def test_3_lam_moi_doi_username_psql(self):
+        """warpgate_lam_moi.py (OpenBao và API server giả) đổi username của mục tiêu psql-pg-core trên Warpgate thật qua
+        PUT /targets/{id}, giữ nguyên các tuỳ chọn khác và tham chiếu secret:// của mật khẩu."""
+        spec = importlib.util.spec_from_file_location("test_warpgate_viec", os.path.join(CHART, "tests", "test_warpgate_viec.py"))
+        tv = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(tv)
+        g = tv.MayChuGia()
+        self.addCleanup(g.dong)
+        env = tv.moi_truong(self.tmp, g.url)
+        with open(env["WARPGATE_TOKEN_FILE"], "w") as f:
+            f.write(self.token)
+        env["WARPGATE_CA"] = f"{self.tmp}/tls/ca.crt"
+        cfg = tv.cau_hinh_lam_moi(g.url)
+        cfg["warpgate"] = f"https://localhost:{self.cong['http']}"
+        st, truoc = self.goi("GET", "/@warpgate/admin/api/targets", admin=True)
+        truoc = next(t for t in truoc if t["name"] == "psql-pg-core")
+        x = tv.lm.LamMoi(cfg, env)
+        with tv.contextlib.redirect_stdout(tv.io.StringIO()):
+            x.chay("openbao-cell")
+        self.assertEqual(x.loi, 0)
+        st, sau = self.goi("GET", "/@warpgate/admin/api/targets", admin=True)
+        sau = next(t for t in sau if t["name"] == "psql-pg-core")
+        self.assertEqual(sau["options"]["username"], g.kv["warpgate/psql-pg-core"]["username"])
+        self.assertEqual(sau["options"]["auth"], truoc["options"]["auth"])
+        truoc["options"].pop("username")
+        sau["options"].pop("username")
+        self.assertEqual(sau["options"], truoc["options"])
+        self.assertEqual(sau["ticket_requests_disabled"], truoc["ticket_requests_disabled"])
 
     def doc_siem(self):
         kq = []

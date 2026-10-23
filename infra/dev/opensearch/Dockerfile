@@ -2,7 +2,7 @@
 # OpenSearch dev kèm plugin analysis-icu: mẫu chỉ mục của search (SVC-16) dùng icu_tokenizer cho tiếng Việt, ảnh chính
 # thức không có sẵn plugin này (search-service dừng lúc khởi động với lỗi 400 khi nạp mẫu). Tải zip bằng curl để dùng
 # được CA của proxy dựng ảnh (build secret ca_bundle, tuỳ chọn) rồi cài từ tệp cục bộ.
-ARG OPENSEARCH_VERSION=2.18.0
+ARG OPENSEARCH_VERSION=2.19.2
 FROM opensearchproject/opensearch:${OPENSEARCH_VERSION}
 ARG OPENSEARCH_VERSION
 RUN --mount=type=secret,id=ca_bundle,required=false,uid=1000 \

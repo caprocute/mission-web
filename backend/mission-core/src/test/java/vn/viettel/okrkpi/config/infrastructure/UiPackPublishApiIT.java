@@ -226,6 +226,31 @@ class UiPackPublishApiIT extends ContractConformanceTest {
     return perform(get(url)).getResponse().getHeader("ETag");
   }
 
+  /**
+   * Tenant mới chưa phát hành UI Pack (tình huống server dev): {@code getHomeLayout} không có 404
+   * trong hợp đồng nên trả bố cục của nội dung khởi đầu; {@code getCurrentUiPack} được phép 404.
+   */
+  @Test
+  void homeLayoutFallsBackToDefaultWhenTenantHasNoPublishedPack() throws Exception {
+    assertThat(perform(get("/api/v1/ui/packs/current")).getResponse().getStatus()).isEqualTo(404);
+
+    MvcResult home = perform(get("/api/v1/ui/layouts/home"));
+    assertThat(home.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(home, "/ui/layouts/home", PathItem.HttpMethod.GET);
+    JsonNode b = body(home);
+    assertThat(b.get("uiPackVersion").asText()).isEqualTo("0.0.0");
+    assertThat(b.get("registryVersion").asText()).isEqualTo("2026.3");
+    assertThat(b.at("/layout/component").asText()).isEqualTo("vt.layout.grid");
+    assertThat(b.at("/layout/children/0/component").asText()).isEqualTo("vt.widget.myTasksToday");
+    String tag = home.getResponse().getHeader("ETag");
+    assertThat(tag).isNotBlank();
+    assertThat(
+            perform(get("/api/v1/ui/layouts/home").header("If-None-Match", tag))
+                .getResponse()
+                .getStatus())
+        .isEqualTo(304);
+  }
+
   @Test
   void publishStoresSignedBundleEmitsEvt23AndServesCurrent() throws Exception {
     as(author);

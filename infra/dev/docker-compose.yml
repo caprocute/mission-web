@@ -55,6 +55,12 @@ x-backend-java-env: &backend-java-env
   REDIS_PORT: "6379"
   SPRING_DATA_REDIS_PASSWORD: ${VALKEY_PASSWORD:-}
   OPA_URL: http://opa:8181/v1/data/mission/authz
+  # Bộ uỷ quyền okrkpi.opa (vt-platform-starter): bật mặc định ở dev; OPA nằm ở container opa, không cùng pod,
+  # nên timeout lấy từ .env (mặc định 5s; qua đường hầm đo được 1,8–2,5 s) thay cho 50/100 ms của TL-01.
+  OPA_ENABLED: ${OPA_ENABLED:-true}
+  OPA_BASE_URL: http://opa:8181
+  OPA_CONNECT_TIMEOUT: ${OPA_CONNECT_TIMEOUT:-5s}
+  OPA_READ_TIMEOUT: ${OPA_READ_TIMEOUT:-5s}
   OPENBAO_URL: http://openbao:8200
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
   TZ: Asia/Ho_Chi_Minh
@@ -111,10 +117,10 @@ services:
       - "-c"
       - "shared_buffers=512MB"
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-mission_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Chưa đặt POSTGRES_PASSWORD trong .env}
+      POSTGRES_USER: ${POSTGRES_USER:-${PG_SUPERUSER:-mission_admin}}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-${PG_SUPERUSER_PASSWORD:?Chưa đặt POSTGRES_PASSWORD hay PG_SUPERUSER_PASSWORD trong .env}}
       POSTGRES_DB: ${POSTGRES_DB:-mission}
-      DB_ROLE_PASSWORD_DEFAULT: ${DB_ROLE_PASSWORD_DEFAULT:-${POSTGRES_PASSWORD}}
+      DB_ROLE_PASSWORD_DEFAULT: ${DB_ROLE_PASSWORD_DEFAULT:-${POSTGRES_PASSWORD:-${PG_SUPERUSER_PASSWORD:-}}}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Chưa đặt KEYCLOAK_DB_PASSWORD trong .env}
       TZ: Asia/Ho_Chi_Minh
     ports:
@@ -124,7 +130,7 @@ services:
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
       - ./postgres/migrate-roles.sh:/usr/local/bin/migrate-roles.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mission_admin} -d ${POSTGRES_DB:-mission}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-${PG_SUPERUSER:-mission_admin}} -d ${POSTGRES_DB:-mission}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -140,10 +146,10 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-mission_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:-${PG_SUPERUSER:-mission_admin}}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-${PG_SUPERUSER_PASSWORD:-}}
       POSTGRES_DB: ${POSTGRES_DB:-mission}
-      DB_ROLE_PASSWORD_DEFAULT: ${DB_ROLE_PASSWORD_DEFAULT:-${POSTGRES_PASSWORD}}
+      DB_ROLE_PASSWORD_DEFAULT: ${DB_ROLE_PASSWORD_DEFAULT:-${POSTGRES_PASSWORD:-${PG_SUPERUSER_PASSWORD:-}}}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
     ports:
       - "${PGBOUNCER_PORT:-35433}:6432"
@@ -152,7 +158,7 @@ services:
       - ./postgres/pgbouncer/entrypoint.sh:/etc/pgbouncer/entrypoint.sh:ro
     entrypoint: ["/bin/sh", "/etc/pgbouncer/entrypoint.sh"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U ${POSTGRES_USER:-mission_admin} -d ${POSTGRES_DB:-mission}"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U ${POSTGRES_USER:-${PG_SUPERUSER:-mission_admin}} -d ${POSTGRES_DB:-mission}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -215,7 +221,7 @@ services:
       PROVISION_CLIENT_SECRET: ${PROVISION_CLIENT_SECRET:-}
       # Gốc web thêm vào redirect URI của client mission-web; thiếu biến thì Keycloak 26 từ chối nhập realm
       # vì "${WEB_ORIGIN}/*" không phải URI hợp lệ.
-      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:4200}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://127.0.0.1:35000}
       KC_HOSTNAME_STRICT: "false"
       KC_PROXY_HEADERS: xforwarded
       TZ: Asia/Ho_Chi_Minh
@@ -347,6 +353,28 @@ services:
     networks:
       - mission-net
 
+  # Tạo đủ topic theo danh mục production (kafka/topics.txt) mỗi lần bật profile events; chạy một lần rồi thoát,
+  # chạy lại không đổi gì (--if-not-exists). Thay cho bước tay ./scripts/create-topics.sh.
+  kafka-init:
+    image: apache/kafka:3.9.1
+    container_name: mission-dev-kafka-init
+    restart: "no"
+    profiles: ["events", "all"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_LOCAL_EXEC: "1"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_PARTITIONS: ${KAFKA_PARTITIONS:-3}
+      TOPICS_FILE: /kafka-init/topics.txt
+    entrypoint: ["bash", "/kafka-init/create-topics.sh"]
+    volumes:
+      - ./scripts/create-topics.sh:/kafka-init/create-topics.sh:ro
+      - ./kafka/topics.txt:/kafka-init/topics.txt:ro
+    networks:
+      - mission-net
+
   apicurio:
     # 3.3.3 khớp serde và maven plugin của backend; 3.0.9 không tìm được phiên bản theo nội dung (POST
     # /search/versions luôn rỗng) nên serde với FIND_LATEST_ARTIFACT=false (org-republish) không phân giải lược đồ.
@@ -362,7 +390,7 @@ services:
       APICURIO_STORAGE_SQL_KIND: postgresql
       APICURIO_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-mission}?currentSchema=apicurio
       APICURIO_DATASOURCE_USERNAME: ${APICURIO_DB_USER:-apicurio}
-      APICURIO_DATASOURCE_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-${POSTGRES_PASSWORD}}
+      APICURIO_DATASOURCE_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-${POSTGRES_PASSWORD:-${PG_SUPERUSER_PASSWORD:-}}}
       QUARKUS_HTTP_CORS_ENABLED: "true"
       QUARKUS_HTTP_CORS_ORIGINS: "*"
     ports:
@@ -408,11 +436,11 @@ services:
   # ---------------------------------------------------------------------------
   # PROFILE: search — MinIO (S3) & OpenSearch 2.x
   # ---------------------------------------------------------------------------
-  # MinIO ngừng phát hành ảnh minio/minio, minio/mc trên Docker Hub và quay.io từ 10/2025 (kéo mới báo "pull access
-  # denied"); dùng ảnh Chainguard miễn phí (có sẵn mc và sh), ghim digest. Chạy bằng root để đọc được thư mục dữ liệu
-  # cũ (MINIO_DATA) do ảnh minio/minio tạo.
+  # MinIO đã ngừng phát hành ảnh trên Docker Hub và quay.io (10/2025): tag cũ không kéo được nữa. Ghim đúng tag
+  # đang có sẵn trên máy chủ dev; máy mới không có ảnh này thì đặt MINIO_IMAGE (ví dụ ảnh Chainguard ghim digest, có sẵn mc và sh;
+  # xem README mục 2.1). Chạy bằng root để đọc được thư mục dữ liệu cũ (MINIO_DATA) với mọi ảnh.
   minio:
-    image: cgr.dev/chainguard/minio@sha256:d88920d6a50bd0b088223b688be3b76c63e6205dbe494437f67ba1240ea12880
+    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2025-04-22T22-12-26Z}
     user: "0:0"
     container_name: mission-dev-minio
     restart: unless-stopped
@@ -434,8 +462,9 @@ services:
     networks:
       - mission-net
 
+  # Ảnh minio đã có sẵn `mc` (healthcheck ở trên dùng nó), nên tạo bucket bằng chính ảnh đó, không cần ảnh minio/mc.
   minio-init:
-    image: cgr.dev/chainguard/minio@sha256:d88920d6a50bd0b088223b688be3b76c63e6205dbe494437f67ba1240ea12880
+    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2025-04-22T22-12-26Z}
     container_name: mission-dev-minio-init
     profiles: ["search", "all"]
     depends_on:
@@ -460,8 +489,9 @@ services:
   opensearch:
     build:
       context: ./opensearch
+      args: { OPENSEARCH_VERSION: 2.19.2 }
       secrets: [ca_bundle]
-    image: mission-dev/opensearch:2.18.0-icu
+    image: mission-dev/opensearch:2.19.2-icu
     container_name: mission-dev-opensearch
     restart: unless-stopped
     profiles: ["search", "all"]
@@ -674,6 +704,40 @@ services:
     volumes:
       - ./apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
       - ./apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+    networks:
+      - mission-net
+
+  # SVC-17 web: shell và mọi remote phục vụ bằng nginx (deploy/web), không mở cổng riêng mà đi sau APISIX qua
+  # tuyến `web` (/*) của apisix.yaml, nên trình duyệt mở http://<máy>:${APISIX_PORT} và gọi /api cùng nguồn,
+  # không cần CORS. config.json sinh lúc khởi động từ biến dưới đây (deploy/web/40-runtime-config.sh): issuer là
+  # địa chỉ Keycloak trình duyệt thấy (KEYCLOAK_PUBLIC_URL), cùng giá trị APISIX kiểm claim iss. Gốc web
+  # (WEB_ORIGIN) phải là địa chỉ APISIX để Keycloak nhận redirect URI của client mission-web.
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/web/Dockerfile
+      secrets: [ca_bundle]
+    image: mission-dev/web:dev
+    container_name: mission-dev-web
+    restart: unless-stopped
+    profiles: ["backend", "web"]
+    environment:
+      CELL: DEV
+      TENANT: ${WEB_TENANT:-default}
+      API_BASE_URL: /api
+      AUTH_ENABLED: ${WEB_AUTH_ENABLED:-true}
+      AUTH_ISSUER: ${KEYCLOAK_PUBLIC_URL:-http://127.0.0.1:35080}/realms/mission
+      AUTH_CLIENT_ID: mission-web
+      # Issuer HTTP ngoài địa chỉ vòng lặp (server dev mở thẳng bằng IP, chưa có TLS) cần cờ này; mặc định tắt.
+      AUTH_ALLOW_HTTP: ${WEB_AUTH_ALLOW_HTTP:-false}
+      # Máy chủ thật qua APISIX; module chưa có máy chủ giữ giả lập theo WEB_MOCK_API_MODULES (WEB-070).
+      USE_MOCK_API: ${WEB_USE_MOCK_API:-false}
+      MOCK_API_MODULES: ${WEB_MOCK_API_MODULES:-}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     networks:
       - mission-net
 
@@ -984,40 +1048,6 @@ services:
       TZ: Asia/Ho_Chi_Minh
     ports:
       - "${NOTIFICATION_SERVICE_PORT:-35121}:8080"
-
-  # SVC-17 web-frontend: shell và mọi remote dựng một lần (deploy/web/Dockerfile, build context là gốc repo),
-  # phục vụ sau APISIX như cụm thật: trình duyệt mở http://<máy>:35000/, tuyến "/*" của apisix.yaml tới web:8080,
-  # API cùng nguồn qua /api. config.json sinh lúc khởi động từ biến môi trường (deploy/web/40-runtime-config.sh):
-  # đăng nhập Keycloak thật (realm mission), API thật; MOCK_API_MODULES giữ giả lập cho module chưa có máy chủ.
-  web:
-    build:
-      context: ../..
-      dockerfile: deploy/web/Dockerfile
-      secrets: [ca_bundle]
-    image: mission-dev/web:dev
-    container_name: mission-dev-web
-    restart: unless-stopped
-    profiles: ["backend"]
-    environment:
-      CELL: DEV
-      API_BASE_URL: /api
-      AUTH_ENABLED: "true"
-      AUTH_ISSUER: ${KEYCLOAK_PUBLIC_URL:-http://127.0.0.1:35080}/realms/mission
-      AUTH_CLIENT_ID: mission-web
-      # Dev chạy Keycloak bằng HTTP; thư viện OIDC chỉ nhận HTTP cho localhost nếu không bật cờ này.
-      AUTH_ALLOW_HTTP: "true"
-      USE_MOCK_API: ${WEB_USE_MOCK_API:-false}
-      MOCK_API_MODULES: ${WEB_MOCK_API_MODULES:-}
-    ports:
-      # Cổng trực tiếp chỉ để kiểm; người dùng vào qua APISIX (WEB_ORIGIN).
-      - "127.0.0.1:${WEB_PORT:-35130}:8080"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-    networks:
-      - mission-net
 
   # ---------------------------------------------------------------------------
   # PROFILE: analytics — Kho phân tích ClickHouse của SVC-15 (DV-15-01, ADR-14)

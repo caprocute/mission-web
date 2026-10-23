@@ -272,7 +272,11 @@ public class PeriodConfigService implements PeriodApi {
     PeriodKind kind = cadence == null || cadence.isBlank() ? null : PeriodKind.valueOf(cadence);
     return periods.covering(tenantId, kind, clock.businessDate()).stream()
         .sorted(
-            Comparator.comparing(Period::kind, CURRENT_PRIORITY)
+            // Kỳ đang mở đứng trước (hợp đồng getOkrTree: bỏ period thì lấy kỳ đang MO), rồi theo
+            // nhịp
+            // kỳ ưu tiên quý và kỳ bắt đầu sau cùng.
+            Comparator.comparing((Period p) -> !"MO".equals(p.state().name()))
+                .thenComparing(Period::kind, CURRENT_PRIORITY)
                 .thenComparing(Period::startDate, Comparator.reverseOrder()))
         .findFirst()
         .map(PeriodConfigService::snapshot);

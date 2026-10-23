@@ -19,7 +19,7 @@ ENDPOINT_SN=${ENDPOINT_SN:-https://s3.$REALM.sn.vt.local}
 read -r -a RGW <<< "${RGW_ADMIN:-radosgw-admin}"
 BAO=${BAO:-bao}
 DUONG_DAN=${BAO_DUONG_DAN:-kv/ceph}/$REALM
-NGUOI_DUNG=${NGUOI_DUNG:-evidence-service document-service ledger-service tenant-registry}
+NGUOI_DUNG=${NGUOI_DUNG:-evidence-service document-service ledger-service tenant-registry pam-ghi-phien}
 LOP_HDD=${LOP_HDD:-HDD_EC}
 POOL_HDD=${POOL_HDD:-$REALM.rgw.hdd-ec.data}
 QUAN_TRI=kho-quan-tri-$REALM

@@ -43,7 +43,7 @@ livenessProbe:
 {{- $ct = append $ct (printf "ServiceAccount:%s/pam-quet-rbac" $v.namespace | regexQuoteMeta) -}}
 {{- $choPhep := append $v.quetRbac.choPhep (dict "ten" "^vt-pam-(broker|quet-rbac)$" "chuThe" (printf "^(%s)$" (join "|" $ct))) -}}
 {{- $q := merge (dict "choPhep" $choPhep) (omit $v.quetRbac "resources" "schedule" "enabled") -}}
-{{- dict "hopDong" $v.hopDong "quetRbac" $q | toPrettyJson -}}
+{{- dict "hopDong" (merge (dict "taiKhoanMay" (include "pam.taiKhoanMay" . | fromJson)) $v.hopDong) "quetRbac" $q | toPrettyJson -}}
 {{- end -}}
 
 {{- /* Kiểm thời hạn tối đa: hợp đồng TL-04 là 4 giờ, không cho values nới ra. */ -}}
@@ -60,4 +60,56 @@ livenessProbe:
 {{- if ne (join "," (sortAlpha .Values.hopDong.vaiTroPam)) "debug-app,operate-data,platform-admin" -}}
 {{- fail "pam-integration: hopDong.vaiTroPam phải đúng ba vai trò debug-app, operate-data, platform-admin (INF-19)" -}}
 {{- end -}}
+{{- end -}}
+
+{{- /* ServiceAccount của mục tiêu kubectl Warpgate (một cho mỗi vai trò PAM): {"namespace": "...", "tienTo": "warpgate-"};
+       namespace rỗng khi tắt Warpgate (binding PAM khi đó chỉ được gán cho người dùng OIDC). */ -}}
+{{- define "pam.taiKhoanMay" -}}
+{{- dict "namespace" (ternary .Values.warpgate.namespace "" .Values.warpgate.enabled) "tienTo" "warpgate-" | toJson -}}
+{{- end -}}
+
+{{- define "pam.tenTaiKhoanMay" -}}
+{{- $l := list -}}
+{{- range .Values.hopDong.vaiTroPam }}{{ $l = append $l (printf "warpgate-%s" .) }}{{ end -}}
+{{- toJson $l -}}
+{{- end -}}
+
+{{- /* Toàn bộ mục tiêu Warpgate: warpgate.mucTieu cộng mục tiêu kubectl theo vai trò PAM và psql theo cụm. */ -}}
+{{- define "pam.mucTieuWarpgate" -}}
+{{- $w := .Values.warpgate -}}
+{{- $kho := $w.khoBiMat.name -}}
+{{- $l := $w.mucTieu -}}
+{{- range .Values.hopDong.vaiTroPam -}}
+{{- $l = append $l (dict "name" (printf "%s-%s" $w.kubectl.tenMucTieu .) "description" (printf "API server, vai trò %s (cấp qua PAM, có thời hạn)" .)
+     "vaiTro" (list (printf "pam-kubectl-%s" .))
+     "options" (dict "kind" "Kubernetes" "cluster_url" $w.kubectl.clusterUrl "tls" (dict "mode" "Required" "verify" true)
+                     "auth" (dict "kind" "Token" "token" (printf "secret://%s/kv/warpgate/%s-%s#token" $kho $w.kubectl.tenMucTieu .)))) -}}
+{{- end -}}
+{{- range $w.psql -}}
+{{- $l = append $l (dict "name" (printf "psql-%s" .cum) "description" (printf "%s (dba_ops, người dùng động 4 giờ, không đọc bảng nghiệp vụ)" .cum)
+     "vaiTro" (list "pam-psql")
+     "options" (dict "kind" "Postgres" "host" (printf "%s-rw.%s.svc" .cum .namespace) "port" 5432
+                     "username" "chua-cap" "default_database_name" .csdl "protocol_version" "3.0"
+                     "tls" (dict "mode" "Required" "verify" true)
+                     "auth" (dict "kind" "Password" "password" (printf "secret://%s/kv/warpgate/psql-%s#password" $kho .cum)))) -}}
+{{- end -}}
+{{- toJson $l -}}
+{{- end -}}
+
+{{- /* Cấu hình của warpgate_lam_moi.py: token kubectl và người dùng psql cần làm mới. */ -}}
+{{- define "pam.lamMoiWarpgate" -}}
+{{- $v := .Values -}}
+{{- $w := $v.warpgate -}}
+{{- $k := list -}}
+{{- range $v.hopDong.vaiTroPam -}}
+{{- $k = append $k (dict "serviceAccount" (printf "warpgate-%s" .) "kv" (printf "warpgate/%s-%s" $w.kubectl.tenMucTieu .)) -}}
+{{- end -}}
+{{- $p := list -}}
+{{- range $w.psql -}}
+{{- $p = append $p (dict "cum" .cum "creds" (printf "database/creds/%s-dba-ops" .cum) "kv" (printf "warpgate/psql-%s" .cum) "mucTieu" (printf "psql-%s" .cum)) -}}
+{{- end -}}
+{{- dict "kho" $w.khoBiMat.name "namespace" $w.namespace "tokenTtlGiay" (int $w.kubectl.tokenTtlGiay) "nguongGiay" (int $w.lamMoi.nguongGiay)
+     "openbao" (dict "address" $w.khoBiMat.address "authMount" $w.khoBiMat.authMount "role" "warpgate-lam-moi" "kvMount" "kv")
+     "warpgate" (printf "https://warpgate.%s.svc:%d" $w.namespace (int $w.cong.http))
+     "kubectl" $k "psql" $p | toJson -}}
 {{- end -}}

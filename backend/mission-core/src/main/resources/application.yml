@@ -87,8 +87,13 @@ okrkpi:
     registry:
       url: ${APICURIO_REGISTRY_V3_URL:http://127.0.0.1:35081/apis/registry/v3}
     listener-auto-startup: ${ORG_REPLICA_CONSUMERS_ENABLED:true}
+  # OPA cùng pod (ADR-21). Timeout mặc định 50/100 ms theo TL-01; môi trường đi qua đường hầm (dev) nâng lên
+  # bằng OPA_CONNECT_TIMEOUT, OPA_READ_TIMEOUT, nếu không mọi lời gọi quá hạn và bị từ chối (fail closed, 403).
   opa:
     enabled: ${OPA_ENABLED:false}
+    base-url: ${OPA_BASE_URL:http://127.0.0.1:8181}
+    connect-timeout: ${OPA_CONNECT_TIMEOUT:50ms}
+    read-timeout: ${OPA_READ_TIMEOUT:100ms}
   # /api/** cần bearer token hợp lệ; chỉ tắt cho máy dev không có Keycloak (token gửi kèm vẫn được kiểm).
   security:
     auth-enabled: ${AUTH_ENABLED:true}

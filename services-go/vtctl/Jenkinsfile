@@ -1,0 +1,4 @@
+// INF-26 · Pipeline của công cụ vận hành vtctl theo thư viện dùng chung (INF-06): gitleaks, Semgrep, Trivy fs, cổng
+// Dockerfile, govulncheck, go vet, go test -race với độ phủ, ảnh, SBOM, quét ảnh; trên main ký, chứng thực và cập nhật GitOps.
+@Library('vt-pipeline@vt-pipeline-v1.1.0') _
+vtGoPipeline(service: 'vtctl', dir: 'services-go/vtctl')

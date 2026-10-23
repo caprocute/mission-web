@@ -61,7 +61,11 @@ public class TaskQueryService {
   /** Chi tiết nhiệm vụ và vai trò của người gọi trên nhiệm vụ (rỗng khi không tham gia). */
   public record TaskView(TaskRow task, String callerRole, boolean masked) {}
 
-  /** Bộ lọc người dùng gửi lên của {@code listUnitTasks}. */
+  /**
+   * Bộ lọc người dùng gửi lên của {@code listUnitTasks}. {@code source} và {@code
+   * pendingChangeRequest} dựng hàng chờ duyệt của người giao việc: đăng ký ({@code NHAP} nguồn
+   * {@code DANG_KY}, QT-05 bước 3) và đề nghị {@code CHO_DUYET} (SCR-0601 "Duyệt đề nghị").
+   */
   public record UnitQuery(
       UUID unitId,
       UUID periodId,
@@ -69,7 +73,21 @@ public class TaskQueryService {
       UUID keyResultId,
       Boolean overdue,
       boolean includeSubunits,
-      String q) {}
+      String q,
+      String source,
+      Boolean pendingChangeRequest) {
+
+    public UnitQuery(
+        UUID unitId,
+        UUID periodId,
+        Set<String> statuses,
+        UUID keyResultId,
+        Boolean overdue,
+        boolean includeSubunits,
+        String q) {
+      this(unitId, periodId, statuses, keyResultId, overdue, includeSubunits, q, null, null);
+    }
+  }
 
   @Transactional(value = TX, readOnly = true)
   public TaskView getTask(TenantId tenant, UUID taskId, TaskActor actor) {
@@ -139,7 +157,9 @@ public class TaskQueryService {
                 query.statuses(),
                 query.keyResultId(),
                 query.overdue(),
-                query.q()),
+                query.q(),
+                query.source(),
+                query.pendingChangeRequest()),
             afterId,
             limit);
     return rows;

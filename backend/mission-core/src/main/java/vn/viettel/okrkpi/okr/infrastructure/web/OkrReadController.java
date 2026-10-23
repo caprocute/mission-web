@@ -153,7 +153,17 @@ public class OkrReadController {
       @RequestParam(value = "period", required = false) UUID period,
       @ModelAttribute OkrUnitScope scope) {
     TenantId tenant = TenantContext.require();
-    PeriodSnapshot p = notFound(() -> reads.period(tenant, period));
+    PeriodSnapshot p;
+    try {
+      p = reads.period(tenant, period);
+    } catch (NoSuchElementException e) {
+      // Tenant chưa có kỳ (tenant mới, dev) hoặc mã kỳ sai: 404 theo hợp đồng, kèm lý do để giao
+      // diện
+      // báo rõ thay vì một trang trống.
+      throw new ResponseStatusException(
+          HttpStatus.NOT_FOUND,
+          period == null ? "Chưa có kỳ đánh giá đang mở" : "Không tìm thấy kỳ đánh giá");
+    }
     Optional<UUID> own = currentUnit();
     UUID unit = scope.unit() != null ? scope.unit() : own.orElseThrow(() -> missing("unit"));
     TreeView tree = reads.tree(tenant, p, unit, own.map(unit::equals).orElse(false));

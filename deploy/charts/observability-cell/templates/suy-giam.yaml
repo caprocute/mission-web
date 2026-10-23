@@ -1,0 +1,39 @@
+{{- /* INF-25: Secret token và NetworkPolicy cho Alertmanager của cell gọi webhook bộ điều khiển suy giảm. */ -}}
+{{- $s := .Values.suyGiam }}
+{{- if $s.enabled }}
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $s.token.secretName }}
+  namespace: observability
+spec:
+  refreshInterval: {{ $s.token.refreshInterval }}
+  secretStoreRef:
+    kind: {{ $s.token.secretStore.kind }}
+    name: {{ $s.token.secretStore.name }}
+  target:
+    name: {{ $s.token.secretName }}
+    creationPolicy: Owner
+  data:
+    - secretKey: token
+      remoteRef:
+        key: {{ $s.token.path | default (printf "kv/cell-%s/edge/degrade-webhook" .Values.cell) }}
+        property: {{ $s.token.property }}
+---
+# Alertmanager ra namespace của bộ điều khiển (phía đích mở bằng NetworkPolicy của chart degrade-controller).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: alertmanager-to-degrade-controller
+  namespace: observability
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: alertmanager }
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $s.controller.namespace }} } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: degrade-controller } }
+      ports:
+        - { protocol: TCP, port: {{ $s.controller.port }} }
+{{- end }}

@@ -46,7 +46,8 @@ class OperationPolicyCatalogTest {
     // 54 thao tác AAL2 gốc + 7 thao tác của WEB-058 + 12 thao tác của NEN-042/043 + 1 thao tác
     // approveCustomerProfileVersion của NEN-044 + 1 thao tác searchAccessLogs của CORE-07-12 + 5
     // thao tác ghi khoá và đọc nhật ký phục hồi của CORE-07-06 + 2 thao tác nạp khoá bọc khôi phục
-    // + 1 thao tác suspendConfigTenant (sau phát hành) + 1 thao tác terminateConfigTenant = 84 thao tác.
+    // + 1 thao tác suspendConfigTenant (sau phát hành) + 1 thao tác terminateConfigTenant = 84 thao
+    // tác.
     assertThat(aal2).hasSize(84);
     long nonWeb058Aal2 =
         aal2.stream().filter(p -> !WEB_058_AAL2_OPS.contains(p.operationId())).count();
