@@ -135,6 +135,28 @@ okrkpi:
       tls-dir: ${INTEG_TLS_DIR:}
       connect-timeout: ${INTEG_CE_CONNECT_TIMEOUT:PT5S}
       request-timeout: ${INTEG_CE_REQUEST_TIMEOUT:PT10S}
+    # DV-13-09: bản neo gốc cell hằng ngày tới các bên độc lập. Mỗi đích là một kết nối của tenant
+    # vận hành cell, khai theo dạng targets[KHO_VPTW]: <mã kết nối>; đích hợp lệ CELL_KHAC, KHO_VPTW,
+    # TSA_DOC_LAP (ledger.anchor_receipt, TL-03).
+    anchor:
+      enabled: ${INTEG_ANCHOR_ENABLED:false}
+      operator-tenant: ${INTEG_ANCHOR_OPERATOR_TENANT:}
+      zone: Asia/Ho_Chi_Minh
+      seal-kinds: HOURLY
+      min-receipts: 2
+      grace: ${INTEG_ANCHOR_GRACE:PT6H}
+      fetch-retry: PT1M
+      ledger-url: ${INTEG_LEDGER_URL:http://ledger-service:8080}
+      ledger-token-path: ${INTEG_LEDGER_TOKEN_PATH:}
+      period: ${INTEG_ANCHOR_PERIOD:PT30S}
+    # DV-13-09: chia sẻ quyết định xếp loại (EVT-12) lên CSDL CBCCVC qua kết nối đồng bộ DV-13-06.
+    rating-share:
+      enabled: ${INTEG_RATING_SHARE_ENABLED:false}
+      connector-code: ${INTEG_RATING_SHARE_CONNECTOR:CBCCVC}
+    # Người nhận EVT-21 khi thiếu biên nhận neo hoặc thông điệp ra quá hạn thử lại (danh sách UUID).
+    alerts:
+      recipients: ${INTEG_ALERT_RECIPIENTS:}
+      overdue-connectors: ${INTEG_RATING_SHARE_CONNECTOR:CBCCVC}
 
 camel:
   main:

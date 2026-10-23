@@ -35,6 +35,16 @@ public class CloudEventsHttpSender implements OutboundSender {
   public static final String ACK_HEADER = "X-Ack-Ref";
   static final int MAX_ACK = 128;
 
+  /**
+   * Xử lý phản hồi xác nhận ngay ({@code 200}, {@code 201}, {@code 204}) và trả mã xác nhận; luồng
+   * cần giữ biên nhận (DV-13-09 bản neo) thay bằng bộ xử lý riêng. Ném lỗi thì pipeline gửi lại.
+   */
+  @FunctionalInterface
+  public interface Acknowledger {
+    String acknowledge(Connector connector, UUID messageId, HttpResponse<byte[]> response)
+        throws IOException;
+  }
+
   private final OutboundPolicy policy;
   private final CloudEventsMapper mapper;
   private final PayloadSigner signer;
@@ -43,6 +53,7 @@ public class CloudEventsHttpSender implements OutboundSender {
   private final ConnectorSecrets secrets;
   private final ObjectMapper json;
   private final Duration timeout;
+  private final Acknowledger acknowledger;
 
   public CloudEventsHttpSender(
       OutboundPolicy policy,
@@ -53,6 +64,20 @@ public class CloudEventsHttpSender implements OutboundSender {
       ConnectorSecrets secrets,
       ObjectMapper json,
       Duration timeout) {
+    this(policy, mapper, signer, mtls, plain, secrets, json, timeout, null);
+  }
+
+  /** Như trên với bộ xử lý xác nhận riêng; {@code null} dùng mã xác nhận mặc định. */
+  public CloudEventsHttpSender(
+      OutboundPolicy policy,
+      CloudEventsMapper mapper,
+      PayloadSigner signer,
+      MtlsHttpClients mtls,
+      HttpClient plain,
+      ConnectorSecrets secrets,
+      ObjectMapper json,
+      Duration timeout,
+      Acknowledger acknowledger) {
     this.policy = Objects.requireNonNull(policy, "policy");
     this.mapper = Objects.requireNonNull(mapper, "mapper");
     this.signer = Objects.requireNonNull(signer, "signer");
@@ -61,6 +86,7 @@ public class CloudEventsHttpSender implements OutboundSender {
     this.secrets = Objects.requireNonNull(secrets, "secrets");
     this.json = Objects.requireNonNull(json, "json");
     this.timeout = Objects.requireNonNull(timeout, "timeout");
+    this.acknowledger = acknowledger == null ? (c, id, res) -> ackRef(res) : acknowledger;
   }
 
   @Override
@@ -112,12 +138,13 @@ public class CloudEventsHttpSender implements OutboundSender {
       return Optional.empty();
     }
     if (status == 200 || status == 201 || status == 204) {
-      return Optional.of(ackRef(res));
+      return Optional.of(cut(acknowledger.acknowledge(connector, messageId, res)));
     }
     throw new IOException("Bên nhận " + connector.code() + " trả mã " + status);
   }
 
-  private String ackRef(HttpResponse<byte[]> res) {
+  /** Mã xác nhận mặc định: tiêu đề {@link #ACK_HEADER}, trường {@code ackRef}, hoặc mã HTTP. */
+  public String ackRef(HttpResponse<byte[]> res) {
     Optional<String> header = res.headers().firstValue(ACK_HEADER).filter(v -> !v.isBlank());
     if (header.isPresent()) {
       return cut(header.get());
@@ -139,6 +166,9 @@ public class CloudEventsHttpSender implements OutboundSender {
   }
 
   private static String cut(String v) {
+    if (v == null || v.isBlank()) {
+      throw new IllegalStateException("Mã xác nhận rỗng");
+    }
     return v.length() > MAX_ACK ? v.substring(0, MAX_ACK) : v;
   }
 }

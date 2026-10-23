@@ -17,7 +17,9 @@ public class OutboundRejectedException extends RuntimeException {
     /** Không có mã ngoài cho một mã nội bộ cần gửi. */
     UNMAPPED_REFERENCE,
     /** Thuộc tính phong bì không hợp lệ. */
-    INVALID_ENVELOPE
+    INVALID_ENVELOPE,
+    /** Sự kiện đến sau một phiên bản mới hơn của cùng thực thể đã gửi (DV-13-09). */
+    OUT_OF_ORDER
   }
 
   private final Reason reason;
