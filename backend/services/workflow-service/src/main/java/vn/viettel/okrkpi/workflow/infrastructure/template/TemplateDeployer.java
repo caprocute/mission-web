@@ -39,7 +39,7 @@ public class TemplateDeployer implements ApplicationRunner {
   public static final String DEPLOYMENT_NAME = "mau-luong-duyet";
 
   /** Listener tính toán thuần được phép dùng trong mẫu. */
-  public static final Set<String> PURE_DELEGATES = Set.of("phanGiaiCapDuyet");
+  public static final Set<String> PURE_DELEGATES = Set.of("phanGiaiCapDuyet", "lapLichBuoc");
 
   private static final Logger log = LoggerFactory.getLogger(TemplateDeployer.class);
 

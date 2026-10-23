@@ -1766,6 +1766,22 @@ Task DV-13-01 dựng khung SVC-13 `integration-gateway` theo ADR-20 và TL-01 "L
 - mission-core chưa có schema sổ cái, nên vết thao tác ghi qua `AuditLogger` (`ADMIN_ACTION`, `createAnnualReassignmentProposal`) kèm mã việc.
 - Khi lập dòng năm có cờ, EVT-21 (MSG-10-02) gửi người thẩm định và người quyết định của hồ sơ quý IV, mẫu `DE_XUAT_BO_TRI_LAI` (tên mẫu là suy luận), liên kết `/appraisal/xep-loai-nam?ho-so=`.
 
+### Ghi chú và quyết định từ mẫu luồng duyệt phần 2 (DV-06-04, 23/10/2026)
+
+Bốn mẫu `duyet-ho-so-danh-gia` v3, `xu-ly-khieu-nai` v2, `mo-lai-ky-hai-nguoi` v1 và `duyet-phat-hanh-policy-pack` v1 chạy theo kiểu "theo dõi bước": thao tác nghiệp vụ (nộp, thẩm định, kết luận, ký, phê duyệt) diễn ra ở API của lõi vì cần step-up và ký số, còn tiến trình giữ hộp việc, hạn theo ngày làm việc của tenant, nhắc trước hạn, chuyển cấp khi quá hạn, giao việc có tách vai trò và chờ ký số. Bước đi tiếp khi lõi báo xong qua cổng trong tiến trình `StageProcessService.advance`, qua EVT-11 (hồ sơ đánh giá) hoặc qua EVT-18 (mẫu có chữ ký là tín hiệu xong bước); tín hiệu cho bước sau thì tiến trình đi tắt tới bước đó, tín hiệu cũ hoặc trùng thì bỏ qua. Vì vậy `completeWorkflowTask` từ chối việc của bốn mẫu này bằng `COMMON-403-OUT-OF-SCOPE` với lời nhắn "Việc này được xử lý tại màn hình nghiệp vụ của hồ sơ".
+
+Chờ ký số (BR-09-15) dùng message catch `choKy_<bước>` (message `ky-so-hoan-tat`) thay cho receive task mà task gợi ý, vì linter chống mạng nhện cấm `receiveTask`; chữ ký về trước EVT-11 được ghi cờ `daKy_<bước>` để không phải chờ. Listener tính toán thuần mới `${lapLichBuoc}` (thêm vào `TemplateDeployer.PURE_DELEGATES`) đặt nhóm ứng viên, người được giao, hạn 17:00 và mốc nhắc 08:00 giờ Việt Nam khi vào bước, và tăng số lần quá hạn khi đi qua nhánh `quaHan_<bước>`. Quá hạn `CHUYEN_CAP_PHO_UY_QUYEN` giao cho người thay khai ở `nguoi_thay.<bước>` của `wf_binding` (khoá suy luận), không khai thì lên cấp trên; `CHUYEN_CAP_TREN` lên cấp trên thứ n; `NHAC_LAI` giữ người và cho thêm một khoảng hạn. Hết hạn giải trình khiếu nại thì về bước kết luận (QT-12 ngoại lệ).
+
+Worker chọn người `wf-chon-nguoi` chạy ở Deployment worker. Khiếu nại hỏi OPA gói `okrkpi.complaint` rồi chọn người ít việc nhất; mở lại kỳ chọn hai người khác nhau ở cùng một đơn vị, khác người tạo yêu cầu và người đã tham gia hồ sơ, thiếu người thứ hai thì lên cấp trên, không bao giờ hạ xuống một người; Policy Pack loại người soạn. Không còn ai hợp lệ trên cả chuỗi thì giao cho nhóm vai trò tại đơn vị gốc và ghi log, lõi vẫn kiểm tách vai trò khi nhận lệnh ghi.
+
+Điểm còn mở và giả định (suy luận):
+
+- Người tham gia hồ sơ (BR-12-04, BR-13-03) đọc từ lịch sử tiến trình `duyet-ho-so-danh-gia` (người được giao của thẩm định, đề xuất, quyết định). Người nghiệm thu (`acceptor`) không có trong lịch sử workflow nên chưa được loại ở bước giao việc; lõi kiểm lại khi nhận lệnh. Đơn vị xử lý khiếu nại là đơn vị của nhóm ứng viên bước thẩm định. Khiếu nại không có lịch sử hồ sơ thì chưa khởi tạo và ghi log.
+- Bảng bổ sung `org_replica.role_holder_v` (V7) và `org_replica.org_unit_v` (V5) chưa có nguồn cấp dữ liệu; consumer cập nhật thuộc task sau.
+- Cổng khởi tạo và `advance` mới có trong tiến trình; bộ chuyển HTTP chờ hợp đồng thao tác workflow trong `platform.yaml`. Khi bước đề xuất bị bỏ qua, lõi cũng phải bỏ qua bước này nhưng chưa có kênh báo ngược.
+- Tên mẫu `duyet-phat-hanh-policy-pack` là suy luận vì TL-02b chưa đặt tên; `sourceRefId` của EVT-18 `PHAT_HANH_POLICY` được hiểu là mã phiên bản Policy Pack. Sau phê duyệt, external worker `core-policy-pack-publish` do lõi (CORE-05-10) xử lý để khởi chạy saga phát hành, rồi tiến trình chờ EVT-13.
+- Bốn consumer dùng inbox `flowable.inbox_processed`, `flowable.inbox_aggregate_version` (V4). `CatalogTemplateDirectory` của DV-06-08 vẫn chỉ liệt kê ba mẫu phần 1.
+
 ## Liên quan
 
 - [README của wiki](README.md)

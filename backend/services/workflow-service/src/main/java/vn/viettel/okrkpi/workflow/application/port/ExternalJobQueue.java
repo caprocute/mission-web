@@ -17,6 +17,9 @@ public interface ExternalJobQueue {
   /** Báo việc đã xong; tiến trình đi tiếp. */
   void complete(CallbackJob job, String workerId);
 
+  /** Báo việc đã xong kèm biến kết quả (worker chọn người ghi người được giao). */
+  void complete(CallbackJob job, String workerId, Map<String, Object> variables);
+
   /**
    * Báo việc lỗi; {@code retriesLeft = 0} đưa việc vào hàng thư chết để vận hành xử lý.
    *

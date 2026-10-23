@@ -1,0 +1,69 @@
+{
+  "templateCode": "duyet-ho-so-danh-gia",
+  "phienBanChinh": 1,
+  "moTa": "Duyệt hồ sơ đánh giá quý và năm: người được đánh giá tự đánh giá, cấp trên thẩm định (trả lại bổ sung tối đa theo tham số, mặc định 2 lần), đơn vị đề xuất (bỏ qua được theo điều kiện của tenant), cấp có thẩm quyền quyết định; mỗi bước có hạn theo ngày làm việc, nhắc trước một ngày, quá hạn chuyển cấp phó được uỷ quyền, và chờ ký số hoàn tất trước khi chuyển bước. Thao tác nghiệp vụ diễn ra ở lõi; luồng đi tiếp khi lõi báo bước đã xong.",
+  "chuSoHuu": "Luồng B6 - nhóm workflow-service (SVC-06)",
+  "truyVet": "QT-09, QT-10 bước 3 đến 12 → SCR-0902, SCR-0903, SCR-0904, SCR-0905 → EVT-11, EVT-18 → MOD-04, SVC-06",
+  "bangQuyetDinh": [],
+  "kiemThu": [
+    "vn.viettel.okrkpi.workflow.template.StageTemplatesFlowTest",
+    "vn.viettel.okrkpi.workflow.template.DuyetHoSoDanhGiaFlowTest"
+  ],
+  "kiemThuDmn": [],
+  "bien": {
+    "tenantId": 50,
+    "khoi": 16,
+    "loaiHoSo": 32,
+    "laNguoiDungDau": 20,
+    "donViId": 48,
+    "tieuDe": 780,
+    "phienBanDoiTuong": 40,
+    "keHoachBuoc": 420,
+    "soLanQuaHan": 120,
+    "ketQua": 24,
+    "nguoiTao": 48,
+    "nhomBuoc": 120,
+    "nguoiBuoc": 48,
+    "hanBuoc": 40,
+    "nhacBuoc": 40,
+    "donViChon": 48,
+    "nguoiDuocDanhGia": 48,
+    "cheDo": 20,
+    "chucDanh": 80,
+    "soLanTraLai": 24,
+    "maxTraLai": 24,
+    "boQuaDeXuat": 24,
+    "mucTuDeXuat": 32,
+    "mucThamDinh": 32,
+    "daKy_tuDanhGia": 24,
+    "daKy_thamDinh": 24,
+    "daKy_quyetDinh": 24
+  },
+  "songSongToiDa": {},
+  "thamSo": {
+    "ten": "Duyệt hồ sơ đánh giá",
+    "buoc": [
+      "TU_DANH_GIA",
+      "THAM_DINH",
+      "DE_XUAT",
+      "QUYET_DINH"
+    ],
+    "hanNgayLamViec": [
+      3,
+      3,
+      2,
+      3
+    ],
+    "nhacTruoc": "P1D_LV",
+    "khiQuaHan": "CHUYEN_CAP_PHO_UY_QUYEN",
+    "soLanTraLai": 2,
+    "boQuaDuoc": [
+      "DE_XUAT"
+    ],
+    "kySoBatBuoc": [
+      "TU_DANH_GIA",
+      "THAM_DINH",
+      "QUYET_DINH"
+    ]
+  }
+}

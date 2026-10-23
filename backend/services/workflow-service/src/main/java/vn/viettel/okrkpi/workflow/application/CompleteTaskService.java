@@ -20,6 +20,7 @@ import vn.viettel.okrkpi.workflow.domain.BusinessKey;
 import vn.viettel.okrkpi.workflow.domain.CompletionRules;
 import vn.viettel.okrkpi.workflow.domain.Decision;
 import vn.viettel.okrkpi.workflow.domain.OpenTask;
+import vn.viettel.okrkpi.workflow.domain.stage.StageTemplate;
 
 /**
  * Hoàn thành một user task ({@code completeWorkflowTask}, SCR-0203; BR-02-08, BR-02-09): kiểm ý
@@ -62,6 +63,11 @@ public class CompleteTaskService {
         engine
             .findOpen(approver.tenantId(), command.taskId())
             .orElseThrow(() -> missing(approver, command.taskId()));
+    if (StageTemplate.byBusinessType(task.businessKey().type()).isPresent()) {
+      // Mẫu phần 2: thao tác nghiệp vụ có step-up và ký số ở API của lõi (DV-06-04).
+      throw new BusinessException(
+          "COMMON-403-OUT-OF-SCOPE", "Việc này được xử lý tại màn hình nghiệp vụ của hồ sơ.");
+    }
     if (task.revision() != command.expectedVersion()) {
       throw VersionConflictException.of(MODULE, command.expectedVersion(), task.revision());
     }

@@ -24,7 +24,7 @@ import vn.viettel.okrkpi.workflow.infrastructure.template.TemplateDeployer;
 import vn.viettel.okrkpi.workflow.infrastructure.template.TemplateSource;
 
 /**
- * Linter "chống mạng nhện" (TL-01 G2, tám quy tắc) chạy trong {@code mvn verify}: ba mẫu thật đạt
+ * Linter "chống mạng nhện" (TL-01 G2, tám quy tắc) chạy trong {@code mvn verify}: bảy mẫu thật đạt
  * cả tám quy tắc (kể cả lớp kiểm thử khai báo có thật), và linter đỏ trên fixture vi phạm từng quy
  * tắc ({@code src/test/resources/linter-fixtures/}).
  */
@@ -50,11 +50,18 @@ class TemplateLinterTest {
   }
 
   @Test
-  void baMauThatDatTamQuyTac() {
+  void bayMauThatDatTamQuyTac() {
     TemplateCatalog catalog = TemplateCatalog.load(JSON);
     assertThat(catalog.templates())
         .extracting(t -> t.descriptor().templateCode())
-        .containsExactlyInAnyOrder("duyet-okr", "duyet-ke-hoach-quy", "duyet-de-nghi");
+        .containsExactlyInAnyOrder(
+            "duyet-okr",
+            "duyet-ke-hoach-quy",
+            "duyet-de-nghi",
+            "duyet-ho-so-danh-gia",
+            "xu-ly-khieu-nai",
+            "mo-lai-ky-hai-nguoi",
+            "duyet-phat-hanh-policy-pack");
     assertThat(catalog.decisionKeys()).contains("chon-cap-duyet");
     List<LintViolation> violations =
         LINTER.lint(catalog.templates(), catalog.decisionKeys(), RuntimeSnapshot.EMPTY);
@@ -141,18 +148,18 @@ class TemplateLinterTest {
           new TemplateDeployer(engine.getRepositoryService(), engine.getRuntimeService(), JSON);
       deployer.deploy(TemplateCatalog.load(JSON));
       deployer.deploy(TemplateCatalog.load(JSON));
-      assertThat(engine.getRepositoryService().createProcessDefinitionQuery().count()).isEqualTo(3);
+      assertThat(engine.getRepositoryService().createProcessDefinitionQuery().count()).isEqualTo(7);
       assertThat(
               engine
                   .getRepositoryService()
                   .createProcessDefinitionQuery()
                   .processDefinitionWithoutTenantId()
                   .count())
-          .isEqualTo(3);
+          .isEqualTo(7);
       assertThatThrownBy(() -> deployer.deploy(fixture("r4")))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("R4_KHONG_GOI_DONG_BO");
-      assertThat(engine.getRepositoryService().createProcessDefinitionQuery().count()).isEqualTo(3);
+      assertThat(engine.getRepositoryService().createProcessDefinitionQuery().count()).isEqualTo(7);
     } finally {
       engine.close();
     }
