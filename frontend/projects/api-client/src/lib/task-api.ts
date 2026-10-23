@@ -5,7 +5,10 @@ import { CursorPage, CursorQuery, MAX_PAGE_LIMIT } from './paging';
 import { apiUrl } from './api-path';
 import {
   AssigneeRole,
+  BlockerEscalation,
+  BlockerPatch,
   BlockerReport,
+  ChangeRequestDecision,
   ChangeRequestDraft,
   ChangeRequestPreview,
   MyTasksPage,
@@ -15,7 +18,9 @@ import {
   ProgressUpdate,
   TaskDetail,
   TaskGroup,
+  TaskBlocker,
   TaskRegistration,
+  TaskRegistrationDecision,
   TaskStatus,
   TaskSummary,
 } from './models/task';
@@ -118,6 +123,61 @@ export class TaskApi {
     return this.http.post<TaskDetail>(
       `/api/v1/tasks/${encodeURIComponent(task.id)}/blockers`,
       body,
+    );
+  }
+
+  /**
+   * Người giao xử lý điểm nghẽn trên SCR-0601 (QT-06 bước 4): giao người xử lý, đặt hạn, ghi kết quả,
+   * đóng (`handleTaskBlocker`, JSON Merge Patch, If-Match theo phiên bản điểm nghẽn).
+   */
+  handleBlocker(
+    task: TaskSummary,
+    blocker: TaskBlocker,
+    patch: BlockerPatch,
+  ): Observable<TaskBlocker> {
+    return this.http.patch<TaskBlocker>(
+      apiUrl('/tasks/{id}/blockers/{blockerId}', { id: task.id, blockerId: blocker.id }),
+      patch,
+      {
+        headers: {
+          'Content-Type': 'application/merge-patch+json',
+          'If-Match': `"${blocker.rowVersion ?? 0}"`,
+        },
+      },
+    );
+  }
+
+  /** Chuyển điểm nghẽn lên cấp trên (`escalateTaskBlocker`, QT-06 bước 4), thông báo người tiếp nhận. */
+  escalateBlocker(
+    task: TaskSummary,
+    blocker: TaskBlocker,
+    body: BlockerEscalation,
+  ): Observable<TaskBlocker> {
+    return this.http.post<TaskBlocker>(
+      apiUrl('/tasks/{id}/blockers/{blockerId}/escalate', { id: task.id, blockerId: blocker.id }),
+      body,
+      { headers: { 'If-Match': `"${blocker.rowVersion ?? 0}"` } },
+    );
+  }
+
+  /** Người duyệt quyết định đề nghị gia hạn, điều chỉnh (`decideTaskChangeRequest`, QT-06 bước 6). */
+  decideChangeRequest(
+    task: TaskSummary,
+    requestId: string,
+    body: ChangeRequestDecision,
+  ): Observable<TaskDetail> {
+    return this.http.post<TaskDetail>(
+      apiUrl('/tasks/{id}/change-requests/{requestId}/decision', { id: task.id, requestId }),
+      body,
+    );
+  }
+
+  /** Người quản lý duyệt hoặc từ chối nhiệm vụ cán bộ đăng ký (`decideTaskRegistration`, QT-05 bước 1c). */
+  decideRegistration(task: TaskSummary, body: TaskRegistrationDecision): Observable<TaskDetail> {
+    return this.http.post<TaskDetail>(
+      apiUrl('/tasks/{id}/registration-decision', { id: task.id }),
+      body,
+      { headers: { 'If-Match': `"${task.rowVersion}"` } },
     );
   }
 

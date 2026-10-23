@@ -79,7 +79,10 @@ async function dienHan(ed: Locator) {
 }
 
 const soDongKeHoach = (page: Page) =>
-  main(page).getByRole('region', { name: 'Bảng công việc trong kế hoạch' }).getByRole('button', { name: /^Sửa dòng \d+$/ }).count();
+  main(page)
+    .getByRole('region', { name: 'Bảng công việc trong kế hoạch' })
+    .getByRole('button', { name: /^Sửa dòng \d+$/ })
+    .count();
 
 /** Thêm một việc ngoài danh mục vào cuối bảng và trả số thứ tự dòng mới. */
 async function themDong(page: Page): Promise<number> {
@@ -116,10 +119,18 @@ async function canTyTrong(page: Page) {
       .filter({ hasText: 'Then chốt' })
       .last();
     await dong.getByRole('button', { name: /^Sửa dòng \d+$/ }).click();
-    await m.getByRole('region', { name: /^Sửa dòng \d+/ }).getByRole('button', { name: 'Bỏ dòng này' }).click();
+    await m
+      .getByRole('region', { name: /^Sửa dòng \d+/ })
+      .getByRole('button', { name: 'Bỏ dòng này' })
+      .click();
     // dòng có trong phiên bản đã duyệt thì phải ghi lý do bỏ
     const hop = page.getByRole('dialog', { name: 'Bỏ dòng khỏi kế hoạch điều chỉnh' });
-    if (await hop.waitFor({ timeout: 3_000 }).then(() => true, () => false)) {
+    if (
+      await hop.waitFor({ timeout: 3_000 }).then(
+        () => true,
+        () => false,
+      )
+    ) {
       await hop.getByRole('textbox', { name: 'Lý do bỏ dòng (bắt buộc)' }).fill(KH.lyDoDieuChinh);
       await hop.getByRole('button', { name: 'Bỏ dòng' }).click();
       await expect(hop).toBeHidden();
@@ -161,7 +172,9 @@ async function moPheDuyet(
   }
   page = await s.as('lanhdao', reviewUrl);
   const m = main(page);
-  await expect(m.getByRole('heading', { level: 1, name: /^Phê duyệt (điều chỉnh )?kế hoạch/ })).toBeVisible();
+  await expect(
+    m.getByRole('heading', { level: 1, name: /^Phê duyệt (điều chỉnh )?kế hoạch/ }),
+  ).toBeVisible();
   const [, id] = reviewUrl.match(/\/plans\/([^/]+)\/review/)!;
   const v = Number(new URL(reviewUrl, 'http://x').searchParams.get('v') ?? '1');
   return { page, id, v };
@@ -182,7 +195,9 @@ async function duyetKySo(page: Page, nguoiKhacLap = HE_THONG): Promise<boolean> 
       m.getByRole('alert').filter({ hasText: 'Người duyệt không được là người lập kế hoạch.' }),
       false,
     );
-    ghiCho('duyệt và ký số: giả lập chỉ có một người dùng, đã kiểm màn hình chặn người lập tự duyệt');
+    ghiCho(
+      'duyệt và ký số: giả lập chỉ có một người dùng, đã kiểm màn hình chặn người lập tự duyệt',
+    );
     return false;
   }
   await xacThucBuocLen(
@@ -229,7 +244,11 @@ test.describe('Kế hoạch quý', { tag: '@qa-05' }, () => {
     const muc = dm.getByRole('checkbox', { checked: false, disabled: false });
     const truocKhiThem = await soDongKeHoach(page);
     if (await muc.count()) {
-      const nho = dm.getByRole('checkbox', { name: /\(5 điểm\)$/, checked: false, disabled: false });
+      const nho = dm.getByRole('checkbox', {
+        name: /\(5 điểm\)$/,
+        checked: false,
+        disabled: false,
+      });
       await ((await nho.count()) ? nho : muc).first().check();
       await dm.getByRole('button', { name: /^Thêm/ }).last().click();
       await expect(dm).toBeHidden();
@@ -254,16 +273,22 @@ test.describe('Kế hoạch quý', { tag: '@qa-05' }, () => {
       // sửa các dòng bị báo lỗi: nội dung rõ sản phẩm, số lượng, đơn vị tính
       const dongLoi = m.getByRole('row').filter({ hasText: /KPI mơ hồ ở dòng/ });
       const soDong: number[] = [];
-      for (const r of await dongLoi.all()) soDong.push(Number(await r.getByRole('cell').first().innerText()));
+      for (const r of await dongLoi.all())
+        soDong.push(Number(await r.getByRole('cell').first().innerText()));
       for (const so of soDong) await suaDong(page, so, `${KH.noiDung} (dòng ${so})`, KH.soLuong);
     } else {
       await trenHeThong('gửi duyệt bản chưa qua kiểm tra bị máy chủ chặn', async () => {
-        const kq = await api!.goi('POST', `plans/${new URL(page.url()).searchParams.get('plan')}/versions/1/submit`, {
-          ifMatch: '"0"',
-        });
-        expect([409, 412, 422], `gửi duyệt sai phiên bản hoặc chưa kiểm tra: ${kq.status}`).toContain(
-          kq.status,
+        const kq = await api!.goi(
+          'POST',
+          `plans/${new URL(page.url()).searchParams.get('plan')}/versions/1/submit`,
+          {
+            ifMatch: '"0"',
+          },
         );
+        expect(
+          [409, 412, 422],
+          `gửi duyệt sai phiên bản hoặc chưa kiểm tra: ${kq.status}`,
+        ).toContain(kq.status);
       });
     }
     await guiDuyet(page);
@@ -301,7 +326,13 @@ test.describe('Kế hoạch quý', { tag: '@qa-05' }, () => {
 
     // Máy chủ là nguồn sự thật: phiên bản sang DA_DUYET (sau khi ký số xong) và phát EVT-03
     await trenHeThong('kế hoạch sang Đã duyệt', async () => {
-      await choTrangThai(api!, `plans/${duyet.id}/versions/${duyet.v}`, 'DA_DUYET', 'status', 90_000);
+      await choTrangThai(
+        api!,
+        `plans/${duyet.id}/versions/${duyet.v}`,
+        'DA_DUYET',
+        'status',
+        90_000,
+      );
     });
     await kiemSuKien('EVT-03', duyet.id, tu);
   });
@@ -334,9 +365,13 @@ test.describe('Kế hoạch quý', { tag: '@qa-05' }, () => {
       await m.getByRole('combobox', { name: /^Quý I\/2027/ }).click();
       await page.getByRole('option', { name: /^Quý IV\/2026 .*Chờ duyệt/ }).click();
       await m.getByRole('button', { name: 'Xem xét và duyệt' }).click();
-      await expect(main(page).getByRole('heading', { level: 1, name: /^Phê duyệt (điều chỉnh )?kế hoạch/ })).toBeVisible();
+      await expect(
+        main(page).getByRole('heading', { level: 1, name: /^Phê duyệt (điều chỉnh )?kế hoạch/ }),
+      ).toBeVisible();
       expect(await duyetKySo(page, true)).toBe(true);
-      await main(page).getByRole('link', { name: /^Mở kế hoạch phiên bản/ }).click();
+      await main(page)
+        .getByRole('link', { name: /^Mở kế hoạch phiên bản/ })
+        .click();
     }
     await expect(m.getByText(/phiên bản \d+ · Đã duyệt/).first()).toBeVisible();
 
@@ -355,7 +390,10 @@ test.describe('Kế hoạch quý', { tag: '@qa-05' }, () => {
     const tu = new Date(Date.now() - 5_000);
     if (HE_THONG) {
       // phiên bản điều chỉnh là phiên bản hiện hành mới của kế hoạch
-      const v = await api!.can<KeHoach>('GET', `plans/${planId}/versions/${Number(new URL(planUrl, 'http://x').searchParams.get('v')) + 1}`);
+      const v = await api!.can<KeHoach>(
+        'GET',
+        `plans/${planId}/versions/${Number(new URL(planUrl, 'http://x').searchParams.get('v')) + 1}`,
+      );
       planUrl = `/plans?plan=${planId}&v=${(v.body as unknown as { versionNo: number }).versionNo}`;
     }
     const duyet = await moPheDuyet(s, page, planUrl);
@@ -363,12 +401,21 @@ test.describe('Kế hoạch quý', { tag: '@qa-05' }, () => {
     m = main(page);
     await expect(m.getByRole('region', { name: 'Tóm tắt thay đổi' })).toBeVisible();
     // màn hình điều chỉnh so sánh với phiên bản đang hiệu lực, mặc định chỉ hiện dòng thay đổi
-    await expect(m.getByRole('button', { name: 'Chỉ hiện thay đổi' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(m.getByRole('button', { name: 'Chỉ hiện thay đổi' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     await expect(m.getByText(KH.noiDung).first()).toBeVisible();
     await kiemTruyCap(page, 'phê duyệt điều chỉnh kế hoạch');
     await duyetKySo(page);
     await trenHeThong('phiên bản điều chỉnh sang Đã duyệt', async () => {
-      await choTrangThai(api!, `plans/${duyet.id}/versions/${duyet.v}`, 'DA_DUYET', 'status', 90_000);
+      await choTrangThai(
+        api!,
+        `plans/${duyet.id}/versions/${duyet.v}`,
+        'DA_DUYET',
+        'status',
+        90_000,
+      );
     });
     await kiemSuKien('EVT-03', duyet.id, tu);
   });
