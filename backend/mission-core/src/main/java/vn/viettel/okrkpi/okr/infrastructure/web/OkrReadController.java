@@ -69,6 +69,7 @@ import vn.viettel.okrkpi.contract.okr.model.PeriodStatus;
 import vn.viettel.okrkpi.contract.okr.model.Ref;
 import vn.viettel.okrkpi.okr.application.OkrCheckService;
 import vn.viettel.okrkpi.okr.application.OkrCheckinDelegateService;
+import vn.viettel.okrkpi.okr.application.OkrPermittedActions;
 import vn.viettel.okrkpi.okr.application.OkrReadService;
 import vn.viettel.okrkpi.okr.application.OkrReadService.AlignmentNode;
 import vn.viettel.okrkpi.okr.application.OkrReadService.AlignmentView;
@@ -166,7 +167,10 @@ public class OkrReadController {
         tree.parent() == null ? null : objectiveRef(tree.parent()),
         tree.recommendedMax(),
         tree.objectives().stream()
-            .map(o -> objective(o, List.of()).checks(checks(checks.check(tenant, o))))
+            .map(
+                o ->
+                    permitted(
+                        tenant, o, objective(o, List.of()).checks(checks(checks.check(tenant, o)))))
             .toList(),
         tree.peerLinks().stream().map(OkrReadController::peerLink).toList());
   }
@@ -237,7 +241,9 @@ public class OkrReadController {
         cursors.page(fetched, page, o -> CursorKey.of(o.row().code(), o.row().id()));
     OkrObjectivePage dto =
         new OkrObjectivePage(
-            result.items().stream().map(o -> objective(o, List.of())).toList(),
+            result.items().stream()
+                .map(o -> permitted(tenant, o, objective(o, List.of())))
+                .toList(),
             result.nextCursor());
     if (p.isPresent() && unit != null) {
       dto.counts(
@@ -257,7 +263,11 @@ public class OkrReadController {
             .objective(tenant, id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     OkrObjective dto =
-        objective(view, reads.linksOf(tenant, view)).checks(checks(checks.check(tenant, view)));
+        permitted(
+            tenant,
+            view,
+            objective(view, reads.linksOf(tenant, view))
+                .checks(checks(checks.check(tenant, view))));
     if (view.row().parentObjectiveId() != null) {
       reads
           .objectiveRow(tenant, view.row().parentObjectiveId())
@@ -366,6 +376,7 @@ public class OkrReadController {
                 dto.owner(new Ref(o.ownerPersonId(), ""));
               }
               currentUser().ifPresent(me -> dto.viewerIsOwner(me.equals(o.ownerPersonId())));
+              dto.permittedActions(keyResultActions(tenant, o, id));
             });
     // CORE-01-12: người được giao check-in thay còn hiệu lực cũng là "chủ" khi xem KR.
     OkrCheckinDelegateService delegation = delegates.getIfAvailable();
@@ -520,6 +531,39 @@ public class OkrReadController {
       throw invalidFilter("owner");
     }
     return currentUser().orElseThrow(OkrReadController::unauthorized);
+  }
+
+  /**
+   * Gắn {@code permittedActions} cho mục tiêu và các KR của nó theo người gọi (YC-PT-21); người
+   * được giao check-in thay chỉ tra cho KR của mục tiêu đã duyệt mà người gọi không phải chủ.
+   */
+  private OkrObjective permitted(TenantId tenant, ObjectiveView view, OkrObjective dto) {
+    ObjectiveRow o = view.row();
+    UUID me = currentUser().orElse(null);
+    dto.permittedActions(
+        OkrPermittedActions.objective(
+            o.status(), o.ownerType(), o.ownerPersonId(), o.createdBy(), me));
+    if (dto.getKeyResults() != null) {
+      for (OkrKeyResult kr : dto.getKeyResults()) {
+        kr.permittedActions(keyResultActions(tenant, o, kr.getId()));
+      }
+    }
+    return dto;
+  }
+
+  private java.util.Set<String> keyResultActions(TenantId tenant, ObjectiveRow o, UUID krId) {
+    UUID me = currentUser().orElse(null);
+    boolean delegate = false;
+    OkrCheckinDelegateService delegation = delegates.getIfAvailable();
+    if (me != null
+        && delegation != null
+        && "DA_DUYET".equals(o.status())
+        && !OkrPermittedActions.ownsKeyResult(o.ownerPersonId(), o.createdBy(), me)) {
+      delegate =
+          delegation.delegateOf(tenant, krId).map(d -> me.equals(d.personId())).orElse(false);
+    }
+    return OkrPermittedActions.keyResult(
+        o.status(), o.ownerPersonId(), o.createdBy(), me, delegate);
   }
 
   private Optional<UUID> currentUser() {

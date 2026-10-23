@@ -148,6 +148,7 @@ public class AppraisalReviewController {
     List<QueueItem> page = more ? rows.subList(0, size) : rows;
     Map<UUID, PeriodRef> refs = new LinkedHashMap<>();
     List<AppraisalProfileRow> items = new ArrayList<>();
+    UUID actor = page.isEmpty() ? null : actor();
     for (QueueItem item : page) {
       ProfileSummary p = item.row().profile();
       PeriodRef ref = refs.computeIfAbsent(p.periodId(), id -> mapper.periodRef(tenant, id));
@@ -165,6 +166,7 @@ public class AppraisalReviewController {
       row.setIsHead(p.head());
       row.setNoSelfAssessment(p.noSelfAssessment());
       row.setAutoRatingCode(AppraisalProfileMapper.rating(p.autoRating()));
+      row.setPermittedActions(service.permittedOn(tenant, p, actor));
       items.add(row);
     }
     String next =
@@ -418,7 +420,9 @@ public class AppraisalReviewController {
 
   private ResponseEntity<AppraisalProfile> profile(TenantId tenant, UUID id, UUID actor) {
     View view = profiles.view(tenant, id, actor, p -> true).orElseThrow(this::notFound);
-    return ETags.ok(mapper.profile(tenant, view), view.profile().rowVersion());
+    AppraisalProfile dto = mapper.profile(tenant, view);
+    dto.setPermittedActions(service.permittedOn(tenant, view.profile(), actor));
+    return ETags.ok(dto, view.profile().rowVersion());
   }
 
   private static AppraisalRatingLevels levels(Map<LevelKind, RatingLevel> levels) {

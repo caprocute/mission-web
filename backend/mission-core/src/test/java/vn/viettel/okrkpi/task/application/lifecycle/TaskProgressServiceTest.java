@@ -209,6 +209,9 @@ class TaskProgressServiceTest {
     items.add(null);
     List<BatchResult> results = service.applyProgressBatch(TENANT, items, leadActor, "lo");
     assertThat(results).extracting(BatchResult::status).containsExactly(200, 409, 409, 403, 422);
+    assertThat(results)
+        .extracting(BatchResult::callerRole)
+        .containsExactly("CHU_TRI", null, null, null, null);
     assertThat(results.get(0).task().progressPct()).isEqualByComparingTo("0.7");
     assertThat(results.get(1).error().errorCode().code()).isEqualTo("TASK-409-VERSION-CONFLICT");
     assertThat(store.rows)

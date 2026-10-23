@@ -25,7 +25,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import vn.viettel.okrkpi.appraisal.application.review.AppraisalPermittedActions;
 import vn.viettel.okrkpi.appraisal.application.review.ReviewParticipants;
+import vn.viettel.okrkpi.appraisal.application.review.ReviewService;
 import vn.viettel.okrkpi.appraisal.application.selfassessment.SelfAssessmentService;
 import vn.viettel.okrkpi.appraisal.application.selfassessment.SelfAssessmentService.View;
 import vn.viettel.okrkpi.appraisal.application.selfassessment.SelfAssessmentSubmission;
@@ -75,6 +77,7 @@ public class SelfAssessmentController {
   private final ObjectProvider<AuthzSubjectResolver> subjects;
   private final ObjectProvider<PeriodApi> periods;
   private final ObjectProvider<AppraisalReviewGuard> guards;
+  private final ObjectProvider<ReviewService> reviews;
   private final ObjectMapper json;
   private final AppraisalProfileMapper mapper;
 
@@ -84,12 +87,14 @@ public class SelfAssessmentController {
       ObjectProvider<AuthzSubjectResolver> subjects,
       ObjectProvider<PeriodApi> periods,
       ObjectProvider<ObjectMapper> json,
-      ObjectProvider<AppraisalReviewGuard> guards) {
+      ObjectProvider<AppraisalReviewGuard> guards,
+      ObjectProvider<ReviewService> reviews) {
     this.service = Objects.requireNonNull(service, "service");
     this.submission = Objects.requireNonNull(submission, "submission");
     this.subjects = Objects.requireNonNull(subjects, "subjects");
     this.periods = Objects.requireNonNull(periods, "periods");
     this.guards = Objects.requireNonNull(guards, "guards");
+    this.reviews = Objects.requireNonNull(reviews, "reviews");
     this.json = json.getIfAvailable(ObjectMapper::new);
     this.mapper = new AppraisalProfileMapper(this.json, periods);
   }
@@ -112,8 +117,9 @@ public class SelfAssessmentController {
     if (flow != null && !"DANG".equals(flow) && !"NHA_NUOC".equals(flow)) {
       throw invalid("flow", "Luồng đánh giá không hợp lệ.");
     }
+    UUID actor = actor();
     List<ProfileSummary> rows =
-        service.mine(tenant, actor(), period, flow, decodeCursor(cursor), size + 1);
+        service.mine(tenant, actor, period, flow, decodeCursor(cursor), size + 1);
     boolean more = rows.size() > size;
     List<ProfileSummary> page = more ? rows.subList(0, size) : rows;
     Map<UUID, PeriodRef> refs = new LinkedHashMap<>();
@@ -137,6 +143,7 @@ public class SelfAssessmentController {
       if (p.autoRating() != null) {
         row.setAutoRatingCode(AppraisalProfileMapper.rating(p.autoRating()));
       }
+      row.setPermittedActions(AppraisalPermittedActions.of(p, actor, Set::of));
       items.add(row);
     }
     String next = more ? encodeCursor(page.get(page.size() - 1).id()) : null;
@@ -159,7 +166,7 @@ public class SelfAssessmentController {
                 actor(),
                 p -> AppraisalReviewGuard.canView(guards.getIfAvailable(), participants(tenant, p)))
             .orElseThrow(SelfAssessmentController::notFound);
-    return ETags.ok(mapper.profile(tenant, view), view.profile().rowVersion());
+    return withActions(tenant, view);
   }
 
   @PutMapping("/{id}/self-assessment")
@@ -181,7 +188,7 @@ public class SelfAssessmentController {
     } catch (NoSuchElementException e) {
       throw notFound();
     }
-    return ETags.ok(mapper.profile(tenant, view), view.profile().rowVersion());
+    return withActions(tenant, view);
   }
 
   @PostMapping("/{id}/submit")
@@ -269,6 +276,18 @@ public class SelfAssessmentController {
         Set.of(),
         p.appraiserId(),
         p.deciderId());
+  }
+
+  /** Hồ sơ kèm thao tác người gọi còn làm được (YC-PT-21). */
+  private ResponseEntity<AppraisalProfile> withActions(TenantId tenant, View view) {
+    AppraisalProfile dto = mapper.profile(tenant, view);
+    UUID actor = actor();
+    ReviewService review = reviews.getIfAvailable();
+    dto.setPermittedActions(
+        review == null
+            ? AppraisalPermittedActions.of(view.profile(), actor, Set::of)
+            : review.permittedOn(tenant, view.profile(), actor));
+    return ETags.ok(dto, view.profile().rowVersion());
   }
 
   private UUID actor() {
