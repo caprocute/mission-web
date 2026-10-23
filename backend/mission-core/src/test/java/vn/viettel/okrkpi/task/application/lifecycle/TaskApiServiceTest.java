@@ -216,4 +216,47 @@ class TaskApiServiceTest {
     assertThat(out.task().status()).isEqualTo("DANG_THUC_HIEN");
     assertThat(api.listForUnit(TENANT, PeriodId.of(period), UUID.randomUUID(), null, 0)).hasSize(1);
   }
+
+  @Test
+  void docDauVaoTinhDiemQuaCongDocRieng() {
+    TaskApiService service = new TaskApiService(repo, transitions);
+    PeriodId p = PeriodId.of(period);
+    UUID person = UUID.randomUUID();
+    assertThat(service.listWorkItems(TENANT, p, person, null, 10)).isEmpty();
+    assertThat(service.listWorkItems(TENANT, p, List.of(person), 10)).isEmpty();
+    assertThat(service.listResponsibleItems(TENANT, p, person)).isEmpty();
+
+    vn.viettel.okrkpi.task.application.lifecycle.port.TaskScoringReads reads =
+        org.mockito.Mockito.mock(
+            vn.viettel.okrkpi.task.application.lifecycle.port.TaskScoringReads.class);
+    service.setScoringReads(reads);
+    TaskApi.WorkItemSnapshot item =
+        new TaskApi.WorkItemSnapshot(
+            UUID.randomUUID(),
+            null,
+            null,
+            null,
+            null,
+            "THUONG_XUYEN",
+            null,
+            null,
+            "DA_GIAO",
+            null,
+            0,
+            0,
+            false,
+            false,
+            false);
+    org.mockito.Mockito.when(reads.workItems(TENANT, period, person, null, 201))
+        .thenReturn(List.of(item));
+    org.mockito.Mockito.when(reads.workItems(TENANT, period, List.of(person), 1))
+        .thenReturn(java.util.Map.of(person, List.of(item)));
+    assertThat(service.listWorkItems(TENANT, p, person, null, 5000)).containsExactly(item);
+    assertThat(item.standardScore()).isZero();
+    assertThat(item.coefficientLevels()).isEmpty();
+    assertThat(service.listWorkItems(TENANT, p, List.of(person), 0)).containsKey(person);
+    assertThat(service.listWorkItems(TENANT, p, List.of(), 10)).isEmpty();
+    service.listResponsibleItems(TENANT, p, person);
+    org.mockito.Mockito.verify(reads).responsibleItems(TENANT, period, person);
+  }
 }

@@ -1,5 +1,6 @@
 package vn.viettel.okrkpi.policy.application;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -60,6 +61,11 @@ public class DefaultPolicyQueryService implements PolicyQueryApi {
   @Override
   public Optional<Map<String, Object>> taskLifecycle(TenantId tenantId, UUID versionId) {
     return resolution == null ? Optional.empty() : resolution.taskLifecycle(tenantId, versionId);
+  }
+
+  @Override
+  public List<InputDeclaration> inputs(TenantId tenantId, UUID versionId) {
+    return resolution == null ? List.of() : resolution.inputs(tenantId, versionId);
   }
 
   @Override

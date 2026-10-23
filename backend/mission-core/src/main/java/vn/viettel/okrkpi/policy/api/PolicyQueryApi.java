@@ -57,6 +57,23 @@ public interface PolicyQueryApi {
   }
 
   /**
+   * Khai báo {@code inputs} của phiên bản gói (BS-03 DC-01, DC-03), theo thứ tự khai báo; gói viết
+   * dạng ánh xạ tên → khai báo hay dạng mảng đều trả về cùng một dạng. Rỗng khi gói không khai báo
+   * hoặc không có phiên bản (CORE-04-13 dùng để chỉ đọc danh sách mà gói cần).
+   */
+  default List<InputDeclaration> inputs(TenantId tenantId, UUID versionId) {
+    return List.of();
+  }
+
+  /** Một đầu vào khai báo của gói ({@code PolicyInputDeclaration} của hợp đồng). */
+  record InputDeclaration(String name, String type, String source) {
+
+    public InputDeclaration {
+      Objects.requireNonNull(name, "name");
+    }
+  }
+
+  /**
    * Phiên bản hồ sơ tập khách hàng ghim cùng gói áp cho tổ hợp tenant, kỳ, luồng, khối, đơn vị
    * (CORE-05-12, BS-03 ADR-33) kèm cờ sáu điểm cắm DC-01..DC-06. Rỗng khi gắn của kỳ không ghim hồ
    * sơ: bên gọi dùng {@link PluginPoints#DEFAULTS}, giữ đúng hành vi hiện tại.

@@ -1,6 +1,10 @@
 package vn.viettel.okrkpi.task.api;
 
+import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -37,6 +41,99 @@ public interface TaskApi {
   /** Nhiệm vụ đang giao cho một đơn vị trong kỳ, như {@link #listForPerson}. */
   List<TaskSummary> listForUnit(
       TenantId tenant, PeriodId period, UUID orgUnitId, UUID afterId, int limit);
+
+  /**
+   * Việc lá của một cán bộ trong kỳ đưa vào tính điểm theo điểm công việc (CORE-04-13, BS-03
+   * DC-01): nhiệm vụ không có việc con mà người đó đang chủ trì, trừ bản nháp, sắp theo id, phân
+   * trang con trỏ. Lõi chỉ trả đại lượng thô và mức hệ số; công thức nằm trong Policy Pack.
+   *
+   * @param afterId id cuối của trang trước, {@code null} cho trang đầu
+   * @param limit tối đa {@link #MAX_LIMIT} + 1 (bên gọi đọc dư một dòng để biết còn trang sau)
+   */
+  default List<WorkItemSnapshot> listWorkItems(
+      TenantId tenant, PeriodId period, UUID personId, UUID afterId, int limit) {
+    return List.of();
+  }
+
+  /**
+   * Trang đầu việc lá của nhiều cán bộ trong một lần đọc, để đầu vào lô của MOD-04 không phát sinh
+   * một truy vấn mỗi hồ sơ. Mỗi người tối đa {@code limitPerPerson} việc; người không có việc vắng
+   * mặt trong kết quả.
+   */
+  default Map<UUID, List<WorkItemSnapshot>> listWorkItems(
+      TenantId tenant, PeriodId period, Collection<UUID> personIds, int limitPerPerson) {
+    Map<UUID, List<WorkItemSnapshot>> out = new LinkedHashMap<>();
+    for (UUID person : personIds) {
+      List<WorkItemSnapshot> items = listWorkItems(tenant, period, person, null, limitPerPerson);
+      if (!items.isEmpty()) {
+        out.put(person, items);
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Nhiệm vụ và KPI có việc con mà cán bộ chủ trì trong kỳ, dùng cho phạm vi phụ trách (CORE-04-13,
+   * BS-03 DC-03). Mỗi việc lá chỉ được tính cho mục phụ trách gần nhất phía trên nó, nên phần của
+   * cấp dưới không bị cộng hai lần khi người đó phụ trách cả mục cha lẫn mục con.
+   */
+  default List<ResponsibleItem> listResponsibleItems(
+      TenantId tenant, PeriodId period, UUID personId) {
+    return List.of();
+  }
+
+  /**
+   * Một việc lá (BS-03 DC-01).
+   *
+   * @param coefficientLevels mức của từng loại hệ số mở, khoá là mã loại do Policy Pack khai báo
+   * @param statusAtLock trạng thái hiện hành; sau khi kỳ khoá nhiệm vụ không đổi được nên đây là
+   *     trạng thái tại thời điểm khoá
+   * @param qualityLevel mức chất lượng nghiệm thu, {@code null} khi MOD-02 chưa ghi
+   * @param exceeded khối lượng hoàn thành vượt khối lượng giao
+   * @param deferredByDecision tạm dừng hoặc có đề nghị gia hạn, tạm dừng, huỷ đã được duyệt
+   */
+  record WorkItemSnapshot(
+      UUID taskId,
+      UUID parentTaskId,
+      BigDecimal standardScore,
+      Integer difficulty,
+      Map<String, String> coefficientLevels,
+      String taskGroup,
+      String axisCode,
+      BigDecimal componentScore,
+      String statusAtLock,
+      BigDecimal qualityLevel,
+      int subjectiveLateWorkdays,
+      int objectiveLateWorkdays,
+      boolean exceeded,
+      boolean outOfScope,
+      boolean deferredByDecision) {
+
+    public WorkItemSnapshot {
+      java.util.Objects.requireNonNull(taskId, "taskId");
+      standardScore = standardScore == null ? BigDecimal.ZERO : standardScore;
+      coefficientLevels = Map.copyOf(coefficientLevels == null ? Map.of() : coefficientLevels);
+    }
+  }
+
+  /**
+   * Một mục cán bộ phụ trách trong MOD-02 (BS-03 DC-03).
+   *
+   * @param itemType {@code NHIEM_VU} hoặc {@code KPI} (loại nút của cây phân rã)
+   * @param leafCount số việc lá tính cho mục này
+   * @param sumStandardScore tổng điểm chuẩn của các việc lá đó
+   * @param sumCompletedScore tổng điểm chuẩn của các việc lá đã hoàn thành
+   * @param targetAchievedRatio khối lượng hoàn thành chia khối lượng giao của chính mục
+   * @param ownLateWorkdays số ngày làm việc chậm của chính mục, 0 khi MOD-02 chưa tính
+   */
+  record ResponsibleItem(
+      String itemType,
+      UUID itemId,
+      int leafCount,
+      BigDecimal sumStandardScore,
+      BigDecimal sumCompletedScore,
+      BigDecimal targetAchievedRatio,
+      int ownLateWorkdays) {}
 
   /**
    * Yêu cầu chuyển trạng thái nhiệm vụ do MOD-03 phát sinh khi minh chứng đổi trạng thái (liên động

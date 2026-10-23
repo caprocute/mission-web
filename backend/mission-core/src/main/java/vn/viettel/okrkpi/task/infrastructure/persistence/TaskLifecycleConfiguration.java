@@ -91,9 +91,15 @@ public class TaskLifecycleConfiguration {
 
   @Bean
   TaskApiService taskApiService(
+      @Qualifier("taskDataSource") DataSource dataSource,
       JdbcTaskLifecycleRepository taskLifecycleRepository,
-      TaskTransitionService taskTransitionService) {
-    return new TaskApiService(taskLifecycleRepository, taskTransitionService);
+      TaskTransitionService taskTransitionService,
+      ObjectProvider<ObjectMapper> json) {
+    TaskApiService service = new TaskApiService(taskLifecycleRepository, taskTransitionService);
+    service.setScoringReads(
+        new JdbcTaskScoringReads(
+            JdbcClient.create(dataSource), json.getIfAvailable(ObjectMapper::new)));
+    return service;
   }
 
   @Bean

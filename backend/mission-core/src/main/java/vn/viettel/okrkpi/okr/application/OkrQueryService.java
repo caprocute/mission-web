@@ -116,9 +116,25 @@ public class OkrQueryService implements OkrApi {
   @Override
   public List<KeyResultSnapshot> listApprovedKeyResults(
       TenantId tenantId, PeriodId periodId, UUID unitId) {
+    Objects.requireNonNull(unitId, "unitId must not be null");
+    return approvedKeyResults(tenantId, periodId, List.of(unitId), null);
+  }
+
+  @Override
+  public List<KeyResultSnapshot> listResponsibleKeyResults(
+      TenantId tenantId, PeriodId periodId, UUID personId) {
+    Objects.requireNonNull(personId, "personId must not be null");
+    // Bộ lọc người sở hữu của cổng đọc gồm cả người được giao check-in thay; phạm vi phụ trách chỉ
+    // giữ KR của mục tiêu cá nhân của chính người đó hoặc mục tiêu tập thể do người đó soạn.
+    return approvedKeyResults(tenantId, periodId, null, personId).stream()
+        .filter(k -> k.ownerPersonId() == null || personId.equals(k.ownerPersonId()))
+        .toList();
+  }
+
+  private List<KeyResultSnapshot> approvedKeyResults(
+      TenantId tenantId, PeriodId periodId, List<UUID> unitIds, UUID ownerPersonId) {
     Objects.requireNonNull(tenantId, "tenantId must not be null");
     Objects.requireNonNull(periodId, "periodId must not be null");
-    Objects.requireNonNull(unitId, "unitId must not be null");
     OkrReadService read = read();
     if (read == null) {
       return List.of();
@@ -131,8 +147,8 @@ public class OkrQueryService implements OkrApi {
         new KeyResultFilter(
             periodId.value(),
             OkrReadService.buckets(period.get()),
-            List.of(unitId),
-            null,
+            unitIds,
+            ownerPersonId,
             null,
             null,
             true,
