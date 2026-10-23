@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -91,8 +92,9 @@ func tenantCmd(a *App) *cobra.Command {
 		},
 	}
 	// transition dựng lệnh đổi trạng thái tenant qua một API config (If-Match từ ETag, Idempotency-Key, aal2).
-	transition := func(name, short, op, summary string) *cobra.Command {
-		var reason, key string
+	// handover: lệnh cần thêm --handover-ref (số biên bản bàn giao dữ liệu, terminateConfigTenant).
+	transition := func(name, short, op, summary string, handover bool) *cobra.Command {
+		var reason, ref, key string
 		c := &cobra.Command{
 			Use:   name + " <tenant-id>",
 			Short: short,
@@ -103,6 +105,13 @@ func tenantCmd(a *App) *cobra.Command {
 				}
 				if err := requireReason(reason); err != nil {
 					return err
+				}
+				body := map[string]any{"reason": reason}
+				if handover {
+					if strings.TrimSpace(ref) == "" {
+						return usagef("cần --handover-ref (số biên bản bàn giao dữ liệu đã xuất trả)")
+					}
+					body["handoverRef"] = ref
 				}
 				k, err := ensureKey(key)
 				if err != nil {
@@ -135,7 +144,7 @@ func tenantCmd(a *App) *cobra.Command {
 							return nil, err
 						}
 						res, err := reg.Do(ctx, api.Request{Method: http.MethodPost, Path: path + "/" + op, IfMatch: got.ETag,
-							IdempotencyKey: k, AAL2: true, Body: map[string]any{"reason": reason}})
+							IdempotencyKey: k, AAL2: true, Body: body})
 						if err != nil {
 							return nil, err
 						}
@@ -145,14 +154,19 @@ func tenantCmd(a *App) *cobra.Command {
 			},
 		}
 		c.Flags().StringVar(&reason, "reason", "", "lý do, số văn bản (ghi registry.tenant_status_log)")
+		if handover {
+			c.Flags().StringVar(&ref, "handover-ref", "", "số biên bản bàn giao dữ liệu đã xuất trả cho tổ chức")
+		}
 		keyFlag(c, &key)
 		return c
 	}
 	activate := transition("activate", "Kích hoạt hoặc kích hoạt lại tenant (SAN_SANG hoặc TAM_NGUNG sang DANG_VAN_HANH, aal2)",
-		"activate", "sang DANG_VAN_HANH (activateConfigTenant)")
+		"activate", "sang DANG_VAN_HANH (activateConfigTenant)", false)
 	suspend := transition("suspend", "Tạm ngừng tenant khi hết hạn hợp đồng hoặc sự cố an ninh (DANG_VAN_HANH sang TAM_NGUNG, aal2)",
-		"suspend", "sang TAM_NGUNG (suspendConfigTenant), dữ liệu giữ nguyên, người dùng của tenant không đăng nhập được")
-	cmd.AddCommand(status, activate, suspend)
+		"suspend", "sang TAM_NGUNG (suspendConfigTenant), dữ liệu giữ nguyên, người dùng của tenant không đăng nhập được", false)
+	terminate := transition("terminate", "Chấm dứt tenant sau khi đã xuất trả dữ liệu (TAM_NGUNG sang DA_CHAM_DUT, trạng thái cuối, aal2)",
+		"terminate", "sang DA_CHAM_DUT (terminateConfigTenant), trạng thái cuối không quay lại, bắt đầu quy trình huỷ KEK", true)
+	cmd.AddCommand(status, activate, suspend, terminate)
 	return cmd
 }
 

@@ -170,8 +170,19 @@ Tệp `keycloak/realm-mission.json` tạo sẵn:
 - **Realm**: `mission`
 - **Client SPA (PKCE)**: `mission-web` (`redirectUris`: `http://localhost:4200/*`)
 - **Client dịch vụ**: `mission-core`; `org-service` (tài khoản dịch vụ, vai trò `svc_org_service`, bí mật `ORG_SERVICE_CLIENT_SECRET`)
+- **Client saga cấp phát tenant**: `tenant-registry-provisioner` (tài khoản dịch vụ, vai trò `realm-management` gồm `manage-realm`, `manage-users`, `manage-identity-providers`, `view-realm`, `query-users`; bí mật `PROVISION_CLIENT_SECRET`). Keycloak chỉ nhập realm khi realm chưa có, nên với Keycloak dev đã chạy từ trước, chạy `./scripts/them-client-provisioner.sh` để thêm client này.
 - **Các vai trò chuẩn**: `SYS_ADMIN`, `LANH_DAO_DON_VI`, `THU_TRUONG_CO_QUAN`, `CHUYEN_VIEN_THAM_MUU`, `CAN_BO`, `HOI_DONG_THAM_DINH`, `KIEM_TRA_GIAM_SAT`
 - **Protocol mappers**: tự động gắn `tenant_id`, `org_path`, `roles` vào access token và ID token.
+
+
+### Cấp phát tenant trên dev (VH-04)
+
+tenant-registry trong profile `backend` bật saga cấp phát (`provisionConfigTenant`, `activateConfigTenant`): bước Organization, IdP và tài khoản quản trị tenant chạy trên Keycloak dev thật qua client `tenant-registry-provisioner`; PowerDNS, cert-manager, API nội bộ mission-core (Policy Pack, UI Pack, lịch nghỉ), cây tổ chức và mục lệch của org-service do container `provision-gia-lap` giả lập (YC-PT-13, mã ở `services-go/tenant-registry/cmd/provision-gia-lap`). Bộ giả lập mặc định coi mọi tenant đã có cây tổ chức (`GIA_LAP_CO_CAY=1`). Biến `PROVISION_CELL_DB_FILE` chưa đặt, nên saga bỏ qua bước CSDL bridge và KEK. Kiểm IdP trước kích hoạt (`testConfigTenantIdp`) cần issuer mà tenant-registry gọi tới được, ví dụ `http://keycloak:8080/realms/mission`. Diễn tập trọn vòng đời bằng `data/seed/onboarding-thu/dien-tap.sh` (xem README trong thư mục đó).
+
+```bash
+./scripts/them-client-provisioner.sh            # một lần, khi Keycloak đã nhập realm trước khi có client
+docker compose --profile backend up -d --build provision-gia-lap tenant-registry
+```
 
 ---
 

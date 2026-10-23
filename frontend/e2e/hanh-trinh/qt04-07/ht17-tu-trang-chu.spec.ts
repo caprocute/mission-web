@@ -70,13 +70,17 @@ test.describe('Tiến độ từ trang chủ', { tag: '@qa-05' }, () => {
     // SCR-0002 ở chế độ cao tuổi: khối "Việc của tôi hôm nay"
     const page = await s.as('canbo', '/');
     await expect(page.locator('html')).toHaveAttribute('data-mode', 'elderly');
-    const khoi = main(page).locator('li').filter({ has: page.getByRole('link') });
+    const khoi = main(page)
+      .locator('li')
+      .filter({ has: page.getByRole('link') });
     await expect(khoi.first()).toBeVisible();
     await kiemTruyCap(page, 'trang chủ chế độ cao tuổi');
     let link = ten ? page.getByRole('link', { name: ten }) : khoi.first().getByRole('link');
     if (ten && !(await link.isVisible())) {
       // khối chỉ hiện bảy việc gần hạn nhất; việc vừa dựng có thể nằm ngoài, khi đó lấy việc đầu
-      ghiCho('nhiệm vụ vừa dựng không nằm trong bảy việc gần hạn nhất của trang chủ; dùng việc đầu khối');
+      ghiCho(
+        'nhiệm vụ vừa dựng không nằm trong bảy việc gần hạn nhất của trang chủ; dùng việc đầu khối',
+      );
       link = khoi.first().getByRole('link');
     }
 
@@ -110,7 +114,9 @@ test.describe('Tiến độ từ trang chủ', { tag: '@qa-05' }, () => {
       type: 'so-cham',
       description: `${s.daCham} chạm lệnh (vào nhiệm vụ, mở hộp thoại, lưu) và 1 chạm chọn phần trăm trên thanh tiến độ`,
     });
-    await expect(m.getByRole('region', { name: 'Chỉ số chính' }).getByText(`${moi}%`, { exact: true })).toBeVisible();
+    await expect(
+      m.getByRole('region', { name: 'Chỉ số chính' }).getByText(`${moi}%`, { exact: true }),
+    ).toBeVisible();
 
     // Máy chủ là nguồn sự thật: đọc lại, trạng thái DANG_THUC_HIEN, EVT-05
     await trenHeThong('đọc lại tiến độ và trạng thái nhiệm vụ', async () => {
@@ -137,7 +143,10 @@ test.describe('Tiến độ từ trang chủ', { tag: '@qa-05' }, () => {
         ifMatch: ct.etag ?? `"${ct.body.rowVersion}"`,
         khoa,
       });
-      expect(hai.status, 'lần gửi lại trả kết quả đã lưu, không phải xung đột phiên bản').toBeLessThan(300);
+      expect(
+        hai.status,
+        'lần gửi lại trả kết quả đã lưu, không phải xung đột phiên bản',
+      ).toBeLessThan(300);
       const sau = await api.can<NhiemVu>('GET', `tasks/${taskId}`);
       expect(sau.body.rowVersion, 'chỉ một lần ghi').toBe(
         (mot.body as NhiemVu).rowVersion ?? ct.body.rowVersion + 1,

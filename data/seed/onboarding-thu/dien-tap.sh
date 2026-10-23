@@ -8,10 +8,12 @@
 # chép vào biên bản ops/dien-tap/<ngày>-ops-07.md.
 #
 # Dùng:
-#   data/seed/onboarding-thu/dien-tap.sh <hồ-sơ.json> [--loi-buoc-4] [--huy-thu]
+#   data/seed/onboarding-thu/dien-tap.sh <hồ-sơ.json> [--loi-buoc-4] [--huy-thu] [--cham-dut]
 #     --loi-buoc-4  bật lỗi 503 ở bước Organization Keycloak, chờ saga bù trừ về KHOI_TAO, tắt lỗi rồi cấp phát lại
 #                   (chỉ khi có KHUNG_URL; môi trường thật thì gây lỗi bằng tay, xem biên bản mẫu)
 #     --huy-thu     tạo thêm một hồ sơ nháp rồi huỷ (KHOI_TAO → DA_CHAM_DUT, cancelConfigTenant)
+#     --cham-dut    cuối diễn tập tạm ngừng lại rồi chấm dứt tenant (TAM_NGUNG → DA_CHAM_DUT, terminateConfigTenant);
+#                   trạng thái cuối, không quay lại được, chỉ dùng cho tenant thử
 #
 # Biến môi trường:
 #   REGISTRY_URL    gốc API tenant-registry (mặc định http://127.0.0.1:35110, cổng dev compose)
@@ -21,19 +23,22 @@
 #   HAU_TO          hậu tố thêm vào mã đơn vị để chạy lặp (mặc định giờ phút giây); đặt rỗng để giữ mã gốc
 #   OUT_DIR         thư mục kết quả (mặc định $HOME/dien-tap-ops-07/<ngày>), không ghi token vào đây
 #   CHO_TOI_DA      số giây chờ tối đa một job cấp phát (mặc định 3600)
+#   IDP_ISSUER      thay issuer của IdP trong hồ sơ bằng issuer gọi tới được (dev: http://keycloak:8080/realms/mission)
 #
 # Mã thoát: 0 mọi bước chạy được đều đạt; 1 có bước không đạt; 2 sai tham số hoặc thiếu công cụ.
 set -euo pipefail
 
 HO_SO="${1:-}"
-[[ -n "$HO_SO" && -f "$HO_SO" ]] || { sed -n '10,24p' "$0"; exit 2; }
+[[ -n "$HO_SO" && -f "$HO_SO" ]] || { sed -n '10,27p' "$0"; exit 2; }
 shift
 LOI_BUOC_4=0
 HUY_THU=0
+CHAM_DUT=0
 for a in "$@"; do
   case "$a" in
     --loi-buoc-4) LOI_BUOC_4=1 ;;
     --huy-thu) HUY_THU=1 ;;
+    --cham-dut) CHAM_DUT=1 ;;
     *) echo "Tham số lạ: $a" >&2; exit 2 ;;
   esac
 done
@@ -151,7 +156,7 @@ t="$(date +%s.%N)"
 if [[ -z "${TOKEN_QTTENANT:-}" ]]; then
   ghi "Bước 4: khai IdP liên kết" "CHƯA CHẠY" "$t" "thiếu TOKEN_QTTENANT"
 else
-  goi PATCH "/api/v1/config/tenants/$ID" "$TOKEN_QTTENANT" "$(phan '.buoc4')" application/merge-patch+json "$V"
+  goi PATCH "/api/v1/config/tenants/$ID" "$TOKEN_QTTENANT" "$(phan '.buoc4' | jq -c --arg i "${IDP_ISSUER:-}" 'if $i != "" then .idps |= map(.issuer = $i) else . end')" application/merge-patch+json "$V"
   if [[ "$MA" == 200 ]]; then V="$ETAG"; ghi "Bước 4: khai IdP liên kết" "ĐẠT" "$t" ""
   else ghi "Bước 4: khai IdP liên kết" "KHÔNG ĐẠT" "$t" "HTTP $MA $(loi_van_de)"; ket_thuc; fi
 fi
@@ -244,7 +249,22 @@ else
   ghi "Nhật ký trạng thái" "ĐẠT" "$t" "$CHUOI; kiểm sys.tenant.provisioned.v1 trên Kafka theo biên bản"
 fi
 
-# 11. Tuỳ chọn: huỷ một hồ sơ nháp (KHOI_TAO → DA_CHAM_DUT).
+# 11. Tuỳ chọn: tạm ngừng lại rồi chấm dứt (TAM_NGUNG → DA_CHAM_DUT, trạng thái cuối).
+if ((CHAM_DUT)); then
+  t="$(date +%s.%N)"
+  goi POST "/api/v1/config/tenants/$ID/suspend" "$TOKEN_QTNT" '{"reason":"Diễn tập chấm dứt VH-04"}' application/json "$V"
+  [[ "$MA" == 200 ]] && V="$ETAG"
+  goi POST "/api/v1/config/tenants/$ID/terminate" "$TOKEN_QTNT" '{"reason":"Diễn tập chấm dứt VH-04","handoverRef":"BB-BG-THU-VH04"}' application/json "$V"
+  st="$(jq -r '.status // empty' "$TMP/than")"
+  if [[ "$MA" == 200 && "$st" == DA_CHAM_DUT ]]; then V="$ETAG"; ghi "Chấm dứt: TAM_NGUNG → DA_CHAM_DUT" "ĐẠT" "$t" "$st"
+  else ghi "Chấm dứt: TAM_NGUNG → DA_CHAM_DUT" "KHÔNG ĐẠT" "$t" "HTTP $MA $(loi_van_de)"; fi
+  t="$(date +%s.%N)"
+  goi POST "/api/v1/config/tenants/$ID/activate" "$TOKEN_QTNT" '{"reason":"Thử kích hoạt sau chấm dứt"}' application/json "$V"
+  if [[ "$MA" == 409 ]]; then ghi "Kích hoạt sau chấm dứt bị từ chối" "ĐẠT" "$t" "409 $(loi_van_de)"
+  else ghi "Kích hoạt sau chấm dứt bị từ chối" "KHÔNG ĐẠT" "$t" "HTTP $MA"; fi
+fi
+
+# 12. Tuỳ chọn: huỷ một hồ sơ nháp (KHOI_TAO → DA_CHAM_DUT).
 if ((HUY_THU)); then
   t="$(date +%s.%N)"
   CODE_HUY="${CODE}_huy"

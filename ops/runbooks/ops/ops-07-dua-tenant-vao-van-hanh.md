@@ -35,6 +35,7 @@ Truy vấn chỉ đọc trên CSDL registry (`cap-phat-kich-hoat-tenant.md` mụ
 | Xem trạng thái | `vtctl tenant status <tenant-id>` | `GET /api/v1/registry/tenants/{id}` (`getRegistryTenant`) |
 | Kích hoạt | `vtctl tenant activate <tenant-id> --reason ... --confirm` | `activateConfigTenant` |
 | Tạm ngừng | `vtctl tenant suspend <tenant-id> --reason ... --confirm` | `suspendConfigTenant` |
+| Chấm dứt (sau khi đã tạm ngừng và xuất trả dữ liệu) | `vtctl tenant terminate <tenant-id> --reason ... --handover-ref <số biên bản> --confirm` | `terminateConfigTenant` |
 
 ## Kiểm sau khi làm
 
@@ -42,7 +43,7 @@ Tenant ở `DANG_VAN_HANH`; người dùng thử của tenant đăng nhập qua 
 
 ## Quay lui
 
-Trước kích hoạt: saga lỗi tự bù trừ; huỷ hồ sơ theo `cap-phat-kich-hoat-tenant.md` mục 6. Sau kích hoạt: chỉ tạm ngừng (`TAM_NGUNG`, giữ dữ liệu); chấm dứt (`DA_CHAM_DUT`) đi theo quy trình xuất bàn giao và huỷ KEK, không phải quay lui. Hiện tenant-registry chỉ có thao tác huỷ hồ sơ ở `KHOI_TAO` (`cancelConfigTenant`); chấm dứt sau vận hành chưa có API, làm theo quyết định của đơn vị chủ quản tới khi DV-03 bổ sung.
+Trước kích hoạt: saga lỗi tự bù trừ; huỷ hồ sơ theo `cap-phat-kich-hoat-tenant.md` mục 6. Sau kích hoạt: chỉ tạm ngừng (`TAM_NGUNG`, giữ dữ liệu); chấm dứt (`DA_CHAM_DUT`) đi theo quy trình xuất bàn giao và huỷ KEK, không phải quay lui. Chấm dứt chỉ chạy từ `TAM_NGUNG`, cần lý do và số biên bản bàn giao dữ liệu (`vtctl tenant terminate`); đây là trạng thái cuối, tenant-registry đóng khoảng gắn cell để cổng ngừng định tuyến và phát `registry.tenant.changed.v1`, còn huỷ KEK `kek-tenant-<id>` làm theo OPS-20 sau thời gian lưu giữ của hợp đồng. Hồ sơ còn ở `KHOI_TAO` thì huỷ bằng `cancelConfigTenant`.
 
 ## Leo thang
 
