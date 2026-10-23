@@ -73,6 +73,15 @@ public class ComplaintResolutionService {
   static final String TEMPLATE_REQUESTED = "KHIEU_NAI_YEU_CAU_GIAI_TRINH";
   static final String TEMPLATE_WAITING = "KHIEU_NAI_CHO_KET_LUAN";
   static final String TEMPLATE_RESPONDED = "KHIEU_NAI_DA_TRA_LOI";
+  static final String TEMPLATE_CLOSED = "KHIEU_NAI_DA_DONG";
+  static final String ACTION_RESERVE = "BAO_LUU_Y_KIEN_KHIEU_NAI";
+  static final String ACTION_CLOSE = "DONG_KHIEU_NAI";
+  static final String COLUMN_RESERVE = "oversight.complaint.reserve_opinion_enc";
+  static final int RESERVE_WORKING_DAYS = 5;
+  static final int DUPLICATE_SCAN = 100;
+  static final Set<ComplaintStatus> ANSWERED =
+      java.util.EnumSet.of(
+          ComplaintStatus.DA_TRA_LOI, ComplaintStatus.DANG_THI_HANH, ComplaintStatus.DONG);
   static final String SEPARATION_OF_DUTIES = "OVERSIGHT-403-SEPARATION-OF-DUTIES";
   static final String OUT_OF_SCOPE = "COMMON-403-OUT-OF-SCOPE";
   static final String CONCLUSION_MISSING = "OVERSIGHT-422-CONCLUSION-MISSING";
@@ -565,8 +574,8 @@ public class ComplaintResolutionService {
 
   /**
    * EVT-18 của văn bản trả lời: {@code CHO_KET_LUAN} → {@code DA_TRA_LOI}, báo người khiếu nại
-   * (MSG-12-04); có điều chỉnh thì {@code DANG_THI_HANH}, giữ nguyên thì hồ sơ về {@code DA_KY_SO}.
-   * Lặp lại hoặc khác yêu cầu ký thì bỏ qua.
+   * (MSG-12-04); có điều chỉnh thì {@code DANG_THI_HANH}. Hồ sơ về {@code DA_KY_SO} khi khiếu nại
+   * đóng (CORE-07-05). Lặp lại hoặc khác yêu cầu ký thì bỏ qua.
    *
    * @return {@code true} khi vừa chuyển
    */
@@ -586,11 +595,6 @@ public class ComplaintResolutionService {
     }
     Instant at = signedAt == null ? clock.instant() : signedAt;
     UUID handler = c.handling().handlerId();
-    if (!k.resolution().adjusts()
-        && c.kind().reopensProfile()
-        && !complaints.otherOpenReopening(tenant, c.profileId(), c.id())) {
-      profiles.returnToSigned(tenant, c.profileId(), handler, "Giữ nguyên kết quả theo kết luận");
-    }
     Complaint responded = c.moved(ComplaintStatus.DA_TRA_LOI);
     events.stateChanged(tenant, responded, TEMPLATE_RESPONDED, List.of(c.complainantId()));
     Complaint next =
@@ -633,6 +637,238 @@ public class ComplaintResolutionService {
                         k ->
                             signedRecord(tenant, c, k.signRequestId())
                                 .map(r -> source(c, r.responderId(), k))));
+  }
+
+  // ---------------------------------------------------------------- bảo lưu, đóng, trùng
+
+  /**
+   * {@code reserveComplaintOpinion} (BR-12-09): người khiếu nại không đồng ý văn bản trả lời xác
+   * nhận bảo lưu trong 5 ngày làm việc kể từ khi ký; ý kiến (C2) ghi vào {@code
+   * reserve_opinion_enc} và bản ghi {@code BAO_LUU} (SVC-11 in Mẫu 3), khiếu nại {@code DONG}, hồ
+   * sơ về {@code DA_KY_SO}.
+   */
+  @Transactional(TX)
+  public Resolved reserve(TenantId tenant, Actor actor, UUID id, String ifMatch, String opinion) {
+    Complaint c = lockFiled(tenant, id);
+    if (!c.complainantId().equals(actor.userId())) {
+      throw new NotFoundException();
+    }
+    ETags.requireMatch(ifMatch, c.rowVersion(), "OVERSIGHT");
+    if (c.status() != ComplaintStatus.DA_TRA_LOI) {
+      throw invalidState("Chỉ xác nhận bảo lưu khi đã có văn bản trả lời giữ nguyên kết quả.");
+    }
+    ComplaintConclusion k =
+        process
+            .conclusion(tenant, c)
+            .filter(x -> x.respondedAt() != null)
+            .orElseThrow(() -> invalidState("Khiếu nại chưa có văn bản trả lời."));
+    LocalDate today = today();
+    if (today.isAfter(reserveDeadline(tenant, k))) {
+      throw new BusinessException(
+          ComplaintService.DEADLINE_PASSED,
+          "Đã quá thời hạn 5 ngày làm việc để xác nhận bảo lưu ý kiến.",
+          List.of(field("opinion", "Đã quá thời hạn xác nhận bảo lưu ý kiến.")));
+    }
+    String text = strip(opinion);
+    if (ComplaintRules.length(text) < 1 || ComplaintRules.length(text) > CONTENT_MAX) {
+      throw invalid("opinion", "Ý kiến bảo lưu cần từ 1 đến 8.000 ký tự.");
+    }
+    ComplaintSealer.Sealed sealed = seal(tenant, COLUMN_RESERVE, c.id(), text);
+    Complaint row = c;
+    if (c.dekId() != null && !c.dekId().equals(sealed.dekId())) {
+      // DEK đã xoay từ lúc gửi: mã lại nội dung và đề nghị để dòng chỉ có một dek_id.
+      row =
+          c.resealed(
+              reseal(tenant, ComplaintService.COLUMN_CONTENT, c, c.contentEnc(), sealed),
+              reseal(tenant, ComplaintService.COLUMN_REQUEST, c, c.requestTextEnc(), sealed),
+              sealed.dekId());
+    }
+    Instant now = clock.instant();
+    Complaint next = row.closed(now);
+    save(tenant, next, c.rowVersion(), actor.userId());
+    process.reserve(tenant, next, sealed.cipher());
+    UUID rid = Ids.newUuidV7();
+    ComplaintSealer.Sealed record = seal(tenant, COLUMN_RESPONSE, rid, text);
+    process.insertResponse(
+        tenant,
+        new ComplaintResponse(
+            rid,
+            c.id(),
+            c.periodId(),
+            c.periodBucket(),
+            ComplaintRecordKind.BAO_LUU,
+            actor.userId(),
+            null,
+            null,
+            null,
+            record.cipher(),
+            record.dekId(),
+            List.of(),
+            null,
+            null,
+            null,
+            List.of(),
+            now),
+        actor.userId());
+    returnProfile(
+        tenant, next, actor.userId(), "Người khiếu nại bảo lưu ý kiến, khiếu nại đã đóng");
+    audit.record(
+        tenant,
+        actor.userId(),
+        ACTION_RESERVE,
+        ComplaintService.OBJECT_TYPE,
+        id.toString(),
+        null,
+        ComplaintService.ROLE_MEMBER);
+    audit.record(
+        tenant,
+        actor.userId(),
+        ACTION_CLOSE,
+        ComplaintService.OBJECT_TYPE,
+        id.toString(),
+        null,
+        ComplaintService.ROLE_MEMBER);
+    return new Resolved(
+        filing.view(tenant, next, false), process.conclusion(tenant, next).orElse(k));
+  }
+
+  /**
+   * Tác vụ hẹn giờ (CORE-07-05): đóng {@code DA_TRA_LOI} quá hạn xác nhận bảo lưu, {@code
+   * KHONG_THU_LY} còn sót và {@code DANG_THI_HANH} khi yêu cầu mở lại gắn kèm đã thực hiện và khoá
+   * lại. Mỗi lần đóng ghi nhật ký (sổ cái) và EVT-21; chạy lại không đóng lần hai.
+   *
+   * @return số khiếu nại đã đóng
+   */
+  @Transactional(TX)
+  public int closeDue(TenantId tenant, int limit) {
+    Instant now = clock.instant();
+    LocalDate today = today();
+    int closed = 0;
+    for (UUID id :
+        process.closable(tenant, now.minusSeconds(RESERVE_WORKING_DAYS * 86_400L), limit)) {
+      Complaint c = complaints.lock(tenant, id).orElse(null);
+      if (c == null) {
+        continue;
+      }
+      String reason;
+      if (c.status() == ComplaintStatus.DA_TRA_LOI) {
+        ComplaintConclusion k = process.conclusion(tenant, c).orElse(null);
+        if (k == null || k.respondedAt() == null || !today.isAfter(reserveDeadline(tenant, k))) {
+          continue;
+        }
+        reason = "Hết hạn xác nhận bảo lưu ý kiến";
+      } else if (c.status() == ComplaintStatus.DANG_THI_HANH) {
+        reason = "Đã thi hành xong kết luận qua mở lại kỳ";
+      } else if (c.status() == ComplaintStatus.KHONG_THU_LY) {
+        reason = "Đã gửi thông báo không thụ lý";
+      } else {
+        continue;
+      }
+      UUID actorId =
+          c.handling().handlerId() == null ? c.complainantId() : c.handling().handlerId();
+      Complaint next = c.closed(now);
+      save(tenant, next, c.rowVersion(), actorId);
+      returnProfile(tenant, next, actorId, reason);
+      events.stateChanged(tenant, next, TEMPLATE_CLOSED, List.of(c.complainantId()));
+      audit.record(
+          tenant, actorId, ACTION_CLOSE, ComplaintService.OBJECT_TYPE, id.toString(), null, null);
+      closed++;
+    }
+    return closed;
+  }
+
+  /** Khiếu nại nghi trùng đã trả lời (BR-12-11), sắp theo độ giống giảm dần. */
+  public record Duplicate(
+      Complaint complaint, double similarity, List<String> matchedTargets, String summary) {}
+
+  /**
+   * {@code listComplaintDuplicateCandidates}: khiếu nại đã trả lời của cùng người khiếu nại, so cấu
+   * phần (khoá cấu phần, mức bị khiếu nại); không mở nội dung C2. Người xử lý quyết định.
+   */
+  @Transactional(transactionManager = TX, readOnly = true)
+  public List<Duplicate> duplicates(TenantId tenant, Actor actor, UUID id) {
+    Complaint c = complaints.find(tenant, id).orElseThrow(NotFoundException::new);
+    if (c.draft() || !staffInScope(tenant, actor, c)) {
+      throw new NotFoundException();
+    }
+    Set<String> mine = keys(c);
+    List<Duplicate> out = new ArrayList<>();
+    for (Complaint o :
+        complaints.ofComplainant(
+            tenant, c.complainantId(), null, ANSWERED, false, null, null, DUPLICATE_SCAN)) {
+      if (o.id().equals(c.id())) {
+        continue;
+      }
+      ComplaintConclusion k = process.conclusion(tenant, o).orElse(null);
+      if (k == null || k.respondedAt() == null) {
+        continue;
+      }
+      Set<String> theirs = keys(o);
+      List<String> matched = mine.stream().filter(theirs::contains).toList();
+      Set<String> union = new LinkedHashSet<>(mine);
+      union.addAll(theirs);
+      double score =
+          union.isEmpty()
+              ? (c.targetStage() == o.targetStage() ? 0.5 : 0)
+              : (double) matched.size() / union.size();
+      if (o.profileId().equals(c.profileId()) && score > 0) {
+        score = Math.min(1, score + 0.1);
+      }
+      if (score > 0) {
+        out.add(new Duplicate(o, Math.round(score * 100) / 100.0, matched, summary(k)));
+      }
+    }
+    out.sort(
+        java.util.Comparator.comparingDouble(Duplicate::similarity)
+            .reversed()
+            .thenComparing(d -> d.complaint().filedAt(), java.util.Comparator.reverseOrder()));
+    return out;
+  }
+
+  private static Set<String> keys(Complaint c) {
+    Set<String> out = new LinkedHashSet<>();
+    for (ComplaintTarget t : c.targets()) {
+      out.add(t.key());
+    }
+    return out;
+  }
+
+  private static String summary(ComplaintConclusion k) {
+    String base =
+        switch (k.resolution()) {
+          case GIU_NGUYEN -> "Giữ nguyên kết quả";
+          case CHAP_NHAN_MOT_PHAN -> "Chấp nhận một phần, điều chỉnh kết quả";
+          case CHAP_NHAN -> "Chấp nhận, điều chỉnh kết quả";
+        };
+    return k.reservedAt() == null ? base : base + "; người khiếu nại bảo lưu ý kiến";
+  }
+
+  /** Ngày cuối được xác nhận bảo lưu: 5 ngày làm việc từ ngày ký văn bản trả lời (giờ Việt Nam). */
+  private LocalDate reserveDeadline(TenantId tenant, ComplaintConclusion k) {
+    return days.add(
+        tenant, k.respondedAt().atZone(ComplaintService.ZONE).toLocalDate(), RESERVE_WORKING_DAYS);
+  }
+
+  private byte[] reseal(
+      TenantId tenant, String column, Complaint c, byte[] cipher, ComplaintSealer.Sealed target) {
+    if (cipher == null) {
+      return null;
+    }
+    String plain = open(tenant, column, c.id(), cipher);
+    ComplaintSealer.Sealed s = seal(tenant, column, c.id(), plain);
+    if (!s.dekId().equals(target.dekId())) {
+      throw new IllegalStateException("DEK xoay liên tiếp khi mã lại khiếu nại");
+    }
+    return s.cipher();
+  }
+
+  /** Hồ sơ về {@code DA_KY_SO} khi không còn khiếu nại nào khác giữ nhánh {@code KHIEU_NAI}. */
+  private void returnProfile(TenantId tenant, Complaint c, UUID actorId, String reason) {
+    if (!c.kind().reopensProfile()
+        || complaints.otherOpenReopening(tenant, c.profileId(), c.id())) {
+      return;
+    }
+    profiles.returnToSigned(tenant, c.profileId(), actorId, reason);
   }
 
   // ---------------------------------------------------------------- kiểm tra

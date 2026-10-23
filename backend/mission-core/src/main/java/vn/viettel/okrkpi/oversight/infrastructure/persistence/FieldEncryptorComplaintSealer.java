@@ -28,7 +28,7 @@ public class FieldEncryptorComplaintSealer implements ComplaintSealer {
         encryptor.encryptField(
             tenant.value(),
             DekPurpose.KHIEU_NAI,
-            aad(tenant, column, rowId),
+            aad(column, rowId),
             plain.getBytes(StandardCharsets.UTF_8));
     return new Sealed(f.ciphertext(), f.dekId());
   }
@@ -36,10 +36,14 @@ public class FieldEncryptorComplaintSealer implements ComplaintSealer {
   @Override
   public String open(TenantId tenant, String column, UUID rowId, byte[] cipher) {
     return encryptor.decryptToString(
-        tenant.value(), DekPurpose.KHIEU_NAI, aad(tenant, column, rowId), cipher);
+        tenant.value(), DekPurpose.KHIEU_NAI, aad(column, rowId), cipher);
   }
 
-  private static List<String> aad(TenantId tenant, String column, UUID rowId) {
-    return List.of(tenant.value().toString(), column, rowId.toString());
+  /**
+   * {@code FieldEncryptor} tự ghép tenant vào đầu AAD; truyền {@code [cột, mã dòng]} để {@code
+   * C2AccessAuditor} ghi đúng toạ độ (bản mã cũ vẫn mở được vì AAD không đổi).
+   */
+  private static List<String> aad(String column, UUID rowId) {
+    return List.of(column, rowId.toString());
   }
 }

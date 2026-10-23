@@ -43,8 +43,11 @@ public class JdbcComplaintProcessRepository implements ComplaintProcessRepositor
       "SELECT conclusion_resolution, conclusion_adjustments_json::text AS adjustments,"
           + " conclusion_enc, conclusion_dek_id, conclusion_doc_ref, no_explanation_note,"
           + " concluded_by, concluded_at, reopen_request_id, response_sign_request_id,"
-          + " responded_at FROM oversight.complaint"
-          + " WHERE period_bucket = ? AND tenant_id = ? AND id = ?";
+          + " responded_at, (SELECT max(r.responded_at) FROM oversight.complaint_response r"
+          + " WHERE r.period_bucket = c.period_bucket AND r.tenant_id = c.tenant_id"
+          + " AND r.complaint_id = c.id AND r.record_kind = 'BAO_LUU') AS reserved_at"
+          + " FROM oversight.complaint c"
+          + " WHERE c.period_bucket = ? AND c.tenant_id = ? AND c.id = ?";
 
   private static final String RESPONSE_COLUMNS =
       "SELECT id, complaint_id, period_id, period_bucket, record_kind, responder_id, party_kind,"
@@ -84,7 +87,8 @@ public class JdbcComplaintProcessRepository implements ComplaintProcessRepositor
                       instant(rs, "concluded_at"),
                       rs.getObject("reopen_request_id", UUID.class),
                       rs.getObject("response_sign_request_id", UUID.class),
-                      instant(rs, "responded_at")));
+                      instant(rs, "responded_at"),
+                      instant(rs, "reserved_at")));
             })
         .optional()
         .flatMap(o -> o);
@@ -208,6 +212,42 @@ public class JdbcComplaintProcessRepository implements ComplaintProcessRepositor
     sql.append(" ORDER BY responded_at, id LIMIT ?");
     params.add(limit);
     return jdbc.sql(sql.toString()).params(params).query(this::response).list();
+  }
+
+  @Override
+  public void reserve(TenantId tenant, Complaint c, byte[] opinionEnc) {
+    jdbc.sql(
+            """
+            UPDATE oversight.complaint SET reserve_opinion_enc = ?, outcome = 'BAO_LUU'
+             WHERE period_bucket = ? AND tenant_id = ? AND id = ?
+            """)
+        .param(opinionEnc)
+        .param(c.periodBucket())
+        .param(tenant.value())
+        .param(c.id())
+        .update();
+  }
+
+  @Override
+  public List<UUID> closable(TenantId tenant, Instant respondedBefore, int limit) {
+    return jdbc.sql(
+            """
+            SELECT c.id FROM oversight.complaint c
+             WHERE c.tenant_id = ?
+               AND ((c.status = 'DA_TRA_LOI' AND c.responded_at < ?)
+                 OR c.status = 'KHONG_THU_LY'
+                 OR (c.status = 'DANG_THI_HANH' AND EXISTS (
+                       SELECT 1 FROM oversight.reopen_request q
+                        WHERE q.tenant_id = c.tenant_id AND q.id = c.reopen_request_id
+                          AND q.status = 'DA_THUC_HIEN' AND q.relocked_at IS NOT NULL)))
+             ORDER BY c.id
+             LIMIT ?
+            """)
+        .param(tenant.value())
+        .param(ts(respondedBefore))
+        .param(limit)
+        .query(UUID.class)
+        .list();
   }
 
   @Override

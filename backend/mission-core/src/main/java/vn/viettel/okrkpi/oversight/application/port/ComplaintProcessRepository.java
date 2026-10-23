@@ -46,4 +46,17 @@ public interface ComplaintProcessRepository {
    * ({@code due_date < today}).
    */
   List<UUID> explanationsSettled(TenantId tenant, LocalDate today, int limit);
+
+  /**
+   * Ghi ý kiến bảo lưu ({@code reserve_opinion_enc}) và kết quả {@code BAO_LUU} (CORE-07-05); trạng
+   * thái vẫn ghi qua {@link ComplaintRepository#update}.
+   */
+  void reserve(TenantId tenant, Complaint complaint, byte[] opinionEnc);
+
+  /**
+   * Khiếu nại cần tự đóng (CORE-07-05): {@code DA_TRA_LOI} ký trả lời trước {@code respondedBefore}
+   * (bên gọi kiểm lại hạn theo ngày làm việc), {@code KHONG_THU_LY} còn sót, {@code DANG_THI_HANH}
+   * mà yêu cầu mở lại gắn kèm đã {@code DA_THUC_HIEN} và khoá lại ({@code relocked_at}).
+   */
+  List<UUID> closable(TenantId tenant, Instant respondedBefore, int limit);
 }

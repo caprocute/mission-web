@@ -129,7 +129,9 @@ class DossierTenantIsolationIT extends TenantIsolationCatalogTest {
                           "NULL",
                           "'DANG_LAP'")))
           .hasMessageContaining("duplicate key")
-          .hasMessageContaining("code_key");
+          // V3 (CORE-06-07): ràng buộc mã gồm version_no, tên chỉ mục phân vùng thành
+          // ..._code_ver_key.
+          .hasMessageContaining("code_ver");
       // Gói con diện TW theo người cùng đơn vị, kỳ, loại được phép, mỗi người một gói.
       String person = "'" + UUID.randomUUID() + "'";
       st.execute(packageSql(UUID.randomUUID(), t, org, "DP-2027-Q-0003", person, "'DANG_LAP'"));
