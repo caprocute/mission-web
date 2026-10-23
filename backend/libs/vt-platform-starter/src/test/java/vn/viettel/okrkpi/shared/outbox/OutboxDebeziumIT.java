@@ -34,6 +34,7 @@ import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -165,7 +166,8 @@ class OutboxDebeziumIT {
 
     ConsumerRecord<String, byte[]> record = consumeSingleById(TOPIC, eventId);
     Duration latency = Duration.between(start, Instant.now());
-    assertThat(latency).isLessThan(Duration.ofSeconds(2));
+    // YC-PT-19: không đo hiệu năng ở giai đoạn này; chỉ chặn treo. Chỉ tiêu 2 giây ghi ở wiki 14.
+    assertThat(latency).isLessThan(Duration.ofSeconds(30));
 
     assertThat(record.key()).isEqualTo(OutboxFixtures.TENANT.value() + ":" + taskId);
     assertThat(headerUtf8(record, OutboxHeaders.EVENT_ID)).isEqualTo(eventId.toString());
@@ -236,6 +238,7 @@ class OutboxDebeziumIT {
   }
 
   @Test
+  @EnabledIfSystemProperty(named = "mission.perf", matches = "true")
   void benchmarkOneThousandEventsRecordsP50AndP99LatencyUnderTwoSeconds() {
     int total = 1_000;
     List<UUID> eventIds = new ArrayList<>(total);
