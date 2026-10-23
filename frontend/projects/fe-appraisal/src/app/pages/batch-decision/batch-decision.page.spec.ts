@@ -175,6 +175,21 @@ describe('SCR-0904 Quyết định xếp loại hàng loạt (WEB-038)', () => {
     expect(text(el.querySelector('#bd-list-h'))).toBe('Đã chọn 47/48 hồ sơ');
   });
 
+  it('danh sách nạp lại có thêm hồ sơ không làm mất lựa chọn của người dùng (WEB-071)', async () => {
+    const { el, harness } = await render();
+    el.querySelectorAll<HTMLInputElement>('tbody input[type=checkbox]')[0].click();
+    await until(el, '#bd-list-h', (e) => text(e) === 'Đã chọn 47/48 hồ sơ');
+    const queue = (
+      harness.routeDebugElement!.componentInstance as {
+        queue: { value(): { id: string }[]; set(v: { id: string }[]): void };
+      }
+    ).queue;
+    const rows = queue.value();
+    queue.set([...rows, { ...rows[rows.length - 1], id: 'ho-so-moi' }]);
+    await until(el, '#bd-list-h', (e) => /\/49 hồ sơ/.test(text(e)));
+    expect(text(el.querySelector('#bd-list-h'))).toBe('Đã chọn 47/49 hồ sơ');
+  });
+
   it('ký lô: số quyết định trùng báo lỗi; ký xong hiện MSG-09-16 và hồ sơ rời danh sách', async () => {
     const { el } = await render();
     type(el, '#bd-decisionNo', '198-QĐ/ĐUK');
