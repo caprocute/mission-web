@@ -95,12 +95,20 @@ export class TenantApi {
     );
   }
 
-  /** Lưu nháp (PATCH, `If-Match`; 409 khi người khác đã sửa). */
+  /**
+   * Lưu nháp (PATCH, `If-Match`; 409 khi người khác đã sửa). Hợp đồng `config.yaml` và SVC-03
+   * chỉ nhận `application/merge-patch+json` (415 với kiểu khác).
+   */
   saveDraft(current: TenantOnboarding, patch: TenantOnboardingPatch): Observable<TenantOnboarding> {
     return this.http.patch<TenantOnboarding>(
-      `/api/v1/config/tenants/${encodeURIComponent(current.id)}`,
+      apiUrl('/config/tenants/{id}', { id: current.id }),
       patch,
-      { headers: { 'If-Match': `"${current.rowVersion}"` } },
+      {
+        headers: {
+          'If-Match': `"${current.rowVersion}"`,
+          'Content-Type': 'application/merge-patch+json',
+        },
+      },
     );
   }
 
@@ -146,11 +154,15 @@ export class TenantApi {
       .pipe(map((r) => r.items));
   }
 
-  /** Cuối bước 3: khởi chạy saga cấp phát, 202 + `Location` (theo dõi bằng `JobTracker`). */
-  provision(id: string): Observable<string> {
+  /**
+   * Cuối bước 3: khởi chạy saga cấp phát, 202 + `Location: /api/v1/jobs/{id}` (theo dõi bằng
+   * `JobTracker`). Hợp đồng bắt buộc `If-Match` (428 khi thiếu).
+   */
+  provision(current: TenantOnboarding): Observable<string> {
     return this.http
-      .post(`/api/v1/config/tenants/${encodeURIComponent(id)}/provision`, null, {
+      .post(apiUrl('/config/tenants/{id}/provision', { id: current.id }), null, {
         observe: 'response',
+        headers: { 'If-Match': `"${current.rowVersion}"` },
       })
       .pipe(map((res: HttpResponse<unknown>) => jobLocation(res) ?? ''));
   }

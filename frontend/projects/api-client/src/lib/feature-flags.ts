@@ -12,10 +12,13 @@ import {
 } from '@angular/core';
 import type { CanMatchFn } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { apiUrl } from './api-path';
 import { components } from './generated/config';
 
 export type FeatureFlag = components['schemas']['FeatureFlag'];
 export type FeatureFlagPage = components['schemas']['FeatureFlagPage'];
+/** Bản đồ cờ hiệu lực của người dùng hiện hành (`GET /ui/feature-flags`), máy chủ đã tính. */
+export type EffectiveFeatureFlagMap = components['schemas']['EffectiveFeatureFlagMap'];
 
 /** Cờ còn hiệu lực tại thời điểm `now`: bật và nằm trong khoảng `validFrom`–`validTo` nếu có. */
 export function flagActive(f: FeatureFlag, now: number): boolean {
@@ -27,21 +30,18 @@ export function flagActive(f: FeatureFlag, now: number): boolean {
 
 /**
  * Cờ tính năng phía web (WEB-076, TL-04 "Phát hành": tính năng mới bật dần theo tenant). Shell nạp
- * `GET /config/feature-flags` khi khởi động và nạp lại khi đổi phân công; mọi lỗi (403 với vai trò
- * không phải quản trị tenant, mạng, 5xx) coi như mọi cờ tắt, nên tính năng chưa phát hành không bao
- * giờ lộ ra vì lỗi. Máy chủ vẫn tự kiểm cờ ở API; cờ phía web chỉ quyết định ẩn hay hiện.
+ * bản đồ cờ hiệu lực `GET /ui/feature-flags` (config.yaml `getEffectiveFeatureFlags`, mọi vai trò;
+ * máy chủ đã tính theo đơn vị, vai trò, phần trăm triển khai và thời hạn) khi khởi động và nạp lại
+ * khi đổi phân công. `GET /config/feature-flags` chỉ dành cho màn hình quản trị cờ (`tenant_admin`).
+ * Mọi lỗi (mạng, 5xx) coi như mọi cờ tắt, nên tính năng chưa phát hành không bao giờ lộ ra vì lỗi.
+ * Máy chủ vẫn tự kiểm cờ ở API; cờ phía web chỉ quyết định ẩn hay hiện.
  */
 @Injectable({ providedIn: 'root' })
 export class FeatureFlagService {
   private readonly http = inject(HttpClient);
-  private readonly flags = signal<ReadonlyMap<string, FeatureFlag>>(new Map());
   /** Khoá các cờ đang bật; dùng trong `computed` để giao diện tự cập nhật khi nạp lại. */
-  readonly enabledKeys = computed(() => {
-    const now = Date.now();
-    return new Set(
-      [...this.flags().values()].filter((f) => flagActive(f, now)).map((f) => f.flagKey),
-    );
-  });
+  private readonly flags = signal<ReadonlySet<string>>(new Set());
+  readonly enabledKeys = computed(() => this.flags());
 
   isEnabled(key: string): boolean {
     return this.enabledKeys().has(key);
@@ -49,12 +49,18 @@ export class FeatureFlagService {
 
   async load(): Promise<void> {
     try {
-      const page = await firstValueFrom(
-        this.http.get<FeatureFlagPage>('/api/v1/config/feature-flags'),
+      const map = await firstValueFrom(
+        this.http.get<EffectiveFeatureFlagMap>(apiUrl('/ui/feature-flags')),
       );
-      this.flags.set(new Map(page.items.map((f) => [f.flagKey, f])));
+      this.flags.set(
+        new Set(
+          Object.entries(map.flags ?? {})
+            .filter(([, on]) => on === true)
+            .map(([k]) => k),
+        ),
+      );
     } catch {
-      this.flags.set(new Map());
+      this.flags.set(new Set());
     }
   }
 }

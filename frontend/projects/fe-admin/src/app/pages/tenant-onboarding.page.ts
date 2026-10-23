@@ -1732,7 +1732,7 @@ export class TenantOnboardingPage {
   }
 
   private startProvision(o: TenantOnboarding) {
-    this.api.provision(o.id).subscribe({
+    this.api.provision(o).subscribe({
       next: (location) => {
         this.saving.set(false);
         this.track(location);

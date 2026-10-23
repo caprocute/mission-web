@@ -1,10 +1,10 @@
-import { FeatureFlag } from '../../lib/feature-flags';
+import { FeatureFlag, flagActive } from '../../lib/feature-flags';
 import { MockModule, ok } from '../mock-router';
 
 /**
- * Giả lập cờ tính năng (WEB-076) theo `config.yaml`. Tham số trang `?ff=khoa1,khoa2` bật thêm cờ khi
- * chạy giả lập để thử giao diện của tính năng chưa phát hành. Không kiểm vai trò: hợp đồng hiện chỉ
- * cho quản trị tenant đọc (wiki/02), máy chủ thật trả 403 và web coi như mọi cờ tắt.
+ * Giả lập cờ tính năng (WEB-076) theo `config.yaml`: danh sách quản trị `GET /config/feature-flags`
+ * và bản đồ cờ hiệu lực `GET /ui/feature-flags` mà shell đọc (WEB-072). Tham số trang `?ff=khoa1,khoa2`
+ * bật thêm cờ khi chạy giả lập để thử giao diện của tính năng chưa phát hành. Không kiểm vai trò.
  */
 const fixture = (): FeatureFlag[] => [
   {
@@ -44,6 +44,20 @@ export const FEATURE_FLAGS_MOCK: MockModule = {
         return ok({
           items: store.map((f) => (on.has(f.flagKey) ? { ...f, enabled: true } : f)),
           nextCursor: null,
+        });
+      },
+    },
+    {
+      method: 'GET',
+      pattern: '/api/v1/ui/feature-flags',
+      handle: () => {
+        const on = pageOverrides();
+        const now = Date.now();
+        return ok({
+          flags: Object.fromEntries(
+            store.map((f) => [f.flagKey, on.has(f.flagKey) || flagActive(f, now)]),
+          ),
+          evaluatedAt: new Date(now).toISOString(),
         });
       },
     },

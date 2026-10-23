@@ -112,8 +112,8 @@ describe('mock onboarding – SCR-0102 (WEB-017)', () => {
     t = await firstValueFrom(
       api.saveDraft(t, { policyPacks: { DANG: 'pk-dang-qdm-2.0', NHA_NUOC: 'pk-nn-335-1.3' } }),
     );
-    const location = await firstValueFrom(api.provision(t.id));
-    expect(location).toContain(`/api/v1/config/tenants/${t.id}/provision/`);
+    const location = await firstValueFrom(api.provision(t));
+    expect(location).toMatch(/^\/api\/v1\/jobs\/[0-9a-f-]+$/);
     const job = await lastValueFrom(TestBed.inject(JobTracker).track(location));
     expect(job.status).toBe('HOAN_TAT');
     const after = await firstValueFrom(api.onboarding(t.id));
@@ -126,7 +126,7 @@ describe('mock onboarding – SCR-0102 (WEB-017)', () => {
     t = await firstValueFrom(
       api.saveDraft(t, { cellCode: 'CELL-G2', policyPacks: { NHA_NUOC: 'pk-nn-335-1.3' } }),
     );
-    await expect(firstValueFrom(api.provision(t.id))).rejects.toMatchObject({ status: 422 });
+    await expect(firstValueFrom(api.provision(t))).rejects.toMatchObject({ status: 422 });
   });
 
   it('saga lỗi bù trừ về KHOI_TAO với MSG-01-07', async () => {
@@ -140,7 +140,7 @@ describe('mock onboarding – SCR-0102 (WEB-017)', () => {
       }),
     );
     const job = await lastValueFrom(
-      TestBed.inject(JobTracker).track(await firstValueFrom(api.provision(t.id))),
+      TestBed.inject(JobTracker).track(await firstValueFrom(api.provision(t))),
     );
     expect(job.status).toBe('THAT_BAI');
     expect(job.problem?.title).toContain('Cấp phát lỗi ở bước Cấp chứng chỉ TLS');

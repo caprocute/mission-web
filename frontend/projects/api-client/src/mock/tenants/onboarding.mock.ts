@@ -14,6 +14,7 @@ import {
   suggestTenancyModel,
 } from '../../lib/models/tenant-onboarding';
 import { MockRequest, MockResponse, MockRoute, ok, problem } from '../mock-router';
+import { addMockJobSource } from '../mock-jobs';
 import { OnboardingExtra, StoredTenant, load, nextOnboardingCode } from './tenant-store';
 import fixture from './tenants.json';
 
@@ -69,9 +70,7 @@ function view(t: StoredTenant): TenantOnboarding {
     cellCode: t.cellCode || undefined,
     domain: t.domain || undefined,
     dataRegion: t.dataRegion,
-    provisionLocation: provision
-      ? `/api/v1/config/tenants/${t.id}/provision/${provision.jobId}`
-      : undefined,
+    provisionLocation: provision ? `/api/v1/jobs/${provision.jobId}` : undefined,
     rowVersion: t.rowVersion,
   };
 }
@@ -316,12 +315,16 @@ function provision(r: MockRequest): MockResponse {
   const t = find(r);
   if (!t) return problem(404, 'Không tìm thấy hồ sơ khởi tạo');
   const o = t.onboarding!;
+  // hợp đồng: provision bắt buộc `If-Match` (428 khi thiếu, 409 khi lệch), 202 + `/api/v1/jobs/{id}`
+  const tag = ifMatch(r);
+  if (tag === undefined) return problem(428, 'Thiếu phiên bản bản ghi (If-Match).');
   const location = (jobId: string) => ({
     status: 202,
-    body: null,
-    headers: { Location: `/api/v1/config/tenants/${t.id}/provision/${jobId}` },
+    body: { id: jobId, type: 'TENANT_PROVISION', status: 'CHO', progress: 0 } satisfies Job,
+    headers: { Location: `/api/v1/jobs/${jobId}` },
   });
   if (t.status === 'DANG_CAP_PHAT' && o.provision) return location(o.provision.jobId);
+  if (tag !== String(t.rowVersion)) return conflict();
   if (t.status !== 'KHOI_TAO')
     return problem(409, 'Đơn vị đã được cấp phát hạ tầng.', { code: 'TENANT-409-STATE' });
   if (!t.cellCode || !t.domain)
@@ -348,13 +351,23 @@ function provision(r: MockRequest): MockResponse {
     `Xác nhận cụm máy chủ ${t.cellCode}, mức cô lập ${TENANCY_MODEL_LABEL[t.tenancyModel]}`,
   );
   t.rowVersion++;
+  provisionJobs.set(o.provision.jobId, t.id);
   return location(o.provision.jobId);
 }
 
-function provisionJob(r: MockRequest): MockResponse {
-  const t = find(r);
-  const jobId = r.pathParams['jobId'];
-  if (!t) return problem(404, 'Không tìm thấy tác vụ cấp phát');
+/** `GET /api/v1/jobs/{id}` của saga cấp phát: tìm tenant đang hoặc đã chạy job này. */
+const provisionJobs = new Map<string, string>();
+
+function provisionJobById(jobId: string): MockResponse | null {
+  const tenantId = provisionJobs.get(jobId);
+  const t =
+    load().find((x) => x.onboarding?.provision?.jobId === jobId) ??
+    (tenantId ? load().find((x) => x.id === tenantId && x.onboarding) : undefined);
+  return t ? provisionJob(t, jobId) : null;
+}
+addMockJobSource(provisionJobById);
+
+function provisionJob(t: StoredTenant, jobId: string): MockResponse {
   const o = t.onboarding!;
   const base = { id: jobId, type: 'TENANT_PROVISION' };
   if (!o.provision || o.provision.jobId !== jobId) {
@@ -575,7 +588,6 @@ export const ONBOARDING_ROUTES: MockRoute[] = [
   { method: 'PATCH', pattern: '/api/v1/config/tenants/:id', handle: patch },
   { method: 'DELETE', pattern: '/api/v1/config/tenants/:id', handle: remove },
   { method: 'POST', pattern: '/api/v1/config/tenants/:id/provision', handle: provision },
-  { method: 'GET', pattern: '/api/v1/config/tenants/:id/provision/:jobId', handle: provisionJob },
   { method: 'POST', pattern: '/api/v1/config/tenants/:id/idp/test', handle: testIdp },
   {
     method: 'GET',

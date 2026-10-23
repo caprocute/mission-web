@@ -2,6 +2,7 @@ import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { apiUrl } from './api-path';
+import { JobAccepted, acceptedJob } from './job-tracker';
 import { Job } from './models/job';
 import {
   DecisionTable,
@@ -155,13 +156,20 @@ export class PolicyApi {
   }
 
   /**
-   * Chạy bộ test case vàng trên hai engine cùng kiểm thử thuộc tính: 202, theo dõi qua danh sách lần
-   * chạy (BR-15-07). 409 `POLICY-409-TEST-RUNNING` khi đang có lần chạy.
+   * Chạy bộ test case vàng trên hai engine cùng kiểm thử thuộc tính: 202 + `Location` của job, theo
+   * dõi bằng `JobTracker` (BR-15-07). 409 `POLICY-409-TEST-RUNNING` khi đang có lần chạy.
    */
-  runTests(r: PackVersionRef, etag: string, body: PolicyTestRunCreate = {}): Observable<Job> {
-    return this.http.post<Job>(apiUrl('/policies/packs/{id}/versions/{v}/test-runs', r), body, {
-      headers: { 'If-Match': etag },
-    });
+  runTests(
+    r: PackVersionRef,
+    etag: string,
+    body: PolicyTestRunCreate = {},
+  ): Observable<JobAccepted> {
+    return this.http
+      .post<Job>(apiUrl('/policies/packs/{id}/versions/{v}/test-runs', r), body, {
+        headers: { 'If-Match': etag },
+        observe: 'response',
+      })
+      .pipe(map(acceptedJob));
   }
 
   /** Kết quả đầy đủ một lần chạy: từng ca, kiểm thử thuộc tính, khác biệt cấu hình, tác động. */
@@ -201,12 +209,15 @@ export class PolicyApi {
 
   /**
    * Ký số phê duyệt và phát hành (AAL2, người phê duyệt khác người soạn, BR-15-09): 202, saga phát
-   * hành chạy nền; xong thì phiên bản `DA_PHAT_HANH` (MSG-15-08).
+   * hành chạy nền, theo dõi bằng `JobTracker`; xong thì phiên bản `DA_PHAT_HANH` (MSG-15-08).
    */
-  approve(r: PackVersionRef, etag: string, body: PolicyPackApprove = {}): Observable<Job> {
-    return this.http.post<Job>(apiUrl('/policies/packs/{id}/versions/{v}/approve', r), body, {
-      headers: { 'If-Match': etag },
-    });
+  approve(r: PackVersionRef, etag: string, body: PolicyPackApprove = {}): Observable<JobAccepted> {
+    return this.http
+      .post<Job>(apiUrl('/policies/packs/{id}/versions/{v}/approve', r), body, {
+        headers: { 'If-Match': etag },
+        observe: 'response',
+      })
+      .pipe(map(acceptedJob));
   }
 
   /** Từ chối phát hành có ý kiến: phiên bản trở về bản nháp. */
@@ -258,7 +269,8 @@ export class PolicyApi {
         key: processKind,
       }),
       body,
-      rowVersion === null ? {} : { headers: { 'If-Match': `"${rowVersion}"` } },
+      // hợp đồng bắt buộc If-Match; lần lưu đầu dùng "0" (policies.yaml saveWorkflowBinding)
+      { headers: { 'If-Match': `"${rowVersion ?? 0}"` } },
     );
   }
 
