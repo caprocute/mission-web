@@ -264,7 +264,7 @@ test.describe('QT-01 Khởi tạo tenant và tổ chức', { tag: '@qa-04' }, ()
       // "Đồng bộ ngay" mở một lần chạy cho mỗi nguồn (cùng thời điểm bắt đầu). Mọi nguồn dừng ở LOI khi org-service
       // chưa nối được integration-gateway hay nguồn nhân sự: ghi chờ kèm lý do của máy chủ thay cho chờ hết hạn nhãn
       // "Đã đồng bộ"; nguồn chưa cấu hình kết nối (SCIM, HRM trên dev) chỉ làm lần đồng bộ thành công một phần
-      type LanChay = { status: string; startedAt: string; reason?: string };
+      interface LanChay { status: string; startedAt: string; reason?: string }
       const c = await api(s, 'quantri');
       let lan: LanChay[] = [];
       await expect
