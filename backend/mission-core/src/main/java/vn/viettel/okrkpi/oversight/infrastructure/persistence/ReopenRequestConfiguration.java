@@ -30,6 +30,7 @@ import vn.viettel.okrkpi.events.EventTopics;
 import vn.viettel.okrkpi.oversight.application.port.ApprovalSigner;
 import vn.viettel.okrkpi.oversight.application.port.ReopenImpactSimulator;
 import vn.viettel.okrkpi.oversight.application.reopen.ReopenApprovalService;
+import vn.viettel.okrkpi.oversight.application.reopen.ReopenFollowUpService;
 import vn.viettel.okrkpi.oversight.application.reopen.ReopenRequestService;
 import vn.viettel.okrkpi.oversight.infrastructure.client.EsignApprovalSigner;
 import vn.viettel.okrkpi.oversight.infrastructure.client.ModuleApproverDirectory;
@@ -230,9 +231,11 @@ public class ReopenRequestConfiguration {
     @Bean
     ReopenExecutionJob reopenExecutionJob(
         ReopenApprovalService reopenApprovalService,
+        ObjectProvider<ReopenFollowUpService> followUp,
         ObjectProvider<TenantDirectory> directory,
         @Value("${mission.config.period-opening.cell:${CELL_ID:}}") String cell) {
-      return new ReopenExecutionJob(reopenApprovalService, directory, cell);
+      return new ReopenExecutionJob(
+          reopenApprovalService, followUp.getIfAvailable(), directory, cell);
     }
   }
 
