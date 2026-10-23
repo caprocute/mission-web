@@ -167,7 +167,7 @@ public class TaskSecretContentService {
     try {
       sealed = SecretContentRules.seal(in.ciphertext(), in.nonce(), in.aadHash(), in.sha256());
       wraps = parse(in.keyWraps(), actor);
-      SecretContentRules.requireRecovery(wraps, key);
+      SecretContentRules.requireSingleRecovery(wraps, key);
       SecretContentRules.requireRecoveryRecipient(wraps, key);
     } catch (Violation v) {
       throw invalid(v);
@@ -181,16 +181,10 @@ public class TaskSecretContentService {
     requireParticipants(task, wraps, key);
     Instant now = clock.instant();
     Content current = store.content(tenant, task.periodBucket(), taskId, true).orElse(null);
-    long version;
     if (current == null) {
       if (!task.participant(actor.personId())) {
         throw new BusinessException(FORBIDDEN, "Chỉ người tham gia nhiệm vụ mới lưu nội dung mật");
       }
-      if (!store.insert(
-          tenant, task, Ids.newUuidV7(), sealed, own.fingerprint(), actor.personId(), now)) {
-        throw new VersionConflictException("TASK", expected, 0L);
-      }
-      version = 0;
     } else {
       if (!holders(store.wraps(tenant, taskId), key).contains(actor.personId())) {
         throw notRecipient();
@@ -198,6 +192,21 @@ public class TaskSecretContentService {
       if (current.rowVersion() != expected) {
         throw new VersionConflictException("TASK", expected, current.rowVersion());
       }
+    }
+    try {
+      SecretContentRules.requireAad(
+          sealed, tenant.value(), taskId, current == null ? 0 : current.rowVersion() + 1);
+    } catch (Violation v) {
+      throw invalid(v);
+    }
+    long version;
+    if (current == null) {
+      if (!store.insert(
+          tenant, task, Ids.newUuidV7(), sealed, own.fingerprint(), actor.personId(), now)) {
+        throw new VersionConflictException("TASK", expected, 0L);
+      }
+      version = 0;
+    } else {
       version =
           store.update(
               tenant,
@@ -249,7 +258,8 @@ public class TaskSecretContentService {
     requireParticipants(task, wraps, key);
     Instant now = clock.instant();
     store.upsert(tenant, taskId, wraps, actor.personId(), now);
-    long version = store.touch(tenant, task.periodBucket(), taskId, actor.personId(), now);
+    // Phiên bản dòng là phiên bản nội dung (nằm trong AAD), nên chia sẻ, thu hồi không tăng nó.
+    long version = content.rowVersion();
     trail(tenant, actor, AUDIT_SHARE, taskId, AuditEventType.PERMISSION_CHANGE, recipients(wraps));
     return new Meta(
         taskId, content.sealed().sha256(), count(store.wraps(tenant, taskId)), now, version);
@@ -280,7 +290,6 @@ public class TaskSecretContentService {
     }
     Instant now = clock.instant();
     if (store.revokePerson(tenant, taskId, personId, actor.personId(), now) > 0) {
-      store.touch(tenant, task.periodBucket(), taskId, actor.personId(), now);
       trail(
           tenant, actor, AUDIT_REVOKE, taskId, AuditEventType.PERMISSION_CHANGE, List.of(personId));
     }

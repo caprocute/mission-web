@@ -153,17 +153,6 @@ public class JdbcTaskSecretContents implements TaskSecretContents {
   }
 
   @Override
-  public long touch(TenantId tenant, int periodBucket, UUID taskId, UUID actor, Instant at) {
-    return jdbc.sql(
-            "UPDATE task.task_secret_content SET updated_at = ?, updated_by = ?,"
-                + " row_version = row_version + 1 WHERE period_bucket = ? AND tenant_id = ?"
-                + " AND task_id = ? RETURNING row_version")
-        .params(Timestamp.from(at), actor, periodBucket, tenant.value(), taskId)
-        .query(Long.class)
-        .single();
-  }
-
-  @Override
   public List<KeyWrap> wraps(TenantId tenant, UUID taskId) {
     return jdbc.sql(
             "SELECT recipient_person_id, recipient_key_fingerprint, wrap_alg, ephemeral_pub,"

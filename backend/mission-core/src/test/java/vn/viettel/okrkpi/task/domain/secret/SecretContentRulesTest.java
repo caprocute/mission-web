@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 import vn.viettel.okrkpi.task.domain.secret.SecretContentRules.RecoveryKey;
 import vn.viettel.okrkpi.task.domain.secret.SecretContentRules.Violation;
 
-/** Kiểm dạng bản mã và khoá đã bọc C3 (CORE-07-06). */
+/** Kiểm dạng bản mã và khoá đã bọc C3 (CORE-07-06, CORE-02-24). */
 class SecretContentRulesTest {
 
   static final UUID PERSON = UUID.fromString("01927a02-0000-7000-8000-000000000706");
@@ -125,5 +125,43 @@ class SecretContentRulesTest {
   @Test
   void khongInKhoaRaNhatKy() {
     assertThat(wrap(PERSON, device("a")).toString()).doesNotContain("wrappedKey");
+  }
+
+  @Test
+  void aadGanTenantNhiemVuVaPhienBan() {
+    UUID tenant = UUID.fromString("01927a02-0000-7000-8000-000000000001");
+    UUID task = UUID.fromString("01927a02-0000-7000-8000-000000000002");
+    assertThat(new String(SecretContentRules.aad(tenant, task, 3), StandardCharsets.UTF_8))
+        .isEqualTo("TASK_CONTENT|" + tenant + "|" + task + "|3");
+    byte[] aad = SecretContentRules.sha256(SecretContentRules.aad(tenant, task, 3));
+    SecretContentRules.Sealed sealed =
+        SecretContentRules.seal(
+            b64(CIPHER), b64(new byte[12]), hex(aad), hex(SecretContentRules.sha256(CIPHER)));
+    SecretContentRules.requireAad(sealed, tenant, task, 3);
+    assertThatThrownBy(() -> SecretContentRules.requireAad(sealed, tenant, task, 4))
+        .isInstanceOf(Violation.class)
+        .extracting(e -> ((Violation) e).field())
+        .isEqualTo("aadHash");
+    assertThatThrownBy(() -> SecretContentRules.requireAad(sealed, tenant, UUID.randomUUID(), 3))
+        .isInstanceOf(Violation.class);
+  }
+
+  @Test
+  void dungMotBanBocChoKhoaPhucHoi() {
+    RecoveryKey key = new RecoveryKey(Set.of(device("phuc-hoi"), device("phuc-hoi-2")), RECOVERY);
+    SecretContentRules.requireSingleRecovery(
+        List.of(wrap(PERSON, device("a")), wrap(RECOVERY, device("phuc-hoi"))), key);
+    assertThatThrownBy(
+            () ->
+                SecretContentRules.requireSingleRecovery(
+                    List.of(
+                        wrap(PERSON, device("a")),
+                        wrap(RECOVERY, device("phuc-hoi")),
+                        wrap(RECOVERY, device("phuc-hoi-2"))),
+                    key))
+        .isInstanceOf(Violation.class);
+    assertThatThrownBy(
+            () -> SecretContentRules.requireSingleRecovery(List.of(wrap(PERSON, device("a"))), key))
+        .isInstanceOf(Violation.class);
   }
 }
