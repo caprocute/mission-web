@@ -136,11 +136,9 @@ describe('Tệp tải lên', { skip }, () => {
     khongLoNoiBo(r);
   });
 
-  // Phát hiện QA-13 (ZAP 30001 trên dev cục bộ 23/10/2026): thân multipart hỏng làm org-service trả 500 thay vì 400
-  // vì ProblemAdvice chưa ánh xạ MultipartException. Không lộ chi tiết nội bộ nhưng sai ASVS V13.1.5 và làm nhiễu
-  // cảnh báo 5xx. Ca kiểm thử để ở trạng thái todo (vẫn chạy, không làm đỏ bộ) tới khi DV-04 sửa; ngoai-le.yaml có
-  // mục tương ứng với hạn xem lại ngắn.
-  test('thân multipart hỏng: 400, không phải 500', { todo: 'org-service chưa ánh xạ MultipartException sang 400' }, async () => {
+  // Phát hiện QA-13 (ZAP 30001 trên dev cục bộ 23/10/2026): thân multipart hỏng từng làm org-service trả 500; nay
+  // ProblemAdvice ánh xạ MultipartException sang 400 Problem (ASVS V13.1.5), quá dung lượng vẫn là 413.
+  test('thân multipart hỏng: 400, không phải 500', async () => {
     for (const [body, kieu] of [['abc', 'multipart/form-data'], ['--zz\r\nContent-Disposition: form-data; name="file"\r\n\r\nabc', 'multipart/form-data; boundary=zz']]) {
       const res = await fetch(`${process.env.KT_API_URL.replace(/\/+$/, '')}/org/imports`, {
         method: 'POST',
@@ -148,7 +146,8 @@ describe('Tệp tải lên', { skip }, () => {
         body,
       });
       const text = await res.text();
-      assert.ok(res.status >= 400 && res.status < 500, `HTTP ${res.status}: ${text.slice(0, 160)}`);
+      assert.equal(res.status, 400, `HTTP ${res.status}: ${text.slice(0, 160)}`);
+      assert.match(res.headers.get('content-type') ?? '', /application\/problem\+json/);
     }
   });
 
