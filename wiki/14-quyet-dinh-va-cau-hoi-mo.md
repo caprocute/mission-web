@@ -1713,6 +1713,15 @@ Mã ở `backend/mission-core/.../dossier/application/dossierpackage/DossierExpo
 6. **Sổ cái.** Ba hành động mới trên `sys.audit.v1`: `XUAT_GOI_HO_SO`, `GUI_GOI_CON_DIEN_TW`, `NHAN_BIEN_NHAN_GOI_CON` (tên hành động là suy luận).
 7. **Vận hành.** Vùng luồng `dossierPackageRunner` cố định hai luồng, hàng đợi 100, đầy thì từ chối và để tác vụ định kỳ xử lý. `DB_DOSSIER_POOL_MAX` cần ít nhất 2 vì lệnh gửi giữ giao dịch idempotency trong khi ghi giao dịch `REQUIRES_NEW`. Kho đối tượng cấu hình chung với kho tệp của MOD-06; địa chỉ SVC-13 lấy từ `mission.dossier.integ.base-url` (`INTEG_GATEWAY_URL`), để trống thì lệnh gửi trả 503.
 
+### Ghi chú và quyết định từ cổng nội bộ MOD-06 cho bản nháp và xem trước (phần mission-core của DV-11-02, DV-11-03, 23/10/2026)
+
+Mã ở `DossierPackageService` (`draftForms`, `preview`, `renderData`, `renderInputs`), `FormDocuments.selection`, controller `infrastructure/web/DossierRenderInputController`. Hai cổng khớp `HttpRenderInputClient` của document-service; cả hai là suy luận, không nằm trong hợp đồng công khai.
+
+1. **`POST /internal/v1/dossier-draft-forms`** nhận `{actor, formCode, periodId, profileIds}`, trả `{forms: [...]}` cùng hình dạng với `dossier-render-inputs`. Mã biểu mẫu sai, thiếu kỳ hoặc danh sách hồ sơ rỗng hay quá 500 thì 422 `DOSSIER-422-VALIDATION`; hồ sơ không có, khác kỳ hoặc ngoài đơn vị của người gọi (người gọi có phân công) thì 404. Biểu mẫu đơn vị (theo danh mục của Policy Pack) tạo một `form_instance` gắn hồ sơ người đứng đầu trong tập chọn, dữ liệu là đúng tập đã chọn kể cả hồ sơ chưa quyết định, `donViId` rỗng khi tập chọn thuộc nhiều đơn vị; biểu mẫu cá nhân tạo một biểu mẫu cho mỗi hồ sơ. Biểu mẫu nháp có `dossier_package_id` rỗng; lệnh lặp tạo biểu mẫu nháp mới (chấp nhận được vì là bản nháp; document-service tự chặn tác vụ trùng theo mã lệnh).
+2. **Migration `dossier` V5** (`V5__dossier_bieu_mau_nhap.sql`): `form_instance.source_profile_ids uuid[]` lưu tập hồ sơ đã chọn của biểu mẫu nháp đơn vị để `render-data` tính lại đúng tài liệu và băm khớp (ngoại lệ kiểu ghi ở chú thích cột); `dossier_package.reopen_request_id` lưu yêu cầu mở lại kỳ của EVT-22 khi lập phiên bản gói.
+3. **`reopenRequestId`.** `dossier-render-inputs` trả thêm `reopenRequestId` của gói (rỗng với gói lập thường) để SVC-11 đóng dấu "sinh lại sau khi mở lại kỳ" (BR-13-08).
+4. **`POST /internal/v1/dossier-form-previews`** nhận `{actor, formCode, sourceModule, sourceRefId}`, trả `{subjectGroupCode, templateVersion, policyPackCode, policyPackVersion, data}` với `data` là chuỗi JSON chuẩn tắc; không ghi gì. Nguồn `appraisal` là mã hồ sơ đánh giá (biểu mẫu đơn vị lấy mọi hồ sơ của đơn vị trong kỳ theo dữ liệu hiện tại), nguồn `dossier` là mã biểu mẫu đã có (mã biểu mẫu phải khớp). Nguồn `oversight` (văn bản trả lời khiếu nại ở SCR-1202) chưa có dữ liệu ở MOD-06 nên trả 404; cần chốt nguồn dữ liệu với MOD-07 khi làm luồng khiếu nại.
+
 ### Ghi chú và quyết định từ xử lý cảnh báo (CORE-07-11, 22/10/2026)
 
 Mã ở `oversight/application/alert/AlertCaseService`, `domain/alert/AlertWorkflow`, `infrastructure/web/AnomalyAlertController`.

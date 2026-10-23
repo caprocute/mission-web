@@ -137,7 +137,13 @@ public class DossierSigningService {
   }
 
   /** EVT-22: kỳ mở lại hậu kiểm theo phạm vi. */
-  public record Reopened(UUID periodId, String scope, List<UUID> scopeIds, UUID actor) {}
+  public record Reopened(
+      UUID periodId, String scope, List<UUID> scopeIds, UUID actor, UUID reopenRequestId) {
+
+    public Reopened(UUID periodId, String scope, List<UUID> scopeIds, UUID actor) {
+      this(periodId, scope, scopeIds, actor, null);
+    }
+  }
 
   /** Tài liệu cần ký trả SVC-10: gói chờ ký có manifest đã chốt, người ký là người yêu cầu. */
   public record SignSource(boolean ready, Set<UUID> signers, byte[] manifestHash) {}
@@ -461,7 +467,8 @@ public class DossierSigningService {
         if (latest.isPresent() && !latest.get().id().equals(pkg.id())) {
           continue;
         }
-        PackageRow next = packages.newVersion(tenant, pkg, Ids.newUuidV7(), actor);
+        PackageRow next =
+            packages.newVersion(tenant, pkg, Ids.newUuidV7(), event.reopenRequestId(), actor);
         events.reopened(tenant, next, pkg.id(), actor);
         created++;
       }

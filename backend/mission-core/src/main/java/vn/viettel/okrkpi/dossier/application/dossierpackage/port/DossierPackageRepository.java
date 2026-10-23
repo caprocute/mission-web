@@ -208,7 +208,26 @@ public interface DossierPackageRepository {
       UUID actor);
 
   /** Phiên bản kế tiếp của gói ở {@code DANG_LAP}: cùng đơn vị, kỳ, loại, mã và hạn nộp. */
-  PackageRow newVersion(TenantId tenant, PackageRow previous, UUID id, UUID actor);
+  PackageRow newVersion(
+      TenantId tenant, PackageRow previous, UUID id, UUID reopenRequestId, UUID actor);
+
+  /** Yêu cầu mở lại kỳ (EVT-22) dẫn tới phiên bản gói; rỗng với gói lập thường. */
+  Optional<UUID> reopenRequest(TenantId tenant, int periodBucket, UUID packageId);
+
+  /**
+   * Biểu mẫu nháp ngoài gói ({@code createDossierDraftForms}); {@code sourceProfiles} là tập hồ sơ
+   * đã chọn của biểu mẫu đơn vị, rỗng với biểu mẫu cá nhân.
+   */
+  void insertDraft(
+      TenantId tenant,
+      UUID periodId,
+      int periodBucket,
+      NewForm form,
+      List<UUID> sourceProfiles,
+      UUID actor);
+
+  /** Tập hồ sơ đã chọn của biểu mẫu nháp đơn vị; rỗng với biểu mẫu khác. */
+  List<UUID> sourceProfiles(TenantId tenant, int periodBucket, UUID formId);
 
   // ---------------------------------------------------------------- xuất, gửi gói con (CORE-06-08)
 

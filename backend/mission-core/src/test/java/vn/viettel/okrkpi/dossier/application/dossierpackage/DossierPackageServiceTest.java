@@ -548,6 +548,132 @@ class DossierPackageServiceTest {
     assertThat(service.renderData(TENANT, forms(pkg.id()).get(1).id())).isEmpty();
   }
 
+  // ---------------------------------------------------------------- DV-11-02, DV-11-03
+
+  @Test
+  void bieuMauNhapDonViTrenTapDaChonVaDuLieuKhopBam() throws Exception {
+    UnitProfile head = add("DA_QUYET_DINH", true);
+    UnitProfile open = add("DANG_DANH_GIA", false);
+    add("DA_QUYET_DINH", false);
+
+    List<DossierPackageService.RenderInput> drafts =
+        service
+            .draftForms(TENANT, ACTOR, "MAU_3", PERIOD, List.of(open.id(), head.id(), head.id()))
+            .orElseThrow();
+    assertThat(drafts).hasSize(1);
+    DossierPackageService.RenderInput d = drafts.get(0);
+    assertThat(d.templateVersion()).isEqualTo(2);
+    assertThat(d.policyPackCode()).isEqualTo("PP-DANG");
+    assertThat(d.reopenRequestId()).isNull();
+    FormRow row = repo.findForm(TENANT, d.formInstanceId()).orElseThrow();
+    assertThat(row.packageId()).isNull();
+    assertThat(row.profileId()).isEqualTo(head.id());
+    assertThat(repo.sources.get(row.id())).containsExactlyInAnyOrder(head.id(), open.id());
+
+    byte[] data = service.renderData(TENANT, d.formInstanceId()).orElseThrow();
+    assertThat(java.util.HexFormat.of().formatHex(PackageArchiveTest.sha(data)))
+        .isEqualTo(d.dataSnapshotHash());
+    String json = new String(data, java.nio.charset.StandardCharsets.UTF_8);
+    assertThat(json).contains(open.id().toString()).contains(UNIT.toString());
+    assertThat(repo.packages).isEmpty();
+  }
+
+  @Test
+  void bieuMauNhapCaNhanMoiHoSoMotBieuMauVaKiemDauVao() throws Exception {
+    UnitProfile a = add("DA_QUYET_DINH", false);
+    UnitProfile other = profile(UUID.randomUUID(), "DA_QUYET_DINH", false, PACK);
+    profiles.put(other);
+
+    List<DossierPackageService.RenderInput> drafts =
+        service
+            .draftForms(TENANT, null, "BANG_CHAM_DIEM", PERIOD, List.of(a.id(), other.id()))
+            .orElseThrow();
+    assertThat(drafts).hasSize(2);
+    for (var d : drafts) {
+      byte[] data = service.renderData(TENANT, d.formInstanceId()).orElseThrow();
+      assertThat(java.util.HexFormat.of().formatHex(PackageArchiveTest.sha(data)))
+          .isEqualTo(d.dataSnapshotHash());
+      assertThat(d.templateVersion()).isNull();
+    }
+    // Biểu mẫu đơn vị trên hồ sơ của nhiều đơn vị: không ghi đơn vị.
+    var mixed =
+        service
+            .draftForms(TENANT, null, "MAU_3", PERIOD, List.of(a.id(), other.id()))
+            .orElseThrow();
+    assertThat(new String(service.renderData(TENANT, mixed.get(0).formInstanceId()).orElseThrow()))
+        .contains("\"donViId\":null");
+
+    assertThat(service.draftForms(TENANT, null, "MAU_3", UUID.randomUUID(), List.of(a.id())))
+        .isEmpty();
+    assertThat(service.draftForms(TENANT, null, "MAU_3", PERIOD, List.of(UUID.randomUUID())))
+        .isEmpty();
+    assertThatThrownBy(() -> service.draftForms(TENANT, null, "MAU_9", PERIOD, List.of(a.id())))
+        .hasMessage("DOSSIER-422-VALIDATION");
+    assertThatThrownBy(() -> service.draftForms(TENANT, null, "MAU_3", PERIOD, List.of()))
+        .hasMessage("DOSSIER-422-VALIDATION");
+    assertThatThrownBy(() -> service.draftForms(TENANT, null, "MAU_3", null, List.of(a.id())))
+        .hasMessage("DOSSIER-422-VALIDATION");
+
+    // Người gọi có phân công ở đơn vị khác: không thấy hồ sơ.
+    UUID caller = UUID.randomUUID();
+    when(directory.assignmentsOf(any(), any(), any()))
+        .thenReturn(
+            List.of(
+                new AssignmentView(
+                    UUID.randomUUID(),
+                    caller,
+                    UUID.randomUUID(),
+                    null,
+                    null,
+                    "CHINH",
+                    "DANG",
+                    false,
+                    null,
+                    null)));
+    assertThat(service.draftForms(TENANT, caller, "MAU_3", PERIOD, List.of(a.id()))).isEmpty();
+    assertThat(service.preview(TENANT, caller, "BANG_CHAM_DIEM", "appraisal", a.id())).isEmpty();
+  }
+
+  @Test
+  void xemTruocTheoHoSoHoacBieuMauDaCo() {
+    UnitProfile head = add("DA_QUYET_DINH", true);
+    UnitProfile open = add("DANG_DANH_GIA", false);
+
+    DossierPackageService.PreviewInput personal =
+        service.preview(TENANT, ACTOR, "BANG_CHAM_DIEM", "appraisal", open.id()).orElseThrow();
+    assertThat(personal.policyPackVersion()).isEqualTo("1.3.0");
+    assertThat(personal.templateVersion()).isNull();
+    assertThat(personal.data()).contains(open.id().toString()).doesNotContain(head.id().toString());
+
+    DossierPackageService.PreviewInput unit =
+        service.preview(TENANT, ACTOR, "MAU_3", "appraisal", head.id()).orElseThrow();
+    assertThat(unit.templateVersion()).isEqualTo(2);
+    assertThat(unit.data()).contains(open.id().toString()).contains(head.id().toString());
+
+    var drafts =
+        service.draftForms(TENANT, ACTOR, "MAU_3", PERIOD, List.of(head.id())).orElseThrow();
+    UUID form = drafts.get(0).formInstanceId();
+    assertThat(service.preview(TENANT, ACTOR, "MAU_3", "dossier", form).orElseThrow().data())
+        .contains(head.id().toString());
+    assertThat(service.preview(TENANT, ACTOR, "MAU_2", "dossier", form)).isEmpty();
+    assertThat(service.preview(TENANT, ACTOR, "MAU_3", "dossier", UUID.randomUUID())).isEmpty();
+    assertThat(service.preview(TENANT, ACTOR, "MAU_3", "oversight", head.id())).isEmpty();
+    assertThat(service.preview(TENANT, ACTOR, "MAU_3", "appraisal", UUID.randomUUID())).isEmpty();
+    assertThat(service.preview(TENANT, ACTOR, "MAU_3", "appraisal", null)).isEmpty();
+    assertThatThrownBy(() -> service.preview(TENANT, ACTOR, null, "appraisal", head.id()))
+        .hasMessage("DOSSIER-422-VALIDATION");
+  }
+
+  @Test
+  void phienBanSauMoLaiKyTraMaYeuCauMoLai() {
+    PackageRow pkg = generating();
+    UUID reopen = UUID.randomUUID();
+    repo.reopens.put(pkg.id(), reopen);
+    assertThat(service.renderInputs(TENANT, null, pkg.id(), null).orElseThrow())
+        .isNotEmpty()
+        .allSatisfy(i -> assertThat(i.reopenRequestId()).isEqualTo(reopen));
+  }
+
   @Test
   void goiKhongPolicyPackDungDanhMucMacDinh() {
     UnitProfile p = profile(UNIT, "DA_QUYET_DINH", false, null);

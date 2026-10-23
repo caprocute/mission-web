@@ -564,13 +564,14 @@ public class JdbcDossierPackageRepository implements DossierPackageRepository {
   }
 
   @Override
-  public PackageRow newVersion(TenantId tenant, PackageRow previous, UUID id, UUID actor) {
+  public PackageRow newVersion(
+      TenantId tenant, PackageRow previous, UUID id, UUID reopenRequestId, UUID actor) {
     jdbc.sql(
             """
             INSERT INTO dossier.dossier_package (id, tenant_id, created_by, updated_by, period_id,
                 period_bucket, code, org_unit_id, person_id, package_kind, version_no, status,
-                deadline)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DANG_LAP', ?)
+                deadline, reopen_request_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DANG_LAP', ?, ?)
             """)
         .params(
             id,
@@ -584,9 +585,62 @@ public class JdbcDossierPackageRepository implements DossierPackageRepository {
             nullable(previous.personId()),
             previous.kind().name(),
             previous.versionNo() + 1,
-            previous.deadline())
+            previous.deadline(),
+            nullable(reopenRequestId))
         .update();
     return lock(tenant, previous.periodBucket(), id).orElseThrow();
+  }
+
+  @Override
+  public Optional<UUID> reopenRequest(TenantId tenant, int periodBucket, UUID packageId) {
+    return jdbc.sql(
+            "SELECT reopen_request_id FROM dossier.dossier_package WHERE period_bucket = ?"
+                + " AND tenant_id = ? AND id = ? AND reopen_request_id IS NOT NULL")
+        .params(periodBucket, tenant.value(), packageId)
+        .query(UUID.class)
+        .optional();
+  }
+
+  @Override
+  public void insertDraft(
+      TenantId tenant,
+      UUID periodId,
+      int periodBucket,
+      NewForm form,
+      List<UUID> sourceProfiles,
+      UUID actor) {
+    jdbc.sql(
+            """
+            INSERT INTO dossier.form_instance (id, tenant_id, created_by, updated_by, period_id,
+                period_bucket, profile_id, form_code, template_version, data_snapshot_hash,
+                source_profile_ids, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CHO_SINH')
+            """)
+        .params(
+            form.id(),
+            tenant.value(),
+            actor,
+            actor,
+            periodId,
+            periodBucket,
+            form.profileId(),
+            form.formCode(),
+            form.templateVersion(),
+            form.dataSnapshotHash(),
+            sourceProfiles == null || sourceProfiles.isEmpty()
+                ? new org.springframework.jdbc.core.SqlParameterValue(java.sql.Types.ARRAY, null)
+                : sourceProfiles.toArray(UUID[]::new))
+        .update();
+  }
+
+  @Override
+  public List<UUID> sourceProfiles(TenantId tenant, int periodBucket, UUID formId) {
+    return jdbc.sql(
+            "SELECT unnest(source_profile_ids) FROM dossier.form_instance WHERE period_bucket = ?"
+                + " AND tenant_id = ? AND id = ?")
+        .params(periodBucket, tenant.value(), formId)
+        .query(UUID.class)
+        .list();
   }
 
   @Override

@@ -611,6 +611,9 @@ class DossierSigningApiIT extends ContractConformanceTest {
     assertThat(versions.get(1).get("version_no")).isEqualTo(2);
     assertThat(versions.get(1).get("status")).isEqualTo("DANG_LAP");
     assertThat(versions.get(1).get("code")).isEqualTo(versions.get(0).get("code"));
+    // DV-11-03: phiên bản lập sau EVT-22 mang mã yêu cầu mở lại cho SVC-11 đóng dấu sinh lại.
+    assertThat(packageColumn((UUID) versions.get(1).get("id"), "reopen_request_id")).isNotNull();
+    assertThat(packageColumn(pkg, "reopen_request_id")).isNull();
 
     // EVT-22 lặp cho cả kỳ: gói cũ đã có phiên bản mới hơn nên không lập thêm.
     assertThat(deliverReopened("TOAN_KY", List.of())).isEqualTo(InboxOutcome.PROCESSED);
@@ -805,10 +808,11 @@ class DossierSigningApiIT extends ContractConformanceTest {
   private String packageColumn(UUID pkg, String column) throws Exception {
     return inDossier(
         jdbc ->
-            jdbc.sql("SELECT " + column + " FROM dossier.dossier_package WHERE id = ?")
+            jdbc.sql("SELECT " + column + "::text FROM dossier.dossier_package WHERE id = ?")
                 .param(pkg)
-                .query(String.class)
-                .single());
+                .query((rs, i) -> rs.getString(1))
+                .list()
+                .get(0));
   }
 
   private Map<String, Object> transferRow(UUID id) throws Exception {

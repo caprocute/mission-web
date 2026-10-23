@@ -98,7 +98,11 @@ public class DossierSigningConsumer implements SmartLifecycle {
     signing.onReopened(
         e.tenantId(),
         new DossierSigningService.Reopened(
-            payload.getPeriodId(), payload.getScope(), List.copyOf(payload.getScopeIds()), actor));
+            payload.getPeriodId(),
+            payload.getScope(),
+            List.copyOf(payload.getScopeIds()),
+            actor,
+            payload.getReopenRequestId()));
   }
 
   private byte[] bytes(ByteBuffer buffer) {

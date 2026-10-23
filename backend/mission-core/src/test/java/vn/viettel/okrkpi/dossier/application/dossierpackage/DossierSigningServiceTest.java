@@ -433,10 +433,12 @@ class DossierSigningServiceTest {
     assertThat(events).containsExactly("MO_LAI:" + mine.id());
 
     // Cả kỳ: chỉ đơn vị còn lại được lập; gói đã có phiên bản mới bỏ qua.
-    assertThat(s.onReopened(TENANT, new Reopened(PERIOD, "TOAN_KY", List.of(), ACTOR)))
+    UUID reopen = UUID.randomUUID();
+    assertThat(s.onReopened(TENANT, new Reopened(PERIOD, "TOAN_KY", List.of(), ACTOR, reopen)))
         .isEqualTo(1);
-    assertThat(repo.findByUnit(TENANT, BUCKET, other, PackageKind.NAM).orElseThrow().versionNo())
-        .isEqualTo(2);
+    PackageRow second = repo.findByUnit(TENANT, BUCKET, other, PackageKind.NAM).orElseThrow();
+    assertThat(second.versionNo()).isEqualTo(2);
+    assertThat(repo.reopenRequest(TENANT, BUCKET, second.id())).contains(reopen);
     assertThat(repo.packages.get(theirs.id())).isEqualTo(theirs);
     assertThat(s.onReopened(TENANT, new Reopened(PERIOD, "DON_VI", List.of(UNIT, other), ACTOR)))
         .isZero();
