@@ -16,6 +16,7 @@ import org.flowable.dmn.engine.configurator.DmnEngineConfigurator;
 import org.flowable.engine.ProcessEngine;
 import org.flowable.engine.history.HistoricProcessInstance;
 import org.flowable.engine.impl.cfg.StandaloneInMemProcessEngineConfiguration;
+import org.flowable.engine.repository.Deployment;
 import org.flowable.job.api.Job;
 import org.flowable.task.api.Task;
 import org.slf4j.Logger;
@@ -30,6 +31,7 @@ import vn.viettel.okrkpi.workflow.application.approval.StartApprovalService;
 import vn.viettel.okrkpi.workflow.application.port.BindingSimulator;
 import vn.viettel.okrkpi.workflow.application.port.CoreApprovalGateway;
 import vn.viettel.okrkpi.workflow.application.port.OrgDirectory;
+import vn.viettel.okrkpi.workflow.application.port.TemplateTestEngine;
 import vn.viettel.okrkpi.workflow.domain.Approver;
 import vn.viettel.okrkpi.workflow.domain.BusinessKey;
 import vn.viettel.okrkpi.workflow.domain.Decision;
@@ -42,6 +44,8 @@ import vn.viettel.okrkpi.workflow.domain.binding.ParamsLinter;
 import vn.viettel.okrkpi.workflow.domain.binding.SampleRun;
 import vn.viettel.okrkpi.workflow.domain.binding.SimulationSample;
 import vn.viettel.okrkpi.workflow.domain.binding.TemplateInfo;
+import vn.viettel.okrkpi.workflow.domain.template.BindingUsage;
+import vn.viettel.okrkpi.workflow.domain.template.TestCaseResult;
 import vn.viettel.okrkpi.workflow.infrastructure.flowable.ApprovalLevelsListener;
 import vn.viettel.okrkpi.workflow.infrastructure.flowable.FlowableApprovalProcesses;
 import vn.viettel.okrkpi.workflow.infrastructure.flowable.FlowableExternalJobQueue;
@@ -49,6 +53,7 @@ import vn.viettel.okrkpi.workflow.infrastructure.flowable.FlowableTaskEngine;
 import vn.viettel.okrkpi.workflow.infrastructure.persistence.JdbcBindingReader;
 import vn.viettel.okrkpi.workflow.infrastructure.template.TemplateCatalog;
 import vn.viettel.okrkpi.workflow.infrastructure.template.TemplateDeployer;
+import vn.viettel.okrkpi.workflow.infrastructure.template.TemplateSource;
 
 /**
  * Engine Flowable thử tách biệt (TL-02b SCR-1504 "Mô phỏng luồng", DV-06-08): engine BPMN và DMN
@@ -59,7 +64,8 @@ import vn.viettel.okrkpi.workflow.infrastructure.template.TemplateDeployer;
  * phỏng đầu và chạy tuần tự; mỗi lần chạy dùng một tenant ngẫu nhiên rồi xoá lịch sử.
  */
 @Component
-public class SandboxBindingSimulator implements BindingSimulator, AutoCloseable {
+public class SandboxBindingSimulator
+    implements BindingSimulator, TemplateTestEngine, AutoCloseable {
 
   private static final Logger log = LoggerFactory.getLogger(SandboxBindingSimulator.class);
   private static final String WORKER = "mo-phong";
@@ -71,6 +77,7 @@ public class SandboxBindingSimulator implements BindingSimulator, AutoCloseable 
   private final TemplateCatalog catalog;
   private final Org org = new Org();
   private final Map<UUID, ApprovalParams> params = new HashMap<>();
+  private final SqlStatementCounter sql = new SqlStatementCounter();
   private Sandbox sandbox;
 
   public SandboxBindingSimulator(ObjectMapper json, TemplateCatalog catalog) {
@@ -126,6 +133,164 @@ public class SandboxBindingSimulator implements BindingSimulator, AutoCloseable 
       cleanUp(s, pid);
     }
   }
+
+  // --- Bộ test của mẫu soạn trên SCR-1505 (DV-06-09) ---------------------------------------------
+
+  /** Kịch bản của mẫu không phải mẫu duyệt: chạy từ đầu đến cuối, hoàn thành lần lượt mọi việc. */
+  static final String GENERIC_SCENARIO = "CHAY_HET_LUONG";
+
+  @Override
+  public int scenarioCount() {
+    return SimulationSample.values().length;
+  }
+
+  /**
+   * Nạp mẫu soạn vào engine thử như phiên bản mới nhất của mã mẫu, chạy mọi kịch bản với mọi bộ
+   * tham số và đếm câu SQL của mỗi lần hoàn thành user task, rồi gỡ lần triển khai để engine thử
+   * trở về danh mục mẫu đóng gói.
+   */
+  @Override
+  public synchronized List<TestCaseResult> run(
+      String templateCode, String bpmnXml, List<BindingUsage> bindings) {
+    Sandbox s = sandbox();
+    Deployment deployment =
+        s.engine
+            .getRepositoryService()
+            .createDeployment()
+            .name("mau-soan-" + templateCode)
+            .addString(templateCode + ".bpmn20.xml", bpmnXml)
+            .deploy();
+    try {
+      Optional<ApprovalTemplate> approval = ApprovalTemplate.byCode(templateCode);
+      List<TestCaseResult> results = new ArrayList<>();
+      List<ParamSet> sets = paramSets(templateCode, bindings);
+      for (ParamSet set : sets) {
+        if (approval.isPresent()) {
+          for (SimulationSample sample : SimulationSample.values()) {
+            if (set.flow() == null || set.flow().equals(sample.flow())) {
+              results.add(approvalCase(s, approval.get(), set, sample));
+            }
+          }
+        } else {
+          results.add(genericCase(s, templateCode, set));
+        }
+      }
+      return results;
+    } finally {
+      s.engine.getRepositoryService().deleteDeployment(deployment.getId(), true);
+    }
+  }
+
+  private TestCaseResult approvalCase(
+      Sandbox s, ApprovalTemplate approval, ParamSet set, SimulationSample sample) {
+    ApprovalFlow flow = ApprovalFlow.valueOf(sample.flow());
+    int expectedTasks = levelCount(set.params());
+    UUID tenant = UUID.randomUUID();
+    String pid = null;
+    int tasks = 0;
+    int maxSql = 0;
+    try {
+      params.put(
+          tenant, JdbcBindingReader.parse(json, json.writeValueAsString(set.params()), flow));
+      UUID unit = org.tree(tenant);
+      pid = s.starter.start(command(tenant, approval, flow, unit, sample)).processInstanceId();
+      Task open = openTask(s, pid);
+      while (open != null && tasks < MAX_TASKS) {
+        tasks++;
+        boolean last = tasks == expectedTasks;
+        Decision decision = sample.returnAtLast() && last ? Decision.TRA_LAI : Decision.DUYET;
+        OpenTask task = s.taskEngine.findOpen(tenant, open.getId()).orElseThrow();
+        SqlStatementCounter.Count statements =
+            sql.count(
+                () ->
+                    s.taskEngine.complete(
+                        task,
+                        new Approver(tenant, UUID.randomUUID(), Set.of(), null),
+                        decision,
+                        null));
+        maxSql = Math.max(maxSql, statements.writes());
+        open = openTask(s, pid);
+      }
+      s.callbacks.runOnce(WORKER);
+      runJobs(s, pid);
+      String end = endState(s, pid);
+      boolean passed = tasks == expectedTasks && sample.expectedEnd().equals(end);
+      return new TestCaseResult(sample.name(), set.label(), end, passed, tasks, maxSql);
+    } catch (ApprovalSetupException | IllegalArgumentException | JsonProcessingException e) {
+      log.debug("Mẫu soạn không chạy được ca {} với {}", sample, set.label(), e);
+      return new TestCaseResult(
+          sample.name(), set.label(), "KHONG_KHOI_DONG_DUOC", false, tasks, maxSql);
+    } finally {
+      params.remove(tenant);
+      org.drop(tenant);
+      cleanUp(s, pid);
+    }
+  }
+
+  private TestCaseResult genericCase(Sandbox s, String templateCode, ParamSet set) {
+    String pid = null;
+    int tasks = 0;
+    int maxSql = 0;
+    try {
+      Map<String, Object> variables = new HashMap<>(set.params());
+      variables.put("tenantId", UUID.randomUUID().toString());
+      pid =
+          s.engine
+              .getRuntimeService()
+              .startProcessInstanceByKey(templateCode, "MAU-THU:" + UUID.randomUUID(), variables)
+              .getId();
+      Task open = openTask(s, pid);
+      while (open != null && tasks < MAX_TASKS) {
+        tasks++;
+        String taskId = open.getId();
+        maxSql =
+            Math.max(maxSql, sql.count(() -> s.engine.getTaskService().complete(taskId)).writes());
+        open = openTask(s, pid);
+      }
+      runJobs(s, pid);
+      String end = endState(s, pid);
+      boolean passed = open == null && !"CHUA_KET_THUC".equals(end);
+      return new TestCaseResult(GENERIC_SCENARIO, set.label(), end, passed, tasks, maxSql);
+    } catch (RuntimeException e) {
+      log.debug("Mẫu soạn {} không chạy được với {}", templateCode, set.label(), e);
+      return new TestCaseResult(
+          GENERIC_SCENARIO, set.label(), "KHONG_KHOI_DONG_DUOC", false, tasks, maxSql);
+    } finally {
+      cleanUp(s, pid);
+    }
+  }
+
+  private static void runJobs(Sandbox s, String pid) {
+    for (Job job : s.engine.getManagementService().createJobQuery().processInstanceId(pid).list()) {
+      s.engine.getManagementService().executeJob(job.getId());
+    }
+  }
+
+  /** Tham số của mọi wf_binding; không có binding thì dùng cấp mặc định của khai báo mẫu. */
+  private List<ParamSet> paramSets(String templateCode, List<BindingUsage> bindings) {
+    if (!bindings.isEmpty()) {
+      return bindings.stream()
+          .map(b -> new ParamSet(b.label(), b.flow(), new HashMap<>(b.params())))
+          .toList();
+    }
+    Map<String, Object> defaults = new HashMap<>();
+    catalog.templates().stream()
+        .map(TemplateSource::descriptor)
+        .filter(d -> d != null && templateCode.equals(d.templateCode()))
+        .findFirst()
+        .map(d -> d.params().get("capMacDinh"))
+        .ifPresent(levels -> defaults.put("cap", levels));
+    if (!defaults.containsKey("cap") && ApprovalTemplate.byCode(templateCode).isPresent()) {
+      defaults.put(
+          "cap",
+          List.of(
+              Map.of("vai_tro", "manager", "pham_vi", "DON_VI_TRUC_TIEP"),
+              Map.of("vai_tro", "leader", "pham_vi", "CAP_TREN_TRUC_TIEP")));
+    }
+    return List.of(new ParamSet("Tham số mặc định", null, defaults));
+  }
+
+  private record ParamSet(String label, String flow, Map<String, Object> params) {}
 
   @Override
   public synchronized void close() {
@@ -249,6 +414,7 @@ public class SandboxBindingSimulator implements BindingSimulator, AutoCloseable 
       Map<Object, Object> beans = new HashMap<>();
       beans.put("phanGiaiCapDuyet", new ApprovalLevelsListener(assembler, json));
       cfg.setBeans(beans);
+      cfg.setCustomMybatisInterceptors(List.of(sql));
       engine = cfg.buildProcessEngine();
       new TemplateDeployer(engine.getRepositoryService(), engine.getRuntimeService(), json)
           .deploy(catalog);

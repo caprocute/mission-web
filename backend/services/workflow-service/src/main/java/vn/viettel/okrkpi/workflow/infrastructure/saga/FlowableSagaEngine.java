@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.workflow.infrastructure.saga;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -8,6 +9,7 @@ import org.flowable.engine.ManagementService;
 import org.flowable.engine.RepositoryService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.runtime.Execution;
+import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.job.api.AcquiredExternalWorkerJob;
 import vn.viettel.okrkpi.workflow.application.saga.SagaEngine;
 
@@ -70,12 +72,19 @@ public class FlowableSagaEngine implements SagaEngine {
 
   @Override
   public boolean wake(UUID sagaId) {
-    List<Execution> waiting =
-        runtime
-            .createExecutionQuery()
-            .processInstanceBusinessKey("SAGA:" + sagaId)
-            .activityId(WAIT_ACTIVITY)
-            .list();
+    // Khoá nghiệp vụ chỉ nằm trên dòng thể hiện tiến trình; nút chờ là execution con không mang
+    // khoá,
+    // nên tìm thể hiện trước rồi lọc execution con theo nút chờ (DV-06-09 phát hiện).
+    List<Execution> waiting = new ArrayList<>();
+    for (ProcessInstance instance :
+        runtime.createProcessInstanceQuery().processInstanceBusinessKey("SAGA:" + sagaId).list()) {
+      waiting.addAll(
+          runtime
+              .createExecutionQuery()
+              .processInstanceId(instance.getId())
+              .activityId(WAIT_ACTIVITY)
+              .list());
+    }
     for (Execution execution : waiting) {
       runtime.trigger(execution.getId());
     }

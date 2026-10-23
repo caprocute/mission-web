@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://okrkpi.viettel.vn/mau-soan">
+  <process id="__MA__" name="Mẫu soạn quá dài" isExecutable="true">
+    <startEvent id="batDau"/>
+    <sequenceFlow id="f00" sourceRef="batDau" targetRef="buoc01"/>
+    <userTask id="buoc01" name="Bước 1"/>
+    <sequenceFlow id="f01" sourceRef="buoc01" targetRef="buoc02"/>
+    <userTask id="buoc02" name="Bước 2"/>
+    <sequenceFlow id="f02" sourceRef="buoc02" targetRef="buoc03"/>
+    <userTask id="buoc03" name="Bước 3"/>
+    <sequenceFlow id="f03" sourceRef="buoc03" targetRef="buoc04"/>
+    <userTask id="buoc04" name="Bước 4"/>
+    <sequenceFlow id="f04" sourceRef="buoc04" targetRef="buoc05"/>
+    <userTask id="buoc05" name="Bước 5"/>
+    <sequenceFlow id="f05" sourceRef="buoc05" targetRef="buoc06"/>
+    <userTask id="buoc06" name="Bước 6"/>
+    <sequenceFlow id="f06" sourceRef="buoc06" targetRef="buoc07"/>
+    <userTask id="buoc07" name="Bước 7"/>
+    <sequenceFlow id="f07" sourceRef="buoc07" targetRef="buoc08"/>
+    <userTask id="buoc08" name="Bước 8"/>
+    <sequenceFlow id="f08" sourceRef="buoc08" targetRef="buoc09"/>
+    <userTask id="buoc09" name="Bước 9"/>
+    <sequenceFlow id="f09" sourceRef="buoc09" targetRef="buoc10"/>
+    <userTask id="buoc10" name="Bước 10"/>
+    <sequenceFlow id="f10" sourceRef="buoc10" targetRef="buoc11"/>
+    <userTask id="buoc11" name="Bước 11"/>
+    <sequenceFlow id="f11" sourceRef="buoc11" targetRef="buoc12"/>
+    <userTask id="buoc12" name="Bước 12"/>
+    <sequenceFlow id="f12" sourceRef="buoc12" targetRef="buoc13"/>
+    <userTask id="buoc13" name="Bước 13"/>
+    <sequenceFlow id="f13" sourceRef="buoc13" targetRef="ketThuc"/>
+    <endEvent id="ketThuc"/>
+  </process>
+</definitions>

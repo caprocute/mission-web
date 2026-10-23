@@ -52,6 +52,15 @@ public final class BpmnTemplateLinter {
   /** Số phiên bản chính tối đa còn tiến trình chạy (quy tắc 8). */
   static final int MAX_RUNNING_VERSIONS = 3;
 
+  /** Số user task tối đa trên một nhánh (BS-01 "Giới hạn tải", quy tắc 9). */
+  static final int MAX_USER_TASKS_PER_BRANCH = 12;
+
+  /** Số phần tử tối đa của một đa thể hiện (BS-01 "Giới hạn tải", quy tắc 10). */
+  static final int MAX_MULTI_INSTANCE = 50;
+
+  private static final Set<String> FLOW_CONTAINERS =
+      Set.of("process", "subProcess", "transaction", "adHocSubProcess");
+
   /** Loại service task được phép: external worker và DMN (tính toán thuần trong engine). */
   static final Set<String> ALLOWED_SERVICE_TYPES = Set.of("external-worker", "dmn");
 
@@ -106,7 +115,51 @@ public final class BpmnTemplateLinter {
       checkParallel(p, violations);
       checkGovernance(p, decisionKeys, violations);
       checkVersions(p, snapshot, violations);
+      checkUserTasksPerBranch(p, violations);
+      checkMultiInstanceSize(p, violations);
     }
+    return violations;
+  }
+
+  /**
+   * Kiểm một mẫu soạn trên SCR-1505 (BS-01 "Kiểm tra khi soạn"): mẫu chưa có tệp khai báo, bộ kiểm
+   * thử nằm trong repo mẫu luồng và chạy ở engine thử, nên bỏ phần của quy tắc 5, 7 dựa vào khai
+   * báo (vẫn cấm data object) và quy tắc 8 (kiểm khi triển khai lên cell); mã process phải trùng mã
+   * mẫu.
+   *
+   * @param templateCode mã mẫu
+   * @param bpmnXml nội dung BPMN
+   * @return danh sách vi phạm, rỗng khi đạt
+   */
+  public List<LintViolation> lintAuthored(String templateCode, String bpmnXml) {
+    List<LintViolation> violations = new ArrayList<>();
+    Parsed p =
+        parse(new TemplateSource(templateCode + ".bpmn20.xml", bpmnXml, null, null), violations);
+    if (p == null) {
+      return violations;
+    }
+    if (!p.processId().equals(templateCode)) {
+      violations.add(violation(LintRule.R1_KHONG_GAN_TENANT, p, "Mã process khác mã mẫu"));
+    }
+    checkTenant(p, violations);
+    for (Element call : descendants(p.process(), "callActivity")) {
+      String called = call.getAttribute("calledElement");
+      if (called.isBlank() || called.contains("${") || called.contains("#{")) {
+        violations.add(
+            violation(
+                LintRule.R2_MOT_TANG_CALL_ACTIVITY,
+                p,
+                "Call activity " + id(call) + " phải gọi mẫu cố định"));
+      }
+    }
+    checkCrossTenant(p, violations);
+    checkMachineTasks(p, violations);
+    if (!descendants(p.process(), "dataObject").isEmpty()) {
+      violations.add(violation(LintRule.R5_BIEN_DUOI_4KB, p, "Không dùng data object làm biến"));
+    }
+    checkParallel(p, violations);
+    checkUserTasksPerBranch(p, violations);
+    checkMultiInstanceSize(p, violations);
     return violations;
   }
 
@@ -362,6 +415,102 @@ public final class BpmnTemplateLinter {
               LintRule.R8_TOI_DA_3_PHIEN_BAN,
               p,
               versions + " phiên bản còn tiến trình chạy sau khi phát hành"));
+    }
+  }
+
+  // Quy tắc 9: mỗi nhánh (đường đi theo sequence flow, bỏ cạnh quay lui) tối đa 12 user task; tiến
+  // trình con tính bằng nhánh dài nhất bên trong nó.
+  private static void checkUserTasksPerBranch(Parsed p, List<LintViolation> out) {
+    int longest = longestUserTaskPath(p.process());
+    if (longest > MAX_USER_TASKS_PER_BRANCH) {
+      out.add(
+          violation(
+              LintRule.R9_TOI_DA_12_USER_TASK_MOI_NHANH,
+              p,
+              "Một nhánh có " + longest + " user task, vượt 12"));
+    }
+  }
+
+  static int longestUserTaskPath(Element container) {
+    Map<String, Element> nodes = new HashMap<>();
+    Map<String, List<String>> edges = new HashMap<>();
+    Set<String> targets = new HashSet<>();
+    NodeList children = container.getChildNodes();
+    for (int i = 0; i < children.getLength(); i++) {
+      if (!(children.item(i) instanceof Element e)) {
+        continue;
+      }
+      if ("sequenceFlow".equals(e.getLocalName())) {
+        edges
+            .computeIfAbsent(e.getAttribute("sourceRef"), k -> new ArrayList<>())
+            .add(e.getAttribute("targetRef"));
+        targets.add(e.getAttribute("targetRef"));
+      } else if (!e.getAttribute("id").isBlank()) {
+        nodes.put(e.getAttribute("id"), e);
+      }
+    }
+    Map<String, Integer> weight = new HashMap<>();
+    for (Map.Entry<String, Element> n : nodes.entrySet()) {
+      Element e = n.getValue();
+      int w = 0;
+      if ("userTask".equals(e.getLocalName())) {
+        w = 1;
+      } else if (FLOW_CONTAINERS.contains(e.getLocalName())) {
+        w = longestUserTaskPath(e);
+      }
+      weight.put(n.getKey(), w);
+    }
+    // Điểm vào: nút không có cạnh tới (sự kiện bắt đầu, sự kiện biên gắn vào task).
+    int best = 0;
+    Map<String, Integer> memo = new HashMap<>();
+    for (String id : nodes.keySet()) {
+      if (!targets.contains(id)) {
+        best = Math.max(best, longest(id, edges, weight, memo, new HashSet<>()));
+      }
+    }
+    return best;
+  }
+
+  private static int longest(
+      String node,
+      Map<String, List<String>> edges,
+      Map<String, Integer> weight,
+      Map<String, Integer> memo,
+      Set<String> onPath) {
+    Integer known = memo.get(node);
+    if (known != null) {
+      return known;
+    }
+    onPath.add(node);
+    int tail = 0;
+    for (String next : edges.getOrDefault(node, List.of())) {
+      if (!onPath.contains(next)) {
+        tail = Math.max(tail, longest(next, edges, weight, memo, onPath));
+      }
+    }
+    onPath.remove(node);
+    int result = weight.getOrDefault(node, 0) + tail;
+    memo.put(node, result);
+    return result;
+  }
+
+  // Quy tắc 10: mỗi đa thể hiện tối đa 50 phần tử. Bản số cố định phải không quá 50; đa thể hiện
+  // tuần tự theo tập tham số (ví dụ approvalLevels, tối đa số cấp của khai báo) được chấp nhận vì
+  // số phần tử do tham số đã kiểm giới hạn quyết định (suy luận).
+  private static void checkMultiInstanceSize(Parsed p, List<LintViolation> out) {
+    for (Element mi : descendants(p.process(), "multiInstanceLoopCharacteristics")) {
+      String owner = id((Element) mi.getParentNode());
+      Integer limit = literalCardinality(mi);
+      if (limit == null && p.descriptor() != null) {
+        limit = p.descriptor().parallelLimits().get(owner);
+      }
+      if (limit != null && limit > MAX_MULTI_INSTANCE) {
+        out.add(
+            violation(
+                LintRule.R10_DA_THE_HIEN_TOI_DA_50,
+                p,
+                "Đa thể hiện " + owner + " có " + limit + " phần tử, vượt 50"));
+      }
     }
   }
 

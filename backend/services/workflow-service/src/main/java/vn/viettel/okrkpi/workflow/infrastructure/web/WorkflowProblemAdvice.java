@@ -17,6 +17,8 @@ import vn.viettel.okrkpi.shared.error.ProblemFieldError;
 import vn.viettel.okrkpi.workflow.application.WorkflowNotFoundException;
 import vn.viettel.okrkpi.workflow.infrastructure.web.binding.InternalBindingController;
 import vn.viettel.okrkpi.workflow.infrastructure.web.model.WorkflowBatchCompletion;
+import vn.viettel.okrkpi.workflow.infrastructure.web.template.InternalTemplateReleaseController;
+import vn.viettel.okrkpi.workflow.infrastructure.web.template.WorkflowTemplateController;
 
 /**
  * Lỗi riêng của API Workflow, chạy trước bộ xử lý chung của thư viện nền:
@@ -28,7 +30,13 @@ import vn.viettel.okrkpi.workflow.infrastructure.web.model.WorkflowBatchCompleti
  *   <li>hàng đợi lô đầy → 503 kèm {@code Retry-After}.
  * </ul>
  */
-@RestControllerAdvice(assignableTypes = {WorkflowController.class, InternalBindingController.class})
+@RestControllerAdvice(
+    assignableTypes = {
+      WorkflowController.class,
+      InternalBindingController.class,
+      WorkflowTemplateController.class,
+      InternalTemplateReleaseController.class
+    })
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class WorkflowProblemAdvice {
 

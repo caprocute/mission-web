@@ -144,6 +144,40 @@ mission:
       base-url: ${CORE_BASE_URL:http://127.0.0.1:8080/api/v1}
       # Tệp token dịch vụ do ESO/CSI gắn từ OpenBao; không đặt token trong cấu hình.
       token-file: ${CORE_TOKEN_FILE:}
+    # Mẫu luồng nội bộ SCR-1505 (BS-01, DV-06-09).
+    release:
+      # Thứ tự cell triển khai cuốn chiếu, phân tách bằng dấu phẩy; không cố định mã cell trong mã nguồn.
+      cells: ${WF_RELEASE_CELLS:}
+      # Thời hạn chờ pipeline của repo mẫu luồng ký gói mẫu (cosign) trước khi thử lại bước chờ ký.
+      signature-timeout: ${WF_RELEASE_SIGNATURE_TIMEOUT:PT30M}
+      # Ngân sách câu SQL mỗi lần hoàn thành user task trên engine thử (BS-01: 20).
+      sql-budget: ${WF_RELEASE_SQL_BUDGET:20}
+      cell-retry:
+        max-attempts: ${WF_RELEASE_CELL_ATTEMPTS:3}
+        initial-backoff: ${WF_RELEASE_CELL_BACKOFF:PT30S}
+        max-backoff: ${WF_RELEASE_CELL_MAX_BACKOFF:PT5M}
+      window:
+        zone: ${WF_RELEASE_ZONE:Asia/Ho_Chi_Minh}
+        # Giờ cao điểm cấm triển khai (suy luận: giờ hành chính cao điểm sáng và chiều).
+        peak-hours: ${WF_RELEASE_PEAK_HOURS:08:00-11:30,13:30-17:00}
+        peak-on-weekends: ${WF_RELEASE_PEAK_WEEKENDS:false}
+        # Ngày kết thúc kỳ (yyyy-MM-dd, phân tách bằng dấu phẩy); 3 ngày cuối kỳ cấm triển khai.
+        period-ends: ${WF_RELEASE_PERIOD_ENDS:}
+        freeze-days: ${WF_RELEASE_FREEZE_DAYS:3}
+      test:
+        queue-capacity: ${WF_RELEASE_TEST_QUEUE:8}
+      local-cell:
+        # Cell được đánh dấu sự cố của bộ chuyển engine cục bộ (chỉ dev, thử bù trừ).
+        outage-cells: ${WF_RELEASE_LOCAL_OUTAGE:}
+      code-host:
+        # mailbox (mặc định, hộp thư lệnh wf_code_host_command) hoặc gitlab (API v4).
+        type: ${WF_CODE_HOST_TYPE:mailbox}
+        merge-request-base-url: ${WF_CODE_HOST_MR_BASE_URL:}
+        api-base-url: ${WF_CODE_HOST_API_URL:}
+        project: ${WF_CODE_HOST_PROJECT:}
+        target-branch: ${WF_CODE_HOST_TARGET_BRANCH:main}
+        # Tệp token do ESO/CSI gắn; không đặt token trong cấu hình.
+        token-file: ${WF_CODE_HOST_TOKEN_FILE:}
 
 # Khung saga (DV-06-05): outbox và khoá idempotency nằm trong schema flowable; worker chạy cùng bộ
 # thực thi nền của Flowable.
