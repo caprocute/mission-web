@@ -22,6 +22,19 @@ spec:
         type: internal
         tls: true
         authentication: { type: tls }
+      {{- if $v.mirrorMaker.enabled }}
+      # INF-28: listener liên TTDL cho MirrorMaker 2 (hai chiều để quay về, DR-16).
+      - name: lienttdl
+        port: {{ $v.mirrorMaker.listener.port }}
+        type: {{ $v.mirrorMaker.listener.type }}
+        tls: true
+        authentication: { type: tls }
+        {{- with $v.mirrorMaker.listener.alternativeNames }}
+        configuration:
+          bootstrap:
+            alternativeNames: {{ toJson . }}
+        {{- end }}
+      {{- end }}
     authorization:
       type: simple
     {{- if gt (len (uniq $v.global.topology.zones)) 1 }}
