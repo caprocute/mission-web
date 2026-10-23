@@ -78,13 +78,16 @@ vt.io/cell: {{ . | quote }}
 {{- toYaml ($l | uniq | sortAlpha) -}}
 {{- end -}}
 
-{{/* Khối SQL initdb cho bao_admin (INF-13). Đối số: a (tên vai trò), schemas, matKhau (chuỗi đã sẵn để chèn). */}}
+{{/* Khối SQL initdb cho bao_admin (INF-13). Đối số: a (tên vai trò), schemas, matKhau (chuỗi đã sẵn để chèn).
+       bao_admin chỉ cần ADMIN OPTION để tạo người dùng động "IN ROLE svc_<schema>": cấp INHERIT FALSE, SET FALSE và
+       không đặt createrole_self_grant, nên bao_admin không đọc được bảng nghiệp vụ, kể cả qua người dùng động do nó
+       tạo (SEC-58, INF-27). pg_signal_backend để câu thu hồi ngắt phiên còn mở của người dùng động. */}}
 {{- define "data-pg.baoAdminSql" -}}
-CREATE ROLE {{ .a }} WITH LOGIN CREATEROLE INHERIT NOBYPASSRLS CONNECTION LIMIT {{ .gioiHan }} PASSWORD '{{ .matKhau }}';
-ALTER ROLE {{ .a }} SET createrole_self_grant = 'set, inherit';
+CREATE ROLE {{ .a }} WITH LOGIN CREATEROLE NOINHERIT NOBYPASSRLS CONNECTION LIMIT {{ .gioiHan }} PASSWORD '{{ .matKhau }}';
+GRANT pg_signal_backend TO {{ .a }} WITH INHERIT TRUE;
 {{- range .schemas }}
 CREATE ROLE svc_{{ . }} WITH NOLOGIN NOINHERIT NOBYPASSRLS;
-GRANT svc_{{ . }} TO {{ $.a }} WITH ADMIN TRUE, INHERIT TRUE, SET TRUE;
+GRANT svc_{{ . }} TO {{ $.a }} WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
 {{- end }}
 {{- end -}}
 

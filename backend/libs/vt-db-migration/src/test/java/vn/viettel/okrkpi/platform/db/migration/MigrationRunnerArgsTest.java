@@ -89,4 +89,12 @@ class MigrationRunnerArgsTest {
     assertThat(new MigrationCredentials.Credentials("u", "bi-mat").toString())
         .doesNotContain("bi-mat");
   }
+
+  @Test
+  void boQuaMigrationOTtdlCho() {
+    assertThat(MigrationRunner.standby("standby")).isTrue();
+    assertThat(MigrationRunner.standby(" Standby ")).isTrue();
+    assertThat(MigrationRunner.standby("primary")).isFalse();
+    assertThat(MigrationRunner.standby(null)).isFalse();
+  }
 }

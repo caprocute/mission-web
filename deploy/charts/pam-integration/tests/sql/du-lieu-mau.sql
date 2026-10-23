@@ -1,5 +1,5 @@
 -- Dữ liệu mẫu cho kiểm thử quét vai trò CSDL (INF-27): hai schema nghiệp vụ theo bốn vai trò TL-03, bao_admin như
--- INF-13 (svc_task WITH ADMIN, INHERIT TRUE), rồi một loạt "cửa sau" mà quet-vai-tro.sql phải tìm ra. Chạy bằng siêu
+-- INF-11 sau khi sửa (svc_task chỉ ADMIN, INHERIT FALSE, SET FALSE; bao_cu giữ kiểu cũ), rồi một loạt "cửa sau" mà quet-vai-tro.sql phải tìm ra. Chạy bằng siêu
 -- người dùng trên CSDL thử tạm thời; không chứa mật khẩu (xác thực trust trên socket cục bộ của cụm thử).
 CREATE ROLE mig_task LOGIN; CREATE ROLE svc_task LOGIN; CREATE ROLE ro_task LOGIN; CREATE ROLE cdc_task LOGIN REPLICATION;
 CREATE ROLE mig_okr LOGIN; CREATE ROLE svc_okr LOGIN; CREATE ROLE ro_okr LOGIN;
@@ -27,9 +27,14 @@ CREATE ROLE henry LOGIN;
 GRANT USAGE ON SCHEMA ngoai_nghiep_vu TO henry;
 GRANT SELECT ON ngoai_nghiep_vu.thong_ke TO henry;
 
--- bao_admin như INF-13 (data-pg: GRANT svc_<schema> TO bao_admin WITH ADMIN TRUE, INHERIT TRUE, SET TRUE).
-CREATE ROLE bao_admin LOGIN CREATEROLE;
-GRANT svc_task TO bao_admin WITH ADMIN TRUE, INHERIT TRUE, SET TRUE;
+-- bao_admin như data-pg (INF-13, sửa ở INF-27): chỉ ADMIN trên svc_<schema>, không thừa kế, không SET ROLE,
+-- không createrole_self_grant; quét không được báo bao_admin.
+CREATE ROLE bao_admin LOGIN CREATEROLE NOINHERIT;
+GRANT pg_signal_backend TO bao_admin WITH INHERIT TRUE;
+GRANT svc_task TO bao_admin WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
+-- Kiểu cấp cũ (INHERIT TRUE, SET TRUE) vẫn phải bị quét báo.
+CREATE ROLE bao_cu LOGIN CREATEROLE;
+GRANT svc_task TO bao_cu WITH ADMIN TRUE, INHERIT TRUE, SET TRUE;
 
 -- Các cửa sau còn lại.
 CREATE ROLE alice LOGIN;
