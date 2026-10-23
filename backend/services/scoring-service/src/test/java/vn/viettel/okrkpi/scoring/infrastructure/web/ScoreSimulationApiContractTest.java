@@ -100,7 +100,10 @@ class ScoreSimulationApiContractTest {
             .compile(SamplePolicyPack.content());
   }
 
-  /** Lần chạy đầu trong JVM nguội có thể vượt 50 ms; kiểm thử chức năng không đo thời gian (YC-PT-19). */
+  /**
+   * Lần chạy đầu trong JVM nguội có thể vượt 50 ms; kiểm thử chức năng không đo thời gian
+   * (YC-PT-19).
+   */
   private static CelSandboxOptions relaxedTimeout() {
     CelSandboxOptions d = CelSandboxOptions.defaults();
     return new CelSandboxOptions(
