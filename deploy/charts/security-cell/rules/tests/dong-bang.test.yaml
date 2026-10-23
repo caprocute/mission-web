@@ -1,0 +1,55 @@
+# Ca kiểm promtool cho VtCuaSoDongBang: thời điểm 0 của promtool là 1970-01-01T00:00Z, tức 07:00 giờ Việt Nam.
+rule_files:
+- ../an-ninh-nen.yaml
+evaluation_interval: 1h
+tests:
+- interval: 1h
+  input_series: []
+  alert_rule_test:
+  # 01/01: trong cửa sổ cuối quý IV (24/12 tới hết 10/01).
+  - eval_time: 0m
+    alertname: VtCuaSoDongBang
+    exp_alerts:
+    - exp_labels: { severity: info, doi: khong-goi, ops: OPS-06 }
+      exp_annotations:
+        summary: Đang trong cửa sổ đóng băng thay đổi; kured không khởi động lại node
+        runbook_url: https://runbook.vt.local/okr/an-ninh-kube-bench
+  # 11/01 và 16/01: ngoài cửa sổ.
+  - eval_time: 10d
+    alertname: VtCuaSoDongBang
+    exp_alerts: []
+  - eval_time: 15d
+    alertname: VtCuaSoDongBang
+    exp_alerts: []
+  # 20/01 và 04/02: cửa sổ Tết (20/1 tới hết 04/2).
+  - eval_time: 19d
+    alertname: VtCuaSoDongBang
+    exp_alerts:
+    - exp_labels: { severity: info, doi: khong-goi, ops: OPS-06 }
+      exp_annotations:
+        summary: Đang trong cửa sổ đóng băng thay đổi; kured không khởi động lại node
+        runbook_url: https://runbook.vt.local/okr/an-ninh-kube-bench
+  - eval_time: 34d
+    alertname: VtCuaSoDongBang
+    exp_alerts:
+    - exp_labels: { severity: info, doi: khong-goi, ops: OPS-06 }
+      exp_annotations:
+        summary: Đang trong cửa sổ đóng băng thay đổi; kured không khởi động lại node
+        runbook_url: https://runbook.vt.local/okr/an-ninh-kube-bench
+  # 05/02, 23/03: ngoài cửa sổ; 24/03: bắt đầu cửa sổ cuối quý I; 11/04: hết cửa sổ.
+  - eval_time: 35d
+    alertname: VtCuaSoDongBang
+    exp_alerts: []
+  - eval_time: 81d
+    alertname: VtCuaSoDongBang
+    exp_alerts: []
+  - eval_time: 82d
+    alertname: VtCuaSoDongBang
+    exp_alerts:
+    - exp_labels: { severity: info, doi: khong-goi, ops: OPS-06 }
+      exp_annotations:
+        summary: Đang trong cửa sổ đóng băng thay đổi; kured không khởi động lại node
+        runbook_url: https://runbook.vt.local/okr/an-ninh-kube-bench
+  - eval_time: 100d
+    alertname: VtCuaSoDongBang
+    exp_alerts: []

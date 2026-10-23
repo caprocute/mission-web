@@ -1,0 +1,169 @@
+# Bảo mật nền của cell (INF-19; TL-04 mục 9.3 "Bảo mật nền tảng Kubernetes", 9.5 "An ninh mạng", 9.7 TCVN 11930).
+# Mọi ảnh lấy qua proxy-cache Harbor theo digest (SEC-55). Không ghi địa chỉ, token hay khoá vào tệp này: mọi bí mật
+# tham chiếu Secret do External Secrets tạo từ OpenBao.
+cell: g4
+
+# Namespace dành cho thành phần cần quyền cao (SEC-26): Falco, kube-bench, kured. Pod Security mức privileged; chỉ
+# nhóm SRE nền tảng được triển khai vào đây (AppProject okr-nen-tang của Argo CD, INF-04).
+privilegedNamespace: platform-privileged
+
+# Phân vùng namespace theo cell-base (TL-04 mục 3.5): vùng ứng dụng và vùng dữ liệu dùng cho quy tắc Falco, RBAC và
+# thăm dò cổng ra. secure, secure-data là vùng bảo mật, chỉ cấp qua PAM nên không có vai trò thường trực.
+zones:
+  app: [core, identity, platform, workers, analytics]
+  data: [data-pg, data-kafka, data-search]
+  secure: [secure, secure-data]
+  edge: [edge]
+
+images:
+  falco:
+    repository: harbor.vt.local/dockerhub/falcosecurity/falco
+    digest: sha256:69e957f91b3a6beb5c82e2afae33ec3e4479dab2d4421475d288d0cd113cedf6   # 0.45.1
+  falcosidekick:
+    repository: harbor.vt.local/dockerhub/falcosecurity/falcosidekick
+    digest: sha256:fc0b4b7e4741011018dbd8e1f5311363902e7ca26a601c59efee4ca400b61000   # 2.31.1
+  kubeBench:
+    repository: harbor.vt.local/dockerhub/aquasec/kube-bench
+    digest: sha256:d079de1fa7f757b367c39ee12eafc0e8729e94962df2c29808f4b602a615c142   # v0.12.0
+  kured:
+    repository: harbor.vt.local/ghcr/kubereboot/kured
+    digest: sha256:e56fabfced69dc80f4ed9f9b2af1af6751b33f787c564a82741201c55a99f7b4   # 1.17.1
+  busybox:
+    repository: harbor.vt.local/dockerhub/library/busybox
+    digest: sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e   # 1.37.0
+  pushgateway:
+    repository: harbor.vt.local/dockerhub/prom/pushgateway
+    digest: sha256:03738d278e082ee9821df730c741b3b465c251fc2b68a85883def301a55a6215   # v1.11.1
+
+# Falco với trình điều khiển eBPF hiện đại trên mọi node (SEC-50). Chạy chế độ ít đặc quyền: không privileged,
+# chỉ thêm capability BPF, PERFMON, SYS_RESOURCE, SYS_PTRACE mà trình điều khiển modern_ebpf cần.
+falco:
+  enabled: true
+  driver: modern_ebpf
+  # Mức tối thiểu Falco gửi đi; quy tắc mặc định của Falco cộng quy tắc riêng ở files/falco/vt-rules.yaml.
+  minimumPriority: notice
+  resources:
+    requests: { cpu: 100m, memory: 512Mi }
+    limits: { cpu: "1", memory: 1Gi }
+  # Đích được phép từ pod vùng ứng dụng và dữ liệu mà không qua namespace egress: mạng pod, service và nút của cell.
+  # Kết nối tới địa chỉ ngoài các dải này là "ra ngoài không qua egress" (quy tắc VT kết nối ra ngoài không qua cổng ra).
+  internalNetworks: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8"]
+  # Tiền tố đường dẫn được ghi trong container chỉ đọc (emptyDir và tệp ảo của nhân).
+  writablePrefixes: ["/tmp/", "/dev/", "/proc/", "/sys/", "/var/run/", "/run/"]
+  # Vùng dữ liệu ghi vào volume dữ liệu của CNPG, Strimzi, OpenSearch (suy luận theo ảnh mặc định của các operator).
+  dataWritablePrefixes: ["/var/lib/postgresql/", "/controller/", "/var/lib/kafka/", "/var/lib/zookeeper/", "/usr/share/opensearch/data/", "/usr/share/opensearch/logs/"]
+  # Tiến trình phụ được đọc /var/run/secrets (ví dụ tác tử ghi nhật ký của ảnh bên thứ ba); mặc định không có.
+  secretReaders: []
+
+# Falcosidekick nhận cảnh báo Falco qua HTTP và chuyển sang Kafka sys.security.runtime.v1 (tên topic do TL-04 tự đặt,
+# _ghi-chu-TL-04 dòng 56); mức Critical gửi thêm kênh trực SOC. Đầu ra Kafka của Falcosidekick 2.31 chỉ có TLS một
+# chiều, không gửi chứng thư máy khách, nên không vào được listener mTLS của Strimzi (cổng 9093, authentication tls).
+# Vì vậy Falcosidekick đẩy OTLP/HTTP có mTLS tới otel-siem (chart otel-collector), otel-siem ghi sys.security.runtime.v1
+# bằng KafkaUser của nó rồi chuẩn hoá ECS sang sys.siem.v1.
+falcosidekick:
+  enabled: true
+  replicas: 2
+  otlp:
+    endpoint: https://otel-siem.observability.svc:4318/v1/logs
+    # Chứng thư máy khách do cert-manager cấp từ PKI nội bộ của cell (INF-13); Secret có ca.crt, tls.crt, tls.key.
+    tlsSecret: falcosidekick-otlp-tls
+    issuerRef: { kind: ClusterIssuer, name: openbao-pki-cell }
+  # Kênh trực SOC: webhook của SOC, địa chỉ nằm trong Secret (khoá url), không ghi trong Git. Đi ra ngoài qua egress
+  # gateway (HTTPS_PROXY); đích SOC phải có trong danh sách cổng ra của cell-egress.
+  soc:
+    enabled: true
+    minimumPriority: critical
+    urlSecret: { name: falcosidekick-soc, key: url }
+    httpsProxy: http://egress-gateway.egress.svc:443
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+
+# Tetragon thực thi ở nhân (SEC-50): chặn ptrace trong namespace secure. Agent Tetragon cài cùng Cilium (ngoài chart
+# này); chart chỉ khai chính sách. action: Override trả EPERM cho lời gọi (cần CONFIG_BPF_KPROBE_OVERRIDE, có trong
+# Ubuntu 24.04), Sigkill giết tiến trình gọi.
+tetragon:
+  enabled: true
+  namespaces: [secure]
+  action: Override
+
+# kube-bench hằng tuần theo CIS Kubernetes Benchmark (SEC-27). Mỗi đích chạy `count` pod trên `count` node khác
+# nhau (anti-affinity theo hostname). Node worker dùng chung ảnh node bất biến (SEC-51) nên lấy mẫu theo pool là đủ
+# (suy luận). Kết quả đẩy lên Pushgateway, cảnh báo KubeBenchFail khi FAIL > 0.
+kubeBench:
+  enabled: true
+  schedule: "0 2 * * 0"
+  timeZone: Asia/Ho_Chi_Minh
+  # Phiên bản benchmark để trống: kube-bench tự chọn theo phiên bản Kubernetes.
+  benchmark: ""
+  targets:
+    - name: master
+      checks: master,controlplane,etcd,policies
+      count: 3
+      nodeSelector: { node-role.kubernetes.io/control-plane: "" }
+      tolerations:
+        - { key: node-role.kubernetes.io/control-plane, operator: Exists, effect: NoSchedule }
+    - name: node
+      checks: node
+      count: 3
+      nodeSelector: {}
+      tolerations:
+        - { operator: Exists }
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+
+# kured khởi động lại node khi có bản vá nhân khẩn (SEC-51): khung 01:00–05:00, từng node một, rút pod qua
+# Eviction API nên tôn trọng PDB. Không chạy trong cửa sổ đóng băng OPS-06 (alert VtCuaSoDongBang đang kích hoạt);
+# boQuaDongBang: true chỉ đặt qua merge request khi lỗ hổng CVSS ≥ 9 được CAB khẩn duyệt.
+kured:
+  enabled: true
+  startTime: "1am"
+  endTime: "5am"
+  timeZone: Asia/Ho_Chi_Minh
+  rebootDays: [mo, tu, we, th, fr, sa, su]
+  period: 10m
+  drainTimeout: 30m
+  prometheusUrl: http://kps-prometheus.observability.svc:9090
+  blockingAlerts: "^VtCuaSoDongBang$"
+  boQuaDongBang: false
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { cpu: 100m, memory: 64Mi }
+
+# RBAC tối thiểu (SEC-29). Người vận hành đăng nhập kubectl bằng OIDC Keycloak vận hành (realm platform-ops, có MFA);
+# API server gắn tiền tố "oidc:" cho tên và nhóm (deploy/clusters/cell-cluster). Ba vai trò debug-app, operate-data,
+# platform-admin không có binding thường trực: PAM tạo binding có thời hạn 4 giờ (xem ops/runbooks/an-ninh-pam-rbac.md).
+rbac:
+  enabled: true
+  groupPrefix: "oidc:"
+  bindings:
+    view-app: [platform-ops-dev, platform-ops-sre]
+    operate-app: [platform-ops-sre-truc]
+    view-data: [platform-ops-dba]
+
+# Thăm dò cổng ra (SEC-36): CronJob ở mỗi namespace vùng ứng dụng, dữ liệu, bảo mật và biên thử kết nối thẳng ra
+# ngoài cụm tới các đích không có trong danh sách cổng ra; mọi kết nối thành công là rò rỉ. Kết quả đẩy lên Pushgateway.
+# Đích là địa chỉ dành cho tài liệu và kiểm thử (RFC 5737, RFC 2606), không phải máy chủ thật.
+egressProbe:
+  enabled: true
+  schedule: "*/30 * * * *"
+  timeoutSeconds: 5
+  targets:
+    - { name: ip-tai-lieu, host: 192.0.2.10, port: 443 }
+    - { name: ten-mien-mau, host: example.com, port: 443 }
+  resources:
+    requests: { cpu: 10m, memory: 16Mi }
+    limits: { cpu: 100m, memory: 32Mi }
+
+# Pushgateway của cell nhận chỉ số từ Job ngắn (kube-bench, thăm dò cổng ra; OpenBao xoay khoá dùng chung).
+pushgateway:
+  enabled: true
+  url: http://pushgateway.observability.svc:9091
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+# Luật cảnh báo rules/*.yaml thành PrometheusRule trong observability.
+alerts:
+  enabled: true

@@ -9,6 +9,10 @@ infrastructure:
   sshKeyName: ""
 controlPlane:
   flavor: vm.8c32g
+# Keycloak vận hành (mẫu, tên miền nội bộ không phân giải ra ngoài).
+apiServer:
+  oidc:
+    issuerUrl: https://sso-ops.vt.local/realms/platform-ops
 pools:
   system: { flavor: vm.8c32g }
   ingress: { flavor: vm.16c32g-25g }

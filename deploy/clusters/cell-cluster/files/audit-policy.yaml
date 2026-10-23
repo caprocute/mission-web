@@ -1,0 +1,26 @@
+# Chính sách kiểm toán API server (TL-04 mục 9.3 "Nhật ký kiểm toán API", SEC-30). Đúng thứ tự và mức của TL-04:
+# quy tắc đầu tiên khớp được áp dụng. Secret và ConfigMap chỉ ở mức Metadata để nhật ký không chứa nội dung bí mật;
+# RBAC, pods/exec|attach|portforward, serviceaccounts/token ghi đầy đủ yêu cầu và phản hồi; ghi CR CNPG, Strimzi ở
+# mức RequestResponse; mọi thao tác ghi khác ở Metadata; còn lại không ghi. Fluent Bit đọc
+# /var/log/kubernetes/audit/audit.log trên master và đẩy sang Kafka sys.audit.v1 (TL-04 mục 10.3), rồi tới SIEM.
+apiVersion: audit.k8s.io/v1
+kind: Policy
+omitStages: ["RequestReceived"]
+rules:
+  - level: None
+    users: ["system:kube-proxy", "system:apiserver"]
+    verbs: ["get", "list", "watch"]
+  - level: None
+    resources: [{ group: "coordination.k8s.io", resources: ["leases"] }]
+  - level: Metadata
+    resources: [{ group: "", resources: ["secrets", "configmaps"] }]
+  - level: RequestResponse
+    resources:
+      - { group: "rbac.authorization.k8s.io" }
+      - { group: "", resources: ["pods/exec", "pods/attach", "pods/portforward", "serviceaccounts/token"] }
+  - level: RequestResponse
+    resources: [{ group: "postgresql.cnpg.io" }, { group: "kafka.strimzi.io" }]
+    verbs: ["create", "update", "patch", "delete"]
+  - level: Metadata
+    verbs: ["create", "update", "patch", "delete", "deletecollection"]
+  - level: None

@@ -1,0 +1,14 @@
+{{- $ns := .Values.privilegedNamespace }}
+# Namespace có quyền cao cho Falco, kube-bench, kured (TL-04 mục 9.3, SEC-26). Miễn trừ Pod Security có ghi danh:
+# enforce privileged, nhưng audit và warn vẫn ở restricted để mọi pod vượt chuẩn đều để lại dấu vết trong nhật ký
+# kiểm toán API. Chỉ nhóm SRE nền tảng được triển khai vào đây (AppProject okr-nen-tang, INF-04).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    vt.io/security-zone: infra
+    vt.io/cell: {{ .Values.cell | quote }}
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
