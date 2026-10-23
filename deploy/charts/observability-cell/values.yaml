@@ -1,12 +1,63 @@
 cell: g4
+# Đường cảnh báo suy giảm trong cell (INF-25): Secret token webhook lấy từ OpenBao qua ESO, cùng khoá với Secret
+# của bộ điều khiển ở namespace edge (chart degrade-controller); đích webhook để mở NetworkPolicy ra.
+suyGiam:
+  enabled: true
+  controller: { namespace: edge, port: 8080 }
+  token:
+    secretName: apisix-degrade-webhook
+    # Rỗng: kv/cell-<cell>/edge/degrade-webhook (suy luận theo quy ước kv/cell-<mã>/... của backup-cell).
+    path: ""
+    property: token
+    secretStore: { kind: ClusterSecretStore, name: openbao-cell }
+    refreshInterval: 1h
 # Dải địa chỉ của Loki, Tempo, Ceph S3 ở cụm quản trị (giá trị của môi trường).
 egressCIDRs: []
 
 kube-prometheus-stack:
   fullnameOverride: kps
   crds: { enabled: true }
-  # Alertmanager và Grafana đặt ở cụm quản trị (observability-mgmt).
-  alertmanager: { enabled: false }
+  # Grafana và Alertmanager gọi trực đặt ở cụm quản trị (observability-mgmt). Alertmanager trong cell chỉ làm một
+  # việc: chuyển cảnh báo mang nhãn degrade_level (rules/suy-giam.yaml) tới webhook của bộ điều khiển suy giảm
+  # (INF-25, TL-04 "Hành vi khi bão hoà") ngay trong cell, để cắt tải không phụ thuộc kết nối tới cụm quản trị.
+  # Cảnh báo khác vào receiver rỗng. Token webhook gắn từ Secret apisix-degrade-webhook (templates/suy-giam.yaml).
+  alertmanager:
+    enabled: true
+    config:
+      global: { resolve_timeout: 5m }
+      route:
+        receiver: bo-qua
+        group_by: [alertname, cell]
+        routes:
+          - matchers: ['degrade_level=~"1|2|3"']
+            receiver: vt-degrade
+            group_wait: 10s
+            group_interval: 30s
+            # Ngắn để bộ điều khiển dựng lại trạng thái cảnh báo sau khi khởi động lại (trạng thái nằm trong bộ nhớ).
+            repeat_interval: 5m
+      receivers:
+        - name: bo-qua
+        - name: vt-degrade
+          webhook_configs:
+            - url: http://degrade-controller.edge.svc:8080/alertmanager
+              # Bắt buộc: bộ điều khiển chỉ hạ mức khi nhận resolved.
+              send_resolved: true
+              http_config:
+                authorization: { type: Bearer, credentials_file: /etc/alertmanager/secrets/apisix-degrade-webhook/token }
+      inhibit_rules: []
+      templates: []
+    alertmanagerSpec:
+      image: { registry: quay.io, repository: prometheus/alertmanager, tag: v0.34.1, sha: e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a }
+      # Hai bản gom cụm với nhau nên mỗi thông báo chỉ gửi một lần.
+      replicas: 2
+      secrets: [apisix-degrade-webhook]
+      retention: 24h
+      resources:
+        requests: { cpu: 20m, memory: 64Mi }
+        limits: { cpu: 200m, memory: 128Mi }
+      nodeSelector: { vt.io/pool: system }
+      tolerations:
+        - { key: CriticalAddonsOnly, operator: Exists, effect: NoSchedule }
   grafana: { enabled: false }
   defaultRules: { create: true }
   prometheusOperator:

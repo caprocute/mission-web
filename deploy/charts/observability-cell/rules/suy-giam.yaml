@@ -1,0 +1,56 @@
+# Điều kiện kích hoạt ba mức suy giảm (TL-04 "Hành vi khi bão hoà"; INF-25). Mỗi luật mang nhãn degrade_level;
+# Alertmanager của cell (values.yaml, kube-prometheus-stack.alertmanager) chỉ chuyển cảnh báo có nhãn này tới
+# webhook của bộ điều khiển suy giảm, bộ điều khiển lấy mức lớn nhất đang cháy. Việc gọi trực khi mức 2 kéo dài
+# do SaturationLevel2 (canh-bao-toi-thieu.yaml) và bộ điều khiển đảm nhận, nên các luật ở đây chỉ là tín hiệu
+# điều khiển (severity: control), không gọi ai.
+# HPA của mission-core do KEDA tạo tên keda-hpa-mission-core; so khớp cả tên HPA trần khi chạy không có KEDA.
+groups:
+  - name: suy-giam.rules
+    interval: 30s
+    rules:
+      - record: suygiam:mission_core_at_max_replicas:bool
+        expr: |
+          max(
+            kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler=~"(keda-hpa-)?mission-core"}
+            >= bool kube_horizontalpodautoscaler_spec_max_replicas{horizontalpodautoscaler=~"(keda-hpa-)?mission-core"}
+          )
+      # APISIX ghi độ trễ theo mili giây.
+      - record: suygiam:api_read_latency:p95_5m
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(apisix_http_latency_bucket{type="request", kind="read"}[5m])))
+      - record: suygiam:pg_primary_cpu:max_ratio
+        expr: |
+          max(
+            sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{container="postgres"}[2m]))
+            / sum by (namespace, pod) (kube_pod_container_resource_limits{resource="cpu", container="postgres"})
+            and on (namespace, pod) (cnpg_pg_replication_in_recovery == 0)
+          )
+
+  - name: suy-giam.alerts
+    rules:
+      # Mức 1: mission-core ở maxReplicas quá 5 phút và p95 đọc trên 300 ms.
+      - alert: DegradeLevel1
+        expr: suygiam:mission_core_at_max_replicas:bool == 1 and on () suygiam:api_read_latency:p95_5m > 300
+        for: 5m
+        labels: { severity: control, doi: sre, degrade_level: "1" }
+        annotations:
+          summary: "mission-core ở số bản tối đa và p95 đọc trên 300 ms: suy giảm mức 1"
+          runbook_url: https://runbook.vt.local/okr/suy-giam-ba-muc
+      # Mức 2: tỷ lệ 5xx trên 1% hoặc Hikari có kết nối chờ quá 2 phút.
+      - alert: DegradeLevel2
+        expr: |
+          slo:api_availability_errors:ratio_rate5m > 0.01
+          or on () max(hikaricp_connections_pending) > 0
+        for: 2m
+        labels: { severity: control, doi: sre, degrade_level: "2" }
+        annotations:
+          summary: "Tỷ lệ lỗi 5xx hoặc hàng chờ kết nối CSDL vượt ngưỡng: suy giảm mức 2"
+          runbook_url: https://runbook.vt.local/okr/suy-giam-ba-muc
+      # Mức 3: CPU của một primary PostgreSQL trên 90% quá 2 phút.
+      - alert: DegradeLevel3
+        expr: suygiam:pg_primary_cpu:max_ratio > 0.9
+        for: 2m
+        labels: { severity: control, doi: sre, degrade_level: "3" }
+        annotations:
+          summary: "CPU primary PostgreSQL {{ $value | humanizePercentage }}: suy giảm mức 3, chỉ nhận ghi ưu tiên"
+          runbook_url: https://runbook.vt.local/okr/suy-giam-ba-muc
