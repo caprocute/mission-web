@@ -2,6 +2,7 @@ package vn.viettel.okrkpi.dossier.infrastructure.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -55,10 +56,13 @@ import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
 import vn.viettel.okrkpi.dossier.application.comment.port.CommentSealer;
 import vn.viettel.okrkpi.dossier.application.meeting.MeetingProceedingsService;
 import vn.viettel.okrkpi.dossier.application.meeting.port.MeetingNotices;
+import vn.viettel.okrkpi.dossier.application.specialcase.SpecialCaseService;
 import vn.viettel.okrkpi.dossier.infrastructure.listener.MeetingMinutesConsumer;
+import vn.viettel.okrkpi.dossier.infrastructure.listener.SpecialCaseAssignmentConsumer;
 import vn.viettel.okrkpi.dossier.infrastructure.persistence.FieldEncryptorCommentSealer;
 import vn.viettel.okrkpi.dossier.infrastructure.persistence.OutboxMeetingNotices;
 import vn.viettel.okrkpi.events.EventTopics;
+import vn.viettel.okrkpi.replica.api.AssignmentView;
 import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
 import vn.viettel.okrkpi.shared.crypto.DekCache.CachedDek;
 import vn.viettel.okrkpi.shared.crypto.DekPurpose;
@@ -82,6 +86,7 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
 import vn.vtokr.dossier.v1.HoSoSoDaSinh;
 import vn.vtokr.esign.v1.KySoDaHoanTat;
 import vn.vtokr.esign.v1.SignedItem;
+import vn.vtokr.org.v1.PhanCongDaThayDoi;
 
 /**
  * Kiểm thử tích hợp CORE-06-02 trên PostgreSQL thật: năm thao tác hội nghị kiểm điểm khớp {@code
@@ -166,6 +171,7 @@ class DossierMeetingApiIT extends ContractConformanceTest {
   @Autowired private MockMvc mvc;
   @Autowired private CommentSealer sealer;
   @Autowired private MeetingProceedingsService proceedings;
+  @Autowired private SpecialCaseService specialCases;
   private MeetingMinutesConsumer minutesConsumer;
   @Autowired private MinutesJobs minutesJobs;
   private long offset;
@@ -264,6 +270,10 @@ class DossierMeetingApiIT extends ContractConformanceTest {
                 .listOfRows();
             jdbc.sql("SELECT dossier.fn_create_period_partitions(?::regclass, ?)")
                 .params("dossier.remediation_item", bucket)
+                .query()
+                .listOfRows();
+            jdbc.sql("SELECT dossier.fn_create_period_partitions(?::regclass, ?)")
+                .params("dossier.special_case", bucket)
                 .query()
                 .listOfRows();
           }
@@ -677,6 +687,196 @@ class DossierMeetingApiIT extends ContractConformanceTest {
         signed(id, sha),
         SECRETARY);
     assertThat(status(id)).isEqualTo("DA_KY");
+  }
+
+  /**
+   * CORE-06-05: tạo hội nghị phát hiện điều động dưới hai tháng của người được kiểm điểm từ bản sao
+   * tổ chức; danh sách gom nhóm không lộ chi tiết, đọc một đối tượng giải mã chi tiết, xác minh có
+   * {@code If-Match}; EVT-15 trùng không tạo dòng trùng.
+   */
+  @Test
+  void truongHopDacThuKhiTaoHoiNghiVaQuaEvt15() throws Exception {
+    UUID subject = UUID.randomUUID();
+    when(orgDirectory.assignmentsOf(eq(tenant), eq(subject), any()))
+        .thenReturn(
+            List.of(
+                assignment(subject, OTHER_UNIT, "CHINH", "2020-01-01", "2026-11-14"),
+                assignment(subject, UNIT, "DIEU_DONG", "2026-11-15", null)));
+    assertThat(
+            create(createBody(year, subject), UUID.randomUUID().toString())
+                .getResponse()
+                .getStatus())
+        .isEqualTo(201);
+
+    MvcResult page =
+        perform(
+            get("/api/v1/dossiers/special-cases?period=" + year + "&unit=" + UNIT + "&limit=1"));
+    assertThat(page.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(page, "/dossiers/special-cases", PathItem.HttpMethod.GET);
+    JsonNode list = body(page);
+    assertThat(list.at("/items/0/caseCode").asText()).isEqualTo("DIEU_DONG_DUOI_2_THANG");
+    assertThat(list.at("/items/0/effect").asText()).isEqualTo("XEP_LOAI_TAI_DON_VI_CU");
+    assertThat(list.at("/items/0/effectiveFrom").asText()).isEqualTo("2026-11-15");
+    assertThat(list.at("/items/0/detail").isMissingNode() || list.at("/items/0/detail").isNull())
+        .isTrue();
+    assertThat(list.at("/groups/0/count").asInt()).isEqualTo(1);
+    assertThat(list.at("/groups/0/handling").asText()).startsWith("Đơn vị cũ đánh giá");
+    UUID id = UUID.fromString(list.at("/items/0/id").asText());
+
+    MvcResult one = perform(get("/api/v1/dossiers/special-cases/" + id));
+    assertThat(one.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(one, "/dossiers/special-cases/{id}", PathItem.HttpMethod.GET);
+    assertThat(one.getResponse().getHeader("ETag")).isEqualTo("\"0\"");
+    assertThat(body(one).get("detail").asText()).contains(OTHER_UNIT.toString());
+
+    ObjectNode verify = json.createObjectNode().put("verified", true).put("handlingNote", "Đúng");
+    MvcResult verified =
+        perform(
+            patch("/api/v1/dossiers/special-cases/" + id)
+                .header("Idempotency-Key", UUID.randomUUID().toString())
+                .header("If-Match", "\"0\"")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(verify.toString()));
+    assertThat(verified.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(verified, "/dossiers/special-cases/{id}", PathItem.HttpMethod.PATCH);
+    assertThat(body(verified).at("/confirmedBy/id").asText()).isEqualTo(OFFICER.toString());
+    MvcResult stale =
+        perform(
+            patch("/api/v1/dossiers/special-cases/" + id)
+                .header("Idempotency-Key", UUID.randomUUID().toString())
+                .header("If-Match", "\"0\"")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(verify.toString()));
+    assertThat(stale.getResponse().getStatus()).isEqualTo(409);
+
+    USER_UNIT.set(UUID.randomUUID());
+    assertThat(
+            perform(get("/api/v1/dossiers/special-cases?period=" + year + "&unit=" + UNIT))
+                .getResponse()
+                .getStatus())
+        .isEqualTo(403);
+    assertThat(perform(get("/api/v1/dossiers/special-cases/" + id)).getResponse().getStatus())
+        .isEqualTo(403);
+    USER_UNIT.set(UNIT);
+    assertThat(
+            perform(get("/api/v1/dossiers/special-cases/" + UUID.randomUUID()))
+                .getResponse()
+                .getStatus())
+        .isEqualTo(404);
+
+    UUID other = UUID.randomUUID();
+    when(orgDirectory.assignmentsOf(eq(tenant), eq(other), any()))
+        .thenReturn(List.of(assignment(other, UNIT, "CHINH", "2020-01-01", null)));
+    LocalDate today = LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+    UUID current = currentYear(today);
+    PhanCongDaThayDoi side =
+        PhanCongDaThayDoi.newBuilder()
+            .setAssignmentId(UUID.randomUUID())
+            .setPersonId(other)
+            .setUnitId(OTHER_UNIT)
+            .setPositionId(null)
+            .setJobTitleId(UUID.randomUUID())
+            .setKind("KIEM_NHIEM")
+            .setIsPrimary(false)
+            .setValidFrom(today.withDayOfYear(1))
+            .setValidTo(null)
+            .setSourceVersion(1L)
+            .setAggregateVersion(1)
+            .setIsHead(false)
+            .build();
+    SpecialCaseAssignmentConsumer consumer = assignmentConsumer();
+    UUID eventId = UUID.randomUUID();
+    assertThat(deliverAssignment(consumer, eventId, side)).isEqualTo(InboxOutcome.PROCESSED);
+    assertThat(deliverAssignment(consumer, eventId, side))
+        .isEqualTo(InboxOutcome.DUPLICATE_SKIPPED);
+    assertThat(deliverAssignment(consumer, UUID.randomUUID(), side))
+        .isEqualTo(InboxOutcome.PROCESSED);
+    List<String> codes =
+        inTenant(
+            jdbc ->
+                jdbc.sql(
+                        "SELECT case_code FROM dossier.special_case WHERE person_id = ?"
+                            + " AND period_id = ?")
+                    .params(other, current)
+                    .query(String.class)
+                    .list());
+    assertThat(codes).containsExactly("KIEM_NHIEM");
+  }
+
+  private AssignmentView assignment(UUID person, UUID unit, String kind, String from, String to) {
+    return new AssignmentView(
+        UUID.randomUUID(),
+        person,
+        unit,
+        null,
+        UUID.randomUUID(),
+        kind,
+        "DANG",
+        false,
+        LocalDate.parse(from),
+        to == null ? null : LocalDate.parse(to));
+  }
+
+  /** Kỳ năm chứa hôm nay: kỳ năm 2026 của bộ dữ liệu, hoặc một kỳ năm mới khi chạy năm khác. */
+  private UUID currentYear(LocalDate today) throws Exception {
+    if (today.getYear() == 2026) {
+      return year;
+    }
+    UUID id = UUID.randomUUID();
+    int bucket = today.getYear() * 10;
+    insertPeriod(
+        id,
+        "Năm " + today.getYear(),
+        today.getYear() + "-01-01",
+        today.getYear() + "-12-31",
+        bucket,
+        "MO");
+    inTenant(
+        jdbc ->
+            jdbc.sql("SELECT dossier.fn_create_period_partitions(?::regclass, ?)")
+                .params("dossier.special_case", bucket)
+                .query()
+                .listOfRows());
+    return id;
+  }
+
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private SpecialCaseAssignmentConsumer assignmentConsumer() {
+    org.springframework.kafka.core.KafkaOperations<String, byte[]> kafka =
+        org.mockito.Mockito.mock(org.springframework.kafka.core.KafkaOperations.class);
+    InboxMessageProcessor processor =
+        new InboxMessageProcessor(
+            new JdbcTemplate(dossierDataSource),
+            dossierTm,
+            "dossier",
+            (topic, headers, data) -> decode(PhanCongDaThayDoi.class, data),
+            new InboxRetryDlqPublisher(kafka),
+            new InboxMetrics(new io.micrometer.core.instrument.simple.SimpleMeterRegistry()),
+            new InboxProperties.Retry(null, null, null, null),
+            Clock.systemUtc());
+    org.springframework.beans.factory.ObjectProvider none =
+        new org.springframework.beans.factory.support.StaticListableBeanFactory()
+            .getBeanProvider(
+                org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory.class);
+    return new SpecialCaseAssignmentConsumer(specialCases, processor, none, false);
+  }
+
+  private InboxOutcome deliverAssignment(
+      SpecialCaseAssignmentConsumer consumer, UUID eventId, PhanCongDaThayDoi payload) {
+    ConsumerRecord<String, byte[]> record =
+        new ConsumerRecord<>(
+            EventTopics.EVT_15_PHAN_CONG_DA_THAY_DOI,
+            0,
+            offset++,
+            tenant.value() + ":" + eventId,
+            encode(payload));
+    header(record, OutboxHeaders.EVENT_ID, eventId.toString());
+    header(record, OutboxHeaders.TENANT_ID, tenant.value().toString());
+    header(record, OutboxHeaders.AGGREGATE_VERSION, "1");
+    header(record, OutboxHeaders.CE_TYPE, "org.assignment.changed.v1");
+    header(record, OutboxHeaders.CLASSIFICATION, Classification.C1.name());
+    header(record, OutboxHeaders.OCCURRED_AT, Instant.now().toString());
+    return consumer.processor().process(consumer.endpoint(), record, () -> {});
   }
 
   private KySoDaHoanTat signed(UUID meeting, byte[] sha) {

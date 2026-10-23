@@ -7,7 +7,7 @@ import {
 } from '@angular/common/http';
 import { InjectionToken, inject } from '@angular/core';
 import { Observable, delay, from, mergeMap, of, throwError } from 'rxjs';
-import { RUNTIME_CONFIG } from '../lib/runtime-config';
+import { RUNTIME_CONFIG, isMockedApiPath, mockApiActive } from '../lib/runtime-config';
 import { MockResponse, problem } from './mock-router';
 
 export interface MockApiOptions {
@@ -81,16 +81,17 @@ export function forcedError(req: HttpRequest<unknown>, pageQuery: string): numbe
 }
 
 /**
- * Interceptor giả lập API (WEB-008): khi `useMockApi` bật, trả fixture JSON theo đường dẫn
+ * Interceptor giả lập API (WEB-008): khi `useMockApi` bật (hoặc module nằm trong `mockApiModules`,
+ * WEB-070), trả fixture JSON theo đường dẫn
  * thay vì gọi mạng, nên client và component luôn đi đúng đường thật (HttpClient, interceptor,
  * `If-Match`, `Idempotency-Key`, lỗi RFC 9457). Đặt cuối chuỗi interceptor.
  * Không áp cho đường dẫn ngoài `/api/v1/` (config.json, UI Pack, remoteEntry).
  */
 export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
   const cfg = inject(RUNTIME_CONFIG);
-  if (!cfg.useMockApi) return next(req);
+  if (!mockApiActive(cfg)) return next(req);
   const path = apiPath(req.url, cfg.apiBaseUrl);
-  if (!path) return next(req);
+  if (!path || !isMockedApiPath(cfg, path)) return next(req);
   const opts = inject(MOCK_API_OPTIONS);
   const query = (opts.pageQuery ?? (() => globalThis.location?.search ?? ''))();
   let forced = forcedError(req, query);

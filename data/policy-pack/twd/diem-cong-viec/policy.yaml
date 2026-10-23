@@ -1,0 +1,407 @@
+# Policy Pack tính điểm theo điểm công việc, hồ sơ thí điểm của tập khách hàng TWĐ (DL-16, ADR-33, BS-03).
+# BẢN GIẢ LẬP do agent soạn theo Đặc tả UEB (bộ tài liệu bàn giao v1.8, ngày 16/10/2026) và Phụ lục B "bộ cấu
+# hình mẫu"; chưa phê duyệt, chưa ký, chưa phát hành. Gói kế thừa khối Đảng (khoi-dang/quy-dinh-moi) ở phần
+# vòng đời nhiệm vụ, trường hợp đặc thù, mẫu biểu, phân nhóm; phần dưới đây thay cách tính điểm và chuỗi xếp loại.
+# Không chứa hằng số theo khách hàng trong mã: mọi giá trị thí điểm là tham số của gói (YC-TK-11).
+# Chỉ chú thích (#) và khoá kỹ thuật được chứa mã; trường văn bản hiển thị không chứa mã kỹ thuật.
+apiVersion: policy.okrkpi.vn/v1
+kind: PolicyPack
+metadata:
+  id: twd/diem-cong-viec
+  version: 0.1.0
+  trang_thai: NHAP
+  luong: DANG
+  ten: Bộ quy định tính điểm theo điểm công việc, hồ sơ thí điểm cơ quan tham mưu của Đảng ở Trung ương
+  ke_thua:                           # BS-03 mục 4: gói hồ sơ kế thừa gói khối Đảng
+    goi: khoi-dang/quy-dinh-moi
+    phien_ban: 2.1.0
+    phan_ke_thua: [truong_hop_dac_thu, task_lifecycle, workflow_bindings, templates, phan_nhom, exemptions]
+  ap_dung_cho:
+    tenant_tags: [khoi-dang-tw]
+    doi_tuong: [CAN_BO, CONG_CHUC]
+  hieu_luc:
+    tu_ky: 2026-Q4
+    den_ky: null
+  can_cu_phap_ly:
+    - "Dự thảo Quy định về đánh giá cán bộ theo kết quả thực hiện nhiệm vụ (bộ dự thảo gửi ngày 13/10/2026), Điều 10, Điều 11, Điều 14, Phụ lục 1, Phụ lục 3"
+    - "Đặc tả giải pháp thí điểm quản lý công việc và đánh giá cán bộ (bộ tài liệu bàn giao bản 1.8), mục 3.7, 11.3 – 11.12, 18, Phụ lục B"
+    - "Danh mục công việc tạm thời của Ban, bản dự thảo số 25"
+  phe_duyet:
+    ky_so: []
+    nguoi_soan: null
+    nguoi_duyet: null
+  ghi_chu_ban_nhap: "Bản giả lập dựng lại công thức của Phụ lục 01 và 01G; chờ cơ quan tổ chức xác nhận tham số thí điểm."
+  gia_lap: true
+  ghi_chu_gia_lap: "Thí điểm – dùng để đối chiếu, không thay kết quả do cấp có thẩm quyền quyết định theo cách làm hiện hành. Số liệu kiểm thử là dữ liệu giả định của bộ tài liệu bàn giao, không phải hồ sơ thật."
+
+# ---------------------------------------------------------------------------
+# Kiểu dữ liệu (khớp WorkItem, ResponsibilityItem của appraisals.yaml, NEN-044; ánh xạ ghi trong CHANGELOG)
+# ---------------------------------------------------------------------------
+types:
+  CongViec:                          # một công việc hoặc công việc con khi khóa sổ (WorkItem)
+    ma:                 {type: string, source: appraisal.work_item.task_id}
+    nhom:               {type: string, source: appraisal.work_item.task_group, enum: [THEN_CHOT, THUONG_XUYEN]}
+    truc:               {type: string, source: appraisal.work_item.axis_code}
+    diem_chuan:         {type: double, source: appraisal.work_item.standard_score, min: 0}
+    muc_do_kho:         {type: int,    source: appraisal.work_item.difficulty, min: 1, max: 5}
+    trang_thai:         {type: string, source: appraisal.work_item.status_at_lock, enum: [HOAN_THANH, CHUA_HOAN_THANH, KHONG_DUOC_CHAP_NHAN, CHUYEN_KY]}
+    muc_chat_luong:     {type: double, source: appraisal.work_item.quality_level, enum_scale: [1, 0.75, 0.5, 0.25, 0]}
+    ngay_cham_chu_quan: {type: int,    source: appraisal.work_item.subjective_late_workdays, min: 0}
+    cha_hoan_thanh:     {type: bool,   source: appraisal.work_item.parent_completed}
+    ngoai_pham_vi:      {type: bool,   source: appraisal.work_item.out_of_scope}
+    he_so_bo_sung:      {type: "map<string,double>", source: appraisal.work_item.coefficient_levels}
+  MucQuanLy:                         # KPI, nhiệm vụ, KR được tính điểm quản lý (ResponsibilityItem)
+    ma:                 {type: string, source: appraisal.responsibility_item.item_id}
+    loai:               {type: string, source: appraisal.responsibility_item.item_type, enum: [KPI, NHIEM_VU, KR, DON_VI]}
+    tong_giao:          {type: double, source: appraisal.responsibility_item.sum_assigned}
+    tong_so_luong:      {type: double, source: appraisal.responsibility_item.sum_s}
+    tong_chat_luong:    {type: double, source: appraisal.responsibility_item.sum_q}
+    tong_tien_do:       {type: double, source: appraisal.responsibility_item.sum_d}
+    ty_le_dat_chi_tieu: {type: double, source: appraisal.responsibility_item.target_achieved_ratio, min: 0, max: 1}
+    muc_chat_luong:     {type: double, source: appraisal.responsibility_item.confirmed_level, enum_scale: [1, 0.75, 0.5, 0.25]}
+    ngay_cham_chu_quan: {type: int,    source: appraisal.responsibility_item.own_late_workdays, min: 0}
+    can_khac_phuc:      {type: bool,   source: appraisal.responsibility_item.needs_remediation}
+  MucPhuTrach:                       # một phần của điểm cá nhân sau khi xác định phạm vi phụ trách
+    ma:          {type: string}
+    nhom:        {type: string, enum: [THEN_CHOT, THUONG_XUYEN]}
+    truc:        {type: string}
+    giao:        {type: double}
+    so_luong:    {type: double}
+    chat_luong:  {type: double}
+    tien_do:     {type: double}
+    truc_tiep:   {type: bool}
+  KetQuaKy:
+    giao: {type: double}
+    dat:  {type: double}
+  KetQuaQuyTruoc:
+    giao:      {type: double}
+    ty_le_dat: {type: double, min: 0, max: 1}
+
+# Đầu vào cấp hồ sơ của một người hoặc một tập thể trong kỳ
+inputs:
+  muc:                              {type: "list<MucPhuTrach>", source: appraisal.aggregate.responsibility_scope}
+  doi_tuong:                        {type: string, source: appraisal.aggregate.subject_group, enum: [LANH_DAO, KHONG_GIU_CHUC_VU]}
+  cap:                              {type: string, source: org.aggregate.position_level}
+  diem_xep_loai:                    {type: double, source: appraisal.aggregate.rating_score, min: 0, max: 100}
+  ty_le_dap_ung_tieu_chi_chung:     {type: double, source: appraisal.aggregate.general_criteria_ratio, min: 0, max: 1}
+  co_viec_trong_tam:                {type: bool,   source: appraisal.aggregate.has_key_work}
+  hoan_thanh_100_trong_tam:         {type: bool,   source: appraisal.aggregate.all_key_work_completed}
+  ty_le_vuot:                       {type: double, source: appraisal.aggregate.exceeded_ratio, min: 0, max: 1}
+  giai_phap_dot_pha:                {type: bool,   source: appraisal.aggregate.breakthrough_verified}
+  truot_trong_tam_chu_quan:         {type: bool,   source: appraisal.aggregate.key_missed_subjective}
+  co_quy_khong_hoan_thanh:          {type: bool,   source: appraisal.aggregate.has_failed_quarter}
+  loai_tru:                         {type: bool,   source: appraisal.aggregate.exclusion_flag}
+  rang_buoc_tap_the_thap_nhat:      {type: bool,   source: appraisal.aggregate.collective_head_floor}
+  rang_buoc_tap_the_ha_xuat_sac:    {type: bool,   source: appraisal.aggregate.collective_no_excellent}
+
+ngu_canh:
+  cv:        {type: CongViec,  pham_vi: cong_viec, mo_ta: "Công việc đang tính"}
+  q:         {type: MucQuanLy, pham_vi: quan_ly,   mo_ta: "KPI, nhiệm vụ, KR đang tính; tổng ba mặt của các công việc bên dưới đã vào phạm vi điểm quản lý"}
+  muc_tinh:  {type: "list<MucPhuTrach>", pham_vi: [ho_so, xep_loai], mo_ta: "Các mục của inputs.muc sau khi bỏ phần trực tiếp làm của cấp không được cộng (tham số truc_tiep_lam.cap_ap_dung)"}
+
+# ---------------------------------------------------------------------------
+# Tham số. Giá trị mặc định là giá trị thí điểm của Phụ lục B; khung cho cấp dưới ở hồ sơ twd/ban-to-chuc-ueb
+# (tham-so/khung-twd.yaml, điểm cắm DC-02).
+# ---------------------------------------------------------------------------
+params:
+  tru_tien_do:            {type: double, mac_dinh: 0.05, mien: {min: 0.00, max: 0.20}, chu_so: 2, overridable: true, legal_ref: "Đặc tả UEB 11.3, 11.9; dự thảo Phụ lục 3; Phụ lục B.4"}
+  he_so.muc_do_kho:
+    type: "map<int,double>"
+    mac_dinh: {1: 0.8, 2: 1.0, 3: 1.25, 4: 1.6, 5: 2.0}
+    overridable: true
+    legal_ref: "Đặc tả UEB 3.7; Phụ lục B.3 dòng 5; dự thảo Phụ lục 1 Bảng 2"
+  he_so.nhom_nhiem_vu:
+    type: "map<string,double>"
+    mac_dinh: {THEN_CHOT: 1.3, THUONG_XUYEN: 1.0}
+    overridable: true
+    legal_ref: "Đặc tả UEB 3.7; Phụ lục B.3 dòng 6; dự thảo Điều 10 khoản 1.2"
+  he_so.bo_sung:
+    type: "list<map>"
+    mac_dinh:
+      - {ma: BO_SUNG_1, bat: false}
+      - {ma: BO_SUNG_2, bat: false}
+      - {ma: BO_SUNG_3, bat: false}
+    overridable: true
+    legal_ref: "Đặc tả UEB 3.7; Phụ lục B.3 dòng 7"
+  chat_luong.thang_cong_viec:  {type: "list<double>", mac_dinh: [1.0, 0.75, 0.5, 0.25, 0.0], overridable: false, legal_ref: "Phụ lục B.4 dòng 4; dự thảo Phụ lục 3 mục II"}
+  chat_luong.thang_quan_ly:    {type: "list<double>", mac_dinh: [1.0, 0.75, 0.5, 0.25], overridable: false, legal_ref: "Phụ lục B.4 dòng 4"}
+  chat_luong.tran_khac_phuc:   {type: double, mac_dinh: 0.75, mien: {min: 0.25, max: 1.00}, overridable: false, legal_ref: "Đặc tả UEB 3.5; Phụ lục B.4 dòng 4"}
+  quan_ly.loai_ap_giam:        {type: "list<string>", mac_dinh: [KPI, NHIEM_VU, KR], overridable: false, legal_ref: "Đặc tả UEB 11.5"}
+  thang_100.che_do:            {type: string, mac_dinh: TY_LE_CO_HE_SO, mien: {enum: [TY_LE_CO_HE_SO, GOI_DIEM]}, overridable: true, legal_ref: "Đặc tả UEB 11.4, 11.12; Phụ lục B.4 dòng 1"}
+  nhom:                              # gói điểm mặc định của mọi nhóm đối tượng khi thang_100.che_do = GOI_DIEM
+    type: "list<Nhom>"
+    mac_dinh:
+      - {ma: THEN_CHOT,    diem_toi_da: 80, nhom_nhiem_vu: [THEN_CHOT]}
+      - {ma: THUONG_XUYEN, diem_toi_da: 20, nhom_nhiem_vu: [THUONG_XUYEN]}
+    rang_buoc: {tong_diem_toi_da: 100}
+    overridable: true
+    legal_ref: "Đặc tả UEB 11.12 điểm d; dự thảo Phụ lục 3 mục 1"
+  goi_diem.theo_doi_tuong:
+    type: "map<string,map<string,double>>"
+    mac_dinh: {}
+    mo_ta: "Gói riêng theo nhóm đối tượng (lãnh đạo, không giữ chức vụ); để trống thì dùng tham số nhom."
+    overridable: true
+    legal_ref: "Đặc tả UEB 11.12 điểm d; ca G10"
+  ty_trong_truc:
+    type: "map<string,double>"
+    mac_dinh: {}
+    mo_ta: "Tỷ trọng theo trục trong nhóm trọng tâm khi tính theo gói điểm; để trống là không đặt."
+    overridable: true
+    legal_ref: "Đặc tả UEB 11.9, 11.12 điểm c"
+  truc_tiep_lam.cap_ap_dung:   {type: "list<string>", mac_dinh: [], overridable: true, legal_ref: "Đặc tả UEB 11.5, 33.2 dòng 4"}
+  nam.cach_dung_quy_truoc:     {type: string, mac_dinh: CHI_QUY_TREN_PHAN_MEM, mien: {enum: [CHI_QUY_TREN_PHAN_MEM, CONG_QUY_TRUOC]}, overridable: false, legal_ref: "Đặc tả UEB 11.4; Phụ lục B.4"}
+  htxs.nguong_ty_le_vuot:      {type: double, mac_dinh: 0.30, mien: {min: 0.00, max: 1.00}, overridable: true, legal_ref: "Đặc tả UEB 18.2; dự thảo Điều 11 khoản 2.1; Phụ lục B.8"}
+  htxs.phep_so_sanh:           {type: string, mac_dinh: TOI_THIEU, mien: {enum: [TOI_THIEU, LON_HON]}, overridable: false, legal_ref: "Đặc tả UEB 18.2"}
+  xep_loai.chan_xuat_sac_khi_khong_co_trong_tam: {type: bool, mac_dinh: true, overridable: true, legal_ref: "Đặc tả UEB 18.2; Phụ lục B.8"}
+  xep_loai.han_muc_xuat_sac:   {type: string, mac_dinh: KHONG_AP_DUNG, mien: {enum: [KHONG_AP_DUNG]}, overridable: false, legal_ref: "Phụ lục B.8: không áp hạn mức tỷ lệ"}
+
+# ---------------------------------------------------------------------------
+# Biểu thức CEL. Thứ tự phạm vi: cong_viec -> quan_ly -> ho_so -> chuỗi DMN (classification.chuoi)
+# ---------------------------------------------------------------------------
+definitions:
+  cong_viec:
+    he_so:
+      expression: >-
+        double(tham_so.he_so.muc_do_kho[cv.muc_do_kho]) * double(tham_so.he_so.nhom_nhiem_vu[cv.nhom])
+        * (tham_so.he_so.bo_sung[0].bat && tham_so.he_so.bo_sung[0].ma in cv.he_so_bo_sung ? double(cv.he_so_bo_sung[tham_so.he_so.bo_sung[0].ma]) : 1.0)
+        * (tham_so.he_so.bo_sung[1].bat && tham_so.he_so.bo_sung[1].ma in cv.he_so_bo_sung ? double(cv.he_so_bo_sung[tham_so.he_so.bo_sung[1].ma]) : 1.0)
+        * (tham_so.he_so.bo_sung[2].bat && tham_so.he_so.bo_sung[2].ma in cv.he_so_bo_sung ? double(cv.he_so_bo_sung[tham_so.he_so.bo_sung[2].ma]) : 1.0)
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 3.7; Phụ lục B.3"
+      eval_order: 10
+      overridable: false
+    diem_cong_viec:
+      expression: "double(cv.diem_chuan) * he_so"
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 3.7 (F79)"
+      eval_order: 20
+      overridable: false
+    giao:
+      expression: "cv.ngoai_pham_vi || cv.trang_thai == 'CHUYEN_KY' ? 0.0 : diem_cong_viec"
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 11.4: việc chuyển kỳ, việc ngoài phạm vi phụ trách không vào điểm được giao"
+      eval_order: 30
+      overridable: false
+    tinh_ba_mat:
+      expression: "!cv.ngoai_pham_vi && cv.trang_thai == 'HOAN_THANH' && cv.cha_hoan_thanh"
+      result_type: BOOLEAN
+      legal_ref: "Đặc tả UEB 11.3, 11.4: chỉ việc được duyệt hoàn thành mới có điểm đạt; công việc con theo công việc cha"
+      eval_order: 40
+      overridable: false
+    so_luong:
+      expression: "tinh_ba_mat ? diem_cong_viec : 0.0"
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 11.3"
+      eval_order: 50
+      overridable: false
+    chat_luong:
+      expression: "tinh_ba_mat ? diem_cong_viec * double(cv.muc_chat_luong) : 0.0"
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 11.3; Phụ lục B.4 dòng 4"
+      eval_order: 60
+      overridable: false
+    tien_do:
+      expression: "tinh_ba_mat ? math.greatest(0.0, diem_cong_viec * (1.0 - tham_so.tru_tien_do * double(cv.ngay_cham_chu_quan))) : 0.0"
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 11.3; dự thảo Phụ lục 3"
+      eval_order: 70
+      overridable: false
+    diem_dat:
+      expression: "(so_luong + chat_luong + tien_do) / 3.0"
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 11.3"
+      eval_order: 80
+      overridable: false
+  quan_ly:
+    ap_giam:
+      expression: "q.loai in tham_so.quan_ly.loai_ap_giam"
+      result_type: BOOLEAN
+      legal_ref: "Đặc tả UEB 11.5"
+      eval_order: 110
+      overridable: false
+    muc_chat_luong_ap_dung:
+      expression: "math.least(ap_giam ? double(q.muc_chat_luong) : 1.0, q.can_khac_phuc ? tham_so.chat_luong.tran_khac_phuc : 1.0)"
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 3.5, 11.5"
+      eval_order: 120
+      overridable: false
+    so_luong_quan_ly:
+      expression: "q.tong_so_luong * (ap_giam ? double(q.ty_le_dat_chi_tieu) : 1.0)"
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 11.5: phần giảm số lượng theo tỷ lệ đạt chỉ tiêu"
+      eval_order: 130
+      overridable: false
+    chat_luong_quan_ly:
+      expression: "q.tong_chat_luong - (1.0 - muc_chat_luong_ap_dung) * q.tong_so_luong"
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 11.5: phần giảm chất lượng theo mức chất lượng của mục"
+      eval_order: 140
+      overridable: false
+    tien_do_quan_ly:
+      expression: "q.tong_tien_do - (ap_giam ? tham_so.tru_tien_do * double(q.ngay_cham_chu_quan) : 0.0) * q.tong_so_luong"
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 11.5: phần giảm tiến độ theo số ngày chậm chủ quan của mục"
+      eval_order: 150
+      overridable: false
+  ho_so:
+    giao_tt:
+      expression: "sum(muc_tinh.filter(m, m.nhom == 'THEN_CHOT').map(m, m.giao))"
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 11.4"
+      eval_order: 210
+      overridable: false
+    dat_tt:
+      expression: "sum(muc_tinh.filter(m, m.nhom == 'THEN_CHOT').map(m, (m.so_luong + m.chat_luong + m.tien_do) / 3.0))"
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 11.4"
+      eval_order: 220
+      overridable: false
+    giao_tx:
+      expression: "sum(muc_tinh.filter(m, m.nhom == 'THUONG_XUYEN').map(m, m.giao))"
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 11.4"
+      eval_order: 230
+      overridable: false
+    dat_tx:
+      expression: "sum(muc_tinh.filter(m, m.nhom == 'THUONG_XUYEN').map(m, (m.so_luong + m.chat_luong + m.tien_do) / 3.0))"
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 11.4"
+      eval_order: 240
+      overridable: false
+    kpi_tt:
+      expression: >-
+        giao_tt == 0.0 ? 0.0 :
+        (size(tham_so.ty_trong_truc) == 0 ? dat_tt / giao_tt :
+          sum(tham_so.ty_trong_truc.filter(t, muc_tinh.exists(m, m.nhom == 'THEN_CHOT' && m.truc == t && m.giao > 0.0)).map(t,
+            double(tham_so.ty_trong_truc[t]) * sum(muc_tinh.filter(m, m.nhom == 'THEN_CHOT' && m.truc == t).map(m, (m.so_luong + m.chat_luong + m.tien_do) / 3.0))
+            / sum(muc_tinh.filter(m, m.nhom == 'THEN_CHOT' && m.truc == t).map(m, m.giao))))
+          / sum(tham_so.ty_trong_truc.filter(t, muc_tinh.exists(m, m.nhom == 'THEN_CHOT' && m.truc == t && m.giao > 0.0)).map(t, double(tham_so.ty_trong_truc[t]))))
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 11.12 điểm b, c"
+      eval_order: 250
+      overridable: false
+    kpi_tx:
+      expression: "giao_tx == 0.0 ? 0.0 : dat_tx / giao_tx"
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 11.12 điểm b"
+      eval_order: 260
+      overridable: false
+    diem_toi_da_tt:
+      expression: >-
+        giao_tx == 0.0 ? 100.0 : (giao_tt == 0.0 ? 0.0 :
+          (doi_tuong in tham_so.goi_diem.theo_doi_tuong ? double(tham_so.goi_diem.theo_doi_tuong[doi_tuong]['THEN_CHOT'])
+            : double(tham_so.nhom.filter(g, g.ma == 'THEN_CHOT')[0].diem_toi_da)))
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 11.12 điểm b, d: người chỉ có việc ở một nhóm thì nhóm đó có điểm tối đa 100"
+      eval_order: 270
+      overridable: false
+    diem_toi_da_tx:
+      expression: "100.0 - diem_toi_da_tt"
+      result_type: DECIMAL
+      legal_ref: "Đặc tả UEB 11.12 điểm d"
+      eval_order: 280
+      overridable: false
+    tong_diem:
+      expression: >-
+        tham_so.thang_100.che_do == 'TY_LE_CO_HE_SO' ? 100.0 * (dat_tt + dat_tx) / (giao_tt + giao_tx)
+          : kpi_tt * diem_toi_da_tt + kpi_tx * diem_toi_da_tx
+      result_type: DECIMAL
+      rounding: {digits: 2, mode: NUA_LEN}       # 11.4: tổng điểm lưu 2 chữ số, làm tròn từ tổng chưa làm tròn (ca G7)
+      legal_ref: "Đặc tả UEB 11.4, 11.12 điểm b"
+      eval_order: 290
+      overridable: false
+    diem_xep_loai:
+      expression: "tong_diem"
+      result_type: DECIMAL
+      rounding: {digits: 1, mode: NUA_LEN}       # 18.5: làm tròn 2 chữ số rồi 1 chữ số
+      legal_ref: "Đặc tả UEB 18.5 bước 1"
+      eval_order: 300
+      overridable: false
+  xep_loai:
+    dat_ty_le_vuot:
+      expression: "tham_so.htxs.phep_so_sanh == 'LON_HON' ? ty_le_vuot > tham_so.htxs.nguong_ty_le_vuot : ty_le_vuot >= tham_so.htxs.nguong_ty_le_vuot"
+      result_type: BOOLEAN
+      legal_ref: "Đặc tả UEB 18.2: so trên tỷ lệ chưa làm tròn"
+      eval_order: 400
+      overridable: false
+
+rounding:
+  diem: {digits: 2, mode: NUA_LEN}   # tổng điểm; điểm xếp loại làm tròn tiếp 1 chữ số (diem_xep_loai)
+
+# ---------------------------------------------------------------------------
+# Xếp loại: chuỗi sáu bước (Đặc tả UEB 18.5), mỗi bước là một bảng DMN (PolicyClassificationStep)
+# ---------------------------------------------------------------------------
+classification:
+  thu_tu: [HTXSNV, HTTNV, HTNV, KHTNV]
+  bang_quyet_dinh:
+    - {table_key: tran_theo_diem,           dmn: dmn/tran-theo-diem-twd.dmn,           hit_policy: FIRST, legal_ref: "Đặc tả UEB 18.5 bước 1"}
+    - {table_key: tieu_chi_chung,           dmn: dmn/tieu-chi-chung-twd.dmn,           hit_policy: FIRST, legal_ref: "Đặc tả UEB 18.1; Phụ lục B.8"}
+    - {table_key: tran_theo_tieu_chi_chung, dmn: dmn/tran-theo-tieu-chi-chung-twd.dmn, hit_policy: FIRST, legal_ref: "Đặc tả UEB 18.5 bước 2"}
+    - {table_key: muc_thap_hon,             dmn: dmn/muc-thap-hon-twd.dmn,             hit_policy: FIRST, legal_ref: "Đặc tả UEB 18.5 bước 3"}
+    - {table_key: dieu_kien_xuat_sac,       dmn: dmn/dieu-kien-xuat-sac-twd.dmn,       hit_policy: FIRST, legal_ref: "Đặc tả UEB 18.5 bước 4; 18.2"}
+    - {table_key: dieu_kien_tot,            dmn: dmn/dieu-kien-tot-twd.dmn,            hit_policy: FIRST, legal_ref: "Đặc tả UEB 18.5 bước 4; 18.2"}
+    - {table_key: rang_buoc,                dmn: dmn/rang-buoc-twd.dmn,                hit_policy: FIRST, legal_ref: "Đặc tả UEB 18.5 bước 5, 6; 18.4"}
+  chuoi:                             # classification.chain[] của hợp đồng (stepNo, ruleCode, kind, tableKey, label)
+    - {buoc: 1, ma_quy_tac: TWD_XL_B1,  loai: DMN, table_key: tran_theo_diem,           ket_qua: tran_theo_diem,             nhan: "Trần theo điểm"}
+    - {buoc: 2, ma_quy_tac: TWD_XL_B2A, loai: DMN, table_key: tieu_chi_chung,           ket_qua: muc_tieu_chi_chung,         nhan: "Mức tiêu chí chung"}
+    - {buoc: 2, ma_quy_tac: TWD_XL_B2B, loai: DMN, table_key: tran_theo_tieu_chi_chung, ket_qua: tran_theo_tieu_chi_chung,   nhan: "Trần theo tiêu chí chung"}
+    - {buoc: 3, ma_quy_tac: TWD_XL_B3,  loai: DMN, table_key: muc_thap_hon,             ket_qua: muc_sau_buoc_3,             nhan: "Mức thấp hơn của hai trần"}
+    - buoc: 4
+      ma_quy_tac: TWD_XL_B4A
+      loai: DMN
+      table_key: dieu_kien_xuat_sac
+      ket_qua: muc_sau_dieu_kien_xuat_sac
+      nhan: "Sau điều kiện Xuất sắc"
+      tham_so: {chan_xuat_sac_khi_khong_co_trong_tam: xep_loai.chan_xuat_sac_khi_khong_co_trong_tam}
+      ly_do_thieu: {muc_xet: HTXSNV, ket_qua: dieu_kien_thieu_xuat_sac}
+    - {buoc: 4, ma_quy_tac: TWD_XL_B4B, loai: DMN, table_key: dieu_kien_tot,            ket_qua: muc_sau_dieu_kien_tot,      nhan: "Sau điều kiện Tốt"}
+    - {buoc: 5, ma_quy_tac: TWD_XL_B56, loai: DMN, table_key: rang_buoc,                ket_qua: muc_goi_y,                  nhan: "Mức gợi ý sau loại trừ và ràng buộc"}
+  nhan_hien_thi:
+    muc_xep_loai:
+      HTXSNV: Hoàn thành xuất sắc nhiệm vụ
+      HTTNV: Hoàn thành tốt nhiệm vụ
+      HTNV: Hoàn thành nhiệm vụ
+      KHTNV: Không hoàn thành nhiệm vụ
+    muc_tieu_chi_chung:
+      THUC_HIEN_TOT: Thực hiện tốt
+      DAM_BAO: Đảm bảo
+      CO_BAN_DAM_BAO: Cơ bản đảm bảo
+      KHONG_DAM_BAO: Không đảm bảo
+    nhan_co_dinh: "Thí điểm – dùng để đối chiếu, không thay kết quả do cấp có thẩm quyền quyết định theo cách làm hiện hành"
+  dieu_kien:                         # nhãn ghép lý do thiếu điều kiện Xuất sắc, theo thứ tự đầu vào của bảng
+    co_viec_trong_tam:         {nhan: "không được giao việc trọng tâm", legal_ref: "Đặc tả UEB 18.2"}
+    hoan_thanh_100_trong_tam:  {nhan: "chưa hoàn thành 100% trọng tâm", legal_ref: "Đặc tả UEB 18.2"}
+    dat_ty_le_vuot:            {nhan: "nhiệm vụ, công việc vượt dưới {nguong}", legal_ref: "Đặc tả UEB 18.2"}
+    giai_phap_dot_pha:         {nhan: "chưa có giải pháp đột phá được công nhận", legal_ref: "Đặc tả UEB 18.2"}
+    truot_trong_tam_chu_quan:  {nhan: "có nhiệm vụ trọng tâm không hoàn thành do chủ quan", legal_ref: "Đặc tả UEB 18.2"}
+    chan_xuat_sac_khi_khong_co_trong_tam: {nhan: "đối tượng không có việc trọng tâm", legal_ref: "Đặc tả UEB 18.2"}
+  mau_cau:
+    thieu_xuat_sac: "Thiếu điều kiện Xuất sắc: {dieu_kien_thieu}. Bộ quy định đánh giá {phien_ban}."
+    ha_muc_tot: "Không đủ điều kiện mức Tốt: có nhiệm vụ trọng tâm không hoàn thành do chủ quan (hạ một mức). Bộ quy định đánh giá {phien_ban}."
+    quy_khong_hoan_thanh: "Có quý xếp loại Không hoàn thành nhiệm vụ nên không xếp mức Hoàn thành xuất sắc nhiệm vụ cả năm. Bộ quy định đánh giá {phien_ban}."
+  nam:
+    cach_tinh: nam.cach_dung_quy_truoc
+
+inputs_nam:
+  quy_tren_phan_mem: {type: "list<KetQuaKy>",       source: appraisal.aggregate.period_results}
+  quy_truoc:         {type: "list<KetQuaQuyTruoc>", source: appraisal.prior_quarter_input}
+definitions_nam:
+  nam:
+    tong_diem_nam:
+      expression: >-
+        tham_so.nam.cach_dung_quy_truoc == 'CONG_QUY_TRUOC'
+          ? 100.0 * (sum(quy_tren_phan_mem.map(k, k.dat)) + sum(quy_truoc.map(k, k.giao * k.ty_le_dat)))
+              / (sum(quy_tren_phan_mem.map(k, k.giao)) + sum(quy_truoc.map(k, k.giao)))
+          : 100.0 * sum(quy_tren_phan_mem.map(k, k.dat)) / sum(quy_tren_phan_mem.map(k, k.giao))
+      result_type: DECIMAL
+      rounding: {digits: 2, mode: NUA_LEN}
+      legal_ref: "Đặc tả UEB 11.4 đoạn Điểm năm; 13.44"
+      eval_order: 500
+      overridable: false
+
+quotas: {}                           # Phụ lục B.8: không áp hạn mức tỷ lệ Xuất sắc
+
+tests:
+  bo_ca_mau: tests/bo-ca-mau-twd.yaml
+  nguoi_ky: "Ban Tổ chức"
+  yeu_cau_dat: 1.0

@@ -45,6 +45,14 @@ public interface PolicyPackRepository {
   /** Chèn phiên bản; số phiên bản đã có trong gói trả {@code false}. */
   boolean insertVersion(TenantId tenant, PolicyPackVersion version);
 
+  /**
+   * Ghi bản sao tham số luồng duyệt vào {@code manifest.workflow_bindings.<processKind>} của phiên
+   * bản còn {@code NHAP}, để {@code content_hash} phủ cả tham số luồng (CORE-05-11); phiên bản đã
+   * rời {@code NHAP} trả {@code false}. Không tăng {@code row_version}, như khi lưu quy tắc.
+   */
+  boolean storeWorkflowBinding(
+      TenantId tenant, UUID versionId, String processKind, String bindingJson, UUID actor);
+
   /** Ghi trạng thái mới nếu {@code row_version} còn bằng {@code expected}. */
   boolean storeStatus(TenantId tenant, PolicyPackVersion version, long expected);
 
