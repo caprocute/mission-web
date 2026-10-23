@@ -12,10 +12,10 @@
 
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
-- **Tổng tiến độ đã gộp `main`**: **359 / 408 task (88.0%)** — Khối lượng quy đổi đã gộp: **426 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **359 / 408 task (88.0%)** (gồm **359** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **7 task** (5 đang làm, 2 làm một phần).
-- **Chưa bắt đầu**: **42 task**.
+- **Tổng tiến độ đã gộp `main`**: **360 / 408 task (88.2%)** — Khối lượng quy đổi đã gộp: **426.5 / 492.5 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **360 / 408 task (88.2%)** (gồm **360** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **8 task** (6 đang làm, 2 làm một phần).
+- **Chưa bắt đầu**: **40 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -28,11 +28,11 @@
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **104** | 0 | 0 | 0 | **100.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **13** | 0 | 0 | 0 | **100.0%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 3 | 9 | **57.1%** |
-| **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 2 | 14 | **0.0%** |
+| **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **1** | 0 | 3 | 12 | **6.2%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **359** | **0** | **7** | **42** | **88.0%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **360** | **0** | **8** | **40** | **88.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -43,7 +43,7 @@
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **119** | 0 | 1 | 0 | **99.2%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
-| **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **16** | 0 | 6 | 20 | **38.1%** |
+| **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **17** | 0 | 7 | 18 | **40.5%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **4** | 0 | 0 | 19 | **17.4%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **1** | 0 | 0 | 3 | **25.0%** |
 
@@ -567,7 +567,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [INF-19](docs/tasks/INF-19-bao-mat-nen-tang.md) | Bảo mật nền: Falco, nhật ký kiểm toán API Kubernetes và luồng `sys.audit.v1` tới SIEM, Pod Security, chính sách egress | M | B8 | 3 | INF-09 | **Chưa bắt đầu** |  |
 | [INF-20](docs/tasks/INF-20-vung-dieu-phoi-toan-cuc.md) | Vùng điều phối toàn cục: cụm quản trị, PostgreSQL toàn cục, GeoDNS PowerDNS, `dns-sync`, CDN tài nguyên tĩnh | L | B8 | 4 | INF-04 | **Chưa bắt đầu** |  |
 | [INF-21](docs/tasks/INF-21-moi-truong-phi-san-xuat.md) | Môi trường phi sản xuất: staging, CELL-PERF, cụm sinh tải, môi trường tạm theo nhánh cho E2E | M | B8 | 4 | INF-04 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần tài nguyên hạ tầng |
-| [INF-22](docs/tasks/INF-22-backend-tren-server-dev.md) | Triển khai backend lên server dev bằng Docker Compose (profile backend, cổng 35xxx) để kiểm thử tích hợp thật | M | B8 | 10 | CORE-00-01, NEN-020 | **Đang làm** | Nhánh claude/b8-ha-tang-g7g48k: listener Kafka TUNNEL qua hầm SSH, script sync-server.sh đồng bộ infra/dev lên máy chủ; còn profile backend, APISIX theo module, smoke |
+| [INF-22](docs/tasks/INF-22-backend-tren-server-dev.md) | Triển khai backend lên server dev bằng Docker Compose (profile backend, cổng 35xxx) để kiểm thử tích hợp thật | M | B8 | 10 | CORE-00-01, NEN-020 | **Đang làm** | Giao sau bản phát hành 64952ef6 |
 | [INF-23](docs/tasks/INF-23-goi-cai-cach-ly.md) | Gói cài cách ly LTS: đóng gói Helm ngoại tuyến, Harbor nội bộ, kiểm chữ ký | L | B8 | 5 | INF-02, INF-07 | **Chưa bắt đầu** |  |
 | [INF-24](docs/tasks/INF-24-audit-archiver.md) | Dịch vụ `audit-archiver`: chuyển nhật ký kiểm toán sang kho lưu trữ bất biến theo thời hạn lưu giữ | M | B8 | 4 | INF-12, INF-19 | **Đang làm** | Giao sau bản phát hành 64952ef6 |
 | [INF-25](docs/tasks/INF-25-bo-dieu-khien-suy-giam.md) | Bộ điều khiển suy giảm ba mức khi quá tải (tắt tính năng phụ, cắt tải theo ưu tiên) | M | B8 | 4 | DV-01-02, INF-15 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
@@ -575,12 +575,12 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [INF-27](docs/tasks/INF-27-quan-ly-truy-cap-dac-quyen.md) | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | B8 | 3 | INF-13 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần giải pháp PAM |
 | [INF-28](docs/tasks/INF-28-cum-cho-am-ttdl-hai.md) | Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite | L | B8 | 9 | INF-11, INF-18, INF-20, INF-04, INF-08, INF-09, INF-17 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần TTDL thứ hai |
 
-### QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng (0/16 đã gộp `main`, 0 chờ gộp, 2 đang làm)
+### QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng (1/16 đã gộp `main`, 0 chờ gộp, 3 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
-| [QA-01](docs/tasks/QA-01-chien-luoc-kiem-thu.md) | Chiến lược kiểm thử toàn hệ thống và danh mục khoảng 40 hành trình đầu cuối | S | B9 | 1 | – | **Đang làm** | Giao sau bản phát hành 64952ef6 |
-| [QA-02](docs/tasks/QA-02-pact-hop-dong.md) | Pact Broker và kiểm thử hợp đồng frontend với API, service với service | M | B9 | 4 | NEN-006, INF-05 | **Chưa bắt đầu** |  |
+| [QA-01](docs/tasks/QA-01-chien-luoc-kiem-thu.md) | Chiến lược kiểm thử toàn hệ thống và danh mục khoảng 40 hành trình đầu cuối | S | B9 | 1 | – | **Đã gộp main** | Gộp 0fb85523 |
+| [QA-02](docs/tasks/QA-02-pact-hop-dong.md) | Pact Broker và kiểm thử hợp đồng frontend với API, service với service | M | B9 | 4 | NEN-006, INF-05 | **Đang làm** | Giao B9; Pact bằng tệp, không dùng Broker (quyết định main) |
 | [QA-03](docs/tasks/QA-03-e2e-he-thong-that.md) | Bộ kiểm thử đầu cuối với hệ thống thật trên server dev (backend thật, Keycloak, APISIX) | M | B9 | 11 | INF-22, QA-01 | **Đang làm** | Giao sau bản phát hành 64952ef6 |
 | [QA-04](docs/tasks/QA-04-hanh-trinh-okr.md) | Hành trình đầu cuối: đăng nhập, khởi tạo tenant, tổ chức, OKR, check-in | M | B9 | 14 | QA-03, CORE-01-08, DV-03-05 | **Chưa bắt đầu** |  |
 | [QA-05](docs/tasks/QA-05-hanh-trinh-giao-viec.md) | Hành trình đầu cuối: kế hoạch, giao việc, tiến độ, minh chứng, nghiệm thu | L | B9 | 20 | QA-03, CORE-03-07, CORE-02-22 | **Chưa bắt đầu** |  |
@@ -591,7 +591,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [QA-10](docs/tasks/QA-10-chi-phi-bao-ve-g3.md) | Kịch bản góp ý G3: PERF-14..PERF-18, PERF-25 | M | B9 | 15 | QA-08, NEN-015 | **Chưa bắt đầu** |  |
 | [QA-11](docs/tasks/QA-11-lo-frontend-sse-ai.md) | Kịch bản PERF-19..PERF-24, PERF-26 | M | B9 | 15 | QA-08 | **Chưa bắt đầu** |  |
 | [QA-12](docs/tasks/QA-12-chien-dich-cell-perf.md) | Chiến dịch thử tải trên CELL-PERF và hiệu chuẩn bảng định cỡ theo hồ sơ cell | L | B9 | 16 | QA-09, QA-10, QA-11, INF-21 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần CELL-PERF |
-| [QA-13](docs/tasks/QA-13-asvs-zap.md) | Kiểm thử ATTT: OWASP ASVS 4.0.3 mức 2 (L3 cho xác thực, phiên, mật mã) và OWASP ZAP toàn hệ thống | L | B9 | 12 | QA-03 | **Chưa bắt đầu** |  |
+| [QA-13](docs/tasks/QA-13-asvs-zap.md) | Kiểm thử ATTT: OWASP ASVS 4.0.3 mức 2 (L3 cho xác thực, phiên, mật mã) và OWASP ZAP toàn hệ thống | L | B9 | 12 | QA-03 | **Đang làm** | Giao B4 |
 | [QA-14](docs/tasks/QA-14-thu-hong-dr-01-09.md) | Thử hỏng PERF-07 và diễn tập khôi phục DR-01..DR-09 | L | B9 | 15 | INF-17, QA-08 | **Chưa bắt đầu** |  |
 | [QA-15](docs/tasks/QA-15-dr-chuyen-vung.md) | Diễn tập khôi phục DR-10..DR-16, chuyển vùng giữa hai trung tâm dữ liệu | L | B9 | 16 | QA-14, INF-18, INF-20 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần TTDL thứ hai |
 | [QA-16](docs/tasks/QA-16-uat-tenant-thi-diem.md) | Kiểm thử chấp nhận nghiệp vụ: tenant thí điểm chạy trọn một kỳ đánh giá | L | B9 | 24 | QA-07 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần tenant và người dùng thật |
@@ -1001,5 +1001,9 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 08:50 | Điều phối (main) | `WEB-020`, `CORE-02-16`, `CORE-03-08`, `CORE-06-08`, `CORE-07-09`, `DV-01-01`, `DV-01-02`, `DV-01-03`, `DV-01-04`, `DV-02-04`, `DV-06-09`, `DV-06-10`, `DV-06-11`, `DV-06-12`, `DV-10-03`, `DV-10-04`, `DV-10-05`, `DV-10-06`, `DV-13-04`, `DV-13-07`, `DV-13-09`, `DV-13-10`, `DV-13-11`, `DV-15-11`, `CORE-05-11`, `DV-09-02` | Chuyển trạng thái sang **Đã gộp main** — Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
 | 23/10/2026 08:50 | Điều phối (main) | `WEB-070`, `WEB-071`, `WEB-072` | Chuyển trạng thái sang **Đã gộp main** — Đợt gộp 11; còn ngoại lệ: chạy với backend thật chờ QA-03 |
 | 23/10/2026 10:52 | Điều phối (main) | `INF-22`, `QA-01`, `QA-03`, `INF-24`, `INF-26` | Chuyển trạng thái sang **Đang làm** — Giao sau bản phát hành 64952ef6 |
-| 23/10/2026 10:58 | Luồng B8 hạ tầng | `INF-22` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b8-ha-tang-g7g48k: listener Kafka TUNNEL qua hầm SSH, script sync-server.sh đồng bộ infra/dev lên máy chủ; còn profile backend, APISIX theo module, smoke |
+| 23/10/2026 10:53 | B4 | `QA-01` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-uusb7v: đang thực hiện |
+| 23/10/2026 11:00 | B4 | `QA-01` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: chiến lược kiểm thử trong wiki 11, danh mục 42 hành trình (38 web, 4 di động) đã kiểm khớp hợp đồng |
+| 23/10/2026 11:02 | Điều phối (main) | `QA-01` | Chuyển trạng thái sang **Đã gộp main** — Gộp 0fb85523 |
+| 23/10/2026 11:02 | Điều phối (main) | `QA-13` | Chuyển trạng thái sang **Đang làm** — Giao B4 |
+| 23/10/2026 11:03 | Điều phối (main) | `QA-02` | Chuyển trạng thái sang **Đang làm** — Giao B9; Pact bằng tệp, không dùng Broker (quyết định main) |
 <!-- PROGRESS_LOG_END -->
