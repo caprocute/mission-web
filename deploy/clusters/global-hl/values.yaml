@@ -1,0 +1,24 @@
+# Vùng điều phối toàn cục tại Hoà Lạc (INF-20; TL-04 mục 2.6, TL-05). Tách khỏi cụm quản trị từ QM-3: 3 × VM-16-64 ở
+# QM-3, 4 × VM-24-96 ở QM-4, 7 × VM-24-96 ở QM-5 (đổi perZone và flavor). Chạy chủ động cùng global-sn (NFR-04 99,95%).
+# Chứa SVC-03, APISIX lớp ngoài, PowerDNS và dns-sync, pg-registry, origin CDN, kho gốc Policy Pack và UI Pack.
+# Pool dữ liệu nhỏ cho pg-registry (ba instance, mỗi vùng một máy) để CSDL không tranh tài nguyên với ứng dụng.
+clusterName: global-hl
+cell: global
+namespace: capi-global
+zones: [hl-a, hl-b, hl-c]
+racks: { hl-a: hl-a-r01, hl-b: hl-b-r01, hl-c: hl-c-r01 }
+controlPlane:
+  replicas: 3
+pools:
+  app-general:
+    enabled: true
+    perZone: [1, 1, 1]
+    capacity: { cpu: "16", memory: 64Gi }
+    labels: { vt.io/pool: app-general, vt.io/vai-tro: global }
+  data-postgres-small:
+    enabled: true
+    perZone: [1, 1, 1]
+    labels: { vt.io/pool: postgres, vt.io/pg-size: small }
+    taint: { key: vt.io/pool, value: postgres, effect: NoSchedule }
+clusterAutoscaler:
+  enabled: false

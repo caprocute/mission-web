@@ -1,5 +1,5 @@
 # APISIX lớp ngoài của vùng điều phối toàn cục, production (DV-01-04). Ba vùng sẵn sàng ở hai TTDL (TL-04 mục 2):
-# GeoDNS trả VIP đang khoẻ của app.danhgia.vn; bản ghi và kiểm tra sức khoẻ thuộc task INF của vùng toàn cục.
+# GeoDNS trả VIP đang khoẻ của app.danhgia.vn theo kiểm tra /healthz/edge (INF-20, chart global-dns, edge-health).
 # Digest ảnh do pipeline ghi (SEC-55); khoá HMAC và bí mật client chỉ nằm trong OpenBao.
 commonHosts: ["app.danhgia.vn"]
 apisix:
@@ -18,3 +18,16 @@ routingCookie:
 externalSecrets:
   enabled: true
   secretStoreRef: { kind: ClusterSecretStore, name: openbao-global }
+# Đường quản trị SVC-03 (giữ như mặc định của chart) và /healthz/edge cho GeoDNS (INF-20): PowerDNS kiểm
+# https://app.danhgia.vn/healthz/edge trên từng VIP, edge-health trả OK khi SVC-03 và pg-registry ở TTDL này khoẻ.
+globalRoutes:
+  - name: registry
+    paths: ["/api/v1/registry*", "/api/v1/config/tenants*", "/api/v1/jobs*"]
+    service: tenant-registry
+    namespace: global
+    port: 8080
+  - name: healthz-edge
+    paths: ["/healthz/edge"]
+    service: edge-health
+    namespace: edge
+    port: 8080

@@ -5,6 +5,7 @@ release-manager được sync, kể cả sync tay trong cửa sổ đóng băng 
 */ -}}
 {{- $v := .Values }}
 {{- range $goc, $p := $v.projects }}
+{{- if or (ne $goc $v.toanCuc.project) $v.toanCuc.enabled }}
 {{- $ten := printf "%s%s" $goc $v.projectSuffix }}
 ---
 apiVersion: argoproj.io/v1alpha1
@@ -52,4 +53,5 @@ spec:
       timeZone: {{ default "Asia/Ho_Chi_Minh" .timeZone }}
     {{- end }}
   {{- end }}
+{{- end }}
 {{- end }}

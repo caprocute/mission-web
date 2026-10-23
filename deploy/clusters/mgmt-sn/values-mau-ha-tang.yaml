@@ -1,0 +1,13 @@
+# MẪU thông số hạ tầng (không phải giá trị thật) để render và kiểm schema khi chưa được cấp Viettel Cloud.
+infrastructure:
+  cloudName: viettel-cloud-mau
+  identitySecret: mgmt-sn-cloud-config
+  externalNetwork: public-mau
+  nodeCIDR: 10.30.0.0/22
+  image: ubuntu-2404-kube-v1.36.0
+  sshKeyName: ""
+controlPlane:
+  flavor: vm.8c32g
+pools:
+  app-general: { flavor: vm.16c64g }
+  data-postgres-small: { flavor: bm.32c128g-2nvme }

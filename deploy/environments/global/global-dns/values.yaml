@@ -1,0 +1,5 @@
+# GeoDNS production (INF-20). VIP thật của app.danhgia.vn và của điểm vào từng cell khai ở đây khi được cấp; giá trị
+# trong chart là dải tài liệu (RFC 5737). Danh sách cell phải khớp registry.cell của SVC-03.
+zone: danhgia.vn
+# Cùng giá trị primarySite với global-pg/values.yaml, đổi trong cùng một commit.
+primarySite: hl

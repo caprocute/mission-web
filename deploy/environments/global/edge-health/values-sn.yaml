@@ -1,0 +1,2 @@
+# TTDL phía Nam: kiểm primary của pg-registry-sn.
+pg: { namespace: registry-db, name: pg-registry-sn }
