@@ -1,0 +1,25 @@
+{
+  "type": "record",
+  "name": "MucTieuDaDuyet",
+  "namespace": "vn.vtokr.okr.v1",
+  "doc": "EVT-01 · okr.objective.approved.v1 · MOD-01 phát khi mục tiêu được phê duyệt (TL-03 danh mục lược đồ).",
+  "fields": [
+    {"name": "objectiveId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "okr.objective.id"},
+    {"name": "periodId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Kỳ đánh giá, config.period.id"},
+    {"name": "level", "type": "int", "doc": "(suy luận) Tầng của mục tiêu, okr.objective.tier (1 đến 3)"},
+    {"name": "ownerUnitId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Đơn vị sở hữu mục tiêu, okr.objective.owner_unit_id"},
+    {"name": "parentObjectiveId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null, "doc": "Mục tiêu cấp trên khi phân rã"},
+    {"name": "basisIds", "type": {"type": "array", "items": {"type": "string", "logicalType": "uuid"}}, "default": [], "doc": "Các căn cứ của mục tiêu (okr.objective_basis.basis_id)"},
+    {"name": "approvedBy", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Người phê duyệt"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."},
+    {"name": "aiContent", "type": {"type": "array", "items": {
+      "type": "record", "name": "NoiDungAi", "doc": "(suy luận, CORE-01-13) Dấu vết nội dung chèn từ gợi ý AI của mục tiêu (okr.ai_content_trace), chỉ mã và tên trường, không có nội dung.",
+      "fields": [
+        {"name": "suggestionId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Gợi ý đã dùng (ai.suggestion_log.id)"},
+        {"name": "keyResultId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null, "doc": "KR khi dấu vết thuộc KR, rỗng khi thuộc mục tiêu"},
+        {"name": "contentSource", "type": "string", "doc": "AI_ACCEPTED hoặc AI_EDITED"},
+        {"name": "keptFields", "type": {"type": "array", "items": "string"}, "default": [], "doc": "Trường giữ nguyên so với gợi ý"},
+        {"name": "editedFields", "type": {"type": "array", "items": "string"}, "default": [], "doc": "Trường đã sửa so với gợi ý"}
+      ]}}, "default": [], "doc": "(suy luận, CORE-01-13) Dấu vết nội dung AI để SVC-09 ghi sổ cái (BR-17-08, BR-17-09); rỗng khi mục tiêu không có nội dung AI."}
+  ]
+}

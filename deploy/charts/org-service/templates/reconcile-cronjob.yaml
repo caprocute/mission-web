@@ -1,0 +1,99 @@
+{{- /*
+DL-12 · TL-03 "Đối soát và kiểm tra nhất quán", job R1 bản sao tổ chức: hằng đêm, với mỗi tenant của cell,
+chạy org-republish --hashes-only để phát BAT_DAU và KET_THUC (số thực thể, băm 256 bucket) lên
+org.bootstrap.v1, không phát thực thể. mission-core so băm bucket của org_replica với KET_THUC, ghi
+org_replica.reconcile_run và chỉ ra bucket cần phát lại (ops/runbooks/doi-soat-ban-sao-to-chuc.md).
+Tắt mặc định; values.yaml chưa khai khoá reconcile nên mọi giá trị có mặc định ở đây:
+  reconcile.enabled, reconcile.schedule (mặc định 01:00), reconcile.timeZone, reconcile.tenants (danh sách UUID),
+  reconcile.operator, reconcile.activeDeadlineSeconds.
+Kafka, registry, Secret dùng chung khoá republish.*.
+*/ -}}
+{{- $rc := .Values.reconcile | default dict -}}
+{{- if $rc.enabled }}
+{{- range $i, $tenant := required "reconcile.tenants là bắt buộc khi reconcile.enabled=true" $rc.tenants }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "org-service.fullname" $ }}-doi-soat-r1-{{ $i }}
+  namespace: {{ include "org-service.namespace" $ }}
+  labels:
+    {{- include "org-service.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: reconcile
+  annotations:
+    mission.vn/tenant: {{ $tenant | quote }}
+spec:
+  schedule: {{ $rc.schedule | default "0 1 * * *" | quote }}
+  timeZone: {{ $rc.timeZone | default "Asia/Ho_Chi_Minh" | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: {{ $rc.activeDeadlineSeconds | default 1800 }}
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            {{- include "org-service.selector" $ | nindent 12 }}
+            app.kubernetes.io/component: reconcile
+        spec:
+          restartPolicy: Never
+          serviceAccountName: {{ include "org-service.serviceAccount" $ }}
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: reconcile
+              image: {{ include "org-service.image" $ | quote }}
+              imagePullPolicy: {{ $.Values.image.pullPolicy }}
+              securityContext:
+                {{- include "org-service.securityContext" $ | nindent 16 }}
+              args:
+                - --tenant={{ $tenant }}
+                - --hashes-only
+                - --operator={{ $rc.operator | default "doi-soat-r1" }}
+              env:
+                - name: SPRING_PROFILES_ACTIVE
+                  value: republish
+                - name: ORG_DB_URL
+                  value: {{ $.Values.database.url | quote }}
+                - name: ORG_DB_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $.Values.database.appSecret }}
+                      key: username
+                - name: ORG_DB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $.Values.database.appSecret }}
+                      key: password
+                - name: KAFKA_BOOTSTRAP_SERVERS
+                  value: {{ $.Values.republish.kafkaBootstrapServers | quote }}
+                - name: APICURIO_REGISTRY_URL
+                  value: {{ $.Values.republish.registryUrl | quote }}
+                - name: JAVA_TOOL_OPTIONS
+                  value: {{ $.Values.jvm.opts | quote }}
+              {{- with $.Values.republish.kafkaClientSecret }}
+              envFrom:
+                - secretRef:
+                    name: {{ . }}
+              {{- end }}
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+                limits:
+                  memory: 768Mi
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir:
+                sizeLimit: 64Mi
+{{- end }}
+{{- end }}

@@ -111,6 +111,22 @@ public class JdbcScoringInputRepository implements ScoringInputRepository {
   }
 
   @Override
+  public Optional<ProfileKey> profileKey(TenantId tenant, UUID profileId) {
+    return jdbc.sql(
+            "SELECT id, person_id, period_id, policy_pack_version_id"
+                + " FROM appraisal.appraisal_profile WHERE tenant_id = ? AND id = ?")
+        .params(tenant.value(), profileId)
+        .query(
+            (rs, i) ->
+                new ProfileKey(
+                    rs.getObject(1, UUID.class),
+                    rs.getObject(2, UUID.class),
+                    rs.getObject(3, UUID.class),
+                    rs.getObject(4, UUID.class)))
+        .optional();
+  }
+
+  @Override
   public boolean claim(TenantId tenant, String consumer, UUID eventId, String source) {
     return jdbc.sql(
                 "INSERT INTO appraisal.inbox_processed (event_id, consumer, tenant_id, source_topic,"

@@ -16,6 +16,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.RestClient;
+import vn.viettel.okrkpi.evidence.application.E2eeFileAccess;
 import vn.viettel.okrkpi.evidence.application.FileAccessGuard;
 import vn.viettel.okrkpi.evidence.application.FileEvents;
 import vn.viettel.okrkpi.evidence.application.FileNameCipher;
@@ -37,6 +38,7 @@ import vn.viettel.okrkpi.evidence.application.UploadService;
 import vn.viettel.okrkpi.evidence.application.UploadSessions;
 import vn.viettel.okrkpi.evidence.infrastructure.crypto.FieldEncryptorFileNameCipher;
 import vn.viettel.okrkpi.evidence.infrastructure.crypto.FieldEncryptorOcrTextCipher;
+import vn.viettel.okrkpi.evidence.infrastructure.e2ee.MissionCoreE2eeFileAccess;
 import vn.viettel.okrkpi.evidence.infrastructure.events.OutboxFileEvents;
 import vn.viettel.okrkpi.evidence.infrastructure.events.OutboxScanEvents;
 import vn.viettel.okrkpi.evidence.infrastructure.ocr.HttpOcrGateway;
@@ -100,6 +102,7 @@ public class EvidenceConfiguration {
       FileAccessGuard guard,
       PlatformTransactionManager transactions,
       ObjectProvider<Clock> clock,
+      ObjectProvider<E2eeFileAccess> e2eeAccess,
       @Value("${okrkpi.evidence.storage.cell}") String cell,
       @Value("${okrkpi.evidence.upload.max-file-bytes:52428800}") long maxFileBytes,
       @Value("${okrkpi.evidence.upload.part-size:8388608}") int partSize,
@@ -115,7 +118,30 @@ public class EvidenceConfiguration {
         guard,
         new TransactionTemplate(transactions),
         new UploadService.Settings(cell, maxFileBytes, partSize, sessionTtl, lockDays),
-        clock.getIfAvailable(Clock::systemUTC));
+        clock.getIfAvailable(Clock::systemUTC),
+        e2eeAccess.getIfAvailable());
+  }
+
+  /**
+   * CORE-07-06: hỏi MOD-03 người gọi còn giữ bản bọc của tệp C3 trước khi cấp URL tải bản mã. Không
+   * khai {@code okrkpi.evidence.e2ee-access.base-url} thì chỉ người tải lên mở được bản mã.
+   */
+  @Bean
+  @ConditionalOnProperty(prefix = "okrkpi.evidence.e2ee-access", name = "base-url")
+  E2eeFileAccess e2eeFileAccess(
+      ObjectProvider<Clock> clock,
+      @Value("${okrkpi.evidence.e2ee-access.base-url}") String baseUrl,
+      @Value("${okrkpi.evidence.e2ee-access.token-url}") String tokenUrl,
+      @Value("${okrkpi.evidence.e2ee-access.client-id:evidence-service}") String clientId,
+      @Value("${okrkpi.evidence.e2ee-access.client-secret:}") String clientSecret) {
+    return new MissionCoreE2eeFileAccess(
+        RestClient.builder().baseUrl(baseUrl).build(),
+        new MissionCoreE2eeFileAccess.Token(
+            RestClient.create(),
+            tokenUrl,
+            clientId,
+            clientSecret,
+            clock.getIfAvailable(Clock::systemUTC)));
   }
 
   @Bean

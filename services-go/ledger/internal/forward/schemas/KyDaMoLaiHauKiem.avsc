@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "KyDaMoLaiHauKiem",
+  "namespace": "vn.vtokr.oversight.v1",
+  "doc": "EVT-22 · oversight.period.reopened.v1 · MOD-07 phát khi kỳ được mở lại hậu kiểm (bốn mắt).",
+  "fields": [
+    {"name": "periodId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "config.period.id"},
+    {"name": "reopenRequestId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "oversight.reopen_request.id"},
+    {"name": "scope", "type": "string", "doc": "Phạm vi: TOAN_KY, DON_VI, HO_SO"},
+    {"name": "scopeIds", "type": {"type": "array", "items": {"type": "string", "logicalType": "uuid"}}, "default": [], "doc": "Đơn vị hoặc hồ sơ trong phạm vi; rỗng khi TOAN_KY"},
+    {"name": "approverIds", "type": {"type": "array", "items": {"type": "string", "logicalType": "uuid"}}, "doc": "Những người phê duyệt"},
+    {"name": "executedAt", "type": {"type": "long", "logicalType": "timestamp-micros"}, "doc": "Thời điểm kỳ chuyển MO_LAI_HAU_KIEM"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}

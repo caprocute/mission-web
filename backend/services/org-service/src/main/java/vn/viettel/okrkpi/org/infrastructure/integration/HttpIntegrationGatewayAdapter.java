@@ -42,15 +42,25 @@ public class HttpIntegrationGatewayAdapter implements IntegrationGatewayPort {
 
   @Override
   public void mapXref(UUID tenantId, String connector, String externalId, UUID personId) {
+    putXref(tenantId, connector, externalId, "PERSON", personId, "Mã ở nguồn đã được ánh xạ tới cán bộ khác.");
+  }
+
+  @Override
+  public void mapUnitXref(UUID tenantId, String connector, String externalId, UUID unitId) {
+    putXref(tenantId, connector, externalId, "ORG_UNIT", unitId, "Mã đơn vị trên CSDL CBCCVC đã gắn với đơn vị khác.");
+  }
+
+  private void putXref(UUID tenantId, String connector, String externalId, String type, UUID internalId,
+      String conflict) {
     require();
     try {
       http.put().uri("/internal/v1/integ/mapping-xref").contentType(MediaType.APPLICATION_JSON)
           .body(Map.of("tenantId", tenantId, "connector", connector, "externalId", externalId,
-              "internalType", "PERSON", "internalId", personId))
+              "internalType", type, "internalId", internalId))
           .retrieve().toBodilessEntity();
     } catch (HttpClientErrorException e) {
       if (e.getStatusCode() == HttpStatus.CONFLICT) {
-        throw new OrgConflictException("ORG-409-XREF-EXISTS", "Mã ở nguồn đã được ánh xạ tới cán bộ khác.");
+        throw new OrgConflictException("ORG-409-XREF-EXISTS", conflict);
       }
       throw unavailable(e);
     } catch (RestClientException e) {

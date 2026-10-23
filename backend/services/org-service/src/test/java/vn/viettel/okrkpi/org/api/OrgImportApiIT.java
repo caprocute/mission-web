@@ -87,6 +87,13 @@ class OrgImportApiIT extends IntegrationTestBase {
     return r;
   }
 
+  private JsonNode report(JsonNode job) throws Exception {
+    MvcResult r = mvc.perform(get(job.get("resultLocation").asText()).header(HttpHeaders.AUTHORIZATION, token()))
+        .andExpect(status().isOk()).andReturn();
+    assertThat(ContractValidator.validate(r).getMessages()).isEmpty();
+    return json.readTree(r.getResponse().getContentAsString());
+  }
+
   private JsonNode waitJob(String location) throws Exception {
     long deadline = System.nanoTime() + Duration.ofSeconds(120).toNanos();
     while (true) {
@@ -173,11 +180,18 @@ class OrgImportApiIT extends IntegrationTestBase {
         .andExpect(status().isAccepted()).andReturn().getResponse().getHeader(HttpHeaders.LOCATION);
     JsonNode job = waitJob(location);
     assertThat(job.get("status").asText()).isEqualTo("THAT_BAI");
+    assertThat(job.at("/problem/code").asText()).isEqualTo("ORG-422-IMPORT-INVALID");
+    assertThat(job.at("/problem/errors")).isEmpty();
+    String jobId = location.substring(location.lastIndexOf('/') + 1);
+    assertThat(job.get("resultLocation").asText()).isEqualTo("/api/v1/org/imports/" + jobId + "/report");
+    JsonNode report = report(job);
+    assertThat(report.get("status").asText()).isEqualTo("THAT_BAI");
+    assertThat(report.get("totalRows").asInt()).isEqualTo(8);
     List<String> fields = new ArrayList<>();
-    job.at("/problem/errors").forEach(e -> fields.add(e.get("field").asText()));
+    report.get("errors").forEach(e -> fields.add("rows." + e.get("row").asInt() + "." + e.get("field").asText()));
     assertThat(fields).contains("rows.5.code", "rows.7.subjectGroup", "rows.8.unitType", "rows.8.validFrom",
         "rows.9.code");
-    assertThat(job.at("/problem/errors/0/message").asText()).startsWith("Dòng ");
+    assertThat(report.at("/errors/0/message").asText()).startsWith("Dòng ");
     assertThat(units()).isEqualTo(1);
 
     // Sửa lỗi theo từng dòng thì lỗi cấp trên và vòng lặp mới hiện (bước kiểm thứ hai).
@@ -189,7 +203,7 @@ class OrgImportApiIT extends IntegrationTestBase {
     JsonNode job2 = waitJob(upload(XlsxFixture.of(second), UUID.randomUUID().toString())
         .andExpect(status().isAccepted()).andReturn().getResponse().getHeader(HttpHeaders.LOCATION));
     List<String> fields2 = new ArrayList<>();
-    job2.at("/problem/errors").forEach(e -> fields2.add(e.get("field").asText()));
+    report(job2).get("errors").forEach(e -> fields2.add("rows." + e.get("row").asInt() + "." + e.get("field").asText()));
     assertThat(fields2).containsExactlyInAnyOrder("rows.2.parentCode", "rows.3.parentCode", "rows.4.parentCode");
     assertThat(units()).isEqualTo(1);
   }

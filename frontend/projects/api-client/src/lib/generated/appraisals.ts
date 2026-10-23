@@ -233,7 +233,7 @@ export interface paths {
     put?: never;
     /**
      * Tính thử điểm với điều chỉnh đề nghị (không lưu)
-     * @description Gọi SVC-07 ở chế độ mô phỏng với các điều chỉnh cấu phần do người xử lý khiếu nại đề nghị, dùng Policy Pack của kỳ; không ghi ảnh chụp, không đổi trạng thái (BR-09-16). Kết quả chỉ để hiển thị trên SCR-1202.
+     * @description Gọi SVC-07 ở chế độ mô phỏng với các điều chỉnh cấu phần do người xử lý khiếu nại đề nghị, dùng Policy Pack của kỳ; không ghi ảnh chụp, không đổi trạng thái (BR-09-16). Kết quả chỉ để hiển thị trên SCR-1202. Cán bộ kiểm tra gọi gián tiếp qua `simulateReopenRequest` của MOD-07 để xem ảnh hưởng dự kiến của yêu cầu mở lại kỳ (QT-13 bước 4, BR-13-06).
      */
     post: operations['simulateAppraisalScore'];
     delete?: never;

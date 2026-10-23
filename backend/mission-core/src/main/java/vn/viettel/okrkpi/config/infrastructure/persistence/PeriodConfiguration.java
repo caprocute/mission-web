@@ -34,11 +34,13 @@ import vn.viettel.okrkpi.config.application.PeriodConfigService;
 import vn.viettel.okrkpi.config.application.PeriodLockService;
 import vn.viettel.okrkpi.config.application.PeriodReopenService;
 import vn.viettel.okrkpi.config.application.PeriodStateCache;
+import vn.viettel.okrkpi.config.application.RecoveryKeySettingService;
 import vn.viettel.okrkpi.config.application.TenantSettingService;
 import vn.viettel.okrkpi.config.application.UserPreferenceService;
 import vn.viettel.okrkpi.config.application.port.ConfigAudit;
 import vn.viettel.okrkpi.config.application.port.LockOrderNotices;
 import vn.viettel.okrkpi.config.application.port.PeriodLockSaga;
+import vn.viettel.okrkpi.config.application.port.RecoveryKeySource;
 import vn.viettel.okrkpi.config.infrastructure.client.WorkflowPeriodLockSaga;
 import vn.viettel.okrkpi.config.infrastructure.listener.PeriodCacheEvictionListener;
 import vn.viettel.okrkpi.config.infrastructure.listener.PeriodReopenedListener;
@@ -55,6 +57,7 @@ import vn.viettel.okrkpi.shared.inbox.InboxMetrics;
 import vn.viettel.okrkpi.shared.inbox.InboxPayloadDeserializer;
 import vn.viettel.okrkpi.shared.inbox.InboxProperties;
 import vn.viettel.okrkpi.shared.inbox.InboxRetryDlqPublisher;
+import vn.viettel.okrkpi.shared.infrastructure.e2ee.OrgRecoveryKeyClient;
 import vn.viettel.okrkpi.shared.infrastructure.workflow.WorkflowSagaClient;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.outbox.ApicurioPayloadSerializer;
@@ -386,6 +389,25 @@ public class PeriodConfiguration {
         configAudit,
         json.getIfAvailable(ObjectMapper::new),
         Clock.systemUtc());
+  }
+
+  /**
+   * CORE-07-06: khoá phục hồi tổ chức; có client SVC-04 thì đồng bộ theo {@code org.recovery_key}.
+   */
+  @Bean
+  RecoveryKeySettingService recoveryKeySettingService(
+      TenantSettingService tenantSettingService,
+      ObjectProvider<OrgRecoveryKeyClient> orgRecoveryKeys,
+      @Value("${mission.e2ee.org.recovery-key-ttl:5m}") Duration ttl) {
+    OrgRecoveryKeyClient client = orgRecoveryKeys.getIfAvailable();
+    RecoveryKeySource source =
+        client == null
+            ? null
+            : tenant ->
+                client
+                    .current(tenant)
+                    .map(k -> new RecoveryKeySource.Current(k.id(), k.fingerprint()));
+    return new RecoveryKeySettingService(tenantSettingService, source, Clock.systemUtc(), ttl);
   }
 
   /** CORE-08-17: kho định nghĩa dashboard tự dựng cho analytics-api. */

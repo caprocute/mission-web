@@ -5,7 +5,7 @@
   "doc": "EVT-18 · esign.signature.completed.v1 · SVC-10 phát khi yêu cầu ký số hoàn tất.",
   "fields": [
     {"name": "signRequestId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "esign.sign_request.id"},
-    {"name": "purpose", "type": "string", "doc": "Mốc pháp lý: TU_DANH_GIA, THAM_DINH, QUYET_DINH, BIEN_BAN, GOI_HO_SO, PHE_DUYET_MO_LAI, PHAT_HANH_POLICY"},
+    {"name": "purpose", "type": "string", "doc": "Mốc pháp lý: TU_DANH_GIA, THAM_DINH, QUYET_DINH, BIEN_BAN, GOI_HO_SO, PHE_DUYET_MO_LAI, PHAT_HANH_POLICY, KHIEU_NAI"},
     {"name": "sourceModule", "type": "string", "doc": "Module yêu cầu ký"},
     {"name": "sourceRefId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Bản ghi nghiệp vụ yêu cầu ký"},
     {"name": "items", "type": {"type": "array", "items": {"type": "record", "name": "SignedItem", "doc": "Một tài liệu đã ký trong yêu cầu (esign.sign_item).", "fields": [{"name": "documentSha256", "type": "bytes", "doc": "Băm tài liệu được ký"}, {"name": "signedObjectKey", "type": ["null", "string"], "default": null, "doc": "Khoá đối tượng tệp đã nhúng chữ ký"}]}}, "default": [], "doc": "Các tài liệu đã ký"},

@@ -22,6 +22,9 @@ import org.junit.jupiter.api.Test;
 import vn.viettel.okrkpi.appraisal.api.AppraisalSpecialCases;
 import vn.viettel.okrkpi.appraisal.api.AppraisalSpecialCases.SpecialCase;
 import vn.viettel.okrkpi.appraisal.api.AppraisalSpecialCases.Treatment;
+import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualRatingRepository;
+import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualRatingRepository.QuarterRef;
+import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualRecomputeRequests;
 import vn.viettel.okrkpi.appraisal.application.profile.AppraisalProfileService;
 import vn.viettel.okrkpi.appraisal.application.profile.port.AppraisalProfileRepository.ProfileRow;
 import vn.viettel.okrkpi.appraisal.application.setup.ProfileSetupService.Outcome;
@@ -217,6 +220,112 @@ class ProfileSetupServiceTest {
   private static ResolvedPack pack(UUID version) {
     return new ResolvedPack(
         UUID.randomUUID(), "GOI", version, "2026.3", "ab", null, UUID.randomUUID(), true);
+  }
+
+  /** CORE-04-10: ảnh chụp năm ghi các quý, ghi điểm năm; mức năm đổi thì về bước quyết định. */
+  @Test
+  void anhChupNamVaTinhLaiSauHauKiem() {
+    AnnualRatingRepository annual = mock(AnnualRatingRepository.class);
+    AnnualRecomputeRequests recompute = mock(AnnualRecomputeRequests.class);
+    ProfileSetupService yearly =
+        new ProfileSetupService(
+            profiles, repo, notices, null, null, null, Clock.fixed(LOCKED), annual, recompute);
+    UUID decider = UUID.randomUUID();
+    ProfileRow open = annualRow(AppraisalStatus.CHUA_LAP, "NHA_NUOC", null, null);
+    when(profiles.find(tenant, open.id())).thenReturn(Optional.of(open));
+    when(annual.quarters(tenant, 2026, open.personId(), "NHA_NUOC"))
+        .thenReturn(
+            List.of(
+                new QuarterRef(
+                    1,
+                    UUID.randomUUID(),
+                    UUID.randomUUID(),
+                    "DA_KY_SO",
+                    "HTTNV",
+                    UUID.randomUUID(),
+                    new byte[] {1},
+                    BigDecimal.TEN,
+                    "1.0",
+                    UUID.randomUUID()),
+                new QuarterRef(
+                    4,
+                    UUID.randomUUID(),
+                    UUID.randomUUID(),
+                    "CHUA_LAP",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null)));
+    when(profiles.transition(any(), any(), any(), any(), any()))
+        .thenReturn(new AppraisalProfileService.Transitioned(null, 2));
+    assertThat(yearly.onScoreComputed(tenant, score(open, "CHOT_KY", LOCKED)))
+        .isEqualTo(Outcome.OPENED);
+    var captor = org.mockito.ArgumentCaptor.forClass(NewSnapshot.class);
+    verify(repo).insertSnapshot(eq(tenant), captor.capture(), eq(null), any());
+    assertThat(captor.getValue().detailJson()).contains("\"quy\":1").contains("\"quy\":4");
+    verify(annual)
+        .recordScore(eq(tenant), eq(2026), eq(open.id()), any(), eq("HTTNV"), any(), any());
+
+    ProfileRow signed =
+        annualRow(
+            AppraisalStatus.DA_KY_SO,
+            "DANG",
+            vn.viettel.okrkpi.appraisal.domain.profile.RatingLevel.HTXSNV,
+            decider);
+    when(profiles.find(tenant, signed.id())).thenReturn(Optional.of(signed));
+    assertThat(yearly.onScoreComputed(tenant, score(signed, "TINH_LAI_HAU_KIEM", LOCKED)))
+        .isEqualTo(Outcome.REOPENED);
+    verify(notices)
+        .annualRatingChanged(
+            eq(tenant),
+            eq(signed.id()),
+            eq(List.of(signed.personId(), decider)),
+            eq(vn.viettel.okrkpi.appraisal.domain.profile.RatingLevel.HTXSNV),
+            eq(vn.viettel.okrkpi.appraisal.domain.profile.RatingLevel.HTTNV),
+            eq(2L));
+    ProfileRow same =
+        annualRow(
+            AppraisalStatus.DA_KY_SO,
+            "DANG",
+            vn.viettel.okrkpi.appraisal.domain.profile.RatingLevel.HTTNV,
+            null);
+    when(profiles.find(tenant, same.id())).thenReturn(Optional.of(same));
+    assertThat(yearly.onScoreComputed(tenant, score(same, "TINH_LAI_HAU_KIEM", LOCKED)))
+        .isEqualTo(Outcome.REPLACED);
+
+    ProfileRow quarter = row(AppraisalStatus.DA_KY_SO);
+    UUID annualId = UUID.randomUUID();
+    when(profiles.find(tenant, quarter.id())).thenReturn(Optional.of(quarter));
+    when(annual.annualProfileOf(tenant, 2026, quarter.personId(), "DANG"))
+        .thenReturn(Optional.of(annualId));
+    assertThat(yearly.onScoreComputed(tenant, score(quarter, "TINH_LAI_HAU_KIEM", LOCKED)))
+        .isEqualTo(Outcome.REPLACED);
+    verify(recompute).request(tenant, annualId, quarter.id());
+  }
+
+  private ProfileRow annualRow(
+      AppraisalStatus status,
+      String flow,
+      vn.viettel.okrkpi.appraisal.domain.profile.RatingLevel decided,
+      UUID decider) {
+    return new ProfileRow(
+        UUID.randomUUID(),
+        period,
+        20260,
+        UUID.randomUUID(),
+        flow,
+        status,
+        null,
+        decider,
+        null,
+        null,
+        decided,
+        0,
+        pack,
+        0,
+        List.of());
   }
 
   private ProfileRow row(AppraisalStatus status) {

@@ -546,8 +546,11 @@ export class EvidenceReviewPage {
         taskId: v.taskId,
         evidenceVersionId: v.id,
         qualityLevel: l,
-        revisionCause: v.hasPriorRevisionRequest ? (this.cause() ?? 'CHU_QUAN') : 'KHONG_CO',
-      } as const;
+        revisionCause: QUALITY_LEVELS.find((x) => x.value === l)!.cause,
+        ...(v.hasPriorRevisionRequest
+          ? { isObjectiveRevision: this.cause() === 'KHACH_QUAN' }
+          : {}),
+      };
     },
     stream: ({ params }) => this.api.scorePreview(params),
   });

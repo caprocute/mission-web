@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "name": "LedgerAppend",
+  "namespace": "vn.vtokr.sys.v1",
+  "doc": "sys.ledger.append.v1 · Topic kỹ thuật nội bộ SVC-09: ledger-ingester chuyển tiếp sự kiện nghiệp vụ cần ghi sổ, khoá tenant:partition. Trường lấy theo cột ledger.ledger_entry mà luồng ghi cần trước khi tính băm (suy luận).",
+  "fields": [
+    {"name": "sourceEventId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "(suy luận) event_id của sự kiện nghiệp vụ được ghi sổ"},
+    {"name": "sourceEventType", "type": "string", "doc": "(suy luận) Loại sự kiện nghiệp vụ, cột event_type (topic nguồn)"},
+    {"name": "aggregateId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "(suy luận) Mã thực thể gốc"},
+    {"name": "chainNo", "type": "int", "doc": "(suy luận) Phân vùng chuỗi 0 đến 63 = hash(aggregate_id) mod 64"},
+    {"name": "sourceOccurredAt", "type": {"type": "long", "logicalType": "timestamp-micros"}, "doc": "(suy luận) Cột occurred_at: thời điểm xảy ra của sự kiện nghiệp vụ"},
+    {"name": "payloadHash", "type": "bytes", "doc": "(suy luận) SHA-256 của dữ liệu sự kiện chuẩn hoá RFC 8785 (NFC); sổ cái chỉ lưu băm, không nhân bản dữ liệu"}
+  ]
+}

@@ -12,6 +12,7 @@ Mỗi cảnh báo trong `deploy/charts/observability-cell/rules/` và `deploy/ch
 | `outbox` | OutboxBacklog | Outbox tồn đọng; xem thêm `phat-lai-outbox.md` |
 | `ledger-lag` | LedgerLagHigh | Độ trễ ghi sổ cái (SLO-LEDGER) |
 | `dr-14` | LedgerChainBroken | Chuỗi băm sổ cái hỏng (DR-14) |
+| `doi-soat-so-cai` | LedgerKiemTraNgungChay, LedgerNiemPhongNgungChay, LedgerTSALoi, LedgerDauThoiGianQuaHan | Kiểm tra toàn vẹn, niêm phong và dấu thời gian sổ cái (DL-12, DV-09-03, DV-09-04) |
 | `pg-replica-lag` | CNPGReplicaClusterLag | Replica cluster phía Nam trễ |
 | `pg-cpu` | CNPGPrimaryCPUHigh | CPU primary PostgreSQL cao |
 | `pgbouncer` | PgBouncerWaitingClients | Client chờ kết nối PgBouncer |

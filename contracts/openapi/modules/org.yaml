@@ -25,6 +25,8 @@ tags:
     description: Cây đơn vị có lịch sử và thay đổi tổ chức (SCR-0103).
   - name: Đồng bộ nhân sự
     description: Đồng bộ từ CSDL CBCCVC, CSDL đảng viên, SCIM và đối soát lệch (SCR-0104).
+  - name: Khoá mã hoá đầu cuối
+    description: Danh bạ khoá công khai có ký, khoá phục hồi tổ chức và nhật ký phục hồi cho dữ liệu C3 (ADR-27).
 
 paths:
   /org/me:
@@ -781,6 +783,38 @@ paths:
         aal: 2
         source: 'TL-02a SCR-0103 "Nhập từ Excel"'
 
+  /org/imports/{id}/report:
+    get:
+      tags: [Cây tổ chức]
+      operationId: getOrgImportReport
+      summary: Báo cáo lỗi của một lần nhập cây tổ chức
+      description: >-
+        (bổ sung WEB-072) Đích `resultLocation` của job nhập khi tệp có lỗi: lỗi từng dòng, từng cột kèm lý do
+        tiếng Việt và quy tắc vi phạm. Tệp có lỗi thì không đơn vị nào được ghi.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Mã job nhập.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: Báo cáo nhập.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrgImportReport' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103, SCR-0102]
+        owner: SVC-04
+        roles: [tenant_admin]
+        scope: Tn
+        source: 'TL-02a SCR-0103 "Nhập từ Excel" (bổ sung WEB-072, suy luận đường dẫn)'
+
   /org/sync-runs:
     get:
       tags: [Đồng bộ nhân sự]
@@ -1127,6 +1161,338 @@ paths:
         scope: Tn
         source: 'TL-02a SCR-0104 "Ghi chú, giao xử lý"'
 
+  /org/persons/me/public-keys:
+    post:
+      tags: [Khoá mã hoá đầu cuối]
+      operationId: registerMyPublicKey
+      summary: Đăng ký khoá công khai của thiết bị hoặc chứng thư số vào danh bạ khoá
+      description: >-
+        Thiết bị sinh cặp khoá ECDH P-256 không trích xuất được và đăng ký khoá công khai khi người dùng đăng
+        nhập có MFA lần đầu trên thiết bị (ADR-27). Máy chủ kiểm dạng SubjectPublicKeyInfo đúng thuật toán, tính
+        vân tay SHA-256 của SPKI, ký bản ghi bằng khoá danh bạ của tenant qua OpenBao Transit (không giữ khoá
+        trong mã) và ghi sổ cái `sys.audit.v1` trong cùng giao dịch. Vân tay đã có trong tenant trả 409
+        (`ORG-409-PUBLIC-KEY-EXISTS`).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PublicKeyRegistration' }
+      responses:
+        '201':
+          description: Khoá công khai đã đăng ký và ký.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PersonPublicKey' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409':
+          description: Vân tay khoá đã có trong danh bạ của tenant (`ORG-409-PUBLIC-KEY-EXISTS`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '503': { $ref: '../common/common.yaml#/components/responses/ServiceUnavailable' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0001]
+        owner: SVC-04
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        aal: 2
+        source: 'TL-01 "Quản lý khoá người nhận" (ADR-27); TL-03 org.person_public_key; TL-04 SEC-25'
+
+  /org/persons/{id}/public-keys:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Khoá mã hoá đầu cuối]
+      operationId: listPersonPublicKeys
+      summary: Khoá công khai của một cán bộ trong danh bạ khoá
+      description: >-
+        Trình duyệt người gửi lấy khoá công khai của từng người nhận để bọc khoá nội dung C3 (TL-01 "Mô hình
+        mã hoá" bước 1). Mặc định chỉ trả khoá còn hiệu lực; khoá quá `validTo` trả trạng thái `HET_HAN`. Mỗi
+        khoá kèm chữ ký của danh bạ để thiết bị kiểm trước khi dùng.
+      parameters:
+        - name: includeInactive
+          in: query
+          description: Trả cả khoá đã thu hồi hoặc hết hạn (đối chiếu lịch sử).
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Danh sách khoá công khai.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/PersonPublicKey' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0501]
+        owner: SVC-04
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: Tn
+        source: 'TL-01 "Mô hình mã hoá" bước 1, "Quản lý khoá người nhận"'
+
+  /org/public-keys/{id}/revoke:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Khoá mã hoá đầu cuối]
+      operationId: revokePublicKey
+      summary: Thu hồi khoá công khai (mất thiết bị, đổi chứng thư)
+      description: >-
+        Chủ khoá hoặc quản trị tenant thu hồi khoá; khoá chuyển `THU_HOI`, không dùng để bọc khoá nội dung mới.
+        Thu hồi được ghi sổ cái. Thu hồi lại khoá đã thu hồi trả 200 với bản ghi hiện tại.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PublicKeyRevocation' }
+      responses:
+        '200':
+          description: Khoá sau khi thu hồi.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PersonPublicKey' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0001]
+        owner: SVC-04
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        aal: 2
+        source: 'TL-01 "Khôi phục khi mất khoá"; TL-03 org.person_public_key.status'
+
+  /org/e2ee/directory-keys:
+    get:
+      tags: [Khoá mã hoá đầu cuối]
+      operationId: listE2eeDirectoryKeys
+      summary: Khoá công khai của danh bạ khoá tenant để kiểm chữ ký
+      description: >-
+        Các phiên bản khoá ký ECDSA P-256 của danh bạ khoá tenant (OpenBao Transit). Thiết bị dùng để kiểm
+        chữ ký `signature` của khoá người nhận và khoá phục hồi trước khi bọc khoá nội dung.
+      responses:
+        '200':
+          description: Các phiên bản khoá ký.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/DirectoryKey' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '503': { $ref: '../common/common.yaml#/components/responses/ServiceUnavailable' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0501]
+        owner: SVC-04
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: Tn
+        source: 'TL-01 "Quản lý khoá người nhận" (bản ghi đăng ký được ký bằng khoá danh bạ của tenant)'
+
+  /org/e2ee/recovery-key:
+    get:
+      tags: [Khoá mã hoá đầu cuối]
+      operationId: getRecoveryKey
+      summary: Khoá phục hồi của tổ chức đang hiệu lực
+      description: >-
+        Mỗi khoá nội dung C3 luôn được bọc thêm cho khoá phục hồi của tenant (ADR-27). Người gửi lấy khoá công
+        khai phục hồi ở đây; `id` là mã người nhận đại diện dùng trong bản bọc. Chưa khai báo trả 404. Tài khoản
+        dịch vụ (`service_client`, tenant trong `X-Tenant-Id`) của mission-core đọc để đồng bộ cấu hình tenant
+        `e2ee.recovery-key`.
+      responses:
+        '200':
+          description: Khoá phục hồi đang hiệu lực.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecoveryKey' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0501]
+        owner: SVC-04
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector, service_client]
+        scope: Tn
+        source: 'TL-01 "Khôi phục khi mất khoá"; TL-04 SEC-25'
+
+  /org/e2ee/recovery-keys:
+    post:
+      tags: [Khoá mã hoá đầu cuối]
+      operationId: rotateRecoveryKey
+      summary: Khai báo hoặc thay khoá phục hồi của tổ chức
+      description: >-
+        Quản trị tenant ghi khoá công khai phục hồi sinh ở máy trạm cách ly; khoá riêng chia Shamir 3 trên 5
+        cho năm cán bộ giữ mảnh theo biên bản, không đi qua máy chủ. Khoá mới có hiệu lực ngay, khoá cũ chuyển
+        `THU_HOI` nhưng vẫn mở được bản bọc đã có ở máy trạm. Ghi sổ cái.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecoveryKeyInput' }
+      responses:
+        '201':
+          description: Khoá phục hồi mới.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecoveryKey' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409':
+          description: Vân tay khoá đã có trong danh bạ của tenant (`ORG-409-PUBLIC-KEY-EXISTS`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '503': { $ref: '../common/common.yaml#/components/responses/ServiceUnavailable' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103]
+        owner: SVC-04
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        source: 'TL-01 "Khôi phục khi mất khoá"; TL-04 SEC-25 (mảnh khoá giao trực tiếp theo biên bản)'
+
+  /org/e2ee/recoveries:
+    post:
+      tags: [Khoá mã hoá đầu cuối]
+      operationId: recordE2eeRecovery
+      summary: Ghi một lần phục hồi tổ chức
+      description: >-
+        Ghi lần phục hồi đã làm ở máy trạm cách ly: ít nhất ba người giữ mảnh của khoá phục hồi cùng có mặt,
+        khoá nội dung của đối tượng được bọc lại cho khoá thiết bị mới của người nhận. Máy chủ chỉ lưu nhật ký
+        (không nhận mảnh khoá hay khoá riêng), ký bản ghi và ghi sổ cái.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecoveryRecordInput' }
+      responses:
+        '201':
+          description: Nhật ký lần phục hồi.
+          headers:
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecoveryRecord' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '503': { $ref: '../common/common.yaml#/components/responses/ServiceUnavailable' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103]
+        owner: SVC-04
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        source: 'TL-01 "Khôi phục khi mất khoá" (mọi lần khôi phục ghi sổ cái)'
+    get:
+      tags: [Khoá mã hoá đầu cuối]
+      operationId: listE2eeRecoveries
+      summary: Nhật ký các lần phục hồi tổ chức
+      parameters:
+        - name: objectId
+          in: query
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang nhật ký, mới nhất trước.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/RecoveryRecord' }
+                  nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-12]
+        scr: [SCR-0103]
+        owner: SVC-04
+        roles: [tenant_admin, inspector]
+        scope: Tn
+        aal: 2
+        source: 'TL-01 "Khôi phục khi mất khoá"; TL-04 SEC-25'
+
+  /org/e2ee/recoveries/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Khoá mã hoá đầu cuối]
+      operationId: getE2eeRecovery
+      summary: Một biên bản khôi phục khoá (đối chiếu nội bộ)
+      description: >-
+        mission-core đọc biên bản khôi phục để đối chiếu trước khi nhận khoá bọc khôi phục
+        (`restoreTaskSecretKeyWrap`, `restoreEvidenceKeyWrap`). Chỉ tài khoản dịch vụ (`service_client`,
+        tenant trong `X-Tenant-Id`); người dùng xem nhật ký qua `listE2eeRecoveries`.
+      responses:
+        '200':
+          description: Biên bản khôi phục.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecoveryRecord' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05, QT-07]
+        scr: [SCR-0103]
+        owner: SVC-04
+        roles: [service_client]
+        scope: Tn
+        source: 'TL-01 "Khôi phục khi mất khoá" (mọi lần khôi phục ghi sổ cái)'
+
 components:
   securitySchemes:
     keycloak:
@@ -1397,6 +1763,42 @@ components:
         affectedUnitIds:
           type: array
           items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        createdUnitIds:
+          type: array
+          description: Đơn vị mới sinh ra khi hợp nhất hoặc chia tách (bổ sung WEB-072).
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        movedAssignmentCount:
+          type: integer
+          minimum: 0
+          description: Số phân công đã chuyển sang đơn vị mới, điền {n} của MSG-01-11 (bổ sung WEB-072).
+        lockedPeriodName:
+          type: string
+          description: >-
+            Tên kỳ đã khoá mà ngày hiệu lực rơi vào, điền {kỳ} của MSG-01-10; vắng khi không ghi muộn vào kỳ đã khoá
+            (bổ sung WEB-072).
+    OrgImportReport:
+      description: Báo cáo một lần nhập cây tổ chức từ Excel (bổ sung WEB-072).
+      type: object
+      required: [jobId, status, totalRows, createdUnits, errors]
+      properties:
+        jobId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        status: { type: string, enum: [CHO, DANG_CHAY, HOAN_TAT, THAT_BAI, DA_HUY] }
+        totalRows: { type: integer, minimum: 0 }
+        createdUnits: { type: integer, minimum: 0 }
+        changeOrderId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        errors:
+          type: array
+          items: { $ref: '#/components/schemas/OrgImportError' }
+    OrgImportError:
+      description: Một lỗi của tệp nhập; `row = 0` là lỗi cả tệp.
+      type: object
+      required: [row, column, message]
+      properties:
+        row: { type: integer, minimum: 0 }
+        column: { type: string, description: 'Tên cột trong mẫu, rỗng khi lỗi cả dòng hoặc cả tệp' }
+        field: { type: string, description: 'Trường tương ứng của `OrgUnitInput`, ví dụ `parentCode`' }
+        message: { type: string, description: 'Lý do tiếng Việt, ghi rõ dòng và cột' }
+        rule: { type: string, description: 'Quy tắc vi phạm, ví dụ BR-01-05' }
     SyncSource:
       description: Nguồn đồng bộ (`integ.connector.code`, suy luận về mã).
       type: string
@@ -1528,3 +1930,127 @@ components:
         reason: { type: string, minLength: 10, maxLength: 2000 }
         signedDocRef: { type: string, minLength: 1, maxLength: 200 }
         correctedOrder: { $ref: '#/components/schemas/OrgChangeRequest' }
+    PublicKeyAlg:
+      description: Thuật toán khoá công khai (`org.person_public_key.key_alg`).
+      type: string
+      enum: [ECDH-P256, RSA-OAEP-3072, BCY]
+    DirectorySignature:
+      description: >-
+        Chữ ký của danh bạ khoá tenant (ECDSA P-256, SHA-256, chữ ký DER mã base64) trên chuỗi chuẩn
+        `v1|<tenantId>|<loại>|<id>|<chủ khoá>|<keyAlg>|<fingerprint>|<validFrom>|<validTo>` với thời điểm dạng
+        ISO 8601 UTC; `<loại>` là `PERSON_KEY` hoặc `RECOVERY_KEY`, `<validTo>` rỗng khi không giới hạn.
+      type: object
+      required: [keyVersion, value, signedAt]
+      properties:
+        keyVersion: { type: integer, minimum: 1, description: Phiên bản khoá ký trong `listE2eeDirectoryKeys` }
+        value: { type: string, description: Chữ ký DER dạng base64 }
+        signedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+    DirectoryKey:
+      type: object
+      required: [keyVersion, publicKeyPem]
+      properties:
+        keyVersion: { type: integer, minimum: 1 }
+        publicKeyPem: { type: string, description: Khoá công khai ECDSA P-256 dạng PEM }
+    PublicKeyRegistration:
+      type: object
+      required: [keyAlg, publicKeySpki, source]
+      properties:
+        keyAlg: { $ref: '#/components/schemas/PublicKeyAlg' }
+        publicKeySpki: { type: string, maxLength: 2048, description: SubjectPublicKeyInfo DER dạng base64 }
+        source: { type: string, enum: [THIET_BI, CHUNG_THU] }
+        validTo:
+          type: [string, 'null']
+          format: date-time
+          description: Hết hiệu lực (theo chứng thư); bỏ trống là ba năm kể từ khi đăng ký.
+    PersonPublicKey:
+      description: Khoá công khai trong danh bạ (`org.person_public_key`).
+      type: object
+      required: [id, personId, keyAlg, publicKeySpki, fingerprint, source, status, validFrom, validTo, signature]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        personId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        keyAlg: { $ref: '#/components/schemas/PublicKeyAlg' }
+        publicKeySpki: { type: string, description: SubjectPublicKeyInfo DER dạng base64 }
+        fingerprint: { type: string, pattern: '^[0-9a-f]{64}$', description: 'SHA-256 của SPKI dạng hex, là `deviceId` của bản bọc' }
+        source: { type: string, enum: [THIET_BI, CHUNG_THU] }
+        status: { type: string, enum: [HIEU_LUC, THU_HOI, HET_HAN] }
+        validFrom: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        validTo: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        signature: { $ref: '#/components/schemas/DirectorySignature' }
+    PublicKeyRevocation:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 5, maxLength: 1000 }
+    RecoveryKeyInput:
+      type: object
+      required: [keyAlg, publicKeySpki, custodianIds, ceremonyRef]
+      properties:
+        keyAlg: { type: string, enum: [ECDH-P256, RSA-OAEP-3072] }
+        publicKeySpki: { type: string, maxLength: 2048, description: SubjectPublicKeyInfo DER dạng base64 }
+        custodianIds:
+          description: Năm cán bộ giữ mảnh khoá (Shamir 3 trên 5).
+          type: array
+          minItems: 5
+          maxItems: 5
+          uniqueItems: true
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        ceremonyRef: { type: string, minLength: 1, maxLength: 200, description: Số biên bản tạo và giao mảnh khoá }
+    RecoveryKey:
+      description: Khoá phục hồi của tổ chức.
+      type: object
+      required: [id, keyAlg, publicKeySpki, fingerprint, threshold, custodianIds, ceremonyRef, status, validFrom, signature]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        keyAlg: { type: string, enum: [ECDH-P256, RSA-OAEP-3072] }
+        publicKeySpki: { type: string }
+        fingerprint: { type: string, pattern: '^[0-9a-f]{64}$' }
+        threshold: { type: integer, description: Số mảnh tối thiểu để phục hồi }
+        custodianIds:
+          type: array
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        ceremonyRef: { type: string }
+        status: { type: string, enum: [HIEU_LUC, THU_HOI] }
+        validFrom: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        validTo: { type: [string, 'null'], format: date-time }
+        signature: { $ref: '#/components/schemas/DirectorySignature' }
+    RecoveryObjectType:
+      type: string
+      enum: [TASK_CONTENT, EVIDENCE_FILE]
+    RecoveryRecordInput:
+      type: object
+      required: [recoveryKeyId, objectType, objectId, newRecipientId, newKeyFingerprint, custodianIds, reason, ceremonyRef, performedAt]
+      properties:
+        recoveryKeyId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        objectType: { $ref: '#/components/schemas/RecoveryObjectType' }
+        objectId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        newRecipientId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        newKeyFingerprint: { type: string, pattern: '^[0-9a-f]{64}$', description: Vân tay khoá thiết bị mới đã có trong danh bạ }
+        custodianIds:
+          description: Những người giữ mảnh có mặt (ít nhất ngưỡng của khoá phục hồi).
+          type: array
+          minItems: 3
+          maxItems: 5
+          uniqueItems: true
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        reason: { type: string, minLength: 10, maxLength: 2000 }
+        ceremonyRef: { type: string, minLength: 1, maxLength: 200, description: Số biên bản phục hồi }
+        performedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+    RecoveryRecord:
+      type: object
+      required: [id, recoveryKeyId, objectType, objectId, newRecipientId, newKeyFingerprint, custodianIds, reason, ceremonyRef, performedAt, recordedBy, recordedAt]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        recoveryKeyId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        objectType: { $ref: '#/components/schemas/RecoveryObjectType' }
+        objectId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        newRecipientId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        newKeyFingerprint: { type: string, pattern: '^[0-9a-f]{64}$' }
+        custodianIds:
+          type: array
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        reason: { type: string }
+        ceremonyRef: { type: string }
+        performedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        recordedBy: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        recordedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }

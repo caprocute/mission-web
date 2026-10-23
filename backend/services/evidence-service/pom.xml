@@ -48,6 +48,11 @@
     </dependency>
     <dependency>
       <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-reconcile</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
       <artifactId>vt-db-migration</artifactId>
       <version>${project.version}</version>
     </dependency>

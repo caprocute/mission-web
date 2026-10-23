@@ -55,8 +55,8 @@ public class JdbcRenderJobRepository implements RenderJobRepository {
                 INSERT INTO docgen.render_job
                   (id, tenant_id, template_id, request_event_id, request_id, form_instance_id,
                    input_sha256, status, attempts, error, created_at, created_by, updated_at,
-                   updated_by, row_version)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                   updated_by, row_version, package_id, policy_pack_code, policy_pack_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
                 ON CONFLICT (request_event_id) DO NOTHING
                 """)
             .param(j.id())
@@ -73,6 +73,9 @@ public class JdbcRenderJobRepository implements RenderJobRepository {
             .param(j.createdBy())
             .param(ts(j.updatedAt()))
             .param(j.createdBy())
+            .param(j.provenance().packageId())
+            .param(j.provenance().policyPackCode())
+            .param(j.provenance().policyPackVersion())
             .update()
         == 1;
   }
@@ -140,20 +143,25 @@ public class JdbcRenderJobRepository implements RenderJobRepository {
 
   private static RenderJob job(ResultSet rs) throws SQLException {
     return new RenderJob(
-        rs.getObject("id", UUID.class),
-        rs.getObject("tenant_id", UUID.class),
-        rs.getObject("template_id", UUID.class),
-        rs.getObject("request_event_id", UUID.class),
-        rs.getObject("request_id", UUID.class),
-        rs.getObject("form_instance_id", UUID.class),
-        rs.getBytes("input_sha256"),
-        RenderJobStatus.valueOf(rs.getString("status")),
-        rs.getInt("attempts"),
-        rs.getString("error"),
-        rs.getObject("created_by", UUID.class),
-        rs.getTimestamp("created_at").toInstant(),
-        rs.getTimestamp("updated_at").toInstant(),
-        rs.getLong("row_version"));
+            rs.getObject("id", UUID.class),
+            rs.getObject("tenant_id", UUID.class),
+            rs.getObject("template_id", UUID.class),
+            rs.getObject("request_event_id", UUID.class),
+            rs.getObject("request_id", UUID.class),
+            rs.getObject("form_instance_id", UUID.class),
+            rs.getBytes("input_sha256"),
+            RenderJobStatus.valueOf(rs.getString("status")),
+            rs.getInt("attempts"),
+            rs.getString("error"),
+            rs.getObject("created_by", UUID.class),
+            rs.getTimestamp("created_at").toInstant(),
+            rs.getTimestamp("updated_at").toInstant(),
+            rs.getLong("row_version"))
+        .withProvenance(
+            new RenderJob.Provenance(
+                rs.getObject("package_id", UUID.class),
+                rs.getString("policy_pack_code"),
+                rs.getString("policy_pack_version")));
   }
 
   private static OffsetDateTime ts(Instant instant) {

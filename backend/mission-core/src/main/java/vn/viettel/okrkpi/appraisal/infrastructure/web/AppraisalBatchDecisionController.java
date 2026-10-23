@@ -171,7 +171,8 @@ public class AppraisalBatchDecisionController {
                     ? null
                     : RatingLevel.valueOf(i.getRatingCode().getValue()),
                 i.getReason(),
-                i.getRowVersion() == null ? null : i.getRowVersion().longValue()));
+                i.getRowVersion() == null ? null : i.getRowVersion().longValue(),
+                i.getSeenScoreSnapshotId()));
       }
     }
     Command command =

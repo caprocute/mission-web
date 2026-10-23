@@ -49,6 +49,7 @@ import vn.viettel.okrkpi.org.infrastructure.web.model.WorkContext;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgChangeRequest;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgTree;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgTreeKind;
+import vn.viettel.okrkpi.org.infrastructure.web.model.OrgImportReport;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgUnit;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgUnitInput;
 import vn.viettel.okrkpi.org.infrastructure.web.model.SearchOrgUnits200Response;
@@ -72,6 +73,20 @@ import vn.viettel.okrkpi.org.application.port.SyncScheduleStore.ScheduleSet;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import vn.viettel.okrkpi.org.application.orgimport.OrgImportService;
+import vn.viettel.okrkpi.org.application.e2ee.PublicKeyDirectoryService;
+import vn.viettel.okrkpi.org.application.e2ee.RecoveryKeyService;
+import vn.viettel.okrkpi.org.application.port.RecoveryKeyStore.StoredRecovery;
+import vn.viettel.okrkpi.org.application.port.RecoveryKeyStore.StoredRecoveryKey;
+import vn.viettel.okrkpi.org.infrastructure.web.model.ListE2eeDirectoryKeys200Response;
+import vn.viettel.okrkpi.org.infrastructure.web.model.ListE2eeRecoveries200Response;
+import vn.viettel.okrkpi.org.infrastructure.web.model.ListPersonPublicKeys200Response;
+import vn.viettel.okrkpi.org.infrastructure.web.model.PersonPublicKey;
+import vn.viettel.okrkpi.org.infrastructure.web.model.PublicKeyRegistration;
+import vn.viettel.okrkpi.org.infrastructure.web.model.PublicKeyRevocation;
+import vn.viettel.okrkpi.org.infrastructure.web.model.RecoveryKey;
+import vn.viettel.okrkpi.org.infrastructure.web.model.RecoveryKeyInput;
+import vn.viettel.okrkpi.org.infrastructure.web.model.RecoveryRecord;
+import vn.viettel.okrkpi.org.infrastructure.web.model.RecoveryRecordInput;
 
 /**
  * Hiện thực giao diện {@link OrgApi} sinh từ {@code contracts/openapi/modules/org.yaml} (ADR-32, interfaceOnly) cho
@@ -92,10 +107,15 @@ public class OrgController implements OrgApi {
   private final SyncRunService syncRuns;
   private final OrgImportService imports;
   private final MyContextService contexts;
+  private final PublicKeyDirectoryService publicKeys;
+  private final RecoveryKeyService recovery;
 
   public OrgController(OrgUnitQueryService queries, OrgUnitCommandService commands, RequestHasher hasher,
       HttpServletRequest request, DiscrepancyService discrepancies, SyncRunService syncRuns,
-      OrgImportService imports, MyContextService contexts) {
+      OrgImportService imports, MyContextService contexts, PublicKeyDirectoryService publicKeys,
+      RecoveryKeyService recovery) {
+    this.publicKeys = publicKeys;
+    this.recovery = recovery;
     this.imports = imports;
     this.contexts = contexts;
     this.queries = queries;
@@ -263,6 +283,11 @@ public class OrgController implements OrgApi {
         .body(JobWebMapper.toDto(job));
   }
 
+  @Override
+  public ResponseEntity<OrgImportReport> getOrgImportReport(UUID id) {
+    return ResponseEntity.ok(JobWebMapper.toReport(imports.report(actor(), id)));
+  }
+
   private static byte[] sha256(byte[] content) {
     try {
       return MessageDigest.getInstance("SHA-256").digest(content);
@@ -350,6 +375,86 @@ public class OrgController implements OrgApi {
     ListOrgSyncSchedules200Response body = new ListOrgSyncSchedules200Response();
     body.setItems(set.items().stream().map(SyncWebMapper::toDto).toList());
     return ResponseEntity.ok().eTag(etag(set.version())).body(body);
+  }
+
+  // CORE-07-06 · ADR-27: danh bạ khoá công khai có ký, khoá phục hồi tổ chức và nhật ký phục hồi C3.
+
+  @Override
+  public ResponseEntity<PersonPublicKey> registerMyPublicKey(String idempotencyKey, PublicKeyRegistration input) {
+    PublicKeyDirectoryService.KeyView v = publicKeys.register(actor(),
+        hasher.of(idempotencyKey, "POST", request.getRequestURI(), input),
+        new PublicKeyDirectoryService.Registration(input.getKeyAlg() == null ? null : input.getKeyAlg().getValue(),
+            input.getPublicKeySpki(), input.getSource() == null ? null : input.getSource().getValue(),
+            E2eeWebMapper.instant(input.getValidTo())));
+    return ResponseEntity.created(URI.create("/api/v1/org/persons/" + v.key().personId() + "/public-keys"))
+        .eTag(etag(v.key().rowVersion())).body(E2eeWebMapper.toDto(v));
+  }
+
+  @Override
+  public ResponseEntity<ListPersonPublicKeys200Response> listPersonPublicKeys(UUID id, Boolean includeInactive) {
+    ListPersonPublicKeys200Response body = new ListPersonPublicKeys200Response();
+    body.setItems(publicKeys.list(actor(), id, Boolean.TRUE.equals(includeInactive)).stream()
+        .map(E2eeWebMapper::toDto).toList());
+    return ResponseEntity.ok(body);
+  }
+
+  @Override
+  public ResponseEntity<PersonPublicKey> revokePublicKey(String idempotencyKey, String ifMatch, UUID id,
+      PublicKeyRevocation input) {
+    PublicKeyDirectoryService.KeyView v = publicKeys.revoke(actor(),
+        hasher.of(idempotencyKey, "POST", request.getRequestURI(), input), id, IfMatch.parse(ifMatch),
+        input.getReason());
+    return ResponseEntity.ok().eTag(etag(v.key().rowVersion())).body(E2eeWebMapper.toDto(v));
+  }
+
+  @Override
+  public ResponseEntity<ListE2eeDirectoryKeys200Response> listE2eeDirectoryKeys() {
+    ListE2eeDirectoryKeys200Response body = new ListE2eeDirectoryKeys200Response();
+    body.setItems(publicKeys.directoryKeys(actor()).stream().map(E2eeWebMapper::toDto).toList());
+    return ResponseEntity.ok(body);
+  }
+
+  @Override
+  public ResponseEntity<RecoveryKey> getRecoveryKey() {
+    StoredRecoveryKey k = recovery.current(actor());
+    return ResponseEntity.ok().eTag(etag(k.rowVersion())).body(E2eeWebMapper.toDto(k));
+  }
+
+  @Override
+  public ResponseEntity<RecoveryKey> rotateRecoveryKey(String idempotencyKey, RecoveryKeyInput input) {
+    StoredRecoveryKey k = recovery.rotate(actor(), hasher.of(idempotencyKey, "POST", request.getRequestURI(), input),
+        new RecoveryKeyService.KeyInput(input.getKeyAlg() == null ? null : input.getKeyAlg().getValue(),
+            input.getPublicKeySpki(),
+            input.getCustodianIds() == null ? null : new java.util.ArrayList<>(input.getCustodianIds()),
+            input.getCeremonyRef()));
+    return ResponseEntity.status(201).eTag(etag(k.rowVersion())).body(E2eeWebMapper.toDto(k));
+  }
+
+  @Override
+  public ResponseEntity<RecoveryRecord> recordE2eeRecovery(String idempotencyKey, RecoveryRecordInput input) {
+    StoredRecovery r = recovery.record(actor(), hasher.of(idempotencyKey, "POST", request.getRequestURI(), input),
+        new RecoveryKeyService.RecoveryInput(input.getRecoveryKeyId(),
+            input.getObjectType() == null ? null : input.getObjectType().getValue(), input.getObjectId(),
+            input.getNewRecipientId(), input.getNewKeyFingerprint(),
+            input.getCustodianIds() == null ? null : new java.util.ArrayList<>(input.getCustodianIds()),
+            input.getReason(), input.getCeremonyRef(), E2eeWebMapper.instant(input.getPerformedAt())));
+    return ResponseEntity.created(URI.create("/api/v1/org/e2ee/recoveries?objectId=" + r.objectId()))
+        .body(E2eeWebMapper.toDto(r));
+  }
+
+  @Override
+  public ResponseEntity<ListE2eeRecoveries200Response> listE2eeRecoveries(UUID objectId, Integer limit,
+      String cursor) {
+    Page<StoredRecovery> page = recovery.list(actor(), objectId, limit == null ? 20 : limit, cursor);
+    ListE2eeRecoveries200Response body = new ListE2eeRecoveries200Response();
+    body.setItems(page.items().stream().map(E2eeWebMapper::toDto).toList());
+    body.setNextCursor(page.nextCursor());
+    return ResponseEntity.ok(body);
+  }
+
+  @Override
+  public ResponseEntity<RecoveryRecord> getE2eeRecovery(UUID id) {
+    return ResponseEntity.ok(E2eeWebMapper.toDto(recovery.recovery(actor(), id)));
   }
 
   private Actor actor() {

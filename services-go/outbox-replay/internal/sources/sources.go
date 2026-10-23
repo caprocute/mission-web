@@ -206,7 +206,7 @@ func (r *Registry) TableIncludeListForDatabase(database string) string {
 //     `cdcRole == cdc_<schema>`, and non-empty database/connector/slotName.
 //  2. Every topic in `outbox-sources.yaml` (`sources[].topics`, `wildcardTopics`, `nonOutboxTopics`)
 //     exists in `catalog.yaml`. Unknown topics are rejected.
-//  3. Every business event (`EVT-01..EVT-26`) and technical topic in `catalog.yaml` with
+//  3. Every business event (`EVT-01..EVT-27`) and technical topic in `catalog.yaml` with
 //     `outbox: <schema>.outbox_event` has exactly one owning schema in `outbox-sources.yaml`,
 //     and is listed in that schema's `topics` (and `events` for `EVT-*`).
 //  4. Every entry in `catalog.yaml` with `outbox: "*.outbox_event"` is listed in `wildcardTopics`.

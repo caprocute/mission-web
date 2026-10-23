@@ -122,7 +122,9 @@ def test_golden_cases_reach_core_within_budget(setup: dict[str, Any]) -> None:
     wait_for(lambda: setup["svc"].pending == 0)
     for task, w in want.items():
         b = Stub.delay_risk[(TENANT, task)]
-        assert (b["level"], b["neededWorkingDays"], b["remainingWorkingDays"]) == (w["muc"], w["n"], w["m"]), task
+        n = w["n"] if w["n"] is not None else w["m"] + 1  # nhịp 0: gửi m + 1 (sink.needed_days)
+        assert (b["level"], b["neededWorkingDays"]) == (w["muc"], n), task
+        assert b["explanation"].endswith((f"còn {w['m']} ngày.", "không có nguy cơ trễ hạn.")), task
     called = {c[2] for c in Stub.delay_calls if c[1] == TENANT}
     assert called == set(want)  # T08 (chưa đủ dữ liệu), T09 (đã hoàn thành) không được ghi
     lat = sorted(min(c[0] for c in Stub.delay_calls if c[2] == t) - setup["sent"][t] for t in want)
@@ -135,8 +137,13 @@ def test_replayed_old_event_does_not_regress(setup: dict[str, Any]) -> None:
     first = setup["data"]["nhiem_vu"][1]["tien_do"][0]
     evt05(setup["producer"], "T02", tid("T02:p0"), first["luc"], 1)
     wait_for(lambda: len(Stub.delay_calls) > n and setup["svc"].pending == 0)
-    assert Stub.delay_risk[(TENANT, tid("T02"))] == before
-    assert all(c[3]["basedOnReportedAt"] == before["basedOnReportedAt"] for c in Stub.delay_calls[n:])
+    # Dự báo tính lại từ toàn bộ lịch sử trong kho: chỉ computedAt mới hơn, nội dung không lùi.
+    after = Stub.delay_risk[(TENANT, tid("T02"))]
+    def content(b: dict[str, Any]) -> dict[str, Any]:
+        return {k: v for k, v in b.items() if k != "computedAt"}
+
+    assert content(after) == content(before)
+    assert all(c[3]["basedOnProgressId"] == before["basedOnProgressId"] for c in Stub.delay_calls[n:])
 
 
 def test_waits_for_cdc_then_keeps_old_value_on_timeout(env: Env, setup: dict[str, Any]) -> None:
@@ -148,7 +155,7 @@ def test_waits_for_cdc_then_keeps_old_value_on_timeout(env: Env, setup: dict[str
     time.sleep(3)
     assert Stub.delay_risk[key]["level"] == "CAO" and svc.pending == 1
     insert_progress(env, "T04", tid("T04:p-moi"), at, 0.75, False)
-    wait_for(lambda: Stub.delay_risk[key]["basedOnReportedAt"].startswith("2026-10-19T17:00"))
+    wait_for(lambda: Stub.delay_risk[key].get("basedOnProgressId") == tid("T04:p-moi"))
     assert (Stub.delay_risk[key]["level"], Stub.delay_risk[key]["neededWorkingDays"]) == ("THAP", 3)
 
     before, lag = dict(Stub.delay_risk[(TENANT, tid("T05"))]), svc.stats["cdc_cham"]

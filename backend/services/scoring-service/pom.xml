@@ -45,6 +45,11 @@
     </dependency>
     <dependency>
       <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-reconcile</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
       <artifactId>vt-db-migration</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -205,7 +210,7 @@
             <configuration>
               <inputSpec>${contract.dir}/modules/appraisals.yaml</inputSpec>
               <generatorName>spring</generatorName>
-              <openapiNormalizer>FILTER=operationId:getAppraisalScoreTrace|recomputeAppraisalProfile|previewAppraisalTaskScore</openapiNormalizer>
+              <openapiNormalizer>FILTER=operationId:getAppraisalScoreTrace|recomputeAppraisalProfile|previewAppraisalTaskScore|simulateAppraisalScore</openapiNormalizer>
               <apiPackage>vn.viettel.okrkpi.scoring.infrastructure.web.api</apiPackage>
               <modelPackage>vn.viettel.okrkpi.scoring.infrastructure.web.model</modelPackage>
               <generateSupportingFiles>false</generateSupportingFiles>
