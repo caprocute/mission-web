@@ -2,7 +2,9 @@ package vn.viettel.okrkpi.product.infrastructure.persistence;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.sql.DataSource;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
@@ -25,6 +27,7 @@ import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.events.EventTopics;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceAcceptanceService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceAiConfirmationService;
+import vn.viettel.okrkpi.product.application.evidence.EvidenceExternalDocService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceIntegrityAlarm;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceLifecycleService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceObjectProjector;
@@ -35,8 +38,12 @@ import vn.viettel.okrkpi.product.application.evidence.ReviewerAuthority;
 import vn.viettel.okrkpi.product.application.evidence.port.AiSuggestionDecisions;
 import vn.viettel.okrkpi.product.application.evidence.port.CommentSealer;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceEvents;
+import vn.viettel.okrkpi.product.application.evidence.port.IssuedDocuments;
 import vn.viettel.okrkpi.product.infrastructure.client.HttpAiSuggestionDecisions;
+import vn.viettel.okrkpi.product.infrastructure.client.HttpIssuedDocuments;
 import vn.viettel.okrkpi.product.infrastructure.listener.EvidenceObjectListener;
+import vn.viettel.okrkpi.replica.api.AssignmentView;
+import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
 import vn.viettel.okrkpi.shared.audit.AuditLogger;
 import vn.viettel.okrkpi.shared.crypto.FieldEncryptor;
 import vn.viettel.okrkpi.shared.inbox.InboxEndpoint;
@@ -46,9 +53,12 @@ import vn.viettel.okrkpi.shared.inbox.InboxMetrics;
 import vn.viettel.okrkpi.shared.inbox.InboxPayloadDeserializer;
 import vn.viettel.okrkpi.shared.inbox.InboxProperties;
 import vn.viettel.okrkpi.shared.inbox.InboxRetryDlqPublisher;
+import vn.viettel.okrkpi.shared.infrastructure.identity.KeycloakAdminClient;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.outbox.ApicurioPayloadSerializer;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
+import vn.viettel.okrkpi.shared.resilience.DependencyUnavailableException;
+import vn.viettel.okrkpi.shared.resilience.ResilientClientFactory;
 import vn.viettel.okrkpi.task.api.TaskApi;
 import vn.vtokr.evidence.v1.ObjectScanned;
 import vn.vtokr.sys.v1.EvidenceObjectStored;
@@ -113,6 +123,53 @@ public class EvidenceSubmissionConfiguration {
       port = new HttpAiSuggestionDecisions(baseUrl, timeout);
     }
     return new EvidenceAiConfirmationService(evidenceSubmissionService, port);
+  }
+
+  /**
+   * CORE-03-04: văn bản đã ban hành trên vOffice qua SVC-13. Để trống {@code
+   * mission.product.integ.base-url} (mặc định theo {@code mission.integ.base-url}) thì tìm và nhận
+   * văn bản trả 503; bean {@link IssuedDocuments} và {@code Units} khác (kiểm thử) được ưu tiên.
+   */
+  @Bean
+  EvidenceExternalDocService evidenceExternalDocService(
+      EvidenceSubmissionService evidenceSubmissionService,
+      @Value("${mission.product.integ.base-url:${mission.integ.base-url:}}") String baseUrl,
+      ObjectProvider<IssuedDocuments> override,
+      ObjectProvider<ResilientClientFactory> factory,
+      ObjectProvider<KeycloakAdminClient> keycloak,
+      ObjectProvider<OrgDirectoryApi> org,
+      ObjectProvider<EvidenceExternalDocService.Units> unitsOverride,
+      AuditLogger audit) {
+    IssuedDocuments port = override.getIfAvailable();
+    ResilientClientFactory f = factory.getIfAvailable();
+    if (port == null && !baseUrl.isBlank() && f != null) {
+      port =
+          new HttpIssuedDocuments(
+              f.create(HttpIssuedDocuments.INSTANCE, baseUrl),
+              () -> {
+                KeycloakAdminClient k = keycloak.getIfAvailable();
+                if (k == null) {
+                  throw new DependencyUnavailableException(
+                      "keycloak", DependencyUnavailableException.Reason.IO_ERROR, null, null);
+                }
+                return k.serviceToken();
+              });
+    }
+    EvidenceExternalDocService.Units units =
+        unitsOverride.getIfAvailable(
+            () ->
+                (tenant, personId, on) -> {
+                  OrgDirectoryApi directory = org.getIfAvailable();
+                  if (directory == null) {
+                    return Optional.empty();
+                  }
+                  List<AssignmentView> assignments = directory.assignmentsOf(tenant, personId, on);
+                  return assignments.isEmpty()
+                      ? Optional.empty()
+                      : Optional.of(assignments.get(0).orgUnitId());
+                });
+    return new EvidenceExternalDocService(
+        evidenceSubmissionService, port, units, audit, java.time.Clock.systemUTC());
   }
 
   @Bean
