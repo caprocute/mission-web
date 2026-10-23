@@ -19,16 +19,19 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -145,8 +148,25 @@ class ComplaintApiIT extends ContractConformanceTest {
     }
 
     @Bean
-    ComplaintSigner complaintTestSigner() {
+    ComplaintSigner complaintTestSigner(ObjectProvider<ComplaintService> complaints) {
       return (tenant, id, key, authorization) -> {
+        // Như SVC-10 thật: hỏi tài liệu cần ký trên luồng và kết nối khác ngay trong lời gọi, nên
+        // chỉ thấy dữ liệu đã commit (đỏ khi bước chốt chạy lại trong giao dịch khoá lặp).
+        try {
+          CompletableFuture.supplyAsync(
+                  () -> {
+                    try {
+                      return TenantContext.call(
+                          tenant,
+                          () -> complaints.getObject().signSource(tenant, id).orElseThrow());
+                    } catch (Exception e) {
+                      throw new IllegalStateException(e);
+                    }
+                  })
+              .get(30, TimeUnit.SECONDS);
+        } catch (Exception e) {
+          throw new IllegalStateException("Tài liệu cần ký chưa sẵn sàng", e);
+        }
         UUID sign = UUID.randomUUID();
         SIGNED.add(sign);
         return sign;

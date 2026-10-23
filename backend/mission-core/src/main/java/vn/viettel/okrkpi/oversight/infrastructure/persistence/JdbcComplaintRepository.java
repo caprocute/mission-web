@@ -137,7 +137,7 @@ public class JdbcComplaintRepository implements ComplaintRepository {
                        filed_at = ?, response_deadline = ?, handler_unit_id = ?,
                        sign_request_id = ?, handler_person_id = ?, accept_deadline = ?,
                        accepted_at = ?, close_reason_code = ?, close_reason = ?, closed_at = ?,
-                       row_version = ?, updated_at = now(), updated_by = ?
+                       sign_pending_at = NULL, row_version = ?, updated_at = now(), updated_by = ?
                  WHERE period_bucket = ? AND tenant_id = ? AND id = ? AND row_version = ?
                 """)
             .param(c.kind().name())
@@ -272,6 +272,35 @@ public class JdbcComplaintRepository implements ComplaintRepository {
         .param(exceptId)
         .query(Boolean.class)
         .single();
+  }
+
+  @Override
+  public boolean markSignPending(TenantId tenant, Complaint c, Instant at) {
+    return jdbc.sql(
+                """
+                UPDATE oversight.complaint SET sign_pending_at = ?
+                 WHERE period_bucket = ? AND tenant_id = ? AND id = ? AND row_version = ?
+                   AND status IS NULL
+                """)
+            .param(timestamp(at))
+            .param(c.periodBucket())
+            .param(tenant.value())
+            .param(c.id())
+            .param(c.rowVersion())
+            .update()
+        == 1;
+  }
+
+  @Override
+  public boolean signPending(TenantId tenant, UUID id) {
+    return jdbc.sql(
+            "SELECT sign_pending_at IS NOT NULL FROM oversight.complaint"
+                + " WHERE tenant_id = ? AND id = ?")
+        .param(tenant.value())
+        .param(id)
+        .query(Boolean.class)
+        .optional()
+        .orElse(false);
   }
 
   @Override

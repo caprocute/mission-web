@@ -80,7 +80,8 @@ public class ComplaintConfiguration {
           String registry,
       @Value("${mission.oversight.esign.base-url:}") String esignUrl,
       ObjectProvider<OutboxPayloadSerializer> serializer,
-      ObjectProvider<ObjectMapper> json) {
+      ObjectProvider<ObjectMapper> json,
+      @Qualifier("oversightTransactionManager") PlatformTransactionManager tm) {
     OutboxWriter outbox = outbox(dataSource, registry, serializer, json);
     FieldEncryptor e = encryptor.getIfAvailable();
     return new ComplaintService(
@@ -97,6 +98,7 @@ public class ComplaintConfiguration {
                         new EsignRequestClient(esignUrl, json.getIfAvailable(ObjectMapper::new)))),
         new OutboxComplaintEvents(outbox),
         new OutboxOversightAudit(outbox),
+        ReopenRequestConfiguration.committed(tm),
         java.time.Clock.systemUTC());
   }
 
