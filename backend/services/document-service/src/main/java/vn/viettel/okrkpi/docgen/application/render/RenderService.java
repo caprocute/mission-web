@@ -1,19 +1,15 @@
 package vn.viettel.okrkpi.docgen.application.render;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -59,26 +55,22 @@ public class RenderService {
   /** Loại tác vụ dài trong lược đồ {@code Job} của hợp đồng. */
   public static final String JOB_TYPE = "RENDER";
 
-  public static final String TEMPLATES_BUCKET = "templates";
+  public static final String TEMPLATES_BUCKET = FormComposer.TEMPLATES_BUCKET;
   public static final String DOSSIER_BUCKET = "dossier";
 
   static final String NO_TEMPLATE = "DOSSIER-422-VALIDATION";
   static final String NO_FORMS = "DOSSIER-409-INVALID-STATE";
 
-  private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {};
-
   private final TemplateRepository templates;
   private final RenderJobRepository jobs;
   private final RenderInputPort inputs;
-  private final List<FormRenderer> renderers;
-  private final DocxMerger merger;
+  private final FormComposer composer;
   private final PdfConverter converter;
   private final PdfaValidator validator;
   private final PdfStamper stamper;
   private final ObjectStore store;
   private final RenderEvents events;
   private final RenderMetrics metrics;
-  private final ObjectMapper json;
   private final Clock clock;
   private final int maxAttempts;
   private final Duration lease;
@@ -102,18 +94,56 @@ public class RenderService {
       int maxAttempts,
       Duration lease,
       TransactionOperations tx) {
+    this(
+        templates,
+        jobs,
+        inputs,
+        renderers,
+        merger,
+        converter,
+        validator,
+        stamper,
+        store,
+        events,
+        metrics,
+        json,
+        clock,
+        maxAttempts,
+        lease,
+        tx,
+        SealedValueOpener.UNAVAILABLE);
+  }
+
+  /** Như trên, kèm bộ giải mã giá trị C2 của dữ liệu biểu mẫu (DV-11-02). */
+  @SuppressWarnings("checkstyle:ParameterNumber")
+  public RenderService(
+      TemplateRepository templates,
+      RenderJobRepository jobs,
+      RenderInputPort inputs,
+      List<FormRenderer> renderers,
+      DocxMerger merger,
+      PdfConverter converter,
+      PdfaValidator validator,
+      PdfStamper stamper,
+      ObjectStore store,
+      RenderEvents events,
+      RenderMetrics metrics,
+      ObjectMapper json,
+      Clock clock,
+      int maxAttempts,
+      Duration lease,
+      TransactionOperations tx,
+      SealedValueOpener opener) {
     this.templates = templates;
     this.jobs = jobs;
     this.inputs = inputs;
-    this.renderers = List.copyOf(renderers);
-    this.merger = merger;
+    this.composer = new FormComposer(store, renderers, merger, json, new FormModelBuilder(opener));
     this.converter = converter;
     this.validator = validator;
     this.stamper = stamper;
     this.store = store;
     this.events = events;
     this.metrics = metrics;
-    this.json = json;
     this.clock = clock;
     this.maxAttempts = maxAttempts;
     this.lease = lease;
@@ -162,7 +192,69 @@ public class RenderService {
                   now)
               .withProvenance(
                   new RenderJob.Provenance(
-                      command.packageId(), form.policyPackCode(), form.policyPackVersion())));
+                      command.packageId(), form.policyPackCode(), form.policyPackVersion()))
+              .withVariant(RenderJob.Variant.reopened(form.reopenRequestId())));
+    }
+    return job(command.requestId()).orElseThrow();
+  }
+
+  /**
+   * Lệnh sinh bản nháp ngoài gói hồ sơ (DV-11-03, SCR-0904 "Xuất Mẫu 3").
+   *
+   * @param profileIds hồ sơ đang chọn, tối đa theo hợp đồng
+   */
+  public record DraftCommand(
+      UUID tenantId,
+      UUID caller,
+      String formCode,
+      UUID periodId,
+      List<UUID> profileIds,
+      UUID requestId) {
+    public DraftCommand {
+      Objects.requireNonNull(tenantId, "tenantId");
+      Objects.requireNonNull(caller, "caller");
+      Objects.requireNonNull(formCode, "formCode");
+      Objects.requireNonNull(periodId, "periodId");
+      Objects.requireNonNull(requestId, "requestId");
+      profileIds = profileIds == null ? List.of() : List.copyOf(profileIds);
+    }
+  }
+
+  /**
+   * Tạo tác vụ sinh bản nháp: MOD-06 tạo biểu mẫu không gắn gói, mỗi biểu mẫu một tác vụ đánh dấu
+   * nháp; tệp mang dấu "Bản nháp" và không có tem gói.
+   */
+  @Transactional
+  public Job requestDrafts(DraftCommand command) {
+    List<RenderInputPort.FormRef> forms =
+        inputs
+            .draftForms(
+                command.tenantId(),
+                command.caller(),
+                command.formCode(),
+                command.periodId(),
+                command.profileIds())
+            .orElseThrow(() -> new DocgenNotFoundException("Không tìm thấy kỳ hoặc hồ sơ"));
+    if (forms.isEmpty()) {
+      throw new BusinessException(NO_FORMS, "Không có hồ sơ nào để sinh biểu mẫu nháp.");
+    }
+    Instant now = clock.instant();
+    for (RenderInputPort.FormRef form : forms) {
+      Template template = template(form);
+      jobs.insertIfAbsent(
+          RenderJob.create(
+                  Ids.newUuidV7(),
+                  command.tenantId(),
+                  template.id(),
+                  requestEventId(command.requestId(), form.formInstanceId()),
+                  command.requestId(),
+                  form.formInstanceId(),
+                  form.dataSnapshotHash(),
+                  command.caller(),
+                  now)
+              .withProvenance(
+                  new RenderJob.Provenance(null, form.policyPackCode(), form.policyPackVersion()))
+              .withVariant(RenderJob.Variant.DRAFT));
     }
     return job(command.requestId()).orElseThrow();
   }
@@ -185,22 +277,7 @@ public class RenderService {
    * ngừng, để kỳ cũ sinh lại đúng mẫu cũ), ngược lại phiên bản đang hiệu lực mới nhất.
    */
   private Template template(RenderInputPort.FormRef form) {
-    if (form.templateVersion() == null) {
-      return activeTemplate(form.formCode(), form.subjectGroupCode());
-    }
-    int pinned = form.templateVersion();
-    return templates.findByFormCode(form.formCode()).stream()
-        .filter(t -> t.pinnedFor(pinned, form.subjectGroupCode()))
-        .findFirst()
-        .orElseThrow(
-            () ->
-                new BusinessException(
-                    NO_TEMPLATE,
-                    "Chưa có mẫu biểu mẫu "
-                        + form.formCode()
-                        + " phiên bản "
-                        + pinned
-                        + " theo bộ quy tắc của kỳ."));
+    return templateFor(form.formCode(), form.subjectGroupCode(), form.templateVersion());
   }
 
   private Template activeTemplate(String formCode, String subjectGroupCode) {
@@ -308,13 +385,10 @@ public class RenderService {
       throw new RejectedDocument(
           "Dữ liệu biểu mẫu đã thay đổi sau khi yêu cầu sinh (băm dữ liệu không khớp).");
     }
-    byte[] docx = store.get(TEMPLATES_BUCKET, template.objectKey());
-    if (!Arrays.equals(Hashes.sha256(docx), template.contentSha256())) {
-      throw new RejectedDocument("Tệp mẫu " + template + " không khớp băm đã đăng ký.");
-    }
-    Map<String, String> fields = renderer(template).fields(parse(data.canonicalJson()));
     RenderStamp stamp = stamp(job, template);
-    byte[] merged = merger.merge(docx, fields, stamp.footerText());
+    byte[] merged =
+        composer.compose(
+            template, data.canonicalJson(), context(job, template), stamp.footerText());
     byte[] pdf = stamper.stamp(converter.toPdfA2b(merged, template.formCode() + ".docx"), stamp);
     PdfaValidator.Result check = validator.validate(pdf);
     if (!check.compliant()) {
@@ -326,6 +400,18 @@ public class RenderService {
     return new Rendered(key, sha, pdf.length);
   }
 
+  static RenderContext context(RenderJob job, Template template) {
+    RenderJob.Provenance p = job.provenance();
+    return new RenderContext(
+        job.tenantId(),
+        job.formInstanceId(),
+        template.formCode(),
+        template.versionNo(),
+        p.policyPackCode(),
+        p.policyPackVersion(),
+        job.variant().draft());
+  }
+
   static RenderStamp stamp(RenderJob job, Template template) {
     RenderJob.Provenance p = job.provenance();
     return new RenderStamp(
@@ -334,7 +420,9 @@ public class RenderService {
         template.formCode(),
         template.versionNo(),
         p.packageId(),
-        job.inputSha256());
+        job.inputSha256(),
+        job.variant().reopenRequestId(),
+        job.variant().draft());
   }
 
   /** Tác vụ đã nhận cùng mẫu của nó. */
@@ -366,19 +454,29 @@ public class RenderService {
         + ".pdf";
   }
 
-  private FormRenderer renderer(Template template) {
-    return renderers.stream()
-        .filter(r -> r.formCode().equals(template.formCode()) && r.supports(template.versionNo()))
-        .findFirst()
-        .orElseGet(PlainFieldRenderer::new);
+  /** Bước trộn dùng chung với bản xem trước. */
+  FormComposer composer() {
+    return composer;
   }
 
-  private Map<String, Object> parse(byte[] canonicalJson) {
-    try {
-      return json.readValue(canonicalJson, MAP);
-    } catch (IOException e) {
-      throw new RejectedDocument("Dữ liệu biểu mẫu không phải JSON hợp lệ.");
+  /** Mẫu của một biểu mẫu theo phiên bản kỳ ghim (dùng chung với bản xem trước). */
+  Template templateFor(String formCode, String subjectGroupCode, Integer templateVersion) {
+    if (templateVersion == null) {
+      return activeTemplate(formCode, subjectGroupCode);
     }
+    int pinned = templateVersion;
+    return templates.findByFormCode(formCode).stream()
+        .filter(t -> t.pinnedFor(pinned, subjectGroupCode))
+        .findFirst()
+        .orElseThrow(
+            () ->
+                new BusinessException(
+                    NO_TEMPLATE,
+                    "Chưa có mẫu biểu mẫu "
+                        + formCode
+                        + " phiên bản "
+                        + pinned
+                        + " theo bộ quy tắc của kỳ."));
   }
 
   /** Trạng thái lệnh sinh theo lược đồ {@code Job}; rỗng khi lệnh không thuộc tenant hiện tại. */
@@ -425,9 +523,24 @@ public class RenderService {
         status,
         status == JobStatus.THAT_BAI ? null : progress,
         message,
-        null,
+        resultLocation(status, parts),
         null,
         updated.atOffset(ZoneOffset.UTC));
+  }
+
+  /** Đường dẫn biểu mẫu nháp đã sinh, theo hợp đồng {@code getDossierForm}. */
+  public static final String FORM_LOCATION = "/api/v1/dossiers/forms/";
+
+  /**
+   * Kết quả của lệnh sinh nháp đã xong một biểu mẫu là mã biểu mẫu ({@code
+   * createDossierDraftForms}); lệnh nhiều biểu mẫu hay lệnh sinh cho gói không có đường dẫn kết quả
+   * riêng (suy luận).
+   */
+  static String resultLocation(JobStatus status, List<RenderJob> parts) {
+    if (status != JobStatus.HOAN_TAT || parts.size() != 1 || !parts.get(0).variant().draft()) {
+      return null;
+    }
+    return FORM_LOCATION + parts.get(0).formInstanceId();
   }
 
   /** Các tác vụ của một lệnh sinh, để tra cứu và kiểm thử. */

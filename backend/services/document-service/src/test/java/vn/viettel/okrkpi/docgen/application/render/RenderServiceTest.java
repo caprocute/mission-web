@@ -70,6 +70,10 @@ class RenderServiceTest {
         }
       };
   private Runnable duringConvert = () -> {};
+  private Optional<List<RenderInputPort.FormRef>> drafts = Optional.empty();
+  private Optional<RenderInputPort.PreviewData> previewData = Optional.empty();
+  private RenderInputPort inputs;
+  private DocumentPorts.PdfConverter converter;
   private RenderService service;
 
   @BeforeEach
@@ -77,7 +81,7 @@ class RenderServiceTest {
     objects.put("templates/mau/1a.docx", TEMPLATE_DOCX);
     templates.items.add(template(1, TemplateStatus.NGUNG, List.of()));
     templates.items.add(template(2, TemplateStatus.HIEU_LUC, List.of("KHOI_A")));
-    RenderInputPort inputs =
+    inputs =
         new RenderInputPort() {
           @Override
           public Optional<List<FormRef>> forms(
@@ -90,6 +94,27 @@ class RenderServiceTest {
             return Optional.ofNullable(data.get(formInstanceId))
                 .map(d -> new FormData(formInstanceId, "MAU_1A", d));
           }
+
+          @Override
+          public Optional<List<FormRef>> draftForms(
+              UUID tenantId, UUID actor, String formCode, UUID periodId, List<UUID> profileIds) {
+            return drafts;
+          }
+
+          @Override
+          public Optional<PreviewData> preview(
+              UUID tenantId, UUID actor, String formCode, String sourceModule, UUID sourceRefId) {
+            return previewData;
+          }
+        };
+    converter =
+        (docx, name) -> {
+          duringConvert.run();
+          if (converterDown) {
+            throw new DocumentPorts.TransientFailure("Gotenberg tạm ngừng", null);
+          }
+          return ("%PDF-" + new String(docx, StandardCharsets.UTF_8))
+              .getBytes(StandardCharsets.UTF_8);
         };
     DocumentPorts.ObjectStore store =
         new DocumentPorts.ObjectStore() {
@@ -113,14 +138,7 @@ class RenderServiceTest {
               lastFields = fields;
               return ("merged:" + fields).getBytes(StandardCharsets.UTF_8);
             },
-            (docx, name) -> {
-              duringConvert.run();
-              if (converterDown) {
-                throw new DocumentPorts.TransientFailure("Gotenberg tạm ngừng", null);
-              }
-              return ("%PDF-" + new String(docx, StandardCharsets.UTF_8))
-                  .getBytes(StandardCharsets.UTF_8);
-            },
+            converter,
             pdf -> new DocumentPorts.PdfaValidator.Result(pdfaCompliant, "6.2.11.4.1"),
             (pdf, stamp) -> {
               stamps.add(stamp);
@@ -407,6 +425,180 @@ class RenderServiceTest {
         .isNotEqualTo(RenderService.requestEventId(r, UUID.randomUUID()));
   }
 
+  @Test
+  void draftJobsAreMarkedDraftWithoutPackageAndPointToTheSingleForm() {
+    UUID requestId = UUID.randomUUID();
+    RenderService.DraftCommand command =
+        new RenderService.DraftCommand(
+            TENANT, CALLER, "MAU_1A", UUID.randomUUID(), null, requestId);
+    assertThatThrownBy(() -> service.requestDrafts(command))
+        .isInstanceOf(DocgenNotFoundException.class);
+    drafts = Optional.of(List.of());
+    assertThatThrownBy(() -> service.requestDrafts(command)).isInstanceOf(BusinessException.class);
+
+    UUID formId = form("{\"hoTen\":\"Nguyễn Văn A\"}");
+    drafts = Optional.of(List.copyOf(forms));
+    Job job = service.requestDrafts(command);
+    assertThat(job.status()).isEqualTo(JobStatus.CHO);
+    assertThat(job.resultLocation()).isNull();
+    RenderJob draft = jobs.items.get(0);
+    assertThat(draft.variant().draft()).isTrue();
+    assertThat(draft.provenance().packageId()).isNull();
+
+    assertThat(service.processOnce(draft.id())).isEqualTo(RenderJobStatus.XONG);
+    assertThat(stamps.get(0).draft()).isTrue();
+    assertThat(stamps.get(0).footerText()).contains(RenderStamp.DRAFT_LABEL);
+    assertThat(service.job(requestId).orElseThrow().resultLocation())
+        .isEqualTo(RenderService.FORM_LOCATION + formId);
+  }
+
+  @Test
+  void reopenedFormIsStampedAsRegenerated() {
+    UUID reopen = UUID.randomUUID();
+    byte[] bytes = "{}".getBytes(StandardCharsets.UTF_8);
+    UUID formId = UUID.randomUUID();
+    data.put(formId, bytes);
+    forms.add(
+        new RenderInputPort.FormRef(
+            formId, "MAU_1A", "KHOI_A", Hashes.sha256(bytes), null, null, null, reopen));
+    request(UUID.randomUUID());
+    RenderJob job = jobs.items.get(0);
+    assertThat(job.variant().reopenRequestId()).isEqualTo(reopen);
+    assertThat(service.processOnce(job.id())).isEqualTo(RenderJobStatus.XONG);
+    assertThat(stamps.get(0).reopenRequestId()).isEqualTo(reopen);
+    assertThat(stamps.get(0).footerText()).contains("Sinh lại sau khi mở lại kỳ");
+  }
+
+  private FormPreviewService previews(
+      PreviewRateLimiter limiter, java.util.concurrent.Executor ex) {
+    return new FormPreviewService(service, inputs, converter, limiter, ex, Duration.ofSeconds(2));
+  }
+
+  private FormPreviewService.PreviewCommand previewCommand() {
+    return new FormPreviewService.PreviewCommand(
+        TENANT, CALLER, "MAU_1A", "appraisal", UUID.randomUUID());
+  }
+
+  @Test
+  void previewReturnsPdfWithoutStoringAnything() {
+    FormPreviewService previews =
+        previews(new PreviewRateLimiter(5, Duration.ofMinutes(1), clock), Runnable::run);
+    assertThatThrownBy(() -> previews.preview(previewCommand()))
+        .isInstanceOf(DocgenNotFoundException.class);
+    previewData =
+        Optional.of(
+            new RenderInputPort.PreviewData(
+                "MAU_1A",
+                "KHOI_A",
+                null,
+                "KHOI_DANG",
+                "2.0.0",
+                "{\"hoTen\":\"Nguyễn Văn A\"}".getBytes(StandardCharsets.UTF_8)));
+    int stored = objects.size();
+    byte[] pdf = previews.preview(previewCommand());
+    assertThat(new String(pdf, StandardCharsets.UTF_8)).startsWith("%PDF-");
+    assertThat(lastFields).containsEntry("hoTen", "Nguyễn Văn A");
+    assertThat(objects).hasSize(stored);
+    assertThat(jobs.items).isEmpty();
+    assertThat(jobs.outputs).isEmpty();
+  }
+
+  @Test
+  void previewMapsFailuresToClearErrors() {
+    previewData =
+        Optional.of(
+            new RenderInputPort.PreviewData(
+                "MAU_1A", "KHOI_A", null, null, null, "{}".getBytes(StandardCharsets.UTF_8)));
+    PreviewRateLimiter limiter = new PreviewRateLimiter(100, Duration.ofMinutes(1), clock);
+    converterDown = true;
+    assertThatThrownBy(() -> previews(limiter, Runnable::run).preview(previewCommand()))
+        .isInstanceOf(vn.viettel.okrkpi.shared.resilience.DependencyUnavailableException.class);
+    converterDown = false;
+
+    previewData =
+        Optional.of(
+            new RenderInputPort.PreviewData(
+                "MAU_1A", "KHOI_A", null, null, null, "[1".getBytes(StandardCharsets.UTF_8)));
+    assertThatThrownBy(() -> previews(limiter, Runnable::run).preview(previewCommand()))
+        .isInstanceOf(BusinessException.class);
+    previewData =
+        Optional.of(
+            new RenderInputPort.PreviewData(
+                "MAU_1A", "KHOI_A", null, null, null, "{}".getBytes(StandardCharsets.UTF_8)));
+
+    assertThatThrownBy(
+            () ->
+                previews(
+                        limiter,
+                        r -> {
+                          throw new java.util.concurrent.RejectedExecutionException("đầy");
+                        })
+                    .preview(previewCommand()))
+        .isInstanceOf(vn.viettel.okrkpi.shared.resilience.DependencyUnavailableException.class);
+
+    duringConvert =
+        () -> {
+          throw new IllegalStateException("lỗi lạ");
+        };
+    assertThatThrownBy(() -> previews(limiter, Runnable::run).preview(previewCommand()))
+        .isInstanceOf(IllegalStateException.class);
+    duringConvert = () -> {};
+
+    java.util.concurrent.ExecutorService slow =
+        java.util.concurrent.Executors.newSingleThreadExecutor();
+    try {
+      duringConvert =
+          () -> {
+            try {
+              Thread.sleep(10_000);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+          };
+      FormPreviewService timed =
+          new FormPreviewService(service, inputs, converter, limiter, slow, Duration.ofMillis(50));
+      assertThatThrownBy(() -> timed.preview(previewCommand()))
+          .isInstanceOf(vn.viettel.okrkpi.shared.resilience.DependencyUnavailableException.class);
+    } finally {
+      slow.shutdownNow();
+    }
+  }
+
+  @Test
+  void rateLimiterCountsPerCallerAndResetsAfterWindow() {
+    PreviewRateLimiter limiter = new PreviewRateLimiter(2, Duration.ofMinutes(1), clock);
+    UUID other = UUID.randomUUID();
+    limiter.acquire(TENANT, CALLER);
+    limiter.acquire(TENANT, CALLER);
+    limiter.acquire(TENANT, other);
+    now = T0.plusSeconds(20);
+    assertThatThrownBy(() -> limiter.acquire(TENANT, CALLER))
+        .isInstanceOfSatisfying(
+            PreviewRateLimiter.Exceeded.class,
+            e -> {
+              assertThat(e.retryAfter()).isEqualTo(Duration.ofSeconds(40));
+              assertThat(e.retryAfterSeconds()).isEqualTo(40);
+            });
+    now = T0.plusSeconds(61);
+    limiter.acquire(TENANT, CALLER);
+    assertThatThrownBy(() -> new PreviewRateLimiter(0, Duration.ofMinutes(1), clock))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new PreviewRateLimiter(1, Duration.ZERO, clock))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void rateLimiterDropsExpiredWindowsWhenFull() {
+    PreviewRateLimiter limiter = new PreviewRateLimiter(1, Duration.ofMinutes(1), clock);
+    for (int i = 0; i < PreviewRateLimiter.MAX_KEYS; i++) {
+      limiter.acquire(TENANT, UUID.randomUUID());
+    }
+    limiter.acquire(TENANT, CALLER);
+    now = T0.plusSeconds(120);
+    limiter.acquire(TENANT, CALLER);
+    limiter.acquire(TENANT, UUID.randomUUID());
+  }
+
   static final class MemoryTemplates implements TemplateRepository {
     final List<Template> items = new ArrayList<>();
 
@@ -476,7 +668,8 @@ class RenderServiceTest {
                   job.createdAt(),
                   job.updatedAt(),
                   job.rowVersion() + 1)
-              .withProvenance(job.provenance());
+              .withProvenance(job.provenance())
+              .withVariant(job.variant());
       items.set(items.indexOf(stored), next);
       return next.rowVersion();
     }
@@ -507,7 +700,8 @@ class RenderServiceTest {
               j.createdAt(),
               j.updatedAt(),
               j.rowVersion())
-          .withProvenance(j.provenance());
+          .withProvenance(j.provenance())
+          .withVariant(j.variant());
     }
   }
 }

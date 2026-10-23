@@ -13,10 +13,8 @@ import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -31,9 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -51,7 +47,6 @@ import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
 import vn.viettel.okrkpi.contract.test.application.OpenApiConformanceEngine;
 import vn.viettel.okrkpi.contract.test.domain.ContractViolation;
-import vn.viettel.okrkpi.docgen.application.render.DocumentPorts.TransientFailure;
 import vn.viettel.okrkpi.docgen.application.render.Hashes;
 import vn.viettel.okrkpi.docgen.application.render.RenderInputPort;
 import vn.viettel.okrkpi.docgen.application.render.RenderService;
@@ -62,7 +57,6 @@ import vn.viettel.okrkpi.docgen.domain.render.Template;
 import vn.viettel.okrkpi.docgen.domain.render.TemplateRepository;
 import vn.viettel.okrkpi.docgen.domain.render.TemplateStatus;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
-import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 
 /**
@@ -84,16 +78,17 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
     })
 @AutoConfigureMockMvc
 @Testcontainers
+@Import(DocgenTestBeans.class)
 class DocgenFlowIT extends ContractConformanceTest {
 
   private static final UUID TENANT = UUID.fromString("0192f1a2-0000-7000-8000-00000000d001");
   private static final UUID APPRAISER = UUID.fromString("0192f1a2-0000-7000-8000-00000000d002");
 
-  static final Map<UUID, List<RenderInputPort.FormRef>> PACKAGES = new ConcurrentHashMap<>();
-  static final Map<UUID, byte[]> DATA = new ConcurrentHashMap<>();
+  static final Map<UUID, List<RenderInputPort.FormRef>> PACKAGES = DocgenTestBeans.PACKAGES;
+  static final Map<UUID, byte[]> DATA = DocgenTestBeans.DATA;
 
   /** Biểu mẫu mà cổng MOD-06 giả lập lỗi tạm thời khi lấy dữ liệu (DV-11-04). */
-  static final Set<UUID> FAILING = ConcurrentHashMap.newKeySet();
+  static final Set<UUID> FAILING = DocgenTestBeans.FAILING;
 
   @Container
   static final PostgreSQLContainer<?> POSTGRES =
@@ -127,36 +122,6 @@ class DocgenFlowIT extends ContractConformanceTest {
     registry.add(
         "okrkpi.docgen.storage.endpoint",
         () -> "http://" + S3.getHost() + ":" + S3.getMappedPort(9090));
-  }
-
-  @TestConfiguration
-  static class Fakes {
-    @Bean
-    OutboxPayloadSerializer fakeSerializer() {
-      return (topic, payload) ->
-          new OutboxPayloadSerializer.SerializedPayload(new byte[] {1}, 1L, 1);
-    }
-
-    @Bean
-    @Primary
-    RenderInputPort fakeDossier() {
-      return new RenderInputPort() {
-        @Override
-        public Optional<List<FormRef>> forms(
-            UUID tenantId, UUID actor, UUID packageId, List<String> formCodes) {
-          return Optional.ofNullable(PACKAGES.get(packageId));
-        }
-
-        @Override
-        public Optional<FormData> data(UUID tenantId, UUID formInstanceId) {
-          if (FAILING.contains(formInstanceId)) {
-            throw new TransientFailure("Mô-đun hồ sơ tạm thời không trả lời", null);
-          }
-          return Optional.ofNullable(DATA.get(formInstanceId))
-              .map(d -> new FormData(formInstanceId, "MAU_3", d));
-        }
-      };
-    }
   }
 
   @Autowired private MockMvc mvc;
@@ -334,20 +299,10 @@ class DocgenFlowIT extends ContractConformanceTest {
     return "SVC-11";
   }
 
-  /** Thao tác SVC-11 của task sau: sinh dự thảo và xem trước biểu mẫu (DV-11-02, DV-11-03). */
-  private static final List<String> LATER_TASKS =
-      List.of("POST /dossiers/forms", "POST /dossiers/forms/preview");
-
   @Test
   void apiAndAcceptedResponseMatchContract() throws Exception {
     List<String> violations =
-        evaluateOpenApiDocs(mvc).violations().stream()
-            .filter(
-                v ->
-                    !("MISSING_ENDPOINT".equals(v.category())
-                        && LATER_TASKS.contains(v.location())))
-            .map(ContractViolation::format)
-            .toList();
+        evaluateOpenApiDocs(mvc).violations().stream().map(ContractViolation::format).toList();
     assertThat(violations).isEmpty();
     seedTemplate();
     String body =

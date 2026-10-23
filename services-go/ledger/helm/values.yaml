@@ -45,4 +45,6 @@ env:
   SEAL_GRACE: "5s"
   # Bộ chuyển tiếp topic nghiệp vụ → sys.ledger.append.v1 (nhóm ledger-forwarder); FORWARD_TOPICS rỗng là cả danh mục.
   FORWARD_ENABLED: "true"
+  # Client dịch vụ được đọc danh sách sổ cái với tenant trong X-Tenant-Id (đối soát R2 của mission-core, DL-12).
+  TENANT_DELEGATING_CLIENTS: "mission-core"
   # Gói bằng chứng (DV-09-05): API xuất chỉ mở khi đặt EXPORT_DIR (dev); production cần kho đối tượng, chưa nối.

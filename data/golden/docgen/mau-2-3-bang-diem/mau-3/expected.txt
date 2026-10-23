@@ -1,0 +1,23 @@
+# Văn bản kỳ vọng trích từ PDF/A do Gotenberg sinh từ input.json (FormTemplatesIT).
+# Mỗi dòng phải xuất hiện theo đúng thứ tự; khoảng trắng và xuống dòng trong ô bảng được gộp trước khi so.
+# Dòng trống và dòng bắt đầu bằng # bị bỏ qua.
+MẪU GIẢ LẬP – CHỈ DÙNG ĐỂ PHÁT TRIỂN VÀ KIỂM THỬ, KHÔNG CÓ GIÁ TRỊ PHÁP LÝ
+Phiên bản bộ quy tắc: KHOI_DANG phiên bản 2.0.0 Phiên bản mẫu biểu: 1 (0.9.0-gia-lap)
+Mẫu 3, phiên bản mẫu 1 · Bộ quy tắc đánh giá KHOI_DANG phiên bản 2.0.0
+MẪU 3
+Tổng hợp kết quả xếp loại của tập thể, gồm bốn mức tự đề xuất, thẩm định, đề xuất, quyết định.
+Đơn vị: Đảng bộ Sở Tư pháp (giả lập)
+Kỳ đánh giá: Năm 2026
+Danh sách xếp loại
+# Hàng đã sắp theo thứ tự đơn vị, rồi mức xếp loại, rồi họ tên; số thứ tự đánh lại.
+1 Nguyễn Văn An Chuyên viên Hoàn thành xuất sắc nhiệm vụ
+12/12 tán thành
+2 Trần Thị Bình Phó Chánh Văn phòng Hoàn thành xuất sắc nhiệm vụ Hoàn thành tốt nhiệm vụ
+Chưa đủ thành tích nổi bật để xếp xuất sắc. 11/12 tán thành
+3 Lê Văn Cường Nhân viên Không tự đánh giá Hoàn thành nhiệm vụ Hoàn thành nhiệm vụ
+Đề nghị xem xét lại kết quả quý III.
+# Tiêu đề bảng lặp lại ở trang sau.
+STT Họ và tên Chức vụ, chức danh Tự xếp loại
+4 Võ Thị Hoa Chuyên viên Hoàn thành nhiệm vụ
+10/12 tán thành
+Trưởng ban: Phạm Văn Dũng

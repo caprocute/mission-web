@@ -435,26 +435,26 @@ class EvidenceExternalDocTest {
     when(submissions.getEvidence(TENANT, evidenceId))
         .thenReturn(new EvidenceDetail(evidence("VAN_BAN", REF, 1), null, List.of()));
     String key = "chuyen-van-ban-" + evidenceId + "-2";
-    when(documents.transfer(TENANT, UNIT, REF, LEAD, key))
+    when(documents.transfer(TENANT, UNIT, REF, evidenceId, LEAD, key))
         .thenReturn(Optional.of(transferred(true)));
 
     s.newVersion(TENANT, evidenceId, input, MEMBER);
     verify(submissions)
         .openExternalDocVersion(eq(TENANT), eq(evidenceId), eq(input), any(), eq(MEMBER));
 
-    when(documents.transfer(TENANT, UNIT, REF, LEAD, key))
+    when(documents.transfer(TENANT, UNIT, REF, evidenceId, LEAD, key))
         .thenReturn(Optional.of(transferred(false)));
     assertThat(
             business(() -> s.newVersion(TENANT, evidenceId, input, MEMBER)).errors().get(0).rule())
         .isEqualTo("BR-07-13");
     verify(audit).record(any());
 
-    when(documents.transfer(TENANT, UNIT, REF, LEAD, key)).thenReturn(Optional.empty());
+    when(documents.transfer(TENANT, UNIT, REF, evidenceId, LEAD, key)).thenReturn(Optional.empty());
     assertThat(
             business(() -> s.newVersion(TENANT, evidenceId, input, MEMBER)).errors().get(0).field())
         .isEqualTo("externalDocRef");
 
-    when(documents.transfer(TENANT, UNIT, REF, LEAD, key))
+    when(documents.transfer(TENANT, UNIT, REF, evidenceId, LEAD, key))
         .thenThrow(
             new DependencyUnavailableException(
                 "integration-gateway",

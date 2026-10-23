@@ -65,11 +65,31 @@ class HrmTranslatorTest {
           "partyMember", "Đảng viên",
           "employmentStatus", "Trạng thái");
 
-  record Sent(UUID run, List<PersonnelSink.Person> persons) {}
+  record Sent(UUID run, List<PersonnelSink.Person> persons, boolean last) {}
 
   final List<Sent> sent = new ArrayList<>();
   final PersonnelSink sink =
-      (tenant, code, run, persons) -> sent.add(new Sent(run, List.copyOf(persons)));
+      new PersonnelSink() {
+        @Override
+        public void forward(
+            vn.viettel.okrkpi.shared.kernel.TenantId tenant,
+            String code,
+            UUID run,
+            List<Person> persons,
+            boolean last) {
+          sent.add(new Sent(run, List.copyOf(persons), last));
+        }
+
+        @Override
+        public void close(
+            vn.viettel.okrkpi.shared.kernel.TenantId tenant,
+            String code,
+            UUID run,
+            int deadLetters,
+            String reason) {
+          sent.add(new Sent(run, List.of(), true));
+        }
+      };
   final MappingXrefService mappings = mock(MappingXrefService.class);
   final TranslationContext ctx = new TranslationContext(T, C, TODAY, mappings);
 
@@ -93,7 +113,9 @@ class HrmTranslatorTest {
         List.of("externalId", "fullName", "birthDate"),
         null,
         null,
-        batchSize);
+        batchSize,
+        null,
+        null);
   }
 
   HrmPersonTranslator translator(Integer batchSize) {
@@ -239,6 +261,7 @@ class HrmTranslatorTest {
     assertThat(sent.get(0).persons()).hasSize(2);
     assertThat(sent.get(1).persons()).hasSize(1);
     assertThat(sent.get(0).run()).isEqualTo(sent.get(1).run());
+    assertThat(sent).extracting(Sent::last).containsExactly(false, true);
     assertThat(sent.get(0).persons().get(0).birthDate()).isEqualTo(LocalDate.of(1980, 5, 2));
     assertThat(sent.get(0).persons().get(0).partyMember()).isTrue();
     assertThat(sent.get(0).persons().get(1).partyMember()).isFalse();
@@ -268,6 +291,8 @@ class HrmTranslatorTest {
                 "jobTitle",
                 "/cd"),
             Map.of(),
+            null,
+            null,
             null,
             null,
             null,
@@ -309,5 +334,101 @@ class HrmTranslatorTest {
     assertThat(d).startsWith("dòng 2 (thiếu họ tên); dòng 3").endsWith("…");
     assertThat(BatchFiles.column("  Mã Cán Bộ ")).isEqualTo("mã cán bộ");
     assertThat(SftpBatchConnector.key(5, "a.csv")).isEqualTo("000000000005|a.csv");
+  }
+
+  @Test
+  void trongLanDongBoThiLoThuocLanChayVaKhongDong() {
+    UUID run = UUID.randomUUID();
+    new HrmPersonTranslator(
+            "HRM_SFTP", profile(2), sink, new ObjectMapper(), (t, c) -> Optional.of(run))
+        .translate(ctx, csv(HEADER + "NS-9;Lê Văn D;;1981-01-01;DV-01;CV;0;\n"));
+    assertThat(sent)
+        .isNotEmpty()
+        .allSatisfy(
+            x -> {
+              assertThat(x.run()).isEqualTo(run);
+              assertThat(x.last()).isFalse();
+            });
+  }
+
+  @Test
+  void danhSachDangVienBoPhanCongCuaNguoiRaKhoiDang() {
+    Profile p =
+        new Profile(
+            null,
+            null,
+            null,
+            Map.of(
+                "externalId", "/ma",
+                "fullName", "/hoTen",
+                "partyMember", "/tinhTrang",
+                "orgUnit", "/chiBo",
+                "jobTitle", "/chucVu",
+                "head", "/biThu"),
+            Map.of(
+                "partyMember",
+                Map.of("Đang sinh hoạt", "true", "Ra khỏi Đảng", "false"),
+                "head",
+                Map.of("Bí thư", "true")),
+            null,
+            null,
+            null,
+            null,
+            null,
+            new HrmProperties.Party(null));
+    assertThat(p.party().outbound()).isFalse();
+    HrmPersonTranslator t = new HrmPersonTranslator("DANG_VIEN", p, sink, new ObjectMapper());
+    t.translate(
+        ctx,
+        new InboundMessage(
+            "trang:1",
+            BatchFiles.TYPE_JSON,
+            ("[{\"ma\":\"DV-1\",\"hoTen\":\"A\",\"chiBo\":\"DV-01\",\"chucVu\":\"CV\","
+                    + "\"biThu\":\"Bí thư\"},"
+                    + "{\"ma\":\"DV-2\",\"hoTen\":\"B\",\"tinhTrang\":\"Ra khỏi Đảng\","
+                    + "\"chiBo\":\"CB-CU\",\"chucVu\":\"CV-CU\"}]")
+                .getBytes(StandardCharsets.UTF_8)));
+    List<PersonnelSink.Person> persons = sent.get(0).persons();
+    assertThat(persons.get(0).partyMember()).as("không ghi đảng tịch là đảng viên").isTrue();
+    assertThat(persons.get(0).employmentStatus()).isNull();
+    assertThat(persons.get(0).posts())
+        .singleElement()
+        .satisfies(
+            post -> {
+              assertThat(post.orgUnitId()).isEqualTo(UNIT);
+              assertThat(post.head()).isTrue();
+            });
+    assertThat(persons.get(1).partyMember()).isFalse();
+    assertThat(persons.get(1).posts()).as("chi bộ cũ chưa ánh xạ vẫn không chặn").isEmpty();
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void chieuRaDangVienChuaCoVanBanThiKhongKhoiDong() {
+    Profile p =
+        new Profile(
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            new HrmProperties.Party(true));
+    HrmProperties props = new HrmProperties(true, Map.of("DANG_VIEN", p));
+    assertThatThrownBy(
+            () ->
+                new HrmConfiguration()
+                    .integHrm(
+                        props,
+                        mock(vn.viettel.okrkpi.integ.application.port.ConnectorSecrets.class),
+                        sink,
+                        mock(org.springframework.beans.factory.ObjectProvider.class),
+                        mock(org.springframework.beans.factory.ObjectProvider.class)))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("party.outbound=false");
   }
 }

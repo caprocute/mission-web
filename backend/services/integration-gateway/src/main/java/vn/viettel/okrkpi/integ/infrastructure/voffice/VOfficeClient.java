@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import vn.viettel.okrkpi.integ.application.port.ConnectorSecrets;
 import vn.viettel.okrkpi.integ.domain.Connector;
@@ -27,6 +28,8 @@ class VOfficeClient {
 
   static final String DIRECTIVES = "/api/v2/directives";
   static final String DOCUMENTS = "/api/v2/documents";
+  static final String DOCUMENT_DETAIL = "/api/v2/documents/detail";
+  static final String DOCUMENT_CONTENT = "/api/v2/documents/content";
 
   private final HttpClient http;
   private final ObjectMapper json;
@@ -45,6 +48,46 @@ class VOfficeClient {
   }
 
   JsonNode get(Connector connector, String path, Map<String, String> query) throws IOException {
+    HttpResponse<byte[]> res = send(connector, path, query, "application/json");
+    if (res.statusCode() / 100 != 2) {
+      throw new IOException("Kết nối " + connector.code() + " trả mã " + res.statusCode());
+    }
+    return json.readTree(res.body());
+  }
+
+  /** Như {@link #get} nhưng 404 là rỗng (văn bản không có hoặc không thuộc đơn vị). */
+  Optional<JsonNode> find(Connector connector, String path, Map<String, String> query)
+      throws IOException {
+    HttpResponse<byte[]> res = send(connector, path, query, "application/json");
+    if (res.statusCode() == 404) {
+      return Optional.empty();
+    }
+    if (res.statusCode() / 100 != 2) {
+      throw new IOException("Kết nối " + connector.code() + " trả mã " + res.statusCode());
+    }
+    return Optional.of(json.readTree(res.body()));
+  }
+
+  /** Nội dung nhị phân (tệp gốc), tối đa {@code maxBytes}; 404 là rỗng. */
+  Optional<byte[]> download(
+      Connector connector, String path, Map<String, String> query, long maxBytes)
+      throws IOException {
+    HttpResponse<byte[]> res = send(connector, path, query, "*/*");
+    if (res.statusCode() == 404) {
+      return Optional.empty();
+    }
+    if (res.statusCode() / 100 != 2) {
+      throw new IOException("Kết nối " + connector.code() + " trả mã " + res.statusCode());
+    }
+    if (res.body().length > maxBytes) {
+      throw new IOException("Tệp gốc từ " + connector.code() + " vượt giới hạn kích thước");
+    }
+    return Optional.of(res.body());
+  }
+
+  private HttpResponse<byte[]> send(
+      Connector connector, String path, Map<String, String> query, String accept)
+      throws IOException {
     String endpoint = connector.endpoint();
     if (endpoint == null || !(endpoint.startsWith("https://") || endpoint.startsWith("http://"))) {
       throw new IOException("Địa chỉ kết nối " + connector.code() + " không hợp lệ");
@@ -62,23 +105,18 @@ class VOfficeClient {
             .collect(Collectors.joining("&"));
     URI uri = URI.create(trimSlash(endpoint) + path + (qs.isEmpty() ? "" : "?" + qs));
     HttpRequest.Builder req =
-        HttpRequest.newBuilder(uri).timeout(timeout).header("Accept", "application/json").GET();
+        HttpRequest.newBuilder(uri).timeout(timeout).header("Accept", accept).GET();
     if (connector.secretPath() != null) {
       secrets
           .token(connector.secretPath())
           .ifPresent(t -> req.header("Authorization", "Bearer " + t));
     }
-    HttpResponse<byte[]> res;
     try {
-      res = http.send(req.build(), HttpResponse.BodyHandlers.ofByteArray());
+      return http.send(req.build(), HttpResponse.BodyHandlers.ofByteArray());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IOException("Bị ngắt khi gọi " + connector.code(), e);
     }
-    if (res.statusCode() / 100 != 2) {
-      throw new IOException("Kết nối " + connector.code() + " trả mã " + res.statusCode());
-    }
-    return json.readTree(res.body());
   }
 
   private static String trimSlash(String s) {

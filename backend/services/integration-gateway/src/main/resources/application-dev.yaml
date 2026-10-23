@@ -57,6 +57,72 @@ okrkpi:
               "[Đang làm việc]": DANG_CONG_TAC
               "[Nghỉ hưu]": NGHI_HUU
               "[Thôi việc]": THOI_VIEC
+        # DV-13-06: CSDL quốc gia CBCCVC qua NDXP, kéo hết trang trong lần đồng bộ (lịch đêm ở
+        # connector.schedule_cron, "Đồng bộ ngay" từ SCR-0104). Tên trường là suy luận cho bản giả lập.
+        "[CBCCVC]":
+          trigger: RUN
+          request-timeout: PT30S
+          batch-size: 500
+          rest:
+            path: /api/cbccvc/v1/ho-so
+            cursor-param: capNhatTu
+            limit-param: gioiHan
+            page-size: 200
+            items: /duLieu
+            next-cursor: /conTroTiep
+            updated-at: /capNhatLuc
+          fields:
+            externalId: /maHoSo
+            fullName: /hoTen
+            nationalId: /soDinhDanh
+            birthDate: /ngaySinh
+            employmentStatus: /tinhTrang
+            partyMember: /laDangVien
+            orgUnit: /coQuan/maDinhDanh
+            jobTitle: /chucVu/ma
+            effectiveFrom: /ngayHieuLuc
+          values:
+            employmentStatus:
+              "[Đang công tác]": DANG_CONG_TAC
+              "[Nghỉ hưu]": NGHI_HUU
+              "[Thôi việc]": THOI_VIEC
+        # DV-13-07: CSDL đảng viên qua hạ tầng riêng khối Đảng, kéo hết trang trong lần đồng bộ;
+        # địa chỉ, mã thông báo ở integ.connector (secret_path), chứng thư mTLS ở lớp hạ tầng.
+        # Tên trường là suy luận cho bản giả lập, đổi theo tài liệu đối tác khi nối hệ thật.
+        "[DANG_VIEN]":
+          trigger: RUN
+          request-timeout: PT30S
+          batch-size: 500
+          party:
+            outbound: false
+          rest:
+            path: /api/dang-vien/v1/dang-vien
+            cursor-param: capNhatTu
+            limit-param: gioiHan
+            page-size: 200
+            items: /duLieu
+            next-cursor: /conTroTiep
+          fields:
+            externalId: /maDangVien
+            fullName: /hoTen
+            nationalId: /soDinhDanh
+            birthDate: /ngaySinh
+            partyMember: /tinhTrangDangTich
+            orgUnit: /toChucDang/ma
+            jobTitle: /chucVuDang/ma
+            head: /chucVuDang/laBiThu
+            effectiveFrom: /ngayHieuLuc
+          values:
+            partyMember:
+              "[Đang sinh hoạt]": "true"
+              "[Ra khỏi Đảng]": "false"
+              "[Xoá tên]": "false"
+              "[Khai trừ]": "false"
+              "[Từ trần]": "false"
+          indicator:
+            path: /api/dang-vien/v1/chi-so/{id}
+            value: /giaTri
+            measured-at: /thoiDiem
         "[HRM_SFTP]":
           period: PT1H
           batch:

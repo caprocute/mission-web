@@ -32,6 +32,24 @@ public final class RenderJob {
   private Instant updatedAt;
   private final long rowVersion;
   private Provenance provenance = Provenance.NONE;
+  private Variant variant = Variant.OFFICIAL;
+
+  /**
+   * Biến thể của tệp (DV-11-03): bản nháp ngoài gói hồ sơ mang dấu "Bản nháp" ({@code
+   * createDossierDraftForms}); bản sinh lại sau khi mở lại kỳ hậu kiểm tham chiếu yêu cầu mở lại
+   * (QT-13, BR-13-08) và luôn là tệp mới.
+   *
+   * @param draft bản nháp, không thuộc gói hồ sơ
+   * @param reopenRequestId yêu cầu mở lại kỳ dẫn tới lần sinh lại; {@code null} là lần sinh thường
+   */
+  public record Variant(boolean draft, UUID reopenRequestId) {
+    public static final Variant OFFICIAL = new Variant(false, null);
+    public static final Variant DRAFT = new Variant(true, null);
+
+    public static Variant reopened(UUID reopenRequestId) {
+      return reopenRequestId == null ? OFFICIAL : new Variant(false, reopenRequestId);
+    }
+  }
 
   /**
    * Nguồn gốc của tệp để đóng tem (DV-11-04, BR-11-03): gói hồ sơ và phiên bản Policy Pack gắn với
@@ -227,6 +245,16 @@ public final class RenderJob {
   /** Gắn nguồn gốc khi tạo hoặc khi đọc lại từ kho; {@code null} là không có. */
   public RenderJob withProvenance(Provenance value) {
     this.provenance = value == null ? Provenance.NONE : value;
+    return this;
+  }
+
+  public Variant variant() {
+    return variant;
+  }
+
+  /** Gắn biến thể khi tạo hoặc khi đọc lại từ kho; {@code null} là bản chính thức thường. */
+  public RenderJob withVariant(Variant value) {
+    this.variant = value == null ? Variant.OFFICIAL : value;
     return this;
   }
 }

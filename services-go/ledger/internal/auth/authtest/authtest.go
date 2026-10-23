@@ -56,6 +56,9 @@ type Claims struct {
 	ACR      string
 	AuthTime time.Time
 	TTL      time.Duration
+	// AZP, Username: client và preferred_username (tài khoản dịch vụ là service-account-<azp>).
+	AZP      string
+	Username string
 }
 
 // Token ký token RS256.
@@ -76,6 +79,12 @@ func (k *Keys) Token(c Claims) string {
 	}
 	if c.ACR != "" {
 		m["acr"] = c.ACR
+	}
+	if c.AZP != "" {
+		m["azp"] = c.AZP
+	}
+	if c.Username != "" {
+		m["preferred_username"] = c.Username
 	}
 	if !c.AuthTime.IsZero() {
 		m["auth_time"] = c.AuthTime.Unix()

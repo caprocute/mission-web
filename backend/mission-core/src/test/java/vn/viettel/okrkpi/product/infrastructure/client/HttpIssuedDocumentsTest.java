@@ -39,6 +39,7 @@ class HttpIssuedDocumentsTest {
 
   static final TenantId TENANT = TenantId.of(UUID.randomUUID());
   static final UUID UNIT = UUID.randomUUID();
+  static final UUID EVIDENCE = UUID.randomUUID();
   static final String SEARCH = "GET /internal/v1/integ/issued-docs";
   static final String TRANSFER = "POST /internal/v1/integ/issued-docs/transfer";
   static final String DOC =
@@ -142,7 +143,8 @@ class HttpIssuedDocumentsTest {
             + "\"doc\":"
             + DOC
             + "}");
-    Transferred t = client.transfer(TENANT, UNIT, "47-BC/BTCĐUK", person, "k-1").orElseThrow();
+    Transferred t =
+        client.transfer(TENANT, UNIT, "47-BC/BTCĐUK", EVIDENCE, person, "k-1").orElseThrow();
     assertThat(t.objectId()).isEqualTo(object);
     assertThat(t.sha256()).isEqualTo(HexFormat.of().parseHex("ab".repeat(32)));
     assertThat(t.signatureValid()).isTrue();
@@ -151,16 +153,28 @@ class HttpIssuedDocumentsTest {
     assertThat(seen.get(TRANSFER + "#body"))
         .contains("\"ref\":\"47-BC/BTCĐUK\"")
         .contains("\"requestedBy\":\"" + person + "\"")
-        .contains("\"orgUnitId\":\"" + UNIT + "\"");
+        .contains("\"orgUnitId\":\"" + UNIT + "\"")
+        .contains("\"ownerRefId\":\"" + EVIDENCE + "\"");
+
+    bodies.put(
+        TRANSFER,
+        "{\"objectId\":null,\"signatureValid\":false,\"doc\":"
+            + DOC.replace("true", "false")
+            + "}");
+    Transferred invalid =
+        client.transfer(TENANT, UNIT, "47-BC", EVIDENCE, person, "k-3").orElseThrow();
+    assertThat(invalid.signatureValid()).isFalse();
+    assertThat(invalid.objectId()).isNull();
+    assertThat(invalid.doc().ref()).isEqualTo("47-BC/BTCĐUK");
 
     status.put(TRANSFER, 404);
-    assertThat(client.transfer(TENANT, UNIT, "khong-co", person, "k-2")).isEmpty();
+    assertThat(client.transfer(TENANT, UNIT, "khong-co", EVIDENCE, person, "k-2")).isEmpty();
   }
 
   @Test
   void svc13LoiHoacThanSaiLa503() {
     status.put(TRANSFER, 500);
-    assertThatThrownBy(() -> client.transfer(TENANT, UNIT, "x", UUID.randomUUID(), "k"))
+    assertThatThrownBy(() -> client.transfer(TENANT, UNIT, "x", EVIDENCE, UUID.randomUUID(), "k"))
         .isInstanceOf(DependencyUnavailableException.class)
         .satisfies(
             e ->
@@ -170,8 +184,8 @@ class HttpIssuedDocumentsTest {
     assertThatThrownBy(() -> client.search(TENANT, UNIT, null, 10, null))
         .isInstanceOf(DependencyUnavailableException.class);
     status.remove(TRANSFER);
-    bodies.put(TRANSFER, "{\"objectId\":\"khong-phai-uuid\"}");
-    assertThatThrownBy(() -> client.transfer(TENANT, UNIT, "x", UUID.randomUUID(), "k"))
+    bodies.put(TRANSFER, "{\"objectId\":\"khong-phai-uuid\",\"signatureValid\":true}");
+    assertThatThrownBy(() -> client.transfer(TENANT, UNIT, "x", EVIDENCE, UUID.randomUUID(), "k"))
         .isInstanceOf(DependencyUnavailableException.class);
   }
 }

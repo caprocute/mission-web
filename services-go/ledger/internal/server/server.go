@@ -46,6 +46,9 @@ type Deps struct {
 	Export  *export.Service
 	Auth    auth.Verifier
 	Auditor Auditor
+	// DelegatingClients là client dịch vụ được đọc danh sách sổ cái với tenant đích trong X-Tenant-Id
+	// (đối soát R2 của mission-core, DL-12; wiki trang 14 mục DL-12e). Rỗng thì không client nào được.
+	DelegatingClients []string
 }
 
 // Server quản lý các tuyến HTTP của SVC-09.

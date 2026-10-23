@@ -20,6 +20,7 @@ import vn.viettel.okrkpi.evidence.application.E2eeFileAccess;
 import vn.viettel.okrkpi.evidence.application.FileAccessGuard;
 import vn.viettel.okrkpi.evidence.application.FileEvents;
 import vn.viettel.okrkpi.evidence.application.FileNameCipher;
+import vn.viettel.okrkpi.evidence.application.IngestService;
 import vn.viettel.okrkpi.evidence.application.MalwareScanner;
 import vn.viettel.okrkpi.evidence.application.ObjectStorage;
 import vn.viettel.okrkpi.evidence.application.OcrContentService;
@@ -120,6 +121,32 @@ public class EvidenceConfiguration {
         new UploadService.Settings(cell, maxFileBytes, partSize, sessionTtl, lockDays),
         clock.getIfAvailable(Clock::systemUTC),
         e2eeAccess.getIfAvailable());
+  }
+
+  /** CORE-03-04: nhận tệp gốc văn bản đã ban hành do integration-gateway chuyển sang. */
+  @Bean
+  IngestService ingestService(
+      StoredFiles files,
+      FileEvents events,
+      FileNameCipher names,
+      ObjectStorage storage,
+      TenantBucketService buckets,
+      PlatformTransactionManager transactions,
+      ObjectProvider<Clock> clock,
+      @Value("${okrkpi.evidence.storage.cell}") String cell,
+      @Value("${okrkpi.evidence.upload.max-file-bytes:52428800}") long maxFileBytes,
+      @Value("${okrkpi.evidence.upload.part-size:8388608}") int partSize,
+      @Value("${okrkpi.evidence.upload.session-ttl:PT24H}") Duration sessionTtl,
+      @Value("${okrkpi.evidence.storage.lock-days}") int lockDays) {
+    return new IngestService(
+        files,
+        events,
+        names,
+        storage,
+        buckets,
+        new TransactionTemplate(transactions),
+        new UploadService.Settings(cell, maxFileBytes, partSize, sessionTtl, lockDays),
+        clock.getIfAvailable(Clock::systemUTC));
   }
 
   /**

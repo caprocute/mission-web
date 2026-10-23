@@ -33,9 +33,12 @@ public record HrmProperties(Boolean enabled, Map<String, Profile> connectors) {
       List<String> required,
       Duration period,
       Duration requestTimeout,
-      Integer batchSize) {
+      Integer batchSize,
+      Trigger trigger,
+      Party party) {
 
     public Profile {
+      trigger = trigger == null ? Trigger.POLL : trigger;
       fields = fields == null ? Map.of() : Map.copyOf(fields);
       values = values == null ? Map.of() : Map.copyOf(values);
       required = required == null ? List.of("externalId", "fullName") : List.copyOf(required);
@@ -43,6 +46,31 @@ public record HrmProperties(Boolean enabled, Map<String, Profile> connectors) {
       requestTimeout = requestTimeout == null ? Duration.ofSeconds(10) : requestTimeout;
       batchSize = batchSize == null || batchSize < 1 ? 500 : batchSize;
     }
+  }
+
+  /**
+   * Hồ sơ là danh sách đảng viên (DV-13-07, CSDL đảng viên qua hạ tầng riêng khối Đảng): tổ chức
+   * đảng ({@code orgUnit}) và chức vụ đảng ({@code jobTitle}) quy đổi qua {@code mapping_xref} như
+   * đơn vị, chức danh; dòng không ghi đảng tịch là đảng viên, người đã ra khỏi Đảng ({@code
+   * partyMember} quy đổi thành sai) không mang phân công sinh hoạt; nguồn không ghi trạng thái công
+   * tác thì để trống thay vì mặc định. {@code outbound} là chiều ra "theo quy định", tắt cho tới
+   * khi có văn bản xác định dữ liệu được gửi (wiki 14).
+   */
+  public record Party(Boolean outbound) {
+
+    public Party {
+      outbound = outbound != null && outbound;
+    }
+  }
+
+  /**
+   * Cách kéo nhân sự: {@code POLL} kéo một trang mỗi chu kỳ {@code period}; {@code RUN} chỉ kéo
+   * trong lần đồng bộ (DV-13-06: lịch đêm {@code connector.schedule_cron}, "Đồng bộ ngay", chạy lại
+   * thư chết), mỗi lần kéo hết trang từ con trỏ, như CSDL quốc gia CBCCVC qua NDXP.
+   */
+  public enum Trigger {
+    POLL,
+    RUN
   }
 
   /** Kéo nhân sự qua REST: {@code GET <endpoint><path>?<cursorParam>=..&<limitParam>=..}. */

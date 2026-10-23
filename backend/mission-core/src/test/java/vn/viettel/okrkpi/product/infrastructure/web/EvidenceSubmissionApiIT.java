@@ -179,7 +179,12 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
 
         @Override
         public Optional<Transferred> transfer(
-            TenantId t, UUID orgUnitId, String ref, UUID requestedBy, String idempotencyKey) {
+            TenantId t,
+            UUID orgUnitId,
+            String ref,
+            UUID evidenceId,
+            UUID requestedBy,
+            String idempotencyKey) {
           down();
           return docs.stream()
               .filter(d -> d.ref().equals(ref) && UNIT.equals(orgUnitId))

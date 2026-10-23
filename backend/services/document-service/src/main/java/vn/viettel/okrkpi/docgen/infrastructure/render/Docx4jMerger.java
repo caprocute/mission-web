@@ -32,6 +32,7 @@ import org.docx4j.wml.SectPr;
 import org.docx4j.wml.Text;
 import vn.viettel.okrkpi.docgen.application.render.DocumentPorts.DocxMerger;
 import vn.viettel.okrkpi.docgen.application.render.DocumentPorts.RejectedDocument;
+import vn.viettel.okrkpi.docgen.application.render.MergeModel;
 
 /**
  * Trộn dữ liệu vào mẫu DOCX bằng docx4j 11 (Apache 2.0): gom các đoạn chạy bị Word tách để chỗ giữ
@@ -68,6 +69,26 @@ public class Docx4jMerger implements DocxMerger {
       return out.toByteArray();
     } catch (Exception e) {
       throw new RejectedDocument("Không trộn được dữ liệu vào mẫu DOCX: " + e.getMessage());
+    }
+  }
+
+  @Override
+  public byte[] merge(byte[] template, MergeModel model, String footer) {
+    try {
+      WordprocessingMLPackage pkg =
+          WordprocessingMLPackage.load(new ByteArrayInputStream(template));
+      new ContentControlFiller(model).fill(pkg);
+      if (footer != null && !footer.isBlank()) {
+        addFooter(pkg, footer);
+      }
+      ByteArrayOutputStream out = new ByteArrayOutputStream(template.length * 2);
+      pkg.save(out);
+      return out.toByteArray();
+    } catch (RejectedDocument e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RejectedDocument(
+          "Không trộn được dữ liệu vào mẫu DOCX: " + e.getClass().getSimpleName());
     }
   }
 
