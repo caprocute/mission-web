@@ -68,16 +68,18 @@ class HrmTranslatorTest {
   record Sent(UUID run, List<PersonnelSink.Person> persons, boolean last) {}
 
   final List<Sent> sent = new ArrayList<>();
+  int rejected;
   final PersonnelSink sink =
       new PersonnelSink() {
         @Override
-        public void forward(
+        public int forward(
             vn.viettel.okrkpi.shared.kernel.TenantId tenant,
             String code,
             UUID run,
             List<Person> persons,
             boolean last) {
           sent.add(new Sent(run, List.copyOf(persons), last));
+          return rejected;
         }
 
         @Override

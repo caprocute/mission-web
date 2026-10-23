@@ -50,6 +50,19 @@ public class ReplicaAccessDirectory implements AccessDirectory {
   }
 
   @Override
+  public Map<UUID, String> personTitles(TenantId tenant, Collection<UUID> personIds) {
+    return names(
+        tenant,
+        personIds,
+        "select distinct on (person_id) person_id as id, job_title_name as name"
+            + " from org_replica.assignment_v where person_id in (:ids)"
+            + " and job_title_name is not null"
+            + " and (now() at time zone 'Asia/Ho_Chi_Minh')::date >= valid_from"
+            + " and (now() at time zone 'Asia/Ho_Chi_Minh')::date < valid_to"
+            + " order by person_id, (branch = 'CHINH') desc, is_head desc, valid_from desc");
+  }
+
+  @Override
   public Map<UUID, String> unitNames(TenantId tenant, Collection<UUID> unitIds) {
     return names(
         tenant,
