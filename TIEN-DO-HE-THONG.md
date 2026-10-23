@@ -12,11 +12,11 @@
 
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
-- **Tổng tiến độ đã gộp `main`**: **360 / 408 task (88.2%)** — Khối lượng quy đổi đã gộp: **426.5 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **361 / 408 task (88.5%)** (gồm **360** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ đã gộp `main`**: **361 / 408 task (88.5%)** — Khối lượng quy đổi đã gộp: **428.5 / 492.5 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **362 / 408 task (88.7%)** (gồm **361** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **11 task** (7 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **36 task**.
-- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: `QA-07`).
+- **Chưa bắt đầu**: **35 task**.
+- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **20 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
 
@@ -28,11 +28,11 @@
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **104** | 0 | 0 | 0 | **100.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **13** | 0 | 0 | 0 | **100.0%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 6 | 6 | **57.1%** |
-| **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **1** | 1 | 3 | 11 | **6.2%** |
+| **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **2** | 0 | 3 | 11 | **12.5%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
-| **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
+| **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 1 | 0 | 8 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **360** | **1** | **11** | **36** | **88.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **361** | **1** | **11** | **35** | **88.5%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -43,15 +43,15 @@
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **119** | 0 | 1 | 0 | **99.2%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
-| **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **17** | 1 | 10 | 14 | **40.5%** |
-| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **4** | 0 | 0 | 19 | **17.4%** |
+| **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **18** | 0 | 10 | 14 | **42.9%** |
+| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **4** | 1 | 0 | 18 | **17.4%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **1** | 0 | 0 | 3 | **25.0%** |
 
 ### 1.3. Trạng thái 23 task trên Đường găng
 
 Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 
-✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → ✅ `CORE-00-01` → ✅ `CORE-00-02` → ✅ `CORE-05-01` → ✅ `CORE-05-02` → ✅ `CORE-05-03` → ✅ `CORE-08-13` → ✅ `CORE-08-14` → ✅ `CORE-04-04` → ✅ `CORE-04-05` → ✅ `CORE-04-07` → ✅ `CORE-04-08` → ✅ `CORE-04-10` → ⏳ `QA-06` → 🔄 **`QA-07`** (Xong, chờ gộp) → ⏳ `QA-16` → ⏳ `VH-08`
+✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → ✅ `CORE-00-01` → ✅ `CORE-00-02` → ✅ `CORE-05-01` → ✅ `CORE-05-02` → ✅ `CORE-05-03` → ✅ `CORE-08-13` → ✅ `CORE-08-14` → ✅ `CORE-04-04` → ✅ `CORE-04-05` → ✅ `CORE-04-07` → ✅ `CORE-04-08` → ✅ `CORE-04-10` → ⏳ `QA-06` → ✅ `QA-07` → ⏳ `QA-16` → ⏳ `VH-08`
 
 ---
 
@@ -575,7 +575,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [INF-27](docs/tasks/INF-27-quan-ly-truy-cap-dac-quyen.md) | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | B8 | 3 | INF-13 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần giải pháp PAM |
 | [INF-28](docs/tasks/INF-28-cum-cho-am-ttdl-hai.md) | Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite | L | B8 | 9 | INF-11, INF-18, INF-20, INF-04, INF-08, INF-09, INF-17 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần TTDL thứ hai |
 
-### QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng (1/16 đã gộp `main`, 1 chờ gộp, 3 đang làm)
+### QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng (2/16 đã gộp `main`, 0 chờ gộp, 3 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -585,7 +585,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [QA-04](docs/tasks/QA-04-hanh-trinh-okr.md) | Hành trình đầu cuối: đăng nhập, khởi tạo tenant, tổ chức, OKR, check-in | M | B9 | 14 | QA-03, CORE-01-08, DV-03-05 | **Chưa bắt đầu** |  |
 | [QA-05](docs/tasks/QA-05-hanh-trinh-giao-viec.md) | Hành trình đầu cuối: kế hoạch, giao việc, tiến độ, minh chứng, nghiệm thu | L | B9 | 20 | QA-03, CORE-03-07, CORE-02-22 | **Chưa bắt đầu** |  |
 | [QA-06](docs/tasks/QA-06-hanh-trinh-danh-gia.md) | Hành trình đầu cuối: khoá kỳ, tự đánh giá, thẩm định, quyết định ký số, xếp loại năm | L | B9 | 21 | QA-05, DV-06-06, CORE-04-10 | **Chưa bắt đầu** |  |
-| [QA-07](docs/tasks/QA-07-hanh-trinh-giam-sat.md) | Hành trình đầu cuối: kiểm điểm, hồ sơ số, khiếu nại, mở lại kỳ, cảnh báo, Policy Pack, bảng điều hành, AI, UI Pack | L | B9 | 23 | QA-06, CORE-06-08, CORE-07-11, DV-15-06 | **Xong, chờ gộp** | Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: HT-30..HT-41 đạt ở chế độ giả lập (chạy cả bộ nhiều lần); chế độ he-thong chưa chạy vì thiếu biến môi trường, bước thiếu seed DL-07 báo Chờ |
+| [QA-07](docs/tasks/QA-07-hanh-trinh-giam-sat.md) | Hành trình đầu cuối: kiểm điểm, hồ sơ số, khiếu nại, mở lại kỳ, cảnh báo, Policy Pack, bảng điều hành, AI, UI Pack | L | B9 | 23 | QA-06, CORE-06-08, CORE-07-11, DV-15-06 | **Đã gộp main** | Gộp main đến 3a3dcc57; sửa tiếp lỗi axe thẻ Test case SCR-1503 ở b93d7bb2 |
 | [QA-08](docs/tasks/QA-08-k6-perf-01-10.md) | Kịch bản k6 PERF-01..PERF-10 | L | B9 | 14 | QA-03, DL-08 | **Chưa bắt đầu** |  |
 | [QA-09](docs/tasks/QA-09-gatling-luong-flowable.md) | Kịch bản góp ý G2: PERF-11..PERF-13 (Gatling cho Flowable) | M | B9 | 15 | QA-08, DV-06-04 | **Chưa bắt đầu** |  |
 | [QA-10](docs/tasks/QA-10-chi-phi-bao-ve-g3.md) | Kịch bản góp ý G3: PERF-14..PERF-18, PERF-25 | M | B9 | 15 | QA-08, NEN-015 | **Chưa bắt đầu** |  |
@@ -611,13 +611,13 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [MOB-09](docs/tasks/MOB-09-thong-bao-day.md) | Thông báo đẩy FCM, APNs | S | B10 | 9 | MOB-01, DV-12-03, DV-12-05 | **Chưa bắt đầu** |  |
 | [MOB-10](docs/tasks/MOB-10-pipeline-phat-hanh.md) | Pipeline build, ký và phát hành ứng dụng; kiểm thử đầu cuối và khả năng truy cập trên di động | M | B10 | 19 | MOB-03, INF-06 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần tài khoản cửa hàng ứng dụng |
 
-### VH · Vận hành và đưa vào sử dụng (0/9 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### VH · Vận hành và đưa vào sử dụng (0/9 đã gộp `main`, 1 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [VH-01](docs/tasks/VH-01-runbook-ops-01-13.md) | Runbook OPS-01..OPS-13 | L | B11 | 4 | INF-04 | **Chưa bắt đầu** |  |
 | [VH-02](docs/tasks/VH-02-runbook-ops-14-26.md) | Runbook OPS-14..OPS-26 | L | B11 | 4 | INF-17 | **Chưa bắt đầu** |  |
-| [VH-03](docs/tasks/VH-03-truc-su-co-cab.md) | Trực vận hành, mức sự cố SEV-1..SEV-4, quy trình thay đổi, đóng băng thay đổi | M | B11 | 5 | VH-01 | **Chưa bắt đầu** |  |
+| [VH-03](docs/tasks/VH-03-truc-su-co-cab.md) | Trực vận hành, mức sự cố SEV-1..SEV-4, quy trình thay đổi, đóng băng thay đổi | M | B11 | 5 | VH-01 | **Xong, chờ gộp** | Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: ops/van-hanh (trực, SEV, thông báo, phân tích sau sự cố, CAB, đóng băng) và biên bản diễn tập trên bàn SEV-1; markdownlint sạch; diễn tập với người thật còn chờ đơn vị vận hành |
 | [VH-04](docs/tasks/VH-04-dien-tap-onboarding.md) | Diễn tập vòng đời tenant: đưa tenant mới vào vận hành trong một ngày (OPS-07) | M | B11 | 13 | DV-03-05, INF-04 | **Chưa bắt đầu** |  |
 | [VH-05](docs/tasks/VH-05-huong-dan-su-dung.md) | Hướng dẫn sử dụng theo vai trò (AC-01..AC-10) | L | B11 | 24 | QA-07 | **Chưa bắt đầu** |  |
 | [VH-06](docs/tasks/VH-06-tai-lieu-quan-tri.md) | Tài liệu quản trị, cài đặt cho ba mô hình phân phối | M | B11 | 6 | INF-23 | **Chưa bắt đầu** |  |
@@ -1014,4 +1014,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 12:02 | Điều phối (main) | `INF-19` | Chuyển trạng thái sang **Đang làm** — Giao B8 |
 | 23/10/2026 12:15 | B2 (luồng B6) | `QA-07` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: đang viết hành trình QT-11..QT-18 |
 | 23/10/2026 13:09 | B2 (luồng B6) | `QA-07` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: HT-30..HT-41 đạt ở chế độ giả lập (chạy cả bộ nhiều lần); chế độ he-thong chưa chạy vì thiếu biến môi trường, bước thiếu seed DL-07 báo Chờ |
+| 23/10/2026 13:27 | B2 (luồng B6) | `VH-03` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: ops/van-hanh (trực, SEV, thông báo, phân tích sau sự cố, CAB, đóng băng) và biên bản diễn tập trên bàn SEV-1; markdownlint sạch; diễn tập với người thật còn chờ đơn vị vận hành |
+| 23/10/2026 13:27 | B2 (luồng B6) | `QA-07` | Chuyển trạng thái sang **Đã gộp main** — Gộp main đến 3a3dcc57; sửa tiếp lỗi axe thẻ Test case SCR-1503 ở b93d7bb2 |
 <!-- PROGRESS_LOG_END -->
