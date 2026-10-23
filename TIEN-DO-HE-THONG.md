@@ -352,7 +352,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-01-01](docs/tasks/DV-01-01-tuyen-apisix-xac-thuc.md) | Tuyến APISIX theo module (ApisixRoute), xác thực JWT qua JWKS, plugin gán claim tenant | M | B5 | 2 | INF-08, DV-02-01 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: bảng tuyến theo module, vt-claims ES256, kiểm tĩnh và APISIX thật xanh |
 | [DV-01-02](docs/tasks/DV-01-02-gioi-han-toc-do-waf.md) | Giới hạn tốc độ ba tầng, plugin bảo vệ API, cắt tải, WAF Coraza với OWASP CRS 4 | M | B5 | 3 | DV-01-01 | **Xong, chờ gộp** | Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: ba tầng giới hạn, lớp ưu tiên, bộ điều khiển suy giảm, Coraza CRS 4; đã hợp nhất mô hình tuyến của DV-01-01; kiểm thử tĩnh và APISIX thật trên Docker xanh |
 | [DV-01-03](docs/tasks/DV-01-03-tuyen-cong-khai-ci.md) | Danh sách tuyến công khai tường minh và kiểm thử CI quét toàn bộ CRD | S | B5 | 3 | DV-01-01 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: public-routes.yaml sinh từ hợp đồng, kiểm CRD và fixture âm tính |
-| [DV-01-04](docs/tasks/DV-01-04-apisix-lop-ngoai.md) | APISIX lớp ngoài ở vùng toàn cục: phân giải tenant sang cell, đệm 5 phút, khám phá cell | M | B5 | 9 | DV-01-01, DV-03-02 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: chart api-gateway-global, APISIX thật 19 ca, p95 trúng đệm 2,9 ms; mã cell và /jobs theo registry |
+| [DV-01-04](docs/tasks/DV-01-04-apisix-lop-ngoai.md) | APISIX lớp ngoài ở vùng toàn cục: phân giải tenant sang cell, đệm 5 phút, khám phá cell | M | B5 | 9 | DV-01-01, DV-03-02 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: lớp toàn cục + mã tác vụ có tiền tố ở 6 service (org-, wf-, score-, doc-, ledger-, ana-), kiểm thử xanh |
 
 ### DV-02 · SVC-02 iam (Keycloak) (7/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -996,4 +996,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 05:52 | B1 (Claude) | `DV-01-03` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: public-routes.yaml sinh từ hợp đồng, kiểm CRD và fixture âm tính |
 | 23/10/2026 05:52 | B1 (Claude) | `DV-01-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: chart api-gateway-global, APISIX thật 19 ca, p95 trúng đệm 2,9 ms; mã cell và /jobs theo registry |
 | 23/10/2026 06:11 | B2 (luồng B6) | `DV-01-02` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: ba tầng giới hạn, lớp ưu tiên, bộ điều khiển suy giảm, Coraza CRS 4; đã hợp nhất mô hình tuyến của DV-01-01; kiểm thử tĩnh và APISIX thật trên Docker xanh |
+| 23/10/2026 06:58 | B1 (Claude) | `DV-01-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: lớp toàn cục + mã tác vụ có tiền tố ở 6 service (org-, wf-, score-, doc-, ledger-, ana-), kiểm thử xanh |
 <!-- PROGRESS_LOG_END -->
