@@ -73,6 +73,7 @@ class FlowableBootstrapIT {
     registry.add("flowable.async-executor-activate", () -> "false");
     registry.add("flowable.check-process-definitions", () -> "false");
     registry.add("management.server.port", () -> "8080");
+    registry.add("okrkpi.inbox.listener-auto-startup", () -> "false");
   }
 
   @Autowired private RepositoryService repositoryService;

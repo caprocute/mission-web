@@ -118,6 +118,7 @@ public class SagaJobSource implements JobSource {
       case MO_LAI_HAU_KIEM -> "PERIOD_REOPEN";
       case TOT_NGHIEP_TENANT -> "TENANT_GRADUATION";
       case DONG_GOI_HO_SO -> "DOSSIER_PACKAGE";
+      case PHAT_HANH_MAU_LUONG -> "WF_TEMPLATE_RELEASE";
     };
   }
 

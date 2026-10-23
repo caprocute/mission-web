@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://okrkpi.viettel.vn/mau-soan">
+  <process id="__MA__" name="Mẫu soạn kiểm thử" isExecutable="true">
+    <startEvent id="batDau"/>
+    <sequenceFlow id="f1" sourceRef="batDau" targetRef="duyetCap1"/>
+    <userTask id="duyetCap1" name="Duyệt cấp 1" flowable:candidateGroups="lanh-dao"/>
+    <sequenceFlow id="f2" sourceRef="duyetCap1" targetRef="duyetCap2"/>
+    <userTask id="duyetCap2" name="Duyệt cấp 2" flowable:candidateGroups="lanh-dao"/>
+    <sequenceFlow id="f3" sourceRef="duyetCap2" targetRef="ketThuc"/>
+    <endEvent id="ketThuc"/>
+  </process>
+</definitions>

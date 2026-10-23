@@ -78,7 +78,7 @@ class EventEnvelopeTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"sys.audit.v1", "sys.evidence.object.stored.v1"})
+  @ValueSource(strings = {"sys.audit.v1", "sys.evidence.object.stored.v1", "period.drain.marker"})
   void nhanTopicKyThuatBaDenNamDoan(String topic) {
     UUID task = UUID.randomUUID();
     assertThat(
@@ -90,7 +90,7 @@ class EventEnvelopeTest {
   @ParameterizedTest
   @ValueSource(
       strings = {
-        "period.drain.marker",
+        "period.drain.markers",
         "Task.task.progressed.v1",
         "task.task.progressed",
         "task.task-x.progressed.v1",

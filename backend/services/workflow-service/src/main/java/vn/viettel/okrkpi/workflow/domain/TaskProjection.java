@@ -19,6 +19,7 @@ import java.util.UUID;
  * @param dueAt hạn, có thể {@code null}
  * @param createdAt thời điểm tạo user task
  * @param rowVersion {@code REV_} của {@code ACT_RU_TASK}
+ * @param process thông tin tiến trình cho giám sát (DV-06-10), {@link ProcessRef#NONE} khi không có
  */
 public record TaskProjection(
     String taskId,
@@ -32,7 +33,8 @@ public record TaskProjection(
     UUID periodId,
     Instant dueAt,
     Instant createdAt,
-    int rowVersion) {
+    int rowVersion,
+    ProcessRef process) {
 
   /** Tiêu đề tối đa theo cột {@code title varchar(255)}. */
   public static final int MAX_TITLE = 255;
@@ -49,6 +51,37 @@ public record TaskProjection(
     if (rowVersion < 1) {
       throw new IllegalArgumentException("rowVersion phải từ 1");
     }
+    process = process == null ? ProcessRef.NONE : process;
+  }
+
+  /** Dòng chiếu không kèm thông tin tiến trình (hộp việc DV-06-02). */
+  public TaskProjection(
+      String taskId,
+      UUID tenantId,
+      UUID assigneeId,
+      String candidateRole,
+      UUID candidateUnitId,
+      BusinessKey businessKey,
+      String templateCode,
+      String title,
+      UUID periodId,
+      Instant dueAt,
+      Instant createdAt,
+      int rowVersion) {
+    this(
+        taskId,
+        tenantId,
+        assigneeId,
+        candidateRole,
+        candidateUnitId,
+        businessKey,
+        templateCode,
+        title,
+        periodId,
+        dueAt,
+        createdAt,
+        rowVersion,
+        ProcessRef.NONE);
   }
 
   /** Quá hạn khi có hạn và hạn trước thời điểm xét. */

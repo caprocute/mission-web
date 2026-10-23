@@ -384,6 +384,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/org/imports/{id}/report': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Báo cáo lỗi của một lần nhập cây tổ chức
+     * @description (bổ sung WEB-072) Đích `resultLocation` của job nhập khi tệp có lỗi: lỗi từng dòng, từng cột kèm lý do tiếng Việt và quy tắc vi phạm. Tệp có lỗi thì không đơn vị nào được ghi.
+     */
+    get: operations['getOrgImportReport'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/org/sync-runs': {
     parameters: {
       query?: never;
@@ -923,6 +943,34 @@ export interface components {
       status: 'NHAP' | 'DA_AP_DUNG' | 'DA_HUY';
       appliedAt?: components['schemas']['DateTime'];
       affectedUnitIds?: components['schemas']['Uuid'][];
+      /** @description Đơn vị mới sinh ra khi hợp nhất hoặc chia tách (bổ sung WEB-072). */
+      createdUnitIds?: components['schemas']['Uuid'][];
+      /** @description Số phân công đã chuyển sang đơn vị mới, điền {n} của MSG-01-11 (bổ sung WEB-072). */
+      movedAssignmentCount?: number;
+      /** @description Tên kỳ đã khoá mà ngày hiệu lực rơi vào, điền {kỳ} của MSG-01-10; vắng khi không ghi muộn vào kỳ đã khoá (bổ sung WEB-072). */
+      lockedPeriodName?: string;
+    };
+    /** @description Báo cáo một lần nhập cây tổ chức từ Excel (bổ sung WEB-072). */
+    OrgImportReport: {
+      jobId: components['schemas']['Uuid'];
+      /** @enum {string} */
+      status: 'CHO' | 'DANG_CHAY' | 'HOAN_TAT' | 'THAT_BAI' | 'DA_HUY';
+      totalRows: number;
+      createdUnits: number;
+      changeOrderId?: components['schemas']['Uuid'];
+      errors: components['schemas']['OrgImportError'][];
+    };
+    /** @description Một lỗi của tệp nhập; `row = 0` là lỗi cả tệp. */
+    OrgImportError: {
+      row: number;
+      /** @description Tên cột trong mẫu, rỗng khi lỗi cả dòng hoặc cả tệp */
+      column: string;
+      /** @description Trường tương ứng của `OrgUnitInput`, ví dụ `parentCode` */
+      field?: string;
+      /** @description Lý do tiếng Việt, ghi rõ dòng và cột */
+      message: string;
+      /** @description Quy tắc vi phạm, ví dụ BR-01-05 */
+      rule?: string;
     };
     /**
      * @description Nguồn đồng bộ (`integ.connector.code`, suy luận về mã).
@@ -2049,6 +2097,33 @@ export interface operations {
       202: components['responses']['Accepted'];
       403: components['responses']['Forbidden'];
       422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getOrgImportReport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Mã job nhập. */
+        id: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Báo cáo nhập. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OrgImportReport'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
       default: components['responses']['Problem'];
     };
   };

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Tiến trình kiểm thử giám sát SCR-1506 (DV-06-10): một bước có hạn, hẹn giờ biên đúng hạn (dời khi
+     gia hạn) và hẹn giờ nhắc trước hạn (giữ nguyên), rồi bước thứ hai. Không gắn tenant. -->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="https://okrkpi.vn/bpmn/test">
+  <process id="kiem-thu-gia-han" name="Kiểm thử gia hạn bước" isExecutable="true">
+    <startEvent id="start"/>
+    <sequenceFlow id="f1" sourceRef="start" targetRef="thamDinh"/>
+    <userTask id="thamDinh" name="Thẩm định hồ sơ" flowable:assignee="${assigneeId}"
+              flowable:candidateGroups="${candidateGroup}" flowable:dueDate="${dueAt}"/>
+    <boundaryEvent id="denHan" attachedToRef="thamDinh" cancelActivity="false">
+      <timerEventDefinition>
+        <timeDate>${dueAt}</timeDate>
+      </timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f2" sourceRef="denHan" targetRef="ketThucDenHan"/>
+    <endEvent id="ketThucDenHan"/>
+    <boundaryEvent id="nhacTruoc" attachedToRef="thamDinh" cancelActivity="false">
+      <timerEventDefinition>
+        <timeDate>${remindAt}</timeDate>
+      </timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f3" sourceRef="nhacTruoc" targetRef="ketThucNhac"/>
+    <endEvent id="ketThucNhac"/>
+    <sequenceFlow id="f4" sourceRef="thamDinh" targetRef="pheDuyet"/>
+    <userTask id="pheDuyet" name="Phê duyệt" flowable:assignee="${level2Id}"/>
+    <sequenceFlow id="f5" sourceRef="pheDuyet" targetRef="end"/>
+    <endEvent id="end"/>
+  </process>
+</definitions>

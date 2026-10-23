@@ -6,6 +6,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import org.flowable.bpmn.model.BpmnModel;
+import org.flowable.bpmn.model.FlowElement;
 import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
 import org.flowable.common.engine.api.delegate.event.FlowableEntityEvent;
 import org.flowable.common.engine.api.delegate.event.FlowableEvent;
@@ -69,6 +71,7 @@ public class TaskProjectionListener implements FlowableEventListener {
   private static EngineTaskEvent snapshot(TaskEntity task, boolean created) {
     String businessKey = null;
     String period = null;
+    Instant startedAt = null;
     if (task.getProcessInstanceId() != null) {
       ExecutionEntity instance =
           CommandContextUtil.getExecutionEntityManager().findById(task.getProcessInstanceId());
@@ -76,13 +79,18 @@ public class TaskProjectionListener implements FlowableEventListener {
         businessKey = instance.getBusinessKey();
         Object value = instance.getVariable(PERIOD_VARIABLE);
         period = value == null ? null : value.toString();
+        startedAt = instant(instance.getStartTime());
       }
     }
     String templateCode = null;
+    Integer templateVersion = null;
+    String activityName = null;
     if (task.getProcessDefinitionId() != null) {
       ProcessDefinition definition =
           ProcessDefinitionUtil.getProcessDefinition(task.getProcessDefinitionId());
       templateCode = definition == null ? null : definition.getKey();
+      templateVersion = definition == null ? null : definition.getVersion();
+      activityName = constantName(task);
     }
     List<String> groups =
         created
@@ -102,7 +110,30 @@ public class TaskProjectionListener implements FlowableEventListener {
         period,
         instant(task.getDueDate()),
         instant(task.getCreateTime()),
-        revisionAfterFlush(task));
+        revisionAfterFlush(task),
+        task.getProcessInstanceId(),
+        task.getTaskDefinitionKey(),
+        activityName,
+        templateVersion,
+        startedAt);
+  }
+
+  /**
+   * Tên bước trong định nghĩa BPMN (bộ đệm định nghĩa của engine, không truy vấn); {@code null} khi
+   * tên là biểu thức như {@code ${tieuDe}} của mẫu đóng gói hoặc quá 255 ký tự.
+   */
+  static String constantName(TaskEntity task) {
+    if (task.getTaskDefinitionKey() == null) {
+      return null;
+    }
+    BpmnModel model = ProcessDefinitionUtil.getBpmnModel(task.getProcessDefinitionId());
+    FlowElement element = model == null ? null : model.getFlowElement(task.getTaskDefinitionKey());
+    String name = element == null ? null : element.getName();
+    if (name == null || name.isBlank() || name.contains("${") || name.contains("#{")) {
+      return null;
+    }
+    String trimmed = name.strip();
+    return trimmed.length() > 255 ? null : trimmed;
   }
 
   private static EngineTaskEvent light(TaskEntity task) {

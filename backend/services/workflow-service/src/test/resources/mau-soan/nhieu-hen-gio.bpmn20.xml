@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://okrkpi.viettel.vn/mau-soan">
+  <process id="__MA__" name="Mẫu soạn nhiều hẹn giờ" isExecutable="true">
+    <startEvent id="batDau"/>
+    <sequenceFlow id="f1" sourceRef="batDau" targetRef="duyetCap1"/>
+    <userTask id="duyetCap1" name="Duyệt cấp 1" flowable:candidateGroups="lanh-dao"/>
+    <boundaryEvent id="nhacViec00" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P1D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec01" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P2D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec02" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P3D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec03" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P4D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec04" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P5D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec05" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P6D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec06" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P7D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec07" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P8D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec08" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P9D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec09" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P10D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec10" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P11D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec11" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P12D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec12" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P13D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec13" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P14D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec14" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P15D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec15" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P16D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec16" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P17D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec17" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P18D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec18" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P19D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec19" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P20D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec20" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P21D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec21" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P22D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec22" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P23D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec23" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P24D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="nhacViec24" attachedToRef="duyetCap1" cancelActivity="false">
+      <timerEventDefinition><timeDuration>P25D</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f2" sourceRef="duyetCap1" targetRef="ketThuc"/>
+    <endEvent id="ketThuc"/>
+  </process>
+</definitions>

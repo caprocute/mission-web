@@ -55,6 +55,13 @@ public record EventEnvelope(
    */
   public static final Pattern TOPIC_PATTERN = Pattern.compile("^[a-z]+(\\.[a-z]+){1,3}\\.v[0-9]+$");
 
+  /**
+   * Ngoại lệ duy nhất của {@link #TOPIC_PATTERN}: dòng đánh dấu bước 2 saga chốt kỳ, tên không có
+   * phiên bản theo TL-03 (contracts/events/catalog.yaml). Bảng outbox của schema ghi marker nới
+   * CHECK cho đúng tên này (config V13, CORE-08-05).
+   */
+  public static final String DRAIN_MARKER_TOPIC = "period.drain.marker";
+
   /** Độ dài cột {@code topic}. */
   static final int TOPIC_MAX = 128;
 
@@ -76,7 +83,8 @@ public record EventEnvelope(
       throw new IllegalArgumentException("Mã sự kiện phải là UUIDv7: " + eventId);
     }
     Objects.requireNonNull(topic, "topic");
-    if (topic.length() > TOPIC_MAX || !TOPIC_PATTERN.matcher(topic).matches()) {
+    if (topic.length() > TOPIC_MAX
+        || !(TOPIC_PATTERN.matcher(topic).matches() || DRAIN_MARKER_TOPIC.equals(topic))) {
       throw new IllegalArgumentException(
           "Topic không đúng quy ước <miền>.<thực thể>.<sự kiện>.v<n>: " + topic);
     }

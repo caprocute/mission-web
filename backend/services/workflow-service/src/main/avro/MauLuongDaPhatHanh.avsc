@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "MauLuongDaPhatHanh",
+  "namespace": "vn.vtokr.config.v1",
+  "doc": "Đề xuất BS-01 (chưa gán mã EVT) · config.wftemplate.published.v1 · SVC-06 phát khi một phiên bản mẫu luồng lên HIEU_LUC. Tên topic BS-01 ghi là config.wf_template.published.v1, đổi gạch dưới theo quy ước topic (wiki trang 14).",
+  "fields": [
+    {"name": "templateId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "flowable.wf_template.id"},
+    {"name": "templateCode", "type": "string", "doc": "flowable.wf_template.template_code"},
+    {"name": "versionNo", "type": "int", "doc": "flowable.wf_template.version_no"},
+    {"name": "bpmnSha256", "type": "bytes", "doc": "Băm nội dung BPMN"},
+    {"name": "signature", "type": "bytes", "doc": "Chữ ký cosign của gói mẫu"},
+    {"name": "approvedBy", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Người phê duyệt phát hành"},
+    {"name": "cellCodes", "type": {"type": "array", "items": "string"}, "default": [], "doc": "Thứ tự cell sẽ triển khai cuốn chiếu"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox."}
+  ]
+}

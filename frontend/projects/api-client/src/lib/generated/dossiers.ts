@@ -753,7 +753,8 @@ export interface components {
       | 'BIEN_BAN'
       | 'GOI_HO_SO'
       | 'PHE_DUYET_MO_LAI'
-      | 'PHAT_HANH_POLICY';
+      | 'PHAT_HANH_POLICY'
+      | 'KHIEU_NAI';
     /**
      * @description Nhà cung cấp chữ ký số (`esign.sign_request.provider`).
      * @enum {string}
