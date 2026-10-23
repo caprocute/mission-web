@@ -581,8 +581,8 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 |---|---|:---:|:---:|:---:|---|---|---|
 | [QA-01](docs/tasks/QA-01-chien-luoc-kiem-thu.md) | Chiến lược kiểm thử toàn hệ thống và danh mục khoảng 40 hành trình đầu cuối | S | B9 | 1 | – | **Đã gộp main** | Gộp 0fb85523 |
 | [QA-02](docs/tasks/QA-02-pact-hop-dong.md) | Pact Broker và kiểm thử hợp đồng frontend với API, service với service | M | B9 | 4 | NEN-006, INF-05 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
-| [QA-03](docs/tasks/QA-03-e2e-he-thong-that.md) | Bộ kiểm thử đầu cuối với hệ thống thật trên server dev (backend thật, Keycloak, APISIX) | M | B9 | 11 | INF-22, QA-01 | **Làm một phần** | Chạy thật 1a63980c: HT-01/02/05/06/17 đạt; HT-07/08/09 chờ |
-| [QA-04](docs/tasks/QA-04-hanh-trinh-okr.md) | Hành trình đầu cuối: đăng nhập, khởi tạo tenant, tổ chức, OKR, check-in | M | B9 | 14 | QA-03, CORE-01-08, DV-03-05 | **Làm một phần** | Chạy thật 1a63980c: HT-01/02/05/06/17 đạt; HT-07/08/09 chờ |
+| [QA-03](docs/tasks/QA-03-e2e-he-thong-that.md) | Bộ kiểm thử đầu cuối với hệ thống thật trên server dev (backend thật, Keycloak, APISIX) | M | B9 | 11 | INF-22, QA-01 | **Làm một phần** | B1 4228f0d5: HT-08, HT-09 đạt trên dev; HT-07 chờ mã hoá C2 ở org-service |
+| [QA-04](docs/tasks/QA-04-hanh-trinh-okr.md) | Hành trình đầu cuối: đăng nhập, khởi tạo tenant, tổ chức, OKR, check-in | M | B9 | 14 | QA-03, CORE-01-08, DV-03-05 | **Làm một phần** | B1 4228f0d5: HT-08, HT-09 đạt trên dev; HT-07 chờ mã hoá C2 ở org-service |
 | [QA-05](docs/tasks/QA-05-hanh-trinh-giao-viec.md) | Hành trình đầu cuối: kế hoạch, giao việc, tiến độ, minh chứng, nghiệm thu | L | B9 | 20 | QA-03, CORE-03-07, CORE-02-22 | **Làm một phần** | Sửa phát hiện gộp fdc5c81a; giả lập 10/10; chế độ thật chờ env dev |
 | [QA-06](docs/tasks/QA-06-hanh-trinh-danh-gia.md) | Hành trình đầu cuối: khoá kỳ, tự đánh giá, thẩm định, quyết định ký số, xếp loại năm | L | B9 | 21 | QA-05, DV-06-06, CORE-04-10 | **Làm một phần** | Đã gộp phần repo; còn chạy thật trên dev/kind |
 | [QA-07](docs/tasks/QA-07-hanh-trinh-giam-sat.md) | Hành trình đầu cuối: kiểm điểm, hồ sơ số, khiếu nại, mở lại kỳ, cảnh báo, Policy Pack, bảng điều hành, AI, UI Pack | L | B9 | 23 | QA-06, CORE-06-08, CORE-07-11, DV-15-06 | **Đã gộp main** | Gộp 8d327008 |
@@ -1053,4 +1053,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 19:18 | B1 (Claude) | `QA-04` | Chuyển trạng thái sang **Làm một phần** — B1 chạy thật trong container (1a63980c): HT-01, HT-02, HT-05 phủ định, HT-06, HT-17 đạt; HT-07 Chờ (org-service chưa gửi token dịch vụ tới integration-gateway, chưa có nguồn nhân sự giả lập); HT-08, HT-09 Chờ (thiếu mục tiêu đã duyệt cấp Sở); biến môi trường ở data/seed/e2e/README.md |
 | 23/10/2026 19:22 | B1 | `NEN-011` | Chuyển trạng thái sang **Đã gộp main** — Serde tra theo .avsc (c7842533), IT Apicurio 3.3.3 |
 | 23/10/2026 19:22 | B1 | `QA-03`, `QA-04` | Chuyển trạng thái sang **Làm một phần** — Chạy thật 1a63980c: HT-01/02/05/06/17 đạt; HT-07/08/09 chờ |
+| 23/10/2026 22:35 | B1 (Claude) | `QA-03` | Chuyển trạng thái sang **Làm một phần** — B1 4228f0d5: HT-08, HT-09 đạt trên dev; HT-07 chờ mã hoá C2 ở org-service |
+| 23/10/2026 22:35 | B1 (Claude) | `QA-04` | Chuyển trạng thái sang **Làm một phần** — B1 4228f0d5: HT-08, HT-09 đạt trên dev; HT-07 chờ mã hoá C2 ở org-service |
 <!-- PROGRESS_LOG_END -->
