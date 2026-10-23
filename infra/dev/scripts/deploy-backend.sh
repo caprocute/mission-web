@@ -21,6 +21,15 @@
 # =============================================================================
 set -euo pipefail
 
+# Script dùng mapfile, mảng kết hợp (bash >= 4). macOS mặc định chỉ có bash 3.2: chạy lại bằng bash Homebrew nếu có.
+if [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then
+  for b in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+    [[ -x "${b}" ]] && exec "${b}" "$0" "$@"
+  done
+  echo "Lỗi: cần bash >= 4 (đang là ${BASH_VERSION}); trên macOS cài bằng: brew install bash" >&2
+  exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INFRA_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_ROOT="$(cd "${INFRA_DIR}/../.." && pwd)"
