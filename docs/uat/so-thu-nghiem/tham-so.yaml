@@ -1,0 +1,58 @@
+# Tham số của bộ UAT tenant thí điểm (QA-16). Chạy lại với tenant thí điểm thật chỉ đổi tệp này
+# (tenant đích, cell, kỳ, tài khoản người đại diện); kịch bản, checklist và mẫu biên bản giữ nguyên.
+# Không ghi mật khẩu, mã OTP, token hay địa chỉ máy chủ vào tệp này: các giá trị đó nằm trong
+# infra/dev/.env (diễn tập) hoặc do quản trị tenant cấp riêng cho từng người (tenant thật).
+
+phien_ban: 1
+che_do: dien_tap            # dien_tap: tenant thí điểm giả lập trên staging; that: tenant thí điểm thật
+
+tenant:
+  ma: so-thu-nghiem
+  ten: Sở Thử nghiệm          # tên hư cấu của dữ liệu thử infra/dev/postgres/seed
+  id: d0000000-0000-4000-8000-000000000001
+  cell: CELL-A                # cell staging của tenant thí điểm (suy luận; xác nhận khi cấp phát qua OPS-07)
+  goi_quy_dinh:
+    DANG: khoi-dang/quy-dinh-moi        # bản giả lập theo YC-PT-14, chưa ký
+    NHA_NUOC: khoi-chinh-quyen/nd335    # bản giả lập theo YC-PT-14, chưa ký
+  co_tinh_nang:               # cờ bật cho tenant thí điểm (OPS-04); tên cờ theo danh mục cờ của staging
+    - tro-ly-ai: tat          # AI ngoài phạm vi buổi UAT đầu (kịch bản tuỳ chọn)
+    - di-dong: tuy_chon
+
+ky_danh_gia:
+  ma: Q4-2026-UAT
+  ten: Quý IV năm 2026 (kỳ rút gọn để diễn tập)
+  loai: QUY
+  # Kỳ rút gọn: mười ngày làm việc thay cho một quý; ngày thật do tổ UAT điền khi tạo kỳ.
+  ngay_bat_dau: null
+  ngay_ket_thuc: null
+  moc:                        # ngày làm việc thứ n tính từ ngày bắt đầu
+    lap_ke_hoach_va_okr: 1
+    giao_viec: 2
+    cap_nhat_tien_do: [3, 4, 5]
+    nop_minh_chung: 5
+    nghiem_thu: 6
+    khoa_ky: 7
+    tu_danh_gia: 7
+    tham_dinh: 8
+    quyet_dinh_xep_loai: 8
+    ho_so_so_va_hoi_nghi: 9
+    khieu_nai: 9
+    kiem_tra_va_nghiem_thu_cuoi_ky: 10
+
+# Người đại diện từng vai trò. Ở chế độ diễn tập là tài khoản thử của realm dev (người dùng thử đóng
+# vai); ở tenant thật, quản trị tenant điền tên đăng nhập do tenant cấp.
+nguoi_dai_dien:
+  AC-01: {tai_khoan: nentang,   ho_ten: Tạ Văn Nền,          don_vi: Đơn vị vận hành nền tảng}
+  AC-02: {tai_khoan: quantri,   ho_ten: Hoàng Văn Quản Trị,  don_vi: Phòng Tổng hợp, du_phong: quantri2}
+  AC-03: {tai_khoan: chinhsach, ho_ten: Đỗ Thị Chính Sách,   don_vi: Phòng Tổng hợp}
+  AC-04: {tai_khoan: lanhdao,   ho_ten: Lê Văn Lãnh Đạo,     don_vi: Phòng Tổng hợp}
+  AC-05: {tai_khoan: quanly,    ho_ten: Trần Thị Quản Lý,    don_vi: Phòng Tổng hợp}
+  AC-06: {tai_khoan: canbo,     ho_ten: Nguyễn Văn Cán Bộ,   don_vi: Phòng Tổng hợp}
+  AC-07: {tai_khoan: thamdinh,  ho_ten: Phạm Thị Thẩm Định,  don_vi: Ban Tổ chức}
+  AC-08: {tai_khoan: quyetdinh, ho_ten: Vũ Văn Quyết Định,   don_vi: Ban Tổ chức}
+  AC-09: {tai_khoan: duyet2,    ho_ten: Bùi Thị Duyệt Hai,   don_vi: Ban Tổ chức}
+  AC-10: {tai_khoan: kiemtra,   ho_ten: Ngô Văn Kiểm Tra,    don_vi: Ủy ban Kiểm tra}
+
+nguon_bi_mat:
+  dien_tap: infra/dev/.env (KC_TEST_USER_PASSWORD, KC_TEST_OTP_SECRET), không commit
+  that: quản trị tenant cấp cho từng người, không qua tổ UAT

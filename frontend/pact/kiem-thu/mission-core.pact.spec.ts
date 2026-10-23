@@ -7,7 +7,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, describe, expect, it } from 'vitest';
-import { OkrApi, TaskApi } from '@vt/api-client';
+import { AppraisalApi, EvidenceApi, OkrApi, TaskApi } from '@vt/api-client';
 import { dung } from '../khop';
 import { TUONG_TAC, TuongTac } from '../tuong-tac/mission-core';
 
@@ -31,7 +31,12 @@ function chay(t: TuongTac) {
   });
   const http = TestBed.inject(HttpTestingController);
   const ket_qua = firstValueFrom(
-    t.goi({ task: TestBed.inject(TaskApi), okr: TestBed.inject(OkrApi) }),
+    t.goi({
+      task: TestBed.inject(TaskApi),
+      okr: TestBed.inject(OkrApi),
+      evidence: TestBed.inject(EvidenceApi),
+      appraisal: TestBed.inject(AppraisalApi),
+    }),
   );
   const req = http.expectOne((r) => r.url === t.yeu_cau.path);
   expect(req.request.method).toBe(t.yeu_cau.method);

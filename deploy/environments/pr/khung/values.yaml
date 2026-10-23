@@ -1,0 +1,22 @@
+# Do Application pr-<số> truyền vào (deploy/argocd/templates/moi-truong-pr.yaml).
+pr: ""
+branch: ""
+sha: ""
+# Ngân sách mỗi môi trường tạm (suy luận: năm service một bản, hồ sơ compact). Cụm staging giữ khoảng 40 vCPU cho tối
+# đa năm môi trường tạm cùng lúc; vượt ngân sách thì gỡ nhãn của PR cũ.
+quota:
+  requests.cpu: "8"
+  requests.memory: 16Gi
+  limits.cpu: "16"
+  limits.memory: 24Gi
+  pods: "30"
+  services.loadbalancers: "0"
+  services.nodeports: "0"
+  persistentvolumeclaims: "4"
+limitRange:
+  default: { cpu: 500m, memory: 512Mi }
+  defaultRequest: { cpu: 100m, memory: 256Mi }
+# Namespace của cổng vào staging được gọi vào môi trường tạm (đường /pr-<số> hoặc tên miền con, do api-gateway staging
+# định tuyến); tầng dữ liệu trên máy ảo đi ra qua dải địa chỉ khai ở đây khi dựng staging thật.
+ingressNamespaces: [edge]
+dataCidrs: []

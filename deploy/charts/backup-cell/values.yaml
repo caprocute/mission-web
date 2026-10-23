@@ -1,0 +1,166 @@
+# Sao lưu của cell (INF-17, TL-04 chương 8). Bản nền và WAL PostgreSQL do plugin Barman Cloud của CNPG ghi (chart
+# data-pg); chart này kiểm chứng và bổ sung: khôi phục thử hằng ngày, giữ bản cuối tháng, cuối năm, etcd, Velero và
+# cảnh báo. Mọi khoá S3 nạp từ OpenBao qua ESO; khoá của cell trên kho sao lưu không có quyền xoá (SEC-44).
+# Mã cell (g4, hcm…): bucket bk-cell-<mã>-pg, -k8s; khoá OpenBao kv/cell-<mã>/backup/<pg|k8s>.
+cell: ""
+
+# Ảnh công cụ dựng từ anh/Dockerfile (bash, kubectl, psql, aws-cli, age, etcdctl, etcdutl, curl, jq), qua Harbor,
+# ghim digest (SEC-55). digest rỗng chỉ được ở kind (ảnh nạp cục bộ, choPhepKhongDigest).
+image:
+  repository: harbor.vt.local/platform/backup-tools
+  tag: 0.1.0
+  digest: ""
+  pullPolicy: IfNotPresent
+choPhepKhongDigest: false
+timeZone: Asia/Ho_Chi_Minh
+
+# Kho sao lưu ceph-sn-bk ở TTDL phía Nam (TL-04 mục 8.1).
+khoSaoLuu:
+  endpoint: https://s3-bk.sn.vt.local
+  region: sn-bk
+  # Secret CA nội bộ (trust bundle của cert-manager) trong namespace của job; null khi kho dùng http (kind).
+  caBundle: { secret: vt-noi-bo-ca, key: ca.crt }
+  # Đích mạng tới kho sao lưu (NetworkPolicyPeer): khối địa chỉ RGW kho sao lưu khai theo cell.
+  egressTo: []
+  egressPort: 443
+
+externalSecrets:
+  enabled: true
+  secretStore: { kind: ClusterSecretStore, name: openbao-cell }
+  refreshInterval: 1h
+
+# Pushgateway nhận chỉ số của các CronJob; rỗng thì chỉ ghi nhật ký (cảnh báo RestoreCheckStale sẽ báo vì thiếu chỉ số).
+pushgateway: ""
+pushgatewayEgressTo: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: observability } } }]
+cilium: true
+operatorNamespace: cnpg-system
+
+# Các cụm PostgreSQL của cell (khớp data-pg; hồ sơ compact chỉ còn pg-core và pg-ledger). namespace: nơi có cụm và
+# Backup của nó; kichThuoc: dung lượng đĩa cho cụm tạm khi khôi phục thử.
+cums:
+  - { ten: pg-core,     namespace: data-pg,     kichThuoc: 7Ti }
+  - { ten: pg-flowable, namespace: data-pg,     kichThuoc: 2560Gi }
+  - { ten: pg-platform, namespace: data-pg,     kichThuoc: 3584Gi }
+  - { ten: pg-iam,      namespace: data-pg,     kichThuoc: 256Gi }
+  - { ten: pg-ledger,   namespace: secure-data, kichThuoc: 2560Gi }
+  - { ten: pg-secure,   namespace: secure-data, kichThuoc: 1280Gi }
+
+# Bản nền và WAL (khớp data-pg backup): bucket rỗng là bk-cell-<mã>-pg, đường dẫn s3://<bucket>/<cụm>/<cụm>.
+pg:
+  bucket: ""
+  plugin: barman-cloud.cloudnative-pg.io
+  credentials: { secretName: bk-sn-s3-pg, path: "" }   # path rỗng: kv/cell-<mã>/backup/pg
+
+# Khôi phục thử hằng ngày (TL-04 bảng lịch sao lưu "Khôi phục thử hằng ngày một cụm luân phiên vào cụm cách ly",
+# OPS-18): mỗi ngày một cụm, chỉ số luân phiên = (số ngày từ 1970-01-01 + lechNgay) mod số cụm; lechNgay khác nhau
+# giữa các cell để các cell không cùng khôi phục một loại cụm trong một ngày (suy luận). Cụm tạm dựng từ bản nền mới
+# nhất cộng WAL tới luiGiay trước, chạy truy vấn kiểm rồi bị xoá; kết quả đẩy lên Pushgateway.
+restoreCheck:
+  enabled: true
+  namespace: data-pg-restore
+  schedule: "0 5 * * *"
+  lechNgay: 0
+  luiGiay: 3600
+  # Ảnh PostgreSQL của cụm tạm: trùng ảnh của data-pg (đọc được bản nền cùng bản chính).
+  postgresImage:
+    repository: harbor.vt.local/platform/postgresql
+    tag: 17.6-standard-bookworm
+    digest: sha256:a62c149a342b2b1955dda3a9d75e2c6851622e43302a577f393271c19a3c8622
+  storageClass: nvme-local
+  # Cụm tạm không cần cấu hình như bản chính; CNPG lấy max_connections, max_worker_processes… từ pg_controldata
+  # của bản nền khi khôi phục.
+  resources:
+    requests: { cpu: "2", memory: 8Gi }
+    limits: { cpu: "8", memory: 8Gi }
+  nodeSelector: { vt.io/pool: postgres }
+  tolerations: [{ key: vt.io/pool, operator: Equal, value: postgres, effect: NoSchedule }]
+  # Thời gian chờ tối đa cụm tạm sẵn sàng (khôi phục 6 TB cộng WAL một ngày), và hạn của cả job.
+  choSanSangGiay: 21600
+  activeDeadlineSeconds: 28800
+  kiemTra:
+    # Khoá ngoại: mọi ràng buộc đã xác thực phải không có dòng mồ côi (quét bảng con).
+    khoaNgoai: true
+    # Đếm dòng so thống kê: bảng có reltuples >= nguongDong phải còn ít nhất tiLeToiThieu × reltuples dòng (suy luận:
+    # chỉ chặn dưới vì bảng lớn lên sau lần ANALYZE cuối).
+    nguongDong: 1000
+    tiLeToiThieu: 0.5
+    # Cụm có CSDL sổ cái: kiểm chuỗi băm nối liền và khớp đầu chuỗi (DV-09; tính lại băm đầy đủ do ledger-service).
+    soCai: { pg-ledger: ledger }
+  resourcesJob:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+
+# Giữ bản cuối tháng 12 tháng, bản cuối năm của cụm trong cumNam 10 năm (TL-04 bảng lịch sao lưu): ngày cuối tháng,
+# sau bản nền 01:30, chép bản nền mới nhất của mỗi cụm cùng đoạn WAL của nó sang dai-han/thang/ hoặc dai-han/nam/
+# trong cùng bucket rồi kéo dài hạn giữ COMPLIANCE từng đối tượng. Khôi phục: ObjectStore destinationPath
+# s3://<bucket>/dai-han/<thang|nam>, serverName là tên cụm (ops/runbooks/sao-luu-postgresql.md).
+giuDaiHan:
+  enabled: true
+  namespace: data-pg-restore
+  schedule: "30 4 28-31 * *"
+  giuThang: 12
+  giuNamNam: 10
+  cumNam: [pg-ledger, pg-secure]
+  activeDeadlineSeconds: 21600
+
+# Chụp etcd mỗi 6 giờ trên master (TL-04 mục 8.6): etcdctl snapshot save, etcdutl snapshot status, mã hoá age với
+# recipient lấy từ OpenBao kv/platform/backup/etcd (thuộc tính age_recipient, nạp qua ESO), đẩy lên
+# bk-cell-<mã>-k8s/etcd/, xoá tệp rõ bằng shred. Snapshot chứa Secret nên xử lý như dữ liệu C2.
+etcd:
+  enabled: true
+  namespace: kube-system
+  schedule: "0 */6 * * *"
+  endpoints: https://127.0.0.1:2379
+  pkiDir: /etc/kubernetes/pki/etcd
+  recipient: { path: kv/platform/backup/etcd, property: age_recipient }
+  credentials: { secretName: bk-sn-s3-k8s, path: "" }   # path rỗng: kv/cell-<mã>/backup/k8s
+  bucket: ""                                          # rỗng: bk-cell-<mã>-k8s
+  prefix: etcd
+  nodeSelector: { node-role.kubernetes.io/control-plane: "" }
+  tolerations: [{ key: node-role.kubernetes.io/control-plane, operator: Exists, effect: NoSchedule }]
+  # Tệp tạm: snapshot rõ và bản mã hoá (etcd tối đa 8 GiB).
+  tamGioiHan: 20Gi
+  activeDeadlineSeconds: 3600
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 1Gi }
+
+# Velero (TL-04 mục 8.6): vị trí lưu bk-sn trên bucket bk-cell-<mã>-k8s tiền tố velero, hai lịch theo TL-04. Máy chủ
+# Velero (chart vmware-tanzu/velero, plugin velero-plugin-for-aws, node-agent cho data mover) cài riêng vào namespace
+# velero. Khoá S3 không có quyền xoá: Velero không tự xoá bản hết TTL được, vòng đời bucket dọn sau 31 ngày.
+velero:
+  enabled: true
+  namespace: velero
+  storageLocation: bk-sn
+  bucket: ""                # rỗng: bk-cell-<mã>-k8s
+  prefix: velero
+  credentials: { secretName: bk-sn-s3-velero, path: "" }   # path rỗng: kv/cell-<mã>/backup/k8s
+  # Namespace dữ liệu không bao giờ được sao lưu volume bằng Velero (snapshot khối của CSDL đang chạy không nhất quán).
+  namespaceDuLieu: [data-pg, data-kafka, data-search]
+  # Lịch Velero tính theo UTC: 19:45 UTC là 02:45 giờ Việt Nam như TL-04.
+  schedules:
+    cell-resources-6h:
+      schedule: "15 */6 * * *"
+      template:
+        includedNamespaces: ["*"]
+        excludedNamespaces: [kube-system, velero]
+        excludedResources: [events, events.events.k8s.io, pods, replicasets]
+        snapshotVolumes: false
+        defaultVolumesToFsBackup: false
+        ttl: 720h0m0s
+    stateful-volumes-daily:
+      schedule: "45 19 * * *"
+      template:
+        includedNamespaces: [ingress, platform-harbor, observability]
+        snapshotMoveData: true
+        defaultVolumesToFsBackup: false
+        ttl: 336h0m0s
+
+# Luật cảnh báo cho Prometheus của cell (INF-15 nạp): BackupMissing, RestoreCheckStale và hai luật bổ sung.
+canhBao:
+  enabled: true
+  namespace: observability
+  banNenToiDaGio: 26
+  walTreToiDaGiay: 300
+  restoreToiDaNgay: 8
+  etcdToiDaGio: 7

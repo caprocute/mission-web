@@ -1,5 +1,5 @@
 import { Observable } from 'rxjs';
-import { OkrApi, TaskApi } from '@vt/api-client';
+import { AppraisalApi, EvidenceApi, OkrApi, TaskApi } from '@vt/api-client';
 import { giongKieu, moiPhanTu, ngay, soNguyen, uuid } from '../khop';
 
 /**
@@ -13,7 +13,12 @@ export interface TuongTac {
   mo_ta: string;
   trang_thai: { name: string; params?: Record<string, unknown> }[];
   /** Gọi hàm thật của client; kiểm thử bắt yêu cầu bằng HttpTestingController. */
-  goi: (api: { task: TaskApi; okr: OkrApi }) => Observable<unknown>;
+  goi: (api: {
+    task: TaskApi;
+    okr: OkrApi;
+    evidence: EvidenceApi;
+    appraisal: AppraisalApi;
+  }) => Observable<unknown>;
   yeu_cau: {
     method: string;
     path: string;
@@ -28,8 +33,15 @@ export interface TuongTac {
 
 export const NHIEM_VU = '01927a02-0000-7000-8000-00000000c502';
 export const KR = '01927a02-0000-7000-8000-00000000c513';
+export const SAN_PHAM = '01927a02-0000-7000-8000-00000000c521';
+export const HO_SO = '01927a02-0000-7000-8000-00000000c531';
 
 /** Một dòng "Việc của tôi" (SCR-0503): các trường danh sách, xem nhanh và cập nhật tiến độ đọc. */
+const viecNhiemVu = { id: uuid(NHIEM_VU), code: 'NV-PACT-01', name: 'Báo cáo chuyên đề' };
+
+/** Một hồ sơ đánh giá của tôi (SCR-0901): các trường danh sách và phiếu tự đánh giá đọc. */
+const hoSo = { id: uuid(HO_SO), flow: 'DANG', status: 'TU_DANH_GIA', rowVersion: soNguyen(1) };
+
 const viec = {
   id: uuid(NHIEM_VU),
   code: 'NV-0001',
@@ -149,5 +161,101 @@ export const TUONG_TAC: TuongTac[] = [
       p.nextCursor === undefined ? undefined : 'nextCursor',
       ...['id', 'code', 'title', 'unit', 'targetValue'].map((k) => p.items[0][k]),
     ],
+  },
+  {
+    mo_ta: 'tạo minh chứng cho sản phẩm của nhiệm vụ',
+    trang_thai: [
+      {
+        name: 'cán bộ chủ trì một nhiệm vụ có sản phẩm chưa có minh chứng',
+        params: { taskId: NHIEM_VU, deliverableId: SAN_PHAM },
+      },
+    ],
+    goi: ({ evidence }) =>
+      evidence.create({
+        deliverableId: SAN_PHAM,
+        title: 'Báo cáo chuyên đề',
+        sourceType: 'TAI_LEN',
+      }),
+    yeu_cau: {
+      method: 'POST',
+      path: '/api/v1/evidences',
+      headers: { 'Content-Type': 'application/json' },
+      body: { deliverableId: SAN_PHAM, title: 'Báo cáo chuyên đề', sourceType: 'TAI_LEN' },
+    },
+    phan_hoi: {
+      status: 201,
+      body: giongKieu({
+        id: uuid('01927a02-0000-7000-8000-00000000c522'),
+        deliverableId: uuid(SAN_PHAM),
+        task: viecNhiemVu,
+        title: 'Báo cáo chuyên đề',
+        sourceType: 'TAI_LEN',
+        rowVersion: soNguyen(0),
+      }),
+    },
+    doc: (e: Record<string, unknown>) => [e['id'], e['deliverableId'], e['task'], e['rowVersion']],
+  },
+  {
+    mo_ta: 'minh chứng của tôi',
+    trang_thai: [
+      {
+        name: 'cán bộ đã tạo một minh chứng cho sản phẩm của nhiệm vụ mình chủ trì',
+        params: { taskId: NHIEM_VU, deliverableId: SAN_PHAM },
+      },
+    ],
+    goi: ({ evidence }) => evidence.list({ submitter: 'me' }),
+    yeu_cau: { method: 'GET', path: '/api/v1/evidences', query: { submitter: ['me'] } },
+    phan_hoi: {
+      status: 200,
+      body: giongKieu({
+        items: moiPhanTu({
+          id: uuid('01927a02-0000-7000-8000-00000000c522'),
+          deliverableId: uuid(SAN_PHAM),
+          task: viecNhiemVu,
+          title: 'Báo cáo chuyên đề',
+          sourceType: 'TAI_LEN',
+          rowVersion: soNguyen(0),
+        }),
+        nextCursor: null,
+      }),
+    },
+    doc: (p: { items: Record<string, Record<string, unknown>>[]; nextCursor: unknown }) => [
+      p.nextCursor === undefined ? undefined : 'nextCursor',
+      p.items[0]['task']['code'],
+      p.items[0]['task']['name'],
+      ...['id', 'deliverableId', 'title', 'sourceType', 'rowVersion'].map((k) => p.items[0][k]),
+    ],
+  },
+  {
+    mo_ta: 'hồ sơ đánh giá của tôi',
+    trang_thai: [
+      {
+        name: 'cán bộ có một hồ sơ đánh giá đang tự đánh giá trong kỳ hiện hành',
+        params: { profileId: HO_SO },
+      },
+    ],
+    goi: ({ appraisal }) => appraisal.myProfiles(),
+    yeu_cau: { method: 'GET', path: '/api/v1/appraisals/profiles/mine', query: { limit: ['50'] } },
+    phan_hoi: {
+      status: 200,
+      body: giongKieu({ items: moiPhanTu(hoSo), nextCursor: null }),
+    },
+    doc: (p: { items: Record<string, unknown>[]; nextCursor: unknown }) => [
+      p.nextCursor === undefined ? undefined : 'nextCursor',
+      ...['id', 'flow', 'status', 'rowVersion'].map((k) => p.items[0][k]),
+    ],
+  },
+  {
+    mo_ta: 'mở phiếu tự đánh giá',
+    trang_thai: [
+      {
+        name: 'cán bộ có một hồ sơ đánh giá đang tự đánh giá trong kỳ hiện hành',
+        params: { profileId: HO_SO },
+      },
+    ],
+    goi: ({ appraisal }) => appraisal.profile(HO_SO),
+    yeu_cau: { method: 'GET', path: `/api/v1/appraisals/profiles/${HO_SO}` },
+    phan_hoi: { status: 200, body: giongKieu(hoSo) },
+    doc: (p: Record<string, unknown>) => [p['id'], p['flow'], p['status'], p['rowVersion']],
   },
 ];

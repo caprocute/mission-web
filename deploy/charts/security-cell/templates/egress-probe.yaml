@@ -1,0 +1,97 @@
+{{- if .Values.egressProbe.enabled }}
+{{- $v := .Values }}
+{{- $p := $v.egressProbe }}
+{{- $targets := list }}
+{{- range $p.targets }}{{ $targets = append $targets (printf "%s=%s:%v" .name .host .port) }}{{ end }}
+{{- range $ns := concat $v.zones.app $v.zones.data $v.zones.secure $v.zones.edge }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tham-do-cong-ra
+  namespace: {{ $ns }}
+  labels:
+    {{- include "sec.labels" $ | nindent 4 }}
+data:
+  tham-do-cong-ra.sh: |
+    {{- $.Files.Get "files/scripts/tham-do-cong-ra.sh" | nindent 4 }}
+---
+# Bằng chứng SEC-36 (TL-04 mục 9.5): pod thường của namespace {{ $ns }} (chỉ có NetworkPolicy mặc định của cell-base
+# cộng đường tới Pushgateway) thử kết nối thẳng ra ngoài; mọi kết nối được là rò rỉ, cảnh báo EgressProbeLeak.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: tham-do-cong-ra
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: egress-probe
+    {{- include "sec.labels" $ | nindent 4 }}
+spec:
+  schedule: {{ $p.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 300
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: egress-probe
+            vt.io/egress-probe: "true"
+            vt.io/needs-k8s-api: "false"
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            {{- include "sec.restrictedPod" $ | nindent 12 }}
+          containers:
+            - name: tham-do
+              image: {{ include "sec.image" (dict "root" $ "name" "busybox") }}
+              imagePullPolicy: IfNotPresent
+              command: ["sh", "/scripts/tham-do-cong-ra.sh"]
+              env:
+                - { name: NAMESPACE, value: {{ $ns }} }
+                - { name: CELL, value: {{ $v.cell | quote }} }
+                - { name: TARGETS, value: {{ join " " $targets | quote }} }
+                - { name: TIMEOUT, value: {{ $p.timeoutSeconds | quote }} }
+                - { name: PUSHGATEWAY, value: {{ $v.pushgateway.url | quote }} }
+              resources:
+                {{- toYaml $p.resources | nindent 16 }}
+              securityContext:
+                {{- include "sec.restrictedContainer" $ | nindent 16 }}
+              # Chính sách vt-pod-hardening bắt buộc probe với mọi container vùng ứng dụng; Job ngắn dùng probe rỗng.
+              readinessProbe:
+                exec: { command: ["true"] }
+              livenessProbe:
+                exec: { command: ["true"] }
+              volumeMounts:
+                - { name: scripts, mountPath: /scripts, readOnly: true }
+                - { name: tmp, mountPath: /tmp }
+          volumes:
+            - name: scripts
+              configMap: { name: tham-do-cong-ra }
+            - name: tmp
+              emptyDir: { sizeLimit: 1Mi }
+---
+# Pod thăm dò chỉ được thêm đường tới Pushgateway; mọi đường ra khác giữ nguyên chính sách mặc định của namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: egress-probe-to-pushgateway
+  namespace: {{ $ns }}
+spec:
+  podSelector:
+    matchLabels: { vt.io/egress-probe: "true" }
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: observability }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: pushgateway }
+      ports:
+        - { protocol: TCP, port: 9091 }
+{{- end }}
+{{- end }}

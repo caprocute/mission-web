@@ -1,0 +1,75 @@
+{{- /* Luật cảnh báo sao lưu (INF-17, TL-04 chương 8, OPS-18) để Prometheus của cell (INF-15) nạp. Chỉ số bản nền do
+plugin Barman Cloud xuất qua instance CNPG (barman_cloud_cloudnative_pg_io_*), chỉ số lưu trữ WAL là truy vấn mặc định
+của CNPG (cnpg_pg_stat_archiver_*), chỉ số restore-check, etcd do CronJob của chart này đẩy lên Pushgateway. Tên cụm
+lấy từ tên pod <cụm>-<số>. Kiểm bằng promtool: tests/canh-bao-test.yaml. */}}
+{{- $v := .Values }}
+{{- $c := $v.canhBao }}
+{{- if $c.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: backup-cell-{{ include "bk.ma" . }}
+  namespace: {{ $c.namespace }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: sao-luu-postgresql
+      rules:
+        - alert: BackupMissing
+          expr: |
+            time() - max by (namespace, cluster) (
+              label_replace(barman_cloud_cloudnative_pg_io_last_available_backup_timestamp, "cluster", "$1", "pod", "(.+)-[0-9]+")
+            ) > {{ mul $c.banNenToiDaGio 3600 }}
+          for: 10m
+          labels: { severity: critical, vt_ly_do: ban-nen }
+          annotations:
+            summary: "{{ "{{ $labels.namespace }}/{{ $labels.cluster }}" }}: không có bản nền mới trong {{ $c.banNenToiDaGio }} giờ"
+            description: "Bản nền mới nhất trên kho sao lưu đã cũ hơn {{ $c.banNenToiDaGio }} giờ (lịch 01:30 hằng ngày). Xem ops/runbooks/sao-luu-postgresql.md mục 3."
+        - alert: BackupMissing
+          expr: |
+            max by (namespace, cluster) (
+              label_replace(cnpg_pg_stat_archiver_seconds_since_last_archival, "cluster", "$1", "pod", "(.+)-[0-9]+")
+              and on (namespace, pod) (cnpg_pg_replication_in_recovery == 0)
+            ) > {{ $c.walTreToiDaGiay }}
+          for: 2m
+          labels: { severity: critical, vt_ly_do: wal }
+          annotations:
+            summary: "{{ "{{ $labels.namespace }}/{{ $labels.cluster }}" }}: WAL chưa lưu trữ quá {{ $c.walTreToiDaGiay }} giây"
+            description: "Primary không đẩy được WAL ra kho sao lưu (archive_timeout 60 s), RPO khi khôi phục từ sao lưu đang vượt 5 phút. Xem ops/runbooks/sao-luu-postgresql.md mục 3."
+    - name: sao-luu-khoi-phuc-thu
+      rules:
+        - alert: RestoreCheckStale
+          expr: |
+            time() - max by (cell, cluster) (backup_restore_check_last_success_timestamp_seconds) > {{ mul $c.restoreToiDaNgay 86400 }}
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "Cell {{ "{{ $labels.cell }}" }}, cụm {{ "{{ $labels.cluster }}" }}: không có lần khôi phục thử thành công trong {{ $c.restoreToiDaNgay }} ngày"
+            description: "Nguyên tắc 0 lỗi khi kiểm tra khôi phục (3-2-1-1-0) không còn bằng chứng mới. Xem ops/runbooks/sao-luu-postgresql.md mục 4."
+        - alert: RestoreCheckStale
+          expr: absent(backup_restore_check_last_run_timestamp_seconds{cell="{{ include "bk.ma" . }}"})
+          for: 2d
+          labels: { severity: warning, cell: {{ include "bk.ma" . | quote }} }
+          annotations:
+            summary: "Cell {{ include "bk.ma" . }}: không có chỉ số khôi phục thử"
+            description: "CronJob restore-check không chạy hoặc không đẩy được chỉ số lên Pushgateway trong 2 ngày."
+        # Bổ sung (suy luận): báo ngay khi một lần khôi phục thử hỏng, không đợi tới hạn 8 ngày.
+        - alert: RestoreCheckFailed
+          expr: max by (cell, cluster) (backup_restore_check_success) == 0
+          labels: { severity: critical }
+          annotations:
+            summary: "Cell {{ "{{ $labels.cell }}" }}: khôi phục thử cụm {{ "{{ $labels.cluster }}" }} không đạt"
+            description: "Bản nền hoặc WAL không khôi phục được, hoặc truy vấn kiểm sau khôi phục báo lỗi. Xem nhật ký Job restore-check và ops/runbooks/sao-luu-postgresql.md mục 4."
+    - name: sao-luu-kubernetes
+      rules:
+        # Bổ sung (suy luận): snapshot etcd 6 giờ một lần, báo khi quá {{ $c.etcdToiDaGio }} giờ không có bản thành công.
+        - alert: EtcdSnapshotMissing
+          expr: |
+            time() - max by (cell) (backup_etcd_snapshot_last_success_timestamp_seconds) > {{ mul $c.etcdToiDaGio 3600 }}
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "Cell {{ "{{ $labels.cell }}" }}: không có snapshot etcd trong {{ $c.etcdToiDaGio }} giờ"
+            description: "CronJob chup-etcd trong kube-system lỗi. Xem ops/runbooks/sao-luu-kubernetes.md."
+{{- end }}

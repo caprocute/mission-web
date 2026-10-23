@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Kiểm tĩnh chart otel-collector (INF-14): lint, render, kubeconform -strict, otelcol validate cho cấu hình agent và
-# gateway (mặc định và kind), cờ thay AGPL chuyển đích trace. Cần docker để chạy otelcol-contrib.
+# gateway (mặc định và kind), cờ thay AGPL chuyển đích trace; luồng SIEM (INF-19): otelcol validate cho otel-siem và
+# chặng ra SOC, chạy thật bộ xử lý ECS (tests/kiem-thu-siem.py). Cần docker, hoặc OTELCOL=<tệp otelcol-contrib>.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT=$(mktemp -d); trap 'rm -rf "$OUT"' EXIT
@@ -33,5 +34,33 @@ for k in 'routing_key: traceID' 'http.request.header.authorization, action: dele
   grep -rqE "$k" "$OUT/mac-dinh" && ok "cấu hình có: $k" || hong "thiếu: $k"
 done
 helm template o . --set agplThayThe=true | grep -q 'endpoint: jaeger-collector' && ok "agplThayThe chuyển trace sang đích Apache-2.0" || hong "cờ agplThayThe"
+echo "== Luồng SIEM (INF-19)"
+helm template o . --set-json 'siem.soc.brokers=["kafka-soc.vi-du.invalid:9093"]' --set-json 'siem.soc.cidrs=["198.51.100.0/24"]' > "$OUT/soc.yaml" \
+  && ok "render có chặng ra SOC" || hong "render có chặng ra SOC"
+kubeconform -strict -summary -schema-location default -schema-location "$CRD" "$OUT/soc.yaml" > "$OUT/kc" 2>&1 \
+  && ok "kubeconform -strict có SOC ($(tail -1 "$OUT/kc"))" || { hong "kubeconform có SOC"; cat "$OUT/kc"; }
+helm template o . --set siem.topics.siem=sys.siem.v2 >/dev/null 2>&1 && hong "đổi tên topic SIEM lẽ ra bị từ chối" || ok "đổi tên topic SIEM bị từ chối khi render"
+# Chứng thư giả (chỉ để otelcol validate dựng được receiver TLS), sinh lúc chạy, không lưu.
+mkdir -p "$OUT/cert/tls" "$OUT/cert/kafka" "$OUT/cert/soc" "$OUT/siem"
+openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -keyout "$OUT/cert/k" -out "$OUT/cert/c" -subj /CN=thu -days 1 2>/dev/null
+for d in tls soc; do cp "$OUT/cert/c" "$OUT/cert/$d/ca.crt"; cp "$OUT/cert/c" "$OUT/cert/$d/tls.crt"; cp "$OUT/cert/k" "$OUT/cert/$d/tls.key"; done
+cp "$OUT/cert/c" "$OUT/cert/kafka/ca.crt"; cp "$OUT/cert/c" "$OUT/cert/kafka/user.crt"; cp "$OUT/cert/k" "$OUT/cert/kafka/user.key"
+python3 - "$OUT/soc.yaml" "$OUT/siem" <<'PY'
+import sys, yaml
+for d in yaml.safe_load_all(open(sys.argv[1])):
+    if d and d["kind"] == "ConfigMap" and d["metadata"]["name"] in ("otel-siem", "siem-soc-forwarder"):
+        open(f"{sys.argv[2]}/{d['metadata']['name']}.yaml", "w").write(d["data"]["config.yaml"].replace("/etc/otel/", "/cert/"))
+PY
+for c in otel-siem siem-soc-forwarder; do
+  if [ -n "${OTELCOL:-}" ]; then
+    sed "s|/cert/|$OUT/cert/|g" "$OUT/siem/$c.yaml" > "$OUT/siem/$c.local.yaml"
+    "$OTELCOL" validate --config="$OUT/siem/$c.local.yaml" >/dev/null 2>"$OUT/e"
+  else
+    docker run --rm -v "$OUT/siem:/c:ro" -v "$OUT/cert:/cert:ro" "$OTEL" validate --config="/c/$c.yaml" >/dev/null 2>"$OUT/e"
+  fi && ok "otelcol validate $c" || { hong "otelcol validate $c"; tail -3 "$OUT/e"; }
+done
+OTEL_IMAGE="$OTEL" python3 tests/kiem-thu-siem.py "$OUT/mac-dinh.yaml" "$OUT/soc.yaml" > "$OUT/ks" 2>&1 || true
+sed 's/^/  /' "$OUT/ks"; dat=$((dat + $(grep -c '^\[ĐẠT\]' "$OUT/ks" || true))); truot=$((truot + $(grep -c '^\[HỎNG\]' "$OUT/ks" || true)))
+grep -q '^\[' "$OUT/ks" || { hong "kiem-thu-siem.py"; tail -5 "$OUT/ks"; }
 echo "Tổng: $dat đạt, $truot hỏng"
 [ "$truot" -eq 0 ]

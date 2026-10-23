@@ -1,0 +1,68 @@
+# Cụm kind có nhật ký kiểm toán API theo chính sách của cụm thật (INF-19, TL-04 mục 9.3, SEC-30). Giống cluster.yaml,
+# thêm: chính sách kiểm toán lấy đúng tệp deploy/clusters/cell-cluster/files/audit-policy.yaml (một nguồn duy nhất),
+# nhật ký ở /var/log/kubernetes/audit/audit.log của node control plane (đường Fluent Bit đọc), profiling tắt, TLS ≥ 1.2.
+# Không áp trên kind: anonymous-auth=false (kubeadm join của worker cần đọc cluster-info ẩn danh), KMS v2 OpenBao
+# Transit (không có plugin KMS), OIDC Keycloak vận hành. Dùng: KIND_CONFIG=cluster-an-ninh.yaml ./tao-cum.sh
+# (đường dẫn hostPath tương đối tính từ thư mục này; tao-cum.sh tự cd vào đây).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: vt-cell-kind
+networking:
+  disableDefaultCNI: true
+  podSubnet: 10.244.0.0/16
+  serviceSubnet: 10.96.0.0/16
+kubeadmConfigPatches:
+  - |
+    kind: ClusterConfiguration
+    apiServer:
+      extraArgs:
+        audit-policy-file: /etc/kubernetes/audit-policy.yaml
+        audit-log-path: /var/log/kubernetes/audit/audit.log
+        audit-log-maxage: "7"
+        audit-log-maxbackup: "10"
+        audit-log-maxsize: "200"
+        profiling: "false"
+        tls-min-version: VersionTLS12
+      extraVolumes:
+        - name: audit-policy
+          hostPath: /etc/kubernetes/audit-policy.yaml
+          mountPath: /etc/kubernetes/audit-policy.yaml
+          readOnly: true
+          pathType: File
+        - name: audit-log
+          hostPath: /var/log/kubernetes/audit
+          mountPath: /var/log/kubernetes/audit
+          readOnly: false
+          pathType: DirectoryOrCreate
+  # Lưu giữ log container của kubelet theo TL-04 mục 10.3 (lớp đệm thứ hai khi Fluent Bit gặp sự cố).
+  - |
+    kind: KubeletConfiguration
+    containerLogMaxSize: 100Mi
+    containerLogMaxFiles: 5
+containerdConfigPatches:
+  # Máy chạy kind trong container lồng nhau (môi trường cloud của agent) không cho hạ oom_score_adj;
+  # bật restrict_oom_score_adj để containerd không đặt giá trị âm cho sandbox. Vô hại trên máy thường.
+  - |-
+    [plugins."io.containerd.grpc.v1.cri"]
+      restrict_oom_score_adj = true
+nodes:
+  - role: control-plane
+    extraMounts:
+      - hostPath: ../../clusters/cell-cluster/files/audit-policy.yaml
+        containerPath: /etc/kubernetes/audit-policy.yaml
+        readOnly: true
+  - role: worker
+    labels:
+      topology.kubernetes.io/zone: hl-a
+      vt.io/rack: r1
+      vt.io/pool: app-general
+  - role: worker
+    labels:
+      topology.kubernetes.io/zone: hl-b
+      vt.io/rack: r2
+      vt.io/pool: app-general
+  - role: worker
+    labels:
+      topology.kubernetes.io/zone: hl-c
+      vt.io/rack: r3
+      vt.io/pool: app-general

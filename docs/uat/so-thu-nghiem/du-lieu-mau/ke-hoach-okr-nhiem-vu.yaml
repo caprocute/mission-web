@@ -1,0 +1,72 @@
+# Dữ liệu nghiệp vụ hư cấu của kỳ UAT (QA-16): mục tiêu và kết quả then chốt, kế hoạch quý, nhiệm vụ,
+# sản phẩm và mức nghiệm thu. Người dùng thử nhập các dữ liệu này qua màn hình theo kịch bản, không nạp
+# thẳng vào cơ sở dữ liệu, để buổi UAT kiểm được cả thao tác nhập. Tên người, đơn vị khớp dữ liệu thử
+# infra/dev/postgres/seed; nội dung công việc là hư cấu (SEC-52).
+#
+# Cột nghiem_thu là kết quả người quản lý chọn ở bước nghiệm thu; ket-qua-mong-doi.yaml tính điểm từ
+# đúng các con số này. Mọi nhiệm vụ đều hoàn thành đúng hạn (không có ngày chậm), để kỳ rút gọn không
+# phụ thuộc đồng hồ hệ thống.
+
+muc_tieu:
+  - ma: MT1
+    don_vi: Phòng Tổng hợp
+    chu_so_huu: Trần Thị Quản Lý
+    ten: Nâng cao chất lượng tham mưu tổng hợp của Sở
+    ket_qua_then_chot:
+      - {ma: KR1.1, ten: Ban hành đúng hạn các báo cáo định kỳ của quý, chi_tieu: 6, don_vi_tinh: báo cáo, nguoi_xac_nhan: Lê Văn Lãnh Đạo}
+      - {ma: KR1.2, ten: Rút ngắn thời gian tổng hợp số liệu tuần, chi_tieu: 2, don_vi_tinh: ngày, nguoi_xac_nhan: Lê Văn Lãnh Đạo}
+  - ma: MT2
+    don_vi: Phòng Tổng hợp
+    chu_so_huu: Nguyễn Văn Cán Bộ
+    ten: Số hoá hồ sơ lưu trữ của phòng
+    ket_qua_then_chot:
+      - {ma: KR2.1, ten: Số hoá hồ sơ lưu trữ năm 2025, chi_tieu: 200, don_vi_tinh: hồ sơ, nguoi_xac_nhan: Trần Thị Quản Lý}
+
+ke_hoach_quy:
+  don_vi: Phòng Tổng hợp
+  nguoi_lap: Trần Thị Quản Lý
+  nguoi_duyet: Lê Văn Lãnh Đạo
+  lan_tra_lai: 1               # kịch bản 04: lần trình đầu bị trả lại vì thiếu nhiệm vụ then chốt
+  ly_do_tra_lai: Bổ sung nhiệm vụ then chốt về số hoá hồ sơ lưu trữ
+
+# Người giao cũng là người nghiệm thu. Lãnh đạo Sở giao và nghiệm thu việc của trưởng phòng và của cán bộ
+# hai cơ quan tham mưu; việc do lãnh đạo tự chủ trì được giao từ kế hoạch quý của Sở (suy luận cho dữ liệu
+# hư cấu, tenant thật theo phân cấp của mình).
+# Mỗi người có kế hoạch 10 sản phẩm cho mỗi nhiệm vụ; so_luong_nghiem_thu và chat_luong là kết quả
+# nghiệm thu (chất lượng: 1 = Tốt, 0,75 = Khá, 0,5 = Trung bình theo thang năm mức).
+nhiem_vu:
+  - {ma: NV01, nguoi_chu_tri: Ngô Văn Kiểm Tra, nguoi_giao: Lê Văn Lãnh Đạo, nhom: thường xuyên, ten: Kiểm tra việc thực hiện quy chế làm việc, ke_hoach: 10, so_luong_nghiem_thu: 10, chat_luong: 1}
+  - {ma: NV02, nguoi_chu_tri: Ngô Văn Kiểm Tra, nguoi_giao: Lê Văn Lãnh Đạo, nhom: thường xuyên, ten: Tiếp nhận và phân loại đơn thư, ke_hoach: 10, so_luong_nghiem_thu: 12, chat_luong: 1}
+  - {ma: NV03, nguoi_chu_tri: Ngô Văn Kiểm Tra, nguoi_giao: Lê Văn Lãnh Đạo, nhom: then chốt, ten: Kiểm tra chuyên đề công tác cán bộ, ke_hoach: 10, so_luong_nghiem_thu: 12, chat_luong: 1}
+  - {ma: NV04, nguoi_chu_tri: Ngô Văn Kiểm Tra, nguoi_giao: Lê Văn Lãnh Đạo, nhom: then chốt, ten: Giám sát thực hiện kết luận kiểm tra, ke_hoach: 10, so_luong_nghiem_thu: 10, chat_luong: 1}
+  - {ma: NV05, nguoi_chu_tri: Trần Thị Quản Lý, nguoi_giao: Lê Văn Lãnh Đạo, nhom: thường xuyên, ten: Tổng hợp báo cáo tuần của Sở, ke_hoach: 10, so_luong_nghiem_thu: 10, chat_luong: 0.75}
+  - {ma: NV06, nguoi_chu_tri: Trần Thị Quản Lý, nguoi_giao: Lê Văn Lãnh Đạo, nhom: thường xuyên, ten: Theo dõi văn bản chỉ đạo đến, ke_hoach: 10, so_luong_nghiem_thu: 10, chat_luong: 1}
+  - {ma: NV07, nguoi_chu_tri: Trần Thị Quản Lý, nguoi_giao: Lê Văn Lãnh Đạo, nhom: then chốt, ten: Xây dựng báo cáo tổng kết năm, ke_hoach: 10, so_luong_nghiem_thu: 12, chat_luong: 1}
+  - {ma: NV08, nguoi_chu_tri: Trần Thị Quản Lý, nguoi_giao: Lê Văn Lãnh Đạo, nhom: then chốt, ten: Chuẩn bị nội dung hội nghị cán bộ, ke_hoach: 10, so_luong_nghiem_thu: 10, chat_luong: 1}
+  - {ma: NV09, nguoi_chu_tri: Phạm Thị Thẩm Định, nguoi_giao: Lê Văn Lãnh Đạo, nhom: thường xuyên, ten: Rà soát hồ sơ cán bộ định kỳ, ke_hoach: 10, so_luong_nghiem_thu: 10, chat_luong: 0.75}
+  - {ma: NV10, nguoi_chu_tri: Phạm Thị Thẩm Định, nguoi_giao: Lê Văn Lãnh Đạo, nhom: then chốt, ten: Thẩm định đề án vị trí việc làm, ke_hoach: 10, so_luong_nghiem_thu: 10, chat_luong: 0.75}
+  - {ma: NV11, nguoi_chu_tri: Nguyễn Văn Cán Bộ, nguoi_giao: Trần Thị Quản Lý, nhom: thường xuyên, ten: Cập nhật số liệu thống kê tuần, ke_hoach: 10, so_luong_nghiem_thu: 8, chat_luong: 0.5}
+  - {ma: NV12, nguoi_chu_tri: Nguyễn Văn Cán Bộ, nguoi_giao: Trần Thị Quản Lý, nhom: then chốt, ten: Số hoá hồ sơ lưu trữ năm 2025 (đợt 1), ke_hoach: 10, so_luong_nghiem_thu: 8, chat_luong: 0.5}
+  - {ma: NV13, nguoi_chu_tri: Lê Văn Lãnh Đạo, nguoi_giao: Lê Văn Lãnh Đạo, nhom: thường xuyên, ten: Chủ trì giao ban tuần, ke_hoach: 10, so_luong_nghiem_thu: 12, chat_luong: 1}
+  - {ma: NV14, nguoi_chu_tri: Lê Văn Lãnh Đạo, nguoi_giao: Lê Văn Lãnh Đạo, nhom: then chốt, ten: Chỉ đạo chuyển đổi số của Sở, ke_hoach: 10, so_luong_nghiem_thu: 12, chat_luong: 1}
+
+# Điều kiện hồ sơ do người thẩm định xác nhận khi thẩm định (tiêu chí chung, giải pháp đột phá).
+dieu_kien_ho_so:
+  - {nguoi: Ngô Văn Kiểm Tra,   tieu_chi_chung: 100%, giai_phap_dot_pha: có, ghi_chu: Quy trình phân loại đơn thư mới đã áp dụng toàn Sở}
+  - {nguoi: Trần Thị Quản Lý,   tieu_chi_chung: 100%, giai_phap_dot_pha: có}
+  - {nguoi: Phạm Thị Thẩm Định, tieu_chi_chung: 95%,  giai_phap_dot_pha: chưa có}
+  - {nguoi: Nguyễn Văn Cán Bộ,  tieu_chi_chung: 100%, giai_phap_dot_pha: có}
+  - {nguoi: Lê Văn Lãnh Đạo,    tieu_chi_chung: 100%, giai_phap_dot_pha: có, nguoi_dung_dau: có, tap_the_dat_chi_tieu: có}
+
+# Mức xếp loại mong đợi cuối kỳ (tính tay, đối chiếu bằng kiem_ket_qua_mong_doi.py)
+xep_loai_mong_doi:
+  - {nguoi: Ngô Văn Kiểm Tra,   diem: 100,  muc: Hoàn thành xuất sắc nhiệm vụ}
+  - {nguoi: Trần Thị Quản Lý,   diem: 98.8, muc: Hoàn thành tốt nhiệm vụ, ghi_chu: "Đủ điểm mức xuất sắc nhưng tỷ lệ nhiệm vụ vượt kế hoạch 25%, chưa đạt 30%"}
+  - {nguoi: Phạm Thị Thẩm Định, diem: 91.7, muc: Hoàn thành tốt nhiệm vụ, ghi_chu: Tiêu chí chung mức Đảm bảo}
+  - {nguoi: Nguyễn Văn Cán Bộ,  diem: 76.7, muc: Hoàn thành nhiệm vụ, ghi_chu: Gửi khiếu nại ở kịch bản 15}
+  - {nguoi: Lê Văn Lãnh Đạo,    diem: 100,  muc: Hoàn thành xuất sắc nhiệm vụ}
+
+khieu_nai:
+  nguoi_gui: Nguyễn Văn Cán Bộ
+  noi_dung: Đề nghị xem lại mức chất lượng nghiệm thu của nhiệm vụ số hoá hồ sơ lưu trữ
+  ket_luan_mong_doi: Giữ nguyên kết quả xếp loại, trả lời bằng văn bản có ký số

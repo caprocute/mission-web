@@ -1,0 +1,11 @@
+# Bucket kho sao lưu (INF-17) trên kind: dùng cùng values-kho-sao-luu.yaml của rgw-cell, trỏ tới RGW zone sn
+# (172.18.0.51) đóng vai ceph-sn-bk; khoá quản trị nạp thẳng thành Secret rgw-quan-tri như values-kind-rgw.yaml.
+# Dùng: helm template bk deploy/charts/rgw-cell -f deploy/charts/rgw-cell/values-kho-sao-luu.yaml -f <tệp này>
+cell: kind
+endpoint: http://172.18.0.51:8080
+region: cell-kind-zg
+job:
+  image: { repository: mirror.gcr.io/amazon/aws-cli }
+  caBundle: null
+  mang: false
+externalSecrets: { enabled: false }

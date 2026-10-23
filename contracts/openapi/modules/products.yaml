@@ -1896,6 +1896,12 @@ components:
             - $ref: '#/components/schemas/EvidenceAcceptance'
             - type: 'null'
         rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+        permittedActions:
+          $ref: '../common/common.yaml#/components/schemas/PermittedActions'
+          description: >-
+            Thao tác của người gọi trên phiên bản này: `SCR-0701.soan`, `SCR-0701.nop` khi người gọi chủ trì
+            nhiệm vụ và phiên bản còn nháp; `SCR-0703.mo` khi đủ tư cách nghiệm thu (BR-07-06) và phiên bản
+            đã nộp; thêm `SCR-0703.xac-nhan`, `SCR-0703.bo-sung-tu-choi` khi đang nghiệm thu.
       examples:
         - id: 0192a1d4-6f70-7b92-8d3e-4f5a6b7c8d04
           evidenceId: 0192a1b2-4d5e-7f60-8b1c-2d3e4f5a6b02
