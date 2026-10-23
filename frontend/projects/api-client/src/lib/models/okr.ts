@@ -143,6 +143,8 @@ export interface ObjectiveDetail extends ObjectiveDraft {
   updatedAt: string;
   /** Lần lưu thứ mấy của bản nháp (hiện "bản nháp 3"). */
   draftNo: number;
+  /** Thao tác máy chủ cho phép người gọi làm trên mục tiêu này (YC-PT-21). */
+  permittedActions?: readonly string[] | null;
 }
 
 /** Mức của một quy tắc soát OKR: chặn trình duyệt hay chỉ cảnh báo. */

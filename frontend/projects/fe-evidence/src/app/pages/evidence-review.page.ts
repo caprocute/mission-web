@@ -37,6 +37,7 @@ import {
   QualityLevel,
   toProblem,
 } from '@vt/api-client';
+import { permittedOn } from '@vt/auth';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { firstValueFrom } from 'rxjs';
@@ -361,7 +362,7 @@ const fmtDateTime = (iso?: string | null) => {
 
               @if (decidable()) {
                 <div class="actions dec">
-                  @if (can('SCR-0703.bo-sung-tu-choi')) {
+                  @if (allowed('SCR-0703.bo-sung-tu-choi')) {
                     <p-button
                       label="Yêu cầu bổ sung"
                       severity="secondary"
@@ -379,7 +380,7 @@ const fmtDateTime = (iso?: string | null) => {
                       (onClick)="giveBack('reject')"
                     />
                   }
-                  @if (can('SCR-0703.xac-nhan')) {
+                  @if (allowed('SCR-0703.xac-nhan')) {
                     <p-button
                       label="Xác nhận nghiệm thu"
                       [loading]="busy() === 'accept'"
@@ -389,7 +390,7 @@ const fmtDateTime = (iso?: string | null) => {
                     />
                   }
                 </div>
-                @if (acceptBlockers().length && can('SCR-0703.xac-nhan')) {
+                @if (acceptBlockers().length && allowed('SCR-0703.xac-nhan')) {
                   <p class="muted small" id="acc-why">
                     Để xác nhận: {{ acceptBlockers().join('; ') }}.
                   </p>
@@ -510,6 +511,11 @@ export class EvidenceReviewPage {
   private readonly integrityFailed = signal(false);
 
   protected readonly elderly = computed(() => this.theme.mode() === 'elderly');
+
+  /** Vai trò có quyền và máy chủ cho phép trên phiên bản đang nghiệm thu (YC-PT-21). */
+  protected allowed(key: 'SCR-0703.xac-nhan' | 'SCR-0703.bo-sung-tu-choi'): boolean {
+    return this.can(key) && permittedOn(this.ver(), key);
+  }
 
   protected readonly decidable = computed(() => {
     const v = this.ver();
