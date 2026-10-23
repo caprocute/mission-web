@@ -5,6 +5,8 @@ import {
   PERMISSION_KEYS,
   PermissionService,
   VT_PERMISSION_OPTIONS,
+  apiModuleOf,
+  permittedOn,
   rolesCan,
   rolesFor,
 } from './permission.service';
@@ -29,8 +31,8 @@ function setup(current: VtUser | null, allowInferred = true) {
 }
 
 describe('bảng quyền sinh từ ma trận', () => {
-  it('có đủ 171 khoá chức năng web, đúng dạng SCR-qqnn.<khoá>', () => {
-    expect(PERMISSION_KEYS.length).toBe(171);
+  it('có đủ 175 khoá chức năng web, đúng dạng SCR-qqnn.<khoá>', () => {
+    expect(PERMISSION_KEYS.length).toBe(175);
     for (const k of PERMISSION_KEYS) expect(k).toMatch(/^SCR-\d{4}\.[a-z0-9-]+$/);
   });
 
@@ -139,15 +141,47 @@ describe('PermissionService', () => {
   });
 });
 
+describe('ma trận API và quyền theo đối tượng (YC-PT-21)', () => {
+  it('canApi đọc ma trận API: quản trị nền tảng không tìm kiếm, cán bộ tìm được', () => {
+    expect(setup(user('platform_admin')).perms.canApi('search', 'GET')).toBe(false);
+    TestBed.resetTestingModule();
+    const { perms } = setup(user('member'));
+    expect(perms.canApi('search')).toBe(true);
+    expect(perms.canApi('search', 'POST')).toBe(false);
+  });
+
+  it('apiModuleOf chỉ nhận module có trong ma trận', () => {
+    expect(apiModuleOf('/api/v1/tasks/mine?limit=20')).toBe('tasks');
+    expect(apiModuleOf('https://cell-nb.test/api/v1/search?q=a')).toBe('search');
+    expect(apiModuleOf('/api/v1/khong-co-module/x')).toBeNull();
+    expect(apiModuleOf('/assets/a.json')).toBeNull();
+  });
+
+  it('allows: cần quyền theo vai trò và, nếu có, nằm trong permittedActions của đối tượng', () => {
+    const { perms } = setup(user('manager'));
+    const mine = { permittedActions: ['SCR-1601.nhac', 'SCR-1601.giao-lai'] };
+    const others = { permittedActions: ['SCR-1601.nhac'] };
+    expect(perms.allows('SCR-1601.giao-lai', mine)).toBe(true);
+    expect(perms.allows('SCR-1601.giao-lai', others)).toBe(false);
+    // máy chủ chưa gửi danh sách: chỉ xét vai trò
+    expect(perms.allows('SCR-1601.giao-lai', {})).toBe(true);
+    expect(perms.allows('SCR-0203.duyet', mine)).toBe(false);
+    expect(permittedOn(null, 'SCR-1601.giao-lai')).toBe(true);
+  });
+});
+
 @Component({
   imports: [VtCanDirective],
   template: `
     <button *vtCan="'SCR-0203.duyet'; else khong" id="duyet">Phê duyệt</button>
     <ng-template #khong><span id="khong">Không có quyền</span></ng-template>
     <span *vtCan="['SCR-0103.xem', 'SCR-0801.xem']" id="quan-tri">Quản trị</span>
+    <button *vtCan="'SCR-1601.giao-lai'; on: task()" id="giao-lai">Giao lại</button>
   `,
 })
-class HostComponent {}
+class HostComponent {
+  readonly task = signal<{ permittedActions?: string[] }>({ permittedActions: ['SCR-1601.nhac'] });
+}
 
 describe('*vtCan', () => {
   it('ẩn nút và hiện nhánh else khi không có quyền, hiện lại khi đổi vai trò', async () => {
@@ -170,5 +204,16 @@ describe('*vtCan', () => {
     const fixture = TestBed.createComponent(HostComponent);
     await fixture.whenStable();
     expect(fixture.nativeElement.querySelector('#quan-tri')).not.toBeNull();
+  });
+
+  it('on: đối tượng không cho thao tác thì không dựng nút, cho thì hiện', async () => {
+    setup(user('manager'));
+    const fixture = TestBed.createComponent(HostComponent);
+    await fixture.whenStable();
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('#giao-lai')).toBeNull();
+    fixture.componentInstance.task.set({ permittedActions: ['SCR-1601.giao-lai'] });
+    await fixture.whenStable();
+    expect(el.querySelector('#giao-lai')).not.toBeNull();
   });
 });

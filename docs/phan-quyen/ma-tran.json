@@ -1790,6 +1790,7 @@
    "qt": "QT-05",
    "scr": "SCR-0501",
    "key": "SCR-0501.khoa-nguoi-nhan",
+   "mo_man_hinh": false,
    "ten": "Tra khoá công khai người nhận, khoá ký danh bạ và khoá phục hồi để mã hoá nội dung mật",
    "web": true,
    "quyen": {

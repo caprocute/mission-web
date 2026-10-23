@@ -2826,6 +2826,11 @@ components:
         workingDaysLeft:
           type: integer
           description: Số ngày làm việc còn lại tới hạn, âm khi đã quá hạn; máy chủ tính theo lịch nghỉ.
+        permittedActions:
+          $ref: '../common/common.yaml#/components/schemas/PermittedActions'
+          description: >-
+            Thao tác của người gọi trên nhiệm vụ này theo OPA, ví dụ `SCR-1601.giao-lai` chỉ có khi người
+            gọi là người giao việc (BR-16-07); thiếu trường thì giao diện chỉ xét vai trò.
       examples:
         - id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a77
           code: NV-2026-0157

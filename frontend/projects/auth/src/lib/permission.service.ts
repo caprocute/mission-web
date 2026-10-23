@@ -1,8 +1,14 @@
 import { Injectable, InjectionToken, computed, inject } from '@angular/core';
-import { PERMISSION_TABLE, PermissionKey } from './permissions.generated';
+import {
+  API_PERMISSION_TABLE,
+  ApiModule,
+  NON_ENTRY_KEYS,
+  PERMISSION_TABLE,
+  PermissionKey,
+} from './permissions.generated';
 import { SessionService, VtRole } from './session.service';
 
-export type { PermissionKey } from './permissions.generated';
+export type { ApiModule, PermissionKey } from './permissions.generated';
 export { PERMISSION_MATRIX_VERSION } from './permissions.generated';
 
 export interface VtPermissionOptions {
@@ -49,10 +55,14 @@ export const PERMISSION_KEYS: readonly PermissionKey[] = [...PERMISSIONS.keys()]
 
 /**
  * Mọi khoá chức năng của các màn hình `screens` (ví dụ `screenKeys('SCR-0101', 'SCR-0801')`), dùng
- * cho mục menu và tuyến cha gom nhiều SCR: cho qua khi có ít nhất một chức năng trong nhóm.
+ * cho mục menu và tuyến cha gom nhiều SCR: cho qua khi có ít nhất một chức năng trong nhóm. Bỏ qua
+ * khoá năng lực nền (`NON_ENTRY_KEYS`, ví dụ tra khoá công khai để mã hoá) vì có khoá đó không có
+ * nghĩa là dùng được màn hình (YC-PT-21).
  */
 export function screenKeys(...screens: string[]): PermissionKey[] {
-  return PERMISSION_KEYS.filter((k) => screens.includes(k.slice(0, k.indexOf('.'))));
+  return PERMISSION_KEYS.filter(
+    (k) => screens.includes(k.slice(0, k.indexOf('.'))) && !NON_ENTRY_KEYS.includes(k),
+  );
 }
 
 /** Vai trò có thể có quyền với chức năng `key`. */
@@ -70,6 +80,39 @@ export function rolesCan(
 ): boolean {
   const allowed = rolesFor(key, allowInferred);
   return roles.some((r) => allowed.includes(r));
+}
+
+/** Vai trò được gọi `method` của module API theo ma trận (wiki/15a, phần API). */
+export function apiRolesFor(module: ApiModule, method: string, allowInferred = true): VtRole[] {
+  const cell = API_PERMISSION_TABLE[module]?.[method.toUpperCase()];
+  if (!cell) return [];
+  const rule = parseRule(cell);
+  return allowInferred ? [...rule.roles] : rule.roles.filter((r) => !rule.inferred.includes(r));
+}
+
+/**
+ * Module API của đường dẫn `/api/v1/<module>/...` nếu module đó có trong ma trận; `null` khi đường
+ * dẫn không phải API hoặc module chưa có dòng trong ma trận (không đủ thông tin để kết luận).
+ */
+export function apiModuleOf(url: string): ApiModule | null {
+  const m = /\/api\/v1\/([a-z0-9-]+)/.exec(url);
+  return m && m[1] in API_PERMISSION_TABLE ? (m[1] as ApiModule) : null;
+}
+
+/**
+ * Đối tượng nghiệp vụ có thể mang danh sách thao tác mà máy chủ (OPA) cho phép người gọi làm trên
+ * chính đối tượng đó (`permittedActions`, dạng khoá chức năng `SCR-qqnn.<khoá>`, YC-PT-21). Đây là
+ * nơi giao diện biết các ràng buộc theo đối tượng (người giao việc, người soạn, phạm vi đơn vị, tách
+ * vai trò) để ẩn nút trước thay vì để người dùng bấm rồi nhận 403.
+ */
+export interface WithPermittedActions {
+  permittedActions?: readonly string[] | null;
+}
+
+/** Máy chủ không chặn `key` trên đối tượng: không có danh sách, hoặc danh sách có `key`. */
+export function permittedOn(target: WithPermittedActions | null | undefined, key: string): boolean {
+  const list = target?.permittedActions;
+  return !Array.isArray(list) || list.includes(key);
 }
 
 /**
@@ -104,6 +147,22 @@ export class PermissionService {
   canAny(...keys: PermissionKey[]): boolean {
     const granted = this.granted();
     return keys.some((k) => granted.has(k));
+  }
+
+  /**
+   * Quyền làm `key` trên một đối tượng cụ thể: vai trò phải có quyền theo ma trận, và nếu máy chủ trả
+   * `permittedActions` cho đối tượng thì `key` phải có trong danh sách đó. Đối tượng chưa mang danh
+   * sách (máy chủ chưa hỗ trợ) thì chỉ xét theo vai trò.
+   */
+  allows(key: PermissionKey, target?: WithPermittedActions | null): boolean {
+    return this.can(key) && permittedOn(target, key);
+  }
+
+  /** Vai trò hiện tại được gọi `method` của module API theo ma trận (ví dụ ô tìm kiếm toàn cục). */
+  canApi(module: ApiModule, method = 'GET'): boolean {
+    const roles = this.session.user()?.roles ?? [];
+    const allowed = apiRolesFor(module, method, this.options.allowInferred);
+    return roles.some((r) => allowed.includes(r));
   }
 
   canAll(...keys: PermissionKey[]): boolean {
