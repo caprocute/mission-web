@@ -489,7 +489,7 @@ class PolicyPublishSagaServiceTest {
     stored.set(version(v.id(), "2.2.0", PolicyVersionStatus.DA_PHAT_HANH, null, 6));
     UUID bindingId = UUID.randomUUID();
     when(packs.bindings(tenant, v.id()))
-        .thenReturn(List.of(new PolicyBinding(bindingId, periodId, "DANG", null, null, true)));
+        .thenReturn(List.of(new PolicyBinding(bindingId, periodId, "DANG", null, null, true, null)));
     assertThat(
             code(() -> service.revoke(tenant, approver, pack.id(), "2.2.0", 6, "Sai ngưỡng điểm")))
         .isEqualTo("POLICY-409-PERIOD-LOCKED");
@@ -509,7 +509,7 @@ class PolicyPublishSagaServiceTest {
     period(LocalDate.of(2027, 1, 1), PeriodStatus.MO);
     UUID loose = sagas.bind(periodId, dang, v.id(), false);
     when(packs.bindings(tenant, v.id()))
-        .thenReturn(List.of(new PolicyBinding(loose, periodId, "DANG", null, null, false)));
+        .thenReturn(List.of(new PolicyBinding(loose, periodId, "DANG", null, null, false, null)));
     when(packs.listVersions(any(), any(), any(), any(), anyInt())).thenReturn(List.of());
     service.revoke(tenant, approver, pack.id(), "2.2.0", 6, "Sai ngưỡng điểm");
     assertThat(sagas.rows).isEmpty();

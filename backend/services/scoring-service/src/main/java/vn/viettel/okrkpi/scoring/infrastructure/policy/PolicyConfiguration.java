@@ -1,10 +1,12 @@
 package vn.viettel.okrkpi.scoring.infrastructure.policy;
 
+import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import vn.viettel.okrkpi.cel.application.CelEngine;
+import vn.viettel.okrkpi.cel.domain.CelSandboxOptions;
 import vn.viettel.okrkpi.cel.domain.StaticWorkingCalendar;
 import vn.viettel.okrkpi.scoring.application.policy.PolicyCompiler;
 import vn.viettel.okrkpi.scoring.application.policy.PolicyPackCache;
@@ -20,8 +22,19 @@ import vn.viettel.okrkpi.shared.resilience.ResilientClientFactory;
 public class PolicyConfiguration {
 
   @Bean
-  CelEngine scoringCelEngine() {
-    return new CelEngine(StaticWorkingCalendar.weekendsOnly());
+  CelEngine scoringCelEngine(
+      @Value("${okrkpi.scoring.cel-evaluation-timeout:50ms}") Duration evaluationTimeout) {
+    CelSandboxOptions d = CelSandboxOptions.defaults();
+    // Ngưỡng 50 ms là mặc định vận hành; môi trường kiểm thử nới ra vì JIT nguội (YC-PT-19).
+    return new CelEngine(
+        StaticWorkingCalendar.weekendsOnly(),
+        new CelSandboxOptions(
+            d.maxExpressionLength(),
+            d.maxAstDepth(),
+            d.maxAstNodeCount(),
+            d.maxComprehensionIterations(),
+            evaluationTimeout,
+            d.programCacheMaxSize()));
   }
 
   @Bean
