@@ -1519,6 +1519,19 @@ Mã ở `backend/mission-core/.../oversight/{domain,application}/alert`, consume
 8. **Thông báo tổng hợp (suy luận).** Job lúc 03:30 giờ Việt Nam gom cảnh báo mức Cao còn `MOI` chưa thông báo, gửi một EVT-21 mỗi người xử lý (mẫu `CANH_BAO_MUC_CAO_MOI`, tham số số lượng, không nêu tên đối tượng); người xử lý là người đánh giá của hồ sơ (`CA_NHAN`) hoặc của đơn vị (`DON_VI`); cảnh báo `NGUOI_DUYET` chưa có người nhận. Điểm lệch: notification-service hiện gửi thông báo cho từng EVT-20 (mẫu `CANH_BAO_BAT_THUONG`), trái nguyên tắc không phát từng cảnh báo; cần bỏ ở phía notification.
 9. **Câu hỏi mở.** Cổng đọc chỉ có trong tiến trình mission-core, chưa có hợp đồng HTTP cho SVC-07 hay saga; ledger-service còn phát `ledger.anomaly.detected.v1` riêng, chưa phát EVT-20 đúng hợp đồng. Kiểm thử tải 100 nghìn sự kiện chưa chạy (YC-PT-19), chỉ ghi mục tiêu.
 
+### Ghi chú và quyết định từ xử lý cảnh báo (CORE-07-11, 22/10/2026)
+
+Mã ở `oversight/application/alert/AlertCaseService`, `domain/alert/AlertWorkflow`, `infrastructure/web/AnomalyAlertController`.
+
+1. **Ngưỡng phát hiện đã có từ CORE-08-07.** `getAnomalyThresholds`, `updateAnomalyThresholds` (phiên bản, lý do, `If-Match`) đã hiện thực ở MOD-08; task này không sửa.
+2. **Phạm vi và ẩn với đối tượng (suy luận).** Cả `appraiser` và `inspector` xem theo cây đơn vị của phân công (ma trận R/Cd). Đơn vị của cảnh báo `CA_NHAN` là đơn vị của hồ sơ, tra qua `ProfileParticipantsApi.subjectsOf` (thêm vào cổng của MOD-04, ngoài danh sách tệp của task); cảnh báo `NGUOI_DUYET` chưa tra được người quyết định nên chỉ thanh tra thấy. Cán bộ của hồ sơ không thấy cảnh báo (404) và không xử lý được (403 `OVERSIGHT-403-SEPARATION-OF-DUTIES`); cảnh báo `DON_VI` chưa coi ai là đối tượng. Lọc phạm vi làm ở dịch vụ sau khi tra đối tượng, nên một trang có thể quét nhiều lô; bảng chưa có cột đơn vị.
+3. **Lần mở đầu.** Chỉ `appraiser` mở mới chuyển `MOI` sang `DANG_XEM`; cập nhật không tăng `row_version` nên ETag giữ nguyên, và ghi một bản kiểm toán `XEM_CANH_BAO_BAT_THUONG`.
+4. **Đóng cảnh báo (suy luận).** Hợp lệ và không vi phạm đóng ngay. Có vi phạm: kỳ còn mở thì đóng ngay; kỳ đã khoá thì giữ `CO_VI_PHAM` cho tới khi có yêu cầu mở lại kỳ với căn cứ `CANH_BAO:<mã cảnh báo>`, lúc tạo yêu cầu đó `ReopenRequestService` đóng cảnh báo (hành động `DONG`). Giao diện hiện MSG-14-04 khi kỳ đã khoá.
+5. **Sổ cái và thông báo (suy luận).** Mỗi hành động ghi `sys.audit.v1` (ledger-service nhận). EVT-21: giao kiểm tra gửi người được giao (`CANH_BAO_GIAO_KIEM_TRA`); xác nhận hợp lệ gửi người thẩm định khác của hồ sơ hoặc đơn vị (`CANH_BAO_HOP_LE`, tham số số minh chứng được tính lại).
+6. **Chỉ số BR-14-09.** Bộ đếm `mission.oversight.alert.decisions` theo `signal`, `outcome`; tỷ lệ hợp lệ của một dấu hiệu tính từ `XAC_NHAN_HOP_LE` và `KHONG_VI_PHAM` trên tổng.
+7. **Chuỗi truy vết và thẻ 90 ngày (suy luận).** Mã bằng chứng dạng `tiền_tố:giá_trị` được đổi sang loại nút (`appraisal_profile` là Điểm, `objective`, `key_result` là KPI, `task` là Nhiệm vụ, `evidence` là Minh chứng, `sha256` là Băm trùng, `ledger_*` là Sổ cái); `ky:`, `so_lieu:`, `dieu_kien:`, `anomaly_alert:` không hiện. Bảng nguồn chưa có (cần MOD-03, SVC-13). Thẻ đếm: tổng cảnh báo phát hiện trong 90 ngày, số đã xác nhận hợp lệ, đã giao kiểm tra, đã kết luận có vi phạm.
+8. **Rego.** Không đổi `backend/opa/okrkpi`: ràng buộc `hidden_from_subject` đã sinh từ ma trận; máy chủ kiểm ở dịch vụ vì OPA chưa nhận danh sách đối tượng.
+
 ## Liên quan
 
 - [README của wiki](README.md)

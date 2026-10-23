@@ -1,8 +1,10 @@
 package vn.viettel.okrkpi.appraisal.infrastructure.persistence;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -58,6 +60,31 @@ public class JdbcProfileParticipants implements ProfileParticipantsApi {
             + unitFilter,
         periodId,
         unitIds);
+  }
+
+  @Override
+  public Map<UUID, ProfileSubject> subjectsOf(TenantId tenant, Collection<UUID> profileIds) {
+    if (profileIds.isEmpty()) {
+      return Map.of();
+    }
+    Map<UUID, ProfileSubject> out = new HashMap<>();
+    read(
+        tenant,
+        () ->
+            jdbc.sql(
+                    "SELECT id, person_id, org_unit_id FROM appraisal.appraisal_profile"
+                        + " WHERE tenant_id = :tenant AND id IN (:ids)")
+                .param("tenant", tenant.value())
+                .param("ids", List.copyOf(profileIds))
+                .query(
+                    (rs, row) ->
+                        out.put(
+                            rs.getObject("id", UUID.class),
+                            new ProfileSubject(
+                                rs.getObject("person_id", UUID.class),
+                                rs.getObject("org_unit_id", UUID.class))))
+                .list());
+    return out;
   }
 
   private Set<UUID> query(TenantId tenant, String sql, PeriodId periodId, Collection<UUID> ids) {

@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.oversight.infrastructure.persistence;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.HashMap;
 import java.util.Map;
 import javax.sql.DataSource;
@@ -27,10 +28,13 @@ import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.TenantSettingApi;
 import vn.viettel.okrkpi.events.EventTopics;
 import vn.viettel.okrkpi.oversight.api.AnomalyAlertQueryApi;
+import vn.viettel.okrkpi.oversight.application.alert.AlertCaseService;
 import vn.viettel.okrkpi.oversight.application.alert.AnomalyAlertIntake;
 import vn.viettel.okrkpi.oversight.application.alert.AnomalyDigest;
 import vn.viettel.okrkpi.oversight.application.port.AlertHandlers;
+import vn.viettel.okrkpi.oversight.application.reopen.ReopenRequestService;
 import vn.viettel.okrkpi.oversight.infrastructure.client.ModuleAlertHandlers;
+import vn.viettel.okrkpi.oversight.infrastructure.client.ModuleAlertSubjects;
 import vn.viettel.okrkpi.oversight.infrastructure.listener.AnomalyDetectedListener;
 import vn.viettel.okrkpi.oversight.infrastructure.scheduling.AnomalyDigestJob;
 import vn.viettel.okrkpi.shared.inbox.InboxEndpoint;
@@ -49,7 +53,8 @@ import vn.vtokr.analytics.v1.DauHieuBatThuong;
 
 /**
  * Cảnh báo bất thường (CORE-07-10): kho JDBC trên {@code oversightDataSource}, dịch vụ tiếp nhận
- * EVT-20, cổng đọc {@link AnomalyAlertQueryApi}, consumer EVT-20 và job thông báo tổng hợp.
+ * EVT-20, cổng đọc {@link AnomalyAlertQueryApi}, consumer EVT-20 và job thông báo tổng hợp; dịch vụ
+ * xử lý cảnh báo của trung tâm cảnh báo (CORE-07-11).
  */
 @Configuration(proxyBeanMethods = false)
 public class AnomalyAlertConfiguration {
@@ -91,18 +96,42 @@ public class AnomalyAlertConfiguration {
           String registry,
       ObjectProvider<OutboxPayloadSerializer> serializer,
       ObjectProvider<ObjectMapper> json) {
-    OutboxWriter outbox =
-        new OutboxWriter(
-            new JdbcTemplate(dataSource),
-            "oversight",
-            serializer.getIfAvailable(() -> new ApicurioPayloadSerializer(registry, Map.of())),
-            json.getIfAvailable(ObjectMapper::new),
-            Clock.systemUtc());
+    OutboxWriter outbox = outbox(dataSource, registry, serializer, json);
     return new AnomalyDigest(
         anomalyAlertRepository,
         anomalyAlertHandlers,
         new OutboxAlertNotices(outbox),
         java.time.Clock.systemUTC());
+  }
+
+  @Bean
+  AlertCaseService alertCaseService(
+      JdbcAnomalyAlertRepository anomalyAlertRepository,
+      AlertHandlers anomalyAlertHandlers,
+      PeriodApi periods,
+      ObjectProvider<ProfileParticipantsApi> participants,
+      ObjectProvider<AccessDirectory> directory,
+      ObjectProvider<MeterRegistry> meters,
+      ObjectProvider<ReopenRequestService> reopens,
+      @Qualifier("oversightDataSource") DataSource dataSource,
+      @Value("${mission.oversight.outbox.registry-url:${okrkpi.inbox.registry.url:}}")
+          String registry,
+      ObjectProvider<OutboxPayloadSerializer> serializer,
+      ObjectProvider<ObjectMapper> json) {
+    OutboxWriter outbox = outbox(dataSource, registry, serializer, json);
+    MeterRegistry registryBean = meters.getIfAvailable();
+    AlertCaseService service =
+        new AlertCaseService(
+            anomalyAlertRepository,
+            new ModuleAlertSubjects(participants.getIfAvailable(), directory.getIfAvailable()),
+            anomalyAlertHandlers,
+            periods,
+            new OutboxAlertNotices(outbox),
+            new OutboxOversightAudit(outbox),
+            registryBean == null ? null : new MicrometerAlertMetrics(registryBean),
+            java.time.Clock.systemUTC());
+    reopens.ifAvailable(r -> r.setAlertCases(service));
+    return service;
   }
 
   @Bean
@@ -116,6 +145,19 @@ public class AnomalyAlertConfiguration {
   AnomalyDetectedListener anomalyDetectedListener(
       AnomalyAlertIntake anomalyAlertIntake, ObjectProvider<ObjectMapper> json) {
     return new AnomalyDetectedListener(anomalyAlertIntake, json.getIfAvailable(ObjectMapper::new));
+  }
+
+  private static OutboxWriter outbox(
+      DataSource dataSource,
+      String registry,
+      ObjectProvider<OutboxPayloadSerializer> serializer,
+      ObjectProvider<ObjectMapper> json) {
+    return new OutboxWriter(
+        new JdbcTemplate(dataSource),
+        "oversight",
+        serializer.getIfAvailable(() -> new ApicurioPayloadSerializer(registry, Map.of())),
+        json.getIfAvailable(ObjectMapper::new),
+        Clock.systemUtc());
   }
 
   /** Điểm nhận EVT-20; không kiểm phiên bản aggregate (sự kiện không đi qua outbox PostgreSQL). */
