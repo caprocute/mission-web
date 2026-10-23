@@ -42,6 +42,14 @@ DEV_SERVER_SSH_PORT="${DEV_SERVER_SSH_PORT:-2222}"
 DEV_SERVER_USER="${DEV_SERVER_USER:-provision}"
 DEV_SERVER_INFRA_DIR="${DEV_SERVER_INFRA_DIR:-}"
 DEV_SERVER_PROFILES="${DEV_SERVER_PROFILES:-core security events}"
+# Dịch vụ cũ trên máy chủ được thay bằng dịch vụ của repo (cũ=mới): máy chủ từng chạy Debezium dưới tên
+# dịch vụ `connect` (container mission-dev-connect-1, cổng 35083). apply dừng và xoá container cũ ngay
+# trước `up` để dịch vụ mới nhận cổng; sync_preflight.py chặn nếu container cũ còn dữ liệu có tên.
+SYNC_RETIRE="${SYNC_RETIRE:-connect=debezium}"
+export SYNC_RETIRE
+# Thư mục ngoài infra/dev mà compose gắn bằng đường dẫn ../<tên> (giao diện Keycloak); chép sang thư mục
+# anh em của DEV_SERVER_INFRA_DIR trên máy chủ.
+SIBLING_DIRS=(keycloak-theme)
 
 # Tệp và thư mục chỉ có trên máy chủ, không bao giờ ghi đè: .env (bí mật), data/, softhsm/tokens/,
 # softhsm/tsa/, SHA256SUMS. Bản rsync loại trừ tường minh; bản tar chỉ chép tệp git theo dõi.
@@ -112,7 +120,7 @@ server_state() {
 ids="$(docker ps -aq --filter label=com.docker.compose.project=mission-dev)"
 if [ -n "${ids}" ]; then
   # shellcheck disable=SC2086
-  docker inspect --format 'C|{{json .Name}}|{{index .Config.Labels "com.docker.compose.service"}}|{{.State.Running}}|{{json .Mounts}}' ${ids}
+  docker inspect --format 'C|{{json .Name}}|{{index .Config.Labels "com.docker.compose.service"}}|{{.State.Running}}|{{json .Config.Volumes}}|{{json .Mounts}}' ${ids}
 fi
 docker ps --format 'P|{{.Label "com.docker.compose.project"}}|{{.Names}}|{{.Ports}}'
 REMOTE
@@ -167,19 +175,46 @@ copy_files() {
     [[ "${dry}" == "yes" ]] && args+=(--dry-run)
     echo "==> Chép infra/dev (commit ${commit}) bằng rsync$([[ "${dry}" == "yes" ]] && echo ' (thử, không ghi)')"
     with_pass rsync "${args[@]}" -e "ssh ${SSH_OPTS[*]}" "${INFRA_DIR}/" "${TARGET}:${DEV_SERVER_INFRA_DIR}/"
+    local d sib=(-rlptzv)
+    [[ "${dry}" == "yes" ]] && sib+=(--dry-run)
+    for d in "${SIBLING_DIRS[@]}"; do
+      echo "==> Chép infra/${d} sang $(dirname "${DEV_SERVER_INFRA_DIR}")/${d}"
+      with_pass rsync "${sib[@]}" -e "ssh ${SSH_OPTS[*]}" \
+        "${INFRA_DIR}/../${d}/" "${TARGET}:$(dirname "${DEV_SERVER_INFRA_DIR}")/${d}/"
+    done
   else
     echo "==> Máy trạm hoặc máy chủ không có rsync: chép bằng tar (tệp đã xoá trong repo không bị xoá trên máy chủ)"
+    local d parent
+    parent="$(dirname "${DEV_SERVER_INFRA_DIR}")"
     if [[ "${dry}" == "yes" ]]; then
       (cd "${INFRA_DIR}" && git ls-files)
+      for d in "${SIBLING_DIRS[@]}"; do
+        (cd "${INFRA_DIR}/.." && git ls-files -- "${d}")
+      done
       return 0
     fi
     # git ls-files in đường dẫn tương đối với thư mục hiện tại; tar của macOS và GNU đều nhận --null -T.
     (cd "${INFRA_DIR}" && git ls-files -z | tar --null -T - -cf -) \
       | remote "mkdir -p $(printf '%q' "${DEV_SERVER_INFRA_DIR}") && tar -C $(printf '%q' "${DEV_SERVER_INFRA_DIR}") -xf -"
+    for d in "${SIBLING_DIRS[@]}"; do
+      (cd "${INFRA_DIR}/.." && git ls-files -z -- "${d}" | tar --null -T - -cf -) \
+        | remote "tar -C $(printf '%q' "${parent}") -xf -"
+    done
   fi
   if [[ "${dry}" != "yes" ]]; then
     remote "printf '%s\n' $(printf '%q' "${commit}") > $(printf '%q' "${DEV_SERVER_INFRA_DIR}/.repo-commit")"
   fi
+}
+
+# Dừng và xoá container của dịch vụ cũ được thay (SYNC_RETIRE), chỉ trong project mission-dev, lọc theo
+# nhãn dịch vụ của compose; preflight đã chặn trường hợp container cũ còn dữ liệu có tên.
+retire_services() {
+  local item old
+  for item in ${SYNC_RETIRE}; do
+    old="${item%%=*}"
+    echo "==> Dừng và xoá container của dịch vụ cũ '${old}' (thay bằng '${item#*=}')"
+    remote "ids=\$(docker ps -aq --filter label=com.docker.compose.project=${PROJECT} --filter label=com.docker.compose.service=$(printf '%q' "${old}")); if [ -n \"\$ids\" ]; then docker rm -f \$ids; else echo '  Không còn container nào.'; fi"
+  done
 }
 
 cmd_plan() {
@@ -199,6 +234,7 @@ cmd_apply() {
   copy_files no
   echo "==> Kiểm compose config sau khi chép"
   remote "$(compose_cmd) config -q"
+  retire_services
   echo "==> Áp lại project ${PROJECT}, profile: ${DEV_SERVER_PROFILES}"
   remote "$(compose_cmd) up -d --build"
   echo "==> Container của project ${PROJECT}"
