@@ -118,14 +118,38 @@ okrkpi:
         client-id: ${INTEG_CLIENT_ID:integration-gateway}
         client-secret: ${INTEG_CLIENT_SECRET:}
     # DV-13-10: gói chuyển hồ sơ cán bộ điều động liên cell. Khoá ký (EC P-256), khoá nhận gói
-    # (RSA >= 3072) và khoá gốc của danh bạ khoá cell là tệp PEM do OpenBao Agent đặt; địa chỉ
-    # đọc và nhập từng loại phần (parts.<LOẠI>: name, media-type, collect-url, import-url) khai
-    # báo ở giá trị triển khai vì cổng nội bộ của MOD-04, MOD-06, SVC-04 chưa có (wiki trang 14).
+    # (RSA >= 3072) và khoá gốc của danh bạ khoá cell là tệp PEM do OpenBao Agent đặt. signer
+    # LOCAL ký bằng khoá EC trong tệp, ESIGN ký qua thao tác ký tổ chức của esign-service. Mỗi
+    # loại phần (parts.<LOẠI>) có tên, kiểu nội dung, cổng thu thập ở cell nguồn và cổng nhập ở
+    # cell đích của MOD-04, MOD-06 (mission-core) và SVC-04 (org-service).
     cell-transfer:
       enabled: ${INTEG_CELL_TRANSFER_ENABLED:false}
       cell-code: ${CELL_CODE:}
       signing-key-path: ${INTEG_CELL_SIGNING_KEY:}
       decryption-key-path: ${INTEG_CELL_DECRYPTION_KEY:}
+      signer: ${INTEG_CELL_SIGNER:LOCAL}
+      esign-url: ${ESIGN_SERVICE_URL:}
+      parts:
+        KET_QUA_XEP_LOAI:
+          name: ket-qua-xep-loai.json
+          media-type: application/json
+          collect-url: ${MISSION_CORE_URL:http://mission-core:8080}/internal/v1/appraisal/transfer-parts/{personId}/ratings
+          import-url: ${MISSION_CORE_URL:http://mission-core:8080}/internal/v1/dossier/transfer-imports/{personId}?kind=KET_QUA_XEP_LOAI
+        HO_SO_DA_KY:
+          name: ho-so-da-ky.json
+          media-type: application/json
+          collect-url: ${MISSION_CORE_URL:http://mission-core:8080}/internal/v1/dossier/transfer-parts/{personId}/signed-dossiers
+          import-url: ${MISSION_CORE_URL:http://mission-core:8080}/internal/v1/dossier/transfer-imports/{personId}?kind=HO_SO_DA_KY
+        KET_LUAN_KIEM_DIEM:
+          name: ket-luan-kiem-diem.json
+          media-type: application/json
+          collect-url: ${MISSION_CORE_URL:http://mission-core:8080}/internal/v1/dossier/transfer-parts/{personId}/conclusions
+          import-url: ${MISSION_CORE_URL:http://mission-core:8080}/internal/v1/dossier/transfer-imports/{personId}?kind=KET_LUAN_KIEM_DIEM
+        QUA_TRINH_CONG_TAC:
+          name: qua-trinh-cong-tac.json
+          media-type: application/json
+          collect-url: ${ORG_SERVICE_URL:http://org-service:8080}/internal/v1/org/transfer-parts/{personId}/work-history
+          import-url: ${ORG_SERVICE_URL:http://org-service:8080}/internal/v1/org/transfer-imports/{personId}?kind=QUA_TRINH_CONG_TAC
       directory:
         location: ${INTEG_CELL_DIRECTORY_URL:}
         root-key-path: ${INTEG_CELL_DIRECTORY_ROOT_KEY:}

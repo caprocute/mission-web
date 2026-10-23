@@ -26,7 +26,10 @@ public interface PackageCrypto {
   /** Mở bằng khoá riêng nhận gói của cell này. */
   byte[] open(UUID packageId, byte[] ciphertext, byte[] wrappedKey);
 
-  /** Ký bằng khoá ký của cell này (chữ ký tổ chức của cell). */
+  /**
+   * Ký bằng khoá ký của cell này (chữ ký tổ chức của cell); gọi trong ngữ cảnh tenant của gói để
+   * bên ký tổ chức ghi được tenant.
+   */
   byte[] sign(byte[] data);
 
   boolean verify(byte[] data, byte[] signature, PublicKey signer);

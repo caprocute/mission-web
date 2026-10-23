@@ -245,7 +245,7 @@ public class CellTransferService {
                 manifest,
                 digestHex,
                 HexFormat.of().formatHex(sha256(sealed.wrappedKey()))));
-    byte[] signature = crypto.sign(header);
+    byte[] signature = TenantScope.call(tenant, () -> crypto.sign(header));
     Instant now = clock.instant();
     Row row =
         new Row(
@@ -617,7 +617,15 @@ public class CellTransferService {
                 row.status().name(),
                 row.reason()));
     try {
-      channel.report(peer.get(), new CellChannel.Report(payload, crypto.sign(payload)));
+      byte[] signature;
+      try {
+        signature = TenantScope.call(tenant, () -> crypto.sign(payload));
+      } catch (IllegalStateException ex) {
+        // Bên ký tổ chức chưa sẵn sàng: chưa đánh dấu đã báo, lượt sau báo lại.
+        LOG.warn("Chưa ký được kết quả gói {}: {}", row.id(), ErrorText.code(ex));
+        return;
+      }
+      channel.report(peer.get(), new CellChannel.Report(payload, signature));
     } catch (CellChannel.ChannelUnavailableException ex) {
       LOG.warn("Chưa báo được kết quả gói {}: {}", row.id(), ErrorText.code(ex));
       Instant next = settings.sendRetry().next(1, now).orElse(now);

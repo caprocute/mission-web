@@ -233,7 +233,12 @@ class CellTransferIT {
             "--" + parts + "[NHAN_XET].name=nhan-xet.json",
             "--" + parts + "[NHAN_XET].media-type=application/json",
             "--" + parts + "[NHAN_XET].collect-url=" + moduleBase + "/hn/nhan-xet/{personId}",
-            "--" + parts + "[NHAN_XET].import-url=" + moduleBase + "/hcm/import/nhan-xet");
+            "--" + parts + "[NHAN_XET].import-url=" + moduleBase + "/hcm/import/nhan-xet",
+            // Bỏ các loại phần khai sẵn trong application.yaml (cổng thật của mission-core,
+            // org-service).
+            "--" + parts + "[HO_SO_DA_KY].collect-url=",
+            "--" + parts + "[KET_LUAN_KIEM_DIEM].collect-url=",
+            "--" + parts + "[QUA_TRINH_CONG_TAC].collect-url=");
   }
 
   /**

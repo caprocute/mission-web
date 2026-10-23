@@ -75,14 +75,45 @@ public class CellTransferConfiguration {
         d.allowHttp());
   }
 
+  /**
+   * Chữ ký tổ chức của cell: {@code signer=LOCAL} ký bằng khoá EC trong tệp, {@code signer=ESIGN}
+   * gọi thao tác ký tổ chức của SVC-10; khoá nhận gói luôn là khoá RSA trong tệp.
+   */
   @Bean
-  PackageCrypto integPackageCrypto(CellTransferProperties p) {
-    if (p.signingKeyPath() == null || p.decryptionKeyPath() == null) {
-      throw new IllegalStateException("Thiếu khoá ký hoặc khoá nhận gói của cell");
+  PackageCrypto integPackageCrypto(CellTransferProperties p, ObjectProvider<ObjectMapper> mapper) {
+    if (p.decryptionKeyPath() == null) {
+      throw new IllegalStateException("Thiếu khoá nhận gói của cell");
     }
-    return new JcaPackageCrypto(
-        PemKeys.privateKey(Path.of(p.signingKeyPath()), "EC"),
-        PemKeys.privateKey(Path.of(p.decryptionKeyPath()), "RSA"));
+    JcaPackageCrypto.Signer signer;
+    if ("ESIGN".equals(p.signer())) {
+      ObjectMapper json = json(mapper);
+      HttpClient http =
+          HttpClient.newBuilder()
+              .connectTimeout(Duration.ofSeconds(5))
+              .followRedirects(HttpClient.Redirect.NEVER)
+              .build();
+      signer =
+          new EsignOrgSigner(
+              http,
+              json,
+              p.esignUrl(),
+              new ServiceToken(
+                  http,
+                  json,
+                  p.token().tokenUrl(),
+                  p.token().clientId(),
+                  p.token().clientSecret(),
+                  Clock.systemUTC()),
+              p.timeout());
+    } else if ("LOCAL".equals(p.signer())) {
+      if (p.signingKeyPath() == null) {
+        throw new IllegalStateException("Thiếu khoá ký của cell");
+      }
+      signer = JcaPackageCrypto.local(PemKeys.privateKey(Path.of(p.signingKeyPath()), "EC"));
+    } else {
+      throw new IllegalStateException("Bên ký tổ chức chưa hỗ trợ: " + p.signer());
+    }
+    return new JcaPackageCrypto(signer, PemKeys.privateKey(Path.of(p.decryptionKeyPath()), "RSA"));
   }
 
   @Bean(destroyMethod = "close")

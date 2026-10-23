@@ -93,6 +93,9 @@ mission:
 
 # SVC-10 ký số (DV-10-01): outbox, idempotency trong schema esign; nhà cung cấp chọn theo mã → id().
 okrkpi:
+  # DV-13-10: integration-gateway gọi ký tổ chức thay cho tenant qua X-Tenant-Id.
+  tenant:
+    delegating-clients: ${TENANT_DELEGATING_CLIENTS:integration-gateway}
   outbox:
     schema: esign
     registry:
@@ -100,6 +103,16 @@ okrkpi:
   idempotency:
     schema: esign
   esign:
+    # DV-13-10: ký tổ chức (dấu số của cell) cho gói chuyển hồ sơ liên cell. LOCAL đọc cặp khoá EC
+    # do OpenBao Agent đặt; MYSIGN dùng credential tổ chức ở MySign (cần bật mysign).
+    org-seal:
+      enabled: ${ESIGN_ORG_SEAL_ENABLED:false}
+      provider: ${ESIGN_ORG_SEAL_PROVIDER:LOCAL}
+      private-key-path: ${ESIGN_ORG_SEAL_KEY:}
+      public-key-path: ${ESIGN_ORG_SEAL_PUBLIC_KEY:}
+      credential-id: ${ESIGN_ORG_SEAL_CREDENTIAL:}
+      purposes: ${ESIGN_ORG_SEAL_PURPOSES:GOI_CHUYEN_LIEN_CELL}
+      caller-roles: ${ESIGN_ORG_SEAL_CALLERS:svc_integration_gateway}
     default-provider: ${ESIGN_DEFAULT_PROVIDER:MYSIGN}
     confirm-window: ${ESIGN_CONFIRM_WINDOW:120s}
     provider-ids:
