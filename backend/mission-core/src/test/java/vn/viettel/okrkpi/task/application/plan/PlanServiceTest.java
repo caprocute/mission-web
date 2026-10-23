@@ -351,6 +351,12 @@ class PlanServiceTest {
     }
 
     @Override
+    public List<PlanRepository.ReviewRow> awaitingReviewOfPlans(
+        TenantId tenant, java.util.Collection<UUID> planIds, UUID afterPlanId, int limit) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
     public boolean linkProcessInstance(
         TenantId tenant, int periodBucket, UUID versionId, String processInstanceId) {
       throw new UnsupportedOperationException();

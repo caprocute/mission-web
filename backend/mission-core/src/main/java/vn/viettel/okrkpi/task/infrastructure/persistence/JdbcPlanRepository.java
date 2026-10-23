@@ -687,6 +687,17 @@ public class JdbcPlanRepository implements PlanRepository {
   @Override
   public List<ReviewRow> awaitingReview(
       TenantId tenant, Collection<UUID> unitIds, UUID afterPlanId, int limit) {
+    return awaiting(tenant, "p.owner_unit_id", unitIds, afterPlanId, limit);
+  }
+
+  @Override
+  public List<ReviewRow> awaitingReviewOfPlans(
+      TenantId tenant, Collection<UUID> planIds, UUID afterPlanId, int limit) {
+    return awaiting(tenant, "p.id", planIds, afterPlanId, limit);
+  }
+
+  private List<ReviewRow> awaiting(
+      TenantId tenant, String column, Collection<UUID> ids, UUID afterPlanId, int limit) {
     return jdbc.sql(
             "SELECT "
                 + PLAN_COLS
@@ -694,11 +705,13 @@ public class JdbcPlanRepository implements PlanRepository {
                 + VERSION_COLS
                 + " FROM task.plan p JOIN task.plan_version v ON v.period_bucket = p.period_bucket"
                 + " AND v.tenant_id = p.tenant_id AND v.plan_id = p.id"
-                + " WHERE p.tenant_id = ? AND p.owner_unit_id = ANY (?::uuid[])"
+                + " WHERE p.tenant_id = ? AND "
+                + column
+                + " = ANY (?::uuid[])"
                 + " AND v.status = 'CHO_DUYET' AND p.id > ? ORDER BY p.id, v.version_no LIMIT ?")
         .params(
             tenant.value(),
-            uuidArray(unitIds),
+            uuidArray(ids),
             afterPlanId == null ? new UUID(0L, 0L) : afterPlanId,
             limit)
         .query((rs, n) -> new ReviewRow(plan(rs, n), version(rs, n)))

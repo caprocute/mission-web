@@ -250,6 +250,9 @@ class TaskAssignApiIT extends ContractConformanceTest {
     MvcResult detail = perform(get("/api/v1/tasks/" + id));
     assertThat(detail.getResponse().getStatus()).isEqualTo(200);
     assertThat(body(detail).get("status").asText()).isEqualTo("DA_GIAO");
+    // Người gọi là người giao việc (quản lý): được nhắc và giao lại (YC-PT-21).
+    assertThat(body(detail).get("permittedActions").toString())
+        .isEqualTo("[\"SCR-1601.nhac\",\"SCR-1601.giao-lai\"]");
     MvcResult people = perform(get("/api/v1/tasks/" + id + "/assignees"));
     assertThat(body(people).get("items").get(0).get("id").asText()).isEqualTo(LEAD.toString());
 
@@ -258,6 +261,8 @@ class TaskAssignApiIT extends ContractConformanceTest {
             get("/api/v1/tasks").param("unit", UNIT.toString()).param("period", period.toString()));
     assertThat(unit.getResponse().getStatus()).isEqualTo(200);
     assertThat(body(unit).get("items").toString()).contains(id);
+    assertThat(body(unit).get("items").get(0).get("permittedActions").toString())
+        .isEqualTo("[\"SCR-1601.nhac\",\"SCR-1601.giao-lai\"]");
   }
 
   @Test

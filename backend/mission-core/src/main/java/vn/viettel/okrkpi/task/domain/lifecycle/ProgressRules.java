@@ -38,10 +38,7 @@ public final class ProgressRules {
         || (note != null && note.length() > MAX_NOTE)) {
       return Optional.of(Violation.INVALID_PERCENT);
     }
-    boolean open =
-        status == TaskStatus.DANG_THUC_HIEN
-            || (status == TaskStatus.DA_GIAO && role == Role.CHU_TRI);
-    if (!open) {
+    if (!accepts(status, role)) {
       return Optional.of(Violation.INVALID_STATE);
     }
     if (role == Role.PHOI_HOP && requestedPercent != currentPercent) {
@@ -51,6 +48,16 @@ public final class ProgressRules {
       return Optional.of(Violation.DECREASE_WITHOUT_NOTE);
     }
     return Optional.empty();
+  }
+
+  /**
+   * Nhiệm vụ đang nhận cập nhật tiến độ của người có vai trò {@code role}: {@code DANG_THUC_HIEN},
+   * hoặc {@code DA_GIAO} với người chủ trì (lần đầu).
+   */
+  public static boolean accepts(TaskStatus status, Role role) {
+    return role != Role.KHAC
+        && (status == TaskStatus.DANG_THUC_HIEN
+            || (status == TaskStatus.DA_GIAO && role == Role.CHU_TRI));
   }
 
   /** Lần cập nhật này tự chuyển nhiệm vụ {@code DA_GIAO → DANG_THUC_HIEN} (lệnh ACCEPT, QT-05). */

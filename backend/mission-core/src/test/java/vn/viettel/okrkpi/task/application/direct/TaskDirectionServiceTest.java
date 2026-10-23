@@ -341,4 +341,42 @@ class TaskDirectionServiceTest {
             BusinessException.class,
             e -> assertThat(e.errors()).anySatisfy(f -> assertThat(f.rule()).isEqualTo(rule)));
   }
+
+  @Test
+  void thaoTacChiDaoTheoVaiTroPhamViVaTrangThai() {
+    TaskDirectionService.DirectionActions boss =
+        service.directionActions(TENANT, actor(BOSS, "leader"));
+    assertThat(boss.on(ASSIGNER, SUB, TaskStatus.DANG_THUC_HIEN))
+        .containsExactly(TaskPermittedActions.NHAC, TaskPermittedActions.GIAO_LAI);
+    assertThat(boss.on(ASSIGNER, SUB, TaskStatus.TAM_DUNG))
+        .containsExactly(TaskPermittedActions.GIAO_LAI);
+    assertThat(boss.on(ASSIGNER, SUB, TaskStatus.HOAN_THANH)).isEmpty();
+    assertThat(boss.on(ASSIGNER, OTHER, TaskStatus.DA_GIAO)).isEmpty();
+    assertThat(boss.on(ASSIGNER, null, TaskStatus.DA_GIAO)).isEmpty();
+    // Phạm vi chỉ tra một lần cho cả trang.
+    verify(org, times(1)).assignmentsOf(eq(TENANT), eq(BOSS), any());
+
+    TaskDirectionService.DirectionActions assigner =
+        service.directionActions(TENANT, actor(ASSIGNER, "manager"));
+    assertThat(assigner.on(ASSIGNER, OTHER, TaskStatus.DA_GIAO))
+        .containsExactly(TaskPermittedActions.NHAC, TaskPermittedActions.GIAO_LAI);
+    assertThat(
+            service
+                .directionActions(TENANT, actor(BOSS, "member"))
+                .on(BOSS, SUB, TaskStatus.DA_GIAO))
+        .isEmpty();
+  }
+
+  @Test
+  void thaoTacChiDaoTrenMotNhiemVu() {
+    assertThat(
+            service.directionActionsOn(
+                TENANT, task(TaskStatus.DANG_THUC_HIEN, 3), actor(BOSS, "leader")))
+        .containsExactly(TaskPermittedActions.NHAC, TaskPermittedActions.GIAO_LAI);
+    when(directions.facts(TENANT, 20264, TASK)).thenReturn(Optional.empty());
+    assertThat(
+            service.directionActionsOn(
+                TENANT, task(TaskStatus.DANG_THUC_HIEN, 3), actor(BOSS, "leader")))
+        .isEmpty();
+  }
 }

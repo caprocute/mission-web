@@ -22,6 +22,7 @@ import vn.viettel.okrkpi.okr.api.OkrApi;
 import vn.viettel.okrkpi.policy.api.PolicyQueryApi;
 import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
 import vn.viettel.okrkpi.shared.infrastructure.workflow.WorkflowApprovalClient;
+import vn.viettel.okrkpi.shared.infrastructure.workflow.WorkflowInboxClient;
 import vn.viettel.okrkpi.shared.outbox.ApicurioPayloadSerializer;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
 import vn.viettel.okrkpi.shared.routing.TenantDirectory;
@@ -36,6 +37,7 @@ import vn.viettel.okrkpi.task.application.plan.PlanDeadlineReminders;
 import vn.viettel.okrkpi.task.application.plan.PlanDeadlines;
 import vn.viettel.okrkpi.task.application.plan.PlanReviewService;
 import vn.viettel.okrkpi.task.application.plan.PlanService;
+import vn.viettel.okrkpi.task.infrastructure.client.WorkflowPlanApprovalInbox;
 import vn.viettel.okrkpi.task.infrastructure.client.WorkflowPlanApprovalProcess;
 import vn.viettel.okrkpi.task.infrastructure.listener.PlanApprovalListener;
 import vn.viettel.okrkpi.task.infrastructure.scheduling.PlanDeadlineJob;
@@ -145,7 +147,8 @@ public class PlanConfiguration {
       PeriodApi periods,
       ObjectProvider<OrgDirectoryApi> org,
       OutboxPlanNotices planNotices,
-      ApplicationEventPublisher publisher) {
+      ApplicationEventPublisher publisher,
+      ObjectProvider<WorkflowInboxClient> workflowInbox) {
     return new PlanReviewService(
         planRepository,
         planService,
@@ -153,7 +156,8 @@ public class PlanConfiguration {
         org.getIfAvailable(),
         planNotices,
         publisher,
-        Clock.systemUTC());
+        Clock.systemUTC(),
+        new WorkflowPlanApprovalInbox(workflowInbox));
   }
 
   /** CORE-02-08: cầu nối tiến trình {@code duyet-ke-hoach-quy} của SVC-06. */
