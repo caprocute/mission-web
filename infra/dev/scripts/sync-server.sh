@@ -14,8 +14,13 @@
 # Mật khẩu SSH (nếu không dùng khoá) lấy từ `.sshpass` hoặc DEV_SERVER_PASSWORD như dev-tunnel.sh.
 #
 # Cách dùng:
-#   infra/dev/scripts/sync-server.sh plan    # so khoá .env, xem tệp sẽ chép, kiểm compose config; không đổi gì
-#   infra/dev/scripts/sync-server.sh apply   # chép tệp rồi `docker compose up -d` cho các profile đã chọn
+#   infra/dev/scripts/sync-server.sh plan    # so khoá .env, kiểm chỗ lưu dữ liệu và cổng, xem tệp sẽ chép; không đổi gì
+#   infra/dev/scripts/sync-server.sh apply   # chỉ khi kiểm tra đạt: chép tệp rồi `docker compose up -d`
+#
+# Cần trên máy trạm: bash, ssh, docker compose (chỉ để dựng cấu hình, không cần daemon), python3.
+# Kiểm tra trước khi áp (sync_preflight.py) dừng khi một dịch vụ đang chạy sẽ dựng lại trên chỗ lưu
+# dữ liệu khác (ví dụ máy chủ đang gắn <thư mục>/data/postgres mà .env chưa đặt POSTGRES_DATA) hoặc
+# khi cổng mới đang bị container khác giữ.
 # =============================================================================
 set -euo pipefail
 
@@ -101,6 +106,51 @@ check_env_keys() {
   fi
 }
 
+# Trạng thái container trên máy chủ cho sync_preflight.py: mounts và cổng, không có biến môi trường.
+server_state() {
+  with_pass ssh "${SSH_OPTS[@]}" "${TARGET}" 'bash -s' <<'REMOTE'
+ids="$(docker ps -aq --filter label=com.docker.compose.project=mission-dev)"
+if [ -n "${ids}" ]; then
+  # shellcheck disable=SC2086
+  docker inspect --format 'C|{{json .Name}}|{{index .Config.Labels "com.docker.compose.service"}}|{{.State.Running}}|{{json .Mounts}}' ${ids}
+fi
+docker ps --format 'P|{{.Label "com.docker.compose.project"}}|{{.Names}}|{{.Ports}}'
+REMOTE
+}
+
+# Dựng cấu hình compose mới trên máy trạm: tệp của repo + khoá không bí mật của .env máy chủ
+# (đường dẫn dữ liệu, cổng, host); khoá bí mật lấy giá trị giữ chỗ của .env.example.
+preflight() {
+  echo "==> Kiểm tra trước khi áp (chỗ lưu dữ liệu, tranh cổng)"
+  if ! docker compose version >/dev/null 2>&1; then
+    echo "  Máy trạm không có docker compose để dựng cấu hình mới; không kiểm được."
+    return 1
+  fi
+  command -v python3 >/dev/null 2>&1 || { echo "  Máy trạm thiếu python3; không kiểm được."; return 1; }
+  local work rc=0
+  work="$(mktemp -d)"
+  remote "grep -E '^(DEV_HOST|[A-Z0-9_]+_(DATA|PORT|BIND|HOST))=' $(printf '%q' "${DEV_SERVER_INFRA_DIR}/.env")" \
+    >"${work}/server-public.env" || true
+  cut -d= -f1 "${work}/server-public.env" | sort -u >"${work}/keys"
+  grep -E '^[A-Z0-9_]+=' "${INFRA_DIR}/.env.example" \
+    | awk -F= 'NR == FNR { k[$1] = 1; next } !($1 in k)' "${work}/keys" - >"${work}/merged.env" || true
+  cat "${work}/server-public.env" >>"${work}/merged.env"
+  # shellcheck disable=SC2046
+  if ! (cd "${INFRA_DIR}" && docker compose -p "${PROJECT}" --env-file "${work}/merged.env" \
+    $(profile_args) config --format json >"${work}/compose.json"); then
+    echo "  Không dựng được cấu hình compose mới."
+    rc=1
+  elif ! server_state >"${work}/state.txt"; then
+    echo "  Không đọc được trạng thái container trên máy chủ."
+    rc=1
+  else
+    python3 "${SCRIPT_DIR}/sync_preflight.py" "${work}/compose.json" "${work}/state.txt" \
+      "${INFRA_DIR}" "${DEV_SERVER_INFRA_DIR}" || rc=1
+  fi
+  rm -rf "${work:?}"
+  return "${rc}"
+}
+
 copy_files() {
   local dry="$1"
   local commit
@@ -134,6 +184,7 @@ copy_files() {
 
 cmd_plan() {
   check_env_keys
+  preflight || echo "  (plan) Lần áp sẽ bị chặn cho tới khi hết mục [DỪNG] ở trên."
   echo "==> Commit đang áp trên máy chủ: $(remote "cat $(printf '%q' "${DEV_SERVER_INFRA_DIR}/.repo-commit") 2>/dev/null" || echo 'chưa ghi')"
   copy_files yes
   echo "==> Kiểm compose config trên máy chủ (bản hiện có, trước khi chép)"
@@ -142,6 +193,7 @@ cmd_plan() {
 
 cmd_apply() {
   check_env_keys
+  preflight || die "kiểm tra trước khi áp không đạt; không chép, không đổi container nào"
   local before
   before="$(remote "docker ps -q | wc -l")"
   copy_files no
