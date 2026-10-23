@@ -193,6 +193,9 @@ toanCuc:
   enabled: true
   project: okr-toan-cuc
   sites: [hl, sn]
+  # TTDL giữ primary của pg-registry: cùng giá trị với environments/global/global-pg và global-dns, đổi cùng commit
+  # (kiem-appset.py đối chiếu). Sinh global.siteRole cho mọi thành phần.
+  primarySite: hl
   destinationNameFormat: "global-%s"
   digests: environments/global/digests.yaml
   apps:

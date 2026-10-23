@@ -228,6 +228,10 @@ def kiem_toan_cuc(render, values, du_an):
     if len(tc) != len(g["apps"]):
         sai(f"vùng toàn cục: {len(tc)} ApplicationSet, mong {len(g['apps'])}")
     digests = yaml.safe_load(open(os.path.join(DEPLOY, g["digests"]), encoding="utf-8"))
+    for tp in ("global-pg", "global-dns"):
+        ps = yaml.safe_load(open(os.path.join(DEPLOY, "environments", "global", tp, "values.yaml"), encoding="utf-8")).get("primarySite")
+        if ps != g["primarySite"]:
+            sai(f"toanCuc.primarySite {g['primarySite']} khác primarySite {ps} của environments/global/{tp}")
     for a in g["apps"]:
         for p in a.get("params", []):
             if p["image"] not in digests["images"]:
@@ -239,12 +243,15 @@ def kiem_toan_cuc(render, values, du_an):
         gen = d["spec"]["generators"][0]["matrix"]["generators"]
         for site in [e["site"] for e in gen[0]["list"]["elements"]]:
             try:
-                a = dich_cay(d["spec"]["template"], {"site": site, "images": digests["images"]})
+                a = dich_cay(d["spec"]["template"], {"site": site, "primarySite": g["primarySite"], "images": digests["images"]})
             except (KeyError, ValueError, TypeError) as e:
                 sai(f"{d['metadata']['name']} × {site}: {e}")
                 continue
             apps.append(a)
             src = a["spec"]["source"]
+            vai_tro = src["helm"]["valuesObject"].get("global", {}).get("siteRole")
+            if vai_tro != ("primary" if site == g["primarySite"] else "standby"):
+                sai(f"{a['metadata']['name']}: global.siteRole {vai_tro!r}")
             if a["spec"]["destination"]["name"] != g["destinationNameFormat"] % site:
                 sai(f"{a['metadata']['name']}: đích {a['spec']['destination']['name']}")
             chart = os.path.join(GOC, src["path"])
