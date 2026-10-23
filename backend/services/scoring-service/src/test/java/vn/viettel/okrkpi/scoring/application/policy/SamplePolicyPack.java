@@ -32,9 +32,33 @@ public final class SamplePolicyPack {
 
   private SamplePolicyPack() {}
 
+  /** Gói luồng Nhà nước {@code khoi-chinh-quyen/nd335}. */
+  public static final Path ND335 = Path.of("../../../data/policy-pack/khoi-chinh-quyen/nd335");
+
   public static PolicyContent content(
       UUID packId, UUID versionId, String version, Map<String, String> overrides) {
-    String yaml = read(DIR.resolve("policy.yaml"));
+    return content(DIR, "khoi-dang/quy-dinh-moi", packId, versionId, version, overrides);
+  }
+
+  /** Gói luồng Nhà nước, phiên bản 1.4.0. */
+  public static PolicyContent nd335() {
+    return content(
+        ND335,
+        "khoi-chinh-quyen/nd335",
+        UUID.fromString("0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a02"),
+        UUID.fromString("0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4b21"),
+        "1.4.0",
+        Map.of());
+  }
+
+  static PolicyContent content(
+      Path dir,
+      String code,
+      UUID packId,
+      UUID versionId,
+      String version,
+      Map<String, String> overrides) {
+    String yaml = read(dir.resolve("policy.yaml"));
     Map<String, Object> manifest = new Yaml(new LoaderOptions()).load(yaml);
     List<PolicyRuleSource> rules = new ArrayList<>();
     for (String block : List.of("definitions", "definitions_nam")) {
@@ -59,14 +83,11 @@ public final class SamplePolicyPack {
       Map<String, Object> m = map(t);
       tables.add(
           new DecisionTableSource(
-              (String) m.get("table_key"), read(DIR.resolve((String) m.get("dmn")))));
+              (String) m.get("table_key"), read(dir.resolve((String) m.get("dmn")))));
     }
     String hash = sha256(yaml + overrides);
     return new PolicyContent(
-        new PinnedPolicy(packId, "khoi-dang/quy-dinh-moi", versionId, version, hash, false),
-        manifest,
-        rules,
-        tables);
+        new PinnedPolicy(packId, code, versionId, version, hash, false), manifest, rules, tables);
   }
 
   public static PolicyContent content() {

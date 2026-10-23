@@ -12,13 +12,25 @@ import java.util.Set;
 import java.util.UUID;
 import vn.viettel.okrkpi.oversight.application.port.AnomalyAlertRepository;
 import vn.viettel.okrkpi.oversight.domain.alert.AlertRules;
+import vn.viettel.okrkpi.oversight.domain.alert.AlertWorkflow;
 import vn.viettel.okrkpi.oversight.domain.alert.AnomalyAlert;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 
 /** Kho cảnh báo trong bộ nhớ theo hành vi của {@code JdbcAnomalyAlertRepository}. */
 final class FakeAlertRepository implements AnomalyAlertRepository {
 
-  record Action(UUID alertId, String action, String note, boolean active) {}
+  record Action(
+      UUID alertId,
+      String action,
+      String note,
+      boolean active,
+      UUID actor,
+      UUID assignedTo,
+      String verdict) {
+    Action(UUID alertId, String action, String note, boolean active) {
+      this(alertId, action, note, active, null, null, null);
+    }
+  }
 
   final Map<UUID, AnomalyAlert> rows = new LinkedHashMap<>();
   final List<Action> actions = new ArrayList<>();
@@ -95,7 +107,7 @@ final class FakeAlertRepository implements AnomalyAlertRepository {
       boolean active,
       UUID actor,
       Instant at) {
-    actions.add(new Action(alert.id(), action, note, active));
+    actions.add(new Action(alert.id(), action, note, active, actor, null, null));
   }
 
   @Override
@@ -104,7 +116,10 @@ final class FakeAlertRepository implements AnomalyAlertRepository {
     for (int i = 0; i < actions.size(); i++) {
       Action a = actions.get(i);
       if (a.alertId().equals(alert.id()) && a.active()) {
-        actions.set(i, new Action(a.alertId(), a.action(), a.note(), false));
+        actions.set(
+            i,
+            new Action(
+                a.alertId(), a.action(), a.note(), false, a.actor(), a.assignedTo(), a.verdict()));
         n++;
       }
     }
@@ -159,5 +174,124 @@ final class FakeAlertRepository implements AnomalyAlertRepository {
                     .noneMatch(x -> x.alertId().equals(a.id()) && note.equals(x.note())))
         .limit(limit)
         .toList();
+  }
+
+  final Set<UUID> reopened = new HashSet<>();
+  int viewed;
+
+  @Override
+  public Optional<AnomalyAlert> find(TenantId tenant, UUID id) {
+    return Optional.ofNullable(rows.get(id));
+  }
+
+  @Override
+  public List<AnomalyAlert> page(TenantId tenant, Filter f, After after, int limit) {
+    return rows.values().stream()
+        .filter(a -> f.periodId() == null || a.periodId().equals(f.periodId()))
+        .filter(a -> f.signals().isEmpty() || f.signals().contains(a.signalCode()))
+        .filter(a -> f.severities().isEmpty() || f.severities().contains(a.severity()))
+        .filter(a -> f.statuses().isEmpty() || f.statuses().contains(a.status()))
+        .sorted(
+            java.util.Comparator.comparingInt((AnomalyAlert a) -> AlertWorkflow.order(a.severity()))
+                .thenComparing(AnomalyAlert::detectedAt, java.util.Comparator.reverseOrder())
+                .thenComparing(AnomalyAlert::id, java.util.Comparator.reverseOrder()))
+        .filter(a -> after == null || afterKey(a, after))
+        .limit(limit)
+        .toList();
+  }
+
+  private static boolean afterKey(AnomalyAlert a, After k) {
+    int r = AlertWorkflow.order(a.severity());
+    if (r != k.rank()) {
+      return r > k.rank();
+    }
+    int c = a.detectedAt().compareTo(k.detectedAt());
+    return c < 0 || (c == 0 && a.id().compareTo(k.id()) < 0);
+  }
+
+  @Override
+  public List<Tally> window(TenantId tenant, Instant since, int limit) {
+    return rows.values().stream()
+        .filter(a -> !a.detectedAt().isBefore(since))
+        .map(
+            a ->
+                new Tally(
+                    a,
+                    has(a, "XAC_NHAN_HOP_LE", null),
+                    has(a, "GIAO_KIEM_TRA", null),
+                    has(a, "KET_LUAN", "CO_VI_PHAM")))
+        .limit(limit)
+        .toList();
+  }
+
+  private boolean has(AnomalyAlert a, String action, String verdict) {
+    return actions.stream()
+        .anyMatch(
+            x ->
+                x.alertId().equals(a.id())
+                    && x.action().equals(action)
+                    && (verdict == null || verdict.equals(x.verdict())));
+  }
+
+  @Override
+  public List<AnomalyAlertRepository.Action> actions(TenantId tenant, AnomalyAlert a) {
+    return actions.stream()
+        .filter(x -> x.alertId().equals(a.id()))
+        .map(
+            x ->
+                new AnomalyAlertRepository.Action(
+                    UUID.randomUUID(),
+                    x.action(),
+                    x.actor(),
+                    x.assignedTo(),
+                    x.verdict(),
+                    x.note(),
+                    x.active(),
+                    Instant.parse("2026-11-03T19:05:00Z")))
+        .toList();
+  }
+
+  @Override
+  public boolean markViewed(TenantId tenant, AnomalyAlert a, UUID actor) {
+    AnomalyAlert cur = rows.get(a.id());
+    if (!AlertRules.MOI.equals(cur.status())) {
+      return false;
+    }
+    viewed++;
+    rows.put(
+        a.id(),
+        new AnomalyAlert(
+            cur.id(),
+            cur.periodId(),
+            cur.periodBucket(),
+            cur.signalCode(),
+            cur.severity(),
+            cur.subjectType(),
+            cur.subjectId(),
+            cur.evidence(),
+            cur.detectedAt(),
+            cur.sourceEventId(),
+            cur.modelVersion(),
+            "DANG_XEM",
+            cur.rowVersion()));
+    return true;
+  }
+
+  @Override
+  public void insertAction(
+      TenantId tenant,
+      AnomalyAlert alert,
+      String action,
+      UUID assignedTo,
+      String verdict,
+      String note,
+      UUID actor,
+      Instant at) {
+    actions.add(new Action(alert.id(), action, note, false, actor, assignedTo, verdict));
+  }
+
+  @Override
+  public boolean reopenFiled(TenantId tenant, UUID alertId) {
+    return reopened.contains(alertId);
   }
 }

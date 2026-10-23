@@ -808,10 +808,107 @@ cases:
     expectedError: "POLICY-422-CEL-TYPE"
 
   # ============================================================================
+  # NHÓM 7: CHUỖI TÍNH ĐIỂM CỦA SCORING-SERVICE (DV-07-03, BR-09-01..BR-09-04)
+  # ============================================================================
+  - id: G-CEL-061
+    category: scoring_chain
+    description: Tổng ba thành phần A, B, C của KPI nhiệm vụ (ví dụ SCR-0703)
+    expression: "kpi_A + kpi_B + kpi_C"
+    returnType: DOUBLE
+    variableTypes:
+      kpi_A: DOUBLE
+      kpi_B: DOUBLE
+      kpi_C: DOUBLE
+    inputs:
+      kpi_A: 1.0
+      kpi_B: 0.75
+      kpi_C: 0.9
+    rounding:
+      scale: 4
+      mode: NUA_LEN
+    expected: 2.65
+
+  - id: G-CEL-062
+    category: scoring_chain
+    description: KPI nhóm hai nhiệm vụ là nửa tổng KPI các nhiệm vụ trong nhóm
+    expression: "sum(ds_kpi) * 0.5"
+    returnType: DOUBLE
+    variableTypes:
+      ds_kpi: LIST_DOUBLE
+    inputs:
+      ds_kpi: [1.0, 0.55]
+    expected: 0.775
+
+  - id: G-CEL-063
+    category: scoring_chain
+    description: Điểm nhóm bằng KPI nhóm nhân điểm tối đa của nhóm
+    expression: "kpi_nhom * diem_toi_da"
+    returnType: DOUBLE
+    variableTypes:
+      kpi_nhom: DOUBLE
+      diem_toi_da: DOUBLE
+    inputs:
+      kpi_nhom: 0.775
+      diem_toi_da: 70.0
+    rounding:
+      scale: 3
+      mode: NUA_LEN
+    expected: 54.25
+
+  - id: G-CEL-064
+    category: scoring_chain
+    description: Điểm kết quả là tổng điểm các nhóm, làm tròn 1 chữ số nửa lên
+    expression: "sum(ket_qua_nhom.map(k, k.diem_nhom))"
+    returnType: DOUBLE
+    variableTypes:
+      ket_qua_nhom: LIST_DYN
+    inputs:
+      ket_qua_nhom: [{"diem_nhom": 30.0}, {"diem_nhom": 54.25}]
+    rounding:
+      scale: 1
+      mode: NUA_LEN
+    expected: 84.3
+
+  - id: G-CEL-065
+    category: scoring_chain
+    description: Nhiệm vụ vượt mục tiêu khi số sản phẩm duyệt lớn hơn kế hoạch (A vẫn tối đa 1)
+    expression: "nv.ke_hoach > 0 && nv.so_luong_duyet > nv.ke_hoach"
+    returnType: BOOL
+    variableTypes:
+      nv: MAP_STRING_DYN
+    inputs:
+      nv:
+        ke_hoach: 10
+        so_luong_duyet: 12
+    expected: true
+
+  - id: G-CEL-066
+    category: scoring_chain
+    description: Tiến độ C không âm khi chậm 21 ngày làm việc do chủ quan
+    expression: "1.0 - tru_tien_do * ngay_cham < 0.0 ? 0.0 : 1.0 - tru_tien_do * ngay_cham"
+    returnType: DOUBLE
+    variableTypes:
+      tru_tien_do: DOUBLE
+      ngay_cham: DOUBLE
+    inputs:
+      tru_tien_do: 0.05
+      ngay_cham: 21.0
+    expected: 0.0
+
+  - id: G-CEL-067
+    category: scoring_chain
+    description: Nhiệm vụ then chốt không hoàn thành do chủ quan được phát hiện trên danh sách
+    expression: "nhiem_vu.exists(n, n.nhom == 'THEN_CHOT' && n.khong_hoan_thanh_chu_quan)"
+    returnType: BOOL
+    variableTypes:
+      nhiem_vu: LIST_DYN
+    inputs:
+      nhiem_vu: [{"nhom": "THUONG_XUYEN", "khong_hoan_thanh_chu_quan": true}, {"nhom": "THEN_CHOT", "khong_hoan_thanh_chu_quan": false}]
+    expected: false
   # NHÓM 6: HÀM SỐ HỌC CỦA GÓI MẪU NĐ 335 (math, double(), chia số thực, chia số nguyên)
   # Phát hiện ở DV-07-03: công thức kpi_A, kpi_B, kpi_C, kpi_nhom phải chạy như nhau ở hai engine.
   # ============================================================================
-  - id: G-CEL-061
+  - id: G-CEL-068
     category: scoring_formula
     description: kpi_A tỷ lệ việc được duyệt so với kế hoạch, chặn trên bằng math.least
     expression: "nv.ke_hoach == 0 ? 1.0 : math.least(double(nv.so_luong_duyet) / double(nv.ke_hoach), 1.0)"
@@ -824,7 +921,7 @@ cases:
         ke_hoach: 4
     expected: 0.75
 
-  - id: G-CEL-062
+  - id: G-CEL-069
     category: scoring_formula
     description: kpi_A vượt kế hoạch thì lấy 1.0 (math.least)
     expression: "nv.ke_hoach == 0 ? 1.0 : math.least(double(nv.so_luong_duyet) / double(nv.ke_hoach), 1.0)"
@@ -837,7 +934,7 @@ cases:
         ke_hoach: 4
     expected: 1.0
 
-  - id: G-CEL-063
+  - id: G-CEL-070
     category: scoring_formula
     description: kpi_B trừ 25% mỗi lần chỉnh sửa, chặn dưới bằng math.greatest
     expression: "tham_so.cach_tinh_chat_luong == 'TRU_25_MOI_LAN' ? math.greatest(0.0, 1.0 - tham_so.tru_moi_lan_chinh_sua * double(so_lan_chinh_sua)) : 1.0"
@@ -852,7 +949,7 @@ cases:
       so_lan_chinh_sua: 2
     expected: 0.5
 
-  - id: G-CEL-064
+  - id: G-CEL-071
     category: scoring_formula
     description: kpi_C trừ tiến độ theo ngày chậm, không âm (math.greatest)
     expression: "math.greatest(0.0, 1.0 - tru_tien_do * double(ngay_cham))"
@@ -865,7 +962,7 @@ cases:
       ngay_cham: 12
     expected: 0.0
 
-  - id: G-CEL-065
+  - id: G-CEL-072
     category: scoring_formula
     description: kpi_nhom trung bình danh sách bằng sum chia double(size())
     expression: "ds_kpi.size() == 0 ? 0.0 : sum(ds_kpi) / double(ds_kpi.size())"
@@ -876,7 +973,7 @@ cases:
       ds_kpi: [0.9, 0.6]
     expected: 0.75
 
-  - id: G-CEL-066
+  - id: G-CEL-073
     category: scoring_formula
     description: Chia hai số thực không nguyên (7.5 / 2.5)
     expression: "a / b"
@@ -889,7 +986,7 @@ cases:
       b: 2.5
     expected: 3.0
 
-  - id: G-CEL-067
+  - id: G-CEL-074
     category: scoring_formula
     description: Chia hai số nguyên là phép chia nguyên của CEL (7 / 2 = 3)
     expression: "a / b"
@@ -902,7 +999,7 @@ cases:
       b: 2
     expected: 3
 
-  - id: G-CEL-068
+  - id: G-CEL-075
     category: scoring_formula
     description: math.least trên danh sách số thực
     expression: "math.least(ds)"
@@ -913,7 +1010,7 @@ cases:
       ds: [0.9, 0.4, 0.7]
     expected: 0.4
 
-  - id: G-CEL-069
+  - id: G-CEL-076
     category: error_handling
     description: Từ chối cộng số thực với số nguyên khi không ép kiểu (diem + 1)
     expression: "diem + 1"

@@ -44,7 +44,8 @@ public class OversightIdempotency {
 
   /**
    * Chạy {@code work} đúng một lần cho mỗi khoá: lần gửi lại cùng nội dung phát lại phản hồi đã lưu
-   * (kèm {@code Location} và {@code ETag}), khác nội dung trả 422, đang xử lý trả 409.
+   * (kèm {@code Location} và {@code ETag} khi có {@code rowVersion}), khác nội dung trả 422, đang
+   * xử lý trả 409.
    */
   public <T> ResponseEntity<T> run(
       TenantId tenant,
@@ -102,7 +103,7 @@ public class OversightIdempotency {
     if (record.resourceRef() != null) {
       b.header(HttpHeaders.LOCATION, record.resourceRef());
     }
-    if (body != null) {
+    if (body != null && rowVersion != null) {
       b.eTag(ETags.of(rowVersion.applyAsLong(body)));
     }
     return b.body(body);

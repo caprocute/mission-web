@@ -17,6 +17,23 @@ class FeelUnaryListsTest {
   }
 
   @Test
+  void oKhoangThanhBieuThucVa() {
+    assertThat(FeelUnaryLists.expression("t", "[0.9..1)")).isEqualTo("${t >= 0.9 && t < 1}");
+    assertThat(FeelUnaryLists.expression("t", "]0..60]")).isEqualTo("${t > 0 && t <= 60}");
+    assertThat(FeelUnaryLists.expression("t", "(-1 .. 2.5]")).isEqualTo("${t > -1 && t <= 2.5}");
+  }
+
+  @Test
+  void bienDauVaoCuaBangDauTien() {
+    String xml =
+        "<definitions><decision><decisionTable><input><inputExpression><text> a </text>"
+            + "</inputExpression></input><input/></decisionTable></decision></definitions>";
+    assertThat(FeelUnaryLists.inputs(xml)).containsExactly("a");
+    assertThat(FeelUnaryLists.inputs("<definitions/>")).isEmpty();
+    assertThat(FeelUnaryLists.inputs("<khong")).isEmpty();
+  }
+
+  @Test
   void xmlKhongDoiHoacHongGiuNguyen() {
     assertThat(FeelUnaryLists.rewrite("<khong")).isEqualTo("<khong");
     String plain = "<definitions><decision/></definitions>";

@@ -1,6 +1,8 @@
 package vn.viettel.okrkpi.scoring.application;
 
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.transaction.annotation.Transactional;
 import vn.viettel.okrkpi.scoring.application.port.ScoreEvents;
@@ -35,12 +37,31 @@ public class ScoreRecorder {
   }
 
   /**
-   * Ghi một lô.
+   * Ghi một lô. Kết quả trùng kết quả mới nhất của hồ sơ ở băm đầu vào và băm gói thì không ghi và
+   * không phát EVT-10 (tính lại luỹ đẳng), nhưng vẫn tính vào tiến độ tác vụ.
    *
    * @return số tập đầu vào mới ghi
    */
   @Transactional
   public int record(ScoreBatch batch) {
+    Set<UUID> unchanged = results.unchanged(batch);
+    List<ComputedScore> fresh =
+        batch.items().stream().filter(s -> !unchanged.contains(s.resultId())).toList();
+    int newInputs = 0;
+    if (!fresh.isEmpty()) {
+      newInputs = append(batch.withItems(fresh));
+    }
+    jobs.progress(
+        batch.tenantId(),
+        batch.periodBucket(),
+        batch.jobId(),
+        batch.count(ScoreStatus.OK),
+        batch.count(ScoreStatus.LOI),
+        batch.actorId());
+    return newInputs;
+  }
+
+  private int append(ScoreBatch batch) {
     ScoreResultStore.Appended appended = results.append(batch);
     for (ComputedScore score : batch.items()) {
       if (score.status() == ScoreStatus.OK) {
@@ -51,13 +72,6 @@ public class ScoreRecorder {
         events.computed(batch, score, version);
       }
     }
-    jobs.progress(
-        batch.tenantId(),
-        batch.periodBucket(),
-        batch.jobId(),
-        batch.count(ScoreStatus.OK),
-        batch.count(ScoreStatus.LOI),
-        batch.actorId());
     return appended.newInputs();
   }
 }
