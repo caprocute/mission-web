@@ -38,11 +38,22 @@ Bộ mẫu chung nằm ở `data/seed/notify/mau-thong-bao-chung.json`; nạp b�
 
 `DATABASE_URL` (bắt buộc, `svc_notify`), `READONLY_DATABASE_URL`, `CRYPTO_LOCAL_KEY`, `KAFKA_BROKERS`, `VALKEY_ADDRS` (danh sách cách bằng dấu phẩy, kèm `VALKEY_PASSWORD`; trống thì tắt luồng SSE, trả 503), `HTTP_ADDR` (mặc định `:8080`), `CELL_CODE`, `PARTITION_MAINTAIN_INTERVAL`, `SHUTDOWN_TIMEOUT`.
 
+## Bản giả lập FCM và APNs (MOB-09)
+
+Theo YC-PT-13, môi trường dev không gọi Firebase hay Apple mà gọi bản giả lập `cmd/push-mock` (`internal/pushmock`). Bản giả lập kiểm như dịch vụ thật: JWT RS256 của tài khoản dịch vụ ở điểm cấp token, access token ở `messages:send`, bearer ES256 cùng `apns-topic`, `apns-push-type`, `apns-priority`, chỉ nhận HTTP/2 qua TLS cho APNs, tải tối đa 4 KB. Lỗi trả về theo định dạng của từng nhà cung cấp. Mã thiết bị quyết định kết quả: bắt đầu bằng `unregistered` thì FCM trả 404 `UNREGISTERED`, APNs trả 410 (thiết bị bị thu hồi); bắt đầu bằng `unavailable` thì trả 503 (thử lại); APNs với mã bắt đầu bằng `bad` thì trả 400 `BadDeviceToken`. Thông điệp nhận thành công được ghi lại, đọc ở `GET /_mock/messages[?token=]` và xoá bằng `DELETE /_mock/messages`; trường `nghiNgoC2` bật khi tiêu đề hoặc nội dung giống số định danh, số điện thoại hay thư điện tử, vì nội dung đẩy hiện trên màn hình khoá.
+
+```bash
+cd services-go/notification
+go run ./cmd/push-mock -out /tmp/push-mock     # FCM giả :35190 (HTTP), APNs giả :35191 (HTTP/2, TLS tự ký)
+```
+
+Khi khởi động, lệnh sinh tài khoản dịch vụ FCM giả, khoá `.p8` APNs giả và `ca-bundle.pem` (kho tin cậy của hệ điều hành cộng chứng thư tự ký) vào thư mục `-out`, rồi in các biến `FCM_SERVICE_ACCOUNT_FILE`, `FCM_BASE_URL`, `APNS_KEY_FILE`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_TOPIC`, `APNS_BASE_URL`, `SSL_CERT_FILE` để đặt cho notification-service cùng `NOTIFY_CHANNELS` có `PUSH`. Khoá sinh ra chỉ có giá trị với bản giả lập; thư mục `-out` phải nằm ngoài repo. Khi chạy trong mạng Docker, truyền `-host` là tên dịch vụ của bản giả lập. Đổi sang Firebase, Apple thật chỉ đổi các biến này. Thiết bị đăng ký qua `POST /api/v1/notifications/devices` (`registerPushDevice`), huỷ qua `DELETE /api/v1/notifications/devices/{deviceId}` của hợp đồng `platform.yaml`.
+
 ## Kiểm thử
 
 ```bash
 cd services-go/notification
-go vet ./... && go test ./...      # kiểm thử tích hợp cần Docker (PostgreSQL 17, Kafka confluent-local 7.5.0, Valkey 8, Mailpit v1.31.6)
+go vet ./... && go test ./...      # internal/pushmock: kênh FCM, APNs gửi tới bản giả lập (không cần Docker); kiểm thử tích hợp cần Docker (PostgreSQL 17, Kafka confluent-local 7.5.0, Valkey 8, Mailpit v1.31.6)
 ulimit -n 20000; NOTIFY_LOAD_CONNS=5000 go test ./internal/it -run TestStreamLoad -v   # kiểm thử tải SSE
 govulncheck ./...
 docker build -f notification/Dockerfile -t notification-service ..   # chạy từ services-go
