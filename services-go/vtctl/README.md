@@ -21,7 +21,7 @@ Chép `vtctl.example.yaml` về `~/.config/vtctl/config.yaml` (hoặc đặt `VT
 | Đăng nhập | `login [--step-up]`, `logout`, `whoami` | Keycloak `platform-ops` | SEC-29, TL-01 step-up |
 | `dlq` | `list`, `inspect`, `replay --topic --consumer --from --to [--partition]`, `skip --partition --to --approver` | Kafka của cell: `<topic>.dlq.<consumer>` → `<topic>.replay.<consumer>`, nhóm `dlq-replayer` | OPS-24 |
 | `consumer` | `lag [--group]`, `restart --deployment -n` | Kafka; `kubectl rollout restart` | OPS-14 |
-| `tenant` | `status <id>`, `activate <id> --reason`, `suspend <id> --reason` | `getRegistryTenant`, `activateConfigTenant`, `suspendConfigTenant` | QT-01, DV-03-03 |
+| `tenant` | `status <id>`, `activate <id> --reason`, `suspend <id> --reason`, `terminate <id> --reason --handover-ref` | `getRegistryTenant`, `activateConfigTenant`, `suspendConfigTenant`, `terminateConfigTenant` | QT-01, DV-03-03, VH-04 |
 | `cell` | `list`, `move request|approve|status|cancel` | `/registry/cells`, `requestTenantMove`, `approveTenantMove`, `getTenantMove`, `cancelTenantMove` | QT-01, ADR-29 |
 | `period-lock` | `status|pause|resume|retry-failed <period-id>` | `/periods/{id}/lock*` của cổng API cell | QT-08, MOD-08, SVC-06 |
 | `outbox` | `replay --schema --tenant --from --to [--consumer]` | Job `outbox-replay` (NEN-022) từ chart `deploy/charts/vtctl-jobs` | DR-10, OPS-24 |
@@ -55,7 +55,7 @@ Kiểm thử dùng Keycloak, registry, cổng API cell và bộ điều khiển 
 
 ## Giới hạn hiện tại
 
-- `suspendConfigTenant` (`DANG_VAN_HANH` → `TAM_NGUNG`) đã có trong hợp đồng và tenant-registry; ma trận phân quyền `docs/phan-quyen/ma-tran.json` chưa có dòng cho thao tác này (chờ duyệt).
+- `suspendConfigTenant` (`DANG_VAN_HANH` → `TAM_NGUNG`) và `terminateConfigTenant` (`TAM_NGUNG` → `DA_CHAM_DUT`) đã có trong hợp đồng và tenant-registry; ma trận phân quyền `docs/phan-quyen/ma-tran.json` chưa có dòng cho hai thao tác này (chờ duyệt).
 - `degrade pin` cần bộ điều khiển Go của INF-25 (`services-go/degrade-controller`); bộ điều khiển Python cũ của DV-01-02 bỏ qua trường `ttl` và giữ mức đặt tay tới khi `clear`.
 - Job `outbox-replay` đọc `DATABASE_URL`, `KAFKA_BROKERS`, `KAFKA_TLS_*` từ Secret khai ở `outboxReplay.envFromSecret` (xem runbook `phat-lai-outbox`).
 - Phòng ngừa bốn mắt của `dlq skip` nằm ở phía công cụ (không có API máy chủ cho DLQ); bản ghi kiểm toán giữ tên người duyệt.
