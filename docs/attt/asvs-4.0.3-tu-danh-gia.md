@@ -8,15 +8,15 @@ Ngày đánh giá: 23/10/2026. Phạm vi kiểm chứng tự động: org-servic
 
 ## Thống kê
 
-Trong 286 mục của ASVS 4.0.3, có 241 mục áp dụng cho phạm vi NFR-08 (sau khi bỏ 8 mục ASVS đã xoá, 10 mục mức 3 ngoài V2, V3, V6 và 27 mục không áp dụng). Số mục đạt (tự động hoặc cấu hình có kiểm) là 196/241, tức 81%. Tiêu chí của TL-04 là 100% mục áp dụng; các mục còn lại được liệt kê ở mục "Việc còn lại" và là phạm vi trọng tâm của SEC-41.
+Trong 286 mục của ASVS 4.0.3, có 241 mục áp dụng cho phạm vi NFR-08 (sau khi bỏ 8 mục ASVS đã xoá, 10 mục mức 3 ngoài V2, V3, V6 và 27 mục không áp dụng). Số mục đạt (tự động hoặc cấu hình có kiểm) là 197/241, tức 81%. Tiêu chí của TL-04 là 100% mục áp dụng; các mục còn lại được liệt kê ở mục "Việc còn lại" và là phạm vi trọng tâm của SEC-41.
 
 | Trạng thái | Số mục | Ý nghĩa |
 |---|---:|---|
-| Đạt (tự động) | 145 | Có kiểm thử tự động chạy trong pipeline hoặc bộ kiểm thử của QA-13 |
+| Đạt (tự động) | 146 | Có kiểm thử tự động chạy trong pipeline hoặc bộ kiểm thử của QA-13 |
 | Đạt (cấu hình có kiểm) | 51 | Đạt bằng cấu hình có kiểm tĩnh hoặc do nền tảng (Keycloak, nginx, Angular) bảo đảm theo cấu hình đã duyệt |
 | Có thiết kế, chờ kiểm | 32 | Đã thiết kế hoặc đã làm, chưa có kiểm thử tự động; cần kiểm thủ công hoặc ở SEC-41 |
-| Đạt một phần | 10 | Đạt một phần, ghi chú nêu phần thiếu |
-| Chưa đạt | 3 | Chưa đạt, ghi chú nêu đề xuất |
+| Đạt một phần | 11 | Đạt một phần, ghi chú nêu phần thiếu |
+| Chưa đạt | 1 | Chưa đạt, ghi chú nêu đề xuất |
 | Không áp dụng | 27 | Không áp dụng cho kiến trúc của Mission |
 | Ngoài phạm vi | 10 | Mục mức 3 ngoài V2, V3, V6 (NFR-08 không yêu cầu) |
 | ASVS đã xoá | 8 | ASVS 4.0.3 đánh dấu DELETED |
@@ -37,7 +37,7 @@ Theo chương (chỉ tính mục áp dụng):
 | V10 Malicious Code | 4 | 3 | 75% | Mức 2 |
 | V11 Business Logic | 8 | 7 | 87% | Mức 2 |
 | V12 Files and Resources | 15 | 11 | 73% | Mức 2 |
-| V13 API and Web Service | 8 | 7 | 87% | Mức 2 |
+| V13 API and Web Service | 8 | 8 | 100% | Mức 2 |
 | V14 Configuration | 22 | 19 | 86% | Mức 2 |
 
 ## Việc còn lại
@@ -46,7 +46,7 @@ Các mục dưới đây chưa đạt hoặc chỉ đạt một phần; mỗi m�
 
 - **1.1.2** (Đạt một phần): Mô hình mối đe doạ có ở TL-04 (bảng SEC, D1–D12); chưa có bước bắt buộc mô hình hoá mối đe doạ cho từng thay đổi thiết kế.
 - **1.1.3** (Đạt một phần): Task có tiêu chí nghiệm thu bảo mật ở mục "Kiểm thử"; chưa thành mẫu bắt buộc cho mọi câu chuyện người dùng.
-- **2.1.7** (Chưa đạt): Chưa có kiểm mật khẩu lộ (danh sách mật khẩu yếu hoặc HIBP k-anonymity) trong passwordPolicy. Đề xuất: passwordBlacklist với danh sách 10.000 mật khẩu phổ biến.
+- **2.1.7** (Đạt một phần): Realm dev có passwordBlacklist(mat-khau-pho-bien.txt), danh sách mật khẩu phổ biến từ SecLists (infra/dev/keycloak/password-blacklists), đã thử: mật khẩu trong danh sách bị Keycloak từ chối. Realm cell chưa bật vì tệp phải nằm trong ảnh Keycloak của cell (task INF dựng ảnh).
 - **2.1.8** (Chưa đạt): Trang đăng nhập theme mission chưa có thước đo độ mạnh mật khẩu khi đặt hoặc đổi.
 - **2.1.10** (Đạt một phần): Không bắt xoay vòng định kỳ (không forceExpiredPasswordChange), nhưng có passwordHistory(5) mà ASVS 2.1.10 khuyên không dùng; giữ theo quy định nội bộ, cần người phụ trách ATTT xác nhận.
 - **2.4.5** (Đạt một phần): Chưa có pepper (khoá bí mật bổ sung ngoài CSDL) cho băm mật khẩu Keycloak.
@@ -54,9 +54,8 @@ Các mục dưới đây chưa đạt hoặc chỉ đạt một phần; mỗi m�
 - **6.2.8** (Đạt một phần): So sánh HMAC dùng MessageDigest.isEqual; chưa rà toàn bộ phép so sánh bí mật.
 - **8.3.6** (Đạt một phần): Khoá C3 xoá khỏi bộ nhớ sau dùng ở trình duyệt; JVM không bảo đảm ghi đè chuỗi.
 - **12.3.4** (Đạt một phần): Tải xuống dùng attachment; chế độ xem trực tiếp (inline) vẫn cho phép với kiểu tệp đã kiểm, cần SEC-41 xác minh RFD.
-- **13.1.5** (Đạt một phần): Content-Type sai: 415 (đạt). Thân multipart hỏng ở /org/imports trả 500 thay vì 400 (ca todo trong PD4).
 - **14.2.3** (Đạt một phần): Tài nguyên cùng nguồn; UI Pack trên CDN kiểm chữ ký thay cho SRI.
-- **14.4.2** (Chưa đạt): Phản hồi API chưa có Content-Disposition: attachment (org-service). Đề xuất thêm ở APISIX response-rewrite cho /api/.
+- **14.4.2** (Đạt một phần): Mọi API trả tệp (xuất Excel, CSV, xem trước PDF) có Content-Disposition: attachment kèm tên tệp. Phản hồi JSON chưa gắn tiêu đề này; đã có X-Content-Type-Options: nosniff ở cổng (SEC-24) và Content-Type application/json hoặc problem+json. Không gắn toàn cục ở APISIX vì response-rewrite sẽ ghi đè tên tệp của API xuất.
 
 ## Bằng chứng
 
@@ -126,7 +125,7 @@ Mục này là phần giao cho đơn vị kiểm thử xâm nhập độc lập 
 
 **Tài liệu và công cụ giao kèm.** Bảng tự đánh giá này; ma trận phân quyền `wiki/15a-ma-tran-phan-quyen.md`; hợp đồng OpenAPI đã gộp (`cd contracts && npm run bundle`, thư mục `contracts/dist`); bộ kiểm thử phủ định `infra/security/kiem-thu-phu-dinh` (kiểm thử viên chạy lại được với tài khoản của mình); kế hoạch ZAP `infra/security/zap` và báo cáo SARIF, JSON của lần quét gần nhất (artifact `zap-ket-qua/` của pipeline); danh sách ngoại lệ đang hiệu lực `infra/security/zap/ngoai-le.yaml`.
 
-**Phát hiện đã biết khi bàn giao.** Thân multipart hỏng ở `POST /api/v1/org/imports` làm org-service trả 500 thay vì 400 (ZAP 30001, ca todo trong PD4); phản hồi API chưa có `Content-Disposition: attachment` (14.4.2); chưa kiểm mật khẩu lộ (2.1.7). Các mục "Có thiết kế, chờ kiểm" trong bảng là trọng tâm đề nghị kiểm thử viên xác minh thủ công.
+**Phát hiện đã biết khi bàn giao.** Thân multipart hỏng ở `POST /api/v1/org/imports` từng làm org-service trả 500 (ZAP 30001) và đã được sửa thành 400. Còn hai phần dở: phản hồi JSON của API chưa có `Content-Disposition: attachment` (14.4.2, API trả tệp đã có), và danh sách mật khẩu phổ biến mới bật ở realm dev, chưa bật ở realm cell (2.1.7). Các mục "Có thiết kế, chờ kiểm" trong bảng là trọng tâm đề nghị kiểm thử viên xác minh thủ công.
 
 **Quy tắc làm việc.** Chỉ kiểm trên môi trường dev hoặc staging được chỉ định; không dùng dữ liệu thật; báo ngay phát hiện Critical cho người phụ trách ATTT; mỗi phát hiện ghi mã mục ASVS và bằng chứng tái hiện; kiểm thử lại (retest) sau khi sửa theo TL-04.
 
@@ -189,7 +188,7 @@ Mục này là phần giao cho đơn vị kiểm thử xâm nhập độc lập 
 | 2.1.4 | 1 | Verify that any printable Unicode character, including language neutral characters such as spaces and Emojis are permitted in passwords. | Đạt (cấu hình có kiểm) | RTI | Keycloak nhận mọi ký tự Unicode in được. |
 | 2.1.5 | 1 | Verify users can change their password. | Đạt (cấu hình có kiểm) | TL | Đổi mật khẩu qua Keycloak Account Console. |
 | 2.1.6 | 1 | Verify that password change functionality requires the user's current and new password. | Đạt (cấu hình có kiểm) | TL | Keycloak hỏi mật khẩu hiện tại khi đổi. |
-| 2.1.7 | 1 | Verify that passwords submitted during account registration, login, and password change are checked against a set of breached passwords either locall… | Chưa đạt |  | Chưa có kiểm mật khẩu lộ (danh sách mật khẩu yếu hoặc HIBP k-anonymity) trong passwordPolicy. Đề xuất: passwordBlacklist với danh sách 10.000 mật khẩu phổ biến. |
+| 2.1.7 | 1 | Verify that passwords submitted during account registration, login, and password change are checked against a set of breached passwords either locall… | Đạt một phần |  | Realm dev có passwordBlacklist(mat-khau-pho-bien.txt), danh sách mật khẩu phổ biến từ SecLists (infra/dev/keycloak/password-blacklists), đã thử: mật khẩu trong danh sách bị Keycloak từ chối. Realm cell chưa bật vì tệp phải nằm trong ảnh Keycloak của cell (task INF dựng ảnh). |
 | 2.1.8 | 1 | Verify that a password strength meter is provided to help users set a stronger password. | Chưa đạt |  | Trang đăng nhập theme mission chưa có thước đo độ mạnh mật khẩu khi đặt hoặc đổi. |
 | 2.1.9 | 1 | Verify that there are no password composition rules limiting the type of characters permitted. There should be no requirement for upper or lower case… | Đạt (cấu hình có kiểm) | RTS | Không có quy tắc thành phần (không upperCase, digits, specialChars). |
 | 2.1.10 | 1 | Verify that there are no periodic credential rotation or password history requirements. | Đạt một phần | RTS | Không bắt xoay vòng định kỳ (không forceExpiredPasswordChange), nhưng có passwordHistory(5) mà ASVS 2.1.10 khuyên không dùng; giữ theo quy định nội bộ, cần người phụ trách ATTT xác nhận. |
@@ -351,7 +350,7 @@ Mục này là phần giao cho đơn vị kiểm thử xâm nhập độc lập 
 | 7.3.2 | 3 | [DELETED, DUPLICATE OF 7.3.1] | ASVS đã xoá |  |  |
 | 7.3.3 | 2 | Verify that security logs are protected from unauthorized access and modification. | Có thiết kế, chờ kiểm | TL | Sổ cái kiểm toán băm chuỗi và niêm phong (LedgerSealServiceTest); quyền đọc nhật ký ở hệ quan sát chưa kiểm. |
 | 7.3.4 | 2 | Verify that time sources are synchronized to the correct time and time zone. Strongly consider logging only in UTC if systems are global to assist wi… | Đạt (cấu hình có kiểm) | TL | NTP trên node; múi giờ Asia/Ho_Chi_Minh cấu hình trong service. |
-| 7.4.1 | 1 | Verify that a generic message is shown when an unexpected or security sensitive error occurs, potentially with a unique ID which support personnel ca… | Đạt (tự động) | PD4, PD5, ZAPA | Problem Details chung, không lộ stack trace (khongLoNoiBo). Phát hiện: thân multipart hỏng ở org-service trả 500 (vẫn chung chung), chờ sửa. |
+| 7.4.1 | 1 | Verify that a generic message is shown when an unexpected or security sensitive error occurs, potentially with a unique ID which support personnel ca… | Đạt (tự động) | PD4, PD5, ZAPA | Problem Details chung, không lộ stack trace (khongLoNoiBo). Thân multipart hỏng ở org-service nay trả 400 Problem (đã sửa sau QA-13). |
 | 7.4.2 | 2 | Verify that exception handling (or a functional equivalent) is used across the codebase to account for expected and unexpected error conditions. | Đạt (tự động) | API | ProblemHandlingWebTest. |
 | 7.4.3 | 2 | Verify that a "last resort" error handler is defined which will catch all unhandled exceptions. | Đạt (tự động) | API | Trình xử lý cuối ProblemErrorControllerTest. |
 
@@ -446,7 +445,7 @@ Mục này là phần giao cho đơn vị kiểm thử xâm nhập độc lập 
 | 13.1.2 | 3 | [DELETED, DUPLICATE OF 4.3.1] | ASVS đã xoá |  |  |
 | 13.1.3 | 1 | Verify API URLs do not expose sensitive information, such as the API key, session tokens etc. | Đạt (tự động) | PD1, ZAPA | Token không nằm trong URL. |
 | 13.1.4 | 2 | Verify that authorization decisions are made at both the URI, enforced by programmatic or declarative security at the controller or router, and at th… | Đạt (tự động) | PD2, OPA | Phân quyền ở APISIX (tuyến) và service (OPA theo thao tác). |
-| 13.1.5 | 2 | Verify that requests containing unexpected or missing content types are rejected with appropriate headers (HTTP response status 406 Unacceptable or 4… | Đạt một phần | PD4 | Content-Type sai: 415 (đạt). Thân multipart hỏng ở /org/imports trả 500 thay vì 400 (ca todo trong PD4). |
+| 13.1.5 | 2 | Verify that requests containing unexpected or missing content types are rejected with appropriate headers (HTTP response status 406 Unacceptable or 4… | Đạt (tự động) | PD4 | Content-Type sai: 415; thân multipart hỏng ở /org/imports: 400 Problem; quá dung lượng: 413. |
 | 13.2.1 | 1 | Verify that enabled RESTful HTTP methods are a valid choice for the user or action, such as preventing normal users using DELETE or PUT on protected… | Đạt (tự động) | PD5 | Phương thức ngoài hợp đồng: 405; TRACE không phản hồi lại. |
 | 13.2.2 | 1 | Verify that JSON schema validation is in place and verified before accepting input. | Đạt (tự động) | PD4, API | Kiểm theo lược đồ trước khi xử lý. |
 | 13.2.3 | 1 | Verify that RESTful web services that utilize cookies are protected from Cross-Site Request Forgery via the use of at least one or more of the follow… | Không áp dụng |  | API không dùng cookie. |
@@ -477,7 +476,7 @@ Mục này là phần giao cho đơn vị kiểm thử xâm nhập độc lập 
 | 14.3.2 | 1 | Verify that web or application server and application framework debug modes are disabled in production to eliminate debug features, developer console… | Đạt (tự động) | PD4, PD5 | Không có trang lỗi gỡ lỗi; không lộ stack trace. |
 | 14.3.3 | 1 | Verify that the HTTP headers or any part of the HTTP response do not expose detailed version information of system components. | Đạt (tự động) | PD5, ZAPW | Không có X-Powered-By, Server không kèm phiên bản. |
 | 14.4.1 | 1 | Verify that every HTTP response contains a Content-Type header. Also specify a safe character set (e.g., UTF-8, ISO-8859-1) if the content types are… | Đạt (tự động) | PD5 | Content-Type kèm charset. |
-| 14.4.2 | 1 | Verify that all API responses contain a Content-Disposition: attachment; filename="api.json" header (or other appropriate filename for the content ty… | Chưa đạt | PD5 | Phản hồi API chưa có Content-Disposition: attachment (org-service). Đề xuất thêm ở APISIX response-rewrite cho /api/. |
+| 14.4.2 | 1 | Verify that all API responses contain a Content-Disposition: attachment; filename="api.json" header (or other appropriate filename for the content ty… | Đạt một phần | PD5 | Mọi API trả tệp (xuất Excel, CSV, xem trước PDF) có Content-Disposition: attachment kèm tên tệp. Phản hồi JSON chưa gắn tiêu đề này; đã có X-Content-Type-Options: nosniff ở cổng (SEC-24) và Content-Type application/json hoặc problem+json. Không gắn toàn cục ở APISIX vì response-rewrite sẽ ghi đè tên tệp của API xuất. |
 | 14.4.3 | 1 | Verify that a Content Security Policy (CSP) response header is in place that helps mitigate impact for XSS attacks like HTML, DOM, JSON, and JavaScri… | Đạt (tự động) | ZAPW, NGX | CSP chặt (SEC-19); bản dựng mất CSP bị ZAP chặn (10038 nâng High). |
 | 14.4.4 | 1 | Verify that all responses contain a X-Content-Type-Options: nosniff header. | Đạt (tự động) | PD5, NGX | nosniff trên API và web. |
 | 14.4.5 | 1 | Verify that a Strict-Transport-Security header is included on all responses and for all subdomains, such as Strict-Transport-Security: max-age=157248… | Có thiết kế, chờ kiểm | NGX, GW | HSTS khi qua HTTPS (nginx $vt_hsts, APISIX SEC-24); dev cục bộ HTTP nên chưa kiểm. |

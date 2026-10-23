@@ -11,7 +11,7 @@
   ],
   "defaultLocale": "vi",
   "bruteForceProtected": true,
-  "passwordPolicy": "length(8)",
+  "passwordPolicy": "length(8) and passwordBlacklist(mat-khau-pho-bien.txt)",
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,

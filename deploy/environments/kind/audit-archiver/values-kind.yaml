@@ -1,0 +1,50 @@
+# Giá trị cài thử audit-archiver trên kind (INF-24). Kafka, Ceph RGW (kho sao lưu có Object Lock) và OpenBao dev
+# chạy bằng container trong mạng docker "kind" với IP cố định do kiem-thu-audit-archiver.sh dựng. Cụm thử không có
+# CRD của ESO, Prometheus Operator, Istio nên các phần đó tắt; bí mật do script tạo trực tiếp.
+global:
+  cell: kind
+  mesh:
+    ambientNamespaces: []
+    waypointNamespaces: []
+image:
+  repository: audit-archiver
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+  pullPolicy: Never
+nodePool: none
+workload:
+  replicas: 1
+archive:
+  kafkaBootstrap: 172.18.0.60:9092
+  kafkaTlsSecret: ''
+  s3Endpoint: 172.18.0.61:8080
+  s3Tls: 'false'
+  s3Region: us-east-1
+  s3Bucket: audit-cell-kind
+  openBaoAddr: http://172.18.0.62:8200
+  openBaoTokenFile: /etc/vt/openbao/token
+  lockRetention: 24h
+  pushgatewayUrl: ''
+externalSecret:
+  enabled: false
+serviceMonitor:
+  enabled: false
+authorizationPolicy:
+  enabled: false
+alerts:
+  enabled: false
+extraVolumes:
+  - name: s3
+    secret: { secretName: audit-archiver-s3, defaultMode: 0440 }
+  - name: openbao-token
+    secret: { secretName: audit-archiver-openbao, defaultMode: 0440 }
+extraVolumeMounts:
+  - { name: s3, mountPath: /etc/vt/s3, readOnly: true }
+  - { name: openbao-token, mountPath: /etc/vt/openbao, readOnly: true }
+networkPolicy:
+  egressTo:
+    - ipBlock: { cidr: 172.18.0.60/32 }
+      ports: [{ port: 9092 }]
+    - ipBlock: { cidr: 172.18.0.61/32 }
+      ports: [{ port: 8080 }]
+    - ipBlock: { cidr: 172.18.0.62/32 }
+      ports: [{ port: 8200 }]

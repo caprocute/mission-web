@@ -37,7 +37,7 @@ Trong pipeline, bước `vtZapScan` của `ci/vt-pipeline` gọi `chay-zap.sh`, 
 
 ## Kết quả lần chạy đầu (23/10/2026, cục bộ)
 
-Quét API module org với org-service và Keycloak 26.4 (realm dev) chạy cục bộ, đăng nhập bằng tài khoản quản trị: 39 URL từ hợp đồng, 0 High, 1 Medium (30001 trên `POST /org/imports`: thân multipart hỏng làm service trả 500, đã ghi nhận và có ngoại lệ hạn 06/11/2026). Quét web với nginx của SVC-17: bản đúng cấu hình đạt (một Medium 10098 về CORS `*` trên tệp tĩnh công khai, đã giải trình); bản cố ý bỏ CSP bị chặn với 3 High (10038, 10020). Chưa chạy trên server dev dùng chung vì phiên này không tới được server đó.
+Quét API module org với org-service và Keycloak 26.4 (realm dev) chạy cục bộ, đăng nhập bằng tài khoản quản trị: 39 URL từ hợp đồng, 0 High, 1 Medium (30001 trên `POST /org/imports`: thân multipart hỏng làm service trả 500). Lỗi này đã được sửa (org-service trả 400 Problem, kiểm ở ca thân multipart hỏng của kiem-thu-phu-dinh 04) và mục ngoại lệ tương ứng đã gỡ. Quét web với nginx của SVC-17: bản đúng cấu hình đạt (một Medium 10098 về CORS `*` trên tệp tĩnh công khai, đã giải trình); bản cố ý bỏ CSP bị chặn với 3 High (10038, 10020). Chưa chạy trên server dev dùng chung vì phiên này không tới được server đó.
 
 Quét thụ động lưu lượng của bộ hành trình đầu cuối (TL-04 mục 9.8) cần chạy Playwright qua proxy ZAP ở chế độ daemon; việc này làm khi khung chạy hành trình QA-03 có trên môi trường thật.
 

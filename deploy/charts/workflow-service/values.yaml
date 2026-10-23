@@ -129,3 +129,11 @@ monitoring:
     # Nhãn để sidecar Grafana nạp ConfigMap (kube-prometheus-stack mặc định grafana_dashboard="1").
     label: grafana_dashboard
     folder: Mission / Workflow
+
+# DL-12 · DV-06-10: cảnh báo bản sao tổ chức (org_replica_lag_ms) và đối soát R1 của workflow-service
+# (templates/reconcile-alerts.yaml). lagTargetMs là độ trễ mục tiêu p99 của TL-03 mục 10.4 (ECST tổ chức sang
+# org_replica, 5 giây); chưa đo tải (YC-PT-19). runbookBase, namespace để trống thì lấy theo monitoring.alerts.
+reconcile:
+  alerts:
+    enabled: true
+    lagTargetMs: 5000

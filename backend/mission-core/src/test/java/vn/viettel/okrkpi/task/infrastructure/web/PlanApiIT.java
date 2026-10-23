@@ -461,6 +461,17 @@ class PlanApiIT extends ContractConformanceTest {
     assertThat(body(waiting).get("items"))
         .singleElement()
         .satisfies(n -> assertThat(n.get("planId").asText()).isEqualTo(id));
+    // Nguồn hộp việc SVC-06: lọc theo mã kế hoạch (CORE-02-08).
+    List<PlanRepository.ReviewRow> ofPlans =
+        in(
+            taskDataSource,
+            taskTm,
+            jdbc ->
+                planRepository.awaitingReviewOfPlans(
+                    tenant, List.of(UUID.fromString(id), UUID.randomUUID()), null, 10));
+    assertThat(ofPlans)
+        .singleElement()
+        .satisfies(r -> assertThat(r.plan().id().toString()).isEqualTo(id));
 
     assertThat(perform(giveBack(id, "\"3\"", " ")).getResponse().getStatus()).isEqualTo(422);
     TestTaskCallers.current =

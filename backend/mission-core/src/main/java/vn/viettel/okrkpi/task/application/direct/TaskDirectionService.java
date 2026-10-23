@@ -136,6 +136,58 @@ public class TaskDirectionService {
     notify(tenant, task, T_REMIND, recipients(tenant, task, actor), p, actor.personId());
   }
 
+  /** Thao tác chỉ đạo của một người gọi, tính phạm vi một lần cho cả trang danh sách. */
+  public interface DirectionActions {
+    /** Khoá {@code SCR-1601.*} người gọi được làm trên nhiệm vụ có các thuộc tính này. */
+    Set<String> on(UUID assignerId, UUID orgUnitId, TaskStatus status);
+  }
+
+  /**
+   * Thao tác chỉ đạo ({@code SCR-1601.nhac}, {@code SCR-1601.giao-lai}) theo đúng điều kiện của
+   * {@link #remindTask} và {@link #reassignTask}: vai trò lãnh đạo hoặc quản lý, người gọi đã giao
+   * việc hoặc nhiệm vụ thuộc đơn vị trong phạm vi, trạng thái còn nhắc hoặc giao lại được. Không
+   * xét khoá kỳ và giới hạn nhắc 24 giờ (thao tác vẫn kiểm khi gọi).
+   */
+  public DirectionActions directionActions(TenantId tenant, TaskActor actor) {
+    if (actor.roles().stream().noneMatch(ROLES::contains)) {
+      return (assigner, unit, status) -> Set.of();
+    }
+    java.util.concurrent.atomic.AtomicReference<Set<UUID>> scope =
+        new java.util.concurrent.atomic.AtomicReference<>();
+    return (assigner, unit, status) -> {
+      boolean inScope = actor.personId().equals(assigner);
+      if (!inScope && unit != null) {
+        inScope =
+            scope
+                .updateAndGet(
+                    s ->
+                        s != null
+                            ? s
+                            : scope(tenant, actor.personId(), LocalDate.now(clock.withZone(ZONE))))
+                .contains(unit);
+      }
+      if (!inScope) {
+        return Set.of();
+      }
+      Set<String> out = new LinkedHashSet<>();
+      if (REMINDABLE.contains(status.name())) {
+        out.add(TaskPermittedActions.NHAC);
+      }
+      if (REASSIGNABLE.contains(status.name())) {
+        out.add(TaskPermittedActions.GIAO_LAI);
+      }
+      return out;
+    };
+  }
+
+  /** Thao tác chỉ đạo trên một nhiệm vụ (trang chi tiết). */
+  @Transactional(value = TX, readOnly = true)
+  public Set<String> directionActionsOn(TenantId tenant, TaskRow task, TaskActor actor) {
+    UUID unit =
+        directions.facts(tenant, task.periodBucket(), task.id()).map(Facts::orgUnitId).orElse(null);
+    return directionActions(tenant, actor).on(task.assignerId(), unit, task.status());
+  }
+
   /** Kết quả giao lại để controller dựng {@code TaskDetail}. */
   public record Reassigned(TaskRow task, UUID oldLead, UUID newLead) {}
 

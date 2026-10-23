@@ -5,12 +5,15 @@ R6 ở chart evidence-service).
 Chỉ số do thư viện vt-reconcile xuất: mission_reconcile_runs_total{reconcile,status},
 mission_reconcile_mismatches_total{reconcile}, mission_reconcile_repaired_total{reconcile},
 mission_reconcile_last_finished_seconds{reconcile}. Bật mặc định; values.yaml chưa khai khoá reconcile nên mọi
-giá trị có mặc định ở đây: reconcile.alerts.enabled, reconcile.alerts.runbookBase.
+giá trị có mặc định ở đây: reconcile.alerts.enabled, reconcile.alerts.runbookBase, reconcile.alerts.application
+(mặc định "mission-core"). Mọi biểu thức lọc theo nhãn application để không lẫn chuỗi cùng tên của
+workflow-service, vốn cũng chạy R1 qua vt-reconcile.
 */ -}}
 {{- $rc := .Values.reconcile | default dict -}}
 {{- $al := $rc.alerts | default dict -}}
 {{- if ne (toString (dig "enabled" true $al)) "false" }}
 {{- $rb := $al.runbookBase | default "https://runbook.vt.local/okr" }}
+{{- $s := printf "application=\"%s\"" ($al.application | default "mission-core") }}
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -25,55 +28,55 @@ spec:
     - name: mission-doi-soat
       rules:
         - alert: MissionDoiSoatLechChuaXuLy
-          expr: sum by (reconcile) (increase(mission_reconcile_runs_total{status="LOI"}[2h])) > 0
+          expr: sum by (reconcile) (increase(mission_reconcile_runs_total{ {{- $s -}},status="LOI"}[2h])) > 0
           labels: { severity: warning, doi: van-hanh-du-lieu }
           annotations:
             summary: "Đối soát {{ "{{ $labels.reconcile }}" }} phát hiện lệch chưa tự xử lý được trong 2 giờ qua"
             description: "Tra reconcile_run có status LOI của job này; cột detail ghi phạm vi lệch và lệnh phát lại."
             runbook_url: {{ $rb }}/doi-soat
         - alert: MissionDoiSoatDaTuSua
-          expr: sum by (reconcile) (increase(mission_reconcile_repaired_total[2h])) > 0
+          expr: sum by (reconcile) (increase(mission_reconcile_repaired_total{ {{- $s -}} }[2h])) > 0
           labels: { severity: info, doi: van-hanh-du-lieu }
           annotations:
             summary: "Đối soát {{ "{{ $labels.reconcile }}" }} đã tự phát lại {{ "{{ $value | humanize }}" }} dòng trong 2 giờ qua"
             runbook_url: {{ $rb }}/doi-soat
         - alert: MissionDoiSoatR3ChanKySo
-          expr: sum(increase(mission_reconcile_mismatches_total{reconcile="R3_DIEM_ANH_CHUP"}[1h])) > 0
+          expr: sum(increase(mission_reconcile_mismatches_total{ {{- $s -}},reconcile="R3_DIEM_ANH_CHUP"}[1h])) > 0
           labels: { severity: critical, doi: van-hanh-du-lieu }
           annotations:
             summary: "Ảnh chụp điểm lệch kết quả tính: ký số các hồ sơ liên quan đang bị chặn"
             description: "Tra appraisal.reconcile_run job R3_DIEM_ANH_CHUP có status LOI; detail.profiles là các hồ sơ bị chặn ký."
             runbook_url: {{ $rb }}/doi-soat-diem-anh-chup
         - alert: MissionDoiSoatR2SoCaiLechNguon
-          expr: sum(increase(mission_reconcile_mismatches_total{reconcile="R2_SO_CAI_NGUON"}[6h])) > 0
+          expr: sum(increase(mission_reconcile_mismatches_total{ {{- $s -}},reconcile="R2_SO_CAI_NGUON"}[6h])) > 0
           labels: { severity: critical, doi: soc }
           annotations:
             summary: "Sổ cái lệch dữ liệu nghiệp vụ: có thể dữ liệu nguồn bị sửa ngoài luồng (cảnh báo SOC mức cao)"
             description: "Tra <schema>.reconcile_run job R2_SO_CAI_NGUON có status LOI; detail.mismatches ghi đối tượng, mã sự kiện và loại lệch."
             runbook_url: {{ $rb }}/doi-soat-so-cai
         - alert: MissionDoiSoatR2NgungChay
-          expr: (time() - max(mission_reconcile_last_finished_seconds{reconcile="R2_SO_CAI_NGUON"})) > 30 * 3600
+          expr: (time() - max(mission_reconcile_last_finished_seconds{ {{- $s -}},reconcile="R2_SO_CAI_NGUON"})) > 30 * 3600
           for: 30m
           labels: { severity: warning, doi: van-hanh-du-lieu }
           annotations:
             summary: "Đối soát sổ cái ↔ bảng nguồn chưa có lần nào kết thúc trong 30 giờ (chỉ bật khi đã cấu hình mission.reconcile.ledger.base-url)"
             runbook_url: {{ $rb }}/doi-soat-so-cai
         - alert: MissionDoiSoatR7NgungChay
-          expr: (time() - max(mission_reconcile_last_finished_seconds{reconcile="R7_OUTBOX_KAFKA"})) > 3 * 3600
+          expr: (time() - max(mission_reconcile_last_finished_seconds{ {{- $s -}},reconcile="R7_OUTBOX_KAFKA"})) > 3 * 3600
           for: 15m
           labels: { severity: warning, doi: van-hanh-du-lieu }
           annotations:
             summary: "Đối soát outbox ↔ Kafka chưa chạy xong trong 3 giờ"
             runbook_url: {{ $rb }}/doi-soat-outbox-kafka
         - alert: MissionDoiSoatR5NgungChay
-          expr: (time() - max(mission_reconcile_last_finished_seconds{reconcile="R5_KHO_PHAN_TICH"})) > 3 * 3600
+          expr: (time() - max(mission_reconcile_last_finished_seconds{ {{- $s -}},reconcile="R5_KHO_PHAN_TICH"})) > 3 * 3600
           for: 15m
           labels: { severity: warning, doi: van-hanh-du-lieu }
           annotations:
             summary: "Đối soát PostgreSQL ↔ ClickHouse chưa chạy xong trong 3 giờ (chỉ bật khi đã cấu hình mission.reconcile.analytics.url)"
             runbook_url: {{ $rb }}/doi-soat-kho-phan-tich
         - alert: MissionDoiSoatR1NgungChay
-          expr: (time() - max(mission_reconcile_last_finished_seconds{reconcile="R1_BAN_SAO_TO_CHUC"})) > 30 * 3600
+          expr: (time() - max(mission_reconcile_last_finished_seconds{ {{- $s -}},reconcile="R1_BAN_SAO_TO_CHUC"})) > 30 * 3600
           for: 30m
           labels: { severity: warning, doi: van-hanh-du-lieu }
           annotations:

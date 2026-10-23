@@ -1,0 +1,59 @@
+{{- /*
+DL-12 · DV-06-10 · TL-03 "Đối soát và kiểm tra nhất quán" (dòng "Bản sao tổ chức") và bảng "Cơ chế đồng bộ dữ liệu"
+mục 10.4 (ECST dữ liệu tổ chức sang org_replica, độ trễ mục tiêu p99 5 giây), TL-04 "Quan sát hệ thống": cảnh báo
+bản sao tổ chức của workflow-service, theo mẫu deploy/charts/mission-core/templates/reconcile-alerts.yaml.
+Chỉ số: org_replica_lag_ms{tenant_id,entity_type} (OrgReplicaListeners) và chỉ số chung của vt-reconcile
+mission_reconcile_runs_total{reconcile,status}, mission_reconcile_repaired_total{reconcile},
+mission_reconcile_last_finished_seconds{reconcile}. Mọi biểu thức lọc application="workflow-service" để không lẫn
+chuỗi cùng tên của mission-core. Ngưỡng độ trễ lấy mục tiêu TL-03, chưa đo tải (YC-PT-19).
+Tắt bằng reconcile.alerts.enabled=false; runbookBase và namespace mặc định theo monitoring.alerts.
+*/ -}}
+{{- $rc := .Values.reconcile | default dict -}}
+{{- $al := $rc.alerts | default dict -}}
+{{- if ne (toString (dig "enabled" true $al)) "false" }}
+{{- $mon := (.Values.monitoring | default dict).alerts | default dict -}}
+{{- $rb := $al.runbookBase | default $mon.runbookBase | default "https://runbook.vt.local/okr" -}}
+{{- $ns := $al.namespace | default $mon.namespace | default "core" -}}
+{{- $lagMs := $al.lagTargetMs | default 5000 -}}
+{{- $s := printf "application=\"workflow-service\",namespace=\"%s\"" $ns -}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "workflow-service.fullname" . }}-doi-soat
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "workflow-service.labels" . | nindent 4 }}
+    app.kubernetes.io/component: reconcile
+spec:
+  groups:
+    - name: workflow-ban-sao-to-chuc
+      rules:
+        - alert: WorkflowBanSaoToChucTreCao
+          expr: max by (tenant_id, entity_type) (org_replica_lag_ms{ {{- $s -}} }) > {{ $lagMs }}
+          for: 10m
+          labels: { severity: warning, doi: van-hanh-du-lieu }
+          annotations:
+            summary: "Bản sao tổ chức của workflow-service áp sự kiện chậm hơn mục tiêu {{ $lagMs }} ms (loại {{ "{{ $labels.entity_type }}" }})"
+            description: "Tra org_replica.replica_checkpoint của tenant {{ "{{ $labels.tenant_id }}" }} và độ trễ consumer workflow.org-replica.* trên các topic org.*.changed.v1."
+            runbook_url: {{ $rb }}/doi-soat-ban-sao-to-chuc#workflow-service
+        - alert: WorkflowDoiSoatR1Lech
+          expr: sum(increase(mission_reconcile_runs_total{ {{- $s -}},reconcile="R1_BAN_SAO_TO_CHUC",status="LOI"}[2h])) > 0
+          labels: { severity: warning, doi: van-hanh-du-lieu }
+          annotations:
+            summary: "Đối soát bản sao tổ chức của workflow-service phát hiện lệch chưa tự xử lý được trong 2 giờ qua"
+            description: "Tra org_replica.reconcile_run (CSDL flowable) có status LOI; cột detail ghi bucket lệch và lệnh phát lại."
+            runbook_url: {{ $rb }}/doi-soat-ban-sao-to-chuc#workflow-service
+        - alert: WorkflowDoiSoatR1DaTuSua
+          expr: sum(increase(mission_reconcile_repaired_total{ {{- $s -}},reconcile="R1_BAN_SAO_TO_CHUC"}[2h])) > 0
+          labels: { severity: info, doi: van-hanh-du-lieu }
+          annotations:
+            summary: "Đối soát bản sao tổ chức của workflow-service xác nhận {{ "{{ $value | humanize }}" }} thực thể đã phát lại trong 2 giờ qua"
+            runbook_url: {{ $rb }}/doi-soat-ban-sao-to-chuc#workflow-service
+        - alert: WorkflowDoiSoatR1NgungChay
+          expr: (time() - max(mission_reconcile_last_finished_seconds{ {{- $s -}},reconcile="R1_BAN_SAO_TO_CHUC"})) > 30 * 3600
+          for: 30m
+          labels: { severity: warning, doi: van-hanh-du-lieu }
+          annotations:
+            summary: "Đối soát bản sao tổ chức của workflow-service chưa có lần nào kết thúc trong 30 giờ (CronJob doi-soat-r1 của org-service hoặc consumer workflow.org-replica.reconcile)"
+            runbook_url: {{ $rb }}/doi-soat-ban-sao-to-chuc#workflow-service
+{{- end }}
