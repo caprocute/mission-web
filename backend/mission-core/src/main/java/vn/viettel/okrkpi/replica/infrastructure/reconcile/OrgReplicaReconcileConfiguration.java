@@ -12,6 +12,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
+import vn.viettel.okrkpi.platform.reconcile.OrgReplicaReconciler;
 import vn.viettel.okrkpi.platform.reconcile.ReconcileMetrics;
 import vn.viettel.okrkpi.replica.infrastructure.persistence.OrgReplicaJdbc;
 import vn.viettel.okrkpi.shared.routing.TenantDirectory;
@@ -31,6 +32,7 @@ public class OrgReplicaReconcileConfiguration {
     Clock clock = Clock.systemUTC();
     return new OrgReplicaReconciler(
         jdbc.template(),
+        OrgReplicaReconciler.DEFAULT_SCHEMA,
         new ReconcileMetrics(meters.getIfAvailable(SimpleMeterRegistry::new), clock),
         json,
         clock);
