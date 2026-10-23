@@ -4,7 +4,8 @@
 # từ danh mục CRDs-catalog), Kyverno vt-pod-hardening trên pod của chart (CronJob và Warpgate), kube-linter cấu hình
 # chặt của vt-platform cho Warpgate, promtool, shellcheck, unittest. Unittest có phần chạy SQL thật trên PostgreSQL tạm
 # khi máy có sẵn bản cài PostgreSQL ≥ 16 (PG_BIN) và phần chạy thật Warpgate cùng otelcol khi có WARPGATE_BIN và
-# OTELCOL; không kéo ảnh, không dựng container; thiếu thì phần đó tự bỏ qua và báo trong kết quả.
+# OTELCOL; chính sách nhập chạy bằng môi trường CEL của kube-apiserver khi có VAP_CEL (tệp dựng từ tests/vap-cel:
+# cd tests/vap-cel && go build -o <tệp> .); không kéo ảnh, không dựng container; thiếu thì phần đó tự bỏ qua và báo.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT=$(mktemp -d); trap 'rm -rf "${OUT:?}"' EXIT
@@ -49,7 +50,7 @@ if command -v "$SHELLCHECK" >/dev/null 2>&1; then
     ../../environments/kind/kiem-thu-pam.sh && ok "shellcheck" || hong "shellcheck"
 else bo "shellcheck không có (đặt SHELLCHECK=<tệp>)"; fi
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py' -v > "$OUT/ut" 2>&1 \
-  && ok "unittest ($(grep -o 'Ran [0-9]* tests' "$OUT/ut")$(grep -q 'skipped' "$OUT/ut" && echo ', có ca bỏ qua: không có PostgreSQL'))" \
+  && ok "unittest ($(grep -o 'Ran [0-9]* tests' "$OUT/ut")$(grep -q 'skipped' "$OUT/ut" && echo ", bỏ qua: $(grep -o "skipped '[^']*'" "$OUT/ut" | sort -u | tr '\n' ' ')"))" \
   || { hong unittest; tail -30 "$OUT/ut"; }
 echo "Tổng: $dat đạt, $truot hỏng"
 [ "$truot" -eq 0 ]

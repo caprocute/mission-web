@@ -5,6 +5,9 @@
   - cua-sau: binding tới vai trò đặc quyền không mang nhãn PAM và không thuộc danh sách hệ thống được phép;
   - sai-hop-dong: binding mang nhãn PAM nhưng thiếu hoặc sai chú thích (yêu cầu, người duyệt, thời hạn > 4 giờ,
     chủ thể không phải một người dùng OIDC, vai trò hay vùng namespace không đúng, platform-admin thiếu hai người duyệt);
+  - cua-sau cũng gồm mọi binding không mang nhãn PAM có chủ thể là ServiceAccount mục tiêu kubectl của Warpgate
+    (<namespace>/warpgate-<vai trò>, hopDong.taiKhoanMay), vai trò nào cũng vậy: các tài khoản này chỉ được có quyền
+    qua binding PAM có thời hạn;
   - qua-han: binding PAM đã quá vt.io/het-han. Khi thuHoiQuaHan bật, binding PAM quá hạn cộng ân hạn bị xoá (chỉ thu
     hồi, không bao giờ cấp quyền); binding cửa sau chỉ báo động, không tự xoá.
 Kết quả: mỗi phát hiện một dòng JSON dạng ECS trên stdout (event.dataset security, Fluent Bit đưa vào sys.audit.v1
@@ -21,7 +24,7 @@ import sys
 import urllib.request
 
 SA = "/var/run/secrets/kubernetes.io/serviceaccount"
-CHI_SO_NHAY_CAM = {"pods/exec", "pods/attach", "pods/portforward", "nodes/proxy", "secrets"}
+CHI_SO_NHAY_CAM = {"pods/exec", "pods/attach", "pods/portforward", "nodes/proxy", "secrets", "serviceaccounts/token"}
 DONG_TU_LEO_QUYEN = {"escalate", "bind", "impersonate"}
 
 
@@ -55,7 +58,8 @@ def quy_tac_dac_quyen(rules):
         if verbs & DONG_TU_LEO_QUYEN:
             return True
         if res & CHI_SO_NHAY_CAM and verbs & {"*", "create", "get", "list", "watch"}:
-            # pods/exec, pods/attach, pods/portforward cần create hoặc get; secrets đọc bằng get, list, watch.
+            # pods/exec, pods/attach, pods/portforward, serviceaccounts/token cần create hoặc get; secrets đọc bằng get,
+            # list, watch.
             return True
         if "*" in res and ("" in r.get("apiGroups", []) or "*" in r.get("apiGroups", [])):
             return True
@@ -105,8 +109,13 @@ def kiem_hop_dong(b, kind, hd, now):
         if vung is not None and md.get("namespace") not in vung:
             loi.append(f'namespace {md.get("namespace")} ngoài vùng của {vai_tro}')
     sub = b.get("subjects") or []
-    if len(sub) != 1 or sub[0].get("kind") != "User" or not str(sub[0].get("name", "")).startswith("oidc:"):
-        loi.append("chủ thể phải là đúng một người dùng OIDC (oidc:<tên>)")
+    tkm = hd.get("taiKhoanMay") or {}
+    la_nguoi = len(sub) == 1 and sub[0].get("kind") == "User" and str(sub[0].get("name", "")).startswith("oidc:")
+    la_may = (len(sub) == 1 and bool(tkm.get("namespace")) and sub[0].get("kind") == "ServiceAccount"
+              and sub[0].get("namespace") == tkm["namespace"] and sub[0].get("name") == f'{tkm.get("tienTo", "warpgate-")}{vai_tro}')
+    if not (la_nguoi or la_may):
+        loi.append("chủ thể phải là đúng một người dùng OIDC (oidc:<tên>)"
+                   + (f' hoặc ServiceAccount {tkm["namespace"]}/{tkm.get("tienTo", "warpgate-")}{vai_tro}' if tkm.get("namespace") else ""))
     for khoa in ("yeuCau", "nguoiYeuCau", "nguoiDuyet", "capLuc", "hetHan"):
         if not ct.get(k[khoa]):
             loi.append(f"thiếu chú thích {k[khoa]}")
@@ -135,10 +144,19 @@ def kiem_hop_dong(b, kind, hd, now):
     return loi, (het is not None and het <= now), het
 
 
+def tai_khoan_may(hd):
+    """Tập chủ thể "ServiceAccount:<ns>/warpgate-<vai trò>" của mục tiêu kubectl Warpgate (rỗng khi tắt)."""
+    tkm = hd.get("taiKhoanMay") or {}
+    if not tkm.get("namespace"):
+        return set()
+    return {f'ServiceAccount:{tkm["namespace"]}/{tkm.get("tienTo", "warpgate-")}{r}' for r in hd["vaiTroPam"]}
+
+
 def danh_gia(crbs, rbs, clusterroles, cfg, now):
     """Phân loại toàn bộ binding. Trả (phát hiện, binding PAM đang hiệu lực, binding cần thu hồi)."""
     hd = cfg["hopDong"]
     q = cfg["quetRbac"]
+    may = tai_khoan_may(hd)
     dac_quyen = vai_tro_dac_quyen(clusterroles, q["vaiTroDacQuyen"])
     nhan_k, nhan_v = next(iter(hd["nhan"].items()))
     phat_hien, dang_mo, thu_hoi = [], [], []
@@ -162,6 +180,9 @@ def danh_gia(crbs, rbs, clusterroles, cfg, now):
                         thu_hoi.append({**goc, "het_han": han.isoformat()})
                 else:
                     dang_mo.append(goc)
+            elif may & set(goc["chu_the"]):
+                phat_hien.append({**goc, "loai": "cua-sau",
+                                  "chi_tiet": f"binding thường trực tới {vai_tro} cho ServiceAccount của Warpgate (chỉ được cấp qua PAM)"})
             elif co_dac_quyen and not duoc_phep(b, q["choPhep"]):
                 phat_hien.append({**goc, "loai": "cua-sau", "chi_tiet": f"binding tới {vai_tro} không do PAM tạo"})
     return phat_hien, dang_mo, thu_hoi

@@ -1,0 +1,349 @@
+{{- if .Values.warpgate.enabled }}
+{{- $v := .Values }}
+{{- $w := $v.warpgate }}
+{{- $ns := $w.namespace }}
+{{- $lm := $w.lamMoi }}
+{{- $sc := $w.saoChepGhiPhien }}
+{{- $gp := $v.pam.ghiPhien }}
+{{- range $v.hopDong.vaiTroPam }}
+---
+# Tài khoản máy của mục tiêu kubectl-{{ . }} (INF-27; SEC-42): không có binding thường trực (quét RBAC báo cửa sau nếu
+# có), không có Secret token lâu dài. Quyền chỉ có khi broker PAM tạo binding có thời hạn tới đúng tài khoản này
+# (chính sách nhập vt-pam-binding-co-thoi-han và vt-pam-tai-khoan-warpgate).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: warpgate-{{ . }}
+  namespace: {{ $ns }}
+  labels:
+    vt.io/pam-vai-tro: {{ . }}
+    {{- include "pam.labels" $ | nindent 4 }}
+automountServiceAccountToken: false
+{{- end }}
+---
+# CronJob warpgate-lam-moi: xin token ngắn hạn (TokenRequest) cho các tài khoản warpgate-<vai trò> và người dùng động
+# dba_ops cho mục tiêu psql. Chỉ được tạo token cho đúng các tài khoản đó, không đọc hay sửa gì khác trên cụm.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: warpgate-lam-moi
+  namespace: {{ $ns }}
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: warpgate-lam-moi
+  namespace: {{ $ns }}
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["serviceaccounts/token"]
+    verbs: ["create"]
+    resourceNames:
+      {{- range (include "pam.tenTaiKhoanMay" . | fromJsonArray) }}
+      - {{ . }}
+      {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: warpgate-lam-moi
+  namespace: {{ $ns }}
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: warpgate-lam-moi }
+subjects:
+  - { kind: ServiceAccount, name: warpgate-lam-moi, namespace: {{ $ns }} }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: warpgate-viec
+  namespace: {{ $ns }}
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+data:
+  warpgate_lam_moi.py: |
+    {{- .Files.Get "files/warpgate/warpgate_lam_moi.py" | nindent 4 }}
+  sao_chep_ghi_phien.py: |
+    {{- .Files.Get "files/warpgate/sao_chep_ghi_phien.py" | nindent 4 }}
+  lam-moi.json: |
+    {{- include "pam.lamMoiWarpgate" . | fromJson | toPrettyJson | nindent 4 }}
+---
+# Mỗi {{ $lm.schedule }}: token kubectl sống {{ $w.kubectl.tokenTtlGiay }} giây; người dùng psql đổi khi lease còn dưới
+# {{ $lm.nguongGiay }} giây. Cảnh báo PamWarpgateBiMatSapHet, PamWarpgateLamMoiLoi.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: warpgate-lam-moi
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: warpgate-lam-moi
+    {{- include "pam.labels" . | nindent 4 }}
+spec:
+  schedule: {{ $lm.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 300
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: warpgate-lam-moi
+            vt.io/pam-viec: "true"
+            vt.io/needs-k8s-api: "true"
+          annotations:
+            checksum/viec: {{ printf "%s%s" (.Files.Get "files/warpgate/warpgate_lam_moi.py") (include "pam.lamMoiWarpgate" .) | sha256sum }}
+        spec:
+          restartPolicy: Never
+          serviceAccountName: warpgate-lam-moi
+          # Token mặc định (audience API server) chỉ để gọi TokenRequest; token audience openbao chiếu riêng.
+          automountServiceAccountToken: true
+          enableServiceLinks: false
+          securityContext:
+            {{- include "pam.restrictedPod" . | nindent 12 }}
+          containers:
+            - name: lam-moi
+              image: {{ include "pam.image" (dict "root" . "name" "python") }}
+              imagePullPolicy: IfNotPresent
+              command: ["python3", "-I", "/scripts/warpgate_lam_moi.py"]
+              env:
+                - { name: CAU_HINH, value: /scripts/lam-moi.json }
+                - { name: BAO_JWT, value: /var/run/secrets/openbao/token }
+                - { name: BAO_CA, value: /openbao-ca/ca.crt }
+                - { name: WARPGATE_TOKEN_FILE, value: /warpgate-api/token }
+                - { name: WARPGATE_CA, value: /warpgate-tls/ca.crt }
+                - { name: PUSHGATEWAY, value: {{ $v.pushgateway.url | quote }} }
+                - { name: PYTHONDONTWRITEBYTECODE, value: "1" }
+              resources:
+                {{- toYaml $lm.resources | nindent 16 }}
+              securityContext:
+                {{- include "pam.restrictedContainer" . | nindent 16 }}
+              {{- include "pam.probeRong" . | nindent 14 }}
+              volumeMounts:
+                - { name: scripts, mountPath: /scripts, readOnly: true }
+                - { name: openbao-token, mountPath: /var/run/secrets/openbao, readOnly: true }
+                - { name: openbao-ca, mountPath: /openbao-ca, readOnly: true }
+                - { name: warpgate-api, mountPath: /warpgate-api, readOnly: true }
+                - { name: warpgate-tls, mountPath: /warpgate-tls, readOnly: true }
+          volumes:
+            - name: scripts
+              configMap:
+                name: warpgate-viec
+                items:
+                  - { key: warpgate_lam_moi.py, path: warpgate_lam_moi.py }
+                  - { key: lam-moi.json, path: lam-moi.json }
+            - name: openbao-token
+              projected:
+                sources:
+                  - serviceAccountToken: { audience: openbao, expirationSeconds: 600, path: token }
+            - name: openbao-ca
+              configMap: { name: {{ $v.quetCsdl.externalSecret.caConfigMap }}, items: [{ key: ca.crt, path: ca.crt }] }
+            - name: warpgate-api
+              secret:
+                secretName: {{ $lm.apiTokenRef.name }}
+                defaultMode: 0440
+                items: [{ key: {{ $lm.apiTokenRef.key }}, path: token }]
+            - name: warpgate-tls
+              secret: { secretName: warpgate-tls, defaultMode: 0440, items: [{ key: ca.crt, path: ca.crt }] }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: warpgate-lam-moi
+  namespace: {{ $ns }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: warpgate-lam-moi }
+  policyTypes: ["Ingress", "Egress"]
+  ingress: []
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: secure-data }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: openbao }
+      ports:
+        - { protocol: TCP, port: 8200 }
+    - to:
+        - podSelector:
+            matchLabels: { app.kubernetes.io/name: warpgate }
+      ports:
+        - { protocol: TCP, port: {{ $w.cong.http | int }} }
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: observability }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: pushgateway }
+      ports:
+        - { protocol: TCP, port: 9091 }
+    {{- with $w.dich.apiServerCIDRs }}
+    - to:
+        {{- range . }}
+        - ipBlock: { cidr: {{ . }} }
+        {{- end }}
+      ports:
+        - { protocol: TCP, port: 6443 }
+    {{- end }}
+{{- if $sc.enabled }}
+---
+# CronJob warpgate-ghi-phien (SEC-42): chép bản ghi phiên từ PVC của Warpgate sang s3://{{ $gp.bucket }}/{{ $sc.tienTo }}
+# (Object Lock {{ $gp.objectLock | upper }} {{ $gp.luuNgay }} ngày). PVC là ReadWriteOnce nên pod phải chạy cùng node với
+# warpgate-0 và gắn chỉ đọc. Cảnh báo PamGhiPhienCu, PamGhiPhienVangMat.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: warpgate-ghi-phien
+  namespace: {{ $ns }}
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: warpgate-ghi-phien
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: warpgate-ghi-phien
+    {{- include "pam.labels" . | nindent 4 }}
+spec:
+  schedule: {{ $sc.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 3000
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: warpgate-ghi-phien
+            vt.io/pam-viec: "true"
+            vt.io/needs-k8s-api: "false"
+          annotations:
+            checksum/viec: {{ .Files.Get "files/warpgate/sao_chep_ghi_phien.py" | sha256sum }}
+        spec:
+          restartPolicy: Never
+          serviceAccountName: warpgate-ghi-phien
+          automountServiceAccountToken: false
+          enableServiceLinks: false
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels: { app.kubernetes.io/name: warpgate }
+                  topologyKey: kubernetes.io/hostname
+          securityContext:
+            {{- include "pam.restrictedPod" . | nindent 12 }}
+          containers:
+            - name: sao-chep
+              image: {{ include "pam.image" (dict "root" . "name" "python") }}
+              imagePullPolicy: IfNotPresent
+              command: ["python3", "-I", "/scripts/sao_chep_ghi_phien.py"]
+              env:
+                - { name: THU_MUC, value: /data/recordings }
+                - { name: S3_ENDPOINT, value: {{ $gp.endpoint | quote }} }
+                - { name: S3_REGION, value: {{ $gp.region | quote }} }
+                - { name: BUCKET, value: {{ $gp.bucket | quote }} }
+                - { name: TIEN_TO, value: {{ $sc.tienTo | quote }} }
+                - { name: ON_DINH_PHUT, value: {{ $sc.onDinhPhut | quote }} }
+                - { name: S3_CA, value: /ca/ca.crt }
+                - { name: CELL, value: {{ $v.cell | quote }} }
+                - { name: PUSHGATEWAY, value: {{ $v.pushgateway.url | quote }} }
+                - { name: S3_KHOA, value: /s3-khoa }
+                - { name: PYTHONDONTWRITEBYTECODE, value: "1" }
+              resources:
+                {{- toYaml $sc.resources | nindent 16 }}
+              securityContext:
+                {{- include "pam.restrictedContainer" . | nindent 16 }}
+              {{- include "pam.probeRong" . | nindent 14 }}
+              volumeMounts:
+                - { name: scripts, mountPath: /scripts, readOnly: true }
+                - { name: du-lieu, mountPath: /data, readOnly: true }
+                - { name: ca, mountPath: /ca, readOnly: true }
+                - { name: s3-khoa, mountPath: /s3-khoa, readOnly: true }
+          volumes:
+            - name: scripts
+              configMap:
+                name: warpgate-viec
+                items: [{ key: sao_chep_ghi_phien.py, path: sao_chep_ghi_phien.py }]
+            - name: s3-khoa
+              secret:
+                secretName: {{ $sc.s3SecretRef.name }}
+                defaultMode: 0440
+                items: [{ key: access-key, path: access-key }, { key: secret-key, path: secret-key }]
+            - name: du-lieu
+              persistentVolumeClaim: { claimName: du-lieu-warpgate-0, readOnly: true }
+            - name: ca
+              secret: { secretName: {{ $sc.caBundle.secret }}, items: [{ key: {{ $sc.caBundle.key }}, path: ca.crt }] }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: warpgate-ghi-phien
+  namespace: {{ $ns }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: warpgate-ghi-phien }
+  policyTypes: ["Ingress", "Egress"]
+  ingress: []
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: observability }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: pushgateway }
+      ports:
+        - { protocol: TCP, port: 9091 }
+    {{- with $sc.egressTo }}
+    - to:
+        {{- toYaml . | nindent 8 }}
+      ports:
+        - { protocol: TCP, port: {{ $sc.egressPort | int }} }
+    {{- end }}
+{{- end }}
+---
+# Chiều vào Pushgateway cho hai CronJob của Warpgate (chính sách cộng dồn, như pam-quet-to-pushgateway-ingress).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: warpgate-viec-to-pushgateway-ingress
+  namespace: observability
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: pushgateway }
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ $ns }} }
+          podSelector:
+            matchLabels: { vt.io/pam-viec: "true" }
+      ports:
+        - { protocol: TCP, port: 9091 }
+{{- end }}

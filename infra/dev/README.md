@@ -93,6 +93,23 @@ Script đọc `DEV_SERVER_HOST`, `DEV_SERVER_SSH_PORT`, `DEV_SERVER_USER`, `DEV_
 
 Khi máy trạm hoặc máy chủ thiếu `rsync`, script chép bằng `tar` các tệp git theo dõi, nên tệp đã xoá khỏi repo phải xoá tay trên máy chủ.
 
+Ba trường hợp `plan` chỉ báo lưu ý, không chặn:
+
+- **Giao diện và danh sách mật khẩu cấm của Keycloak.** Compose gắn `../keycloak-theme/mission` và `./keycloak/password-blacklists` (realm đòi `mat-khau-pho-bien.txt`). Script chép thêm `infra/keycloak-theme` sang thư mục anh em `<thư mục cha của DEV_SERVER_INFRA_DIR>/keycloak-theme`, nên không còn phải chép tay vào container.
+- **Volume ẩn danh do ảnh khai `VOLUME`** (`/mnt/shared/config`, `/etc/kafka/secrets` của Kafka; `/openbao/file`, `/openbao/logs` của OpenBao và openbao-init). Compose kế thừa chúng khi dựng lại container cùng dịch vụ, kể cả khi tên container đổi, vì script không dùng `-V`. OpenBao dev chạy `-dev` nên dữ liệu khoá thật nằm trong bộ nhớ; `openbao-init` nạp lại khoá mẫu sau mỗi lần dựng.
+- **Đổi tên container** (`mission-dev-postgres-1` thành `mission-dev-postgres`…). Compose tìm container cũ theo nhãn dịch vụ, đổi tên nó tạm, tạo container mới với cùng chỗ lưu dữ liệu rồi xoá container cũ. Lệnh tay hay kịch bản trên máy chủ còn gọi tên `-1` phải đổi sang tên mới.
+
+Dịch vụ được thay thế khai ở `SYNC_RETIRE` (mặc định `connect=debezium`: máy chủ từng chạy Debezium dưới tên dịch vụ `connect`, giữ cổng 35083). `plan` coi container cũ sẽ bị xoá, nên không báo tranh cổng; nếu container cũ còn volume có tên hoặc thư mục dưới `data/` thì chặn. `apply` dừng và xoá đúng container có nhãn `com.docker.compose.project=mission-dev` và `com.docker.compose.service=connect` ngay trước `up`.
+
+**Các bước cho phiên trên máy Mac** (lần áp đầu tiên):
+
+1. `git pull` nhánh `main`, kiểm `.env` ở gốc repo có `DEV_SERVER_HOST`, `DEV_SERVER_INFRA_DIR`.
+2. Trên máy chủ, ghi danh sách connector cũ để so sau khi áp: `curl -s http://127.0.0.1:35083/connectors`. Debezium mới dùng topic trạng thái `_debezium_configs`, `_debezium_offsets`, `_debezium_status`; nếu `connect` cũ dùng topic khác thì connector phải đăng ký lại sau khi áp.
+3. Bổ sung `*_DATA` trong `.env` máy chủ như đoạn cảnh báo ở trên, rồi chạy `infra/dev/scripts/sync-server.sh plan` tới khi không còn `[DỪNG]`; đọc các dòng `[lưu ý]` (đổi tên, volume ẩn danh, dịch vụ thay thế).
+4. Chạy `infra/dev/scripts/sync-server.sh apply`. Sau khi xong: `docker ps --filter label=com.docker.compose.project=mission-dev`, `infra/dev/scripts/health.sh`, và kiểm Keycloak đọc được realm `mission` (trang đăng nhập có giao diện `mission`, đổi mật khẩu bằng một mật khẩu trong danh sách cấm bị từ chối).
+5. So `curl -s http://127.0.0.1:35083/connectors` với danh sách ở bước 2, đăng ký lại connector thiếu.
+6. Quay lui khi lỗi: `git checkout <commit trong .repo-commit trước đó>` trên máy trạm rồi `apply` lại; dữ liệu ở `data/` và volume ẩn danh không bị đụng.
+
 ---
 
 ## 3. Cách vận hành các profile

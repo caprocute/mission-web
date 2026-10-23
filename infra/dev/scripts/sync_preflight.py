@@ -7,7 +7,14 @@ không bí mật của ``.env`` máy chủ) với trạng thái container thật
 * một dịch vụ đang chạy sẽ được dựng lại trên chỗ lưu dữ liệu khác: volume có tên khác, hoặc thư
   mục gắn khác, hoặc mất hẳn điểm gắn dữ liệu (nguy cơ chạy Postgres, Kafka, MinIO trên volume trống);
 * một cổng mà cấu hình mới mở đang bị container khác giữ (container ngoài project, hoặc container
-  của project mà lần áp này không dựng lại).
+  của project mà lần áp này không dựng lại);
+* một dịch vụ được thay thế (biến ``SYNC_RETIRE``, dạng ``cũ=mới``) còn giữ dữ liệu có tên.
+
+Volume ẩn danh mà ảnh khai ``VOLUME`` (ví dụ ``/etc/kafka/secrets`` của Kafka, ``/openbao/file`` của
+OpenBao) không có trong compose; ``docker compose up`` khi dựng lại container của cùng dịch vụ kế thừa
+chúng (không dùng ``-V``/``--renew-anon-volumes``), kể cả khi tên container đổi, nên chỉ báo lưu ý.
+Container của dịch vụ được thay thế (``connect`` thay bằng ``debezium``) được coi là sẽ bị xoá trước
+khi áp, nên cổng của nó không tính là tranh chấp.
 
 Chỉ in tên dịch vụ, tên container, đường dẫn dữ liệu và số cổng; không in biến môi trường.
 
@@ -15,6 +22,7 @@ Cách dùng: sync_preflight.py <compose.json> <server-state.txt> <thư mục inf
 """
 
 import json
+import os
 import re
 import sys
 
@@ -22,18 +30,19 @@ PROJECT = "mission-dev"
 
 
 def load_state(path):
-    """Dòng ``C|tên|dịch vụ|đang chạy|mounts json|project`` cho container, ``P|project|tên|cổng`` cho cổng."""
+    """Dòng ``C|tên|dịch vụ|đang chạy|VOLUME của ảnh json|mounts json`` cho container, ``P|project|tên|cổng`` cho cổng."""
     containers, ports = [], []
     with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.rstrip("\n")
             if line.startswith("C|"):
-                _, name, service, running, mounts = line.split("|", 4)
+                _, name, service, running, image_vols, mounts = line.split("|", 5)
                 containers.append(
                     {
                         "name": name.strip('"').lstrip("/"),
                         "service": service,
                         "running": running == "true",
+                        "image_volumes": set((json.loads(image_vols or "null") or {}).keys()),
                         "mounts": json.loads(mounts or "[]") or [],
                     }
                 )
@@ -44,7 +53,22 @@ def load_state(path):
     return containers, ports
 
 
+ANON = re.compile(r"^[0-9a-f]{64}$")
+
+
+def retire_map():
+    """``SYNC_RETIRE="connect=debezium other=new"``: dịch vụ cũ trên máy chủ được thay bằng dịch vụ mới."""
+    out = {}
+    for item in os.environ.get("SYNC_RETIRE", "").split():
+        old, _, new = item.partition("=")
+        if old and new:
+            out[old] = new
+    return out
+
+
 def new_mounts(service, config, local_dir, server_dir):
+    # Thư mục cha của infra/dev (infra/) được chép cùng chỗ trên máy chủ (keycloak-theme), nên ánh xạ theo cha.
+    local_root, server_root = os.path.dirname(local_dir), os.path.dirname(server_dir)
     out = {}
     for v in service.get("volumes", []):
         target = v.get("target")
@@ -53,8 +77,8 @@ def new_mounts(service, config, local_dir, server_dir):
             out[target] = ("volume", vol.get("name") or f"{PROJECT}_{v.get('source')}")
         elif v.get("type") == "bind":
             src = v.get("source", "")
-            if src.startswith(local_dir):
-                src = server_dir + src[len(local_dir):]
+            if src == local_root or src.startswith(local_root + "/"):
+                src = server_root + src[len(local_root):]
             out[target] = ("bind", src.rstrip("/"))
     return out
 
@@ -71,9 +95,28 @@ def main(argv):
     containers, ports = load_state(state_path)
     errors, notes = [], []
 
+    retired = retire_map()
     replaced = set()
     for c in containers:
         svc = services.get(c["service"])
+        if svc is None and c["service"] in retired and retired[c["service"]] in services:
+            replaced.add(c["name"])
+            named = [
+                m for m in c["mounts"]
+                if (m.get("Type") == "volume" and not ANON.match(m.get("Name") or ""))
+                or (m.get("Type") == "bind" and (m.get("Source") or "").startswith(server_dir + "/data/"))
+            ]
+            for m in named:
+                errors.append(
+                    f"Dịch vụ {c['service']} (thay bằng {retired[c['service']]}): container {c['name']} còn dữ liệu "
+                    f"ở {m.get('Destination')} ({m.get('Type')} {m.get('Name') or m.get('Source')}); không xoá tự động."
+                )
+            if not named:
+                notes.append(
+                    f"Container {c['name']} (dịch vụ {c['service']}) được thay bằng dịch vụ {retired[c['service']]}; "
+                    "apply dừng và xoá nó trước khi dựng lại (không có dữ liệu có tên)."
+                )
+            continue
         if svc is None:
             if c["running"]:
                 notes.append(
@@ -91,6 +134,11 @@ def main(argv):
             current = m.get("Name") if kind == "volume" else (m.get("Source") or "").rstrip("/")
             is_data = kind == "volume" or current.startswith(server_dir + "/data/")
             planned = mounts.get(dest)
+            if planned is None and kind == "volume" and ANON.match(current or "") and dest in c["image_volumes"]:
+                notes.append(
+                    f"Dịch vụ {c['service']}: volume ẩn danh {dest} (VOLUME của ảnh) được compose kế thừa khi dựng lại."
+                )
+                continue
             if planned is None:
                 msg = f"Dịch vụ {c['service']}: điểm gắn {dest} ({kind} {current}) không còn trong cấu hình mới."
                 (errors if is_data else notes).append(msg)

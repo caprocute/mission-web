@@ -56,3 +56,29 @@ groups:
         annotations:
           summary: "Chưa có kết quả quét RBAC không có cửa sau nào trên Pushgateway"
           runbook_url: https://runbook.vt.local/okr/pam-cap-quyen
+      # Warpgate (INF-27): bản ghi phiên phải lên bucket Object Lock 365 ngày (SEC-42); bí mật mục tiêu phải được làm mới.
+      - alert: PamGhiPhienCu
+        expr: time() - max by (cell) (vt_pam_ghi_phien_last_success_timestamp_seconds) > 7200
+        labels: { severity: critical, doi: sre-nen-tang, sec: SEC-42 }
+        annotations:
+          summary: "Cell {{ $labels.cell }}: bản ghi phiên Warpgate chưa được chép sang bucket bất biến quá 2 giờ"
+          runbook_url: https://runbook.vt.local/okr/pam-cap-quyen
+      - alert: PamGhiPhienVangMat
+        expr: absent(vt_pam_ghi_phien_last_success_timestamp_seconds)
+        for: 2h
+        labels: { severity: critical, doi: sre-nen-tang, sec: SEC-42 }
+        annotations:
+          summary: "Chưa có lần chép bản ghi phiên Warpgate nào thành công trên Pushgateway"
+          runbook_url: https://runbook.vt.local/okr/pam-cap-quyen
+      - alert: PamWarpgateBiMatSapHet
+        expr: min by (kv) (vt_pam_warpgate_bi_mat_het_han_timestamp_seconds) - time() < 900
+        labels: { severity: warning, doi: sre-nen-tang, sec: SEC-42 }
+        annotations:
+          summary: "Bí mật {{ $labels.kv }} của mục tiêu Warpgate còn dưới 15 phút mà chưa được làm mới"
+          runbook_url: https://runbook.vt.local/okr/pam-cap-quyen
+      - alert: PamWarpgateLamMoiLoi
+        expr: time() - max(vt_pam_warpgate_lam_moi_last_success_timestamp_seconds) > 3600
+        labels: { severity: warning, doi: sre-nen-tang, sec: SEC-42 }
+        annotations:
+          summary: "CronJob warpgate-lam-moi không chạy thành công quá 1 giờ"
+          runbook_url: https://runbook.vt.local/okr/pam-cap-quyen

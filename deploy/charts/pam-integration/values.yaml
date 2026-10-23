@@ -47,10 +47,13 @@ pam:
     # SD-ID của dữ liệu có cấu trúc (32473 là số doanh nghiệp IANA dành cho tài liệu, RFC 5612; thay khi có số thật).
     sdId: vtpam@32473
   # Lưu bản ghi phiên: 1 năm, bất biến (SEC-42, SEC-44): bucket RGW có Object Lock chế độ compliance.
+  # Bucket do chart rgw-cell khai (khoá buckets.pam-ghi-phien, tên <ma>-cell-<mã cell>), người dùng S3 pam-ghi-phien chỉ
+  # có PutObject và ListBucket (không xoá được, không đổi được khoá).
   ghiPhien:
     luuNgay: 365
-    bucket: pam-ghi-phien
-    endpoint: https://rgw.vt.local
+    bucket: pam-cell-g4
+    endpoint: https://s3.cell-g4.hl.vt.local
+    region: cell-g4-zg
     objectLock: compliance
 
 # Hợp đồng binding có thời hạn (khớp ops/runbooks/an-ninh-pam-rbac.md của INF-19 và mở rộng thêm chú thích duyệt).
@@ -205,15 +208,16 @@ warpgate:
     clientSecretRef: { name: warpgate-oidc, key: client-secret }
     scopes: [openid, email, profile]
     # Nhóm Keycloak trong claim groups → vai trò Warpgate (vai trò Warpgate chỉ mở quyền vào mục tiêu; quyền thật trên
-    # cụm hay CSDL vẫn do binding có thời hạn và người dùng động OpenBao quyết định).
+    # cụm hay CSDL vẫn do binding có thời hạn và người dùng động OpenBao quyết định). Vai trò pam-kubectl-<vai trò> không
+    # ánh xạ từ nhóm: chỉ broker cấp, có hạn.
     rolesClaim: groups
     roleMappings:
-      platform-ops-sre: [pam-kubectl, pam-ssh]
+      platform-ops-sre: [pam-ssh]
       platform-ops-dba: [pam-psql]
     adminRoleMappings:
       platform-ops-an-ninh: [warpgate:admin]
-  # Lưu bản ghi phiên trên PVC (ghi lần đầu vào CSDL Warpgate; sao chép sang bucket bất biến theo pam.ghiPhien là
-  # việc của vận hành, xem wiki 12). Nhật ký trong CSDL: 7 ngày, kiểm toán 365 ngày (SEC-42).
+  # Lưu bản ghi phiên trên PVC (Warpgate ghi vào /data/recordings); CronJob warpgate-ghi-phien chép sang bucket bất
+  # biến theo pam.ghiPhien (warpgate.saoChepGhiPhien). Nhật ký trong CSDL: 7 ngày, kiểm toán 365 ngày (SEC-42).
   luuTru: { size: 50Gi, storageClassName: "" }
   log: { retention: 7days, auditRetention: 365days }
   # Kho bí mật của Warpgate (secret backend kiểu openbao, chỉ đọc KV v2): đăng nhập auth kubernetes của OpenBao bằng
@@ -228,14 +232,6 @@ warpgate:
   # quản trị 0.30 (POST /@warpgate/admin/api/targets), vaiTro gắn sau bằng /targets/{id}/roles/{role_id}. Mật khẩu,
   # khoá, token là tham chiếu secret://<kho>/<mount>/<đường dẫn>#<trường> tới KV của OpenBao, không có giá trị.
   mucTieu:
-    - name: kubectl-g4
-      description: API server cell g4
-      vaiTro: [pam-kubectl]
-      options:
-        kind: Kubernetes
-        cluster_url: https://api.g4.vt.local:6443
-        tls: { mode: Required, verify: true }
-        auth: { kind: Token, token: "secret://openbao-cell/kv/warpgate/kubectl-g4#token" }
     - name: ssh-node-g4
       description: Node của cell g4 (khẩn cấp)
       vaiTro: [pam-ssh]
@@ -246,18 +242,49 @@ warpgate:
         username: van-hanh
         allow_insecure_algos: false
         auth: { kind: PublicKey }
-    - name: psql-pg-core
-      description: pg-core (dba_ops, không đọc bảng nghiệp vụ)
-      vaiTro: [pam-psql]
-      options:
-        kind: Postgres
-        host: pg-core-rw.data-pg.svc
-        port: 5432
-        username: dba_ops_warpgate
-        auth: { kind: Password, password: "secret://openbao-cell/kv/warpgate/psql-pg-core#password" }
-        tls: { mode: Required, verify: true }
-        protocol_version: "3.0"
-        default_database_name: khoi_tao
+  # Mục tiêu kubectl theo vai trò PAM: mỗi vai trò trong hopDong.vaiTroPam có một ServiceAccount warpgate-<vai trò>
+  # (namespace của Warpgate) không có binding thường trực nào, một mục tiêu <tenMucTieu>-<vai trò> và một vai trò Warpgate
+  # pam-kubectl-<vai trò>. Khi yêu cầu được duyệt, broker tạo binding có thời hạn tới đúng ServiceAccount đó (chính sách
+  # nhập kiểm như binding cho người) và cấp vai trò Warpgate cho người yêu cầu với expires_at = vt.io/het-han. Token
+  # của ServiceAccount do CronJob warpgate-lam-moi xin bằng TokenRequest (sống tokenTtlGiay, không có Secret token
+  # lâu dài) rồi ghi vào kv/warpgate/<tenMucTieu>-<vai trò> mà mục tiêu tham chiếu.
+  kubectl:
+    tenMucTieu: kubectl-g4
+    clusterUrl: https://api.g4.vt.local:6443
+    tokenTtlGiay: 3600
+  # Mục tiêu psql theo cụm: CronJob warpgate-lam-moi đọc người dùng động database/creds/<cụm>-dba-ops (4 giờ) của
+  # OpenBao, ghi mật khẩu vào kv/warpgate/psql-<cụm> và đổi username của mục tiêu psql-<cụm> qua API quản trị Warpgate
+  # (username của mục tiêu Warpgate không nhận tham chiếu secret://). Xin người dùng mới khi lease còn dưới nguongGiay.
+  psql:
+    - { cum: pg-core, namespace: data-pg, csdl: khoi_tao }
+  # CronJob làm mới bí mật của mục tiêu (token kubectl, người dùng psql). Lịch 20 phút: token 1 giờ luôn còn ≥ 40 phút;
+  # người dùng psql đổi khi lease còn dưới 90 phút (người dùng cũ hết hạn tự nhiên, phiên đang mở không bị cắt ngang).
+  lamMoi:
+    schedule: "*/20 * * * *"
+    nguongGiay: 5400
+    # Token API của một người dùng quản trị Warpgate (Secret do ESO dựng; chỉ dùng để đổi username mục tiêu psql).
+    apiTokenRef: { name: warpgate-api, key: token }
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+      limits: { cpu: 200m, memory: 96Mi }
+  # Sao chép bản ghi phiên từ PVC sang bucket Object Lock COMPLIANCE 365 ngày (pam.ghiPhien; bucket và người dùng S3
+  # pam-ghi-phien khai ở chart rgw-cell). Chỉ chép tệp không đổi trong onDinhPhut phút; tệp đổi sau đó được chép lại
+  # thành phiên bản mới (bucket bật versioning), bản cũ vẫn bị khoá.
+  saoChepGhiPhien:
+    enabled: true
+    schedule: "*/15 * * * *"
+    onDinhPhut: 10
+    tienTo: ghi-phien/g4
+    # Secret rgw-pam-ghi-phien (access-key, secret-key) do ExternalSecret của rgw-cell dựng trong namespace pam.
+    s3SecretRef: { name: rgw-pam-ghi-phien }
+    # CA nội bộ (Secret do trust bundle của cert-manager phát vào namespace, như backup-cell) để kiểm TLS của RGW.
+    caBundle: { secret: vt-noi-bo-ca, key: ca.crt }
+    # Đường ra tới điểm cuối S3 của zone master (NetworkPolicyPeer, ví dụ ipBlock của VIP RGW). Trống thì không ra được.
+    egressTo: []
+    egressPort: 443
+    resources:
+      requests: { cpu: 20m, memory: 64Mi }
+      limits: { cpu: 500m, memory: 256Mi }
   # Cầu nối nhật ký: Warpgate gửi từng sự kiện JSON qua socket datagram Unix (log.send_to); sidecar chuyển sự kiện
   # kiểm toán sang syslog RFC 5424 SD-ID pam.siem.sdId qua TLS tới otel-siem (pam.siem.syslog). Ảnh Python dùng chung.
   cauNoi:
