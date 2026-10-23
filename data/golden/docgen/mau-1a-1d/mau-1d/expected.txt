@@ -1,0 +1,26 @@
+# Văn bản kỳ vọng trích từ PDF/A do Gotenberg sinh từ input.json (FormTemplatesIT).
+# Mỗi dòng phải xuất hiện theo đúng thứ tự; khoảng trắng và xuống dòng trong ô bảng được gộp trước khi so.
+# Dòng trống và dòng bắt đầu bằng # bị bỏ qua.
+MẪU GIẢ LẬP – CHỈ DÙNG ĐỂ PHÁT TRIỂN VÀ KIỂM THỬ, KHÔNG CÓ GIÁ TRỊ PHÁP LÝ
+Phiên bản bộ quy tắc: KHOI_DANG phiên bản 2.0.0 Phiên bản mẫu biểu: 1 (0.9.0-gia-lap)
+Mẫu 1D, phiên bản mẫu 1 · Bộ quy tắc đánh giá KHOI_DANG phiên bản 2.0.0
+MẪU 1D
+Bản kiểm điểm đảng viên ngoài hệ thống chính trị, áp bộ tiêu chí riêng theo PL 2E (trường hợp đặc thù §11).
+Đơn vị: Chi bộ Văn phòng Sở Tư pháp (giả lập)
+Kỳ đánh giá: Năm 2026
+Họ và tên: Lê Văn Cường
+Chức vụ, chức danh: Nhân viên
+Tiêu chí chung
+Nhóm tiêu chí Kết quả
+Chính trị, tư tưởng Đảm bảo
+Đạo đức, lối sống Đảm bảo
+Ý thức tổ chức kỷ luật Không đảm bảo
+Ưu điểm: Chủ động tham mưu, hoàn thành đúng hạn các nhiệm vụ được giao.
+Phối hợp tốt với các phòng chuyên môn.
+Hạn chế, khuyết điểm: Có lúc chậm cập nhật số liệu báo cáo tháng.
+Hướng khắc phục: Lập lịch cập nhật số liệu hằng tuần.
+Kết quả khắc phục hạn chế kỳ trước
+Nội dung hạn chế Tình trạng khắc phục
+Chưa đầy đủ hồ sơ lưu trữ Đã khắc phục
+Báo cáo quý II nộp muộn Đang khắc phục
+Tự xếp loại: Hoàn thành nhiệm vụ

@@ -43,6 +43,24 @@ export function jobLocation(res: HttpResponse<unknown>): string | null {
   return res.headers.get('Location');
 }
 
+/**
+ * Tác vụ nền đã được nhận (`202 Accepted`): job ban đầu ở thân và địa chỉ theo dõi. Hợp đồng gửi
+ * `Location: /api/v1/jobs/{id}`; khi proxy làm rơi header thì dựng lại từ `job.id` (suy luận).
+ */
+export interface JobAccepted {
+  location: string;
+  job: Job;
+}
+
+/** Đọc phản hồi 202 + `Location` thành {@link JobAccepted} để theo dõi bằng `JobTracker.track`. */
+export function acceptedJob(res: HttpResponse<Job>): JobAccepted {
+  const job = res.body as Job;
+  return {
+    location: res.headers.get('Location') ?? `/api/v1/jobs/${encodeURIComponent(job.id)}`,
+    job,
+  };
+}
+
 /** Đọc `Retry-After` (giây hoặc ngày HTTP) thành mili giây. */
 export function retryAfterMs(value: string | null, now = Date.now()): number | null {
   if (!value) return null;

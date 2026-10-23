@@ -183,24 +183,29 @@ public class JdbcSagaRepository implements SagaRepository {
             .param(id)
             .query((r, i) -> step(r))
             .list();
-    return new SagaInstance(
-        id,
-        rs.getObject("tenant_id", UUID.class),
-        SagaType.valueOf(rs.getString("saga_type")),
-        rs.getObject("correlation_id", UUID.class),
-        (String) control.get("khoaDocQuyen"),
-        UUID.fromString((String) control.get("nguoiKhoiTao")),
-        parameters,
-        steps,
-        SagaStatus.valueOf(rs.getString("status")),
-        rs.getInt("current_step_no"),
-        rs.getBoolean("point_of_no_return_passed"),
-        Boolean.TRUE.equals(control.get("yeuCauTamDung")),
-        Boolean.TRUE.equals(control.get("tamDung")),
-        Boolean.TRUE.equals(control.get("buTru")),
-        instant(rs, "started_at"),
-        instant(rs, "finished_at"),
-        rs.getLong("row_version"));
+    SagaInstance saga =
+        new SagaInstance(
+            id,
+            rs.getObject("tenant_id", UUID.class),
+            SagaType.valueOf(rs.getString("saga_type")),
+            rs.getObject("correlation_id", UUID.class),
+            (String) control.get("khoaDocQuyen"),
+            UUID.fromString((String) control.get("nguoiKhoiTao")),
+            parameters,
+            steps,
+            SagaStatus.valueOf(rs.getString("status")),
+            rs.getInt("current_step_no"),
+            rs.getBoolean("point_of_no_return_passed"),
+            Boolean.TRUE.equals(control.get("yeuCauTamDung")),
+            Boolean.TRUE.equals(control.get("tamDung")),
+            Boolean.TRUE.equals(control.get("buTru")),
+            instant(rs, "started_at"),
+            instant(rs, "finished_at"),
+            rs.getLong("row_version"));
+    @SuppressWarnings("unchecked")
+    Map<String, Object> notes = (Map<String, Object>) context.get("ghiChu");
+    saga.restoreNotes(notes);
+    return saga;
   }
 
   private static SagaStep step(ResultSet rs) throws SQLException {
@@ -228,6 +233,9 @@ public class JdbcSagaRepository implements SagaRepository {
     Map<String, Object> context = new LinkedHashMap<>();
     context.put("thamSo", saga.parameters());
     context.put("_dieuKhien", control);
+    if (!saga.notes().isEmpty()) {
+      context.put("ghiChu", saga.notes());
+    }
     try {
       return json.writeValueAsString(context);
     } catch (JsonProcessingException e) {

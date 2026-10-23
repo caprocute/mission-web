@@ -81,6 +81,16 @@ mission:
     policy:
       base-url: ${MISSION_CORE_URL:http://127.0.0.1:8080}
       cache-max-entries: ${POLICY_CACHE_MAX_ENTRIES:32}
+    # DV-07-04, DV-07-06: đọc đầu vào của MOD-04 (listAppraisalScoringInputs) và worker hàng đợi lô.
+    inputs:
+      base-url: ${MISSION_CORE_URL:http://127.0.0.1:8080}
+      read-timeout: ${SCORING_INPUTS_READ_TIMEOUT:PT30S}
+    worker:
+      enabled: ${SCORING_WORKER_ENABLED:false}
+      parallelism: ${VT_SCORING_RECOMPUTE_PARALLELISM:4}
+      poll-interval: ${SCORING_WORKER_POLL_INTERVAL:PT2S}
+      lease: ${SCORING_WORKER_LEASE:PT10M}
+      retry-backoff: ${SCORING_WORKER_RETRY_BACKOFF:PT10S}
   service:
     code: ${SERVICE_CODE:SVC-07}
     schema: ${DB_SCHEMA:scoring}
@@ -107,8 +117,21 @@ okrkpi:
       url: ${APICURIO_REGISTRY_URL:http://127.0.0.1:35081/apis/registry/v2}
   idempotency:
     schema: scoring
-  # DV-07-02: consumer EVT-13 qua inbox idempotent scoring.inbox_processed.
+  # DV-07-02: consumer EVT-13; DV-07-04: EVT-06, EVT-08, EVT-09, EVT-22 (nhóm scoring-incremental),
+  # cùng inbox idempotent scoring.inbox_processed.
   inbox:
     schema: scoring
     registry:
       url: ${APICURIO_REGISTRY_URL:http://127.0.0.1:35081/apis/registry/v2}
+
+# DV-07-06: trang đầu vào 200 hồ sơ cần thời hạn dài hơn mặc định 3 s; lô lỗi do worker thử lại nên
+# không thử lại trong client.
+resilience4j:
+  timelimiter:
+    instances:
+      appraisal-inputs:
+        timeout-duration: ${SCORING_INPUTS_TIMEOUT:PT35S}
+  retry:
+    instances:
+      appraisal-inputs:
+        max-attempts: 1

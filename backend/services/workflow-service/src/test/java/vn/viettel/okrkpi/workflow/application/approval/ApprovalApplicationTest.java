@@ -492,6 +492,11 @@ class ApprovalApplicationTest {
     }
 
     @Override
+    public void complete(CallbackJob job, String workerId, Map<String, Object> variables) {
+      complete(job, workerId);
+    }
+
+    @Override
     public void fail(
         CallbackJob job, String workerId, String message, int retriesLeft, Duration retryAfter) {
       failed.put(job.jobId(), retriesLeft);

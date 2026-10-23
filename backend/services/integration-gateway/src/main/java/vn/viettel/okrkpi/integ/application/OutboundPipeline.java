@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -139,8 +140,23 @@ public class OutboundPipeline {
 
   /** Gửi các thông điệp đến hạn của mọi tenant; trả số thông điệp đã xử lý. */
   public int dispatchDue(int limit) {
+    return dispatch(messages.due(limit));
+  }
+
+  /**
+   * Gửi các thông điệp đến hạn lọc theo mã kết nối (DV-13-05: Deployment riêng của route Trục chỉ
+   * gửi mã của Trục, Deployment chính bỏ các mã đó); bộ lọc rỗng thì như {@link #dispatchDue(int)}.
+   */
+  public int dispatchDue(int limit, java.util.Set<String> codes, boolean include) {
+    if (codes.isEmpty() && !include) {
+      return dispatchDue(limit);
+    }
+    return dispatch(messages.due(limit, codes, include));
+  }
+
+  private int dispatch(List<Due> due) {
     int handled = 0;
-    for (Due d : messages.due(limit)) {
+    for (Due d : due) {
       try {
         if (dispatch(TenantId.of(d.tenantId()), d.createdDay(), d.id()).isPresent()) {
           handled++;

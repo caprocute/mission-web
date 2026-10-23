@@ -10,10 +10,10 @@ import {
   untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { OrgTimeQuery, OrgTreeApi, OrgTreeNode, OrgTreeStats, OrgUnitMatch } from '@vt/api-client';
+import { OrgTimeQuery, OrgTreeApi, OrgTreeNode, OrgUnitSearchHit } from '@vt/api-client';
 import { InputTextModule } from 'primeng/inputtext';
 import { Subscription, debounceTime, forkJoin, of, Subject, switchMap } from 'rxjs';
-import { errorText, fmtDate, fmtInt } from '../../admin-ui';
+import { errorText } from '../../admin-ui';
 
 interface Row {
   node: OrgTreeNode;
@@ -22,23 +22,16 @@ interface Row {
   posInSet: number;
 }
 
-/** Nhãn cạnh tên nút: kết thúc (mờ), hợp nhất, hiệu lực mới (vùng 2 của SCR-0103). */
-export function nodeBadge(n: OrgTreeNode, today: string): { text: string; kind: string } | null {
-  if (n.validTo && n.validTo <= today)
-    return { text: `kết thúc ${fmtDate(prevDay(n.validTo))}`, kind: 'end' };
-  if (n.validFrom > today) return { text: `hiệu lực từ ${fmtDate(n.validFrom)}`, kind: 'new' };
-  if (n.mergedOn) return { text: `hợp nhất ${fmtDate(n.mergedOn)}`, kind: 'merge' };
-  return null;
-}
-
 /** `valid_to` là ngày đầu tiên hết hiệu lực; người dùng đọc "kết thúc" là ngày cuối còn hiệu lực. */
 export function prevDay(iso: string): string {
   return new Date(Date.parse(`${iso}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
 }
 
 /**
- * Vùng 2 SCR-0103: cây đơn vị nạp lười theo nhánh (hàng nghìn nút) theo mẫu WAI-ARIA tree:
- * mũi tên lên, xuống chuyển nút; phải mở hoặc vào con; trái đóng hoặc về cha; Enter chọn.
+ * Vùng 2 SCR-0103: cây đơn vị theo mẫu WAI-ARIA tree: mũi tên lên, xuống chuyển nút; phải mở hoặc
+ * vào con; trái đóng hoặc về cha; Enter chọn. Ba tầng đầu đến từ `GET /org/units/tree`, tầng sâu hơn
+ * nạp lười từng nhánh bằng `GET /org/units/{id}/subtree?depth=1` (hàng nghìn nút). Hợp đồng không
+ * trả hiệu lực hay số phân công của nút: cây chỉ có đơn vị hiệu lực tại ngày xem.
  */
 @Component({
   selector: 'vt-org-tree-view',
@@ -60,7 +53,7 @@ export function prevDay(iso: string): string {
           <li>
             <button type="button" class="res" (click)="reveal(m)">
               <strong>{{ m.name }}</strong>
-              <span class="muted small block">{{ m.path || 'Đơn vị cấp cao nhất' }}</span>
+              <span class="muted small block">{{ path(m) || 'Đơn vị cấp cao nhất' }}</span>
             </button>
           </li>
         } @empty {
@@ -79,27 +72,20 @@ export function prevDay(iso: string): string {
           [attr.aria-level]="r.level"
           [attr.aria-setsize]="r.setSize"
           [attr.aria-posinset]="r.posInSet"
-          [attr.aria-expanded]="r.node.childCount ? expanded().has(r.node.id) : null"
+          [attr.aria-expanded]="r.node.hasChildren ? expanded().has(r.node.id) : null"
           [attr.aria-selected]="selected() === r.node.id"
           [attr.tabindex]="focusId() === r.node.id ? 0 : -1"
           [class.sel]="selected() === r.node.id"
-          [class.ended]="!!r.node.validTo && r.node.validTo <= today"
           [style.padding-left.px]="(r.level - 1) * 18 + 4"
           (click)="onClick(r.node, $event)"
           (keydown)="onKey($event)"
           (focus)="focusId.set(r.node.id)"
         >
           <span class="tw" aria-hidden="true">{{
-            r.node.childCount ? (expanded().has(r.node.id) ? '▾' : '▸') : ''
+            r.node.hasChildren ? (expanded().has(r.node.id) ? '▾' : '▸') : ''
           }}</span>
           <span class="lbl">
             <span class="nm">{{ r.node.name }}</span>
-            @if (r.node.assignmentCount && !simple()) {
-              <span class="muted small"> · {{ r.node.assignmentCount }}</span>
-            }
-            @if (badge(r.node); as b) {
-              <span class="badge" [class]="'badge ' + b.kind">{{ b.text }}</span>
-            }
             @if (loading().has(r.node.id)) {
               <span class="muted small"> đang tải…</span>
             }
@@ -107,12 +93,6 @@ export function prevDay(iso: string): string {
         </li>
       }
     </ul>
-    @if (stats(); as s) {
-      <p class="muted small foot">
-        {{ int(s.unitCount) }} đơn vị · {{ s.subjectGroupCount }} khối đối tượng (Phụ lục 2A) ·
-        {{ int(s.positionCount) }} vị trí việc làm
-      </p>
-    }
   `,
   styles: `
     .full {
@@ -180,9 +160,6 @@ export function prevDay(iso: string): string {
       background: #fdf2f4;
       font-weight: 600;
     }
-    .ended .nm {
-      color: #545b69;
-    }
     .lbl {
       flex: 1;
       min-width: 0;
@@ -191,28 +168,6 @@ export function prevDay(iso: string): string {
       flex: none;
       width: 16px;
       color: #4b5563;
-    }
-    .badge {
-      margin-left: 4px;
-      font-size: 0.8em;
-      padding: 1px 8px;
-      border-radius: 999px;
-      font-weight: 400;
-    }
-    .end {
-      background: #eef0f3;
-      color: #374151;
-    }
-    .merge {
-      background: #e8f0fe;
-      color: #1e3a8a;
-    }
-    .new {
-      background: #fff4d6;
-      color: #6b4400;
-    }
-    .foot {
-      margin: 12px 0 0;
     }
     .sr-only {
       position: absolute;
@@ -232,16 +187,15 @@ export class OrgTreeView {
   /** Đơn vị đang chọn (vùng 3–5 hiện theo đơn vị này). */
   readonly selected = model<string | null>(null);
 
-  protected readonly today = new Date().toISOString().slice(0, 10);
-  protected readonly int = fmtInt;
+  /** Con đã nạp theo đơn vị cha (`''` là gốc) và cha của từng nút (để về cha bằng phím trái). */
   protected readonly children = signal(new Map<string, OrgTreeNode[]>());
+  private readonly parentOf = new Map<string, string | null>();
   protected readonly expanded = signal(new Set<string>());
   protected readonly loading = signal(new Set<string>());
-  protected readonly stats = signal<OrgTreeStats | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly focusId = signal<string | null>(null);
   protected readonly q = signal('');
-  protected readonly matches = signal<OrgUnitMatch[]>([]);
+  protected readonly matches = signal<OrgUnitSearchHit[]>([]);
   protected readonly searching = signal(false);
   private readonly search$ = new Subject<string>();
   private loads = new Subscription();
@@ -269,8 +223,8 @@ export class OrgTreeView {
         this.loads.unsubscribe();
         this.loads = new Subscription();
         this.children.set(new Map());
-        this.load(null, t, true);
-        for (const id of this.expanded()) this.load(id, t);
+        this.loading.set(new Set());
+        this.loadRoot(t, true);
       });
     });
     this.search$
@@ -287,46 +241,81 @@ export class OrgTreeView {
       });
   }
 
-  protected badge(n: OrgTreeNode) {
-    return nodeBadge(n, this.today);
+  protected path(m: OrgUnitSearchHit) {
+    return m.ancestors.map((a) => a.name).join(' / ');
   }
 
-  /** Tải lại các nhánh đang mở (sau khi thay đổi tổ chức). */
+  /** Tải lại cây và các nhánh đang mở (sau khi sửa, thay đổi tổ chức, nhập tệp). */
   reload() {
-    const t = this.time();
-    this.load(null, t);
-    for (const id of this.expanded()) this.load(id, t);
+    this.loadRoot(this.time());
   }
 
-  private load(parent: string | null, t: OrgTimeQuery, root = false) {
-    const key = parent ?? '';
-    this.loading.update((s) => new Set(s).add(key));
+  /**
+   * Ghi các nút (kèm các tầng con có sẵn trong phản hồi) vào bảng con theo cha; nút `hasChildren`
+   * mà `children` rỗng là tầng chưa nạp, để mở thì gọi `/subtree`.
+   */
+  private ingest(map: Map<string, OrgTreeNode[]>, key: string, nodes: OrgTreeNode[]) {
+    map.set(key, nodes);
+    for (const n of nodes) {
+      this.parentOf.set(n.id, key || null);
+      if (n.hasChildren && n.children?.length) this.ingest(map, n.id, n.children);
+      else if (!n.hasChildren) map.set(n.id, []);
+    }
+  }
+
+  private setLoading(key: string, on: boolean) {
+    this.loading.update((s) => {
+      const n = new Set(s);
+      if (on) n.add(key);
+      else n.delete(key);
+      return n;
+    });
+  }
+
+  private loadRoot(t: OrgTimeQuery, first = false) {
+    this.setLoading('', true);
     this.loads.add(
-      this.api.tree(parent, t).subscribe({
+      this.api.tree(t).subscribe({
         next: (r) => {
-          this.children.update((m) => new Map(m).set(key, r.items));
-          if (root) {
-            this.stats.set(r.stats);
-            this.error.set(null);
-            // mở sẵn cấp gốc, chọn gốc khi chưa chọn
-            const first = r.items[0];
-            if (first && !this.expanded().size) this.expand(first.id);
-            if (first && !this.selected()) this.selected.set(first.id);
-            if (first && !this.focusId()) this.focusId.set(first.id);
-          }
-          this.loading.update((s) => {
-            const n = new Set(s);
-            n.delete(key);
-            return n;
-          });
+          // thay toàn bộ cây đã nạp: nhánh sâu đang mở được nạp lại ngay dưới đây
+          const fresh = new Map<string, OrgTreeNode[]>();
+          this.parentOf.clear();
+          this.ingest(fresh, '', r.roots);
+          this.children.set(fresh);
+          this.error.set(null);
+          this.setLoading('', false);
+          // mở sẵn cấp gốc, chọn gốc khi chưa chọn
+          const root = r.roots[0];
+          if (first && root && !this.expanded().size) this.expand(root.id);
+          if (root && !this.selected()) this.selected.set(root.id);
+          if (root && !this.focusId()) this.focusId.set(root.id);
+          // nhánh đang mở nằm sâu hơn phần cây vừa nhận: nạp tiếp
+          for (const id of this.expanded()) if (!this.children().has(id)) this.load(id, t);
         },
         error: (e) => {
           this.error.set(errorText(e, 'Không tải được cây tổ chức.'));
-          this.loading.update((s) => {
-            const n = new Set(s);
-            n.delete(key);
+          this.setLoading('', false);
+        },
+      }),
+    );
+  }
+
+  private load(id: string, t: OrgTimeQuery) {
+    if (this.loading().has(id)) return;
+    this.setLoading(id, true);
+    this.loads.add(
+      this.api.subtree(id, t).subscribe({
+        next: (r) => {
+          this.children.update((m) => {
+            const n = new Map(m);
+            this.ingest(n, id, r.roots[0]?.children ?? []);
             return n;
           });
+          this.setLoading(id, false);
+        },
+        error: (e) => {
+          this.error.set(errorText(e, 'Không tải được cây tổ chức.'));
+          this.setLoading(id, false);
         },
       }),
     );
@@ -346,7 +335,7 @@ export class OrgTreeView {
   }
 
   protected toggle(n: OrgTreeNode) {
-    if (!n.childCount) return;
+    if (!n.hasChildren) return;
     if (this.expanded().has(n.id)) this.collapse(n.id);
     else this.expand(n.id);
   }
@@ -369,10 +358,11 @@ export class OrgTreeView {
   }
 
   /** Mở chuỗi tổ tiên của kết quả tìm (nạp lười từng nhánh) rồi chọn đơn vị. */
-  protected reveal(m: OrgUnitMatch) {
+  protected reveal(m: OrgUnitSearchHit) {
     const t = this.time();
-    const missing = m.ancestorIds.filter((a) => !this.children().has(a));
-    this.expanded.update((s) => new Set([...s, ...m.ancestorIds]));
+    const ids = m.ancestors.map((a) => a.id);
+    const missing = ids.filter((a) => !this.children().has(a));
+    this.expanded.update((s) => new Set([...s, ...ids]));
     const done = () => {
       this.q.set('');
       this.matches.set([]);
@@ -380,11 +370,11 @@ export class OrgTreeView {
       this.focus(m.id);
     };
     if (!missing.length) return done();
-    forkJoin(missing.map((a) => this.api.tree(a, t))).subscribe({
+    forkJoin(missing.map((a) => this.api.subtree(a, t))).subscribe({
       next: (res) => {
         this.children.update((map) => {
           const n = new Map(map);
-          res.forEach((r, i) => n.set(missing[i], r.items));
+          res.forEach((r, i) => this.ingest(n, missing[i], r.roots[0]?.children ?? []));
           return n;
         });
         done();
@@ -422,12 +412,12 @@ export class OrgTreeView {
         go(rows.length - 1);
         break;
       case 'ArrowRight':
-        if (r.node.childCount && !this.expanded().has(r.node.id)) this.expand(r.node.id);
+        if (r.node.hasChildren && !this.expanded().has(r.node.id)) this.expand(r.node.id);
         else if (rows[i + 1]?.level === r.level + 1) go(i + 1);
         break;
       case 'ArrowLeft':
         if (this.expanded().has(r.node.id)) this.collapse(r.node.id);
-        else if (r.node.parentId) this.focus(r.node.parentId);
+        else if (this.parentOf.get(r.node.id)) this.focus(this.parentOf.get(r.node.id)!);
         break;
       case 'Enter':
       case ' ':

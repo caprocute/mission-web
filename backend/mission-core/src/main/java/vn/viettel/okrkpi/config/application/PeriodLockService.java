@@ -257,6 +257,11 @@ public class PeriodLockService {
   }
 
   private void requireStepUp(Actor actor, String operationId) {
+    requireStepUp(actor, operationId, clock);
+  }
+
+  /** MFA bước lên còn hạn 15 phút (BR-08-02); dùng chung cho các thao tác điều khiển saga. */
+  static void requireStepUp(Actor actor, String operationId, Clock clock) {
     long maxAge = STEP_UP_WINDOW.toSeconds();
     if (!StepUpRequiredException.REQUIRED_ACR.equals(
         AuthzSubjectResolver.normalizeAcr(actor.acr()))) {

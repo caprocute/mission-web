@@ -47,7 +47,9 @@ public class SecurityConfig {
   /**
    * DV-08-05: cổng nội bộ {@code /internal/**} cho ai-gateway đọc tệp cần OCR. ai-gateway gọi không
    * kèm token nên xác thực dịch vụ dựa vào mTLS của lưới: AuthorizationPolicy của chart chỉ cho
-   * danh tính ai-gateway; ứng dụng chỉ nhận GET và tự kiểm tệp sạch, không C3.
+   * danh tính ai-gateway; ứng dụng chỉ nhận GET và tự kiểm tệp sạch, không C3. CORE-03-04: POST
+   * {@code /internal/v1/ingested-objects} cho integration-gateway chuyển tệp gốc văn bản đã ban
+   * hành, AuthorizationPolicy chỉ cho danh tính integration-gateway.
    */
   @Bean
   SecurityFilterChain internal(HttpSecurity http) throws Exception {
@@ -57,9 +59,14 @@ public class SecurityConfig {
                 a.requestMatchers(
                         org.springframework.http.HttpMethod.GET, "/internal/v1/ocr-objects/**")
                     .permitAll()
+                    .requestMatchers(
+                        org.springframework.http.HttpMethod.POST, "/internal/v1/ingested-objects")
+                    .permitAll()
                     .anyRequest()
                     .denyAll())
-        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        // Gọi giữa dịch vụ, không phiên cookie.
+        .csrf(c -> c.ignoringRequestMatchers("/internal/**"));
     return http.build();
   }
 

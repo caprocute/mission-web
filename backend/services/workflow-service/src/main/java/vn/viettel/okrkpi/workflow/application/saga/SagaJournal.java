@@ -26,7 +26,9 @@ public interface SagaJournal {
     YEU_CAU_BU_TRU,
     HOAN_TAT,
     DA_BU_TRU,
-    CHO_XU_LY
+    CHO_XU_LY,
+    CHAY_LAI_LOI,
+    CHAP_NHAN_LOI
   }
 
   /**

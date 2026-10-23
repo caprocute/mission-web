@@ -19,8 +19,10 @@ import org.springframework.security.web.SecurityFilterChain;
 /**
  * Token Keycloak (OIDC, ADR-08) kiểm bằng resource server cho {@code /api/**}. Lệnh sinh biểu mẫu
  * dành cho vai trò {@code appraiser} và client nội bộ {@code service_client} (ma trận thao tác
- * {@code createDossierRenderJob}); phạm vi đơn vị của người gọi do MOD-06 kiểm khi trả danh sách
- * biểu mẫu. Actuator chạy ở cổng quản trị riêng.
+ * {@code createDossierRenderJob}); xem trước cho {@code manager}, {@code member}, {@code appraiser}
+ * ({@code previewDossierForm}); sinh bản nháp cho {@code decider} ({@code
+ * createDossierDraftForms}); phạm vi đơn vị của người gọi do MOD-06 kiểm khi trả danh sách biểu
+ * mẫu. Actuator chạy ở cổng quản trị riêng.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnWebApplication
@@ -28,6 +30,9 @@ public class SecurityConfig {
 
   public static final String SERVICE_CLIENT = "service_client";
   public static final String APPRAISER = "appraiser";
+  public static final String MANAGER = "manager";
+  public static final String MEMBER = "member";
+  public static final String DECIDER = "decider";
 
   @Bean
   SecurityFilterChain api(
@@ -39,6 +44,10 @@ public class SecurityConfig {
               if (authEnabled) {
                 a.requestMatchers(HttpMethod.POST, "/api/v1/dossiers/render-jobs")
                     .hasAnyRole(APPRAISER, SERVICE_CLIENT)
+                    .requestMatchers(HttpMethod.POST, "/api/v1/dossiers/forms/preview")
+                    .hasAnyRole(MANAGER, MEMBER, APPRAISER)
+                    .requestMatchers(HttpMethod.POST, "/api/v1/dossiers/forms")
+                    .hasRole(DECIDER)
                     .anyRequest()
                     .authenticated();
               } else {

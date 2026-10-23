@@ -52,6 +52,27 @@ public class JdbcEvidenceKeyWraps implements EvidenceKeyWraps {
   }
 
   @Override
+  public FileAccess fileAccess(TenantId tenant, UUID objectId, UUID personId) {
+    return jdbc.sql(
+            "SELECT count(*) AS total, count(*) FILTER (WHERE w.recipient_person_id = ? AND"
+                + " w.revoked_at IS NULL) AS active FROM product.e2ee_key_wrap w WHERE"
+                + " w.tenant_id = ? AND w.object_type = ? AND w.object_id IN (SELECT"
+                + " f.evidence_version_id FROM product.evidence_version_file f WHERE f.tenant_id"
+                + " = ? AND f.object_id = ? UNION SELECT v.id FROM product.evidence_version v"
+                + " WHERE v.tenant_id = ? AND v.object_id = ?)")
+        .params(
+            personId,
+            tenant.value(),
+            OBJECT_TYPE,
+            tenant.value(),
+            objectId,
+            tenant.value(),
+            objectId)
+        .query((rs, i) -> new FileAccess(rs.getLong("total") > 0, rs.getLong("active") > 0))
+        .single();
+  }
+
+  @Override
   public void upsert(TenantId tenant, UUID versionId, List<NewWrap> wraps, UUID actor, Instant at) {
     for (NewWrap w : wraps) {
       jdbc.sql(

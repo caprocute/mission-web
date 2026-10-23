@@ -49,6 +49,31 @@ class PolicyPublishedHandlerTest {
     ScoreJobStore jobs =
         new ScoreJobStore() {
           @Override
+          public void addTotal(UUID tenantId, int periodBucket, UUID jobId, int items) {}
+
+          @Override
+          public void markFailed(UUID tenantId, int periodBucket, UUID jobId, UUID actorId) {}
+
+          @Override
+          public java.util.Optional<Pending> pendingIncremental(
+              UUID tenantId, int periodBucket, UUID periodId, String reason) {
+            return java.util.Optional.empty();
+          }
+
+          @Override
+          public void updateScope(
+              UUID tenantId,
+              int periodBucket,
+              UUID jobId,
+              vn.viettel.okrkpi.scoring.domain.CanonicalDoc scope,
+              UUID actorId) {}
+
+          @Override
+          public java.util.Optional<JobState> find(UUID jobId) {
+            return java.util.Optional.empty();
+          }
+
+          @Override
           public UUID open(ScoreJob job) {
             opened.add(job);
             return job.id();

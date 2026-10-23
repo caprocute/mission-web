@@ -1,8 +1,12 @@
 package vn.viettel.okrkpi.oversight.infrastructure.persistence;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import vn.viettel.okrkpi.events.EventTopics;
@@ -23,6 +27,8 @@ import vn.vtokr.oversight.v1.KhieuNaiDaGui;
  * khiếu nại.
  */
 public class OutboxComplaintEvents implements ComplaintEvents {
+
+  private static final ObjectMapper JSON = new ObjectMapper();
 
   static final String AGGREGATE_TYPE = "Complaint";
   static final String TEMPLATE_FILED = "KHIEU_NAI_DA_GUI";
@@ -73,16 +79,47 @@ public class OutboxComplaintEvents implements ComplaintEvents {
     notify(tenant, c, template, List.copyOf(new LinkedHashSet<>(recipients)));
   }
 
+  @Override
+  public void stateChanged(
+      TenantId tenant,
+      Complaint c,
+      String template,
+      Collection<UUID> recipients,
+      Map<String, String> params) {
+    if (recipients.isEmpty()) {
+      return;
+    }
+    notify(tenant, c, template, List.copyOf(new LinkedHashSet<>(recipients)), params);
+  }
+
   private void notify(TenantId tenant, Complaint c, String template) {
     notify(tenant, c, template, List.of(c.complainantId()));
   }
 
   private void notify(TenantId tenant, Complaint c, String template, List<UUID> recipients) {
+    notify(tenant, c, template, recipients, Map.of());
+  }
+
+  private void notify(
+      TenantId tenant,
+      Complaint c,
+      String template,
+      List<UUID> recipients,
+      Map<String, String> params) {
+    Map<String, String> all = new LinkedHashMap<>();
+    all.put("ma", c.code());
+    all.putAll(params);
+    String json;
+    try {
+      json = JSON.writeValueAsString(all);
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException(e);
+    }
     YeuCauThongBao payload =
         YeuCauThongBao.newBuilder()
             .setRecipientIds(recipients)
             .setTemplateCode(template)
-            .setParams("{\"ma\":\"" + c.code() + "\"}")
+            .setParams(json)
             .setDeepLink(DEEP_LINK + c.id())
             .setPriority("BINH_THUONG")
             .setAggregateVersion(c.rowVersion())

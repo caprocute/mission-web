@@ -56,7 +56,9 @@ public class PdfBoxStamper implements PdfStamper {
           RenderStamp.FORM_CODE, "Mã biểu mẫu",
           RenderStamp.TEMPLATE_VERSION, "Phiên bản mẫu biểu đã dùng",
           RenderStamp.PACKAGE_ID, "Mã gói hồ sơ",
-          RenderStamp.INPUT_SHA256, "Băm SHA-256 của dữ liệu đầu vào");
+          RenderStamp.INPUT_SHA256, "Băm SHA-256 của dữ liệu đầu vào",
+          RenderStamp.REOPEN_REQUEST_ID, "Yêu cầu mở lại kỳ của lần sinh lại",
+          RenderStamp.DRAFT, "Bản nháp ngoài gói hồ sơ");
 
   @Override
   public byte[] stamp(byte[] pdf, RenderStamp stamp) {

@@ -1,33 +1,43 @@
-import { TenancyModel, TenantStatus } from '../../lib/models/tenant';
-import { TenantOnboarding } from '../../lib/models/tenant-onboarding';
+import {
+  ConfigTenant,
+  TENANT_ONBOARDING_STATUSES,
+  TenancyModel,
+  TenantStatus,
+} from '../../lib/models/tenant';
+import {
+  KekMode,
+  ReadinessCheck,
+  TenantAdminContact,
+  TenantIdp,
+  TenantPolicyBinding,
+  TenantStaffSource,
+} from '../../lib/models/tenant-onboarding';
 import { resolveRelativeDates } from '../mock-router';
 import fixture from './tenants.json';
 
 /**
  * Kho dữ liệu dùng chung của giả lập danh bạ tenant (SCR-0101) và trình khởi tạo tenant (SCR-0102).
- * Mỗi tenant giữ thêm phần hồ sơ khởi tạo (`onboarding`) và số lệch nhân sự mức Cao (BR-01-10).
+ * Tenant đang khởi tạo giữ thêm phần cấu hình wizard theo `ConfigTenant` của `config.yaml`
+ * (`onboarding`), số lệch nhân sự mức Cao (BR-01-10) và trạng thái saga cấp phát giả lập.
  */
-export interface OnboardingExtra extends Omit<
-  TenantOnboarding,
-  | 'id'
-  | 'name'
-  | 'code'
-  | 'sector'
-  | 'contractRef'
-  | 'flows'
-  | 'status'
-  | 'step'
-  | 'tenancyModel'
-  | 'cellCode'
-  | 'domain'
-  | 'dataRegion'
-  | 'rowVersion'
-  | 'provisionLocation'
-> {
+export interface OnboardingExtra {
+  onboardingCode: string;
+  expectedUnits?: number;
+  adminContact?: TenantAdminContact;
+  createdAt: string;
+  kekMode?: KekMode;
+  policyBindings: Pick<TenantPolicyBinding, 'flow' | 'packVersionId'>[];
+  uiPackVersionId?: string;
+  idps: TenantIdp[];
+  staffSources: TenantStaffSource[];
   /** Số lệch mức Cao còn lại (SCR-0104), chặn kích hoạt khi > 0. */
   highIssues: number;
   /** Saga cấp phát đang chạy (khi `DANG_CAP_PHAT`). */
   provision?: { jobId: string; startedAt: number; failAt?: number };
+  /** Job saga gần nhất (`provisionJobId`). */
+  provisionJobId?: string;
+  /** Lỗi saga gần nhất đã bù trừ (MSG-01-07), trả qua `Job.problem` của job gần nhất. */
+  provisionError?: { step: string; reason: string };
 }
 
 /**
@@ -67,7 +77,11 @@ let seq = 340;
 
 type FixtureOnboarding = Record<
   string,
-  Partial<OnboardingExtra> & { contractRefOverride?: string; provisionRunning?: boolean }
+  Partial<OnboardingExtra> & {
+    contractRefOverride?: string;
+    contractValidTo?: string;
+    provisionRunning?: boolean;
+  }
 >;
 
 export function load(): StoredTenant[] {
@@ -88,14 +102,16 @@ export function load(): StoredTenant[] {
       ),
     } as StoredTenant;
     if (ob) {
-      const { contractRefOverride, provisionRunning, ...rest } = ob;
+      const { contractRefOverride, contractValidTo, provisionRunning, ...rest } = ob;
       if (contractRefOverride) stored.contractRef = contractRefOverride;
+      if (contractValidTo) stored.contractValidTo = contractValidTo;
+      const provision = provisionRunning
+        ? { jobId: crypto.randomUUID(), startedAt: Date.now() - 2_000 }
+        : undefined;
       stored.onboarding = {
         ...(rest as OnboardingExtra),
-        expectedAccounts: t.expectedAccounts ?? t.maxAccounts,
-        provision: provisionRunning
-          ? { jobId: crypto.randomUUID(), startedAt: Date.now() - 2_000 }
-          : undefined,
+        provision,
+        provisionJobId: provision?.jobId,
       };
     }
     return stored;
@@ -137,4 +153,102 @@ export function resetTenantStore(): void {
 export function nextOnboardingCode(): string {
   seq++;
   return `ONB-${new Date().getFullYear()}-${String(seq).padStart(4, '0')}`;
+}
+
+/** Bước wizard theo hợp đồng: chỉ có khi tenant còn khởi tạo (`null` khi đã vận hành). */
+export function onboardingStepOf(t: StoredTenant): number | null {
+  return TENANT_ONBOARDING_STATUSES.includes(t.status) || t.status === 'SAN_SANG'
+    ? (t.onboardingStep ?? (t.status === 'SAN_SANG' ? 6 : 1))
+    : null;
+}
+
+/** Id phiên bản gói giả lập của tenant đã vận hành, ổn định theo tên gói. */
+const packId = (name: string) =>
+  `0192e1c4-5d6e-7f80-9a1b-${[...name]
+    .reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 1e12, 7)
+    .toString()
+    .padStart(12, '0')}`;
+
+/** Tách "tên vX.Y" của UI Pack thành `{ name, version }` theo `ConfigTenant.uiPack`. */
+function uiPackRef(p: string): ConfigTenant['uiPack'] {
+  if (!p) return undefined;
+  const m = /^(.*) v(\d+(?:\.\d+)*)$/.exec(p);
+  return m ? { name: m[1], version: m[2] } : { name: p, version: '' };
+}
+
+/** Phiên bản Policy Pack gốc mà giả lập biết (cùng id với giả lập `/policies/packs`). */
+export const PACK_CATALOG = fixture.policyPacks as {
+  id: string;
+  flow: 'DANG' | 'NHA_NUOC';
+  packCode: string;
+  name: string;
+  version: string;
+  goldenPassRate: number;
+}[];
+
+/** Nhãn "tên vX.Y" của SCR-0101 cho một phiên bản gói. */
+export function packLabel(id: string): string {
+  const p = PACK_CATALOG.find((x) => x.id === id);
+  return p ? `${p.name} v${p.version.split('.').slice(0, 2).join('.')}` : 'Bộ quy định đánh giá';
+}
+
+/**
+ * Chi tiết `ConfigTenant`. Tenant đang khởi tạo lấy phần cấu hình wizard từ `onboarding`; kiểm tra
+ * tổng thể (`readinessChecks`) do bộ giả lập trình khởi tạo tính và truyền vào.
+ */
+export function tenantDetail(t: StoredTenant, readiness?: ReadinessCheck[]): ConfigTenant {
+  const o = t.onboarding;
+  const bindings = o
+    ? o.policyBindings.map((b) => {
+        const p = PACK_CATALOG.find((x) => x.id === b.packVersionId);
+        return { ...b, packCode: p?.packCode ?? '', version: p?.version ?? '' };
+      })
+    : t.policyPacks.map((p) => {
+        const m = /^(.*) v(\d+(?:\.\d+)*)$/.exec(p);
+        return {
+          flow: p.startsWith('Khối Đảng') ? ('DANG' as const) : ('NHA_NUOC' as const),
+          packVersionId: packId(p),
+          packCode: m ? m[1] : p,
+          version: m ? m[2] : '',
+        };
+      });
+  const created = t.statusLog.at(-1)?.at;
+  return {
+    id: t.id,
+    code: t.code,
+    name: t.name,
+    sector: t.sector as ConfigTenant['sector'],
+    onboardingCode: o?.onboardingCode,
+    contractRef: t.contractRef,
+    contractValidTo: t.contractValidTo,
+    flows: t.flows,
+    expectedAccounts: t.expectedAccounts,
+    expectedUnits: o?.expectedUnits,
+    maxAccounts: t.maxAccounts,
+    accountCount: t.accountCount,
+    tenancyModel: t.tenancyModel,
+    cellCode: t.cellCode || undefined,
+    domain: t.domain || undefined,
+    dataRegion: t.dataRegion,
+    kekMode: o?.kekMode,
+    policyBindings: bindings,
+    uiPackVersionId: o?.uiPackVersionId,
+    uiPack: uiPackRef(t.uiPack),
+    statusLog: t.statusLog.map((l, i) => ({
+      id: `${t.id}-log-${t.statusLog.length - i}`,
+      fromStatus: l.from ?? null,
+      toStatus: l.to,
+      reason: l.reason ?? '',
+      changedAt: l.at,
+    })),
+    idps: o ? structuredClone(o.idps) : undefined,
+    staffSources: o ? structuredClone(o.staffSources) : undefined,
+    adminContact: o?.adminContact ? { ...o.adminContact } : undefined,
+    status: t.status,
+    onboardingStep: onboardingStepOf(t),
+    readinessChecks: readiness,
+    provisionJobId: o ? (o.provisionJobId ?? null) : undefined,
+    rowVersion: t.rowVersion,
+    createdAt: o?.createdAt ?? created,
+  };
 }

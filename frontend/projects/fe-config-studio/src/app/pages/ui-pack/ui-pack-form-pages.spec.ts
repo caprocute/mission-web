@@ -157,6 +157,9 @@ describe('Config Studio · Giao diện đơn vị (SCR-1801)', () => {
     expect(text(notice)).toBe(
       'Giao diện bản 1.8 đã phát hành. Người dùng sẽ nhận giao diện mới ở lần tải trang kế tiếp.',
     );
+    // WEB-072: gói được đọc lại nên thẻ mời tạo nháp nêu đúng bản vừa phát hành
+    const card = await until(el, '[data-testid=no-draft]', (e) => text(e).includes('1.8'), 600);
+    expect(text(card)).toContain('Đơn vị đang dùng giao diện bản 1.8');
   }, 20000);
 
   it('quay lui về bản dùng bộ chính sách đã ngừng hiện MSG-18-04', async () => {

@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,9 +43,12 @@ import vn.viettel.okrkpi.contract.products.model.EvidenceCreate;
 import vn.viettel.okrkpi.contract.products.model.EvidenceCriterionResult;
 import vn.viettel.okrkpi.contract.products.model.EvidenceDecisionResult;
 import vn.viettel.okrkpi.contract.products.model.EvidenceDuplicateMatch;
+import vn.viettel.okrkpi.contract.products.model.EvidenceExternalDoc;
+import vn.viettel.okrkpi.contract.products.model.EvidenceExternalDocList;
 import vn.viettel.okrkpi.contract.products.model.EvidenceKeyWrap;
 import vn.viettel.okrkpi.contract.products.model.EvidenceKeyWrapBatchInput;
 import vn.viettel.okrkpi.contract.products.model.EvidenceList;
+import vn.viettel.okrkpi.contract.products.model.EvidenceRecoveryWrapRequest;
 import vn.viettel.okrkpi.contract.products.model.EvidenceReturnRequest;
 import vn.viettel.okrkpi.contract.products.model.EvidenceSourceType;
 import vn.viettel.okrkpi.contract.products.model.EvidenceSubmit;
@@ -68,6 +72,8 @@ import vn.viettel.okrkpi.product.application.evidence.EvidenceAcceptanceService.
 import vn.viettel.okrkpi.product.application.evidence.EvidenceAcceptanceService.AcceptanceView;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceAcceptanceService.Decision;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceActor;
+import vn.viettel.okrkpi.product.application.evidence.EvidenceAiConfirmationService;
+import vn.viettel.okrkpi.product.application.evidence.EvidenceExternalDocService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceReviewService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceSubmissionService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceSubmissionService.DraftInput;
@@ -82,6 +88,7 @@ import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRep
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRepository.StoredObject;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRepository.VersionSummary;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRepository.VersionView;
+import vn.viettel.okrkpi.product.application.evidence.port.IssuedDocuments;
 import vn.viettel.okrkpi.product.domain.evidence.CriterionResult;
 import vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver;
 import vn.viettel.okrkpi.shared.authz.OpaInput;
@@ -111,6 +118,8 @@ public class EvidenceController {
   private static final String MODULE = "products";
 
   private final EvidenceSubmissionService service;
+  private final EvidenceAiConfirmationService aiConfirmation;
+  private final EvidenceExternalDocService externalDocs;
   private final EvidenceReviewService reviews;
   private final EvidenceAcceptanceService acceptances;
   private final CursorCodec cursors;
@@ -120,6 +129,8 @@ public class EvidenceController {
 
   public EvidenceController(
       EvidenceSubmissionService service,
+      EvidenceAiConfirmationService aiConfirmation,
+      EvidenceExternalDocService externalDocs,
       EvidenceReviewService reviews,
       EvidenceAcceptanceService acceptances,
       CursorCodec cursors,
@@ -128,6 +139,8 @@ public class EvidenceController {
       EvidenceKeyWrapService keyWraps) {
     this.keyWraps = Objects.requireNonNull(keyWraps, "keyWraps");
     this.service = Objects.requireNonNull(service, "service");
+    this.aiConfirmation = Objects.requireNonNull(aiConfirmation, "aiConfirmation");
+    this.externalDocs = Objects.requireNonNull(externalDocs, "externalDocs");
     this.reviews = Objects.requireNonNull(reviews, "reviews");
     this.acceptances = Objects.requireNonNull(acceptances, "acceptances");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
@@ -278,7 +291,7 @@ public class EvidenceController {
       throw invalid("externalDocRef");
     }
     EvidenceDetail d =
-        service.createEvidence(
+        externalDocs.newEvidence(
             TenantContext.require(),
             new EvidenceSubmissionService.EvidenceInput(
                 body.getDeliverableId(),
@@ -290,6 +303,39 @@ public class EvidenceController {
         "/api/v1/evidences/" + d.evidence().id(),
         evidence(d.evidence(), d.task(), d.versions()),
         d.evidence().rowVersion());
+  }
+
+  @GetMapping("/evidences/external-docs")
+  @RequiresPermission(
+      operationId = "searchEvidenceExternalDocs",
+      module = MODULE,
+      resourceType = "evidence")
+  public EvidenceExternalDocList searchEvidenceExternalDocs(
+      @RequestParam(value = "q", required = false) String q,
+      @RequestParam(value = "limit", required = false, defaultValue = "50") int limit,
+      @RequestParam(value = "cursor", required = false) String cursor) {
+    if (limit < 1 || limit > 200) {
+      throw invalid("limit");
+    }
+    if (q != null && q.length() > 200) {
+      throw invalid("q");
+    }
+    IssuedDocuments.Page page =
+        externalDocs.search(TenantContext.require(), q, limit, cursor, actor());
+    return new EvidenceExternalDocList()
+        .items(
+            page.items().stream()
+                .map(
+                    d ->
+                        new EvidenceExternalDoc()
+                            .ref(d.ref())
+                            .docNumber(d.docNumber())
+                            .docDate(d.docDate())
+                            .summary(d.summary())
+                            .signerName(d.signerName())
+                            .signatureValid(d.signatureValid()))
+                .toList())
+        .nextCursor(page.nextCursor());
   }
 
   @GetMapping("/evidences/{id}")
@@ -311,7 +357,8 @@ public class EvidenceController {
       @PathVariable("id") UUID id, @RequestBody EvidenceVersionDraft body) {
     DraftInput input = draft(body);
     EvidenceActor actor = actor();
-    VersionDetail v = found(() -> service.createVersion(TenantContext.require(), id, input, actor));
+    VersionDetail v =
+        found(() -> externalDocs.newVersion(TenantContext.require(), id, input, actor));
     return created(
         "/api/v1/evidences/" + id + "/versions/" + v.version().versionNo(),
         version(v),
@@ -373,6 +420,39 @@ public class EvidenceController {
     return ETags.ok(dto, v.version().rowVersion());
   }
 
+  @PostMapping("/evidences/{id}/versions/{v}/recovery-wraps")
+  @Idempotent
+  @RequiresPermission(
+      operationId = "restoreEvidenceKeyWrap",
+      module = MODULE,
+      resourceType = "evidence")
+  public ResponseEntity<EvidenceVersion> restoreEvidenceKeyWrap(
+      @PathVariable("id") UUID id,
+      @PathVariable("v") int versionNo,
+      @RequestBody EvidenceRecoveryWrapRequest body) {
+    TenantId tenant = TenantContext.require();
+    EvidenceActor actor = actor();
+    EvidenceKeyWrap w = body == null ? null : body.getKeyWrap();
+    EvidenceKeyWrapService.WrapInput input =
+        w == null
+            ? null
+            : new EvidenceKeyWrapService.WrapInput(
+                w.getRecipientId(),
+                w.getWrappedKey(),
+                w.getAlg() == null ? null : w.getAlg().getValue());
+    VersionDetail v =
+        found(
+            () ->
+                keyWraps.restore(
+                    tenant,
+                    id,
+                    versionNo,
+                    body == null ? null : body.getRecoveryId(),
+                    input,
+                    actor));
+    return ETags.ok(version(v), v.version().rowVersion());
+  }
+
   private static EvidenceKeyWrap keyWrap(EvidenceKeyWraps.StoredWrap w) {
     return new EvidenceKeyWrap()
         .recipientId(w.recipientId())
@@ -412,6 +492,7 @@ public class EvidenceController {
       @PathVariable("id") UUID id,
       @PathVariable("v") int versionNo,
       @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
       @RequestBody(required = false) EvidenceSubmit body) {
     long expected = ETags.expectedVersion(ifMatch, "PRODUCT");
     boolean attested =
@@ -423,14 +504,15 @@ public class EvidenceController {
     SubmitOutcome done =
         found(
             () ->
-                service.submit(
+                aiConfirmation.submit(
                     TenantContext.require(),
                     id,
                     versionNo,
                     expected,
                     attested,
                     aiConfirmed,
-                    actor));
+                    actor,
+                    authorization));
     EvidenceSubmitResult result =
         new EvidenceSubmitResult()
             .version(version(done.version()))
@@ -715,7 +797,10 @@ public class EvidenceController {
         body.getDocNumber(),
         body.getDocDate(),
         body.getDocSummary(),
-        body.getNote());
+        body.getNote(),
+        body.getAiFieldsEdited() == null
+            ? List.of()
+            : body.getAiFieldsEdited().stream().map(f -> f.getValue()).toList());
   }
 
   // ---------------------------------------------------------------- hỗ trợ

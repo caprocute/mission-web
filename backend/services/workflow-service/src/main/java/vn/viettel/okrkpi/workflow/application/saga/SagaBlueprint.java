@@ -16,4 +16,12 @@ public interface SagaBlueprint {
    * {@code WORKFLOW-409-SAGA-EXISTS}); {@code null} khi loại saga không cần.
    */
   String exclusiveKey(Map<String, Object> parameters);
+
+  /**
+   * Mã lỗi trả khi người vận hành yêu cầu bù trừ sau điểm không quay lại; {@code null} dùng mã xung
+   * đột chung {@code WORKFLOW-409-VERSION-CONFLICT}.
+   */
+  default String pointOfNoReturnCode() {
+    return null;
+  }
 }

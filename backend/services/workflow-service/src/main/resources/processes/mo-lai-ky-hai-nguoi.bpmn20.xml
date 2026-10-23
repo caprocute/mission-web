@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DV-06-04 · Mẫu luồng `mo-lai-ky-hai-nguoi` v1 (QT-13; SCR-1302) · ADR-04 tầng 2. Hai lượt duyệt tuần tự, người duyệt
+  thứ nhất khác người thứ hai và khác người tạo yêu cầu, chưa tham gia hồ sơ bị mở (BR-13-02, BR-13-03); mỗi lượt có
+  step-up và ký số ở API lõi, xong khi nhận EVT-18 PHE_DUYET_MO_LAI hoặc lõi báo từ chối; hạn 2 ngày làm việc mỗi lượt.
+  Đơn vị thiếu người duyệt thứ hai thì chọn ở cấp trên, không bao giờ hạ xuống một người.
+  Một định nghĩa dùng chung cho mọi tenant (không gắn tenantId); tham số theo tenant nằm ở flowable.wf_binding và
+  được chụp vào biến keHoachBuoc lúc khởi tạo. Thao tác nghiệp vụ (có step-up, ký số) diễn ra ở API của lõi; tiến
+  trình giữ hộp việc, hạn theo ngày làm việc, nhắc trước hạn, chuyển cấp khi quá hạn, giao việc có tách vai trò và
+  chờ ký số (EVT-18), rồi đi tiếp khi lõi báo bước đã xong. Listener ${lapLichBuoc} chỉ tính toán trên bản sao cục bộ.
+  Khoá nghiệp vụ: REOPEN_REQUEST:<requestId>.
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="urn:vt-okrkpi:wf">
+  <process id="mo-lai-ky-hai-nguoi" name="Duyệt mở lại kỳ hai người" isExecutable="true">
+    <documentation>Hai người duyệt khác nhau, khác người tạo yêu cầu và chưa tham gia hồ sơ lần lượt duyệt yêu cầu mở lại kỳ đã khoá, mỗi lượt có xác thực tăng cường và ký số.</documentation>
+    <startEvent id="start"/>
+    <sequenceFlow id="f1-start-chon_duyetLan1" sourceRef="start" targetRef="chon_duyetLan1"/>
+    <serviceTask id="chon_duyetLan1" name="Chọn hai người duyệt" flowable:type="external-worker" flowable:topic="wf-chon-nguoi"/>
+    <sequenceFlow id="f2-chon_duyetLan1-duyetLan1" sourceRef="chon_duyetLan1" targetRef="duyetLan1"/>
+    <userTask id="duyetLan1" name="${tieuDe}"
+              flowable:candidateGroups="${nhomBuoc}"
+              flowable:assignee="${nguoiBuoc}"
+              flowable:dueDate="${hanBuoc}">
+      <documentation>Duyệt lượt thứ nhất yêu cầu mở lại kỳ</documentation>
+      <extensionElements>
+        <flowable:executionListener event="start" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </userTask>
+    <boundaryEvent id="nhac_duyetLan1" attachedToRef="duyetLan1" cancelActivity="false">
+      <timerEventDefinition><timeDate>${nhacBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="quaHan_duyetLan1" attachedToRef="duyetLan1" cancelActivity="true">
+      <timerEventDefinition><timeDate>${hanBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f3-nhac_duyetLan1-nhacViec" sourceRef="nhac_duyetLan1" targetRef="nhacViec"/>
+    <sequenceFlow id="f4-quaHan_duyetLan1-chon_duyetLan1" sourceRef="quaHan_duyetLan1" targetRef="chon_duyetLan1">
+      <extensionElements>
+        <flowable:executionListener event="take" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="f5-duyetLan1-kq_duyetLan1" sourceRef="duyetLan1" targetRef="kq_duyetLan1"/>
+    <exclusiveGateway id="kq_duyetLan1" default="f-duyetLan1-tiep"/>
+    <sequenceFlow id="f6-kq_duyetLan1-tuChoi" sourceRef="kq_duyetLan1" targetRef="tuChoi">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${ketQua == 'TU_CHOI'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f-duyetLan1-tiep" sourceRef="kq_duyetLan1" targetRef="duyetLan2"/>
+    <serviceTask id="chon_duyetLan2" name="Chọn lại người duyệt thứ hai ở cấp trên" flowable:type="external-worker" flowable:topic="wf-chon-nguoi"/>
+    <sequenceFlow id="f8-chon_duyetLan2-duyetLan2" sourceRef="chon_duyetLan2" targetRef="duyetLan2"/>
+    <userTask id="duyetLan2" name="${tieuDe}"
+              flowable:candidateGroups="${nhomBuoc}"
+              flowable:assignee="${nguoiBuoc}"
+              flowable:dueDate="${hanBuoc}">
+      <documentation>Duyệt lượt thứ hai yêu cầu mở lại kỳ</documentation>
+      <extensionElements>
+        <flowable:executionListener event="start" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </userTask>
+    <boundaryEvent id="nhac_duyetLan2" attachedToRef="duyetLan2" cancelActivity="false">
+      <timerEventDefinition><timeDate>${nhacBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="quaHan_duyetLan2" attachedToRef="duyetLan2" cancelActivity="true">
+      <timerEventDefinition><timeDate>${hanBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f9-nhac_duyetLan2-nhacViec" sourceRef="nhac_duyetLan2" targetRef="nhacViec"/>
+    <sequenceFlow id="f10-quaHan_duyetLan2-chon_duyetLan2" sourceRef="quaHan_duyetLan2" targetRef="chon_duyetLan2">
+      <extensionElements>
+        <flowable:executionListener event="take" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="f11-duyetLan2-kq_duyetLan2" sourceRef="duyetLan2" targetRef="kq_duyetLan2"/>
+    <exclusiveGateway id="kq_duyetLan2" default="f-duyetLan2-xong"/>
+    <sequenceFlow id="f12-kq_duyetLan2-tuChoi" sourceRef="kq_duyetLan2" targetRef="tuChoi">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${ketQua == 'TU_CHOI'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f-duyetLan2-xong" sourceRef="kq_duyetLan2" targetRef="daDuyet"/>
+    <endEvent id="tuChoi" name="Bị từ chối"/>
+    <endEvent id="daDuyet" name="Đã đủ hai người duyệt"/>
+    <serviceTask id="nhacViec" name="Nhắc người làm trước hạn" flowable:type="external-worker" flowable:topic="notify-remind"/>
+    <sequenceFlow id="f14-nhacViec-nhacKetThuc" sourceRef="nhacViec" targetRef="nhacKetThuc"/>
+    <endEvent id="nhacKetThuc" name="Đã nhắc"/>
+  </process>
+</definitions>

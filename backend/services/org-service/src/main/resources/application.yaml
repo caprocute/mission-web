@@ -64,6 +64,9 @@ logging:
     format:
       console: ecs
 okrkpi:
+  tenant:
+    # Client dịch vụ được uỷ quyền tenant qua X-Tenant-Id (wiki 14 mục 42), ví dụ mission-core đồng bộ khoá phục hồi.
+    delegating-clients: ${TENANT_DELEGATING_CLIENTS:mission-core}
   org:
     zone: Asia/Ho_Chi_Minh
     step-up-window: PT5M
