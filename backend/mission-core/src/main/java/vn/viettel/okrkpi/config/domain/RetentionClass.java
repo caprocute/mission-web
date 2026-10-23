@@ -5,7 +5,7 @@ import java.time.Period;
 import java.util.Objects;
 
 /**
- * Bảy lớp lưu giữ của TL-03 "Lưu giữ, lưu trữ và xoá dữ liệu" (NFR-09, DL-13). Mỗi lớp có thời hạn
+ * Bảy lớp lưu giữ của TL-03 “Lưu giữ, lưu trữ và xoá dữ liệu” (NFR-09, DL-13). Mỗi lớp có thời hạn
  * nóng (còn trong PostgreSQL), tổng thời hạn và cách kết thúc. Giá trị mặc định là đề xuất của
  * TL-03; thời hạn chính thức do cơ quan chủ quản quyết định và ghi ở {@code config.tenant_setting}
  * khoá {@code retention.<LỚP>}. Job lưu giữ ({@code backend/libs/retention}) giữ cùng bảng mặc định

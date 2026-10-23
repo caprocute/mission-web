@@ -11,9 +11,10 @@ import vn.viettel.okrkpi.policy.domain.FeelCondition.ValueSet;
 
 /**
  * Bộ phân tích FEEL đơn giản (simple unary tests của DMN 1.4) cho ô đầu vào bảng quyết định
- * (SCR-1502 trường 2): {@code -}, so sánh ({@code < <= > >= =}) với hằng, khoảng {@code [a..b)},
- * hằng số, chuỗi trong nháy kép, {@code true}/{@code false}, danh sách cách nhau bằng dấu phẩy và
- * {@code not(...)}. Kiểu phải khớp khai báo cột ({@code number}, {@code string}, {@code boolean}).
+ * (SCR-1502 trường 2): {@code -}, so sánh ({@code < <= > >= =}) với hằng, khoảng {@code [a..b]}
+ * (đầu mở viết bằng ngoặc tròn), hằng số, chuỗi trong nháy kép, {@code true}/{@code false}, danh
+ * sách cách nhau bằng dấu phẩy và {@code not(...)}. Kiểu phải khớp khai báo cột ({@code number},
+ * {@code string}, {@code boolean}).
  */
 public final class FeelUnaryTests {
 

@@ -5,8 +5,8 @@ import java.util.UUID;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 
 /**
- * Cổng cờ tính năng của MOD-08 cho các mô-đun khác (CORE-08-07, OPS-04): hỏi "cờ này có bật cho
- * tenant, đơn vị, người dùng này không". Xét {@code enabled}, khoảng hiệu lực và quy tắc bật dần;
+ * Cổng cờ tính năng của MOD-08 cho các mô-đun khác (CORE-08-07, OPS-04): hỏi “cờ này có bật cho
+ * tenant, đơn vị, người dùng này không”. Xét {@code enabled}, khoảng hiệu lực và quy tắc bật dần;
  * đọc qua đệm ngắn hạn. Cờ không có trong danh mục nền tảng luôn tắt.
  */
 public interface FeatureFlagApi {
