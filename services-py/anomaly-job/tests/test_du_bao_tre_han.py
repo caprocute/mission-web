@@ -11,8 +11,8 @@ import pytest
 import yaml
 
 from app.delay_risk.calendar import WorkingCalendar
-from app.delay_risk.model import Params, Task, forecast
-from app.delay_risk.sink import body
+from app.delay_risk.model import Forecast, Params, Task, forecast
+from app.delay_risk.sink import body, explanation, needed_days
 from tests.conftest import REPO
 
 GOLDEN = REPO / "data" / "golden" / "delay-risk"
@@ -74,6 +74,20 @@ def test_sink_body_is_data_only() -> None:
     t01 = next(t for t in data["nhiem_vu"] if t["ma"] == "T01")
     f = forecast(to_task(t01), dt.date(2026, 10, 19), golden_calendar(data), Params())
     assert f is not None
-    b = body(f, dt.date(2026, 10, 19))
-    assert b == {"level": "CAO", "neededWorkingDays": 3, "remainingWorkingDays": 2, "pace": 3.0, "unit": "SO_LUONG",
-                 "remainingQuantity": 7.0, "asOf": "2026-10-19", "basedOnReportedAt": "2026-10-19T16:00:00.000+07:00"}
+    at = dt.datetime(2026, 10, 19, 16, 30, tzinfo=dt.timezone(dt.timedelta(hours=7)))
+    b = body(f, at, "0190a3c2-7a1e-7c00-8000-000000000001")
+    assert b == {"level": "CAO", "neededWorkingDays": 3,
+                 "explanation": "Nhiệm vụ có nguy cơ trễ hạn cao: cần khoảng 3 ngày làm việc, còn 2 ngày.",
+                 "computedAt": "2026-10-19T09:30:00.000Z", "basedOnProgressId": "0190a3c2-7a1e-7c00-8000-000000000001"}
+    assert "basedOnProgressId" not in body(f, at)
+
+
+def test_sink_explanation_and_zero_pace() -> None:
+    def fc(level: str, n: int | None, m: int, remaining: float = 1.0) -> Forecast:
+        return Forecast(level, n, m, 0.0 if n is None else 1.0, "SO_LUONG", remaining, None)
+
+    assert needed_days(fc("CAO", None, 4)) == 5
+    assert explanation(fc("CAO", None, 4)).endswith("còn 4 ngày.")
+    assert explanation(fc("VUA", 4, 5)) == "Nhiệm vụ có nguy cơ trễ hạn: cần khoảng 4 ngày làm việc, còn 5 ngày."
+    assert explanation(fc("THAP", 2, 5)).startswith("Tiến độ hiện tại đủ")
+    assert explanation(fc("THAP", 0, 5, 0.0)) == "Nhiệm vụ đã đủ khối lượng, không có nguy cơ trễ hạn."
