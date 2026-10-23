@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.stream.Stream;
+import javax.sql.DataSource;
 import org.dhatim.fastexcel.Workbook;
 import org.dhatim.fastexcel.Worksheet;
 import org.dhatim.fastexcel.reader.ReadableWorkbook;
@@ -33,6 +34,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -49,11 +51,16 @@ import vn.viettel.okrkpi.config.application.PeriodConfigService;
 import vn.viettel.okrkpi.config.domain.PeriodFlow;
 import vn.viettel.okrkpi.config.domain.PeriodKind;
 import vn.viettel.okrkpi.config.domain.PeriodState;
+import vn.viettel.okrkpi.config.infrastructure.persistence.JdbcPeriodRepository;
+import vn.viettel.okrkpi.config.infrastructure.persistence.OutboxPeriodEvents;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
 import vn.viettel.okrkpi.shared.error.BusinessException;
+import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.kernel.PeriodId;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
+import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer.SerializedPayload;
+import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 import vn.viettel.okrkpi.task.application.catalog.CatalogService;
 
@@ -102,6 +109,11 @@ class CatalogApiIT extends ContractConformanceTest {
 
   @Autowired
   @Qualifier("configTransactionManager") private PlatformTransactionManager configTm;
+
+  @Autowired
+  @Qualifier("configDataSource") private DataSource configDataSource;
+
+  @Autowired private JdbcPeriodRepository periodRepository;
 
   private final TenantId tenant = TenantId.of(UUID.randomUUID());
   private final UUID actor = UUID.randomUUID();
@@ -476,6 +488,23 @@ class CatalogApiIT extends ContractConformanceTest {
     return out.toString();
   }
 
+  /**
+   * Dịch vụ kỳ ghi outbox bằng bộ tuần tự hoá giả như PeriodApiIT, PeriodLockedWriteIT: chuyển sang
+   * đang khoá phát mốc xả {@code period.drain.marker}, bản Spring tra lược đồ ở Apicurio thật mà
+   * kiểm thử này không dựng.
+   */
+  private PeriodConfigService lockingService() {
+    OutboxWriter writer =
+        new OutboxWriter(
+            new JdbcTemplate(configDataSource),
+            "config",
+            (topic, payload) -> new SerializedPayload(new byte[] {1}, 1L, 1),
+            json,
+            Clock.systemUtc());
+    return new PeriodConfigService(
+        periodRepository, new OutboxPeriodEvents(writer), e -> {}, null, Clock.systemUtc());
+  }
+
   private PeriodId lockedPeriod() throws Exception {
     PeriodId period =
         as(
@@ -503,14 +532,15 @@ class CatalogApiIT extends ContractConformanceTest {
             new TransactionTemplate(configTm)
                 .executeWithoutResult(
                     s ->
-                        periodConfig.transition(
-                            tenant,
-                            period,
-                            PeriodState.DANG_KHOA,
-                            UUID.randomUUID(),
-                            actor,
-                            null,
-                            null)));
+                        lockingService()
+                            .transition(
+                                tenant,
+                                period,
+                                PeriodState.DANG_KHOA,
+                                UUID.randomUUID(),
+                                actor,
+                                null,
+                                null)));
     return period;
   }
 

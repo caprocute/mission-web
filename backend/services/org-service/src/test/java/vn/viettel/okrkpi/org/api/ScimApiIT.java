@@ -55,6 +55,9 @@ class ScimApiIT extends IntegrationTestBase {
   static final String SCIM = "application/scim+json";
   static final String EXT = "urn:okrkpi:params:scim:schemas:extension:mission:2.0:User";
   static final String NATIONAL = "001090024680";
+  // Ngày nghiệp vụ theo giờ Việt Nam như Clock của dịch vụ (okrkpi.org.zone); current_date của CSDL theo UTC
+  // lệch một ngày từ 17h UTC, khi đó bản ghi hiệu lực từ "hôm nay" chưa bao trùm current_date.
+  static final String HOM_NAY = "(now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date";
 
   @TestConfiguration
   static class Crypto {
@@ -179,7 +182,7 @@ class ScimApiIT extends IntegrationTestBase {
     scim(get("/scim/v2/Users/" + id)).andExpect(status().isNotFound())
         .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"));
     assertThat(fx.admin().queryForObject("SELECT employment_status FROM org.person WHERE id = ? "
-        + "AND recorded_to = 'infinity' AND valid_period @> current_date", String.class, personId))
+        + "AND recorded_to = 'infinity' AND valid_period @> " + HOM_NAY, String.class, personId))
         .isEqualTo("TAM_NGHI");
 
     // Mọi lệnh ghi đều có dòng nhật ký: 1 tạo, 1 PATCH 412, 2 PATCH thành công, 1 bỏ qua, 1 xoá.
@@ -285,7 +288,7 @@ class ScimApiIT extends IntegrationTestBase {
 
   private UUID primaryUnit(UUID person) {
     List<UUID> units = fx.admin().queryForList("SELECT org_unit_id FROM org.assignment WHERE person_id = ? "
-        + "AND kind = 'CHINH' AND recorded_to = 'infinity' AND valid_period @> current_date", UUID.class, person);
+        + "AND kind = 'CHINH' AND recorded_to = 'infinity' AND valid_period @> " + HOM_NAY, UUID.class, person);
     assertThat(units).hasSizeLessThanOrEqualTo(1);
     return units.isEmpty() ? null : units.get(0);
   }
