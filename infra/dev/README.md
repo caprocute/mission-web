@@ -113,6 +113,24 @@ Dịch vụ được thay thế khai ở `SYNC_RETIRE` (mặc định `connect=d
 5. So `curl -s http://127.0.0.1:35083/connectors` với danh sách ở bước 2, đăng ký lại connector thiếu.
 6. Quay lui khi lỗi: `git checkout <commit trong .repo-commit trước đó>` trên máy trạm rồi `apply` lại; dữ liệu ở `data/` và volume ẩn danh không bị đụng.
 
+### 2.2. Triển khai lại máy chủ dev bằng một lệnh (INF-22)
+
+`infra/dev/scripts/trien-khai-lai.sh plan|apply [service...]` gom mọi bước trên thành một quy trình cho phiên trên máy Mac. Script cùng cách với stack dựng trên máy cloud: hạ tầng theo profile `core security events search`, `create-topics.sh`, `them-client-provisioner.sh`, rồi `deploy-backend.sh` (dựng ảnh, migration, bật, chờ healthcheck, nạp kỳ hiện hành) và `seed-org.sh`, `smoke-backend.sh`, `health.sh`. Mặc định triển khai `apisix mission-core web` (mission-core cổng 35100; web vào qua APISIX 35000). Dịch vụ compose chưa có ở commit đang chạy (ví dụ `web` khi chưa gộp) được báo và bỏ qua.
+
+Profile `backend` dựng ảnh từ `../../backend`, `../../frontend`, nên máy chủ cần bố cục repo. Script chép mã nguồn của commit HEAD (`git archive`, chỉ tệp git theo dõi) vào `DEV_SERVER_REPO_DIR` (mặc định `/home/<DEV_SERVER_USER>/mission-web`) và dùng `<DEV_SERVER_REPO_DIR>/infra/dev` làm thư mục hạ tầng. Lần đầu, `.env` được sao (quyền 600, không đọc nội dung) từ thư mục cũ `DEV_SERVER_INFRA_DIR`. Thư mục cũ giữ nguyên, và dữ liệu vẫn ở đó qua các biến `*_DATA` đặt đường dẫn tuyệt đối. `sync_preflight.py` coi mọi thư mục gắn có `/data/` trong đường dẫn, hoặc điểm gắn mà cấu hình mới dùng volume, là dữ liệu, nên thiếu `*_DATA` vẫn bị chặn sau khi đổi thư mục.
+
+Jar Java dựng trên máy trạm khi có JDK 21 và Node (`JAR_BUILD=may-tram`, mặc định khi đủ công cụ), rồi chép `target/*.jar` lên máy chủ và chạy `deploy-backend.sh` với `SKIP_JARS=1`. Jar độc lập kiến trúc nên ảnh vẫn dựng trên máy chủ. `JAR_BUILD=may-chu` để máy chủ tự dựng (cần JDK 21, Node). `plan` báo dung lượng trống ở thư mục gốc Docker: dựng toàn bộ ảnh cần khoảng 12 GB cache (`MIN_FREE_GB`).
+
+Các bước cho phiên trên máy Mac:
+
+1. Kéo `main`, kiểm `.env` ở gốc repo có `DEV_SERVER_HOST`, `DEV_SERVER_USER`, `DEV_SERVER_INFRA_DIR` (thư mục cũ) và, nếu khác mặc định, `DEV_SERVER_REPO_DIR`.
+2. Trong `.env` máy chủ (thư mục cũ), đặt `*_DATA` theo mục 2.1 và bổ sung `WEB_ORIGIN` (địa chỉ người dùng mở web qua APISIX, ví dụ `http://127.0.0.1:35000` khi dùng hầm SSH). Không sinh lại `.env`.
+3. Ghi danh sách connector cũ: `curl -s http://127.0.0.1:35083/connectors` trên máy chủ.
+4. `infra/dev/scripts/trien-khai-lai.sh plan`: compose config hợp lệ với mọi profile, máy chủ đủ dung lượng, không còn `[DỪNG]`. Khi thiếu chỗ, dọn ảnh và cache dựng cũ của project `mission-dev` (không đụng container ngoài project).
+5. `infra/dev/scripts/trien-khai-lai.sh apply`. Chỉ khi bước 4 sạch: lần áp dựng lại minio, minio-init với ảnh mới (giữ `MINIO_DATA`), OPA, kafka-init, Keycloak có giao diện và danh sách mật khẩu cấm, xoá `connect` cũ, rồi bật mission-core, APISIX, web.
+6. Kiểm: `smoke-backend.sh` đạt, mở web qua APISIX và đăng nhập bằng tài khoản thử, so connector với bước 3.
+7. Quay lui: `DEV_SERVER_REPO_DIR` mới có thể bỏ. Đặt lại thư mục cũ bằng `sync-server.sh apply` với `DEV_SERVER_INFRA_DIR` cũ, sau khi `git checkout` commit trước đó.
+
 ---
 
 ## 3. Cách vận hành các profile
