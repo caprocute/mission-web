@@ -38,6 +38,13 @@ class DossierVoteIsolationTest {
     rule.check(CLASSES);
   }
 
+  /**
+   * Thao tác đọc của {@code DossierProfilesApi} mà CORE-06-06 dùng để lập gói (tên không bắt đầu
+   * bằng {@code find}); accessor của record trả về là đọc.
+   */
+  private static final java.util.Set<String> READS =
+      java.util.Set.of("anyDecided", "unitProfiles", "undecidedPersons");
+
   @Test
   void mod06ChiGoiThaoTacDocCuaAppraisalApi() {
     ArchRule rule =
@@ -52,7 +59,9 @@ class DossierVoteIsolationTest {
                         call.getTargetOwner()
                                 .getPackageName()
                                 .startsWith("vn.viettel.okrkpi.appraisal")
-                            && !call.getName().startsWith("find")))
+                            && !call.getTargetOwner().isRecord()
+                            && !call.getName().startsWith("find")
+                            && !READS.contains(call.getName())))
             .because("BR-11-07: MOD-06 chỉ đọc kết quả của MOD-04");
     rule.check(CLASSES);
   }
