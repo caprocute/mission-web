@@ -665,6 +665,28 @@ class DossierPackageServiceTest {
   }
 
   @Test
+  void xemTruocTuNguonModuleKhacChonGoiTheoHoSo() {
+    UnitProfile head = add("DA_QUYET_DINH", true);
+    byte[] data = "{\"complaint\":{}}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    DossierPackageService.PreviewInput withProfile =
+        service.previewFromSource(TENANT, "TRA_LOI_KN", head.id(), data);
+    assertThat(withProfile.policyPackVersion()).isEqualTo("1.3.0");
+    assertThat(withProfile.templateVersion()).isNull();
+    assertThat(withProfile.data()).isEqualTo("{\"complaint\":{}}");
+    assertThat(service.previewFromSource(TENANT, "TRA_LOI_KN", null, data).policyPackCode())
+        .isNull();
+    assertThat(
+            service
+                .previewFromSource(TENANT, "TRA_LOI_KN", UUID.randomUUID(), data)
+                .policyPackCode())
+        .isNull();
+    assertThatThrownBy(() -> service.previewFromSource(TENANT, "tra loi", head.id(), data))
+        .hasMessage("DOSSIER-422-VALIDATION");
+    assertThatThrownBy(() -> service.previewFromSource(TENANT, null, head.id(), data))
+        .hasMessage("DOSSIER-422-VALIDATION");
+  }
+
+  @Test
   void phienBanSauMoLaiKyTraMaYeuCauMoLai() {
     PackageRow pkg = generating();
     UUID reopen = UUID.randomUUID();

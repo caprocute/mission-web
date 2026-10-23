@@ -474,6 +474,21 @@ class ComplaintServiceTest {
   }
 
   @Test
+  void duLieuVanBanTraLoiChiChoNguoiKhieuNaiVaNguoiXuLy() {
+    UUID p = profiles.add(me, "DA_KY_SO", NOW);
+    Complaint c = service.create(T, member(), withTarget(p, ComplaintKind.KHIEU_NAI)).complaint();
+    UUID handler = UUID.randomUUID();
+    Complaint accepted = repo.rows.get(c.id()).filed(NOW, null, unit, null).accepted(handler, NOW);
+    repo.rows.put(c.id(), accepted);
+    assertThat(service.forDocument(T, me, c.id())).isPresent();
+    assertThat(service.forDocument(T, handler, c.id())).isPresent();
+    assertThat(service.forDocument(T, UUID.randomUUID(), c.id())).isEmpty();
+    assertThat(service.forDocument(T, null, c.id())).isEmpty();
+    assertThat(service.forDocument(T, me, null)).isEmpty();
+    assertThat(service.forDocument(T, me, UUID.randomUUID())).isEmpty();
+  }
+
+  @Test
   void suaNhapSauKhiMoYeuCauKyThiChuKyCuBiBo() {
     UUID p = profiles.add(me, "DA_KY_SO", NOW);
     Complaint c = service.create(T, member(), withTarget(p, ComplaintKind.KHIEU_NAI)).complaint();

@@ -17,6 +17,8 @@ import org.springframework.web.server.ResponseStatusException;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.DossierPackageService;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.DossierPackageService.PreviewInput;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.DossierPackageService.RenderInput;
+import vn.viettel.okrkpi.shared.docgen.FormPreviewSource;
+import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 
 /**
@@ -34,9 +36,12 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
 public class DossierRenderInputController {
 
   private final DossierPackageService service;
+  private final List<FormPreviewSource> sources;
 
-  public DossierRenderInputController(DossierPackageService service) {
+  public DossierRenderInputController(
+      DossierPackageService service, List<FormPreviewSource> sources) {
     this.service = Objects.requireNonNull(service, "service");
+    this.sources = List.copyOf(sources);
   }
 
   /** Thân phản hồi danh sách biểu mẫu. */
@@ -84,10 +89,26 @@ public class DossierRenderInputController {
 
   @PostMapping("/internal/v1/dossier-form-previews")
   public ResponseEntity<PreviewInput> preview(@RequestBody PreviewRequest request) {
+    TenantId tenant = TenantContext.require();
+    // Nguồn của module khác (MOD-07): module đó dựng dữ liệu và kiểm quyền, MOD-06 chọn mẫu.
+    for (FormPreviewSource source : sources) {
+      if (source.module().equals(request.sourceModule())) {
+        if (request.sourceRefId() == null) {
+          throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        FormPreviewSource.Source found =
+            source
+                .find(tenant, request.actor(), request.sourceRefId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        return ResponseEntity.ok(
+            service.previewFromSource(
+                tenant, request.formCode(), found.profileId(), found.canonicalJson()));
+      }
+    }
     PreviewInput body =
         service
             .preview(
-                TenantContext.require(),
+                tenant,
                 request.actor(),
                 request.formCode(),
                 request.sourceModule(),

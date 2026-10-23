@@ -393,6 +393,20 @@ public class ComplaintService {
   }
 
   /**
+   * Khiếu nại làm dữ liệu văn bản trả lời (SCR-1202): chỉ người khiếu nại và người xử lý đã tiếp
+   * nhận được đọc; rỗng khi không có hoặc không được đọc.
+   */
+  @Transactional(transactionManager = TX, readOnly = true)
+  public Optional<Complaint> forDocument(TenantId tenant, UUID actor, UUID id) {
+    if (actor == null || id == null) {
+      return Optional.empty();
+    }
+    return complaints
+        .find(tenant, id)
+        .filter(c -> actor.equals(c.complainantId()) || actor.equals(c.handling().handlerId()));
+  }
+
+  /**
    * Tài liệu cho SVC-10: băm các trường khiếu nại và bản mã nội dung (không mở C2). Sẵn sàng khi
    * nháp đã có yêu cầu ký hoặc đang mở yêu cầu ký.
    */

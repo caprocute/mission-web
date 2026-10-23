@@ -32,6 +32,7 @@ import vn.viettel.okrkpi.oversight.application.port.ComplaintSealer;
 import vn.viettel.okrkpi.oversight.application.port.ComplaintSigner;
 import vn.viettel.okrkpi.oversight.infrastructure.client.EsignComplaintSigner;
 import vn.viettel.okrkpi.oversight.infrastructure.client.ModuleComplaintHandlerDirectory;
+import vn.viettel.okrkpi.oversight.infrastructure.docgen.ComplaintFormPreviewSource;
 import vn.viettel.okrkpi.oversight.infrastructure.listener.ComplaintSignedListener;
 import vn.viettel.okrkpi.oversight.infrastructure.web.ComplaintSignJobs;
 import vn.viettel.okrkpi.product.api.EvidenceQueryApi;
@@ -100,6 +101,12 @@ public class ComplaintConfiguration {
         new OutboxOversightAudit(outbox),
         ReopenRequestConfiguration.committed(tm),
         java.time.Clock.systemUTC());
+  }
+
+  /** Dữ liệu xem trước văn bản trả lời khiếu nại cho cổng xem trước của MOD-06. */
+  @Bean
+  ComplaintFormPreviewSource complaintFormPreviewSource(ComplaintService complaintService) {
+    return new ComplaintFormPreviewSource(complaintService);
   }
 
   @Bean

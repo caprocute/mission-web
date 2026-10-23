@@ -741,6 +741,25 @@ public class DossierPackageService {
     return Optional.of(previewOf(p.pack(), formCode, doc.canonicalJson()));
   }
 
+  /**
+   * Xem trước văn bản từ dữ liệu module khác (văn bản trả lời khiếu nại của MOD-07, SCR-1202): mã
+   * mẫu theo Policy Pack của hồ sơ nguồn, phiên bản mẫu ghim theo gói nếu có.
+   *
+   * @param profileId hồ sơ đánh giá của bản ghi nguồn, có thể rỗng
+   * @param data dữ liệu JSON chuẩn tắc do module nguồn dựng
+   */
+  public PreviewInput previewFromSource(
+      TenantId tenant, String formCode, UUID profileId, byte[] data) {
+    if (formCode == null || !formCode.matches("[A-Z][A-Z0-9_]{0,15}")) {
+      throw invalid("formCode", "Mã mẫu văn bản không hợp lệ.");
+    }
+    Pack pack =
+        profileId == null
+            ? null
+            : api().find(tenant, profileId).map(UnitProfile::pack).orElse(null);
+    return previewOf(pack, formCode, data);
+  }
+
   private RenderInput draft(
       TenantId tenant,
       UnitProfile owner,

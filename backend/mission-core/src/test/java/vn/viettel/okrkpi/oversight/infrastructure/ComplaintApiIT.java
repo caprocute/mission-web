@@ -404,6 +404,16 @@ class ComplaintApiIT extends ContractConformanceTest {
     assertThat(a.at("/handler/id").asText()).isEqualTo(handler.toString());
     assertThat(a.get("timeline")).hasSize(2);
 
+    // Xem trước văn bản trả lời qua cổng của MOD-06: người xử lý đọc được, người khác 404.
+    MvcResult preview = perform(previewRequest(handler, id));
+    assertThat(status(preview)).as(text(preview)).isEqualTo(200);
+    JsonNode data = json.readTree(body(preview).get("data").asText());
+    assertThat(data.at("/complaint/id").asText()).isEqualTo(id);
+    assertThat(data.at("/complaint/handlerId").asText()).isEqualTo(handler.toString());
+    assertThat(data.at("/complaint/status").asText()).isEqualTo("DA_TIEP_NHAN");
+    assertThat(data.at("/complaint").has("content")).isFalse();
+    assertThat(status(perform(previewRequest(reviewer, id)))).isEqualTo(404);
+
     // Rút sau khi đã có văn bản trả lời: 409; trước kết luận: DONG, hồ sơ về DA_KY_SO.
     as(person, "member");
     setStatus(id, "DA_TRA_LOI");
@@ -693,6 +703,18 @@ class ComplaintApiIT extends ContractConformanceTest {
       throws Exception {
     return TenantContext.call(
         tenant, () -> new TransactionTemplate(tm).execute(s -> work.apply(JdbcClient.create(ds))));
+  }
+
+  private MockHttpServletRequestBuilder previewRequest(UUID actor, String id) {
+    return post("/internal/v1/dossier-form-previews")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(
+            "{\"actor\":\""
+                + actor
+                + "\",\"formCode\":\"TRA_LOI_KN\",\"sourceModule\":\"oversight\","
+                + "\"sourceRefId\":\""
+                + id
+                + "\"}");
   }
 
   private MvcResult perform(MockHttpServletRequestBuilder request) throws Exception {
