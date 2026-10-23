@@ -357,3 +357,13 @@ describe('SessionService: OIDC (auth.enabled = true, Keycloak giả lập)', () 
     expect(sessionStorage.getItem('vt.assignment')).toBeNull();
   });
 });
+
+describe('SessionService: khởi tạo một lần', () => {
+  it('gọi init nhiều lần chỉ đăng nhập một lần và trả cùng lời hứa', async () => {
+    const { session, oauth } = setup({ authEnabled: true });
+    const first = session.init();
+    expect(session.init()).toBe(first);
+    await first;
+    expect(oauth.loadDiscoveryDocument).toHaveBeenCalledTimes(1);
+  });
+});

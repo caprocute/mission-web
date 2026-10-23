@@ -356,8 +356,14 @@ const ROW_HEIGHT = 52;
           </aside>
         </div>
       }
-    } @else {
+    } @else if (tree.isLoading()) {
       <p class="muted" aria-live="polite">Đang tải cây mục tiêu…</p>
+    } @else {
+      <!-- máy chủ trả thành công nhưng không có nội dung: báo lỗi thay vì treo ở trạng thái đang tải -->
+      <p-message severity="error" styleClass="msg">
+        <span>Không tải được cây mục tiêu. Đồng chí vui lòng thử lại.</span>
+        <button type="button" class="linkbtn" (click)="tree.reload()">Thử lại</button>
+      </p-message>
     }
   `,
   styles: `

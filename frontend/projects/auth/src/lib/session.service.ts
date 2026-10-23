@@ -149,7 +149,17 @@ export class SessionService {
     inject(DestroyRef).onDestroy(() => clearTimeout(this.downgradeTimer));
   }
 
-  async init(): Promise<void> {
+  private initDone?: Promise<void>;
+
+  /**
+   * Khởi tạo phiên một lần; gọi lại trả đúng lời hứa cũ. Bộ khởi tạo khác của shell cần token
+   * (khám phá cell, cờ tính năng) chờ lời hứa này để không gọi API khi chưa đăng nhập (401).
+   */
+  init(): Promise<void> {
+    return (this.initDone ??= this.start());
+  }
+
+  private async start(): Promise<void> {
     if (!this.cfg.auth.enabled) {
       this._user.set({
         ...DEV_USER,

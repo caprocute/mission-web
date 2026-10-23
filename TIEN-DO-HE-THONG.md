@@ -98,7 +98,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [WEB-018](docs/tasks/WEB-018-cay-to-chuc.md) | SCR-0103 Cây tổ chức có lịch sử | L | W-Giám sát/CH | – | WEB-015 | **Đã gộp main** | Đã gộp `main` (SCR-0103 Cây tổ chức có lịch sử hai trục thời gian) |
 | [WEB-019](docs/tasks/WEB-019-doi-soat-nhan-su.md) | SCR-0104 Đồng bộ và đối soát nhân sự | M | W-Giám sát/CH | – | WEB-018 | **Đã gộp main** | Đã gộp `main` (SCR-0104 Đồng bộ và đối soát nhân sự) |
 | [WEB-020](docs/tasks/WEB-020-theme-keycloak.md) | SCR-0001 Giao diện trang đăng nhập (theme Keycloak) | M | W-Nền tảng | – | WEB-004, WEB-006 | **Đã gộp main** | Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
-| [WEB-021](docs/tasks/WEB-021-cay-okr.md) | SCR-0201 Cây mục tiêu OKR | L | W-OKR/Đánh giá | – | WEB-015 | **Đã gộp main** | Đã gộp `main` (SCR-0201 Cây mục tiêu OKR) |
+| [WEB-021](docs/tasks/WEB-021-cay-okr.md) | SCR-0201 Cây mục tiêu OKR | L | W-OKR/Đánh giá | – | WEB-015 | **Đã gộp main** | Nhánh claude/project-thread-61v3rx: cây OKR báo lỗi kèm Thử lại khi máy chủ trả rỗng thay vì treo ở Đang tải; chờ gộp |
 | [WEB-022](docs/tasks/WEB-022-tao-sua-okr.md) | SCR-0202 Tạo/sửa O và KR | M | W-OKR/Đánh giá | – | WEB-021 | **Đã gộp main** | Đã gộp `main` (SCR-0202 Tạo/sửa O và KR) |
 | [WEB-023](docs/tasks/WEB-023-duyet-okr.md) | SCR-0203 Phê duyệt OKR | M | W-OKR/Đánh giá | – | WEB-022 | **Đã gộp main** | Đã gộp `main` (SCR-0203 Phê duyệt OKR) |
 | [WEB-024](docs/tasks/WEB-024-check-in-kr.md) | SCR-0301 Check-in KR | M | W-OKR/Đánh giá | – | WEB-021 | **Đã gộp main** | Đã gộp `main` (SCR-0301 Check-in KR) |
@@ -634,7 +634,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [WEB-072](docs/tasks/WEB-072-noi-api-that-quan-tri-cau-hinh.md) | Nối các màn hình quản trị, cấu hình, Policy Pack, bảng điều hành với API thật | L | W | 21 | WEB-070, CORE-05-10, CORE-08-11, DV-15-04 | **Đã gộp main** | Đợt gộp 11; còn ngoại lệ: chạy với backend thật chờ QA-03 |
 | [WEB-073](docs/tasks/WEB-073-xu-ly-cat-tai-retry-after.md) | Xử lý 429 và 503 có `Retry-After`, thử lại có backoff, giữ bản nháp | S | W | 1 | WEB-007 | **Đã gộp main** | Đã gộp main (f4fca53); máy chủ thật chờ CORE tương ứng |
 | [WEB-074](docs/tasks/WEB-074-traceparent-telemetry.md) | Gắn `traceparent` vào mọi lời gọi của `@vt/api-client` và liên kết với telemetry | S | W | 1 | WEB-011 | **Đã gộp main** | Đã gộp main (f4fca53); máy chủ thật chờ CORE tương ứng |
-| [WEB-075](docs/tasks/WEB-075-kham-pha-cell.md) | Khám phá cell khi đăng nhập (chuyển hướng 307, mã 421) | S | W | 10 | WEB-006, DV-01-04 | **Đã gộp main** | Đã gộp main (f4fca53); máy chủ thật chờ CORE tương ứng |
+| [WEB-075](docs/tasks/WEB-075-kham-pha-cell.md) | Khám phá cell khi đăng nhập (chuyển hướng 307, mã 421) | S | W | 10 | WEB-006, DV-01-04 | **Đã gộp main** | Nhánh claude/project-thread-61v3rx: shell chờ đăng nhập xong mới gọi registry/resolve và nạp cờ tính năng (hết 401 khi khởi động); chờ gộp |
 | [WEB-076](docs/tasks/WEB-076-doc-co-tinh-nang.md) | Đọc cờ tính năng phía web | S | W | 13 | CORE-08-07, NEN-043 | **Đã gộp main** | Đã gộp main (f4fca53); máy chủ thật chờ CORE tương ứng |
 
 ### CNH · Cá nhân hoá theo người dùng (chờ người dùng chốt) (5/5 đã gộp `main`, 0 chờ gộp, 0 đang làm)
@@ -1007,4 +1007,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 11:02 | Điều phối (main) | `QA-13` | Chuyển trạng thái sang **Đang làm** — Giao B4 |
 | 23/10/2026 11:03 | Điều phối (main) | `QA-02` | Chuyển trạng thái sang **Đang làm** — Giao B9; Pact bằng tệp, không dùng Broker (quyết định main) |
 | 23/10/2026 11:22 | Điều phối (main) | `INF-25` | Chuyển trạng thái sang **Đang làm** — Giao B7 |
+| 23/10/2026 11:42 | Tiếp nối phiên làm việc trước | `WEB-075` | Chuyển trạng thái sang **Đã gộp main** — Nhánh claude/project-thread-61v3rx: shell chờ đăng nhập xong mới gọi registry/resolve và nạp cờ tính năng (hết 401 khi khởi động); chờ gộp |
+| 23/10/2026 11:42 | Tiếp nối phiên làm việc trước | `WEB-021` | Chuyển trạng thái sang **Đã gộp main** — Nhánh claude/project-thread-61v3rx: cây OKR báo lỗi kèm Thử lại khi máy chủ trả rỗng thay vì treo ở Đang tải; chờ gộp |
 <!-- PROGRESS_LOG_END -->
