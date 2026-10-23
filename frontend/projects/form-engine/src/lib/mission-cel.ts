@@ -1,7 +1,5 @@
-import { evaluate, parse } from 'cel-js';
+import { Environment, TypeError as CelTypeError } from '@marcbachmann/cel-js';
 import { CelFunctions } from './cel-rule-evaluator';
-
-type Cst = Extract<ReturnType<typeof parse>, { isSuccess: true }>['cst'];
 
 /** Mã lỗi chuẩn của động cơ CEL theo đặc tả NEN-041 / TL-01 §4.3. */
 export type MissionCelErrorCode =
@@ -265,8 +263,8 @@ export function roundCelScore(
 }
 
 /**
- * Tạo bảng hàm mở rộng chuẩn của Mission (`sum`, `min_muc`, `ngay_lam_viec`, `workdays`)
- * để truyền vào `cel-js`.
+ * Tạo bảng hàm mở rộng chuẩn của Mission (`sum`, `min_muc`, `ngay_lam_viec`, `workdays`) theo kiểu
+ * hàm của `cel-js` dùng cho quy tắc biểu mẫu (`evaluateRules`).
  */
 export function createMissionCelFunctions(
   calendar: WorkingCalendarConfig = DEFAULT_TEST_WORKING_CALENDAR,
@@ -292,109 +290,141 @@ export interface MissionCelEvalOptions {
   readonly maxExpressionLength?: number;
 }
 
-const RESERVED_IDENTIFIERS = new Set([
-  'true',
-  'false',
-  'null',
-  'size',
-  'has',
-  'sum',
-  'min_muc',
-  'ngay_lam_viec',
-  'workdays',
-  'all',
-  'exists',
-  'exists_one',
-  'filter',
-  'map',
-  'in',
-]);
+/** Kiểu CEL của từng kiểu biến trong hợp đồng, như `CelValueType` của `vt-cel`. */
+const CEL_TYPE: Readonly<Record<CelVariableType, string>> = {
+  DOUBLE: 'double',
+  DECIMAL: 'double',
+  INT: 'int',
+  BOOL: 'bool',
+  STRING: 'string',
+  NULLABLE_STRING: 'dyn',
+  LIST_DOUBLE: 'list<double>',
+  LIST_INT: 'list<int>',
+  LIST_STRING: 'list<string>',
+  LIST_DYN: 'list<dyn>',
+  MAP_STRING_DYN: 'map<string, dyn>',
+  DYN: 'dyn',
+};
 
-function extractMacroBoundVars(codeWithoutStrings: string): Set<string> {
-  const bound = new Set<string>();
-  const regex = /\.\s*(?:all|exists|exists_one|filter|map)\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,/g;
-  for (const match of codeWithoutStrings.matchAll(regex)) {
-    bound.add(match[1]);
+/** Không gian tên `math.*` (phần mở rộng math của cel-java: `math.least`, `math.greatest`). */
+class MathNamespace {}
+
+const toNum = (v: unknown) => (typeof v === 'bigint' ? Number(v) : (v as number));
+
+/** Môi trường gốc: hàm mở rộng của Mission và `math.least/greatest`, chưa khai biến. */
+function baseEnvironment(calendar: WorkingCalendarConfig): Environment {
+  const env = new Environment({
+    unlistedVariablesAreDyn: false,
+    // cel-java cho phép literal danh sách khác kiểu phần tử (kiểu list(dyn))
+    homogeneousAggregateLiterals: false,
+  })
+    .registerType('MathNamespace', MathNamespace)
+    .registerConstant('math', 'MathNamespace', new MathNamespace())
+    .registerFunction('sum(list<double>): double', (l: number[]) => sumCelValues(l))
+    .registerFunction('sum(list<int>): double', (l: bigint[]) => sumCelValues(l.map(Number)))
+    .registerFunction('min_muc(string, string): string', (a: string, b: string) =>
+      minMucXepLoai(a, b),
+    )
+    .registerFunction('ngay_lam_viec(string, string): int', (a: string, b: string) =>
+      BigInt(countWorkingDays(a, b, calendar)),
+    )
+    .registerFunction('workdays(string, string): int', (a: string, b: string) =>
+      BigInt(countWorkingDays(a, b, calendar)),
+    );
+  const pick = {
+    least: (a: unknown, b: unknown) => (toNum(b) < toNum(a) ? b : a),
+    greatest: (a: unknown, b: unknown) => (toNum(b) > toNum(a) ? b : a),
+  };
+  for (const [name, choose] of Object.entries(pick)) {
+    const both = (r: string, t1: string, t2: string, conv: (v: unknown) => unknown) =>
+      env.registerFunction({
+        name,
+        receiverType: 'MathNamespace',
+        returnType: r,
+        handler: (_ns: MathNamespace, a: unknown, b: unknown) => conv(choose(a, b)),
+        params: [
+          { name: 'a', type: t1 },
+          { name: 'b', type: t2 },
+        ],
+      });
+    both('double', 'double', 'double', (v) => v);
+    both('int', 'int', 'int', (v) => v);
+    both('double', 'double', 'int', toNum);
+    both('double', 'int', 'double', toNum);
+    for (const [r, t] of [
+      ['double', 'list<double>'],
+      ['int', 'list<int>'],
+    ])
+      env.registerFunction({
+        name,
+        receiverType: 'MathNamespace',
+        returnType: r,
+        handler: (_ns: MathNamespace, list: unknown[]) => {
+          // ui-text-ok: thông điệp lỗi kỹ thuật nội bộ
+          if (!list.length) throw new Error(`math.${name}() requires a non-empty list`);
+          return list.reduce(choose);
+        },
+        params: [{ name: 'list', type: t }],
+      });
   }
-  return bound;
+  return env;
 }
 
-function extractTopLevelIdentifiers(expression: string): string[] {
-  const codeWithoutStrings = expression.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""');
-  const macroVars = extractMacroBoundVars(codeWithoutStrings);
-  const identifiers = new Set<string>();
-  const tokenRegex = /(\.\s*)?([A-Za-z_][A-Za-z0-9_]*)(\s*\()?/g;
+const baseEnvs = new WeakMap<WorkingCalendarConfig, Environment>();
+/** Môi trường đã khai biến theo bộ kiểu biến, kèm biểu thức đã phân tích và kiểm kiểu. */
+const typedEnvs = new WeakMap<
+  WorkingCalendarConfig,
+  Map<string, { env: Environment; parsed: Map<string, ReturnType<Environment['parse']>> }>
+>();
 
-  for (const match of codeWithoutStrings.matchAll(tokenRegex)) {
-    const isPropertyOrMethod = Boolean(match[1]);
-    const name = match[2];
-    const isFunctionCall = Boolean(match[3]);
-    if (isPropertyOrMethod || isFunctionCall) {
-      continue;
-    }
-    if (RESERVED_IDENTIFIERS.has(name) || macroVars.has(name)) {
-      continue;
-    }
-    identifiers.add(name);
-  }
-  return [...identifiers];
-}
-
-function validateStaticTypes(
-  expression: string,
+function typedEnvironment(
+  calendar: WorkingCalendarConfig,
   variableTypes: Readonly<Record<string, CelVariableType>>,
-  topLevelVars: readonly string[],
-): void {
-  for (const varName of topLevelVars) {
-    if (!(varName in variableTypes)) {
-      throw new MissionCelError(
-        'POLICY-422-CEL-TYPE',
-        expression,
-        `Undeclared reference to '${varName}'`,
-      );
+) {
+  const key = JSON.stringify(Object.entries(variableTypes).sort(([a], [b]) => (a < b ? -1 : 1)));
+  let byTypes = typedEnvs.get(calendar);
+  if (!byTypes) typedEnvs.set(calendar, (byTypes = new Map()));
+  let entry = byTypes.get(key);
+  if (!entry) {
+    let base = baseEnvs.get(calendar);
+    if (!base) baseEnvs.set(calendar, (base = baseEnvironment(calendar)));
+    const env = base.clone();
+    for (const [name, type] of Object.entries(variableTypes)) {
+      env.registerVariable(name, CEL_TYPE[type] ?? 'dyn');
     }
+    entry = { env, parsed: new Map() };
+    byTypes.set(key, entry);
   }
-
-  // Kiểm kiểu tĩnh cho hàm sum(...) chỉ nhận LIST_DOUBLE hoặc LIST_INT
-  const sumCallMatch = expression.match(/\bsum\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)/);
-  if (sumCallMatch) {
-    const argVar = sumCallMatch[1];
-    const argType = variableTypes[argVar];
-    if (argType && argType !== 'LIST_DOUBLE' && argType !== 'LIST_INT' && argType !== 'DYN') {
-      throw new MissionCelError(
-        'POLICY-422-CEL-TYPE',
-        expression,
-        // ui-text-ok: thông điệp lỗi kỹ thuật nội bộ
-        `Function sum() expects LIST_DOUBLE or LIST_INT, got ${argType} for '${argVar}'`,
-      );
-    }
-  }
-
-  // Kiểm kiểu tĩnh cho phép cộng số với chuỗi ký tự
-  const codeWithoutStrings = expression.replace(
-    /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g,
-    '__STRING_LITERAL__',
-  );
-  for (const [varName, varType] of Object.entries(variableTypes)) {
-    if (varType === 'DOUBLE' || varType === 'DECIMAL' || varType === 'INT') {
-      const badAddLeft = new RegExp(`\\b${varName}\\b\\s*[+\\-*/]\\s*__STRING_LITERAL__`);
-      const badAddRight = new RegExp(`__STRING_LITERAL__\\s*[+\\-*/]\\s*\\b${varName}\\b`);
-      if (badAddLeft.test(codeWithoutStrings) || badAddRight.test(codeWithoutStrings)) {
-        throw new MissionCelError(
-          'POLICY-422-CEL-TYPE',
-          expression,
-          `Type mismatch: numeric variable '${varName}' (${varType}) cannot be combined with string`,
-        );
-      }
-    }
-  }
+  return entry;
 }
 
-const cstCache = new Map<string, Cst>();
+/** Đổi giá trị đầu vào sang kiểu của CEL: số nguyên khai `INT` thành `bigint`. */
+function toCelValue(
+  expression: string,
+  name: string,
+  type: CelVariableType | undefined,
+  value: unknown,
+): unknown {
+  const asInt = (v: unknown) => {
+    if (typeof v === 'bigint') return v;
+    if (typeof v === 'number' && Number.isInteger(v)) return BigInt(v);
+    throw new MissionCelError(
+      'POLICY-422-CEL-TYPE',
+      expression,
+      // ui-text-ok: thông điệp lỗi kỹ thuật nội bộ
+      `Variable '${name}' expects integer value for INT, got: ${String(v)}`,
+    );
+  };
+  if (type === 'INT') return asInt(value);
+  if (type === 'LIST_INT' && Array.isArray(value)) return value.map(asInt);
+  return value;
+}
 
-/** Lỗi kiểu của cel-js, hàm mở rộng nhận sai kiểu, hàm hoặc macro không được phép (ví dụ now()). */
-const TYPE_ERROR_PATTERN =
-  /CelTypeError|cannot be applied|is not a finite number|requires (?:an array|string) argument|not recognized|Unknown function|not found/i;
+/** Biến khai báo mà biểu thức tham chiếu tới (tên gốc, không tính thuộc tính hay hàm). */
+function referencedVariables(expression: string, declared: readonly string[]): string[] {
+  const code = expression.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""');
+  return declared.filter((name) => new RegExp(`(?<![.\\w])${name}(?![\\w(])`).test(code));
+}
 
 function matchesReturnType(value: unknown, returnType: CelVariableType): boolean {
   switch (returnType) {
@@ -412,8 +442,10 @@ function matchesReturnType(value: unknown, returnType: CelVariableType): boolean
 }
 
 /**
- * Biên dịch, kiểm kiểu tĩnh, thực thi biểu thức CEL trên `cel-js` và làm tròn điểm ở lớp sau
- * theo đúng hợp đồng đối chiếu với `CelEngine` (`vt-cel` trên máy chủ Java).
+ * Biên dịch, kiểm kiểu tĩnh và thực thi biểu thức CEL trên `@marcbachmann/cel-js` (cài đặt CEL đầy
+ * đủ, phân biệt `int` và `double` như cel-java), rồi làm tròn điểm ở lớp sau theo đúng hợp đồng
+ * đối chiếu với `CelEngine` (`vt-cel` trên máy chủ Java): cùng kiểu biến, phần mở rộng `math`, các
+ * hàm `sum`, `min_muc`, `ngay_lam_viec`, `workdays`, so sánh số khác kiểu được phép.
  */
 export function evaluateMissionCel(options: MissionCelEvalOptions): unknown {
   const {
@@ -437,52 +469,58 @@ export function evaluateMissionCel(options: MissionCelEvalOptions): unknown {
     );
   }
 
-  let cst = cstCache.get(expression);
-  if (!cst) {
-    const parsed = parse(expression);
-    if (!parsed.isSuccess) {
-      throw new MissionCelError('POLICY-422-CEL-TYPE', expression, parsed.errors.join('; '));
+  const { env, parsed } = typedEnvironment(calendar, variableTypes);
+  let program = parsed.get(expression);
+  if (!program) {
+    try {
+      program = env.parse(expression);
+    } catch (err) {
+      throw new MissionCelError('POLICY-422-CEL-TYPE', expression, messageOf(err));
     }
-    cst = parsed.cst;
-    cstCache.set(expression, cst);
+    const checked = program.check();
+    if (!checked.valid) {
+      throw new MissionCelError(
+        'POLICY-422-CEL-TYPE',
+        expression,
+        messageOf(checked.error ?? 'Type check failed'),
+      );
+    }
+    parsed.set(expression, program);
   }
 
-  const referencedVars = extractTopLevelIdentifiers(expression);
-  validateStaticTypes(expression, variableTypes, referencedVars);
-
-  for (const requiredVar of referencedVars) {
-    if (
-      !(requiredVar in inputs) ||
-      inputs[requiredVar] === null ||
-      inputs[requiredVar] === undefined
-    ) {
+  const context: Record<string, unknown> = {};
+  for (const name of referencedVariables(expression, Object.keys(variableTypes))) {
+    const value = inputs[name];
+    if (value === null || value === undefined) {
+      if (variableTypes[name] === 'NULLABLE_STRING') {
+        context[name] = null;
+        continue;
+      }
       throw new MissionCelError(
         'POLICY-422-CEL-MISSING-VAR',
         expression,
         // ui-text-ok: thông điệp lỗi kỹ thuật nội bộ
-        `Missing or null required variable: '${requiredVar}'`,
+        `Missing or null required variable: '${name}'`,
       );
     }
+    context[name] = toCelValue(expression, name, variableTypes[name], value);
   }
 
-  const fns = createMissionCelFunctions(calendar);
   let rawResult: unknown;
   try {
-    rawResult = evaluate(
-      cst,
-      inputs as Record<string, unknown>,
-      fns as Record<string, CallableFunction>,
-    );
+    rawResult = program(context);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/Identifier ".*" not found/.test(msg)) {
+    if (err instanceof MissionCelError) throw err;
+    const msg = messageOf(err);
+    if (/Unknown variable|No such key/.test(msg)) {
       throw new MissionCelError('POLICY-422-CEL-MISSING-VAR', expression, msg);
     }
-    if (TYPE_ERROR_PATTERN.test(msg)) {
+    if (err instanceof CelTypeError || /no such overload|no matching overload/.test(msg)) {
       throw new MissionCelError('POLICY-422-CEL-TYPE', expression, msg);
     }
     throw new MissionCelError('POLICY-422-CEL-EVAL-ERROR', expression, msg);
   }
+  if (typeof rawResult === 'bigint') rawResult = Number(rawResult);
 
   if (!matchesReturnType(rawResult, options.returnType)) {
     throw new MissionCelError(
@@ -508,4 +546,9 @@ export function evaluateMissionCel(options: MissionCelEvalOptions): unknown {
   }
 
   return rawResult;
+}
+
+function messageOf(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.split('\n')[0];
 }

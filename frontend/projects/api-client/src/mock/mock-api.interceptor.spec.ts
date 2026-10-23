@@ -9,7 +9,12 @@ import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
 import { idempotencyInterceptor } from '../lib/interceptors';
 import { ProblemDetails } from '../lib/problem-details';
-import { DEFAULT_RUNTIME_CONFIG, RUNTIME_CONFIG, RuntimeConfig } from '../lib/runtime-config';
+import {
+  DEFAULT_RUNTIME_CONFIG,
+  RUNTIME_CONFIG,
+  RuntimeConfig,
+  isMockedApiPath,
+} from '../lib/runtime-config';
 import { TaskApi } from '../lib/task-api';
 import { MOCK_API_OPTIONS, apiPath, mockApiInterceptor } from './mock-api.interceptor';
 import { resetMockData } from './mock-registry';
@@ -201,5 +206,39 @@ describe('resolveRelativeDates', () => {
       a: '2026-10-18',
       b: ['2026-10-21T08:00:00Z', 'khác'],
     });
+  });
+});
+
+describe('giả lập theo module (WEB-070)', () => {
+  beforeEach(() => resetMockData());
+
+  it('isMockedApiPath: useMockApi bật thì mọi module; tắt thì chỉ tiền tố trong mockApiModules', () => {
+    expect(isMockedApiPath({ useMockApi: true }, '/api/v1/okr/objectives')).toBe(true);
+    expect(isMockedApiPath({ useMockApi: false }, '/api/v1/okr/objectives')).toBe(false);
+    const cfg = { useMockApi: false, mockApiModules: ['dossiers', '/tasks/source-docs/'] };
+    expect(isMockedApiPath(cfg, '/api/v1/dossiers')).toBe(true);
+    expect(isMockedApiPath(cfg, '/api/v1/dossiers/D-1/files')).toBe(true);
+    expect(isMockedApiPath(cfg, '/api/v1/dossiers-x')).toBe(false);
+    expect(isMockedApiPath(cfg, '/api/v1/tasks/source-docs/S-1')).toBe(true);
+    expect(isMockedApiPath(cfg, '/api/v1/tasks/T-1')).toBe(false);
+    const wild = { useMockApi: false, mockApiModules: ['tasks/*/secret-content'] };
+    expect(isMockedApiPath(wild, '/api/v1/tasks/T-1/secret-content/shares/P-1')).toBe(true);
+    expect(isMockedApiPath(wild, '/api/v1/tasks/T-1/progress')).toBe(false);
+    expect(isMockedApiPath(wild, '/api/v1/tasks/T-1')).toBe(false);
+    expect(isMockedApiPath({ useMockApi: false, mockApiModules: ['', ' '] }, '/api/v1/okr')).toBe(
+      false,
+    );
+  });
+
+  it('module thật đi ra mạng, module còn giả lập trả fixture', async () => {
+    const { api, http } = setup({ useMockApi: false, mockApiModules: ['catalog'] });
+    const ctrl = TestBed.inject(HttpTestingController);
+    const real = firstValueFrom(api.myTasks());
+    const req = ctrl.expectOne((r) => r.url.includes('/v1/tasks/mine'));
+    req.flush({ items: [], nextCursor: null });
+    expect((await real).items).toEqual([]);
+    const mocked = await firstValueFrom(http.get<unknown>('/api/v1/catalog/items'));
+    expect(mocked).toBeTruthy();
+    ctrl.verify();
   });
 });

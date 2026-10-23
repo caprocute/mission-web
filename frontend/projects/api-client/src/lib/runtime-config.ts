@@ -24,8 +24,14 @@ export interface RuntimeConfig {
      */
     redirectUri?: string;
   };
-  /** Bật dữ liệu giả lập khi mission-core chưa sẵn sàng. */
+  /** Bật dữ liệu giả lập cho mọi module khi mission-core chưa sẵn sàng. */
   useMockApi: boolean;
+  /**
+   * Module API vẫn dùng giả lập khi `useMockApi` tắt (WEB-070): mỗi mục là tiền tố đường dẫn sau
+   * `/api/v1/`, ví dụ `dossiers` (cả module) hay `tasks/source-docs` (một nhánh). Dùng khi nối dần
+   * từng module với máy chủ thật; `useMockApi` bật thì mọi module đều giả lập như trước.
+   */
+  mockApiModules?: string[];
   telemetry?: { otlpEndpoint?: string; sampleRatio?: number };
 }
 
@@ -63,4 +69,33 @@ export async function loadRuntimeConfig(
     console.warn('[vt] Không đọc được config.json, dùng cấu hình mặc định', err);
     return DEFAULT_RUNTIME_CONFIG;
   }
+}
+
+/**
+ * Request tới `path` (`/api/v1/...`) có trả bằng giả lập không: `useMockApi` bật thì mọi module,
+ * tắt thì chỉ các tiền tố trong `mockApiModules`. Tiền tố khớp trọn từng đoạn (`tasks` không khớp
+ * `tasks-x`), đoạn chỉ gồm dấu sao khớp một đoạn bất kỳ (ví dụ ở wiki/06).
+ */
+export function isMockedApiPath(
+  cfg: Pick<RuntimeConfig, 'useMockApi' | 'mockApiModules'>,
+  path: string,
+): boolean {
+  if (cfg.useMockApi) return true;
+  const segs = path.replace(/^\/api\/v1\//, '').split('/');
+  return (cfg.mockApiModules ?? []).some((m) => {
+    const prefix = m
+      .trim()
+      .split('/')
+      .filter((x) => x);
+    return (
+      prefix.length > 0 &&
+      prefix.length <= segs.length &&
+      prefix.every((p, i) => p === '*' || p === segs[i])
+    );
+  });
+}
+
+/** Có module nào đang dùng giả lập không (để báo máy chủ giả lập là phiên vừa MFA, v.v.). */
+export function mockApiActive(cfg: Pick<RuntimeConfig, 'useMockApi' | 'mockApiModules'>): boolean {
+  return cfg.useMockApi || !!cfg.mockApiModules?.length;
 }
