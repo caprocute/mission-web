@@ -7,6 +7,7 @@ import {
   KeyResultRef,
   KrCheckin,
   ObjectiveDetail,
+  Objective,
   ObjectiveDraft,
   OkrComposeContext,
   OkrCheckinCreate,
@@ -14,6 +15,7 @@ import {
   OkrHistoryEntry,
   OkrKeyResultDetail,
   OkrKeyResultPage,
+  OkrOwnerType,
   OkrReviewDecisionBody,
   OkrReviewQueue,
   OkrSourceValue,
@@ -51,6 +53,22 @@ export class OkrApi {
     if (query.unit) params = params.set('unit', query.unit);
     if (query.period) params = params.set('period', query.period);
     return this.http.get<OkrTree>('/api/v1/okr/tree', { params });
+  }
+
+  /**
+   * Một trang mục tiêu (`GET /api/v1/okr/objectives?view=table`), dùng cho khối tiến độ trên trang
+   * chủ. Bỏ `period` để lấy kỳ đang mở; `owner = me` chỉ lấy OKR cá nhân của người gọi, không có thì
+   * lấy mục tiêu của đơn vị trong ngữ cảnh làm việc.
+   */
+  objectives(
+    query: { period?: string; owner?: 'me'; ownerType?: OkrOwnerType; limit?: number } = {},
+  ): Observable<CursorPage<Objective>> {
+    let params = new HttpParams().set('view', 'table');
+    if (query.period) params = params.set('period', query.period);
+    if (query.owner) params = params.set('owner', query.owner);
+    if (query.ownerType) params = params.set('ownerType', query.ownerType);
+    if (query.limit) params = params.set('limit', Math.min(query.limit, MAX_PAGE_LIMIT));
+    return this.http.get<CursorPage<Objective>>('/api/v1/okr/objectives', { params });
   }
 
   /** Lịch sử check-in của KR, mới nhất trước (`/api/v1/okr/key-results/{id}/checkins?cursor=`). */
