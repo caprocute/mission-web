@@ -4,6 +4,7 @@ import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -50,6 +51,28 @@ public class JdbcMappingXrefs implements MappingXrefs {
         .params(tenant.value(), connectorId, type.name(), internalId, Date.valueOf(on))
         .query(JdbcMappingXrefs::map)
         .optional();
+  }
+
+  @Override
+  public List<Located> byInternalAnyConnector(
+      TenantId tenant, EntityType type, UUID internalId, LocalDate on) {
+    return jdbc.sql(
+            "SELECT connector_id, "
+                + COLUMNS
+                + " FROM integ.mapping_xref WHERE tenant_id = ? AND entity_type = ?"
+                + " AND internal_id = ? AND valid_period @> ?::date"
+                + " ORDER BY valid_from DESC, id DESC LIMIT 20")
+        .params(tenant.value(), type.name(), internalId, Date.valueOf(on))
+        .query(
+            (rs, row) ->
+                new Located(
+                    rs.getObject(1, UUID.class),
+                    new Mapping(
+                        rs.getObject(2, UUID.class),
+                        rs.getString(3),
+                        rs.getObject(4, UUID.class),
+                        rs.getDate(5).toLocalDate())))
+        .list();
   }
 
   @Override
