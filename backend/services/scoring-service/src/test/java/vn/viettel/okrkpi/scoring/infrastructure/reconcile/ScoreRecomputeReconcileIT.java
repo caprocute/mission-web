@@ -169,6 +169,64 @@ class ScoreRecomputeReconcileIT {
         .isEqualTo(1.0);
   }
 
+  /** CORE-08-02: tác vụ tính đầu tiên của một quý mới tự tạo phân vùng cho mọi bảng theo kỳ. */
+  @Test
+  void moTacVuChoQuyMoiTuTaoPhanVung() throws Exception {
+    int bucket = 20944;
+    assertThat(missing(bucket)).isNotEmpty();
+    TenantId t = TenantId.of(UUID.randomUUID());
+    ScoreJob job =
+        new ScoreJob(
+            t.value(),
+            Ids.newUuidV7(),
+            UUID.randomUUID(),
+            bucket,
+            ScoreJobKind.TAM_TINH,
+            CanonicalDoc.of(Map.of("don_vi", List.of("DV-01"))),
+            PPV,
+            null,
+            1,
+            ACTOR);
+    UUID id = inTenant(t, () -> recorder.open(job));
+    assertThat(id).isEqualTo(job.id());
+    assertThat(missing(bucket)).isEmpty();
+    // Mở tác vụ khác cùng quý: không tạo lại, không lỗi.
+    inTenant(
+        t,
+        () ->
+            recorder.open(
+                new ScoreJob(
+                    t.value(),
+                    Ids.newUuidV7(),
+                    job.periodId(),
+                    bucket,
+                    ScoreJobKind.TAM_TINH,
+                    job.scope(),
+                    PPV,
+                    null,
+                    1,
+                    ACTOR)));
+  }
+
+  private static List<String> missing(int bucket) throws SQLException {
+    try (Connection admin = admin();
+        Statement st = admin.createStatement();
+        java.sql.ResultSet rs =
+            st.executeQuery(
+                "SELECT c.relname FROM pg_partitioned_table pt JOIN pg_class c ON c.oid = pt.partrelid"
+                    + " JOIN pg_namespace n ON n.oid = c.relnamespace"
+                    + " WHERE n.nspname = 'scoring' AND NOT c.relispartition AND pt.partstrat = 'l'"
+                    + " AND to_regclass('scoring.' || c.relname || '_p"
+                    + bucket
+                    + "') IS NULL")) {
+      List<String> out = new ArrayList<>();
+      while (rs.next()) {
+        out.add(rs.getString(1));
+      }
+      return out;
+    }
+  }
+
   @Test
   void khopThiKhopVaQuaHanChuaTinhThiLoi() {
     TenantId a = TenantId.of(UUID.randomUUID());

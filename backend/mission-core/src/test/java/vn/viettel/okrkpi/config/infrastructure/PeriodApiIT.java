@@ -8,7 +8,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.models.PathItem;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -37,10 +39,13 @@ import vn.viettel.okrkpi.config.api.PeriodLockedException;
 import vn.viettel.okrkpi.config.application.PeriodConfigService;
 import vn.viettel.okrkpi.config.domain.PeriodState;
 import vn.viettel.okrkpi.config.infrastructure.persistence.JdbcPeriodRepository;
+import vn.viettel.okrkpi.config.infrastructure.persistence.ModulePeriodPartitions;
 import vn.viettel.okrkpi.config.infrastructure.persistence.OutboxPeriodEvents;
 import vn.viettel.okrkpi.config.infrastructure.web.PeriodCaller;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
+import vn.viettel.okrkpi.shared.datasource.ModuleName;
+import vn.viettel.okrkpi.shared.datasource.ReadWriteRoutingDataSource;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.kernel.PeriodId;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
@@ -124,6 +129,9 @@ class PeriodApiIT extends ContractConformanceTest {
   @Autowired
   @Qualifier("configTransactionManager") private PlatformTransactionManager tm;
 
+  @Autowired
+  @Qualifier("moduleDataSources") private Map<ModuleName, ReadWriteRoutingDataSource> moduleDataSources;
+
   private final TenantId tenant = TenantId.of(UUID.randomUUID());
   private final UUID actor = CallerConfig.ACTOR;
 
@@ -158,6 +166,72 @@ class PeriodApiIT extends ContractConformanceTest {
   private JsonNode body(MvcResult r) throws Exception {
     return json.readTree(r.getResponse().getContentAsString(StandardCharsets.UTF_8));
   }
+
+  /**
+   * CORE-08-02: tạo kỳ thì mọi bảng phân vùng LIST theo {@code period_bucket} của tám schema có
+   * phân vùng cho quý của kỳ (không có phân vùng mặc định, thiếu thì lệnh ghi theo kỳ lỗi 500). Tạo
+   * kỳ khác cùng quý và gọi lại bộ tạo phân vùng không lỗi.
+   */
+  @Test
+  void taoKyTaoPhanVungChoMoiBangTheoKyCuaCacMoDun() throws Exception {
+    int bucket = 20933;
+    List<String> tables = periodTables();
+    assertThat(tables)
+        .hasSizeGreaterThan(10)
+        .anyMatch(t -> t.startsWith("okr."))
+        .anyMatch(t -> t.startsWith("task."))
+        .anyMatch(t -> t.startsWith("appraisal."));
+    assertThat(missingPartitions(bucket)).isNotEmpty();
+
+    MvcResult created =
+        perform(
+            create(UUID.randomUUID().toString(), quarter("2093-Q3", "2093-07-01", "2093-09-30")));
+    assertThat(created.getResponse().getStatus()).isEqualTo(201);
+    assertThat(body(created).get("periodBucket").asInt()).isEqualTo(bucket);
+    assertThat(missingPartitions(bucket)).isEmpty();
+
+    // Kỳ tháng cùng quý dùng lại phân vùng; bộ tạo mới (không nhớ đệm) gọi lại không lỗi.
+    MvcResult month =
+        perform(
+            create(
+                UUID.randomUUID().toString(),
+                """
+                {"code":"2093-08","name":"Tháng 8/2093","kind":"THANG","flow":"CA_HAI",
+                 "startDate":"2093-08-01","endDate":"2093-08-31"}
+                """));
+    assertThat(month.getResponse().getStatus()).isEqualTo(201);
+    new ModulePeriodPartitions(moduleDataSources).ensure(bucket);
+    assertThat(missingPartitions(bucket)).isEmpty();
+  }
+
+  private List<String> periodTables() {
+    return new JdbcTemplate(dataSource)
+        .queryForList(PERIOD_TABLES, String.class, (Object) schemas());
+  }
+
+  /** Bảng theo kỳ của tám schema chưa có phân vùng {@code <bảng>_p<bucket>}. */
+  private List<String> missingPartitions(int bucket) {
+    return new JdbcTemplate(dataSource)
+        .queryForList(
+            PERIOD_TABLES
+                + " AND NOT EXISTS (SELECT 1 FROM pg_class p WHERE p.relnamespace = c.relnamespace"
+                + " AND p.relname = c.relname || '_p' || ?::int)",
+            String.class,
+            schemas(),
+            bucket);
+  }
+
+  private static String[] schemas() {
+    return Arrays.stream(ModuleName.values()).map(ModuleName::schema).toArray(String[]::new);
+  }
+
+  private static final String PERIOD_TABLES =
+      "SELECT c.oid::regclass::text FROM pg_partitioned_table pt"
+          + " JOIN pg_class c ON c.oid = pt.partrelid"
+          + " JOIN pg_namespace n ON n.oid = c.relnamespace"
+          + " JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = pt.partattrs[0]"
+          + " WHERE n.nspname = ANY (?) AND NOT c.relispartition AND pt.partstrat = 'l'"
+          + " AND a.attname = 'period_bucket'";
 
   @Test
   void createGetListConformToContractAndHandleOverlapPagingAndIdempotency() throws Exception {

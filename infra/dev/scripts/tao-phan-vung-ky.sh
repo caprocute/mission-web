@@ -3,8 +3,9 @@
 # Tạo phân vùng LIST theo period_bucket cho mọi bảng theo kỳ (okr, task, product, appraisal, dossier,
 # oversight, scoring) ứng với các kỳ đã có trong config.period, bằng hàm chuẩn <schema>.fn_create_period_partitions
 # (NEN-033). Thiếu phân vùng thì mọi lệnh ghi theo kỳ (tạo nhiệm vụ, kế hoạch, mục tiêu...) lỗi 500
-# "no partition of relation ... found for row". Bản dev tạm thay cho job tạo trước phân vùng khi tạo kỳ
-# (CORE-08-02 mới phát PeriodOpenedEvent, chưa có bên nhận nào tạo phân vùng). Chạy lại an toàn.
+# "no partition of relation ... found for row". Từ CORE-08-02 (bản sửa 23/10/2026), mission-core tự tạo
+# phân vùng khi tạo kỳ và scoring-service khi mở tác vụ tính đầu tiên của quý; script này chỉ còn dùng để
+# bù cho kỳ đã tạo trước bản sửa. Chạy lại an toàn.
 #
 #   ./infra/dev/scripts/tao-phan-vung-ky.sh
 # =============================================================================

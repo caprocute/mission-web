@@ -97,6 +97,28 @@ class PeriodConfigServiceTest {
   }
 
   @Test
+  void preparesPartitionsBeforeInsertAndNotForRejectedPeriods() {
+    List<String> calls = new ArrayList<>();
+    service.setPartitions(
+        bucket ->
+            calls.add(
+                bucket
+                    + ":"
+                    + repo.covering(TENANT, PeriodKind.QUY, LocalDate.of(2027, 1, 15)).size()));
+    service.create(TENANT, ACTOR, q1());
+    // Phân vùng được chuẩn bị trước khi kỳ được ghi.
+    assertThat(calls).containsExactly("20271:0");
+    assertThatThrownBy(
+            () ->
+                service.create(
+                    TENANT,
+                    ACTOR,
+                    quarter("2027-Q1b", LocalDate.of(2027, 3, 1), LocalDate.of(2027, 5, 31))))
+        .hasMessage("PERIOD-409-OVERLAP");
+    assertThat(calls).hasSize(1);
+  }
+
+  @Test
   void createsStartedPeriodAndAnnouncesOpeningOnce() {
     PeriodView v = service.create(TENANT, ACTOR, q4());
     assertThat(v.notStarted()).isFalse();

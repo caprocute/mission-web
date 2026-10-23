@@ -23,6 +23,7 @@ import vn.viettel.okrkpi.config.api.PeriodStatus;
 import vn.viettel.okrkpi.config.api.PeriodWriteTarget;
 import vn.viettel.okrkpi.config.application.port.PeriodConflictException;
 import vn.viettel.okrkpi.config.application.port.PeriodEvents;
+import vn.viettel.okrkpi.config.application.port.PeriodPartitions;
 import vn.viettel.okrkpi.config.application.port.PeriodReopenRepository;
 import vn.viettel.okrkpi.config.application.port.PeriodRepository;
 import vn.viettel.okrkpi.config.domain.DefaultPeriodCalendar;
@@ -65,6 +66,7 @@ public class PeriodConfigService implements PeriodApi {
   private final TransactionOperations reads;
   private Supplier<String> callerModule = () -> null;
   private PeriodReopenRepository reopens;
+  private PeriodPartitions partitions = PeriodPartitions.NONE;
 
   /**
    * @param calendar tham số lịch của Policy Pack; {@code null} dùng lịch mặc định của TL-02a
@@ -151,6 +153,8 @@ public class PeriodConfigService implements PeriodApi {
         tenantId, period.kind(), period.flow(), period.startDate(), period.endDate())) {
       throw overlap();
     }
+    // Phân vùng của quý chứa kỳ phải có trước khi kỳ nhận lệnh ghi (kỳ ở MO ngay từ lúc tạo).
+    partitions.ensure(period.bucket());
     try {
       periods.insert(period);
     } catch (PeriodConflictException e) {
@@ -356,6 +360,11 @@ public class PeriodConfigService implements PeriodApi {
   /** Nguồn phạm vi mở lại hậu kiểm để nạp vào đệm trạng thái kỳ (CORE-08-06). */
   public void setReopens(PeriodReopenRepository reopens) {
     this.reopens = Objects.requireNonNull(reopens, "reopens");
+  }
+
+  /** Bộ tạo phân vùng theo kỳ của các mô-đun (CORE-08-02); mặc định không tạo. */
+  public void setPartitions(PeriodPartitions partitions) {
+    this.partitions = Objects.requireNonNull(partitions, "partitions");
   }
 
   /**
