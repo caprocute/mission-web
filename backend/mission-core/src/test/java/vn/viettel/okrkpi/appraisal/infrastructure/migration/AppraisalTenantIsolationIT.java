@@ -45,7 +45,8 @@ class AppraisalTenantIsolationIT extends TenantIsolationCatalogTest {
   void openYearPartitionAndProfiles() throws SQLException {
     try (Connection c = admin();
         Statement st = c.createStatement()) {
-      for (String table : List.of("appraisal_profile", "annual_rating", "prospect_group")) {
+      for (String table :
+          List.of("appraisal_profile", "annual_rating", "prospect_group", "prospect_board")) {
         st.execute(
             "SELECT appraisal.fn_create_period_partitions('appraisal." + table + "', 20270)");
       }
@@ -149,6 +150,14 @@ class AppraisalTenantIsolationIT extends TenantIsolationCatalogTest {
           Map<String, Object> r = periodRow(tenant, "prospect_group", YEAR_BUCKET);
           r.put("person_id", id(tenant, "person"));
           r.put("group_code", "NHOM_1");
+          return r;
+        });
+    // Danh sách phân nhóm của đơn vị (CORE-04-12), chỉ ở phân vùng năm.
+    f.put(
+        "appraisal.prospect_board",
+        (tenant, seed) -> {
+          Map<String, Object> r = periodRow(tenant, "prospect_board", YEAR_BUCKET);
+          r.put("org_unit_id", id(tenant, "org"));
           return r;
         });
     return f;

@@ -1492,6 +1492,17 @@ Hồ sơ `twd/ban-to-chuc-ueb` gồm gói `data/policy-pack/twd/diem-cong-viec`,
 - mission-core chưa có schema sổ cái, nên vết thao tác ghi qua `AuditLogger` (`ADMIN_ACTION`, `createAnnualReassignmentProposal`) kèm mã việc.
 - Khi lập dòng năm có cờ, EVT-21 (MSG-10-02) gửi người thẩm định và người quyết định của hồ sơ quý IV, mẫu `DE_XUAT_BO_TRI_LAI` (tên mẫu là suy luận), liên kết `/appraisal/xep-loai-nam?ho-so=`.
 
+### Ghi chú và quyết định từ phân nhóm triển vọng (CORE-04-12, 23/10/2026)
+
+- Bảng bổ sung `appraisal.prospect_board` (migration appraisal V4, TL-03 chưa có): một dòng cho mỗi đơn vị trong kỳ năm, giữ trạng thái của cả danh sách theo đúng enum `ProspectBoardStatus` của hợp đồng (`NHAP`, `DA_TRINH`, `DA_KY`), `row_version` của cả danh sách (ETag, `If-Match`), `board_version` tăng mỗi lần tập thể không thông qua, lý do không thông qua (C2, mã hoá phong bì), mã tiến trình và yêu cầu ký. Đây là câu hỏi mở cho TL-03: có nên đưa bảng này vào thiết kế CSDL chính thức.
+- Người trên bảng là mọi cán bộ có hồ sơ năm ở đơn vị (suy luận; TL-02b nói phân nhóm chỉ cho đối tượng Policy Pack quy định nhưng gói chưa có bộ lọc đối tượng). Một người có hai luồng thì mức năm là mức nặng nhất (đã quyết định, chưa có thì mức hệ thống) và cờ bố trí lại của bất kỳ luồng nào (suy luận).
+- Gợi ý nhóm đọc từ `prospect_group.suggested_group` nếu đã có; mission-core không tự sinh gợi ý (DV-07-07 còn để ngỏ ai sinh). Chưa có dòng thì bảng đặt tạm Nhóm 3 và không coi là khác gợi ý (suy luận).
+- BR-10-09 đánh giá bằng CEL: định nghĩa `phan_nhom_hop_le` của khối `phan_nhom` trong Policy Pack của hồ sơ năm; phiên bản chưa có quy tắc thì dùng biểu thức mặc định giống gói mẫu. Kiểm cả khi lưu và khi trình. Lưu nháp không bắt buộc lý do; trình thì thiếu lý do trả `APPRAISAL-422-REASON-REQUIRED`, còn cán bộ chưa xếp nhóm hoặc trùng thứ tự trả `COMMON-422-VALIDATION`.
+- EVT-11 của danh sách: thực thể gốc `prospect_board`, `profileId` mang mã danh sách, `stage = PHAN_NHOM`, trạng thái lấy theo enum của danh sách (suy luận; lược đồ EVT-11 chỉ mô tả hồ sơ). Sự kiện không mang nhóm, lý do hay người trong danh sách (BR-10-10). Cần chốt với bên tiêu thụ (SVC-12, SVC-09, SVC-15) hoặc thêm sự kiện riêng.
+- Thông qua tập thể: cổng `ProspectCouncil` gọi sau khi giao dịch trình commit, cùng cơ chế với `OkrApprovalStarter`; `platform.yaml` chưa có thao tác khởi tạo tiến trình giữa các dịch vụ nên chưa có bộ chuyển HTTP. Kết quả tập thể đi vào `ProspectBoardService.councilRejected` và `councilApproved`; hợp đồng chưa có đường dẫn nhận kết quả nên hai thao tác này chờ hợp đồng workflow.
+- Ký số: yêu cầu ký đã ghi trên danh sách thì EVT-18 của yêu cầu đó thuộc danh sách, không phụ thuộc mục đích ký (esign-service chưa có mục đích riêng cho danh sách phân nhóm). Ký xong chuyển `DA_KY`, ghi `decided_by` (người ghi kết quả thông qua) và `decided_at` lên các dòng của đơn vị.
+- Phân quyền: vai trò kiểm theo thao tác của hợp đồng (`leader`, `appraiser`; trình chỉ `leader`); phạm vi đơn vị kiểm qua OPA với tài nguyên `prospect_board` (`SCR-1002.xem`, `SCR-1002.xep-nhom`, `SCR-1002.trinh`). Không cần sửa quy tắc Rego vì dữ liệu ma trận đã sinh sẵn ba thao tác này.
+
 ## Liên quan
 
 - [README của wiki](README.md)
