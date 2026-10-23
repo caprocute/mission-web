@@ -7837,10 +7837,13 @@
       "owner": "MOD-02",
       "qt": [
         "QT-05",
+        "QT-06",
         "QT-16"
       ],
       "scr": [
         "SCR-0201",
+        "SCR-0501",
+        "SCR-0601",
         "SCR-1601"
       ],
       "roles": [
@@ -7853,7 +7856,7 @@
       "scope": "Đv",
       "aal": 1,
       "fourEyes": false,
-      "source": "TL-01 PL C; TL-02a SCR-0201; TL-02b SCR-1601"
+      "source": "TL-01 PL C; TL-02a SCR-0201, SCR-0501 (đường vào menu \"Nhiệm vụ\", QT-05 bước 3), SCR-0601 \"Duyệt đề nghị\"; TL-02b SCR-1601"
     },
     {
       "operationId": "listWorkCatalogs",
