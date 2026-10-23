@@ -1,0 +1,25 @@
+{
+  "moTa": "Tenant thử mô hình pool: đơn vị nhỏ, dùng chung CSDL của cell, cô lập bằng dòng tenant và RLS, khoá dùng chung của cell.",
+  "tao": {
+    "code": "thu_pool_xa_an_binh",
+    "name": "Ủy ban nhân dân xã An Bình (tenant thử)",
+    "sector": "CHINH_QUYEN",
+    "contractRef": "HĐ-THU/2026-POOL-01",
+    "contractValidTo": "2027-12-31",
+    "flows": ["NHA_NUOC"],
+    "expectedAccounts": 150,
+    "expectedUnits": 8,
+    "adminContact": { "fullName": "Người quản trị thử pool", "email": "quantri@{code}.thu-nghiem.gov.vn" }
+  },
+  "buoc3": {
+    "tenancyModel": "pool",
+    "cellCode": "CELL-SH",
+    "policyBindings": [{ "flow": "NHA_NUOC", "packVersionId": "0192e1c4-5d6e-7f80-9a1b-2c3d4e5f6a71" }],
+    "uiPackVersionId": "0192e2d5-6e7f-7a81-8b2c-3d4e5f6a7b80"
+  },
+  "buoc4": {
+    "idps": [
+      { "idpAlias": "sso", "protocol": "OIDC", "issuer": "https://sso.{code}.thu-nghiem.gov.vn", "emailDomains": ["{code}.thu-nghiem.gov.vn"] }
+    ]
+  }
+}
