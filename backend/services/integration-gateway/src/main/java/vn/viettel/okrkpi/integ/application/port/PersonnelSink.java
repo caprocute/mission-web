@@ -38,8 +38,16 @@ public interface PersonnelSink {
   }
 
   /**
-   * Gửi trọn một lần chạy {@code runId} (một trang HRM hoặc một tệp lô); lỗi kết nối ném ngoại lệ
-   * để luồng vào thử lại rồi chuyển thư chết.
+   * Gửi một lô của lần chạy {@code runId}; {@code last} đóng lần chạy (một trang HRM hay một tệp lô
+   * đến ngoài lần chạy là một lần chạy trọn). Lỗi kết nối ném ngoại lệ để luồng vào thử lại rồi
+   * chuyển thư chết.
    */
-  void forward(TenantId tenant, String connectorCode, UUID runId, List<Person> persons);
+  void forward(
+      TenantId tenant, String connectorCode, UUID runId, List<Person> persons, boolean last);
+
+  /**
+   * Đóng lần chạy kéo hết trang (DV-13-06) kèm số thư chết và lý do lỗi (nếu có), không kèm bản
+   * ghi.
+   */
+  void close(TenantId tenant, String connectorCode, UUID runId, int deadLetters, String reason);
 }

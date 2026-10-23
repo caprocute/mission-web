@@ -57,6 +57,35 @@ okrkpi:
               "[Đang làm việc]": DANG_CONG_TAC
               "[Nghỉ hưu]": NGHI_HUU
               "[Thôi việc]": THOI_VIEC
+        # DV-13-06: CSDL quốc gia CBCCVC qua NDXP, kéo hết trang trong lần đồng bộ (lịch đêm ở
+        # connector.schedule_cron, "Đồng bộ ngay" từ SCR-0104). Tên trường là suy luận cho bản giả lập.
+        "[CBCCVC]":
+          trigger: RUN
+          request-timeout: PT30S
+          batch-size: 500
+          rest:
+            path: /api/cbccvc/v1/ho-so
+            cursor-param: capNhatTu
+            limit-param: gioiHan
+            page-size: 200
+            items: /duLieu
+            next-cursor: /conTroTiep
+            updated-at: /capNhatLuc
+          fields:
+            externalId: /maHoSo
+            fullName: /hoTen
+            nationalId: /soDinhDanh
+            birthDate: /ngaySinh
+            employmentStatus: /tinhTrang
+            partyMember: /laDangVien
+            orgUnit: /coQuan/maDinhDanh
+            jobTitle: /chucVu/ma
+            effectiveFrom: /ngayHieuLuc
+          values:
+            employmentStatus:
+              "[Đang công tác]": DANG_CONG_TAC
+              "[Nghỉ hưu]": NGHI_HUU
+              "[Thôi việc]": THOI_VIEC
         "[HRM_SFTP]":
           period: PT1H
           batch:

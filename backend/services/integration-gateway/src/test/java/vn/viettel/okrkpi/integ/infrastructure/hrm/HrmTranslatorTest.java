@@ -65,11 +65,31 @@ class HrmTranslatorTest {
           "partyMember", "Đảng viên",
           "employmentStatus", "Trạng thái");
 
-  record Sent(UUID run, List<PersonnelSink.Person> persons) {}
+  record Sent(UUID run, List<PersonnelSink.Person> persons, boolean last) {}
 
   final List<Sent> sent = new ArrayList<>();
   final PersonnelSink sink =
-      (tenant, code, run, persons) -> sent.add(new Sent(run, List.copyOf(persons)));
+      new PersonnelSink() {
+        @Override
+        public void forward(
+            vn.viettel.okrkpi.shared.kernel.TenantId tenant,
+            String code,
+            UUID run,
+            List<Person> persons,
+            boolean last) {
+          sent.add(new Sent(run, List.copyOf(persons), last));
+        }
+
+        @Override
+        public void close(
+            vn.viettel.okrkpi.shared.kernel.TenantId tenant,
+            String code,
+            UUID run,
+            int deadLetters,
+            String reason) {
+          sent.add(new Sent(run, List.of(), true));
+        }
+      };
   final MappingXrefService mappings = mock(MappingXrefService.class);
   final TranslationContext ctx = new TranslationContext(T, C, TODAY, mappings);
 
@@ -93,7 +113,8 @@ class HrmTranslatorTest {
         List.of("externalId", "fullName", "birthDate"),
         null,
         null,
-        batchSize);
+        batchSize,
+        null);
   }
 
   HrmPersonTranslator translator(Integer batchSize) {
@@ -239,6 +260,7 @@ class HrmTranslatorTest {
     assertThat(sent.get(0).persons()).hasSize(2);
     assertThat(sent.get(1).persons()).hasSize(1);
     assertThat(sent.get(0).run()).isEqualTo(sent.get(1).run());
+    assertThat(sent).extracting(Sent::last).containsExactly(false, true);
     assertThat(sent.get(0).persons().get(0).birthDate()).isEqualTo(LocalDate.of(1980, 5, 2));
     assertThat(sent.get(0).persons().get(0).partyMember()).isTrue();
     assertThat(sent.get(0).persons().get(1).partyMember()).isFalse();
@@ -268,6 +290,7 @@ class HrmTranslatorTest {
                 "jobTitle",
                 "/cd"),
             Map.of(),
+            null,
             null,
             null,
             null,
@@ -309,5 +332,20 @@ class HrmTranslatorTest {
     assertThat(d).startsWith("dòng 2 (thiếu họ tên); dòng 3").endsWith("…");
     assertThat(BatchFiles.column("  Mã Cán Bộ ")).isEqualTo("mã cán bộ");
     assertThat(SftpBatchConnector.key(5, "a.csv")).isEqualTo("000000000005|a.csv");
+  }
+
+  @Test
+  void trongLanDongBoThiLoThuocLanChayVaKhongDong() {
+    UUID run = UUID.randomUUID();
+    new HrmPersonTranslator(
+            "HRM_SFTP", profile(2), sink, new ObjectMapper(), (t, c) -> Optional.of(run))
+        .translate(ctx, csv(HEADER + "NS-9;Lê Văn D;;1981-01-01;DV-01;CV;0;\n"));
+    assertThat(sent)
+        .isNotEmpty()
+        .allSatisfy(
+            x -> {
+              assertThat(x.run()).isEqualTo(run);
+              assertThat(x.last()).isFalse();
+            });
   }
 }

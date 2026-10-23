@@ -23,6 +23,7 @@ import vn.viettel.okrkpi.integ.infrastructure.hrm.BatchFiles.Table;
 import vn.viettel.okrkpi.integ.infrastructure.hrm.HrmProperties.Profile;
 import vn.viettel.okrkpi.integ.infrastructure.hrm.PersonRows.Input;
 import vn.viettel.okrkpi.integ.infrastructure.hrm.PersonRows.Result;
+import vn.viettel.okrkpi.shared.kernel.TenantId;
 
 /**
  * Translator nhân sự HRM (DV-13-08): đọc trang REST hoặc tệp lô, kiểm cấu trúc và từng dòng, quy
@@ -45,7 +46,21 @@ class HrmPersonTranslator implements Translator {
   private final ObjectMapper json;
   private final int batchSize;
 
+  /** Lần chạy đang chạy của kết nối (DV-13-06), rỗng khi thông điệp đến ngoài lần chạy. */
+  @FunctionalInterface
+  interface RunningRun {
+    Optional<UUID> of(TenantId tenant, UUID connectorId);
+  }
+
+  private final RunningRun running;
+
   HrmPersonTranslator(String code, Profile profile, PersonnelSink sink, ObjectMapper json) {
+    this(code, profile, sink, json, (t, c) -> Optional.empty());
+  }
+
+  HrmPersonTranslator(
+      String code, Profile profile, PersonnelSink sink, ObjectMapper json, RunningRun running) {
+    this.running = Objects.requireNonNull(running, "running");
     this.code = Objects.requireNonNull(code, "code");
     this.rows = new PersonRows(profile);
     this.sink = Objects.requireNonNull(sink, "sink");
@@ -109,12 +124,18 @@ class HrmPersonTranslator implements Translator {
               + PersonRows.describe(unmapped, DETAIL_MAX));
     }
     if (!persons.isEmpty()) {
-      UUID run = runId(ctx, message);
-      // Một lần chạy cho cả thông điệp, chia lô để thân yêu cầu không quá lớn.
+      // Trong lần chạy kéo hết trang thì lô thuộc lần chạy đó và worker đóng lần chạy khi xong;
+      // ngoài lần chạy thì cả thông điệp là một lần chạy, chia lô để thân yêu cầu không quá lớn.
+      Optional<UUID> inRun = running.of(ctx.tenant(), ctx.connector().id());
+      UUID run = inRun.orElseGet(() -> runId(ctx, message));
       for (int from = 0; from < persons.size(); from += batchSize) {
-        List<PersonnelSink.Person> part =
-            persons.subList(from, Math.min(persons.size(), from + batchSize));
-        sink.forward(ctx.tenant(), code, run, part);
+        int to = Math.min(persons.size(), from + batchSize);
+        sink.forward(
+            ctx.tenant(),
+            code,
+            run,
+            persons.subList(from, to),
+            inRun.isEmpty() && to == persons.size());
       }
     }
     return List.of();

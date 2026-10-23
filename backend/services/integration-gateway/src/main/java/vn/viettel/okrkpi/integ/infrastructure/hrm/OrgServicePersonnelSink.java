@@ -18,8 +18,9 @@ import vn.viettel.okrkpi.shared.kernel.TenantId;
 /**
  * Gửi lô nhân sự sang org-service qua cổng nội bộ {@code POST
  * /internal/v1/org/sync-runs/{runId}/batches} (DV-04-07, thân {@code BatchRequest}): org-service tự
- * mở lần chạy khi chưa có. Mỗi lời gọi đóng lần chạy ({@code last=true}) vì một thông điệp HRM là
- * một lần chạy trọn; mã khác 2xx là lỗi vào ra để luồng vào thử lại rồi chuyển thư chết.
+ * mở lần chạy khi chưa có. Thông điệp đến ngoài lần chạy là một lần chạy trọn nên lô cuối đóng lần
+ * chạy ({@code last=true}); lần chạy kéo hết trang (DV-13-06) đóng bằng {@link #close}; mã khác 2xx
+ * là lỗi vào ra để luồng vào thử lại rồi chuyển thư chết.
  */
 class OrgServicePersonnelSink implements PersonnelSink {
 
@@ -41,7 +42,25 @@ class OrgServicePersonnelSink implements PersonnelSink {
   }
 
   @Override
-  public void forward(TenantId tenant, String connectorCode, UUID runId, List<Person> persons) {
+  public void forward(
+      TenantId tenant, String connectorCode, UUID runId, List<Person> persons, boolean last) {
+    post(tenant, connectorCode, runId, persons, last, 0, null);
+  }
+
+  @Override
+  public void close(
+      TenantId tenant, String connectorCode, UUID runId, int deadLetters, String reason) {
+    post(tenant, connectorCode, runId, List.of(), true, deadLetters, reason);
+  }
+
+  private void post(
+      TenantId tenant,
+      String connectorCode,
+      UUID runId,
+      List<Person> persons,
+      boolean last,
+      int deadLetters,
+      String reason) {
     if (baseUrl.isEmpty()) {
       throw new IllegalStateException("Chưa cấu hình địa chỉ org-service cho lô nhân sự");
     }
@@ -49,9 +68,9 @@ class OrgServicePersonnelSink implements PersonnelSink {
     body.put("tenantId", tenant.value());
     body.put("connector", connectorCode);
     body.put("records", persons);
-    body.put("last", true);
-    body.put("deadLetters", 0);
-    body.put("reason", null);
+    body.put("last", last);
+    body.put("deadLetters", deadLetters);
+    body.put("reason", reason);
     try {
       HttpRequest.Builder req =
           HttpRequest.newBuilder(URI.create(baseUrl + PATH.formatted(runId)))

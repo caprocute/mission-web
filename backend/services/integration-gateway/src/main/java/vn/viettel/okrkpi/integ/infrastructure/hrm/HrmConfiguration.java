@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -17,16 +18,20 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import vn.viettel.okrkpi.integ.application.InboundConnector;
 import vn.viettel.okrkpi.integ.application.IndicatorSource;
+import vn.viettel.okrkpi.integ.application.SyncRunService;
 import vn.viettel.okrkpi.integ.application.Translator;
 import vn.viettel.okrkpi.integ.application.port.ConnectorSecrets;
 import vn.viettel.okrkpi.integ.application.port.PersonnelSink;
+import vn.viettel.okrkpi.integ.application.port.SyncRuns;
 import vn.viettel.okrkpi.integ.infrastructure.hrm.HrmProperties.Profile;
+import vn.viettel.okrkpi.integ.infrastructure.hrm.HrmProperties.Trigger;
 
 /**
  * Bộ kết nối HRM, ERP, HIS, quản lý trường học theo hồ sơ {@code okrkpi.integ.hrm.connectors}
  * (DV-13-08): hồ sơ có {@code rest} thì có route kéo nhân sự REST, có {@code batch} thì có route
- * kéo tệp lô SFTP, có {@code indicator} thì có nguồn số liệu cho KR. Nhân sự chuyển sang
- * org-service ở {@code okrkpi.integ.hrm.org.base-url}.
+ * kéo tệp lô SFTP, có {@code indicator} thì có nguồn số liệu cho KR; {@code trigger: RUN} thì bộ
+ * kéo chỉ chạy trong lần đồng bộ (DV-13-06). Nhân sự chuyển sang org-service ở {@code
+ * okrkpi.integ.hrm.org.base-url}.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(HrmProperties.class)
@@ -37,7 +42,10 @@ import vn.viettel.okrkpi.integ.infrastructure.hrm.HrmProperties.Profile;
 public class HrmConfiguration {
 
   /** Các bộ kết nối kéo và nguồn chỉ số dựng từ hồ sơ. */
-  public record HrmBeans(List<InboundConnector> connectors, List<IndicatorSource> indicators) {}
+  public record HrmBeans(
+      List<InboundConnector> connectors,
+      List<IndicatorSource> indicators,
+      List<InboundConnector> runSources) {}
 
   @Bean
   PersonnelSink integPersonnelSink(
@@ -64,9 +72,16 @@ public class HrmConfiguration {
       HrmProperties properties,
       ConnectorSecrets secrets,
       PersonnelSink sink,
-      ObjectProvider<ObjectMapper> mapper) {
+      ObjectProvider<ObjectMapper> mapper,
+      ObjectProvider<SyncRuns> runs) {
     ObjectMapper json = json(mapper);
+    HrmPersonTranslator.RunningRun running =
+        (tenant, connectorId) ->
+            runs.getIfAvailable() == null
+                ? Optional.empty()
+                : SyncRunService.runningRun(runs.getObject(), tenant, connectorId);
     List<InboundConnector> connectors = new ArrayList<>();
+    List<InboundConnector> runSources = new ArrayList<>();
     List<IndicatorSource> indicators = new ArrayList<>();
     for (Map.Entry<String, Profile> e : properties.connectors().entrySet()) {
       String code = e.getKey();
@@ -76,13 +91,14 @@ public class HrmConfiguration {
         throw new IllegalStateException(
             "Hồ sơ " + code + " chỉ được chọn một trong REST hoặc tệp lô cho nhân sự");
       }
-      Translator translator = new HrmPersonTranslator(code, p, sink, json);
+      Translator translator = new HrmPersonTranslator(code, p, sink, json, running);
+      List<InboundConnector> target = p.trigger() == Trigger.RUN ? runSources : connectors;
       if (p.rest() != null) {
-        connectors.add(
+        target.add(
             new RestHrmConnector(code, http, p.rest(), p.period(), p.requestTimeout(), translator));
       }
       if (p.batch() != null) {
-        connectors.add(
+        target.add(
             new SftpBatchConnector(
                 code, secrets, p.batch(), p.period(), p.requestTimeout(), translator));
       }
@@ -90,7 +106,7 @@ public class HrmConfiguration {
         indicators.add(new RestIndicatorSource(code, http, p.indicator(), p.requestTimeout()));
       }
     }
-    return new HrmBeans(List.copyOf(connectors), List.copyOf(indicators));
+    return new HrmBeans(List.copyOf(connectors), List.copyOf(indicators), List.copyOf(runSources));
   }
 
   private static HttpClient client(Duration timeout) {
