@@ -1,0 +1,29 @@
+# Mẫu values riêng của một cell đám mây riêng hồ sơ compact (VH-06). Chép thành deploy/cells/<mã cell>/values.yaml
+# trong kho GitOps nhân bản của khách hàng, đổi "kh01" thành mã cell đã cấp. Chồng sau values-private.yaml và
+# sizing/values-sizing-compact.yaml (TL-05 Phụ lục A: mô hình → hồ sơ → cell). Không ghi mật khẩu, khoá hay địa chỉ
+# máy chủ vào tệp này: bí mật nằm trong OpenBao của cell, ESO đồng bộ thành Secret.
+global:
+  cell: kh01
+  # Compact: một vùng sự cố (TL-05 mục 9.2, ngoại lệ thứ nhất). Tên vùng khớp nhãn topology.kubernetes.io/zone của node.
+  topology:
+    zones: [kh01-a]
+  featureFlags:
+    # Trợ lý AI tắt khi khách hàng không cấp GPU (TL-05 mục 9.1).
+    aiAssistant: false
+api-gateway:
+  cell: kh01
+cell-base:
+  cell: kh01
+observability-cell:
+  cell: kh01
+ai-gateway:
+  thanhPhan:
+    vllm:
+      enabled: false
+data-pg:
+  # Mỗi tenant silo một CSDL td_<mã tenant>; quy trình đưa tenant vào cell (OPS-07) thêm tên vào danh sách này.
+  tenantDatabases: [td_kh01]
+# Compact chỉ có ba node dữ liệu (yeu-cau-ha-tang.md, khoảng trống 2): OpenBao 3 node Raft thay vì 5, mỗi node một
+# máy (chart giữ ràng buộc chống đặt chung bắt buộc).
+openbao:
+  replicas: 3
