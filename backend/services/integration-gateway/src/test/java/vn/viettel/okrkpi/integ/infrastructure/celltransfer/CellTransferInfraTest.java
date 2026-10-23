@@ -237,6 +237,84 @@ class CellTransferInfraTest {
         .isInstanceOf(IllegalStateException.class);
   }
 
+  @Test
+  void esignSignerSendsOnlyHashAndRsaSignaturesVerify() throws Exception {
+    KeyPairGenerator rsa = KeyPairGenerator.getInstance("RSA");
+    rsa.initialize(3072);
+    KeyPair org = rsa.generateKeyPair();
+    AtomicReference<String> seen = new AtomicReference<>();
+    AtomicReference<String> tenantHeader = new AtomicReference<>();
+    com.sun.net.httpserver.HttpServer server =
+        com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext(
+        "/internal/v1/esign/org-signatures",
+        ex -> {
+          byte[] req = ex.getRequestBody().readAllBytes();
+          seen.set(new String(req, StandardCharsets.UTF_8));
+          tenantHeader.set(ex.getRequestHeaders().getFirst("X-Tenant-Id"));
+          try {
+            byte[] sha = Base64.getDecoder().decode(JSON.readTree(req).path("sha256").asText());
+            // Ký như HSM: chữ ký PKCS#1 trên DigestInfo của băm đã nhận.
+            Signature s = Signature.getInstance("NONEwithRSA");
+            s.initSign(org.getPrivate());
+            s.update(digestInfo(sha));
+            byte[] out =
+                JSON.writeValueAsBytes(
+                    Map.of(
+                        "signature",
+                        Base64.getEncoder().encodeToString(s.sign()),
+                        "algorithm",
+                        "SHA256withRSA"));
+            ex.sendResponseHeaders(200, out.length);
+            ex.getResponseBody().write(out);
+          } catch (Exception e) {
+            ex.sendResponseHeaders(500, -1);
+          }
+          ex.close();
+        });
+    server.start();
+    try {
+      EsignOrgSigner signer =
+          new EsignOrgSigner(
+              java.net.http.HttpClient.newHttpClient(),
+              JSON,
+              "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+              null,
+              Duration.ofSeconds(5));
+      JcaPackageCrypto crypto = new JcaPackageCrypto(signer, box.getPrivate());
+      byte[] header = "{\"packageId\":\"bí mật\"}".getBytes(StandardCharsets.UTF_8);
+      UUID tenant = UUID.randomUUID();
+      byte[] sig =
+          vn.viettel.okrkpi.shared.tenant.TenantContext.call(
+              vn.viettel.okrkpi.shared.kernel.TenantId.of(tenant), () -> crypto.sign(header));
+      assertThat(crypto.verify(header, sig, org.getPublic())).isTrue();
+      assertThat(crypto.verify(new byte[] {1}, sig, org.getPublic())).isFalse();
+      assertThat(seen.get()).contains("GOI_CHUYEN_LIEN_CELL").doesNotContain("bí mật");
+      assertThat(tenantHeader.get()).isEqualTo(tenant.toString());
+      server.removeContext("/internal/v1/esign/org-signatures");
+      assertThatThrownBy(() -> crypto.sign(header)).isInstanceOf(IllegalStateException.class);
+    } finally {
+      server.stop(0);
+    }
+    assertThatThrownBy(
+            () ->
+                new EsignOrgSigner(
+                    java.net.http.HttpClient.newHttpClient(),
+                    JSON,
+                    " ",
+                    null,
+                    Duration.ofSeconds(1)))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  static byte[] digestInfo(byte[] sha256) {
+    byte[] prefix = java.util.HexFormat.of().parseHex("3031300d060960864801650304020105000420");
+    byte[] out = new byte[prefix.length + sha256.length];
+    System.arraycopy(prefix, 0, out, 0, prefix.length);
+    System.arraycopy(sha256, 0, out, prefix.length, sha256.length);
+    return out;
+  }
+
   static byte[] zip(Map<String, byte[]> entries) throws Exception {
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     try (ZipOutputStream z = new ZipOutputStream(out)) {

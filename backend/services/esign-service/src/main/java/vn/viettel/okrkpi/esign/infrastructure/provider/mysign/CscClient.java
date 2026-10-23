@@ -130,6 +130,30 @@ public class CscClient {
     return body.responseID();
   }
 
+  /**
+   * Ký đồng bộ ({@code operationMode} S) bằng credential của tổ chức, không cần người xác nhận
+   * (DV-13-10, dấu số tổ chức); trả chữ ký thô theo thứ tự băm đã gửi.
+   */
+  public List<byte[]> signHashNow(String credentialId, List<byte[]> hashes, String signAlgo) {
+    Map<String, Object> request =
+        Map.of(
+            "credentialID",
+            credentialId,
+            "hashes",
+            hashes.stream().map(h -> Base64.getEncoder().encodeToString(h)).toList(),
+            "hashAlgorithmOID",
+            Cms.SHA256_OID,
+            "signAlgo",
+            signAlgo,
+            "operationMode",
+            "S");
+    SignHashResponse body = call(properties.paths().signHash(), request, SignHashResponse.class);
+    if (body == null || body.signatures() == null || body.signatures().size() != hashes.size()) {
+      throw new SignatureProviderException("MySign không trả đủ chữ ký tổ chức", true);
+    }
+    return body.signatures().stream().map(x -> Base64.getDecoder().decode(x)).toList();
+  }
+
   /** Kết quả thăm dò một phiên ký bất đồng bộ. */
   public Poll poll(String responseId) {
     try {

@@ -36,14 +36,39 @@ public class JcaPackageCrypto implements PackageCrypto {
       new OAEPParameterSpec(
           "SHA-256", "MGF1", MGF1ParameterSpec.SHA256, PSource.PSpecified.DEFAULT);
 
-  private final PrivateKey signingKey;
+  /** Bên ký tổ chức của cell: khoá cục bộ hoặc thao tác ký tổ chức của SVC-10. */
+  @FunctionalInterface
+  public interface Signer {
+    byte[] sign(byte[] data);
+  }
+
+  private final Signer signer;
   private final PrivateKey decryptionKey;
   private final SecureRandom random;
 
   public JcaPackageCrypto(PrivateKey signingKey, PrivateKey decryptionKey) {
-    this.signingKey = Objects.requireNonNull(signingKey, "signingKey");
+    this(local(Objects.requireNonNull(signingKey, "signingKey")), decryptionKey);
+  }
+
+  public JcaPackageCrypto(Signer signer, PrivateKey decryptionKey) {
+    this.signer = Objects.requireNonNull(signer, "signer");
     this.decryptionKey = Objects.requireNonNull(decryptionKey, "decryptionKey");
     this.random = new SecureRandom();
+  }
+
+  /** Ký {@code SHA256withECDSA} bằng khoá EC của cell trong tệp do OpenBao Agent đặt. */
+  public static Signer local(PrivateKey key) {
+    SecureRandom random = new SecureRandom();
+    return data -> {
+      try {
+        Signature s = Signature.getInstance(SIGNATURE);
+        s.initSign(key, random);
+        s.update(data);
+        return s.sign();
+      } catch (GeneralSecurityException e) {
+        throw new IllegalStateException("Không ký được gói chuyển", e);
+      }
+    };
   }
 
   @Override
@@ -99,14 +124,7 @@ public class JcaPackageCrypto implements PackageCrypto {
 
   @Override
   public byte[] sign(byte[] data) {
-    try {
-      Signature s = Signature.getInstance(SIGNATURE);
-      s.initSign(signingKey, random);
-      s.update(data);
-      return s.sign();
-    } catch (GeneralSecurityException e) {
-      throw new IllegalStateException("Không ký được gói chuyển", e);
-    }
+    return signer.sign(data);
   }
 
   @Override
@@ -115,7 +133,9 @@ public class JcaPackageCrypto implements PackageCrypto {
       return false;
     }
     try {
-      Signature s = Signature.getInstance(SIGNATURE);
+      // Khoá ký của cell là EC P-256 (khoá cục bộ) hoặc khoá của chứng thư tổ chức (RSA hoặc EC).
+      Signature s =
+          Signature.getInstance("RSA".equals(signer.getAlgorithm()) ? "SHA256withRSA" : SIGNATURE);
       s.initVerify(signer);
       s.update(data);
       return s.verify(signature);

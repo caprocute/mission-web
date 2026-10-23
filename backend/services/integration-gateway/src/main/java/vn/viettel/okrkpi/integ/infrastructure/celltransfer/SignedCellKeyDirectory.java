@@ -114,13 +114,19 @@ public class SignedCellKeyDirectory implements CellKeyDirectory {
             && !(allowHttp && "http".equals(endpoint.getScheme()))) {
           throw new IllegalStateException("Kênh liên cell phải dùng https");
         }
+        // Khoá ký: EC P-256 của cell, hoặc khoá của chứng thư tổ chức khi ký qua SVC-10 (EC hoặc
+        // RSA).
+        String signingAlg = c.path("signingKeyAlg").asText("EC");
+        if (!"EC".equals(signingAlg) && !"RSA".equals(signingAlg)) {
+          throw new IllegalStateException("Thuật toán khoá ký cell chưa hỗ trợ");
+        }
         cells.put(
             code,
             new Entry(
                 new CellKeys(
                     code,
                     endpoint,
-                    PemKeys.publicKey(c.path("signingKey").asText(""), "EC"),
+                    PemKeys.publicKey(c.path("signingKey").asText(""), signingAlg),
                     PemKeys.publicKey(c.path("encryptionKey").asText(""), "RSA")),
                 Instant.parse(c.path("notBefore").asText()),
                 Instant.parse(c.path("notAfter").asText())));

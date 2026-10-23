@@ -122,6 +122,24 @@ class DossierTenantIsolationIT extends TenantIsolationCatalogTest {
           r.put("dek_id", id(tenant, "dek"));
           return r;
         });
+    f.put(
+        "dossier.transferred_record",
+        (tenant, seed) -> {
+          Map<String, Object> r = new LinkedHashMap<>();
+          r.put("id", id(tenant, "transferred_record"));
+          r.put("created_by", id(tenant, "user"));
+          r.put("updated_by", id(tenant, "user"));
+          r.put("package_id", id(tenant, "package"));
+          r.put("part_name", "ket-qua.json");
+          r.put("part_kind", "KET_QUA_XEP_LOAI");
+          r.put("source_tenant_code", "HN-BO-A");
+          r.put("source_person_id", id(tenant, "person"));
+          r.put("media_type", "application/json");
+          r.put("content_sha256", new byte[32]);
+          r.put("content_enc", new byte[] {7, 8, 9});
+          r.put("dek_id", id(tenant, "dek"));
+          return r;
+        });
     return f;
   }
 
