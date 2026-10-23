@@ -45,14 +45,12 @@ class BcyCryptoProviderContractTest extends CryptoProviderContract {
     assertThat(sig.timestampToken()).isNotEmpty();
     assertThat(bcy.verify(sig, digest)).isTrue();
     assertThat(bcy.verify(sig, bcy.digest(new byte[] {1}))).isFalse();
-    BcyCryptoLibrary.Signature moved =
+    byte[] broken = sig.value();
+    broken[10] ^= 0x01;
+    BcyCryptoLibrary.Signature tampered =
         new BcyCryptoLibrary.Signature(
-            sig.value(),
-            sig.format(),
-            sig.timestampToken(),
-            sig.certificate(),
-            sig.signedAt().plusSeconds(60));
-    assertThat(bcy.verify(moved, digest)).isFalse();
+            broken, sig.format(), sig.timestampToken(), sig.certificate(), sig.signedAt());
+    assertThat(bcy.verify(tampered, digest)).isFalse();
     assertThatThrownBy(() -> bcy.sign("khong-co", digest)).isInstanceOf(CryptoException.class);
   }
 

@@ -146,9 +146,21 @@ public final class GiaLapBcyCryptoLibrary implements BcyCryptoLibrary {
       java.security.Signature s = java.security.Signature.getInstance("SHA256withECDSA");
       s.initSign(pair.getPrivate());
       s.update(documentDigest);
-      byte[] value = s.sign();
-      return new Signature(
-          value, FORMAT, timestamp(value, at), certificate(keyLabel, pair, at), at);
+      byte[] raw = s.sign();
+      byte[] token = timestamp(raw, at);
+      byte[] der = certDer(pair);
+      // Khối chữ ký giả lập: [độ dài|chữ ký][độ dài|dấu thời gian][thời điểm][độ dài|chứng thư].
+      byte[] container =
+          ByteBuffer.allocate(4 + raw.length + 4 + token.length + Long.BYTES + 4 + der.length)
+              .putInt(raw.length)
+              .put(raw)
+              .putInt(token.length)
+              .put(token)
+              .putLong(at.toEpochMilli())
+              .putInt(der.length)
+              .put(der)
+              .array();
+      return new Signature(container, FORMAT, token, certificate(keyLabel, pair, at), at);
     } catch (GeneralSecurityException e) {
       throw new SecurityException("Ký giả lập lỗi", e);
     }
@@ -157,24 +169,40 @@ public final class GiaLapBcyCryptoLibrary implements BcyCryptoLibrary {
   @Override
   public boolean verify(Signature signature, byte[] documentDigest) {
     requireOpen();
-    KeyPair pair =
-        keys.values().stream()
-            .filter(p -> java.util.Arrays.equals(certDer(p), signature.certificate().der()))
-            .findFirst()
-            .orElse(null);
-    if (pair == null
-        || !java.util.Arrays.equals(
-            timestamp(signature.value(), signature.signedAt()), signature.timestampToken())) {
-      return false;
-    }
     try {
+      ByteBuffer in = ByteBuffer.wrap(signature.value());
+      byte[] raw = take(in);
+      byte[] token = take(in);
+      Instant at = Instant.ofEpochMilli(in.getLong());
+      byte[] der = take(in);
+      if (in.hasRemaining() || !java.util.Arrays.equals(timestamp(raw, at), token)) {
+        return false;
+      }
+      KeyPair pair =
+          keys.values().stream()
+              .filter(p -> java.util.Arrays.equals(certDer(p), der))
+              .findFirst()
+              .orElse(null);
+      if (pair == null) {
+        return false;
+      }
       java.security.Signature s = java.security.Signature.getInstance("SHA256withECDSA");
       s.initVerify(pair.getPublic());
       s.update(documentDigest);
-      return s.verify(signature.value());
-    } catch (GeneralSecurityException e) {
+      return s.verify(raw);
+    } catch (GeneralSecurityException | RuntimeException e) {
       return false;
     }
+  }
+
+  private static byte[] take(ByteBuffer in) {
+    int n = in.getInt();
+    if (n < 0 || n > in.remaining()) {
+      throw new IllegalArgumentException("khối chữ ký hỏng");
+    }
+    byte[] out = new byte[n];
+    in.get(out);
+    return out;
   }
 
   @Override
