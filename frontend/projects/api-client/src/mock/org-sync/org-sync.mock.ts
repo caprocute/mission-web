@@ -19,6 +19,7 @@ import {
   resolveRelativeDates,
 } from '../mock-router';
 import { ORG_PERSONS } from '../org/org.mock';
+import { readMockJob } from '../mock-jobs';
 
 /**
  * Giả lập đồng bộ và đối soát nhân sự SCR-0104 của Tỉnh Thái Nguyên (TL-02a Hình 6.10) theo
@@ -440,7 +441,7 @@ function retry(r: MockRequest): MockResponse {
 
 function job(r: MockRequest): MockResponse {
   const e = jobs.get(r.pathParams['id']);
-  if (!e) return problem(404, 'Không tìm thấy yêu cầu xử lý.');
+  if (!e) return readMockJob(r.pathParams['id']) ?? problem(404, 'Không tìm thấy yêu cầu xử lý.');
   e.polls++;
   if (e.polls >= 2 && e.job.status !== 'HOAN_TAT') {
     e.job = {
@@ -485,7 +486,7 @@ export const ORG_SYNC_MOCK: MockModule = {
     { method: 'GET', pattern: '/api/v1/org/sync-runs', handle: listRuns },
     { method: 'POST', pattern: '/api/v1/org/sync-runs', handle: syncNow },
     { method: 'POST', pattern: '/api/v1/org/sync-runs/:id/retry', handle: retry },
-    // Chỉ biết tác vụ của module này; module khác dùng `/jobs/{id}` thì cần bộ tác vụ chung.
+    // Tác vụ của module này; job của module khác đọc từ bộ tác vụ chung `mock-jobs.ts`.
     { method: 'GET', pattern: '/api/v1/jobs/:id', handle: job },
     {
       method: 'GET',

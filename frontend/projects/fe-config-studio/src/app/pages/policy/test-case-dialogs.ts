@@ -1,6 +1,7 @@
 import { Component, computed, inject, linkedSignal, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
+  JobAccepted,
   GOLDEN_CASE_SOURCE_LABEL,
   GoldenTestCase,
   GoldenTestCaseSource,
@@ -339,7 +340,8 @@ export class AddTestCaseDialog {
 })
 export class ApprovePolicyDialog {
   readonly visible = model(false);
-  readonly approved = output<void>();
+  /** Saga phát hành đã được nhận (202 + `Location` của job). */
+  readonly approved = output<JobAccepted>();
 
   private readonly api = inject(PolicyApi);
   private readonly stepUp = inject(STUDIO_STEP_UP);
@@ -362,10 +364,10 @@ export class ApprovePolicyDialog {
     }
     const comment = this.comment().trim();
     this.api.approve(ref, v.etag, comment ? { comment } : {}).subscribe({
-      next: () => {
+      next: (accepted) => {
         this.busy.set(false);
         this.visible.set(false);
-        this.approved.emit();
+        this.approved.emit(accepted);
       },
       error: (e) => {
         this.busy.set(false);

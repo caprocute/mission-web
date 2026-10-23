@@ -186,6 +186,38 @@ class FeatureFlagAndSettingServiceTest {
   }
 
   @Test
+  void effectiveFlagsEvaluateEveryCatalogFlagForTheUser() {
+    Flags repo = new Flags();
+    FeatureFlagService service =
+        new FeatureFlagService(repo, audit, DIRECT, Clock.fixed(NOW), Duration.ofMinutes(5));
+    UUID unit = UUID.randomUUID();
+    service.set(
+        TENANT,
+        ACTOR,
+        "okr.aiSuggest",
+        0,
+        true,
+        new FeatureFlagRollout(Set.of(unit), 100),
+        null,
+        null);
+    FeatureFlagService.Effective inUnit =
+        service.effective(
+            TENANT, new FlagContext(UUID.randomUUID(), List.of(UUID.randomUUID(), unit)));
+    assertThat(inUnit.flags().keySet())
+        .containsExactlyInAnyOrderElementsOf(
+            service.list(TENANT).stream().map(FeatureFlag::key).toList());
+    assertThat(inUnit.flags()).containsEntry("okr.aiSuggest", true);
+    assertThat(inUnit.flags()).containsEntry("okr.alignmentGraph", true);
+    assertThat(inUnit.evaluatedAt()).isEqualTo(NOW);
+    assertThat(service.effective(TENANT, null).flags()).containsEntry("okr.aiSuggest", false);
+    assertThat(
+            service
+                .effective(TENANT, new FlagContext(UUID.randomUUID(), List.of(UUID.randomUUID())))
+                .flags())
+        .containsEntry("okr.aiSuggest", false);
+  }
+
+  @Test
   void settingGetPrefersUnitAndValidatesSchema() {
     Settings repo = new Settings();
     ObjectMapper json = new ObjectMapper();
