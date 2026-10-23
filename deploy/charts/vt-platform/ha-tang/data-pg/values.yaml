@@ -148,8 +148,8 @@ placement:
     nodeSelector: { vt.io/pool: postgres }
     tolerations: [{ key: vt.io/pool, operator: Equal, value: postgres, effect: NoSchedule }]
   secure:
-    nodeSelector: { vt.io/pool: security-zone }
-    tolerations: [{ key: vt.io/pool, operator: Equal, value: security-zone, effect: NoSchedule }]
+    nodeSelector: { vt.io/zone: secure }
+    tolerations: [{ key: vt.io/zone, operator: Equal, value: secure, effect: NoSchedule }]
   # required ở cụm thật (ba vùng sự cố); compact chỉ một vùng nên hạ về preferred và khoá theo hostname.
   antiAffinity: required
 

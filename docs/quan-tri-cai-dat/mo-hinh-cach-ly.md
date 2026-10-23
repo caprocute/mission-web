@@ -21,7 +21,7 @@ So với [cai-dat-chung.md](cai-dat-chung.md), bản cách ly khác ở các đi
 | Quan sát | Chỉ thành phần Apache-2.0 (Prometheus, Thanos sidecar, Fluent Bit); gói không mang Grafana, Loki, Tempo, k6 khi pháp chế chưa duyệt phân phối thành phần AGPL |
 | Giám sát an ninh | SOC của khách hàng; Viettel hỗ trợ từ xa qua kênh được phép hoặc tại chỗ |
 
-Hai khoảng trống về nhãn node và hồ sơ compact ở [yeu-cau-ha-tang.md](yeu-cau-ha-tang.md) áp cho cả bản cách ly, vì bản cách ly mặc định dùng hồ sơ compact.
+Bản cách ly mặc định dùng hồ sơ compact, nên cụm phải gắn nhãn node `hoi-tu` và `du-lieu` theo bảng compact ở [yeu-cau-ha-tang.md](yeu-cau-ha-tang.md). Bản cách ly đổi tên ảnh bằng `doi-registry.py` trên bản render, nên không cần `global.doiKhoAnh` của mô hình đám mây riêng.
 
 ## Kiểm SBOM và chứng thực trong mạng cách ly
 

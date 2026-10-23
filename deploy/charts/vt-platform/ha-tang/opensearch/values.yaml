@@ -24,8 +24,8 @@ hoSo:
 
 storageClass: nvme-local
 placement:
-  nodeSelector: { vt.io/pool: data-search }
-  tolerations: [{ key: vt.io/pool, operator: Equal, value: data-search, effect: NoSchedule }]
+  nodeSelector: { vt.io/pool: search }
+  tolerations: [{ key: vt.io/pool, operator: Equal, value: search, effect: NoSchedule }]
   # vm.max_map_count=262144 đặt sẵn trên node pool data-search (kubeadm của Cluster API); Pod Security restricted
   # không cho init container đặc quyền nên không bật setVMMaxMapCount.
   setVMMaxMapCount: false

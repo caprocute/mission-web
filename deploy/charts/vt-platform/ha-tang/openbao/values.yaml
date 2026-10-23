@@ -62,8 +62,8 @@ resources:
   limits: { cpu: "4", memory: 4Gi }
 
 placement:
-  nodeSelector: { vt.io/pool: security-zone }
-  tolerations: [{ key: vt.io/pool, operator: Equal, value: security-zone, effect: NoSchedule }]
+  nodeSelector: { vt.io/zone: secure }
+  tolerations: [{ key: vt.io/zone, operator: Equal, value: secure, effect: NoSchedule }]
   # required: mỗi node một pod; preferred cho môi trường thử ít node.
   antiAffinity: required
 
