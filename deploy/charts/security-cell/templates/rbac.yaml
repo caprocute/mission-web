@@ -1,0 +1,175 @@
+{{- /* Quy tắc đọc vùng ứng dụng: liệt kê tài nguyên tường minh, không có Secret và không có ký tự đại diện
+       trên nhóm lõi, vì RBAC không có quy tắc "trừ" (TL-04 mục 9.3, SEC-29: view-app đọc mọi thứ trừ Secret). */ -}}
+{{- define "sec.rbac.viewApp" -}}
+- apiGroups: [""]
+  resources: [pods, pods/log, pods/status, services, endpoints, configmaps, events, persistentvolumeclaims,
+              serviceaccounts, replicationcontrollers, resourcequotas, limitranges]
+  verbs: [get, list, watch]
+- apiGroups: [apps]
+  resources: [deployments, deployments/scale, statefulsets, statefulsets/scale, daemonsets, replicasets]
+  verbs: [get, list, watch]
+- apiGroups: [batch]
+  resources: [jobs, cronjobs]
+  verbs: [get, list, watch]
+- apiGroups: [autoscaling]
+  resources: [horizontalpodautoscalers]
+  verbs: [get, list, watch]
+- apiGroups: [policy]
+  resources: [poddisruptionbudgets]
+  verbs: [get, list, watch]
+- apiGroups: [networking.k8s.io]
+  resources: [networkpolicies, ingresses]
+  verbs: [get, list, watch]
+- apiGroups: [discovery.k8s.io]
+  resources: [endpointslices]
+  verbs: [get, list, watch]
+- apiGroups: [events.k8s.io]
+  resources: [events]
+  verbs: [get, list, watch]
+- apiGroups: [monitoring.coreos.com]
+  resources: [servicemonitors, podmonitors, prometheusrules]
+  verbs: [get, list, watch]
+- apiGroups: [keda.sh]
+  resources: [scaledobjects, scaledjobs]
+  verbs: [get, list, watch]
+- apiGroups: [argoproj.io]
+  resources: [rollouts, analysisruns]
+  verbs: [get, list, watch]
+- apiGroups: [security.istio.io, networking.istio.io]
+  resources: [authorizationpolicies, peerauthentications, destinationrules, serviceentries]
+  verbs: [get, list, watch]
+{{- end -}}
+{{- define "sec.rbac.viewData" -}}
+- apiGroups: [""]
+  resources: [pods, pods/log, pods/status, services, endpoints, configmaps, events, persistentvolumeclaims]
+  verbs: [get, list, watch]
+- apiGroups: [apps]
+  resources: [statefulsets, deployments, replicasets]
+  verbs: [get, list, watch]
+- apiGroups: [policy]
+  resources: [poddisruptionbudgets]
+  verbs: [get, list, watch]
+- apiGroups: [postgresql.cnpg.io]
+  resources: ["*"]
+  verbs: [get, list, watch]
+- apiGroups: [kafka.strimzi.io, core.strimzi.io]
+  resources: ["*"]
+  verbs: [get, list, watch]
+{{- end -}}
+{{- if .Values.rbac.enabled }}
+{{- $v := .Values }}
+{{- $r := $v.rbac }}
+# Vai trò vận hành theo bảng RBAC của TL-04 mục 9.3 (SEC-29). Không ai có cluster-admin thường trực. Gán bằng
+# RoleBinding theo namespace của từng vùng; debug-app, operate-data, platform-admin chỉ được PAM gán có thời hạn 4 giờ.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: view-app
+  labels: { app.kubernetes.io/part-of: vt-security, vt.io/cap-phat: thuong-truc }
+  annotations: { vt.io/pham-vi: "namespace ứng dụng của cell", vt.io/sec: SEC-29 }
+rules:
+  {{- include "sec.rbac.viewApp" . | nindent 2 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: operate-app
+  labels: { app.kubernetes.io/part-of: vt-security, vt.io/cap-phat: thuong-truc }
+  annotations: { vt.io/pham-vi: "namespace ứng dụng của cell", vt.io/sec: SEC-29 }
+rules:
+  {{- include "sec.rbac.viewApp" . | nindent 2 }}
+  # Xoá pod, đổi số bản (scale) và khởi động lại cuốn chiếu (rollout restart vá chú thích của template).
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [delete]
+  - apiGroups: [apps]
+    resources: [deployments/scale, statefulsets/scale]
+    verbs: [patch, update]
+  - apiGroups: [apps]
+    resources: [deployments, statefulsets, daemonsets]
+    verbs: [patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: debug-app
+  labels: { app.kubernetes.io/part-of: vt-security, vt.io/cap-phat: pam-4h }
+  annotations: { vt.io/pham-vi: "namespace ứng dụng của cell", vt.io/sec: "SEC-29, SEC-42" }
+rules:
+  {{- include "sec.rbac.viewApp" . | nindent 2 }}
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [delete]
+  - apiGroups: [apps]
+    resources: [deployments/scale, statefulsets/scale]
+    verbs: [patch, update]
+  - apiGroups: [apps]
+    resources: [deployments, statefulsets, daemonsets]
+    verbs: [patch]
+  # Thêm exec và chuyển cổng; mỗi lần dùng được ghi RequestResponse trong nhật ký kiểm toán và Falco báo shell.
+  - apiGroups: [""]
+    resources: [pods/exec, pods/portforward]
+    verbs: [create, get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: view-data
+  labels: { app.kubernetes.io/part-of: vt-security, vt.io/cap-phat: thuong-truc }
+  annotations: { vt.io/pham-vi: "data-*", vt.io/sec: SEC-29 }
+rules:
+  {{- include "sec.rbac.viewData" . | nindent 2 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: operate-data
+  labels: { app.kubernetes.io/part-of: vt-security, vt.io/cap-phat: pam-4h }
+  annotations: { vt.io/pham-vi: "data-*", vt.io/sec: "SEC-29, SEC-42" }
+rules:
+  {{- include "sec.rbac.viewData" . | nindent 2 }}
+  - apiGroups: [postgresql.cnpg.io]
+    resources: ["*"]
+    verbs: [create, update, patch, delete]
+  - apiGroups: [kafka.strimzi.io, core.strimzi.io]
+    resources: ["*"]
+    verbs: [create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [delete]
+---
+# platform-admin: toàn quyền cụm, chỉ cấp qua PAM 4 giờ với hai người duyệt hoặc theo quy trình phá kính
+# (ops/runbooks/an-ninh-pam-rbac.md). Không có binding thường trực; mọi binding tới vai trò này là sự kiện "phá kính".
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: platform-admin
+  labels: { app.kubernetes.io/part-of: vt-security, vt.io/cap-phat: pam-4h }
+  annotations: { vt.io/pham-vi: "toàn cụm", vt.io/sec: "SEC-29, SEC-42" }
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+  - nonResourceURLs: ["*"]
+    verbs: ["*"]
+{{- range $role, $groups := $r.bindings }}
+{{- if not (has $role (list "view-app" "operate-app" "view-data")) }}
+{{- fail (printf "security-cell: vai trò %s chỉ cấp qua PAM có thời hạn, không được có binding thường trực (SEC-29)" $role) }}
+{{- end }}
+{{- $nss := ternary $v.zones.data $v.zones.app (eq $role "view-data") }}
+{{- range $ns := $nss }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $role }}
+  namespace: {{ $ns }}
+  labels: { app.kubernetes.io/part-of: vt-security, vt.io/cap-phat: thuong-truc }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: {{ $role }} }
+subjects:
+  {{- range $groups }}
+  - { apiGroup: rbac.authorization.k8s.io, kind: Group, name: {{ printf "%s%s" $r.groupPrefix . | quote }} }
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

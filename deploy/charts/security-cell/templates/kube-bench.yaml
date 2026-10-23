@@ -1,0 +1,129 @@
+{{- if .Values.kubeBench.enabled }}
+{{- $v := .Values }}
+{{- $k := $v.kubeBench }}
+{{- $ns := $v.privilegedNamespace }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-bench-chi-so
+  namespace: {{ $ns }}
+  labels:
+    {{- include "sec.labels" . | nindent 4 }}
+data:
+  kube-bench-day-chi-so.sh: |
+    {{- $.Files.Get "files/scripts/kube-bench-day-chi-so.sh" | nindent 4 }}
+{{- range $k.targets }}
+---
+# kube-bench hằng tuần theo CIS Kubernetes Benchmark (TL-04 mục 9.3, SEC-27): {{ .count }} pod trên {{ .count }} node
+# khác nhau của nhóm {{ .name }}. Mục tiêu 0 FAIL; mục WARN có giải trình ở ops/runbooks/an-ninh-kube-bench.md.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: kube-bench-{{ .name }}
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: kube-bench
+    {{- include "sec.labels" $ | nindent 4 }}
+spec:
+  schedule: {{ $k.schedule | quote }}
+  timeZone: {{ $k.timeZone }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      completions: {{ .count | int }}
+      parallelism: {{ .count | int }}
+      backoffLimit: 2
+      # Thiếu node để rải đủ số pod thì Job hết hạn thay vì treo; KubeBenchStale báo khi không có kết quả mới.
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: kube-bench
+            vt.io/kube-bench-target: {{ .name }}
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          # kube-bench đọc tiến trình và tệp cấu hình của node (cờ kube-apiserver, kubelet), chỉ đọc.
+          hostPID: true
+          {{- with .nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          affinity:
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - topologyKey: kubernetes.io/hostname
+                  labelSelector:
+                    matchLabels: { app.kubernetes.io/name: kube-bench, vt.io/kube-bench-target: {{ .name }} }
+          initContainers:
+            - name: kube-bench
+              image: {{ include "sec.image" (dict "root" $ "name" "kubeBench") }}
+              imagePullPolicy: IfNotPresent
+              command: ["kube-bench", "run", "--targets", {{ .checks | quote }}, "--json", "--outputfile", "/ket-qua/kube-bench.json"{{ with $k.benchmark }}, "--benchmark", {{ . | quote }}{{ end }}]
+              resources:
+                {{- toYaml $k.resources | nindent 16 }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsUser: 0
+                capabilities: { drop: ["ALL"], add: ["DAC_READ_SEARCH", "SYS_PTRACE"] }
+              volumeMounts:
+                - { name: ket-qua, mountPath: /ket-qua }
+                - { name: var-lib-etcd, mountPath: /var/lib/etcd, readOnly: true }
+                - { name: var-lib-kubelet, mountPath: /var/lib/kubelet, readOnly: true }
+                - { name: etc-systemd, mountPath: /etc/systemd, readOnly: true }
+                - { name: lib-systemd, mountPath: /lib/systemd, readOnly: true }
+                - { name: etc-kubernetes, mountPath: /etc/kubernetes, readOnly: true }
+                - { name: etc-cni, mountPath: /etc/cni/net.d, readOnly: true }
+                - { name: usr-bin, mountPath: /usr/local/mount-from-host/bin, readOnly: true }
+          containers:
+            - name: day-chi-so
+              image: {{ include "sec.image" (dict "root" $ "name" "busybox") }}
+              imagePullPolicy: IfNotPresent
+              command: ["sh", "/scripts/kube-bench-day-chi-so.sh"]
+              env:
+                - { name: KQ, value: /ket-qua/kube-bench.json }
+                - { name: TARGET, value: {{ .name }} }
+                - { name: CELL, value: {{ $v.cell | quote }} }
+                - { name: PUSHGATEWAY, value: {{ $v.pushgateway.url | quote }} }
+                - name: NODE_NAME
+                  valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+              resources:
+                requests: { cpu: 10m, memory: 16Mi }
+                limits: { cpu: 100m, memory: 32Mi }
+              securityContext:
+                {{- include "sec.restrictedContainer" $ | nindent 16 }}
+                runAsUser: 10001
+              volumeMounts:
+                - { name: ket-qua, mountPath: /ket-qua, readOnly: true }
+                - { name: scripts, mountPath: /scripts, readOnly: true }
+                - { name: tmp, mountPath: /tmp }
+          volumes:
+            - name: ket-qua
+              emptyDir: { sizeLimit: 16Mi }
+            - name: tmp
+              emptyDir: { sizeLimit: 1Mi }
+            - name: scripts
+              configMap: { name: kube-bench-chi-so }
+            - name: var-lib-etcd
+              hostPath: { path: /var/lib/etcd }
+            - name: var-lib-kubelet
+              hostPath: { path: /var/lib/kubelet }
+            - name: etc-systemd
+              hostPath: { path: /etc/systemd }
+            - name: lib-systemd
+              hostPath: { path: /lib/systemd }
+            - name: etc-kubernetes
+              hostPath: { path: /etc/kubernetes }
+            - name: etc-cni
+              hostPath: { path: /etc/cni/net.d }
+            - name: usr-bin
+              hostPath: { path: /usr/bin }
+{{- end }}
+{{- end }}

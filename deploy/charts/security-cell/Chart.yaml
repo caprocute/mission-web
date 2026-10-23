@@ -1,0 +1,8 @@
+apiVersion: v2
+name: security-cell
+description: >-
+  Bảo mật nền của cell (INF-19; TL-04 mục 9.3, 9.5; SEC-26, SEC-27, SEC-29, SEC-36, SEC-50, SEC-51): Falco eBPF với
+  quy tắc riêng và Falcosidekick sang Kafka sys.security.runtime.v1, chính sách Tetragon chặn ptrace ở secure,
+  kube-bench hằng tuần đẩy Prometheus, kured theo khung giờ và cửa sổ đóng băng, RBAC vai trò vận hành, thăm dò cổng ra.
+type: application
+version: 0.1.0

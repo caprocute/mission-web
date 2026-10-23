@@ -1,0 +1,64 @@
+# Cảnh báo bảo mật nền của cell (INF-19; TL-04 mục 9.3, 9.5). Nhãn doi chọn người nhận trong Alertmanager
+# (observability-mgmt). Chỉ số kube_bench_* và vt_egress_probe_* do Job của chart này đẩy lên Pushgateway.
+groups:
+  - name: vt-an-ninh-nen.alerts
+    rules:
+      # Tín hiệu cửa sổ đóng băng OPS-06 cho kured (không gọi ai): hai cửa sổ cố định của deploy/argocd/values.yaml,
+      # tính theo giờ Việt Nam (UTC+7). 24 tháng cuối quý tới hết ngày 10 tháng sau; 20/1 tới hết 04/2.
+      - alert: VtCuaSoDongBang
+        expr: |
+          (
+              (month(vector(time() + 25200)) % 3 == 0 and day_of_month(vector(time() + 25200)) >= 24)
+            or
+              (month(vector(time() + 25200)) % 3 == 1 and day_of_month(vector(time() + 25200)) <= 10)
+            or
+              (month(vector(time() + 25200)) == 1 and day_of_month(vector(time() + 25200)) >= 20)
+            or
+              (month(vector(time() + 25200)) == 2 and day_of_month(vector(time() + 25200)) <= 4)
+          )
+        labels: { severity: info, doi: khong-goi, ops: OPS-06 }
+        annotations:
+          summary: "Đang trong cửa sổ đóng băng thay đổi; kured không khởi động lại node"
+          runbook_url: https://runbook.vt.local/okr/an-ninh-kube-bench
+      - alert: KubeBenchFail
+        expr: max by (node, target) (kube_bench_checks{result="fail"}) > 0
+        labels: { severity: warning, doi: sre-nen-tang, sec: SEC-27 }
+        annotations:
+          summary: "kube-bench ghi {{ $value }} mục CIS FAIL trên {{ $labels.node }} ({{ $labels.target }}); mục tiêu 0"
+          runbook_url: https://runbook.vt.local/okr/an-ninh-kube-bench
+      - alert: KubeBenchStale
+        expr: time() - max by (node, target) (kube_bench_last_run_timestamp_seconds) > 8 * 86400
+        labels: { severity: warning, doi: sre-nen-tang, sec: SEC-27 }
+        annotations:
+          summary: "kube-bench không có kết quả mới quá 8 ngày trên {{ $labels.node }} ({{ $labels.target }})"
+          runbook_url: https://runbook.vt.local/okr/an-ninh-kube-bench
+      - alert: EgressProbeLeak
+        expr: max by (namespace, target) (vt_egress_probe_reachable) > 0
+        labels: { severity: critical, doi: soc, sec: SEC-36 }
+        annotations:
+          summary: "Pod trong {{ $labels.namespace }} kết nối thẳng ra ngoài được tới đích {{ $labels.target }} (ngoài danh sách cổng ra)"
+          runbook_url: https://runbook.vt.local/okr/an-ninh-cong-ra
+      - alert: EgressProbeStale
+        expr: time() - max by (namespace) (vt_egress_probe_last_run_timestamp_seconds) > 3600
+        labels: { severity: warning, doi: sre-nen-tang, sec: SEC-36 }
+        annotations:
+          summary: "Thăm dò cổng ra của {{ $labels.namespace }} không chạy quá 1 giờ"
+          runbook_url: https://runbook.vt.local/okr/an-ninh-cong-ra
+      - alert: FalcoNodeMissing
+        expr: |
+          max by (namespace) (kube_daemonset_status_desired_number_scheduled{daemonset="falco"})
+            - max by (namespace) (kube_daemonset_status_number_ready{daemonset="falco"}) > 0
+        for: 15m
+        labels: { severity: warning, doi: sre-nen-tang, sec: SEC-50 }
+        annotations:
+          summary: "{{ $value }} node chưa có Falco sẵn sàng"
+          runbook_url: https://runbook.vt.local/okr/runtime-security
+      # Tên chỉ số theo Falcosidekick 2.x (suy luận, đối chiếu khi chạy thật). Đầu ra otlplogs là đường tới
+      # sys.security.runtime.v1, webhook là kênh SOC.
+      - alert: FalcosidekickDauRaLoi
+        expr: sum by (destination) (increase(falcosecurity_falcosidekick_outputs_total{status="error"}[10m])) > 0
+        for: 5m
+        labels: { severity: critical, doi: soc, sec: SEC-50 }
+        annotations:
+          summary: "Falcosidekick không gửi được cảnh báo qua đầu ra {{ $labels.destination }}"
+          runbook_url: https://runbook.vt.local/okr/runtime-security

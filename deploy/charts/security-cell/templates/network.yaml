@@ -1,0 +1,169 @@
+{{- $v := .Values }}
+{{- $ns := $v.privilegedNamespace }}
+# Namespace có quyền cao vẫn mặc định từ chối mọi chiều (SEC-32), như 13 namespace của cell-base.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: {{ $ns }}
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: {{ $ns }}
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+# Prometheus của cell thu metric Falco, Falcosidekick, kured.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: observability-scrape
+  namespace: {{ $ns }}
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: app.kubernetes.io/name, operator: In, values: [falco, falcosidekick, kured] }
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: observability }
+      ports:
+        - { protocol: TCP, port: 8765 }
+        - { protocol: TCP, port: 2801 }
+        - { protocol: TCP, port: 8080 }
+{{- if and $v.falco.enabled $v.falcosidekick.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: falco-to-falcosidekick
+  namespace: {{ $ns }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: falco }
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: { app.kubernetes.io/name: falcosidekick }
+      ports:
+        - { protocol: TCP, port: 2801 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: falcosidekick-ingress
+  namespace: {{ $ns }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: falcosidekick }
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app.kubernetes.io/name: falco }
+      ports:
+        - { protocol: TCP, port: 2801 }
+---
+# Falcosidekick → otel-siem (OTLP/HTTP mTLS 4318) và → egress gateway cho webhook SOC mức Critical.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: falcosidekick-egress
+  namespace: {{ $ns }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: falcosidekick }
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: observability }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: otel-siem }
+      ports:
+        - { protocol: TCP, port: 4318 }
+    {{- if $v.falcosidekick.soc.enabled }}
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: egress }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: egress-gateway }
+      ports:
+        - { protocol: TCP, port: 443 }
+    {{- end }}
+{{- end }}
+{{- if $v.kubeBench.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kube-bench-to-pushgateway
+  namespace: {{ $ns }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: kube-bench }
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: observability }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: pushgateway }
+      ports:
+        - { protocol: TCP, port: 9091 }
+{{- end }}
+{{- if $v.kured.enabled }}
+---
+# kured gọi API server (cordon, rút pod, khoá) và hỏi Prometheus về cảnh báo chặn khởi động lại.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: kured-egress
+  namespace: {{ $ns }}
+spec:
+  endpointSelector:
+    matchLabels: { app.kubernetes.io/name: kured }
+  egress:
+    - toEntities: [kube-apiserver]
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: observability
+            app.kubernetes.io/name: prometheus
+      toPorts:
+        - ports: [{ port: "9090", protocol: TCP }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kured-to-prometheus-ingress
+  namespace: observability
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: prometheus }
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ $ns }} }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: kured }
+      ports:
+        - { protocol: TCP, port: 9090 }
+{{- end }}
