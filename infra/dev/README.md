@@ -18,7 +18,7 @@ Toàn bộ cổng host đặt trong dải `35000–35999` và đều cấu hình
 | Keycloak 26 | `mission-dev-keycloak` | `35080` | `KEYCLOAK_PORT` | `core` | Realm `mission` được nạp tự động khi khởi động |
 | OPA 1.x | `mission-dev-opa` | `35181` | `OPA_PORT` | `security` | Đánh giá chính sách RBAC + ABAC Rego (`/v1/data/okrkpi/authz/decision`) |
 | OpenBao 2.x | `mission-dev-openbao` | `35820` | `OPENBAO_PORT` | `security` | Transit KEK (`kek-default`, `kek-tenant-demo`, `blind-index-default`) & `kv-v2` (`secret/`) |
-| Kafka 3.9 (KRaft) | `mission-dev-kafka` | `35092` / `35094` | `KAFKA_PORT` / `KAFKA_EXTERNAL_PORT` | `events` | Không dùng ZooKeeper; kết nối ngoài qua `35094` |
+| Kafka 3.9 (KRaft) | `mission-dev-kafka` | `35092` / `35094` | `KAFKA_PORT` / `KAFKA_EXTERNAL_PORT` | `events` | Không dùng ZooKeeper; `35092` là listener TUNNEL quảng bá `127.0.0.1`, chỉ mở trên loopback máy chủ, dùng trên máy chủ và qua hầm SSH; `35094` quảng bá `DEV_HOST`, chỉ dùng khi tường lửa mở cổng |
 | Apicurio Registry 3.x | `mission-dev-apicurio` | `35081` | `APICURIO_PORT` | `events` | Lưu schema Avro/JSON vào PostgreSQL (`schema=apicurio`) |
 | Debezium Connect 3.x | `mission-dev-debezium` | `35083` | `DEBEZIUM_PORT` | `events` | CDC Outbox từ PostgreSQL sang Kafka bằng `cdc_<schema>` |
 | MinIO (S3 API / Console) | `mission-dev-minio` | `35900` / `35901` | `MINIO_API_PORT` / `MINIO_CONSOLE_PORT` | `search` | Tương thích Ceph RGW; tự tạo 4 bucket chuẩn |
@@ -47,7 +47,7 @@ ssh -N \
   -L 35080:127.0.0.1:35080 \
   -L 35181:127.0.0.1:35181 \
   -L 35820:127.0.0.1:35820 \
-  -L 35094:127.0.0.1:35094 \
+  -L 35092:127.0.0.1:35092 \
   -L 35081:127.0.0.1:35081 \
   -L 35083:127.0.0.1:35083 \
   -L 35900:127.0.0.1:35900 \
@@ -60,6 +60,20 @@ ssh -N \
 ```
 
 Mọi service backend (`application-dev.yaml`) và công cụ dev đều mặc định trỏ về `127.0.0.1` với các biến môi trường động (`DB_HOST`, `DB_PORT`, `PGBOUNCER_PORT`, `VALKEY_HOST`, `VALKEY_PORT`, `KEYCLOAK_ISSUER_URI`, `OPA_URL`, `OPENBAO_URL`, `KAFKA_BOOTSTRAP_SERVERS`, `APICURIO_REGISTRY_URL`, `OTLP_METRICS_URI`), nên chạy ngay qua hầm SSH mà không cần sửa mã hay tệp cấu hình.
+
+**Kafka qua hầm SSH (INF-22).** Broker có ba listener cho client. `INTERNAL` (`kafka:9092`) dành cho container cùng mạng `mission-net`. `TUNNEL` mở ở cổng `KAFKA_PORT` (mặc định `35092`) chỉ trên loopback của máy chủ (`KAFKA_TUNNEL_BIND=127.0.0.1`) và quảng bá `KAFKA_TUNNEL_ADVERTISED_HOST:KAFKA_PORT` (mặc định `127.0.0.1:35092`), nên client chạy ngay trên máy chủ hoặc trên máy trạm qua `-L 35092:127.0.0.1:35092` đều nhận về đúng địa chỉ trong metadata; đây cũng là mặc định `KAFKA_BOOTSTRAP_SERVERS=127.0.0.1:35092` của các service backend. `EXTERNAL` (`35094`) quảng bá `DEV_HOST` và chỉ dùng được khi tường lửa mở cổng đó; trước đây hầm SSH chỉ chuyển `35094`, nên client nhận lại địa chỉ công khai của máy chủ và không kết nối được. Sau khi đổi, cần áp lại container `mission-dev-kafka` (mục 2.1).
+
+### 2.1. Đồng bộ compose trên máy chủ với repo (INF-22)
+
+Máy chủ dev giữ một bản `infra/dev` riêng kèm `.env` thật. Khi repo đổi `infra/dev`, chạy từ một bản checkout trên máy trạm có SSH tới máy chủ (ví dụ phiên trên máy Mac):
+
+```bash
+git pull                                   # lấy đúng commit cần áp
+infra/dev/scripts/sync-server.sh plan      # liệt kê khoá .env máy chủ còn thiếu, tệp sẽ chép, kiểm compose config; không đổi gì
+infra/dev/scripts/sync-server.sh apply     # chép tệp rồi docker compose -p mission-dev up -d --build
+```
+
+Script đọc `DEV_SERVER_HOST`, `DEV_SERVER_SSH_PORT`, `DEV_SERVER_USER`, `DEV_SERVER_INFRA_DIR` (thư mục `infra/dev` trên máy chủ, chứa `.env` thật) và `DEV_SERVER_PROFILES` (mặc định `core security events`) từ `.env` ở gốc repo. Nó không bao giờ ghi đè `.env`, `data/`, `softhsm/tokens/`, `softhsm/tsa/` trên máy chủ, ghi commit đã áp vào `.repo-commit`, chỉ áp lại project `mission-dev` (không dùng `--remove-orphans` hay `prune`) và in số container đang chạy trước và sau để đối chiếu. Khoá mới trong `.env.example` mà máy chủ chưa có được in tên (không in giá trị); compose dùng giá trị mặc định cho tới khi bổ sung. Khi máy trạm hoặc máy chủ thiếu `rsync`, script chép bằng `tar` các tệp git theo dõi, nên tệp đã xoá khỏi repo phải xoá tay trên máy chủ.
 
 ---
 
