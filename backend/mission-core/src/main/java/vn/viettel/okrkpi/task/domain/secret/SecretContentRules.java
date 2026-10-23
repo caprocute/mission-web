@@ -163,6 +163,33 @@ public final class SecretContentRules {
     }
   }
 
+  /**
+   * Dữ liệu xác thực kèm (AAD) của AES-GCM mà client dùng khi mã hoá (TL-03 {@code aad_hash}):
+   * {@code TASK_CONTENT|<tenant>|<nhiệm vụ>|<phiên bản nội dung sau khi lưu>} dạng UTF-8. Gắn bản
+   * mã với đúng tenant, nhiệm vụ và phiên bản nên không dán được bản mã sang nhiệm vụ khác hay phát
+   * lại bản cũ.
+   */
+  public static byte[] aad(UUID tenant, UUID task, long version) {
+    return ("TASK_CONTENT|" + tenant + "|" + task + "|" + version)
+        .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+  }
+
+  /** {@code aadHash} khai báo phải bằng SHA-256 của {@link #aad} cho phiên bản sẽ ghi. */
+  public static void requireAad(Sealed sealed, UUID tenant, UUID task, long version) {
+    if (!MessageDigest.isEqual(sealed.aadHash(), sha256(aad(tenant, task, version)))) {
+      throw new Violation(
+          "aadHash", "Dữ liệu xác thực kèm không khớp nhiệm vụ hoặc phiên bản nội dung");
+    }
+  }
+
+  /** Danh sách bọc của một lần lưu có đúng một bản cho khoá phục hồi tổ chức. */
+  public static void requireSingleRecovery(List<KeyWrap> wraps, RecoveryKey recovery) {
+    requireRecovery(wraps, recovery);
+    if (wraps.stream().filter(recovery::covers).count() != 1) {
+      throw new Violation("keyWraps", "Chỉ được một khoá đã bọc cho khoá phục hồi của tổ chức");
+    }
+  }
+
   public static byte[] sha256(byte[] data) {
     try {
       return MessageDigest.getInstance("SHA-256").digest(data);

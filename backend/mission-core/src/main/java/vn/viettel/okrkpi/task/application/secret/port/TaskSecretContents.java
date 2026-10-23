@@ -78,9 +78,6 @@ public interface TaskSecretContents {
       UUID actor,
       Instant at);
 
-  /** Đặt lại phiên bản dòng khi chỉ danh sách bọc đổi, để ETag của người đọc thay đổi. */
-  long touch(TenantId tenant, int periodBucket, UUID taskId, UUID actor, Instant at);
-
   /** Mọi bản bọc của nhiệm vụ, kể cả đã thu hồi, sắp theo thời điểm tạo. */
   List<KeyWrap> wraps(TenantId tenant, UUID taskId);
 
