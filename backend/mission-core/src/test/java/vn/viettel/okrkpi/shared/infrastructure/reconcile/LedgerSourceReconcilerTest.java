@@ -33,11 +33,13 @@ class LedgerSourceReconcilerTest {
 
   @Test
   void layMauTatDinhItNhatMotDoiTuong() {
-    // Mã cố định để kết quả không phụ thuộc lần chạy; tỷ lệ 1e-9 thì gần như chắc chắn không mã nào có
+    // Mã cố định để kết quả không phụ thuộc lần chạy; tỷ lệ 1e-9 thì gần như chắc chắn không mã nào
+    // có
     // điểm dưới ngưỡng, nên chỉ còn quy tắc "ít nhất một đối tượng".
     List<UUID> ids =
         IntStream.range(0, 50)
-            .mapToObj(i -> UUID.nameUUIDFromBytes(("doi-tuong-" + i).getBytes(StandardCharsets.UTF_8)))
+            .mapToObj(
+                i -> UUID.nameUUIDFromBytes(("doi-tuong-" + i).getBytes(StandardCharsets.UTF_8)))
             .toList();
     LedgerSourceReconciler few = withRate(1e-9);
     assertThat(few.sample(DAY, ids)).hasSize(1).isEqualTo(few.sample(DAY, ids.reversed()));
