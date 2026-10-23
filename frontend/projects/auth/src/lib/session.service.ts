@@ -189,6 +189,9 @@ export class SessionService {
       sessionChecksEnabled: false,
       showDebugInformation: false,
       clearHashAfterLogin: true,
+      // Thư viện chỉ miễn HTTPS cho `http://localhost` ('remoteOnly'); Keycloak dev qua hầm SSH là
+      // `http://127.0.0.1:35080` (KEYCLOAK_PUBLIC_URL) nên miễn cho mọi địa chỉ vòng lặp, còn lại bắt HTTPS.
+      requireHttps: !isLoopbackHttp(this.cfg.auth.issuer),
       // state + nonce + PKCE S256 do thư viện sinh và kiểm (SEC-17)
     });
     this.oauth.events.subscribe((e) => {
@@ -506,5 +509,18 @@ function clearSessionItem(key: string): void {
     globalThis.sessionStorage?.removeItem(key);
   } catch {
     /* bỏ qua */
+  }
+}
+
+/** `http://` tới máy cục bộ (localhost, 127.0.0.0/8, ::1): được dùng không TLS như `remoteOnly` của thư viện. */
+export function isLoopbackHttp(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return (
+      u.protocol === 'http:' &&
+      (u.hostname === 'localhost' || /^127(\.\d{1,3}){3}$/.test(u.hostname) || u.hostname === '[::1]')
+    );
+  } catch {
+    return false;
   }
 }

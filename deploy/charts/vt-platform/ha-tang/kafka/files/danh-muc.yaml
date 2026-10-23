@@ -126,6 +126,10 @@ topics:
   nhom: theoDanhMuc
   phanVung: 6
   luuGiu: 30d
+- ten: config.wftemplate.published.v1
+  nhom: theoDanhMuc
+  phanVung: 6
+  luuGiu: 30d
 - ten: sys.security.runtime.v1
   nhom: heThong
 - ten: sys.siem.v1
@@ -370,6 +374,7 @@ nguoiDung:
     - config.period.locked.v1
     - config.period.unlocked.v1
     - config.uipack.published.v1
+    - config.wftemplate.published.v1
     - dossier.form.generated.v1
     - esign.signature.completed.v1
     - evidence.object.scanned.v1
@@ -523,6 +528,8 @@ schemaOutbox:
   bang: esign.outbox_event
 - schema: ledger
   bang: ledger.outbox_event
+- schema: flowable
+  bang: flowable.outbox_event
 - schema: registry
   bang: registry.outbox_event
 avro:
@@ -542,6 +549,8 @@ avro:
   tep: avro/config/KyDaHuyKhoa.avsc
 - artifactId: config.uipack.published.v1-value
   tep: avro/config/UiPackDaPhatHanh.avsc
+- artifactId: config.wftemplate.published.v1-value
+  tep: avro/config/MauLuongDaPhatHanh.avsc
 - artifactId: dossier.form.generated.v1-value
   tep: avro/dossier/HoSoSoDaSinh.avsc
 - artifactId: esign.signature.completed.v1-value

@@ -2,7 +2,7 @@
   "type": "record",
   "name": "MauLuongDaPhatHanh",
   "namespace": "vn.vtokr.config.v1",
-  "doc": "Đề xuất BS-01 (chưa gán mã EVT) · config.wftemplate.published.v1 · SVC-06 phát khi một phiên bản mẫu luồng lên HIEU_LUC. Tên topic BS-01 ghi là config.wf_template.published.v1, đổi gạch dưới theo quy ước topic (wiki trang 14).",
+  "doc": "BS-01 · config.wftemplate.published.v1 · SVC-06 phát qua flowable.outbox_event khi một phiên bản mẫu luồng lên HIEU_LUC. Chưa có mã EVT (topic kỹ thuật trong catalog.yaml). BS-01 ghi tên config.wf_template.published.v1; bỏ gạch dưới theo quy ước topic và ràng buộc ck_outbox_event__topic (wiki trang 14).",
   "fields": [
     {"name": "templateId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "flowable.wf_template.id"},
     {"name": "templateCode", "type": "string", "doc": "flowable.wf_template.template_code"},

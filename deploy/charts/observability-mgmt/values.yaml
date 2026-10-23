@@ -158,3 +158,32 @@ alertmanager:
     repository: quay.io/prometheus/alertmanager
     digest: ""
   webhookSecret: alertmanager-webhooks
+  # Điểm vào cho Prometheus các cell (INF-15, templates/cong-canh-bao-cell.yaml): ghostunnel kết thúc mTLS rồi chuyển
+  # tới Service alertmanager. host, cidrs, cách lộ Service và khoá OpenBao là giá trị của môi trường; bật mà để trống
+  # host hoặc cidrs thì chart dừng render. Phía cell khai cùng host:port ở observability-cell canhBaoQuanTri.diaChi.
+  congCell:
+    enabled: true
+    replicas: 2
+    image:
+      repository: docker.io/ghostunnel/ghostunnel
+      # v1.9.2-distroless (Apache-2.0).
+      digest: sha256:a408b9a2eb12469f1c87e8281d3b1d49eb9d4ca49f491fb9a0537d03e7c666a7
+    # Tên DNS mà cell gọi, phải có trong SAN của chứng chỉ máy chủ.
+    host: ""
+    port: 9443
+    service:
+      # LoadBalancer cấp VIP của TTDL (MetalLB hoặc LB của Viettel Cloud); ClusterIP khi đi qua cổng vào có sẵn.
+      type: LoadBalancer
+      loadBalancerIP: ""
+      annotations: {}
+    # Dải địa chỉ ra của Prometheus các cell (NetworkPolicy chỉ mở cho các dải này).
+    cidrs: []
+    # Lọc theo trường của chứng chỉ khách (bắt buộc ít nhất một: CA nội bộ chung cho mọi dịch vụ của cell).
+    choPhep: { ou: [], dns: [], uri: [] }
+    tls:
+      # tls.crt, tls.key của máy chủ và ca.crt là CA ký chứng chỉ khách của các cell.
+      secretName: alertmanager-cong-cell-tls
+      path: kv/mgmt/observability/alertmanager-cong-cell
+      # Tên kho của cụm quản trị (suy luận theo openbao-cell, openbao-global).
+      secretStore: { kind: ClusterSecretStore, name: openbao-mgmt }
+      refreshInterval: 1h

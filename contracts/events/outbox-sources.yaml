@@ -320,6 +320,19 @@ sources:
     topics:
       - ledger.seal.created.v1
 
+  # SVC-06 workflow-service: CSDL flowable riêng (TL-03 chương 2), bảng outbox ở V3__saga_outbox_idempotency.sql.
+  - schema: flowable
+    outboxTable: flowable.outbox_event
+    owner: SVC-06
+    database: flowable
+    devDatabase: flowable
+    connector: outbox-flowable
+    slotName: dbz_outbox_flowable
+    cdcRole: cdc_flowable
+    events: []
+    topics:
+      - config.wftemplate.published.v1
+
   - schema: registry
     outboxTable: registry.outbox_event
     owner: SVC-03

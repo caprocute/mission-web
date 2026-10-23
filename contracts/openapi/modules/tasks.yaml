@@ -59,6 +59,18 @@ paths:
         - name: overdue
           in: query
           schema: { type: boolean }
+        - name: source
+          in: query
+          description: >-
+            Lọc theo nguồn nhiệm vụ. Hàng đăng ký chờ duyệt của người giao việc dùng
+            `status=NHAP&source=DANG_KY` (QT-05 bước 3, SCR-0501 đường vào menu "Nhiệm vụ").
+          schema: { $ref: '#/components/schemas/TaskSource' }
+        - name: pendingChangeRequest
+          in: query
+          description: >-
+            Chỉ nhiệm vụ có đề nghị gia hạn, điều chỉnh đang `CHO_DUYET` (SCR-0601 "Duyệt đề nghị";
+            TL-02 QT-08 bước 0 cần người duyệt xử lý hết đề nghị tồn đọng trước khi khoá kỳ).
+          schema: { type: boolean }
         - name: includeSubunits
           in: query
           description: Gồm cả đơn vị cấp dưới (lãnh đạo, giám sát).
@@ -76,12 +88,12 @@ paths:
         '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
         default: { $ref: '../common/common.yaml#/components/responses/Problem' }
       x-mission:
-        qt: [QT-05, QT-16]
-        scr: [SCR-0201, SCR-1601]
+        qt: [QT-05, QT-06, QT-16]
+        scr: [SCR-0201, SCR-0501, SCR-0601, SCR-1601]
         owner: MOD-02
         roles: [manager, leader, inspector, appraiser, ai_readonly]
         scope: Đv
-        source: 'TL-01 PL C; TL-02a SCR-0201; TL-02b SCR-1601'
+        source: 'TL-01 PL C; TL-02a SCR-0201, SCR-0501 (đường vào menu "Nhiệm vụ", QT-05 bước 3), SCR-0601 "Duyệt đề nghị"; TL-02b SCR-1601'
     post:
       tags: [Nhiệm vụ]
       operationId: createTaskDraft

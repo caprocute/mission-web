@@ -293,6 +293,8 @@ public class TaskAssignController {
       @RequestParam(value = "status", required = false) String status,
       @RequestParam(value = "kr", required = false) UUID kr,
       @RequestParam(value = "overdue", required = false) Boolean overdue,
+      @RequestParam(value = "source", required = false) TaskSource source,
+      @RequestParam(value = "pendingChangeRequest", required = false) Boolean pendingChangeRequest,
       @RequestParam(value = "includeSubunits", required = false) Boolean includeSubunits,
       @RequestParam(value = "q", required = false) String q,
       @RequestParam(value = "limit", required = false) Integer limit,
@@ -300,14 +302,39 @@ public class TaskAssignController {
     Set<String> statuses = statuses(status);
     boolean subunits = Boolean.TRUE.equals(includeSubunits);
     String scope =
-        "tasks:" + unit + ":" + period + ":" + statuses + ":" + kr + ":" + overdue + ":" + subunits
-            + ":" + q;
+        "tasks:"
+            + unit
+            + ":"
+            + period
+            + ":"
+            + statuses
+            + ":"
+            + kr
+            + ":"
+            + overdue
+            + ":"
+            + subunits
+            + ":"
+            + q
+            + ":"
+            + source
+            + ":"
+            + pendingChangeRequest;
     PageRequest page = cursors.pageRequest(limit, cursor, scope);
     TaskActor actor = callers.current();
     List<UnitTaskRow> rows =
         queries.listUnitTasks(
             TenantContext.require(),
-            new TaskQueryService.UnitQuery(unit, period, statuses, kr, overdue, subunits, q),
+            new TaskQueryService.UnitQuery(
+                unit,
+                period,
+                statuses,
+                kr,
+                overdue,
+                subunits,
+                q,
+                source == null ? null : source.getValue(),
+                pendingChangeRequest),
             actor,
             page.afterKey().map(k -> k.getUuid(0)).orElse(null),
             page.fetchSize());
