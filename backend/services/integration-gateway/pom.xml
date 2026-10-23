@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  NEN-019 · ADR-01, ADR-16, ADR-24 · TL-04 WI-20, WI-23.
+  Mẫu microservice Java chuẩn (Spring Boot 3.5, Java 21, kiến trúc lục giác).
+  Khi tạo service mới bằng scripts/new-service.sh, tệp này được chép sang
+  backend/services/<ten-dich-vu>/pom.xml và đổi artifactId tương ứng.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>vn.viettel.okrkpi</groupId>
+    <artifactId>services</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>integration-gateway</artifactId>
+
+  <name>Mission · integration-gateway</name>
+  <description>SVC-13 integration-gateway: lớp chống ô nhiễm giữa nền tảng và hệ ngoài bằng Apache Camel 4 (schema integ, mapping_xref, con trỏ đồng bộ, thư chết, pipeline chiều ra; DV-13-01 dựng khung).</description>
+
+  <properties>
+    <pitest.targetClasses>vn.viettel.okrkpi.integ.*</pitest.targetClasses>
+    <!-- Microservice API dùng Generational ZGC theo TL-04 WI-20. -->
+    <jib.jvm.gc>-XX:+UseZGC</jib.jvm.gc>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <!-- camel-kafka và kafka-clients kéo hai bản lz4-java; thống nhất bản vá mới hơn cho DependencyConvergence. -->
+      <dependency>
+        <groupId>at.yawk.lz4</groupId>
+        <artifactId>lz4-java</artifactId>
+        <version>1.10.2</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+    <!-- DV-13-01 · ADR-20, TL-01 SVC-13: Camel 4 (Apache 2.0), phiên bản theo camel-spring-boot-bom của platform-bom.
+         camel-cxf (SOAP) thêm cùng bộ kết nối đầu tiên dùng SOAP để không kéo CXF vào khi chưa cần (wiki trang 14). -->
+    <dependency>
+      <groupId>org.apache.camel.springboot</groupId>
+      <artifactId>camel-spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.camel.springboot</groupId>
+      <artifactId>camel-kafka-starter</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.camel.springboot</groupId>
+      <artifactId>camel-rest-starter</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.camel.springboot</groupId>
+      <artifactId>camel-jackson-starter</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.camel.springboot</groupId>
+      <artifactId>camel-resilience4j-starter</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.camel.springboot</groupId>
+      <artifactId>camel-ftp-starter</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-events</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-db-migration</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-postgresql</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-kernel</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-platform-starter</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-jdbc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.zaxxer</groupId>
+      <artifactId>HikariCP</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.tngtech.archunit</groupId>
+      <artifactId>archunit-junit5</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>kafka</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-db-migration</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>com.google.cloud.tools</groupId>
+        <artifactId>jib-maven-plugin</artifactId>
+        <configuration>
+          <container>
+            <mainClass>vn.viettel.okrkpi.integ.IntegrationServiceApplication</mainClass>
+            <ports>
+              <port>8080</port>
+              <port>8081</port>
+            </ports>
+            <labels>
+              <org.opencontainers.image.title>${project.artifactId}</org.opencontainers.image.title>
+              <org.opencontainers.image.version>${project.version}</org.opencontainers.image.version>
+              <io.mission.service.name>${project.artifactId}</io.mission.service.name>
+              <io.mission.service.version>${project.version}</io.mission.service.version>
+            </labels>
+          </container>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

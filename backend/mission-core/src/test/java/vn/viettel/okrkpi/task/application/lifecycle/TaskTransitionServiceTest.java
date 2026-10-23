@@ -344,4 +344,31 @@ class TaskTransitionServiceTest {
     }
     throw new AssertionError("không ném BusinessException");
   }
+
+  @Test
+  void huyNhapNgoaiBangChuyen() {
+    given(TaskStatus.NHAP);
+    TaskTransitionService.Transitioned r =
+        service().cancelDraft(TENANT, taskId, 3L, "TU_CHOI_DANG_KY", manager, "Trùng việc");
+    assertThat(r.task().status()).isEqualTo(TaskStatus.HUY);
+    assertThat(repo.log)
+        .singleElement()
+        .satisfies(
+            l -> {
+              assertThat(l.transition()).isEqualTo("TU_CHOI_DANG_KY");
+              assertThat(l.reason()).isEqualTo("Trùng việc");
+            });
+    assertThat(outbox).singleElement().satisfies(e -> assertThat(e.toStatus()).isEqualTo("HUY"));
+    assertThat(published).hasSize(2);
+
+    assertThatThrownBy(
+            () -> service().cancelDraft(TENANT, taskId, 9L, "TU_CHOI_DANG_KY", manager, "x"))
+        .isInstanceOf(VersionConflictException.class);
+    assertThatThrownBy(
+            () -> service().cancelDraft(TENANT, taskId, r.task().rowVersion(), "X", manager, "x"))
+        .isInstanceOf(BusinessException.class);
+    assertThatThrownBy(
+            () -> service().cancelDraft(TENANT, UUID.randomUUID(), 1L, "X", manager, "x"))
+        .isInstanceOf(NoSuchElementException.class);
+  }
 }
