@@ -1,0 +1,35 @@
+# Mẫu cấu hình vtctl (INF-26). Chép về ~/.config/vtctl/config.yaml rồi sửa theo môi trường. Không ghi mật khẩu, token
+# hay khoá vào tệp này: token do `vtctl login` lưu riêng (tệp quyền 0600), khoá mTLS Kafka chỉ ghi đường dẫn tệp.
+# Mọi địa chỉ dưới đây là giá trị giả (.invalid).
+cellsDir: ../../deploy/cells
+auditLog: ~/.local/state/vtctl/audit.jsonl
+environments:
+  staging:
+    issuer: https://sso-ops.staging.invalid/realms/platform-ops
+    clientId: vtctl
+    registryURL: https://registry.staging.invalid
+    cells:
+      hn:
+        # Bỏ trống apiURL thì vtctl lấy apiBaseUrl của cell trong registry (khớp code với displayName của cell.yaml).
+        apiURL: ""
+        kubeContext: staging-hn
+        namespaces: {jobs: okr-ops, org: okr-org, edge: edge}
+        degradeURL: http://apisix-degrade-controller.edge.svc.staging-hn.invalid:8080
+        kafka:
+          bootstrap: ["kafka-cell-kafka-bootstrap.data-kafka.staging-hn.invalid:9093"]
+          caFile: ~/.config/vtctl/kafka/staging-hn/ca.crt
+          certFile: ~/.config/vtctl/kafka/staging-hn/user.crt
+          keyFile: ~/.config/vtctl/kafka/staging-hn/user.key
+        # Tệp values theo chart khi dựng Job (org-service, vtctl-jobs), ví dụ:
+        # values: {org-service: [../../deploy/environments/staging/org-service.yaml]}
+        values: {}
+  kind:
+    issuer: http://127.0.0.1:38080/realms/platform-ops
+    clientId: vtctl
+    registryURL: http://127.0.0.1:38081
+    cells:
+      g1:
+        apiURL: http://127.0.0.1:38082
+        kubeContext: kind-mission
+        degradeURL: http://127.0.0.1:18080
+        kafka: {bootstrap: ["127.0.0.1:39092"], plaintext: true}

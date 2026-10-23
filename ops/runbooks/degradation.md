@@ -19,6 +19,12 @@ Mức áp dụng là mức đặt tay nếu người trực đã đặt, ngượ
 ## 2. Kiểm tra nhanh
 
 ```bash
+vtctl -e <môi trường> -c <cell> degrade status
+```
+
+Phương án dự phòng khi chưa có vtctl (lệnh thủ công):
+
+```bash
 # Mức hiện hành, mức đích, mức đặt tay và các mức cảnh báo đang cháy.
 kubectl -n edge port-forward svc/apisix-degrade-controller 18080:8080 &
 curl -s http://127.0.0.1:18080/level
@@ -32,6 +38,17 @@ kubectl -n edge logs deploy/apisix-degrade-controller --since=1h | grep degrade_
 Trên Grafana của cell, đối chiếu `vt_degrade_level` với p95 đọc của mission-core, tỷ lệ 5xx, Hikari pending và CPU primary PostgreSQL, là các điều kiện kích hoạt mức 1, 2 và 3 của TL-04.
 
 ## 3. Bật hoặc tắt mức bằng tay
+
+Mọi lệnh ghi của `vtctl` mặc định chỉ chạy thử và in tóm tắt tác động; thêm `--confirm` mới thực hiện, khi đó vtctl ghi một bản ghi kiểm toán (INF-26, `services-go/vtctl/README.md`). vtctl tự đọc token webhook từ Secret mà không in ra màn hình; người chạy cần quyền đọc Secret đó trong namespace `edge`.
+
+```bash
+vtctl -e <môi trường> -c <cell> degrade set 3 --reason "CPU primary 95% từ 09:10" --confirm
+vtctl -e <môi trường> -c <cell> degrade clear --reason "CPU primary về 60%" --confirm
+# Kiểm chứng: mức áp dụng trả về đúng mức đã đặt, nhãn vt.io/degrade-level trên ApisixPluginConfig cùng một mức.
+vtctl -e <môi trường> -c <cell> degrade status
+```
+
+Quay lui: `degrade clear` trả về mức theo cảnh báo và mức nền. Phương án dự phòng (lệnh thủ công):
 
 Token webhook nằm trong Secret `apisix-degrade-webhook` (ExternalSecret từ OpenBao). Không in token ra màn hình, không dán vào kênh chat; đọc vào biến môi trường của phiên shell rồi xoá biến sau khi dùng.
 

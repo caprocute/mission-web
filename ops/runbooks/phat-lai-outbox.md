@@ -48,6 +48,18 @@ Từ `last_heartbeat_ts` (hoặc thời điểm sự cố bắt đầu), lùi l�
 
 ## 3. Bước 1: Kiểm tra danh mục và chạy thử (`--dry-run`)
 
+Bằng vtctl (INF-26): lệnh dựng Job `outbox-replay` từ chart `deploy/charts/vtctl-jobs` và chạy trong namespace Job của cell. Không có `--confirm` thì vtctl chỉ kiểm Job phía máy chủ (`kubectl create --dry-run=server`), không tạo gì. Có `--confirm` thì Job chạy công cụ với `--confirm`, người chạy lấy từ token đăng nhập vtctl. Lệnh cần quyền tạo Job (`operate-data`, cấp qua PAM).
+
+```bash
+vtctl -e <môi trường> -c <cell> outbox replay --schema task --tenant <uuid-tenant> \
+  --from 2026-10-20T08:00:00Z --to 2026-10-20T10:30:00Z --reason "INC-2026-1020-slot-lost"
+# Chạy thật, chờ Job xong; thêm --consumer <tên> để chỉ phát qua <topic>.replay.<consumer> (mục 4.2).
+vtctl -e <môi trường> -c <cell> outbox replay --schema task --tenant <uuid-tenant> \
+  --from 2026-10-20T08:00:00Z --to 2026-10-20T10:30:00Z --reason "INC-2026-1020-slot-lost" --wait 4h --confirm
+```
+
+Phương án dự phòng khi chạy công cụ trực tiếp trong pod của cell (lệnh thủ công):
+
 Mặc định `outbox-replay` luôn chạy ở chế độ `--dry-run=true` (không gửi thông điệp lên Kafka, không ghi kiểm toán, chỉ kiểm tra hợp đồng `outbox-sources.yaml` và đếm số bản ghi theo topic và tenant).
 
 ```bash
