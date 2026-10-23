@@ -6,6 +6,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import vn.viettel.okrkpi.config.api.AccessDirectory;
 import vn.viettel.okrkpi.config.api.FeatureFlagApi;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.contract.okr.model.CopyOkrObjectivesFromPeriod201Response;
@@ -114,6 +116,8 @@ public class OkrComposeController {
   private final OkrApproveBatchJobs batches;
   private final CursorCodec cursors;
   private final OkrAiProvenance provenance;
+  private final ObjectProvider<AccessDirectory> names;
+  private final OkrNameFiller fill;
 
   public OkrComposeController(
       OkrComposeService compose,
@@ -128,7 +132,11 @@ public class OkrComposeController {
       OkrReviewService reviews,
       OkrApproveBatchJobs batches,
       CursorCodec cursors,
-      OkrAiProvenance provenance) {
+      OkrAiProvenance provenance,
+      ObjectProvider<AccessDirectory> names,
+      OkrNameFiller fill) {
+    this.fill = Objects.requireNonNull(fill, "fill");
+    this.names = Objects.requireNonNull(names, "names");
     this.provenance = Objects.requireNonNull(provenance, "provenance");
     this.submits = Objects.requireNonNull(submits, "submits");
     this.reviews = Objects.requireNonNull(reviews, "reviews");
@@ -702,8 +710,7 @@ public class OkrComposeController {
       for (ObjectiveView v : reads.objectives(tenant, filter, null, null, 200)) {
         parents.add(
             new OkrParentOption(v.row().id(), v.row().code(), v.row().title(), p.id().value())
-                .status(OkrObjectiveStatus.fromValue(v.row().status()))
-                .unitName(""));
+                .status(OkrObjectiveStatus.fromValue(v.row().status())));
       }
     }
     LocalDate today = LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
@@ -713,6 +720,16 @@ public class OkrComposeController {
       parentUnit.ifPresent(u -> verifierIds.addAll(directory.headsOf(tenant, u, today)));
     }
     verifierIds.remove(me);
+    // tên hiển thị lấy từ org_replica (phiên bản đơn vị mới nhất); thiếu bean thì để rỗng như trước
+    AccessDirectory dir = names.getIfAvailable();
+    Set<UUID> units = new LinkedHashSet<>(List.of(ownerUnit));
+    parentUnit.ifPresent(units::add);
+    Map<UUID, String> unitNames = dir == null ? Map.of() : dir.unitNames(tenant, units);
+    Set<UUID> people = new LinkedHashSet<>(verifierIds);
+    people.add(me);
+    Map<UUID, String> personNames = dir == null ? Map.of() : dir.personNames(tenant, people);
+    String parentUnitName = parentUnit.map(u -> unitNames.getOrDefault(u, "")).orElse("");
+    parents.forEach(o -> o.unitName(parentUnitName));
     OkrPeriodInfo info = OkrReadController.periodInfo(reads.periodView(p));
     FeatureFlagApi flagApi = flags.getIfAvailable();
     boolean ai =
@@ -722,15 +739,17 @@ public class OkrComposeController {
     return new OkrComposeContext(
         info,
         p.isLocked() ? List.of() : List.of(info),
-        new Ref(ownerUnit, ""),
+        new Ref(ownerUnit, unitNames.getOrDefault(ownerUnit, "")),
         topLevel,
         reads.bases(tenant, null, today, null, null, null, 200).stream()
             .map(OkrReadController::basisRef)
             .toList(),
         parents,
         (int) existing,
-        verifierIds.stream().map(id -> new OkrPersonOption(id, "")).toList(),
-        new Ref(me, ""),
+        verifierIds.stream()
+            .map(id -> new OkrPersonOption(id, personNames.getOrDefault(id, "")))
+            .toList(),
+        new Ref(me, personNames.getOrDefault(me, "")),
         ai,
         policy(tenant, p, ownerUnit));
   }
@@ -746,6 +765,7 @@ public class OkrComposeController {
       reads
           .objectiveRow(tenant, view.row().parentObjectiveId())
           .ifPresent(parent -> dto.parentObjective(OkrReadController.objectiveRef(parent)));
+      fill.objectiveRefs(tenant, java.util.Collections.singletonList(dto.getParentObjective()));
     }
     reads
         .optionalPeriod(tenant, view.row().periodId())

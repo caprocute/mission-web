@@ -51,6 +51,23 @@ public class JdbcScoreJobStore implements ScoreJobStore {
       """
           .replace("PENDING_CHUNKS", PENDING_CHUNKS);
 
+  /**
+   * Bảng phân vùng LIST theo {@code period_bucket} của schema {@code scoring} còn thiếu phân vùng
+   * của quý (CORE-08-02, NEN-033: không có phân vùng mặc định).
+   */
+  private static final String MISSING_PARTITIONS =
+      """
+      SELECT c.oid::regclass::text FROM pg_partitioned_table pt
+        JOIN pg_class c ON c.oid = pt.partrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = pt.partattrs[0]
+       WHERE n.nspname = 'scoring' AND NOT c.relispartition AND pt.partstrat = 'l'
+         AND pt.partnatts = 1 AND a.attname = 'period_bucket'
+         AND NOT EXISTS (SELECT 1 FROM pg_class p WHERE p.relnamespace = c.relnamespace
+                          AND p.relname = c.relname || '_p' || :bucket)
+       ORDER BY 1
+      """;
+
   private final JdbcClient jdbc;
 
   public JdbcScoreJobStore(JdbcClient jdbc) {
@@ -59,6 +76,7 @@ public class JdbcScoreJobStore implements ScoreJobStore {
 
   @Override
   public UUID open(ScoreJob job) {
+    ensurePartitions(job.periodBucket());
     List<UUID> created =
         jdbc.sql(INSERT_SQL)
             .param("id", job.id())
@@ -195,5 +213,22 @@ public class JdbcScoreJobStore implements ScoreJobStore {
 
   private static Instant instant(java.sql.Timestamp ts) {
     return ts == null ? null : ts.toInstant();
+  }
+
+  /**
+   * Mọi lệnh ghi của dịch vụ đi sau một tác vụ tính, nên mở tác vụ là lúc bảo đảm có phân vùng cho
+   * quý của kỳ: gọi {@code scoring.fn_create_period_partitions} (SECURITY DEFINER, {@code
+   * svc_scoring} chỉ có EXECUTE) cho bảng còn thiếu; đã đủ thì chỉ tốn một truy vấn catalog. Kỳ mới
+   * tạo ở mission-core chưa từng được dịch vụ này biết tới cho tới tác vụ tính đầu tiên.
+   */
+  void ensurePartitions(int bucket) {
+    for (String table :
+        jdbc.sql(MISSING_PARTITIONS).param("bucket", bucket).query(String.class).list()) {
+      jdbc.sql("SELECT scoring.fn_create_period_partitions(CAST(:t AS regclass), :bucket)")
+          .param("t", table)
+          .param("bucket", bucket)
+          .query(Integer.class)
+          .single();
+    }
   }
 }

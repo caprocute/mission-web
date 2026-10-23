@@ -1,5 +1,9 @@
 import { Component, Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { of } from 'rxjs';
+import { OkrApi } from '@vt/api-client';
+import { PermissionService } from '@vt/auth';
 import { OkrProgressSlot, WidgetSlot } from './widget-slots';
 
 @Component({
@@ -24,6 +28,19 @@ class HiddenSlot extends WidgetSlot {
 /** WEB-059: ô giữ chỗ có chiều cao ngay từ đầu rồi nạp widget thật vào bên trong. */
 describe('WidgetSlot', () => {
   it('giữ chiều cao tối thiểu, chuyển tiếp props và dựng widget bên trong', async () => {
+    const items = [1, 2, 3].map((i) => ({
+      id: `o${i}`,
+      code: `O${i}`,
+      title: `Mục tiêu ${i}`,
+      progress: i / 4,
+    }));
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        { provide: PermissionService, useValue: { can: () => true } },
+        { provide: OkrApi, useValue: { objectives: () => of({ items, nextCursor: null }) } },
+      ],
+    });
     const fixture = TestBed.createComponent(OkrProgressSlot);
     fixture.componentRef.setInput('scope', 'unit');
     fixture.detectChanges();

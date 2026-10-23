@@ -1,5 +1,6 @@
 import { EnvironmentProviders, makeEnvironmentProviders } from '@angular/core';
 import { providePrimeNG } from 'primeng/config';
+import { PRIMENG_VI } from './primeng-vi';
 import { VtPreset } from './vt-preset';
 
 /**
@@ -11,7 +12,7 @@ function pageNonce(): string | undefined {
   return document.querySelector('[ngCspNonce]')?.getAttribute('ngCspNonce') ?? undefined;
 }
 
-/** Đăng ký PrimeNG với preset của nền tảng; dùng chung cho shell và mọi remote. */
+/** Đăng ký PrimeNG với preset và bản dịch tiếng Việt của nền tảng; dùng chung cho shell và mọi remote. */
 export function provideDesignSystem(): EnvironmentProviders {
   return makeEnvironmentProviders([
     providePrimeNG({
@@ -24,6 +25,7 @@ export function provideDesignSystem(): EnvironmentProviders {
         },
       },
       ripple: false,
+      translation: PRIMENG_VI,
     }),
   ]);
 }

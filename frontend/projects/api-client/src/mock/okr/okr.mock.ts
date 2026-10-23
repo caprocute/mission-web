@@ -158,6 +158,18 @@ function largeObjectives(): Objective[] {
   return out;
 }
 
+/** `listOkrObjectives` (bảng): kỳ đang mở khi không truyền kỳ, lọc `owner=me` và `ownerType`. */
+function listObjectives(req: MockRequest) {
+  const periodId = req.params.get('period') ?? fixture.currentPeriodId;
+  const ownerType = req.params.get('owner') === 'me' ? 'CA_NHAN' : req.params.get('ownerType');
+  const limit = Number(req.params.get('limit') ?? 50);
+  const items = (objectivesState()[periodId] ?? [])
+    .filter((o) => !ownerType || o.ownerType === ownerType)
+    .map(withProgress)
+    .slice(0, limit);
+  return ok({ items, nextCursor: null });
+}
+
 function buildTree(req: MockRequest) {
   const periodId = req.params.get('period') ?? fixture.currentPeriodId;
   const period = periods.find((p) => p.id === periodId);
@@ -649,6 +661,11 @@ export const OKR_MOCK: MockModule = {
         req.params.get('owner') === 'me'
           ? myKeyResults(req, objectivesState())
           : ok({ items: fixture.keyResults, nextCursor: null }),
+    },
+    {
+      method: 'GET',
+      pattern: '/api/v1/okr/objectives',
+      handle: (req) => listObjectives(req),
     },
     {
       method: 'GET',
