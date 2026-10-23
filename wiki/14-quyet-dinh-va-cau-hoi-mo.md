@@ -4,6 +4,8 @@
 
 Trang này ghi lại các quyết định kiến trúc ảnh hưởng tới phân hệ web, các quyết định riêng của dự án web đã chốt, và các điểm mà nguồn còn lệch nhau hoặc chưa trả lời. Mục đích là để người và AI agent không phải tự phát hiện lại những mâu thuẫn này, và biết cách xử lý tạm cho tới khi người phụ trách chốt. Nguyên tắc chung: khi wiki lệch với tài liệu thiết kế (TL), TL thắng; khi hai TL lệch nhau, giữ hành vi mà mã hiện tại đang có, ghi giả định vào báo cáo task và nêu câu hỏi cho người phụ trách.
 
+> Cập nhật 23/10/2026: bộ TL đã lên phiên bản 1.1. Các điểm lệch, quyết định và câu hỏi mở ghi ở trang này tính tới ngày 23/10/2026 đã được tổng hợp vào phụ lục "Cập nhật sau triển khai đợt 1 (10/2026)" của từng tài liệu (TL-01 Phụ lục D, TL-02, TL-03, TL-04 phụ lục cuối, TL-05 Phụ lục C, baseline mục 15); ADR-32, ADR-33 nay nằm trong TL-01 Phụ lục A, và BS-01, BS-02, BS-03 được nhập thành TL-01 Phụ lục E, F, G. Trang này vẫn là nơi ghi điểm mới phát sinh; khi phát hành bản TL kế tiếp, các điểm mới được chuyển vào phụ lục tương ứng.
+
 ## Quyết định kiến trúc liên quan tới web
 
 Bảng dưới liệt kê các ADR của baseline có tác động trực tiếp tới mã giao diện, kèm hệ quả cho frontend. Nội dung đầy đủ của ADR nằm trong baseline mục 4 và TL-01 Phụ lục A.
@@ -21,7 +23,7 @@ Bảng dưới liệt kê các ADR của baseline có tác động trực tiếp
 | ADR-16 | Jenkins, Argo CD, cosign, Kyverno, SBOM | Pipeline và ảnh web đã ký |
 | ADR-18 | Valkey làm cache, không cache dữ liệu C2, C3 dạng rõ | Không dựa vào cache phía máy chủ cho dữ liệu nhạy cảm |
 | ADR-19 | CEL và DMN cho luật nghiệp vụ | `cel-js` ở trình duyệt, cùng bộ test với `cel-java` |
-| ADR-20 | Thay dần hệ cũ qua APISIX | Một số tuyến còn ở hệ cũ trong thời gian chuyển đổi |
+| ADR-20 | Thay dần hệ cũ qua APISIX (không áp dụng từ 23/10/2026: Mission là ứng dụng phát triển mới) | Không có tuyến nào ở hệ cũ; frontend không cần xử lý định tuyến song song |
 | ADR-21 | OPA cùng pod, đánh giá từng phần, lỗi thì từ chối | Ẩn hiện theo vai trò ở client chỉ là trải nghiệm |
 | ADR-25 | UI Pack khai dải Policy Pack tương thích | `UiPack` có tham chiếu Policy Pack; kiểm khi phát hành |
 | ADR-27 | E2EE cho C3: ECDH P-256, khoá không trích xuất, Shamir 3/5 | Thư viện `@vt/e2ee` dự kiến |
