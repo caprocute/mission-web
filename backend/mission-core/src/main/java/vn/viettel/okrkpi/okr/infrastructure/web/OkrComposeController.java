@@ -799,7 +799,9 @@ public class OkrComposeController {
               reviewer -> {
                 AccessDirectory dir = names.getIfAvailable();
                 String name =
-                    dir == null ? "" : dir.personNames(tenant, Set.of(reviewer)).getOrDefault(reviewer, "");
+                    dir == null
+                        ? ""
+                        : dir.personNames(tenant, Set.of(reviewer)).getOrDefault(reviewer, "");
                 info.reviewer(new Ref(reviewer, name));
               });
     }

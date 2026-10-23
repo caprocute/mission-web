@@ -499,10 +499,9 @@ class OkrComposeApiIT extends ContractConformanceTest {
     // đơn vị không ở cấp cao nhất phải liên kết mục tiêu cấp trên đã duyệt (BR-02-02)
     inTenant(
         jdbc ->
-            jdbc.sql(
-                    "UPDATE okr.objective SET status = 'DA_DUYET', owner_unit_id = ? WHERE id = ?")
-                .params(OTHER_UNIT, upper)
-                .update()
+            jdbc.sql("UPDATE okr.objective SET status = 'DA_DUYET', owner_unit_id = ? WHERE id = ?")
+                    .params(OTHER_UNIT, upper)
+                    .update()
                 + jdbc.sql("UPDATE okr.objective SET parent_objective_id = ? WHERE id = ?")
                     .params(upper, id)
                     .update());
