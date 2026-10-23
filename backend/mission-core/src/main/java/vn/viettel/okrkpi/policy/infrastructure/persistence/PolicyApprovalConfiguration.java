@@ -18,7 +18,6 @@ import vn.viettel.okrkpi.policy.application.port.PolicyAudit;
 import vn.viettel.okrkpi.policy.application.port.PolicyPackSigner;
 import vn.viettel.okrkpi.policy.application.port.PolicyPublishLauncher;
 import vn.viettel.okrkpi.policy.infrastructure.client.KeycloakPolicyApprovers;
-import vn.viettel.okrkpi.policy.infrastructure.job.InMemoryPolicyPublishJobs;
 import vn.viettel.okrkpi.policy.infrastructure.signing.KeyPairPolicyCaseSigner;
 import vn.viettel.okrkpi.policy.infrastructure.signing.PlatformKeyPolicyPackSigner;
 import vn.viettel.okrkpi.shared.infrastructure.identity.KeycloakAdminClient;
@@ -35,11 +34,6 @@ public class PolicyApprovalConfiguration {
       @Qualifier("policyDataSource") DataSource dataSource, ObjectProvider<ObjectMapper> json) {
     return new JdbcPolicyPublishRepository(
         JdbcClient.create(dataSource), json.getIfAvailable(ObjectMapper::new));
-  }
-
-  @Bean
-  InMemoryPolicyPublishJobs policyPublishJobs() {
-    return new InMemoryPolicyPublishJobs();
   }
 
   @Bean
