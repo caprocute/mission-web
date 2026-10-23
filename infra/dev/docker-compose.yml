@@ -68,6 +68,11 @@ x-backend-java-env: &backend-java-env
 # Service backend và APISIX chỉ thuộc profile backend, không thuộc `all`: ảnh Java cần jar dựng trước
 # (deploy-backend.sh), nên `docker compose --profile all up` của hạ tầng không kéo theo chúng.
 # Cổng quản trị 8081 chỉ mở trong mạng compose; compose kiểm readiness bằng curl trong container.
+# Bộ nhớ: Dockerfile.java đặt -XX:MaxRAMPercentage=70, không có giới hạn container thì mỗi JVM tính 70% RAM của cả
+# máy, mười service tranh nhau và bị OOM trên máy 16 GB. Mỗi service Java có mem_limit và -Xmx riêng qua .env
+# (<SERVICE>_MEM_LIMIT, <SERVICE>_XMX; service nhỏ dùng chung JAVA_MEM_LIMIT, JAVA_XMX); -Xmx thắng
+# MaxRAMPercentage, phần chênh giữa mem_limit và -Xmx dành cho metaspace, luồng, bộ đệm ngoài heap.
+# ExitOnOutOfMemoryError để container khởi động lại (restart: unless-stopped) thay vì treo nửa sống.
 x-backend-java: &backend-java
   restart: unless-stopped
   profiles: ["backend"]
@@ -262,8 +267,11 @@ services:
       - "/policies"
     ports:
       - "${OPA_PORT:-35181}:8181"
+    # Gói chính sách thật okrkpi (NEN-040, sinh từ ma trận phân quyền) như bundle của cụm thật; thư mục gắn ở
+    # /policies/okrkpi để generated/data.json nằm đúng data.okrkpi.generated. Mission-core hỏi
+    # /v1/data/okrkpi/authz/decision; bản khởi tạo ./opa/policies chỉ từ chối mặc định nên mọi API trả 403.
     volumes:
-      - ./opa/policies:/policies:ro
+      - ../../backend/opa/okrkpi:/policies/okrkpi:ro
     healthcheck:
       test: ["CMD", "/opa", "eval", "data.okrkpi.authz.allow"]
       interval: 10s
@@ -618,6 +626,27 @@ services:
     networks:
       - mission-net
 
+  # clamd cho worker quét minh chứng của evidence-service (DV-08-04, SEC-47). Lần đầu freshclam tải cơ sở dữ liệu
+  # chữ ký (vài phút, cần mạng ra database.clamav.net), nên start_period dài. StreamMaxLength không nhỏ hơn
+  # EVIDENCE_MAX_FILE_BYTES (mặc định 50 MB). Hành trình QA-05 dùng tệp thử EICAR.
+  clamav:
+    image: clamav/clamav:1.4
+    container_name: mission-dev-clamav
+    restart: unless-stopped
+    profiles: ["backend"]
+    environment:
+      CLAMD_CONF_StreamMaxLength: 60M
+    volumes:
+      - clamav_db:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 300s
+    networks:
+      - mission-net
+
   # Máy chủ mô hình nhỏ chạy CPU cho ai-gateway (DV-14-01): llama.cpp server có API tương thích OpenAI như vLLM,
   # mô hình Qwen2.5-0.5B-Instruct GGUF (giấy phép Apache 2.0) tải từ Hugging Face lần đầu. ai-gateway trỏ tới bằng
   # LLM_MODE=openai, LLM_BASE_URL=http://127.0.0.1:${LLM_MOCK_PORT}; mặc định ai-gateway dùng bản giả lập trong mã.
@@ -757,14 +786,31 @@ services:
       dockerfile: ../../infra/dev/backend/Dockerfile.java
     image: mission-dev/mission-core:dev
     container_name: mission-dev-mission-core
+    mem_limit: ${MISSION_CORE_MEM_LIMIT:-1536m}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${MISSION_CORE_XMX:-1g} -XX:+ExitOnOutOfMemoryError"
       SERVICE_NAME: mission-core
       AUTH_ENABLED: ${MISSION_CORE_AUTH_ENABLED:-true}
+      # Đối chiếu cel-js khi chạy kiểm thử Policy Pack (CORE-05-07, BR-15-07); thiếu thì lần chạy luôn "Chưa đạt".
+      MISSION_POLICY_CELJS_URL: http://cel-js-runner:8080
     ports:
       - "${MISSION_CORE_PORT:-35100}:8080"
       # Cổng quản trị chỉ mở trên loopback của máy chủ (health.sh, Prometheus cục bộ).
       - "127.0.0.1:${MISSION_CORE_MGMT_PORT:-35101}:8081"
+
+  # Bộ chạy cel-js mà mission-core gọi để đối chiếu hai engine khi chạy ca vàng (CORE-05-07). Không mở cổng ra
+  # ngoài: chỉ mission-core gọi trong mạng compose.
+  cel-js-runner:
+    build:
+      context: ../..
+      dockerfile: backend/services/cel-js-runner/Dockerfile
+    image: mission-dev/cel-js-runner:dev
+    container_name: mission-dev-cel-js-runner
+    restart: unless-stopped
+    profiles: ["backend"]
+    networks:
+      - mission-net
 
   # SVC-04: dữ liệu ở schema org (CSDL mission), migration chạy bằng hồ sơ Spring `migrate` với mig_org.
   org-service:
@@ -774,8 +820,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/org-service:dev
     container_name: mission-dev-org-service
+    mem_limit: ${ORG_SERVICE_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${ORG_SERVICE_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       PORT: "8080"
       ORG_DB_URL: jdbc:postgresql://pgbouncer:6432/${POSTGRES_DB:-mission}?currentSchema=org&prepareThreshold=0
       ORG_DB_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-}
@@ -800,8 +848,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/workflow-service:dev
     container_name: mission-dev-workflow-service
+    mem_limit: ${WORKFLOW_SERVICE_MEM_LIMIT:-1g}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${WORKFLOW_SERVICE_XMX:-640m} -XX:+ExitOnOutOfMemoryError"
       DB_NAME: flowable
       CORE_BASE_URL: http://mission-core:8080/api/v1
       # Flyway của chính service (schema flowable) chạy lúc khởi động bằng mig_flowable, nối thẳng PostgreSQL
@@ -821,8 +871,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/scoring-service:dev
     container_name: mission-dev-scoring-service
+    mem_limit: ${SCORING_SERVICE_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${SCORING_SERVICE_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       MISSION_CORE_URL: http://mission-core:8080
     ports:
       - "${SCORING_SERVICE_PORT:-35113}:8080"
@@ -835,10 +887,13 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/document-service:dev
     container_name: mission-dev-document-service
+    mem_limit: ${DOCUMENT_SERVICE_MEM_LIMIT:-1g}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${DOCUMENT_SERVICE_XMX:-640m} -XX:+ExitOnOutOfMemoryError"
       # Schema tự chứa outbox, inbox, idempotency (phân vùng DEFAULT), không dùng phần chung V0_x của
-      # vt-db-migration, nên tự chạy Flyway lúc khởi động bằng mig_docgen như workflow-service.
+      # vt-db-migration. deploy-backend.sh áp trước bằng MigrationRunner (chỉ thư mục riêng); Flyway lúc khởi động
+      # bằng mig_docgen giữ lại cho lần bật service riêng lẻ, cùng thư mục nên không trùng.
       FLYWAY_ENABLED: "true"
       SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-mission}
       SPRING_FLYWAY_USER: mig_docgen
@@ -851,7 +906,8 @@ services:
     ports:
       - "${DOCUMENT_SERVICE_PORT:-35114}:8080"
 
-  # SVC-08: quét virus tắt ở dev (không có clamd).
+  # SVC-08: API và worker quét chung một container ở dev, quét bằng clamd của dịch vụ clamav (đặt
+  # EVIDENCE_SCAN_ENABLED=false trong .env để tắt khi không bật clamav).
   evidence-service:
     <<: *backend-java
     build:
@@ -859,13 +915,17 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/evidence-service:dev
     container_name: mission-dev-evidence-service
+    mem_limit: ${EVIDENCE_SERVICE_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${EVIDENCE_SERVICE_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       GOTENBERG_URL: http://gotenberg:3000
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY: ${MINIO_ROOT_USER:-}
       S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-}
-      EVIDENCE_SCAN_ENABLED: "false"
+      EVIDENCE_SCAN_ENABLED: ${EVIDENCE_SCAN_ENABLED:-true}
+      CLAMD_HOST: clamav
+      CLAMD_PORT: "3310"
     ports:
       - "${EVIDENCE_SERVICE_PORT:-35115}:8080"
 
@@ -877,10 +937,13 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/esign-service:dev
     container_name: mission-dev-esign-service
+    mem_limit: ${ESIGN_SERVICE_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${ESIGN_SERVICE_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       # Schema tự chứa outbox, inbox, idempotency (phân vùng DEFAULT), không dùng phần chung V0_x của
-      # vt-db-migration, nên tự chạy Flyway lúc khởi động bằng mig_esign như workflow-service.
+      # vt-db-migration. deploy-backend.sh áp trước bằng MigrationRunner (chỉ thư mục riêng); Flyway lúc khởi động
+      # bằng mig_esign giữ lại cho lần bật service riêng lẻ, cùng thư mục nên không trùng.
       FLYWAY_ENABLED: "true"
       SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-mission}
       SPRING_FLYWAY_USER: mig_esign
@@ -915,6 +978,7 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/integration-gateway:dev
     container_name: mission-dev-integration-gateway
+    mem_limit: ${INTEGRATION_GATEWAY_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
       # Hồ sơ dev nạp hồ sơ kết nối HRM, CBCCVC, DANG_VIEN giả lập (application-dev.yaml); địa chỉ nguồn nằm ở
@@ -929,6 +993,7 @@ services:
       OKRKPI_CRYPTO_OPENBAOBASEURL: http://openbao:8200
       OKRKPI_CRYPTO_TOKENFILE: /run/secrets/openbao_token
       OKRKPI_CRYPTO_AUTOCREATEKEK: "true"
+      JAVA_TOOL_OPTIONS: "-Xmx${INTEGRATION_GATEWAY_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
     secrets: [openbao_token]
     ports:
       - "${INTEGRATION_GATEWAY_PORT:-35117}:8080"
@@ -941,8 +1006,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/analytics-api:dev
     container_name: mission-dev-analytics-api
+    mem_limit: ${ANALYTICS_API_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${ANALYTICS_API_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       OPA_URL: http://opa:8181
       MISSION_CORE_URL: http://mission-core:8080
       ANALYTICS_CLICKHOUSE_URL: http://clickhouse:8123
@@ -969,8 +1036,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/search:dev
     container_name: mission-dev-search
+    mem_limit: ${SEARCH_SERVICE_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${SEARCH_SERVICE_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       OPA_URL: http://opa:8181
       OPENSEARCH_URL: http://opensearch:9200
     ports:
@@ -1218,6 +1287,7 @@ volumes:
   grafana_data:
   llm_cache:
   superset_home:
+  clamav_db:
 
 networks:
   mission-net:

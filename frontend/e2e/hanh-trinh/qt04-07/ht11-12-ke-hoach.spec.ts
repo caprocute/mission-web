@@ -48,7 +48,7 @@ interface KeHoach {
  */
 async function keHoachHeThong(s: PhienQt): Promise<{ api: ApiHeThong; id: string; url: string }> {
   const api = await s.apiCua('quanly');
-  const ky = await kyDangMo(await s.apiCua('quantri'));
+  const ky = await kyDangMo(await s.apiCua('quantri'), 'QUY');
   const ds = await api.can<{ items: KeHoach[] }>('GET', 'plans', {
     query: { period: ky.id, limit: '200' },
   });
@@ -348,7 +348,7 @@ test.describe('Kế hoạch quý', { tag: '@qa-05' }, () => {
     let planId = '';
     if (HE_THONG) {
       api = await s.apiCua('quanly');
-      const ky = await kyDangMo(await s.apiCua('quantri'));
+      const ky = await kyDangMo(await s.apiCua('quantri'), 'QUY');
       const ds = await api.can<{ items: KeHoach[] }>('GET', 'plans', {
         query: { period: ky.id, status: 'DA_DUYET', limit: '200' },
       });

@@ -276,7 +276,8 @@ public class PolicyPackService {
 
   /**
    * Nhập gói từ {@code policy.yaml} (TL-01 "Cấu trúc gói"): kiểm manifest, tạo gói nếu chưa có theo
-   * {@code metadata.id} rồi tạo phiên bản {@code NHAP} số {@code metadata.version}.
+   * {@code metadata.id} rồi tạo phiên bản {@code NHAP} số {@code metadata.version} kèm quy tắc dựng
+   * từ {@code definitions} của manifest ({@link ManifestRuleImport}).
    */
   @Transactional(TX)
   public VersionView importPack(TenantId tenant, UUID actor, PackImport cmd) {
@@ -324,6 +325,7 @@ public class PolicyPackService {
     if (!repo.insertVersion(tenant, draft)) {
       throw versionExists(draft.semVer());
     }
+    repo.insertRules(tenant, ManifestRuleImport.rules(draft.id(), cmd.manifest(), json), actor);
     audit.changed(tenant, actor, "NHAP_POLICY_PACK", OBJECT_TYPE, key(pack, draft), draft.id(), 0);
     return new VersionView(pack, draft, List.of());
   }

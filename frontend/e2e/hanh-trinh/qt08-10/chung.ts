@@ -38,12 +38,13 @@ export interface KyThu {
 
 /**
  * Tạo một kỳ tháng riêng cho lần chạy qua giao diện (SCR-0801 "Tạo kỳ"). Tháng chọn ngẫu nhiên trong
- * quá khứ xa để không đụng kỳ thật của tenant dev và không trùng giữa các lần chạy.
+ * quá khứ để không đụng kỳ thật của tenant dev và ít trùng giữa các lần chạy. Máy chủ chỉ nhận kỳ từ năm
+ * 2020 (ràng buộc `ck_period__bucket`), nên năm nằm trong 2020..2024.
  */
 export async function taoKy(page: Page): Promise<KyThu> {
   const so = Number(dau());
-  const nam = 1990 + (so % 30);
-  const thang = 1 + (Math.floor(so / 30) % 12);
+  const nam = 2020 + (so % 5);
+  const thang = 1 + (Math.floor(so / 5) % 12);
   const mm = String(thang).padStart(2, '0');
   const cuoi = new Date(Date.UTC(nam, thang, 0)).getUTCDate();
   const ky = { ma: `E2E-${nam}${mm}`, ten: `Kỳ thử E2E ${mm}/${nam}` };

@@ -34,6 +34,7 @@ import vn.viettel.okrkpi.policy.application.PolicyDecisionTableService;
 import vn.viettel.okrkpi.policy.application.PolicyDecisionTableService.SavedTable;
 import vn.viettel.okrkpi.policy.application.PolicyDecisionTableService.TableEdit;
 import vn.viettel.okrkpi.policy.application.PolicyDecisionTableService.TableView;
+import vn.viettel.okrkpi.policy.domain.DecisionTableSpec;
 import vn.viettel.okrkpi.policy.domain.DecisionTableSpec.Column;
 import vn.viettel.okrkpi.policy.domain.DecisionTableSpec.Row;
 import vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver;
@@ -161,13 +162,7 @@ public class PolicyDecisionTableController {
         body.getRules() == null
             ? List.of()
             : body.getRules().stream()
-                .map(
-                    r ->
-                        new Row(
-                            r.getInputs(),
-                            r.getRatingLevel() == null ? null : r.getRatingLevel().getValue(),
-                            r.getClause(),
-                            r.getExplanation()))
+                .map(r -> new Row(r.getInputs(), output(r), r.getClause(), r.getExplanation()))
                 .toList();
     return new TableEdit(
         body.getHitPolicy() == null ? null : body.getHitPolicy().getValue(),
@@ -227,15 +222,28 @@ public class PolicyDecisionTableController {
         .toList();
   }
 
+  /**
+   * Đầu ra của dòng: {@code ratingLevel} hoặc {@code outputValue}, đúng một trong hai; gửi cả hai
+   * thì trả null để bước kiểm báo lỗi dòng.
+   */
+  private static String output(DecisionRule r) {
+    if (r.getRatingLevel() != null) {
+      return r.getOutputValue() == null ? r.getRatingLevel().getValue() : null;
+    }
+    return r.getOutputValue();
+  }
+
   private static List<DecisionRule> rules(TableView view) {
     return view.spec().rows().stream()
         .map(
-            r ->
-                new DecisionRule(
-                    new java.util.LinkedHashMap<>(r.inputs()),
-                    RatingLevel.fromValue(r.ratingLevel()),
-                    r.clause(),
-                    r.explanation()))
+            r -> {
+              DecisionRule dto =
+                  new DecisionRule(
+                      new java.util.LinkedHashMap<>(r.inputs()), r.clause(), r.explanation());
+              return DecisionTableSpec.LEVELS.contains(r.ratingLevel())
+                  ? dto.ratingLevel(RatingLevel.fromValue(r.ratingLevel()))
+                  : dto.outputValue(r.ratingLevel());
+            })
         .toList();
   }
 

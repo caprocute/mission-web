@@ -64,6 +64,7 @@ public class PolicyDecisionTableService {
           "cac_quy");
 
   private static final Pattern NAME = Pattern.compile("^[A-Za-z_][A-Za-z0-9_]{0,63}$");
+  private static final Pattern OUTPUT_VALUE = Pattern.compile("^[A-Z0-9_]{1,64}$");
 
   /** Nội dung gửi lên ({@code DecisionTableUpdate}). */
   public record TableEdit(
@@ -227,11 +228,28 @@ public class PolicyDecisionTableService {
     if (rules.isEmpty()) {
       errors.add(field("rules", "Cần ít nhất một dòng", null));
     }
+    long levels =
+        rules.stream().filter(x -> DecisionTableSpec.LEVELS.contains(x.ratingLevel())).count();
+    if (levels > 0 && levels < rules.size()) {
+      errors.add(
+          field(
+              "rules",
+              "Các dòng của một bảng cùng trả mức xếp loại hoặc cùng trả giá trị đầu ra",
+              null));
+    }
     for (int r = 0; r < rules.size(); r++) {
       Row row = rules.get(r);
       String at = "rules[" + r + "]";
-      if (!DecisionTableSpec.LEVELS.contains(row.ratingLevel())) {
-        errors.add(field(at + ".ratingLevel", "Mức xếp loại chưa hợp lệ", null));
+      // Đầu ra là mức xếp loại, hoặc giá trị tổng quát của bảng không xếp loại như tiêu chí chung
+      // (CORE-05-05, bổ sung outputValue của policies.yaml ngày 23/10/2026).
+      if (row.ratingLevel() == null
+          || !(DecisionTableSpec.LEVELS.contains(row.ratingLevel())
+              || OUTPUT_VALUE.matcher(row.ratingLevel()).matches())) {
+        errors.add(
+            field(
+                at + ".ratingLevel",
+                "Mỗi dòng cần đúng một mức xếp loại hoặc giá trị đầu ra",
+                null));
       }
       if (blank(row.clause()) || row.clause().length() > 100) {
         errors.add(

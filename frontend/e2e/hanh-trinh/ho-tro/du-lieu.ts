@@ -29,6 +29,7 @@ interface Ky {
   startDate: string;
   endDate: string;
   status: string;
+  kind?: string;
 }
 interface Trang<T> {
   items: T[];
@@ -62,22 +63,33 @@ export function choNeuPhuThuoc(e: unknown, buoc: string): never {
   throw e;
 }
 
-/** Kỳ đang mở bao trùm hôm nay; không có thì `quantri` tạo kỳ tháng hiện tại theo seed. */
-export async function kyDangMo(quanTri: ApiHeThong): Promise<Ky> {
+/**
+ * Kỳ đang mở loại `kind` bao trùm hôm nay; không có thì `quantri` tạo kỳ đó (tháng hiện tại theo seed, hoặc quý
+ * hiện tại). Kế hoạch công tác lập theo quý: máy chủ lấy kỳ quý hiện hành khi màn hình kế hoạch không chọn kỳ,
+ * nên hành trình kế hoạch (HT-11, HT-12) cần kỳ `QUY`; các hành trình khác dùng kỳ tháng của seed.
+ */
+export async function kyDangMo(
+  quanTri: ApiHeThong,
+  kind: 'THANG' | 'QUY' = SEED.ky.kind as 'THANG',
+): Promise<Ky> {
   const hom = ngay(new Date());
   const ds = await quanTri.can<Trang<Ky>>('GET', 'periods', {
-    query: { status: 'MO', limit: '200' },
+    query: { status: 'MO', kind, limit: '200' },
   });
-  const co = ds.body.items.find((k) => k.startDate <= hom && hom <= k.endDate);
+  const co = ds.body.items.find(
+    (k) => k.startDate <= hom && hom <= k.endDate && (k.kind ?? kind) === kind,
+  );
   if (co) return co;
   const d = new Date();
-  const dau = ngay(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)));
-  const cuoi = ngay(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)));
+  const thangDau = kind === 'QUY' ? Math.floor(d.getUTCMonth() / 3) * 3 : d.getUTCMonth();
+  const soThang = kind === 'QUY' ? 3 : 1;
+  const dau = ngay(new Date(Date.UTC(d.getUTCFullYear(), thangDau, 1)));
+  const cuoi = ngay(new Date(Date.UTC(d.getUTCFullYear(), thangDau + soThang, 0)));
   const tao = await quanTri.can<Ky>('POST', 'periods', {
     body: {
-      code: thay(SEED.ky.code),
-      name: thay(SEED.ky.name),
-      kind: SEED.ky.kind,
+      code: thay(SEED.ky.code) + (kind === 'QUY' ? '-QUY' : ''),
+      name: thay(SEED.ky.name) + (kind === 'QUY' ? ' (quý)' : ''),
+      kind,
       flow: SEED.ky.flow,
       startDate: dau,
       endDate: cuoi,

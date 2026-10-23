@@ -2478,15 +2478,22 @@ components:
         label: { type: string }
         type: { type: string, enum: [number, string, boolean], description: Kiểu dữ liệu FEEL. }
     DecisionRule:
-      description: Một dòng của bảng DMN (`rules_json`).
+      description: >-
+        Một dòng của bảng DMN (`rules_json`). Bảng xếp loại trả mức ở `ratingLevel`; bảng có đầu ra khác thang mức
+        (ví dụ bảng tiêu chí chung trả `THUC_HIEN_TOT`) trả giá trị ở `outputValue` và bỏ `ratingLevel`. Mỗi dòng có
+        đúng một trong hai trường (CORE-05-05, bổ sung 23/10/2026).
       type: object
-      required: [inputs, ratingLevel, clause, explanation]
+      required: [inputs, clause, explanation]
       properties:
         inputs:
           description: Biểu thức FEEL đơn giản theo tên cột; ô trống (`-` hoặc bỏ khoá) nghĩa là bất kỳ.
           type: object
           additionalProperties: { type: string }
         ratingLevel: { $ref: '../common/common.yaml#/components/schemas/RatingLevel' }
+        outputValue:
+          description: Giá trị đầu ra khi bảng không trả mức xếp loại; chữ hoa, số và gạch dưới.
+          type: string
+          pattern: '^[A-Z0-9_]{1,64}$'
         clause: { type: string, minLength: 1, maxLength: 100, description: Điều khoản căn cứ. }
         explanation: { type: string, minLength: 1, maxLength: 200, description: Giải thích ngắn. }
     DecisionTable:

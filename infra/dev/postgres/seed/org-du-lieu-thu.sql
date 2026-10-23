@@ -12,7 +12,8 @@
 --                     …0103 uy-ban-kiem-tra (claim unit_id)
 --   cán bộ            …03xx = id người dùng Keycloak (claim sub)
 --
--- Chạy sau khi migration org đã chạy, bằng tài khoản quản trị (bỏ qua RLS):
+-- Chạy sau khi migration org đã chạy, bằng tài khoản quản trị (bỏ qua RLS); script phát lại trạng thái
+-- tổ chức sang bản sao org_replica của mission-core và workflow-service sau khi nạp:
 --   ./infra/dev/scripts/seed-org.sh
 -- Chạy lại nhiều lần không sinh bản ghi trùng (ON CONFLICT DO NOTHING trên khoá cố định).
 -- =============================================================================
@@ -90,10 +91,26 @@ INSERT INTO seed_person VALUES
   ('d0000000-0000-4000-8000-000000000313', 'phogiamdocso', 'Hà Thị Phó Giám Đốc',
    'd0000000-0000-4000-8000-000000000100', 'd0000000-0000-4000-8000-000000000205');
 
-INSERT INTO org.person (version_id, id, tenant_id, full_name, employment_status, valid_from, created_by, updated_by)
-SELECT md5('person:' || p.id)::uuid, p.id, 'd0000000-0000-4000-8000-000000000001'::uuid, p.full_name, 'DANG_CONG_TAC', '2000-01-01'::date, '00000000-0000-0000-0000-000000000000'::uuid, '00000000-0000-0000-0000-000000000000'::uuid
+-- Tài khoản thử thuộc diện đánh giá là đảng viên giả lập: luồng DANG chỉ lập hồ sơ cho đảng viên, còn luồng
+-- NHA_NUOC giữ CHUA_LAP tới khi EVT-10 mang điểm thành phần (wiki trang 14 mục 59), nên hành trình QT-09 (QA-06)
+-- trên dev đi theo luồng DANG.
+CREATE TEMP TABLE seed_party_member (username text) ON COMMIT DROP;
+INSERT INTO seed_party_member VALUES ('canbo'), ('quanly'), ('lanhdao'), ('thamdinh'), ('kiemtra');
+
+INSERT INTO org.person (version_id, id, tenant_id, full_name, is_party_member, employment_status, valid_from,
+                        created_by, updated_by)
+SELECT md5('person:' || p.id)::uuid, p.id, 'd0000000-0000-4000-8000-000000000001'::uuid, p.full_name,
+       p.username IN (SELECT username FROM seed_party_member), 'DANG_CONG_TAC', '2000-01-01'::date,
+       '00000000-0000-0000-0000-000000000000'::uuid, '00000000-0000-0000-0000-000000000000'::uuid
 FROM seed_person p
 ON CONFLICT DO NOTHING;
+
+-- CSDL dev đã nạp trước khi có cột trên: đánh dấu lại, chỉ đổi dòng còn false (chạy lại không đổi gì).
+UPDATE org.person o
+   SET is_party_member = true
+  FROM seed_person p
+ WHERE o.tenant_id = 'd0000000-0000-4000-8000-000000000001'::uuid AND o.id = p.id
+   AND p.username IN (SELECT username FROM seed_party_member) AND NOT o.is_party_member;
 
 INSERT INTO org.assignment (version_id, id, tenant_id, person_id, org_unit_id, job_title_id, kind, branch,
                             valid_from, created_by, updated_by)
