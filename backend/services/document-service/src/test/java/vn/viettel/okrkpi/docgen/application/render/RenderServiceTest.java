@@ -50,6 +50,7 @@ class RenderServiceTest {
   private boolean converterDown;
   private boolean pdfaCompliant = true;
   private Map<String, String> lastFields;
+  private final List<RenderStamp> stamps = new ArrayList<>();
   private Instant now = T0;
   private final Clock clock =
       new Clock() {
@@ -121,6 +122,10 @@ class RenderServiceTest {
                   .getBytes(StandardCharsets.UTF_8);
             },
             pdf -> new DocumentPorts.PdfaValidator.Result(pdfaCompliant, "6.2.11.4.1"),
+            (pdf, stamp) -> {
+              stamps.add(stamp);
+              return pdf;
+            },
             store,
             (job, template, output, version) -> events.add(job.id()),
             (code, outcome, took) -> outcomes.add(outcome),
@@ -316,6 +321,70 @@ class RenderServiceTest {
   }
 
   @Test
+  void pinnedTemplateVersionOfPeriodIsUsedEvenWhenRetired() {
+    byte[] json = "{}".getBytes(StandardCharsets.UTF_8);
+    UUID oldPeriodForm = UUID.randomUUID();
+    data.put(oldPeriodForm, json);
+    forms.add(
+        new RenderInputPort.FormRef(
+            oldPeriodForm, "MAU_1A", "KHOI_A", Hashes.sha256(json), 1, "PP-DANG", "1.0.0"));
+    UUID currentForm = form("{}");
+    request(UUID.randomUUID());
+
+    RenderJob old = jobs.items.get(0);
+    assertThat(old.formInstanceId()).isEqualTo(oldPeriodForm);
+    assertThat(old.templateId()).isEqualTo(templates.items.get(0).id());
+    assertThat(old.provenance()).isEqualTo(new RenderJob.Provenance(PACKAGE, "PP-DANG", "1.0.0"));
+    assertThat(jobs.items.get(1).formInstanceId()).isEqualTo(currentForm);
+    assertThat(jobs.items.get(1).templateId()).isEqualTo(templates.items.get(1).id());
+
+    assertThat(service.processOnce(old.id())).isEqualTo(RenderJobStatus.XONG);
+    RenderStamp stamp = stamps.get(0);
+    assertThat(stamp.templateVersion()).isEqualTo(1);
+    assertThat(stamp.packageId()).isEqualTo(PACKAGE);
+    assertThat(stamp.inputSha256()).isEqualTo(Hashes.sha256(json));
+    assertThat(stamp.properties())
+        .containsEntry(RenderStamp.POLICY_PACK, "PP-DANG")
+        .containsEntry(RenderStamp.POLICY_PACK_VERSION, "1.0.0")
+        .containsEntry(RenderStamp.FORM_CODE, "MAU_1A")
+        .containsEntry(RenderStamp.TEMPLATE_VERSION, "1")
+        .containsEntry(RenderStamp.PACKAGE_ID, PACKAGE.toString())
+        .containsEntry(
+            RenderStamp.INPUT_SHA256, java.util.HexFormat.of().formatHex(Hashes.sha256(json)));
+    assertThat(stamp.footerText())
+        .isEqualTo("Mẫu 1A, phiên bản mẫu 1 · Bộ quy tắc đánh giá PP-DANG phiên bản 1.0.0");
+  }
+
+  @Test
+  void missingOrDraftPinnedVersionIsRefused() {
+    templates.items.add(template(3, TemplateStatus.NHAP, List.of()));
+    for (int pinned : new int[] {3, 9}) {
+      forms.clear();
+      forms.add(
+          new RenderInputPort.FormRef(
+              UUID.randomUUID(), "MAU_1A", null, new byte[32], pinned, "PP", "1"));
+      assertThatThrownBy(() -> request(UUID.randomUUID()))
+          .isInstanceOf(BusinessException.class)
+          .hasMessageContaining(RenderService.NO_TEMPLATE);
+    }
+  }
+
+  @Test
+  void stampWithoutProvenanceStillCarriesFormAndTemplate() {
+    form("{}");
+    request(UUID.randomUUID());
+    jobs.items.set(0, jobs.items.get(0).withProvenance(null));
+    assertThat(service.processOnce(jobs.items.get(0).id())).isEqualTo(RenderJobStatus.XONG);
+    RenderStamp stamp = stamps.get(0);
+    assertThat(stamp.properties()).containsEntry(RenderStamp.POLICY_PACK, "");
+    assertThat(stamp.footerText()).isEqualTo("Mẫu 1A, phiên bản mẫu 2");
+    assertThat(RenderStamp.formLabel("BANG_CHAM_DIEM")).isEqualTo("Bảng chấm điểm");
+    assertThat(RenderStamp.formLabel("KHAC")).isEqualTo("KHAC");
+    assertThat(new RenderStamp("PP", null, "MAU_2", 1, null, new byte[32]).footerText())
+        .isEqualTo("Mẫu 2, phiên bản mẫu 1 · Bộ quy tắc đánh giá PP");
+  }
+
+  @Test
   void plainRendererFlattensNestedDataAndNulls() {
     Map<String, Object> nested = new LinkedHashMap<>();
     nested.put("a", Map.of("b", 1));
@@ -393,20 +462,21 @@ class RenderServiceTest {
       }
       RenderJob next =
           new RenderJob(
-              job.id(),
-              job.tenantId(),
-              job.templateId(),
-              job.requestEventId(),
-              job.requestId(),
-              job.formInstanceId(),
-              job.inputSha256(),
-              job.status(),
-              job.attempts(),
-              job.error(),
-              job.createdBy(),
-              job.createdAt(),
-              job.updatedAt(),
-              job.rowVersion() + 1);
+                  job.id(),
+                  job.tenantId(),
+                  job.templateId(),
+                  job.requestEventId(),
+                  job.requestId(),
+                  job.formInstanceId(),
+                  job.inputSha256(),
+                  job.status(),
+                  job.attempts(),
+                  job.error(),
+                  job.createdBy(),
+                  job.createdAt(),
+                  job.updatedAt(),
+                  job.rowVersion() + 1)
+              .withProvenance(job.provenance());
       items.set(items.indexOf(stored), next);
       return next.rowVersion();
     }
@@ -423,20 +493,21 @@ class RenderServiceTest {
 
     private static RenderJob copy(RenderJob j) {
       return new RenderJob(
-          j.id(),
-          j.tenantId(),
-          j.templateId(),
-          j.requestEventId(),
-          j.requestId(),
-          j.formInstanceId(),
-          j.inputSha256(),
-          j.status(),
-          j.attempts(),
-          j.error(),
-          j.createdBy(),
-          j.createdAt(),
-          j.updatedAt(),
-          j.rowVersion());
+              j.id(),
+              j.tenantId(),
+              j.templateId(),
+              j.requestEventId(),
+              j.requestId(),
+              j.formInstanceId(),
+              j.inputSha256(),
+              j.status(),
+              j.attempts(),
+              j.error(),
+              j.createdBy(),
+              j.createdAt(),
+              j.updatedAt(),
+              j.rowVersion())
+          .withProvenance(j.provenance());
     }
   }
 }

@@ -10,11 +10,26 @@ public final class DocumentPorts {
   /** Trộn giá trị vào chỗ giữ {@code ${ten}} của mẫu DOCX (docx4j). */
   public interface DocxMerger {
     byte[] merge(byte[] template, Map<String, String> fields);
+
+    /**
+     * Trộn rồi thêm một dòng chân trang trên mọi trang (tem BR-11-03, DV-11-04); mặc định chỉ trộn.
+     */
+    default byte[] merge(byte[] template, Map<String, String> fields, String footer) {
+      return merge(template, fields);
+    }
   }
 
   /** Chuyển DOCX sang PDF/A-2b (Gotenberg 8). */
   public interface PdfConverter {
     byte[] toPdfA2b(byte[] docx, String fileName);
+  }
+
+  /**
+   * Đóng tem phiên bản vào siêu dữ liệu XMP của tệp PDF/A đã chuyển (DV-11-04, BR-11-03). Tệp sau
+   * khi đóng tem vẫn phải qua kiểm PDF/A, nên tem khai báo lược đồ mở rộng theo PDF/A.
+   */
+  public interface PdfStamper {
+    byte[] stamp(byte[] pdf, RenderStamp stamp);
   }
 
   /** Kiểm tệp có đạt PDF/A-2b không (veraPDF). */
