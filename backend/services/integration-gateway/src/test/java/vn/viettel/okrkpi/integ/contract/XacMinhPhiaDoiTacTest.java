@@ -33,7 +33,8 @@ class XacMinhPhiaDoiTacTest {
   @CsvSource({
     "integration-gateway-voffice.json, voffice-van-ban",
     "integration-gateway-hrm.json, hrm-nhan-su",
-    "integration-gateway-lgsp.json, lgsp-chi-tieu-ktxh"
+    "integration-gateway-lgsp.json, lgsp-chi-tieu-ktxh",
+    "integration-gateway-ioffice.json, ioffice-van-ban-den"
   })
   void hopDongKhopBanGhiTuongTacDaChe(String file, String provider) {
     Pact pact = Pact.load(file);

@@ -11,6 +11,7 @@ Chưa đối tác nào cấp môi trường thử hay phiên ghi thật (quyết
 | `voffice-van-ban/` | vOffice (DV-13-03) | văn bản chỉ đạo theo con trỏ, văn bản đã ban hành, tệp gốc, 404 |
 | `hrm-nhan-su/` | HRM qua REST (DV-13-08) | nhân sự theo con trỏ, chỉ số chuyên môn |
 | `lgsp-chi-tieu-ktxh/` | LGSP, chỉ tiêu KT-XH (DV-13-06) | chỉ tiêu theo thời điểm cập nhật |
+| `ioffice-van-ban-den/` | iOffice qua REST và SOAP (DV-13-04) | văn bản đến theo con trỏ thời điểm, cả hai giao thức |
 
 ## Định dạng
 

@@ -1,0 +1,82 @@
+{
+  "provider": "ioffice-van-ban-den",
+  "ghiLuc": "2026-10-23",
+  "nguon": "phiên ghi giả lập theo dạng phản hồi iOffice REST và SOAP (chưa có môi trường thử thật)",
+  "daChe": true,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/van-ban-den",
+        "query": {
+          "tuThoiDiem": [
+            "1970-01-01T00:00:00Z"
+          ],
+          "soLuong": [
+            "200"
+          ]
+        },
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer ma-gia-lap"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "duLieu": [
+            {
+              "vanBanId": "IO-2026-0417",
+              "phienBan": 2,
+              "soKyHieu": "31/CT-UBND",
+              "ngayBanHanh": "21/10/2026",
+              "coQuanBanHanh": "Uỷ ban nhân dân tỉnh",
+              "trichYeu": "Chỉ đạo triển khai nhiệm vụ trọng tâm quý IV năm 2026",
+              "doKhan": "THUONG",
+              "doMat": "THUONG",
+              "nguoiKy": "Người ký giả lập",
+              "soDen": "207",
+              "ngayDen": "22/10/2026",
+              "noiNhan": [
+                {
+                  "maDonVi": "DV-01",
+                  "tenDonVi": "Ban giả lập"
+                }
+              ],
+              "tepDinhKem": [
+                {
+                  "maTep": "F-0001",
+                  "tenTep": "12-CT-UBND.pdf"
+                }
+              ],
+              "thoiDiemCapNhat": "2026-10-22T10:15:00+07:00"
+            }
+          ],
+          "thoiDiemTiepTheo": "2026-10-22T03:15:00Z"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/ws/VanBanDenService",
+        "headers": {
+          "Content-Type": "text/xml; charset=utf-8",
+          "SOAPAction": "\"layDanhSachVanBanDen\"",
+          "Authorization": "Bearer ma-gia-lap"
+        },
+        "body": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:vb=\"urn:ioffice:vanban:v1\"><soapenv:Body><vb:layDanhSachVanBanDen><vb:tuThoiDiem>1970-01-01T00:00:00Z</vb:tuThoiDiem><vb:soLuong>200</vb:soLuong></vb:layDanhSachVanBanDen></soapenv:Body></soapenv:Envelope>"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/xml; charset=utf-8"
+        },
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:vb=\"urn:ioffice:vanban:v1\"><soapenv:Body><vb:layDanhSachVanBanDenResponse><vb:vanBan><vb:vanBanId>IO-2026-0418</vb:vanBanId><vb:phienBan>1</vb:phienBan><vb:soKyHieu>15/KH-UBND</vb:soKyHieu><vb:ngayBanHanh>2026-10-18</vb:ngayBanHanh><vb:coQuanBanHanh>Uỷ ban nhân dân huyện</vb:coQuanBanHanh><vb:trichYeu>Kế hoạch kiểm tra công tác quý IV</vb:trichYeu><vb:doMat>THUONG</vb:doMat><vb:noiNhan><vb:donVi><vb:maDonVi>DV-02</vb:maDonVi><vb:tenDonVi>Phòng giả lập</vb:tenDonVi></vb:donVi><vb:donVi><vb:maDonVi>DV-01</vb:maDonVi><vb:tenDonVi>Ban giả lập</vb:tenDonVi></vb:donVi></vb:noiNhan><vb:tepDinhKem><vb:tep><vb:maTep>F-0002</vb:maTep><vb:tenTep>08-KH.pdf</vb:tenTep></vb:tep></vb:tepDinhKem><vb:thoiDiemCapNhat>2026-10-20T09:30:00+07:00</vb:thoiDiemCapNhat></vb:vanBan></vb:layDanhSachVanBanDenResponse></soapenv:Body></soapenv:Envelope>"
+      }
+    }
+  ]
+}
