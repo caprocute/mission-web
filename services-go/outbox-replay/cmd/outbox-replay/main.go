@@ -15,9 +15,13 @@ import (
 	"syscall"
 	"time"
 
+	"vn.viettel.okrkpi/services-go/outbox-replay/internal/connect"
 	"vn.viettel.okrkpi/services-go/outbox-replay/internal/replay"
 	"vn.viettel.okrkpi/services-go/outbox-replay/internal/sources"
 )
+
+// getenv is replaced in tests.
+var getenv = os.Getenv
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -155,8 +159,26 @@ func runCLI(
 		opts.Filter.AfterID = strings.TrimSpace(*afterIDFlag)
 	}
 
+	// Without injected test doubles, read and publish against the cell's real PostgreSQL and Kafka
+	// configured through environment variables (internal/connect, INF-26 Job envFrom).
+	conn := connect.FromEnv(getenv)
 	if store == nil {
-		store = replay.NewInMemoryOutboxStore()
+		pg, closeStore, err := connect.OpenStore(ctx, conn, opts.Filter.TenantID)
+		if err != nil {
+			_, _ = fmt.Fprintf(stderr, "outbox-replay: %v\n", err)
+			return 1
+		}
+		defer closeStore()
+		store = pg
+	}
+	if producer == nil && !opts.DryRun {
+		kp, err := connect.NewKafkaProducer(conn)
+		if err != nil {
+			_, _ = fmt.Fprintf(stderr, "outbox-replay: %v\n", err)
+			return 1
+		}
+		defer kp.Close()
+		producer = kp
 	}
 
 	replayer, err := replay.NewReplayer(reg, store, producer)

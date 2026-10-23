@@ -57,5 +57,5 @@ Kiểm thử dùng Keycloak, registry, cổng API cell và bộ điều khiển 
 
 - Chưa có API tạm ngừng tenant (`DANG_VAN_HANH` → `TAM_NGUNG`) trong hợp đồng; `tenant activate` chỉ phủ chiều kích hoạt lại.
 - `degrade pin` chờ INF-25; hiện chỉ có đặt tay và bỏ đặt tay qua bộ điều khiển của DV-01-02.
-- Bản `outbox-replay` hiện tại chưa nối kho PostgreSQL và producer Kafka thật trong `main` (NEN-022 dùng bản trong bộ nhớ khi chạy độc lập); Job do vtctl dựng sẽ có tác dụng khi công cụ được nối, chart đã có `outboxReplay.envFromSecret` cho thông tin kết nối.
+- Job `outbox-replay` đọc `DATABASE_URL`, `KAFKA_BROKERS`, `KAFKA_TLS_*` từ Secret khai ở `outboxReplay.envFromSecret` (xem runbook `phat-lai-outbox`).
 - Phòng ngừa bốn mắt của `dlq skip` nằm ở phía công cụ (không có API máy chủ cho DLQ); bản ghi kiểm toán giữ tên người duyệt.
