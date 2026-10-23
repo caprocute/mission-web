@@ -93,6 +93,17 @@ mission:
 
 # SVC-10 ký số (DV-10-01): outbox, idempotency trong schema esign; nhà cung cấp chọn theo mã → id().
 okrkpi:
+  # DV-10-05 · TL-04 khoá crypto.provider: standard (SaaS, mặc định) hoặc bcy (bản cách ly, thư viện
+  # Ban Cơ yếu). Ở bcy, đường dẫn thư viện, lớp bọc, khe khoá và tệp mã PIN do cấu hình triển khai cấp.
+  crypto:
+    provider: ${CRYPTO_PROVIDER:standard}
+    bcy:
+      library-path: ${CRYPTO_BCY_LIBRARY_PATH:}
+      library-class: ${CRYPTO_BCY_LIBRARY_CLASS:}
+      allowed-algorithms: ${CRYPTO_BCY_ALLOWED_ALGORITHMS:}
+      params:
+        slot: ${CRYPTO_BCY_SLOT:}
+        pin-file: ${CRYPTO_BCY_PIN_FILE:}
   outbox:
     schema: esign
     registry:
@@ -109,6 +120,9 @@ okrkpi:
       BAN_CO_YEU: ${ESIGN_PROVIDER_BAN_CO_YEU:bcy}
     fake-provider:
       enabled: ${ESIGN_FAKE_PROVIDER:false}
+    # DV-10-05: nhãn khe khoá ký của Ban Cơ yếu; {signer} thay bằng mã người ký.
+    bcy:
+      key-label: ${ESIGN_BCY_KEY_LABEL:ky-van-ban}
     # DV-10-02: MySign theo CSC API v2. Bí mật client và khoá kho đối tượng nạp từ OpenBao qua biến
     # môi trường; đổi máy chủ CSC giả lập sang MySign thật chỉ đổi các giá trị này.
     mysign:

@@ -1,0 +1,43 @@
+# Sinh bởi analytics/cdc/cdc_config_gen.py (DV-15-02). Không sửa tay; chạy lại công cụ.
+# Connector Debezium phân tích của CSDL flowable: slot riêng, publication pub_analytics, topic
+# cdc.flowable.<schema>.<table>. Mật khẩu vai trò CDC và khoá chủ giả danh lấy từ biến môi trường
+# do Secret (đồng bộ từ OpenBao) cấp cho Kafka Connect, không nằm trong tệp này.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaConnector
+metadata:
+  name: cdc-flowable
+  labels:
+    strimzi.io/cluster: outbox
+    app.kubernetes.io/part-of: mission-analytics
+spec:
+  class: io.debezium.connector.postgresql.PostgresConnector
+  tasksMax: 1
+  config:
+    plugin.name: "pgoutput"
+    database.hostname: "${env:PG_HOST}"
+    database.port: "${env:PG_PORT}"
+    database.user: "${env:PG_CDC_ANALYTICS_USER}"
+    database.password: "${env:PG_CDC_ANALYTICS_PASSWORD}"
+    database.dbname: "flowable"
+    topic.prefix: "cdc.flowable"
+    slot.name: "dbz_cdc_flowable"
+    publication.name: "pub_analytics"
+    publication.autocreate.mode: "disabled"
+    snapshot.mode: "initial"
+    table.include.list: "flowable\\.act_hi_procinst,flowable\\.act_hi_taskinst,flowable\\.act_hi_actinst"
+    column.exclude.list: "flowable\\.act_hi_procinst\\.start_user_id_,flowable\\.act_hi_procinst\\.delete_reason_,flowable\\.act_hi_procinst\\.name_,flowable\\.act_hi_taskinst\\.description_,flowable\\.act_hi_taskinst\\.owner_,flowable\\.act_hi_taskinst\\.assignee_,flowable\\.act_hi_taskinst\\.in_progress_started_by_,flowable\\.act_hi_taskinst\\.claimed_by_,flowable\\.act_hi_taskinst\\.suspended_by_,flowable\\.act_hi_taskinst\\.completed_by_,flowable\\.act_hi_taskinst\\.delete_reason_,flowable\\.act_hi_actinst\\.assignee_,flowable\\.act_hi_actinst\\.completed_by_,flowable\\.act_hi_actinst\\.delete_reason_"
+    decimal.handling.mode: "string"
+    tombstones.on.delete: "false"
+    heartbeat.interval.ms: "10000"
+    heartbeat.action.query: "INSERT INTO public.debezium_heartbeat (slot_name, beat_at) VALUES ('dbz_cdc_flowable', now()) ON CONFLICT (slot_name) DO UPDATE SET beat_at = EXCLUDED.beat_at"
+    key.converter: "org.apache.kafka.connect.json.JsonConverter"
+    key.converter.schemas.enable: "false"
+    value.converter: "org.apache.kafka.connect.json.JsonConverter"
+    value.converter.schemas.enable: "false"
+    transforms: "unwrap"
+    transforms.unwrap.type: "io.debezium.transforms.ExtractNewRecordState"
+    transforms.unwrap.add.fields: "op,lsn,source.ts_ms"
+    transforms.unwrap.delete.tombstone.handling.mode: "rewrite"
+    producer.override.acks: "all"
+    producer.override.enable.idempotence: "true"
+    producer.override.compression.type: "zstd"

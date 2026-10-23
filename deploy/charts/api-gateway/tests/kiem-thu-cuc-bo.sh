@@ -46,7 +46,9 @@ docker run -d --name "$NET-valkey" --network "$NET" --network-alias valkey "$VAL
 docker run -d --name "$NET-kc" --network "$NET" --network-alias keycloak -v "$W/kc:/srv:ro" "$PY" \
   python -m http.server 8080 --directory /srv >/dev/null
 # Upstream giả lập trả lại phương thức, đường dẫn, header và độ dài thân; đường dẫn chứa /slow chờ 1,5 s.
-ALIAS=(); for s in mission-core.core esign-service.secure evidence-service.platform analytics-api.analytics ai-gateway.secure keycloak.identity; do
+ALIAS=(); for s in mission-core.core workflow-service.core esign-service.secure ledger-service.secure ai-gateway.secure \
+         evidence-service.platform integration-gateway.platform notification-service.platform search-indexer.platform \
+         document-service.workers scoring-service.workers analytics-api.analytics org-service.identity keycloak.identity; do
   ALIAS+=(--network-alias "$s.svc.cluster.local"); done
 docker run -d --name "$NET-up" --network "$NET" "${ALIAS[@]}" "$PY" python -c '
 import json, time, http.server as h

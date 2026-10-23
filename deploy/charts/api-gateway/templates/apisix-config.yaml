@@ -1,6 +1,6 @@
 {{- $v := .Values -}}
 {{- if not (has $v.mode (list "controller" "standalone")) }}{{ fail "api-gateway: mode chỉ nhận controller hoặc standalone" }}{{ end }}
-{{- $routes := include "api-gateway.allRoutes" . | fromJsonArray }}
+{{- $routes := include "api-gateway.routes" . | fromJsonArray }}
 {{- range $routes }}{{ if eq .name "kpi-legacy" }}{{ fail "api-gateway: không có tuyến Strangler /kpi-legacy (Mission là hệ mới độc lập)" }}{{ end }}{{ end }}
 apiVersion: v1
 kind: ConfigMap
@@ -35,7 +35,7 @@ data:
           http_latency: { extra_labels: [{ kind: $vt_kind }] }
     nginx_config:
       worker_processes: {{ $v.apisix.workerProcesses | int }}
-      envs: [APISIX_OIDC_CLIENT_SECRET]
+      envs: [APISIX_OIDC_CLIENT_SECRET, VT_ROUTE_COOKIE_KEY, VT_ROUTE_COOKIE_KEY_PREVIOUS]
       error_log_level: warn
     deployment:
       {{- if eq $v.mode "standalone" }}
@@ -62,11 +62,12 @@ data:
       {{- end }}
     plugins:
       - real-ip
+      - request-id
+      - fault-injection
       - cors
       - ip-restriction
       - openid-connect
       - vt-claims
-      - fault-injection
       - client-control
       - workflow
       - limit-conn
@@ -94,21 +95,26 @@ data:
       - id: {{ .name }}
         uris: {{ toJson .paths }}
         hosts: {{ toJson .hosts }}
+        priority: {{ .priority | int }}
         {{- with .methods }}
         methods: {{ toJson . }}
         {{- end }}
         {{- with .uriRegex }}
-        priority: 10
         vars: [["uri", "~~", {{ . | quote }}]]
         {{- end }}
         {{- if .pluginConfig }}
         plugin_config_id: {{ include "api-gateway.routePluginConfig" (dict "root" $ "route" .) }}
         {{- end }}
-        {{- if or .rewrite $rp }}
+        {{- if or .rewrite .deny $rp }}
         plugins:
           {{- with .rewrite }}
           proxy-rewrite:
             regex_uri: [{{ index . 0 | quote }}, {{ index . 1 | replace "{realm}" $v.oidc.realm | quote }}]
+          {{- end }}
+          {{- if .deny }}
+          fault-injection:
+            abort:
+              {{- include "api-gateway.denyAbort" $ | nindent 14 }}
           {{- end }}
           {{- with $rp }}
           {{- toYaml . | nindent 10 }}
@@ -121,11 +127,30 @@ data:
             "{{ .service }}.{{ .namespace }}.svc.cluster.local:{{ .port }}": 1
           timeout: {{ toJson .timeout }}
       {{- end }}
+      {{- range $r := $.Files.Get "public-routes.yaml" | fromYamlArray }}
+      {{- $u := index $v.publicUpstreams $r.service | default dict }}
+      {{- if not $u.service }}{{ fail (printf "api-gateway: publicUpstreams thiếu service %s của tuyến công khai %s" $r.service $r.path) }}{{ end }}
+      # Tuyến công khai (DV-01-03), khớp chính xác, không gắn protected-api.
+      - id: public-{{ lower $r.method }}-{{ regexReplaceAll "[^a-z0-9]+" (lower $r.path) "-" | trimAll "-" }}
+        uri: {{ $r.path | quote }}
+        methods: [{{ $r.method | quote }}]
+        hosts: {{ include "api-gateway.hosts" $ }}
+        priority: 50
+        labels: { vt.io/public: "true" }
+        plugins:
+          limit-req:
+            {{- include "api-gateway.publicLimit" $ | nindent 12 }}
+        upstream:
+          type: roundrobin
+          scheme: http
+          nodes:
+            "{{ $u.service }}.{{ $u.namespace }}.svc.cluster.local:{{ $u.port | default 8080 }}": 1
+          timeout: {{ toJson $v.routeDefaults.timeout }}
+      {{- end }}
     plugin_configs:
       {{- range $class := list "1" "2" "3" }}
       - id: {{ include "api-gateway.classConfigName" $class }}
-        # Nhãn APISIX (khoá chỉ gồm chữ, số, -, _, .) tương ứng nhãn vt.io/* của ApisixPluginConfig ở chế độ controller.
-        labels: { priority-class: {{ $class | quote }}, degrade-level: {{ $v.degrade.level | toString | quote }} }
+        labels: { vt.io/priority-class: {{ $class | quote }}, vt.io/degrade-level: {{ $v.degrade.level | toString | quote }} }
         plugins:
           {{- include "api-gateway.pluginConfig" (dict "root" $ "class" $class "level" $v.degrade.level) | nindent 10 }}
       {{- end }}

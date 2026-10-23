@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Keycloak giả lập trong namespace identity cho kiểm thử trên kind: sinh khoá RS256 mới, phục vụ discovery và JWKS tĩnh
-# của realm mission, ghi hai JWT vào <thư mục>/tok (claim cell=kind) và <thư mục>/tok_sai (cell=hcm).
+# của realm mission, ghi hai JWT vào <thư mục>/tok (claim cell=CELL-KIND) và <thư mục>/tok_sai (cell=CELL-HCM).
 # Cần python3 có PyJWT + cryptography. Sau khi chạy, khởi động lại APISIX để bỏ JWKS cũ đã lưu đệm.
 set -euo pipefail
 TMP=$1
@@ -17,7 +17,7 @@ open(f"{d}/discovery", "w").write(json.dumps({"issuer": iss, "jwks_uri": iss + "
   "authorization_endpoint": iss + "/protocol/openid-connect/auth", "token_endpoint": iss + "/protocol/openid-connect/token",
   "id_token_signing_alg_values_supported": ["RS256"]}))
 now = int(time.time())
-for ten, cell in (("tok", "kind"), ("tok_sai", "hcm")):
+for ten, cell in (("tok", "CELL-KIND"), ("tok_sai", "CELL-HCM")):
     t = jwt.encode({"iss": iss, "sub": "u-thu", "aud": "apisix-gateway", "azp": "mission-web", "tenant_id": "t-thu",
                     "cell": cell, "iat": now, "exp": now + 3600}, k, algorithm="RS256", headers={"kid": "thu"})
     open(f"{d}/{ten}", "w").write(t)

@@ -1,0 +1,17 @@
+{{- /* DV-06-11: bảng Grafana cho 11 chỉ số G2; sidecar Grafana nạp ConfigMap có nhãn monitoring.dashboard.label. */ -}}
+{{- $d := .Values.monitoring.dashboard -}}
+{{- if $d.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "workflow-service.fullname" . }}-dashboard-g2
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "workflow-service.labels" . | nindent 4 }}
+    {{ $d.label }}: "1"
+  annotations:
+    grafana_folder: {{ $d.folder | quote }}
+data:
+  flowable-g2.json: |-
+{{ .Files.Get "dashboards/flowable-g2.json" | indent 4 }}
+{{- end }}

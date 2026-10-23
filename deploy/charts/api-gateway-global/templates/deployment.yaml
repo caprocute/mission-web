@@ -1,0 +1,167 @@
+{{- $v := .Values }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: apisix-global
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "gw-global.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apisix-global
+  namespace: {{ $v.namespace }}
+  labels:
+    app.kubernetes.io/name: apisix-global
+    {{- include "gw-global.labels" . | nindent 4 }}
+spec:
+  {{- if not $v.apisix.autoscaling.enabled }}
+  replicas: {{ $v.apisix.replicas | int }}
+  {{- end }}
+  selector:
+    matchLabels: { app.kubernetes.io/name: apisix-global }
+  strategy:
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: apisix-global
+        {{- include "gw-global.labels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: apisix-global
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        {{- toYaml $v.podSecurityContext | nindent 8 }}
+        runAsUser: 636
+        runAsGroup: 636
+        fsGroup: 636
+      {{- if ne $v.apisix.nodePool "none" }}
+      nodeSelector:
+        vt.io/pool: {{ $v.apisix.nodePool }}
+      tolerations:
+        - { key: vt.io/pool, operator: Equal, value: {{ $v.apisix.nodePool }}, effect: NoSchedule }
+      {{- end }}
+      # Trải đều 3 vùng sẵn sàng; mất một vùng vẫn còn bản sao ở hai vùng kia.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels: { app.kubernetes.io/name: apisix-global }
+      containers:
+        - name: apisix
+          image: {{ include "gw-global.image" . }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: APISIX_STAND_ALONE
+              value: "true"
+            - name: VT_REGISTRY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef: { name: {{ $v.registry.clientSecretRef.name }}, key: {{ $v.registry.clientSecretRef.key }} }
+            - name: VT_ROUTE_COOKIE_KEY
+              valueFrom:
+                secretKeyRef: { name: {{ $v.routingCookie.secretName }}, key: {{ $v.routingCookie.keyCurrent }} }
+            - name: VT_ROUTE_COOKIE_KEY_PREVIOUS
+              valueFrom:
+                secretKeyRef: { name: {{ $v.routingCookie.secretName }}, key: {{ $v.routingCookie.keyPrevious }}, optional: true }
+          ports:
+            - { name: http, containerPort: {{ $v.apisix.ports.http | int }} }
+            - { name: https, containerPort: {{ $v.apisix.ports.https | int }} }
+            - { name: metrics, containerPort: {{ $v.metrics.port | int }} }
+          resources:
+            {{- toYaml $v.apisix.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
+          startupProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 15 && /usr/local/openresty/bin/openresty -s quit -p /usr/local/apisix"]
+          volumeMounts:
+            - { name: config, mountPath: /usr/local/apisix/conf/config.yaml, subPath: config.yaml }
+            - { name: config, mountPath: /usr/local/apisix/conf/apisix.yaml, subPath: apisix.yaml }
+            - { name: plugins, mountPath: /opt/vt/lua/apisix/plugins }
+      volumes:
+        - name: config
+          configMap: { name: apisix-global }
+        - name: plugins
+          configMap: { name: apisix-global-plugins }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apisix-global
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "gw-global.labels" . | nindent 4 }}
+  {{- with $v.apisix.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $v.apisix.service.type }}
+  {{- if eq $v.apisix.service.type "LoadBalancer" }}
+  externalTrafficPolicy: Local
+  {{- end }}
+  selector: { app.kubernetes.io/name: apisix-global }
+  ports:
+    - { name: http, port: 80, targetPort: http }
+    - { name: https, port: 443, targetPort: https }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: apisix-global
+  namespace: {{ $v.namespace }}
+spec:
+  minAvailable: {{ $v.apisix.pdb.minAvailable }}
+  unhealthyPodEvictionPolicy: AlwaysAllow
+  selector:
+    matchLabels: { app.kubernetes.io/name: apisix-global }
+{{- if $v.apisix.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: apisix-global
+  namespace: {{ $v.namespace }}
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: apisix-global }
+  minReplicas: {{ $v.apisix.autoscaling.minReplicas | int }}
+  maxReplicas: {{ $v.apisix.autoscaling.maxReplicas | int }}
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: {{ $v.apisix.autoscaling.cpuUtilization | int }} } }
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apisix-global
+  namespace: {{ $v.namespace }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: apisix-global }
+  policyTypes: ["Ingress"]
+  ingress:
+    - ports:
+        - { protocol: TCP, port: {{ $v.apisix.ports.http | int }} }
+        - { protocol: TCP, port: {{ $v.apisix.ports.https | int }} }

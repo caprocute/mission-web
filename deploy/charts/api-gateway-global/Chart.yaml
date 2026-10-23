@@ -1,0 +1,9 @@
+apiVersion: v2
+name: api-gateway-global
+description: >-
+  APISIX lớp ngoài ở vùng điều phối toàn cục (SVC-01, ADR-07, DV-01-04): nhận request trên tên miền của tenant hoặc
+  tên miền chung, tra SVC-03 tenant-registry để biết cell, đệm 5 phút, chuyển tiếp hoặc chuyển hướng 307 tới cổng
+  của cell, cookie định tuyến ký HMAC hạn 5 phút. Chạy standalone (không etcd), 3 vùng sẵn sàng.
+type: application
+version: 0.1.0
+appVersion: "3.13.0"

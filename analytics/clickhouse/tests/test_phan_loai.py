@@ -20,6 +20,7 @@ MIG = ROOT / "migrations"
 SOURCES = {
     "tenant_data": REPO / "backend" / "mission-core" / "src" / "main" / "resources" / "db" / "migration",
     "org": REPO / "backend" / "services" / "org-service" / "src" / "main" / "resources" / "db" / "migration",
+    "flowable": REPO / "backend" / "services" / "workflow-service" / "src" / "main" / "resources" / "db" / "migration",
 }
 # Cột chứa mã một con người cụ thể (TL-03: person_id, actor_id, created_by và các cột cùng nghĩa).
 PERSON_COLUMNS = {"person_id", "actor_id", "created_by", "updated_by", "assigner_id", "acceptor_id", "verified_by",
@@ -31,7 +32,7 @@ COMMENT_RE = re.compile(
     r"COMMENT ON COLUMN (?:\$\{flyway:defaultSchema\}|(\w+))\.(\w+)\.(\w+) IS '(\{.*?\})';", re.S)
 KAFKA_RE = re.compile(r"CREATE TABLE \{\{db\}\}\.(src_\w+) ON CLUSTER '\{\{cluster\}\}'\n\((.*?)\n\)\nENGINE = Kafka"
                       r"\nSETTINGS .*?kafka_topic_list = '\{\{topic_(\w+)\}\}\.(\w+)\.(\w+)'", re.S)
-DB_OF_TOPIC = {"core": "tenant_data", "org": "org"}
+DB_OF_TOPIC = {"core": "tenant_data", "org": "org", "workflow": "flowable"}
 
 
 def classifications() -> dict[tuple[str, str, str], dict[str, object]]:
@@ -70,7 +71,7 @@ def kafka_tables() -> list[tuple[str, str, str, str, list[tuple[str, bool]]]]:
 
 def test_every_source_table_is_parsed() -> None:
     tables = kafka_tables()
-    assert len(tables) == 18
+    assert len(tables) == 21
     assert {(s, t) for _, _, s, t, _ in tables} >= {("task", "task_progress"), ("org", "subject_group"),
                                                    ("appraisal", "rating_proposal"), ("org_replica", "person_v")}
 

@@ -1,0 +1,93 @@
+{{- $v := .Values -}}
+{{- if lt (int $v.cache.ttlSeconds) 1 }}{{ fail "api-gateway-global: cache.ttlSeconds phải ≥ 1" }}{{ end -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apisix-global
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "gw-global.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    apisix:
+      node_listen: [{{ $v.apisix.ports.http | int }}]
+      enable_ipv6: false
+      enable_admin: false
+      extra_lua_path: "/opt/vt/lua/?.lua"
+      ssl:
+        enable: true
+        listen:
+          - port: {{ $v.apisix.ports.https | int }}
+        ssl_protocols: {{ $v.apisix.tls.protocols | quote }}
+      {{- with $v.apisix.trustedAddresses }}
+      trusted_addresses: {{ toJson . }}
+      {{- end }}
+    plugin_attr:
+      prometheus:
+        export_addr: { ip: 0.0.0.0, port: {{ $v.metrics.port | int }} }
+    nginx_config:
+      worker_processes: {{ $v.apisix.workerProcesses | int }}
+      envs: [VT_REGISTRY_CLIENT_SECRET, VT_ROUTE_COOKIE_KEY, VT_ROUTE_COOKIE_KEY_PREVIOUS]
+      error_log_level: warn
+      http:
+        # Đệm phân giải tenant → cell dùng chung giữa các worker của một pod.
+        custom_lua_shared_dict:
+          vt-cell-cache: {{ $v.cache.sharedDictSize }}
+    deployment:
+      role: data_plane
+      role_data_plane:
+        config_provider: yaml
+    plugins:
+      - real-ip
+      - request-id
+      - vt-cell-router
+      - proxy-rewrite
+      - response-rewrite
+      - prometheus
+  apisix.yaml: |
+    routes:
+      {{- range $v.globalRoutes }}
+      - id: {{ .name }}
+        uris: {{ toJson .paths }}
+        hosts: {{ toJson $v.commonHosts }}
+        priority: 10
+        upstream:
+          type: roundrobin
+          scheme: http
+          pass_host: pass
+          nodes:
+            "{{ .service }}.{{ .namespace }}.svc.cluster.local:{{ .port }}": 1
+          timeout: { connect: 2, send: 10, read: 10 }
+      {{- end }}
+      # Mọi request còn lại: phân giải tenant → cell rồi chuyển tiếp (tên miền tenant) hoặc 307 (tên miền chung).
+      - id: cell-router
+        uri: /*
+        priority: 0
+        plugins:
+          vt-cell-router:
+            {{- include "gw-global.router" . | nindent 12 }}
+        # Upstream giữ chỗ; vt-cell-router đặt upstream của cell cho từng request.
+        upstream:
+          type: roundrobin
+          nodes: { "127.0.0.1:1": 1 }
+    global_rules:
+      - id: vt-global
+        plugins:
+          request-id: { header_name: X-Request-Id, include_in_response: true, algorithm: uuid }
+          prometheus: {}
+          response-rewrite:
+            headers:
+              set:
+                {{- toYaml $v.securityHeaders | nindent 16 }}
+    #END
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apisix-global-plugins
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "gw-global.labels" . | nindent 4 }}
+data:
+  vt-cell-router.lua: |
+    {{- .Files.Get "files/vt-cell-router.lua" | nindent 4 }}

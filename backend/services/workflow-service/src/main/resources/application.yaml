@@ -112,6 +112,12 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+    # DV-06-11 · G2 "p95 API complete user task": histogram để PrometheusRule tính p95 theo ngưỡng 300 ms / 800 ms.
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 300ms,800ms
 
 mission:
   service:
@@ -172,6 +178,19 @@ okrkpi:
   # kỳ, CORE-08-05) đọc từ header X-Tenant-Id, chỉ với tài khoản dịch vụ của các client này.
   tenant:
     delegating-clients: ${TENANT_DELEGATING_CLIENTS:mission-core}
+  workflow:
+    # Chỉ số giám sát G2 (DV-06-11): truy vấn đếm chạy trên bản sao đọc khi có.
+    metrics:
+      sample-interval: ${WF_METRICS_SAMPLE_INTERVAL:15s}
+      query-timeout: 5s
+      replica:
+        url: ${WF_METRICS_REPLICA_URL:}
+        username: ${WF_METRICS_REPLICA_USER:}
+        password: ${WF_METRICS_REPLICA_PASSWORD:}
+    # Job dọn lịch sử chỉ xoá tiến trình đã chép sang kho phân tích; CHUA_NOI là không xoá gì.
+    history-archive:
+      mode: ${WF_HISTORY_ARCHIVE_MODE:CHUA_NOI}
+      safety-margin: 1h
   saga:
     enabled: ${SAGA_ENABLED:true}
     worker:

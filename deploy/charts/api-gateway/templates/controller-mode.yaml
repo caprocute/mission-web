@@ -300,7 +300,7 @@ spec:
       config:
         {{- toYaml $conf | nindent 8 }}
     {{- end }}
-{{- $routes := include "api-gateway.allRoutes" . | fromJsonArray }}
+{{- $routes := include "api-gateway.routes" . | fromJsonArray }}
 {{- $nss := list }}
 {{- range $routes }}{{ $nss = append $nss .namespace }}{{ end }}
 {{- range $ns := uniq $nss }}
@@ -342,10 +342,7 @@ metadata:
 spec:
   http:
     - name: {{ .name }}
-      {{- if .uriRegex }}
-      # Tuyến lớp ưu tiên hẹp hơn tuyến module cùng tiền tố nên được xét trước.
-      priority: 10
-      {{- end }}
+      priority: {{ .priority | int }}
       match:
         hosts: {{ toJson .hosts }}
         paths: {{ toJson .paths }}
@@ -371,13 +368,20 @@ spec:
       {{- if .pluginConfig }}
       plugin_config_name: {{ include "api-gateway.routePluginConfig" (dict "root" $ "route" .) }}
       {{- end }}
-      {{- if or .rewrite $rp }}
+      {{- if or .rewrite .deny $rp }}
       plugins:
         {{- with .rewrite }}
         - name: proxy-rewrite
           enable: true
           config:
             regex_uri: [{{ index . 0 | quote }}, {{ index . 1 | replace "{realm}" $v.oidc.realm | quote }}]
+        {{- end }}
+        {{- if .deny }}
+        - name: fault-injection
+          enable: true
+          config:
+            abort:
+              {{- include "api-gateway.denyAbort" $ | nindent 14 }}
         {{- end }}
         {{- range $name, $conf := $rp }}
         - name: {{ $name }}
