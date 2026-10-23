@@ -227,6 +227,79 @@ public class TaskTransitionService {
         beforeAfterJson);
   }
 
+  /**
+   * Huỷ nhiệm vụ còn {@code NHAP} ngoài bảng chuyển (bảng chuẩn không có lệnh từ {@code NHAP} sang
+   * {@code HUY}): dùng khi người quản lý từ chối nhiệm vụ do cán bộ đăng ký (CORE-02-17). Ghi nhật
+   * ký chuyển {@code transition}, phát EVT-06 như một lần chuyển trạng thái.
+   */
+  @Transactional(TX)
+  public Transitioned cancelDraft(
+      TenantId tenant,
+      UUID taskId,
+      long expectedVersion,
+      String transition,
+      TaskActor actor,
+      String reason) {
+    TaskRow task = tasks.lock(tenant, taskId).orElseThrow(NoSuchElementException::new);
+    if (expectedVersion != task.rowVersion()) {
+      throw new VersionConflictException("TASK", expectedVersion, task.rowVersion());
+    }
+    if (task.status() != TaskStatus.NHAP) {
+      throw new BusinessException(INVALID_TRANSITION, "Nhiệm vụ không còn ở trạng thái nháp");
+    }
+    Instant now = clock.instant();
+    String policyVersion = task.stateMachineVersion();
+    long version =
+        tasks.changeStatus(
+            tenant,
+            task.periodBucket(),
+            taskId,
+            task.rowVersion(),
+            new StatusUpdate(TaskStatus.HUY, policyVersion, actor.personId(), now, null, reason));
+    tasks.appendStateLog(
+        tenant,
+        task.periodId(),
+        task.periodBucket(),
+        taskId,
+        new StateLogRow(
+            now,
+            TaskStatus.NHAP,
+            TaskStatus.HUY,
+            transition,
+            actor.personId(),
+            reason,
+            policyVersion),
+        "{\"status\":{\"before\":\"NHAP\",\"after\":\"HUY\"},\"row_version\":" + version + "}");
+    TaskStatusChangedEvent event =
+        new TaskStatusChangedEvent(
+            tenant,
+            taskId,
+            task.periodId(),
+            TaskStatus.NHAP.name(),
+            TaskStatus.HUY.name(),
+            transition,
+            task.overdue(),
+            reason,
+            actor.personId(),
+            version,
+            policyVersion,
+            now);
+    events.statusChanged(event);
+    publisher.publishEvent(event);
+    publisher.publishEvent(
+        new TrangThaiNhiemVuDoi(
+            tenant,
+            task.periodId(),
+            taskId,
+            TaskStatus.NHAP.name(),
+            TaskStatus.HUY.name(),
+            tasks.activeAssignees(tenant, task.periodBucket(), taskId),
+            true,
+            now));
+    return new Transitioned(
+        tasks.find(tenant, taskId).orElseThrow(NoSuchElementException::new), event);
+  }
+
   @Transactional(transactionManager = TX, readOnly = true)
   public java.util.Optional<TaskRow> find(TenantId tenant, UUID taskId) {
     return tasks.find(tenant, taskId);

@@ -1416,6 +1416,16 @@ Luật ở `services-py/anomaly-job/app/rules/{sua_sau_khoa,mien_tru_lap}.sql`, 
 5. **Ảnh Superset.** Dựng từ `apache/superset:4.1.2` cộng `psycopg2-binary` (ảnh gốc không có); không bật CORS vì khung nhúng tải từ chính Superset. Môi trường dựng không có mạng thì đặt bánh xe vào `analytics/superset/wheels/`. Lệnh nhập dashboard của Superset cần người dùng hiện tại nên `khoi_tao.py` chạy dưới tài khoản quản trị kỹ thuật; khoá trong gói nhập không có thư mục gốc (`metadata.yaml`, `databases/Cube.yaml`).
 6. **Dev dùng SQLite cho siêu dữ liệu Superset** trong volume `superset_home`; production dùng PostgreSQL riêng của Superset, thuộc phần INF.
 
+## Ghi chú và quyết định từ đăng ký nhiệm vụ và duyệt (CORE-02-17, 22/10/2026)
+
+Cán bộ đăng ký nhiệm vụ qua `POST /api/v1/tasks/registrations` từ một mục danh mục đang áp dụng cho vị trí việc làm của mình; máy chủ tạo nhiệm vụ `NHAP` với nguồn `DANG_KY`, người chủ trì là chính người đăng ký, rồi gửi EVT-21 (mẫu `NHIEM_VU_DANG_KY_CHO_DUYET`) tới người quản lý trực tiếp của đơn vị. Kỳ được lấy theo ngày hiện tại (`PeriodApi.findCurrent`); không có kỳ đang mở thì trả 409 `TASK-409-PERIOD-LOCKED`.
+
+Hợp đồng `POST /tasks/{id}/registration-decision` đã có sẵn và mã bám theo hợp đồng, không theo câu chữ task: duyệt đưa nhiệm vụ sang `DA_GIAO` ngay (qua lệnh giao, kiểm đủ BR-05-xx), từ chối đưa `NHAP` sang `HUY` với lý do bắt buộc và ghi nhật ký chuyển `TU_CHOI_DANG_KY`. Việc huỷ nháp nằm ngoài bảng chuyển trạng thái nên được thêm thành `TaskTransitionService.cancelDraft`, vẫn phát EVT-06 như mọi lần đổi trạng thái. Người duyệt phải thuộc `headsOf(đơn vị)` và khác người đăng ký (403 `COMMON-403-OUT-OF-SCOPE`).
+
+Hiện thực BR-05-08 của TL-02 trong `AssignmentRules`: nhiệm vụ nguồn `DANG_KY` chỉ giao được qua luồng duyệt đăng ký, lệnh giao thông thường bị chặn với lỗi trên trường `source`.
+
+Sau khi duyệt, nếu đơn vị đang có phiên bản điều chỉnh kế hoạch (`version_no > 1`, còn `NHAP`) thì mọi nhiệm vụ đăng ký đã giao mà chưa có dòng kế hoạch được thêm thành dòng cuối với lý do "Đăng ký nhiệm vụ", `row_version` của phiên bản được tăng để lần lưu cũ của người lập nhận 409. Nếu chưa có điều chỉnh, người lập kế hoạch gần nhất (không có thì người quản lý) nhận mẫu `NHIEM_VU_DANG_KY_CHO_DIEU_CHINH_KE_HOACH` (MSG-05-12); các nhiệm vụ này được gắn ở lần duyệt đăng ký kế tiếp khi đã có điều chỉnh. Đề nghị cho CORE-02-10: khi tạo phiên bản điều chỉnh, gọi cùng thao tác gắn (`TaskRegistrations.pending` rồi `addItem`) để không phải chờ lần duyệt sau (chưa làm, chờ chốt).
+
 ## Liên quan
 
 - [README của wiki](README.md)
