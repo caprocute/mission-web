@@ -334,6 +334,40 @@ class WorkflowMonitorServiceTest {
   }
 
   @Test
+  void nguoiNhanDaNghiHuuHoacThoiViec422KhongGhiGi() {
+    for (String status : List.of("NGHI_HUU", "THOI_VIEC", "KHONG_RO")) {
+      open(task(tenant, null));
+      directory.active.add(newcomer);
+      directory.statuses.put(newcomer, status);
+      assertThatThrownBy(() -> service.reassign(reassign(2L, "Lý do")))
+          .isInstanceOfSatisfying(
+              BusinessException.class,
+              e -> {
+                assertThat(code(e)).isEqualTo("WORKFLOW-422-ASSIGNEE-NOT-ELIGIBLE");
+                assertThat(e.detail()).contains("nghỉ hưu hoặc thôi việc");
+              });
+    }
+    assertThat(separation.checked).isEmpty();
+    assertThat(engine.reasons).isEmpty();
+    assertThat(ledger.events).isEmpty();
+  }
+
+  @Test
+  void nguoiNhanDangCongTacTamNghiHoacChuaCoBanSaoNhanSuThiDuocChuyen() {
+    for (String status : new String[] {"DANG_CONG_TAC", "TAM_NGHI", null}) {
+      open(task(tenant, null));
+      directory.active.add(newcomer);
+      if (status == null) {
+        directory.statuses.remove(newcomer);
+      } else {
+        directory.statuses.put(newcomer, status);
+      }
+      service.reassign(reassign(2L, "Lý do"));
+    }
+    assertThat(separation.checked).containsExactly(newcomer, newcomer, newcomer);
+  }
+
+  @Test
   void nguoiNhanViPhamTachVaiTro403KhongGhiGi() {
     open(task(tenant, null));
     directory.active.add(newcomer);
@@ -591,11 +625,17 @@ class WorkflowMonitorServiceTest {
   static final class Directory implements AssigneeDirectory {
     final Set<UUID> active = new HashSet<>();
     final List<UUID> units = new ArrayList<>();
+    final Map<UUID, String> statuses = new HashMap<>();
 
     @Override
     public boolean activeIn(UUID tenantId, UUID personId, UUID unitId, LocalDate on) {
       units.add(unitId);
       return active.contains(personId);
+    }
+
+    @Override
+    public Optional<String> employmentStatus(UUID tenantId, UUID personId) {
+      return Optional.ofNullable(statuses.get(personId));
     }
   }
 

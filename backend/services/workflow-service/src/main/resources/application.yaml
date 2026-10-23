@@ -114,6 +114,13 @@ management:
       application: ${spring.application.name}
 
 mission:
+  # DL-12 R1 cho bản sao org_replica của workflow-service: consumer workflow.org-replica.reconcile ghi
+  # lần chạy khi nhận KET_THUC của org.bootstrap.v1; job so sau thời gian lắng (wiki trang 14 DV-06-10).
+  reconcile:
+    org-replica:
+      enabled: ${WF_RECONCILE_ORG_REPLICA_ENABLED:true}
+      settle: ${WF_RECONCILE_ORG_REPLICA_SETTLE:PT15M}
+      interval: ${WF_RECONCILE_ORG_REPLICA_INTERVAL:PT10M}
   service:
     code: ${SERVICE_CODE:SVC-06}
     schema: ${DB_SCHEMA:flowable}

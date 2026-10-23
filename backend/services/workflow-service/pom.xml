@@ -54,6 +54,13 @@
       <version>${project.version}</version>
     </dependency>
 
+    <!-- Khung đối soát DL-12 (R1 cho bản sao org_replica của workflow-service). -->
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-reconcile</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
     <!-- Flowable 7.x: chỉ bật BPMN process engine và DMN engine; tắt IDM và Event Registry (ADR-02, TL-01 chương 8). -->
     <dependency>
       <groupId>org.flowable</groupId>

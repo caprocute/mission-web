@@ -73,6 +73,7 @@ class OrgReplicaEventsIT extends WorkflowIntegrationTest {
   @Autowired private PlatformTransactionManager transactionManager;
   @Autowired private OrgDirectory directory;
   @Autowired private StartApprovalService starter;
+  @Autowired private io.micrometer.core.instrument.MeterRegistry meters;
 
   private final JdbcTemplate owner = WorkflowTestDatabase.owner();
   private final UUID tenant = UUID.randomUUID();
@@ -105,9 +106,10 @@ class OrgReplicaEventsIT extends WorkflowIntegrationTest {
         vn.viettel.okrkpi.shared.kernel.Clock.systemUtc());
   }
 
+  /** Endpoint áp bản sao của topic (bỏ consumer đối soát R1 cùng nghe org.bootstrap.v1). */
   InboxEndpoint endpoint(String topic) {
     return inboxRegistrar.endpoints().stream()
-        .filter(e -> e.topic().equals(topic))
+        .filter(e -> e.topic().equals(topic) && !e.consumer().endsWith(".reconcile"))
         .findFirst()
         .orElseThrow();
   }
@@ -322,6 +324,35 @@ class OrgReplicaEventsIT extends WorkflowIntegrationTest {
                 Long.class,
                 otherTenant))
         .isZero();
+
+    // Mốc độ trễ theo tenant và loại thực thể (replica_checkpoint) và số đo org_replica_lag_ms.
+    assertThat(
+            owner.queryForList(
+                "SELECT entity_type FROM org_replica.replica_checkpoint WHERE tenant_id = ?"
+                    + " ORDER BY entity_type",
+                String.class,
+                tenant))
+        .containsExactly("ORG_UNIT", "PERSON");
+    assertThat(
+            owner.queryForList(
+                "SELECT entity_type FROM org_replica.replica_checkpoint WHERE tenant_id = ?",
+                String.class,
+                otherTenant))
+        .containsExactly("ORG_UNIT");
+    assertThat(
+            owner.queryForObject(
+                "SELECT lag_ms FROM org_replica.replica_checkpoint WHERE tenant_id = ?"
+                    + " AND entity_type = 'PERSON'",
+                Integer.class,
+                tenant))
+        .isNotNegative();
+    assertThat(
+            meters
+                .find("org_replica_lag_ms")
+                .tag("tenant_id", tenant.toString())
+                .tag("entity_type", "PERSON")
+                .gauge())
+        .isNotNull();
   }
 
   @Test

@@ -86,6 +86,7 @@ import vn.viettel.okrkpi.shared.outbox.OutboxHeaders;
 import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer;
 import vn.viettel.okrkpi.workflow.support.WorkflowIntegrationTest;
 import vn.viettel.okrkpi.workflow.support.WorkflowTestDatabase;
+import vn.vtokr.org.v1.NhanSuDaThayDoi;
 import vn.vtokr.org.v1.OrgBootstrap;
 import vn.vtokr.org.v1.PhanCongDaThayDoi;
 
@@ -722,18 +723,21 @@ class WorkflowMonitorApiIT extends WorkflowIntegrationTest {
         transactionManager,
         "flowable",
         (topic, headers, data) ->
-            EventTopics.ORG_BOOTSTRAP_V1.equals(topic)
-                ? decode(OrgBootstrap.class, data)
-                : decode(PhanCongDaThayDoi.class, data),
+            switch (topic) {
+              case EventTopics.ORG_BOOTSTRAP_V1 -> decode(OrgBootstrap.class, data);
+              case EventTopics.EVT_16_NHAN_SU_DA_THAY_DOI -> decode(NhanSuDaThayDoi.class, data);
+              default -> decode(PhanCongDaThayDoi.class, data);
+            },
         new InboxRetryDlqPublisher(kafka),
         new InboxMetrics(new SimpleMeterRegistry()),
         new InboxProperties.Retry(1, null, null, null),
         vn.viettel.okrkpi.shared.kernel.Clock.systemUtc());
   }
 
+  /** Endpoint áp bản sao của topic (bỏ consumer đối soát R1 cùng nghe org.bootstrap.v1). */
   InboxEndpoint endpoint(String topic) {
     return inboxRegistrar.endpoints().stream()
-        .filter(e -> e.topic().equals(topic))
+        .filter(e -> e.topic().equals(topic) && !e.consumer().endsWith(".reconcile"))
         .findFirst()
         .orElseThrow();
   }
@@ -958,6 +962,82 @@ class WorkflowMonitorApiIT extends WorkflowIntegrationTest {
     MvcResult rejected = reassignTo(second, person);
     assertThat(rejected.getResponse().getStatus()).isEqualTo(422);
     assertThat(body(rejected).get("code").asText()).isEqualTo("WORKFLOW-422-ASSIGNEE-NOT-ELIGIBLE");
+  }
+
+  @Test
+  void nhanSuDaNghiHuuTheoEvt16ThiBi422DuCoPhanCong() throws Exception {
+    InboxMessageProcessor processor = inboxProcessor();
+    InboxEndpoint evt16 = endpoint(EventTopics.EVT_16_NHAN_SU_DA_THAY_DOI);
+    UUID person = UUID.randomUUID();
+    assign(person, unit);
+    String first =
+        openTask(startMonitored(tenant, null, group(), Instant.parse("2027-03-01T03:00:00Z")))
+            .getId();
+    // Chưa có dòng nhân sự trong bản sao: chỉ dựa vào phân công (suy luận, wiki trang 14).
+    assertThat(reassignTo(first, person).getResponse().getStatus()).isEqualTo(200);
+
+    // EVT-16: đang công tác vẫn nhận được; nghỉ hưu thì 422 dù phân công còn hiệu lực.
+    assertThat(
+            processor.process(
+                evt16,
+                record(
+                    EventTopics.EVT_16_NHAN_SU_DA_THAY_DOI,
+                    tenant,
+                    person,
+                    1,
+                    nhanSu(person, "DANG_CONG_TAC", 1)),
+                null))
+        .isEqualTo(InboxOutcome.PROCESSED);
+    String second =
+        openTask(startMonitored(tenant, null, group(), Instant.parse("2027-03-01T03:00:00Z")))
+            .getId();
+    assertThat(reassignTo(second, person).getResponse().getStatus()).isEqualTo(200);
+    assertThat(
+            processor.process(
+                evt16,
+                record(
+                    EventTopics.EVT_16_NHAN_SU_DA_THAY_DOI,
+                    tenant,
+                    person,
+                    2,
+                    nhanSu(person, "NGHI_HUU", 2)),
+                null))
+        .isEqualTo(InboxOutcome.PROCESSED);
+    String third =
+        openTask(startMonitored(tenant, null, group(), Instant.parse("2027-03-01T03:00:00Z")))
+            .getId();
+    MvcResult rejected = reassignTo(third, person);
+    assertThat(rejected.getResponse().getStatus()).isEqualTo(422);
+    assertResponseConforms(rejected, "/workflow/tasks/{taskId}/reassign", PathItem.HttpMethod.POST);
+    assertThat(body(rejected).get("code").asText()).isEqualTo("WORKFLOW-422-ASSIGNEE-NOT-ELIGIBLE");
+    assertThat(tasks.createTaskQuery().taskId(third).singleResult().getAssignee()).isNull();
+
+    // Nhân sự cùng mã ở tenant khác nghỉ hưu không ảnh hưởng tenant này (RLS theo tenant).
+    UUID colleague = UUID.randomUUID();
+    assign(colleague, unit);
+    assertThat(
+            processor.process(
+                evt16,
+                record(
+                    EventTopics.EVT_16_NHAN_SU_DA_THAY_DOI,
+                    otherTenant,
+                    colleague,
+                    1,
+                    nhanSu(colleague, "THOI_VIEC", 1)),
+                null))
+        .isEqualTo(InboxOutcome.PROCESSED);
+    assertThat(reassignTo(third, colleague).getResponse().getStatus()).isEqualTo(200);
+  }
+
+  static NhanSuDaThayDoi nhanSu(UUID id, String status, long version) {
+    return NhanSuDaThayDoi.newBuilder()
+        .setPersonId(id)
+        .setDisplayName("Cán bộ kiểm thử")
+        .setIsPartyMember(true)
+        .setStatus(status)
+        .setSourceVersion(version)
+        .setAggregateVersion((int) version)
+        .build();
   }
 
   // ------------------------------------------------------------------ gia hạn
