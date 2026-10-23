@@ -187,6 +187,19 @@ public final class AppraisalProfile {
     return transition(ProfileCommand.MARK_SIGNED, actorId, null);
   }
 
+  /**
+   * Hồ sơ năm về bước quyết định vì ảnh chụp năm tính lại cho mức khác (thi hành kết luận hậu
+   * kiểm); mức quyết định cũ không còn hiện hành.
+   */
+  public StepCompleted reopenDecision(UUID actorId, String reason) {
+    checkCommand(ProfileCommand.REOPEN_DECISION);
+    requireReason(reason);
+    StepCompleted step = transition(ProfileCommand.REOPEN_DECISION, actorId, reason);
+    ratings.remove(LevelKind.QUYET_DINH);
+    this.finalRating = null;
+    return step;
+  }
+
   /** EVT-25: khiếu nại trong thời hạn. */
   public StepCompleted fileComplaint(UUID actorId) {
     return transition(ProfileCommand.FILE_COMPLAINT, actorId, null);

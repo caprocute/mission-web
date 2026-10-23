@@ -505,7 +505,8 @@ public class PolicyPackController {
                               Flow.fromValue(b.flow()),
                               b.frozen())
                           .subjectGroupId(b.subjectGroupId())
-                          .orgUnitId(b.orgUnitId())));
+                          .orgUnitId(b.orgUnitId())
+                          .customerProfileVersionId(b.customerProfileVersionId())));
     }
     return dto;
   }

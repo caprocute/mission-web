@@ -32,6 +32,14 @@ public enum ProfileCommand {
   /** EVT-18 của quyết định. */
   MARK_SIGNED(
       Set.of(AppraisalStatus.DA_QUYET_DINH), AppraisalStatus.DA_KY_SO, LevelKind.QUYET_DINH),
+  /**
+   * Ảnh chụp năm tính lại sau hậu kiểm quý cho mức khác mức đã quyết định: hồ sơ năm về bước quyết
+   * định, quyết định cũ giữ trong lịch sử và bị thay thế (QT-10 ngoại lệ 3, CORE-04-10).
+   */
+  REOPEN_DECISION(
+      Set.of(AppraisalStatus.DA_QUYET_DINH, AppraisalStatus.DA_KY_SO),
+      AppraisalStatus.CHO_QUYET_DINH,
+      LevelKind.QUYET_DINH),
   /** EVT-25 trong thời hạn khiếu nại. */
   FILE_COMPLAINT(Set.of(AppraisalStatus.DA_KY_SO), AppraisalStatus.KHIEU_NAI, LevelKind.QUYET_DINH),
   /** Kết luận khiếu nại giữ nguyên. */

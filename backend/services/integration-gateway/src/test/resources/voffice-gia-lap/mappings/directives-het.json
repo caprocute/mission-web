@@ -1,0 +1,16 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/api/v2/directives",
+    "queryParameters": {
+      "updatedSince": { "equalTo": "2026-10-20T01:00:00Z" },
+      "limit": { "equalTo": "200" }
+    },
+    "headers": { "Authorization": { "equalTo": "Bearer ma-gia-lap" } }
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": { "items": [] }
+  }
+}

@@ -31,6 +31,12 @@ public class AppraisalReviewGuard {
     // Kiểm ở PermissionInterceptor.
   }
 
+  /** Lập đề xuất bố trí lại trên hồ sơ năm (SCR-1001, CORE-04-11). */
+  @RequiresPermission(action = "SCR-1001.bo-tri-lai", resourceType = ReviewParticipants.TYPE)
+  public void reassign(ReviewParticipants resource) {
+    // Kiểm ở PermissionInterceptor.
+  }
+
   @RequiresPermission(
       action = "SCR-0902.xem",
       resourceType = ReviewParticipants.TYPE,

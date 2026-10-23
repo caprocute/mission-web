@@ -39,10 +39,21 @@ public record Template(
 
   /** Mẫu đang hiệu lực và áp dụng cho khối {@code subjectGroupCode} ({@code null} là không rõ). */
   public boolean appliesTo(String subjectGroupCode) {
-    return status == TemplateStatus.HIEU_LUC
-        && (subjectGroupCodes.isEmpty()
-            || subjectGroupCode == null
-            || subjectGroupCodes.contains(subjectGroupCode));
+    return status == TemplateStatus.HIEU_LUC && covers(subjectGroupCode);
+  }
+
+  /**
+   * Phiên bản này dùng được cho kỳ đã ghim đúng phiên bản (DV-11-04): kỳ cũ sinh lại bằng mẫu đã
+   * ngừng nhưng không bằng bản nháp.
+   */
+  public boolean pinnedFor(int pinnedVersion, String subjectGroupCode) {
+    return versionNo == pinnedVersion && status != TemplateStatus.NHAP && covers(subjectGroupCode);
+  }
+
+  private boolean covers(String subjectGroupCode) {
+    return subjectGroupCodes.isEmpty()
+        || subjectGroupCode == null
+        || subjectGroupCodes.contains(subjectGroupCode);
   }
 
   @Override

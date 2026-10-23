@@ -25,6 +25,7 @@ import vn.viettel.okrkpi.config.api.PeriodCalendarPort.PeriodCalendar;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.config.api.PeriodStatus;
 import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
+import vn.viettel.okrkpi.policy.api.PolicyQueryApi;
 import vn.viettel.okrkpi.policy.api.PolicyQueryApi.PolicyContent;
 import vn.viettel.okrkpi.policy.api.PolicyQueryApi.ResolvedPack;
 import vn.viettel.okrkpi.policy.application.port.PolicyPackRepository;
@@ -186,6 +187,47 @@ class PolicyResolutionServiceTest {
         .pinBinding(
             eq(tenant), any(), eq(nn), eq(period.value()), eq("NHA_NUOC"), eq(false), any());
     assertThat(service.pinForPeriod(tenant, period, "DANG", LocalDate.of(2026, 1, 1))).isZero();
+  }
+
+  @Test
+  void inputsReadAsMapOrArray() {
+    when(repo.version(tenant, versionId))
+        .thenReturn(
+            Optional.of(
+                published(
+                    versionId,
+                    "khoi-dang/quy-dinh-moi",
+                    "GOC_TOAN_CUC",
+                    "DANG",
+                    "2.0.0",
+                    PolicyVersionStatus.DA_PHAT_HANH,
+                    MANIFEST)));
+    assertThat(service.inputs(tenant, versionId))
+        .extracting(PolicyQueryApi.InputDeclaration::name)
+        .containsExactly("ty_le", "so_lan", "ds", "ten", "co", "la");
+    assertThat(service.inputs(tenant, versionId).get(2).type()).isEqualTo("list<NhiemVu>");
+    assertThat(service.inputs(tenant, versionId).get(5).type()).isEqualTo("x");
+
+    UUID arrayVersion = UUID.randomUUID();
+    when(repo.version(tenant, arrayVersion))
+        .thenReturn(
+            Optional.of(
+                published(
+                    arrayVersion,
+                    "twd/diem-cong-viec",
+                    "TENANT",
+                    "DANG",
+                    "0.1.0",
+                    PolicyVersionStatus.DA_PHAT_HANH,
+                    """
+                    {"inputs":[{"name":"work_items","type":"list<WorkItem>",
+                                "source":"task.aggregate.work_items"},{"type":"int"}]}
+                    """)));
+    assertThat(service.inputs(tenant, arrayVersion))
+        .containsExactly(
+            new PolicyQueryApi.InputDeclaration(
+                "work_items", "list<WorkItem>", "task.aggregate.work_items"));
+    assertThat(service.inputs(tenant, UUID.randomUUID())).isEmpty();
   }
 
   @Test

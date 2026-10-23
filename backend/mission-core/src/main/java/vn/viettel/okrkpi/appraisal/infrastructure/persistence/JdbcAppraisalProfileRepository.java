@@ -55,6 +55,18 @@ public class JdbcAppraisalProfileRepository implements AppraisalProfileRepositor
   }
 
   @Override
+  public Optional<RatingLevel> snapshotRating(
+      TenantId tenant, int periodBucket, UUID profileId, UUID snapshotId) {
+    return jdbc.sql(
+            "SELECT auto_rating_code FROM appraisal.score_snapshot WHERE period_bucket = ?"
+                + " AND tenant_id = ? AND profile_id = ? AND id = ?")
+        .params(periodBucket, tenant.value(), profileId, snapshotId)
+        .query(String.class)
+        .optional()
+        .map(RatingLevel::valueOf);
+  }
+
+  @Override
   public Optional<ProfileRow> lock(TenantId tenant, UUID profileId) {
     return jdbc.sql(PROFILE_SQL)
         .params(tenant.value(), profileId)

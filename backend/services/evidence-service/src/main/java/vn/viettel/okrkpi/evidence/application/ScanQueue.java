@@ -39,6 +39,9 @@ public interface ScanQueue {
   /** Xếp việc dựng ảnh xem trước cho phiên bản vừa quét sạch (DV-08-06). */
   void schedulePreview(UUID versionId);
 
+  /** Xếp việc đọc chữ (DV-08-05) cho phiên bản vừa quét sạch, nếu chưa xếp. */
+  void scheduleOcr(UUID versionId);
+
   /** Số phiên bản đang chờ quét của mọi tenant. */
   long pending();
 }

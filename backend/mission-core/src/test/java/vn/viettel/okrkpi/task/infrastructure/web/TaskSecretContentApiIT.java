@@ -60,13 +60,19 @@ import vn.viettel.okrkpi.shared.audit.AuditLogger;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 import vn.viettel.okrkpi.task.domain.lifecycle.TaskActor;
+import vn.viettel.okrkpi.task.domain.secret.SecretContentRules;
+import vn.viettel.okrkpi.task.infrastructure.web.E2eeTestClient.Device;
+import vn.viettel.okrkpi.task.infrastructure.web.E2eeTestClient.Encrypted;
+import vn.viettel.okrkpi.task.infrastructure.web.E2eeTestClient.Wrapped;
 
 /**
- * Nội dung nhiệm vụ mật C3 (CORE-07-06) trên PostgreSQL thật: lưu thiếu bản bọc cho khoá phục hồi
- * 422, người nhận ngoài nhiệm vụ 403, người không giữ bản bọc không đọc được, chia sẻ cho người
- * nghiệm thu rồi thu hồi thì người đó mất quyền tải bản mã, {@code If-Match} lệch 409. Bản mã mang
- * dấu đánh dấu chỉ nằm ở cột {@code ciphertext}: không có trong outbox, sự kiện kiểm toán hay nhật
- * ký. Kho {@code product.e2ee_key_wrap} giữ đúng một bản bọc còn hiệu lực cho mỗi người nhận.
+ * Nội dung nhiệm vụ mật C3 (CORE-07-06, CORE-02-24) trên PostgreSQL thật, client giả lập mã hoá
+ * thật (ECDH P-256, AES-256-GCM có AAD) và giải mã lại được ở phía kiểm thử; AAD lệch phiên bản
+ * 422; lưu thiếu bản bọc cho khoá phục hồi 422, người nhận ngoài nhiệm vụ 403, người không giữ bản
+ * bọc không đọc được, chia sẻ cho người nghiệm thu rồi thu hồi thì người đó mất quyền tải bản mã,
+ * {@code If-Match} lệch 409. Bản mã mang dấu đánh dấu chỉ nằm ở cột {@code ciphertext}: không có
+ * trong outbox, sự kiện kiểm toán hay nhật ký. Kho {@code product.e2ee_key_wrap} giữ đúng một bản
+ * bọc còn hiệu lực cho mỗi người nhận.
  */
 @SpringBootTest(
     classes = MissionCoreApplication.class,
@@ -127,7 +133,11 @@ class TaskSecretContentApiIT extends ContractConformanceTest {
 
   private final TenantId tenant = TenantId.of(UUID.randomUUID());
   private final UUID period = UUID.randomUUID();
-  private final String recoveryDevice = device("phuc-hoi");
+  private final Device chuTri = Device.generate();
+  private final Device nghiemThu = Device.generate();
+  private final Device ngoai = Device.generate();
+  private final Device phucHoi = Device.generate();
+  private final String recoveryDevice = phucHoi.deviceId();
 
   @Override
   protected ContractModule contractModule() {
@@ -187,47 +197,54 @@ class TaskSecretContentApiIT extends ContractConformanceTest {
   @Test
   void luuDocChiaSeThuHoiVaKhongLoC3(CapturedOutput output) throws Exception {
     UUID task = task(true);
-    byte[] ciphertext = ("ban-ma:" + MARKER).getBytes(StandardCharsets.UTF_8);
+    byte[] plaintext = ("Chỉ đạo mật: " + MARKER).getBytes(StandardCharsets.UTF_8);
+    Encrypted v0 = encrypt(task, 0, plaintext);
 
     as(LEAD);
     // Thiếu bản bọc cho khoá phục hồi tổ chức.
-    MvcResult noRecovery =
-        perform(save(task, "\"0\"", ciphertext, List.of(wrap(LEAD, device("chu-tri")))));
-    assertThat(noRecovery.getResponse().getStatus()).isEqualTo(422);
+    assertThat(status(save(task, "\"0\"", v0, List.of(wrap(LEAD, chuTri, v0))))).isEqualTo(422);
     // Người nhận không tham gia nhiệm vụ.
-    MvcResult outsider =
+    assertThat(
+            status(
+                save(
+                    task,
+                    "\"0\"",
+                    v0,
+                    List.of(
+                        wrap(LEAD, chuTri, v0),
+                        wrap(OUTSIDER, ngoai, v0),
+                        wrap(RECOVERY, phucHoi, v0)))))
+        .isEqualTo(403);
+    // Băm khai báo không khớp bản mã.
+    assertThat(
+            status(
+                save(
+                        task,
+                        "\"0\"",
+                        v0,
+                        List.of(wrap(LEAD, chuTri, v0), wrap(RECOVERY, phucHoi, v0)))
+                    .content(
+                        body(
+                            "ban-ma-khac".getBytes(StandardCharsets.UTF_8),
+                            v0,
+                            sha256Hex(v0.ciphertext()),
+                            List.of(wrap(LEAD, chuTri, v0), wrap(RECOVERY, phucHoi, v0))))))
+        .isEqualTo(422);
+    // AAD gắn với phiên bản khác phiên bản sẽ ghi.
+    Encrypted wrongVersion = encrypt(task, 1, plaintext);
+    MvcResult badAad =
         perform(
             save(
                 task,
                 "\"0\"",
-                ciphertext,
-                List.of(
-                    wrap(LEAD, device("chu-tri")),
-                    wrap(OUTSIDER, device("ngoai")),
-                    wrap(RECOVERY, recoveryDevice))));
-    assertThat(outsider.getResponse().getStatus()).isEqualTo(403);
-    // Băm khai báo không khớp bản mã.
-    MvcResult badHash =
-        perform(
-            save(
-                    task,
-                    "\"0\"",
-                    ciphertext,
-                    List.of(wrap(LEAD, device("chu-tri")), wrap(RECOVERY, recoveryDevice)))
-                .content(
-                    body(
-                        "ban-ma-khac".getBytes(StandardCharsets.UTF_8),
-                        sha256Hex(ciphertext),
-                        List.of(wrap(LEAD, device("chu-tri")), wrap(RECOVERY, recoveryDevice)))));
-    assertThat(badHash.getResponse().getStatus()).isEqualTo(422);
+                wrongVersion,
+                List.of(wrap(LEAD, chuTri, wrongVersion), wrap(RECOVERY, phucHoi, wrongVersion))));
+    assertThat(badAad.getResponse().getStatus()).isEqualTo(422);
+    assertThat(badAad.getResponse().getContentAsString()).contains("aadHash");
 
     MvcResult saved =
         perform(
-            save(
-                task,
-                "\"0\"",
-                ciphertext,
-                List.of(wrap(LEAD, device("chu-tri")), wrap(RECOVERY, recoveryDevice))));
+            save(task, "\"0\"", v0, List.of(wrap(LEAD, chuTri, v0), wrap(RECOVERY, phucHoi, v0))));
     assertThat(saved.getResponse().getStatus()).isEqualTo(200);
     assertThat(saved.getResponse().getHeader("ETag")).isEqualTo("\"0\"");
     assertThat(body(saved).get("recipientCount").asInt()).isEqualTo(2);
@@ -235,25 +252,28 @@ class TaskSecretContentApiIT extends ContractConformanceTest {
 
     MvcResult read = perform(get("/api/v1/tasks/" + task + "/secret-content"));
     assertThat(read.getResponse().getStatus()).isEqualTo(200);
-    assertThat(Base64.getDecoder().decode(body(read).get("ciphertext").asText()))
-        .isEqualTo(ciphertext);
-    assertThat(body(read).get("keyWrap").get("deviceId").asText()).isEqualTo(device("chu-tri"));
+    assertThat(body(read).get("keyWrap").get("deviceId").asText()).isEqualTo(chuTri.deviceId());
+    assertThat(open(read, chuTri, task, 0)).isEqualTo(plaintext);
     assertResponseConforms(read, "/tasks/{id}/secret-content", PathItem.HttpMethod.GET);
 
     as(ACCEPTOR);
     assertThat(status(get("/api/v1/tasks/" + task + "/secret-content"))).isEqualTo(403);
     // Người không giữ bản bọc không tự cấp khoá cho mình được.
-    assertThat(status(share(task, List.of(wrap(ACCEPTOR, device("nghiem-thu")))))).isEqualTo(403);
+    assertThat(status(share(task, List.of(wrap(ACCEPTOR, nghiemThu, v0))))).isEqualTo(403);
 
     as(LEAD);
-    MvcResult shared = perform(share(task, List.of(wrap(ACCEPTOR, device("nghiem-thu")))));
+    // Người giữ bản bọc mở khoá nội dung trên thiết bị của mình rồi bọc lại cho người mới.
+    byte[] cek = cek(perform(get("/api/v1/tasks/" + task + "/secret-content")), chuTri);
+    MvcResult shared = perform(share(task, List.of(wrapCek(ACCEPTOR, nghiemThu, cek))));
     assertThat(shared.getResponse().getStatus()).isEqualTo(200);
     assertThat(body(shared).get("recipientCount").asInt()).isEqualTo(3);
     assertResponseConforms(shared, "/tasks/{id}/secret-content/shares", PathItem.HttpMethod.POST);
-    assertThat(status(share(task, List.of(wrap(OUTSIDER, device("ngoai")))))).isEqualTo(403);
+    assertThat(status(share(task, List.of(wrapCek(OUTSIDER, ngoai, cek))))).isEqualTo(403);
 
     as(ACCEPTOR);
-    assertThat(status(get("/api/v1/tasks/" + task + "/secret-content"))).isEqualTo(200);
+    MvcResult acceptorRead = perform(get("/api/v1/tasks/" + task + "/secret-content"));
+    assertThat(acceptorRead.getResponse().getStatus()).isEqualTo(200);
+    assertThat(open(acceptorRead, nghiemThu, task, 0)).isEqualTo(plaintext);
 
     as(ASSIGNER);
     assertThat(status(revoke(task, RECOVERY))).isEqualTo(422);
@@ -263,47 +283,60 @@ class TaskSecretContentApiIT extends ContractConformanceTest {
     assertThat(status(get("/api/v1/tasks/" + task + "/secret-content"))).isEqualTo(403);
 
     as(LEAD);
-    // Chia sẻ và thu hồi tăng phiên bản dòng; If-Match cũ bị từ chối.
+    // Chia sẻ, thu hồi không đổi phiên bản nội dung; lưu bản mới với khoá nội dung mới.
+    byte[] plaintext2 = ("Chỉ đạo bổ sung: " + MARKER).getBytes(StandardCharsets.UTF_8);
+    Encrypted v1 = encrypt(task, 1, plaintext2);
+    MvcResult resaved =
+        perform(
+            save(task, "\"0\"", v1, List.of(wrap(LEAD, chuTri, v1), wrap(RECOVERY, phucHoi, v1))));
+    assertThat(resaved.getResponse().getStatus()).isEqualTo(200);
+    assertThat(resaved.getResponse().getHeader("ETag")).isEqualTo("\"1\"");
+    assertThat(open(perform(get("/api/v1/tasks/" + task + "/secret-content")), chuTri, task, 1))
+        .isEqualTo(plaintext2);
     assertThat(
             status(
                 save(
                     task,
                     "\"0\"",
-                    ciphertext,
-                    List.of(wrap(LEAD, device("chu-tri")), wrap(RECOVERY, recoveryDevice)))))
+                    v1,
+                    List.of(wrap(LEAD, chuTri, v1), wrap(RECOVERY, phucHoi, v1)))))
         .isEqualTo(409);
 
-    // Dấu đánh dấu chỉ nằm ở cột bản mã.
-    String b64 = Base64.getEncoder().encodeToString(ciphertext);
-    assertThat(
-            this.<Long>inTask(
-                jdbc ->
-                    jdbc.sql(
-                            "SELECT count(*) FROM task.outbox_event WHERE"
-                                + " position(convert_to(?, 'UTF8') in payload) > 0"
-                                + " OR position(convert_to(?, 'UTF8') in payload) > 0")
-                        .params(MARKER, b64)
-                        .query(Long.class)
-                        .single()))
-        .isZero();
+    // Bản rõ và bản mã chỉ nằm ở cột bản mã (bản rõ không bao giờ tới máy chủ).
+    for (String b64 :
+        List.of(
+            Base64.getEncoder().encodeToString(v0.ciphertext()),
+            Base64.getEncoder().encodeToString(v1.ciphertext()))) {
+      assertThat(
+              this.<Long>inTask(
+                  jdbc ->
+                      jdbc.sql(
+                              "SELECT count(*) FROM task.outbox_event WHERE"
+                                  + " position(convert_to(?, 'UTF8') in payload) > 0"
+                                  + " OR position(convert_to(?, 'UTF8') in payload) > 0")
+                          .params(MARKER, b64)
+                          .query(Long.class)
+                          .single()))
+          .isZero();
+      assertThat(AUDITS)
+          .allSatisfy(e -> assertThat(e.toString()).doesNotContain(MARKER).doesNotContain(b64));
+      assertThat(output.getAll()).doesNotContain(MARKER).doesNotContain(b64);
+    }
     assertThat(AUDITS).isNotEmpty();
-    assertThat(AUDITS)
-        .allSatisfy(e -> assertThat(e.toString()).doesNotContain(MARKER).doesNotContain(b64));
-    assertThat(output.getAll()).doesNotContain(MARKER).doesNotContain(b64);
   }
 
   @Test
   void nhiemVuKhongMatKhongLuuNoiDungMat() throws Exception {
     UUID task = task(false);
     as(LEAD);
-    byte[] ciphertext = "ban-ma".getBytes(StandardCharsets.UTF_8);
+    Encrypted v0 = encrypt(task, 0, "noi-dung".getBytes(StandardCharsets.UTF_8));
     assertThat(
             status(
                 save(
                     task,
                     "\"0\"",
-                    ciphertext,
-                    List.of(wrap(LEAD, device("chu-tri")), wrap(RECOVERY, recoveryDevice)))))
+                    v0,
+                    List.of(wrap(LEAD, chuTri, v0), wrap(RECOVERY, phucHoi, v0)))))
         .isEqualTo(409);
     assertThat(status(get("/api/v1/tasks/" + UUID.randomUUID() + "/secret-content")))
         .isEqualTo(404);
@@ -350,47 +383,65 @@ class TaskSecretContentApiIT extends ContractConformanceTest {
     TestTaskCallers.current = new TaskActor(person, Set.of("manager"));
   }
 
-  private static String device(String label) {
-    return sha256Hex(label.getBytes(StandardCharsets.UTF_8));
+  private Encrypted encrypt(UUID task, long version, byte[] plaintext) {
+    return E2eeTestClient.encrypt(plaintext, SecretContentRules.aad(tenant.value(), task, version));
+  }
+
+  private byte[] open(MvcResult read, Device device, UUID task, long version) throws Exception {
+    JsonNode b = body(read);
+    return E2eeTestClient.decrypt(
+        cek(read, device),
+        Base64.getDecoder().decode(b.get("nonce").asText()),
+        Base64.getDecoder().decode(b.get("ciphertext").asText()),
+        SecretContentRules.aad(tenant.value(), task, version));
+  }
+
+  private byte[] cek(MvcResult read, Device device) throws Exception {
+    JsonNode w = body(read).get("keyWrap");
+    return E2eeTestClient.unwrap(
+        device,
+        Base64.getDecoder().decode(w.get("ephemeralPublicKey").asText()),
+        Base64.getDecoder().decode(w.get("wrappedKey").asText()));
   }
 
   private static String sha256Hex(byte[] data) {
-    try {
-      return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(data));
-    } catch (Exception e) {
-      throw new IllegalStateException(e);
-    }
+    return HexFormat.of().formatHex(E2eeTestClient.sha256(data));
   }
 
-  private static Map<String, Object> wrap(UUID recipient, String deviceId) {
+  private static Map<String, Object> wrap(UUID recipient, Device device, Encrypted e) {
+    return wrapCek(recipient, device, e.cek());
+  }
+
+  private static Map<String, Object> wrapCek(UUID recipient, Device device, byte[] cek) {
+    Wrapped wrapped = E2eeTestClient.wrap(cek, device.keys().getPublic());
     Map<String, Object> w = new LinkedHashMap<>();
     w.put("recipientPersonId", recipient);
-    w.put("deviceId", deviceId);
+    w.put("deviceId", device.deviceId());
     w.put("algorithm", "ECDH-ES+A256KW");
-    w.put("ephemeralPublicKey", Base64.getEncoder().encodeToString(new byte[] {4, 9, 9}));
-    w.put("wrappedKey", Base64.getEncoder().encodeToString(deviceId.getBytes()));
+    w.put("ephemeralPublicKey", Base64.getEncoder().encodeToString(wrapped.ephemeralSpki()));
+    w.put("wrappedKey", Base64.getEncoder().encodeToString(wrapped.wrappedKey()));
     return w;
   }
 
-  private String body(byte[] ciphertext, String sha256, List<Map<String, Object>> wraps)
+  private String body(
+      byte[] ciphertext, Encrypted e, String sha256, List<Map<String, Object>> wraps)
       throws Exception {
     Map<String, Object> b = new LinkedHashMap<>();
     b.put("ciphertext", Base64.getEncoder().encodeToString(ciphertext));
-    b.put("nonce", Base64.getEncoder().encodeToString(new byte[12]));
-    b.put("aadHash", sha256Hex(("aad:" + period).getBytes(StandardCharsets.UTF_8)));
+    b.put("nonce", Base64.getEncoder().encodeToString(e.nonce()));
+    b.put("aadHash", HexFormat.of().formatHex(e.aadHash()));
     b.put("sha256", sha256);
     b.put("keyWraps", new ArrayList<>(wraps));
     return json.writeValueAsString(b);
   }
 
   private MockHttpServletRequestBuilder save(
-      UUID task, String ifMatch, byte[] ciphertext, List<Map<String, Object>> wraps)
-      throws Exception {
+      UUID task, String ifMatch, Encrypted e, List<Map<String, Object>> wraps) throws Exception {
     return put("/api/v1/tasks/" + task + "/secret-content")
         .header("Idempotency-Key", UUID.randomUUID().toString())
         .header("If-Match", ifMatch)
         .contentType(MediaType.APPLICATION_JSON)
-        .content(body(ciphertext, sha256Hex(ciphertext), wraps));
+        .content(body(e.ciphertext(), e, sha256Hex(e.ciphertext()), wraps));
   }
 
   private MockHttpServletRequestBuilder share(UUID task, List<Map<String, Object>> wraps)

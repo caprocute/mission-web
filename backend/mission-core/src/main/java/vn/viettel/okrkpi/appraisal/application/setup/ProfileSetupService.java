@@ -16,6 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.viettel.okrkpi.appraisal.api.AppraisalSpecialCases;
 import vn.viettel.okrkpi.appraisal.api.AppraisalSpecialCases.SpecialCase;
 import vn.viettel.okrkpi.appraisal.api.AppraisalSpecialCases.Treatment;
+import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualRatingRepository;
+import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualRatingRepository.QuarterRef;
+import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualRecomputeRequests;
 import vn.viettel.okrkpi.appraisal.application.profile.AppraisalProfileService;
 import vn.viettel.okrkpi.appraisal.application.profile.port.AppraisalProfileRepository.ProfileRow;
 import vn.viettel.okrkpi.appraisal.application.setup.port.ProfileSetupRepository;
@@ -54,6 +57,8 @@ public class ProfileSetupService {
   private final AppraisalSpecialCases specialCases;
   private final PeriodApi periods;
   private final Clock clock;
+  private final AnnualRatingRepository annual;
+  private final AnnualRecomputeRequests recompute;
 
   public ProfileSetupService(
       AppraisalProfileService profiles,
@@ -63,6 +68,25 @@ public class ProfileSetupService {
       AppraisalSpecialCases specialCases,
       PeriodApi periods,
       Clock clock) {
+    this(profiles, repository, notices, policies, specialCases, periods, clock, null, null);
+  }
+
+  /**
+   * @param annual dòng {@code annual_rating} của hồ sơ năm (CORE-04-10), có thể {@code null}
+   * @param recompute yêu cầu tính lại năm khi ảnh chụp quý đổi, có thể {@code null}
+   */
+  public ProfileSetupService(
+      AppraisalProfileService profiles,
+      ProfileSetupRepository repository,
+      SetupNotices notices,
+      PolicyQueryApi policies,
+      AppraisalSpecialCases specialCases,
+      PeriodApi periods,
+      Clock clock,
+      AnnualRatingRepository annual,
+      AnnualRecomputeRequests recompute) {
+    this.annual = annual;
+    this.recompute = recompute;
     this.profiles = Objects.requireNonNull(profiles, "profiles");
     this.repository = Objects.requireNonNull(repository, "repository");
     this.notices = Objects.requireNonNull(notices, "notices");
@@ -81,6 +105,8 @@ public class ProfileSetupService {
     STALE,
     NO_PROFILE,
     LOCKED,
+    /** Hồ sơ năm đã quyết định có mức năm mới khác: về bước quyết định (MSG-10-04). */
+    REOPENED,
     /** Loại tác vụ không tạo ảnh chụp (kiểm tra tái lập). */
     IGNORED,
     /**
@@ -164,7 +190,8 @@ public class ProfileSetupService {
     if (row.status() == AppraisalStatus.DA_KHOA) {
       return Outcome.LOCKED;
     }
-    if (NHA_NUOC.equals(row.flow())) {
+    boolean yearly = row.periodBucket() % 10 == 0;
+    if (NHA_NUOC.equals(row.flow()) && !yearly) {
       return Outcome.INCOMPLETE;
     }
     if (repository.hasResult(tenant, row.periodBucket(), e.scoreResultId())) {
@@ -195,9 +222,20 @@ public class ProfileSetupService {
             e.totalScore(),
             rating.name(),
             computedAt,
-            snapshotHash(e, row)),
+            snapshotHash(e, row),
+            yearly ? quarterDetail(tenant, row) : null),
         current.map(SnapshotHead::id).orElse(null),
         SYSTEM_ACTOR);
+    if (yearly && annual != null) {
+      annual.recordScore(
+          tenant,
+          row.periodBucket() / 10,
+          row.id(),
+          e.totalScore(),
+          rating.name(),
+          SYSTEM_ACTOR,
+          clock.instant());
+    }
     if (row.status() == AppraisalStatus.CHUA_LAP && !TAM_TINH.equals(e.jobKind())) {
       AppraisalProfileService.Transitioned t =
           profiles.transition(
@@ -209,9 +247,75 @@ public class ProfileSetupService {
       notices.selfAssessmentOpened(tenant, row.id(), row.personId(), t.rowVersion());
       return Outcome.OPENED;
     }
+    if (yearly && REDECIDABLE.contains(row.status()) && row.finalRating() != rating) {
+      AppraisalProfileService.Transitioned t =
+          profiles.transition(
+              tenant,
+              row.id(),
+              null,
+              SYSTEM_ACTOR,
+              (p, r) -> {
+                p.replaceSnapshot(snapshotId, rating);
+                return p.reopenDecision(SYSTEM_ACTOR, REOPEN_REASON);
+              });
+      notices.annualRatingChanged(
+          tenant, row.id(), recipients(row), row.finalRating(), rating, t.rowVersion());
+      return Outcome.REOPENED;
+    }
     repository.pointCurrent(
         tenant, row.periodBucket(), row.id(), snapshotId, SYSTEM_ACTOR, clock.instant());
+    if (!yearly && row.status() != AppraisalStatus.CHUA_LAP && annual != null) {
+      annual
+          .annualProfileOf(tenant, row.periodBucket() / 10, row.personId(), row.flow())
+          .ifPresent(
+              id -> {
+                if (recompute != null) {
+                  recompute.request(tenant, id, row.id());
+                }
+              });
+    }
     return row.status() == AppraisalStatus.CHUA_LAP ? Outcome.STORED : Outcome.REPLACED;
+  }
+
+  /** Lý do ghi ở bước đưa hồ sơ năm về quyết định (MSG-10-04). */
+  static final String REOPEN_REASON = "Thi hành kết luận hậu kiểm: kết quả năm được tính lại.";
+
+  /** Hồ sơ năm đã quyết định mà chưa khoá: còn đưa về bước quyết định được. */
+  static final Set<AppraisalStatus> REDECIDABLE =
+      Set.of(AppraisalStatus.DA_QUYET_DINH, AppraisalStatus.DA_KY_SO);
+
+  private static List<UUID> recipients(ProfileRow row) {
+    List<UUID> out = new java.util.ArrayList<>();
+    out.add(row.personId());
+    if (row.deciderId() != null && !row.deciderId().equals(row.personId())) {
+      out.add(row.deciderId());
+    }
+    return out;
+  }
+
+  /**
+   * BR-10-06: ảnh chụp năm tham chiếu ảnh chụp hiện hành của từng quý bằng mã, băm và phiên bản
+   * Policy Pack đã dùng ({@code detail_json.quy}).
+   */
+  private String quarterDetail(TenantId tenant, ProfileRow row) {
+    if (annual == null) {
+      return null;
+    }
+    List<Map<String, Object>> quarters = new java.util.ArrayList<>();
+    for (QuarterRef q :
+        annual.quarters(tenant, row.periodBucket() / 10, row.personId(), row.flow())) {
+      Map<String, Object> m = new LinkedHashMap<>();
+      m.put("quy", q.quarter());
+      m.put("ho_so", q.profileId().toString());
+      m.put("muc", q.finalRating());
+      m.put("anh_chup", q.snapshotId() == null ? null : q.snapshotId().toString());
+      m.put("bam", q.snapshotHash() == null ? null : Jcs.hex(q.snapshotHash()));
+      m.put("diem", q.totalScore() == null ? null : q.totalScore().toPlainString());
+      m.put("phien_ban", q.policyVersion());
+      m.put("goi", q.policyPackVersionId() == null ? null : q.policyPackVersionId().toString());
+      quarters.add(m);
+    }
+    return Jcs.write(Map.of("quy", quarters));
   }
 
   // ---------------------------------------------------------------- hỗ trợ

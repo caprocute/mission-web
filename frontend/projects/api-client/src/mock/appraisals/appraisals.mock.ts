@@ -323,7 +323,7 @@ function completeReview(p: AppraisalProfile, s: SignJob, now: string): void {
 function list(req: MockRequest): MockResponse {
   const status = (req.params.getAll('status') ?? []) as AppraisalProfileStatus[];
   const wanted: AppraisalProfileStatus[] = status.length ? status : ['CHO_THAM_DINH'];
-  const period = req.params.get('periodId');
+  const period = req.params.get('period');
   const flow = req.params.get('flow');
   const q = req.params.get('q')?.toLocaleLowerCase('vi');
   const group = req.params.get('subjectGroup');

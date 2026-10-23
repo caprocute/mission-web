@@ -25,9 +25,28 @@ public interface RenderInputPort {
    */
   Optional<FormData> data(UUID tenantId, UUID formInstanceId);
 
-  /** Một biểu mẫu cần sinh. */
+  /**
+   * Một biểu mẫu cần sinh.
+   *
+   * @param templateVersion phiên bản mẫu mà Policy Pack gắn với kỳ của gói chỉ định ({@code
+   *     policy_binding}); {@code null} thì dùng phiên bản đang hiệu lực mới nhất (DV-11-04)
+   * @param policyPackCode mã Policy Pack gắn với kỳ, đóng tem vào tệp (BR-11-03)
+   * @param policyPackVersion phiên bản Policy Pack gắn với kỳ, đóng tem vào tệp
+   */
   record FormRef(
-      UUID formInstanceId, String formCode, String subjectGroupCode, byte[] dataSnapshotHash) {}
+      UUID formInstanceId,
+      String formCode,
+      String subjectGroupCode,
+      byte[] dataSnapshotHash,
+      Integer templateVersion,
+      String policyPackCode,
+      String policyPackVersion) {
+
+    public FormRef(
+        UUID formInstanceId, String formCode, String subjectGroupCode, byte[] dataSnapshotHash) {
+      this(formInstanceId, formCode, subjectGroupCode, dataSnapshotHash, null, null, null);
+    }
+  }
 
   /**
    * Dữ liệu một biểu mẫu.
