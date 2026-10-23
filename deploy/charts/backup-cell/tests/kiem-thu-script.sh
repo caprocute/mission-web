@@ -155,6 +155,10 @@ kiem "chỉ số đạt: success 1, có last_success" grep -q '^backup_restore_c
 kiem "  và last_success_timestamp" grep -q '^backup_restore_check_last_success_timestamp_seconds 1792706400$' "$GL/chi-so-job_restore-check_cell_g4_cluster_pg-ledger"
 kiem "cụm tạm và ObjectStore bị xoá" grep -q "delete cluster rc-pg-ledger-20261023" "$GL/kubectl.log"
 kiem "kiểm sổ cái chạy trên bkt_ledger" grep -q "sổ cái bkt_ledger: đạt" "$W/rc.out"
+# INF-28: ở TTDL không khởi tạo replica cluster, bản sao lưu nằm dưới serverName <cụm>-<ttdl>.
+moi
+CUMS="pg-core:data-pg pg-ledger:secure-data" HAU_TO_SERVER=-sn bash "$CFG/restore-check.sh" > "$W/rc-sn.out" 2>&1 || cat "$W/rc-sn.out"
+kiem "TTDL sn: cụm tạm khôi phục từ serverName pg-ledger-sn" grep -q "serverName: pg-ledger-sn$" "$GL/apply.yaml"
 
 ca_hong() { # <mô tả> <SQL làm hỏng> <SQL sửa lại> <CSDL> <thông điệp mong đợi>
   psql -X -q -v ON_ERROR_STOP=1 -d "$4" -c "$2"

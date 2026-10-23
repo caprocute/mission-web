@@ -91,7 +91,9 @@ import json, sys
 gia = "sha256:" + "1" * 64
 for a in json.load(open(sys.argv[1])):
     h = a["helm"]
-    args = [f"-f {f}" for f in a["valueFiles"]] + [f"--set {k}={v}" for k, v in h["valuesObject"].items()]
+    phang = {f"{k}.{k2}" if isinstance(v, dict) else k: v2 if isinstance(v, dict) else v
+             for k, v in h["valuesObject"].items() for k2, v2 in (v.items() if isinstance(v, dict) else [(None, v)])}
+    args = [f"-f {f}" for f in a["valueFiles"]] + [f"--set {k}={v}" for k, v in phang.items()]
     for p in h.get("parameters", []):
         v = p["value"]
         args.append(f"--set {p['name']}={v + gia if v.endswith('@') else v}")
@@ -107,7 +109,7 @@ while IFS=$'\t' read -r ten chart ns args; do
 done < "$W/lenh-tc"
 [ "$SO_TC" -gt 0 ] && [ "$LOI_TC" = 0 ] && ok "render $SO_TC Application vùng điều phối toàn cục" || hong "render vùng toàn cục ($LOI_TC/$SO_TC lỗi)"
 kc "$W/tc.yaml" > "$W/kc" 2>&1 && ok "kubeconform vùng toàn cục ($(tail -1 "$W/kc"))" || { hong "kubeconform vùng toàn cục"; grep -v '^Summary' "$W/kc" | head -20; }
-python3 - "$W/tc.yaml" <<'EOF' && ok "vùng toàn cục: remote_apply, LUA ifurlup cho app, /healthz/edge ở APISIX lớp ngoài, ảnh theo digest" || hong "bất biến vùng toàn cục"
+python3 - "$W/tc.yaml" <<'EOF' && ok "vùng toàn cục: remote_apply, LUA ifurlup cho app, /healthz/edge ở APISIX lớp ngoài, ảnh theo digest, migration chỉ ở TTDL primary" || hong "bất biến vùng toàn cục"
 import re, sys, yaml
 ds = [d for d in yaml.safe_load_all(open(sys.argv[1])) if d]
 pg = [d for d in ds if d["kind"] == "Cluster" and d["apiVersion"].startswith("postgresql.cnpg.io")]
@@ -119,6 +121,9 @@ t = open(sys.argv[1]).read()
 assert "/healthz/edge" in t and "edge-health" in t
 anh = re.findall(r"image:\s*[\"']?(\S+)", t)
 assert anh and all("@sha256:" in a for a in anh), [a for a in anh if "@sha256:" not in a]
+# INF-28: Job migration của tenant-registry chỉ ở TTDL giữ primary của pg-registry (global.siteRole).
+mig = [d for d in ds if d["kind"] == "Job" and d["metadata"]["name"].endswith("-migrate")]
+assert len(mig) == 1, [d["metadata"]["name"] for d in mig]
 EOF
 
 # INF-21 · Bản staging: chỉ CELL-STG một TTDL, không tầng dữ liệu trong cụm, đồng bộ tự động, AppProject riêng; môi

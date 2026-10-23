@@ -63,3 +63,33 @@ pg-secure vào pg-ledger; connect.consolidated "true"/"false" ghi đè theo cell
 {{- $vao := dict "pg-flowable" "pg-core" "pg-platform" "pg-core" "pg-iam" "pg-core" "pg-secure" "pg-ledger" -}}
 {{- if and $gop (hasKey $vao .cum) }}{{ index $vao .cum }}{{ else }}{{ .cum }}{{ end -}}
 {{- end -}}
+{{/* MirrorMaker 2 đã giải vai trò (INF-18, INF-28): vaiTro ttdl suy ra nguon/dich, tên, bí danh, tài khoản, CA và
+bootstrap từ global.site, global.siteRole; vai trò khác giữ nguyên values. Trả YAML, dùng với fromYaml. */}}
+{{- define "kafka.mm2" -}}
+{{- $v := .Values }}
+{{- $m := deepCopy $v.mirrorMaker2 }}
+{{- if not (has $m.vaiTro (list "" "nguon" "dich" "ttdl")) }}{{ fail (printf "kafka: mirrorMaker2.vaiTro %q không hợp lệ (nguon, dich, ttdl)" $m.vaiTro) }}{{ end }}
+{{- $_ := set $m "nguonPort" 9093 }}
+{{- $_ := set $m "lienTtdlMo" $m.lienTtdl.enabled }}
+{{- if eq $m.vaiTro "ttdl" }}
+{{- $self := toString $v.global.site }}
+{{- $role := toString $v.global.siteRole }}
+{{- if not (has $self $m.ttdl.sites) }}{{ fail (printf "kafka: mirrorMaker2.vaiTro ttdl cần global.site thuộc %v, có %q" $m.ttdl.sites $self) }}{{ end }}
+{{- if not (has $role (list "primary" "standby")) }}{{ fail (printf "kafka: mirrorMaker2.vaiTro ttdl cần global.siteRole primary hoặc standby, có %q" $role) }}{{ end }}
+{{- $peer := first (without $m.ttdl.sites $self) }}
+{{- $cell := required "kafka: mirrorMaker2 cần global.cell" $v.global.cell | lower }}
+{{- $_ := set $m "vaiTro" (ternary "nguon" "dich" (eq $role "primary")) }}
+{{- $_ := set $m "ten" (printf "mm2-%s-to-%s" $peer $self) }}
+{{- $_ := set $m "nguoiDungNguon" (printf "mm2-%s-user" $self) }}
+{{- $_ := set $m "nguon" (merge (dict "alias" $peer "caSecret" (printf "kafka-%s-cluster-ca-cert" $peer) "userSecret" (printf "mm2-%s-user" $peer) "bootstrapServers" (printf $m.ttdl.bootstrapFormat $cell $peer)) (dict "openbaoPath" $m.nguon.openbaoPath)) }}
+{{- $_ := set $m "dich" (dict "alias" $self "user" (printf "mm2-%s-user" $self)) }}
+{{- $_ := set $m "nguonPort" (int $m.lienTtdl.port) }}
+{{- $_ := set $m "lienTtdlMo" true }}
+{{- if not $m.egressTo }}
+{{- $ds := list }}
+{{- range $m.lienTtdl.peerCIDRs }}{{ $ds = append $ds (dict "ipBlock" (dict "cidr" .)) }}{{ end }}
+{{- $_ := set $m "egressTo" $ds }}
+{{- end }}
+{{- end }}
+{{- toYaml $m }}
+{{- end -}}

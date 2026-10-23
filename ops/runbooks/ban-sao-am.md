@@ -10,7 +10,7 @@ TTDL nào là primary của cell được khai ở `deploy/cells/<cell>/cell.yam
 | Thành phần | TTDL primary | TTDL chờ |
 |---|---|---|
 | Sáu cụm CNPG | `replica.self = primary = pg-<cụm>-hl`, khởi tạo bằng initdb, có CR Database và Job cấp quyền | `replica.self = pg-<cụm>-sn`, nhận WAL từ primary (dựng bằng `pg_basebackup`), không CR Database, không Job cấp quyền; cùng kích thước |
-| Kafka | Kafka Connect (Debezium) chạy, tài khoản `mm2-nguon` chỉ đọc, listener liên TTDL 9094 | `KafkaMirrorMaker2` `mm2-hl-to-sn` (IdentityReplicationPolicy, bỏ `retry`, `replay`, `dlq`, đồng bộ offset mỗi 30 s), không Debezium |
+| Kafka | Kafka Connect (Debezium) chạy, tài khoản `mm2-hl-user` chỉ đọc, listener liên TTDL 9094 | `KafkaMirrorMaker2` `mm2-hl-to-sn` (IdentityReplicationPolicy, bỏ `retry`, `replay`, đồng bộ offset mỗi 30 s), không Debezium |
 | RGW | zone master | zone thứ hai của multisite (INF-12), đồng bộ bucket và Object Lock |
 | Ứng dụng | theo hồ sơ định cỡ | mỗi workload 1 replica (min HPA, KEDA), max giữ nguyên; AI tắt |
 
@@ -28,7 +28,7 @@ Cảnh báo: `PgReplicationLag*` (5 và 10 phút, observability-cell), `Mm2Repli
 ## 3. Xử lý khi không đạt
 
 1. **Trễ WAL hoặc replica không phục hồi:** `kubectl -n data-pg get cluster pg-core -o jsonpath='{.status.conditions}'` ở cụm phía Nam; kiểm luồng 5432 tới `pg-core-rw.data-pg.cell-<cell>-hl.vt.local` (NetworkPolicy `pg-instance`, `replica.peerCIDRs`), chứng thư `pg-core-replication` và CA `pg-core-ca-hl` còn hạn. Khi có kho Barman (INF-17, `replica.walArchive.enabled`), replica tự đọc WAL từ kho trong lúc luồng trực tiếp đứt.
-2. **MirrorMaker 2 không có thông điệp mới:** `kubectl -n data-kafka get kafkamirrormaker2 mm2-hl-to-sn -o yaml` (trạng thái connector); kiểm listener `lienttdl` 9094 phía Hoà Lạc, Secret `mm2-nguon` và `kafka-cell-cluster-ca-cert-hl` ở phía Nam. Sự kiện chưa sang được phát lại từ outbox (sổ tay `phat-lai-outbox.md`).
+2. **MirrorMaker 2 không có thông điệp mới:** `kubectl -n data-kafka get kafkamirrormaker2 mm2-hl-to-sn -o yaml` (trạng thái connector); kiểm listener `lienttdl` 9094 phía Hoà Lạc, Secret `mm2-hl-user` (chứng thư nguồn chép qua OpenBao `kv/cell-<mã>/kafka/mm2-nguon`) và `kafka-cell-cluster-ca-cert-hl` ở phía Nam. Sự kiện chưa sang được phát lại từ outbox (sổ tay `phat-lai-outbox.md`).
 3. **RGW tụt shard:** sổ tay `ceph-multisite.md`.
 
 ## 4. Đổi vai trò (chuyển vùng có kế hoạch, quay về)

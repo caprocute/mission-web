@@ -242,7 +242,9 @@ replica:
   caSecretFormat: "%s-ca-%s"
   # Dải địa chỉ node của cụm TTDL kia được mở 5432 tới instance (luồng WAL hai chiều để quay về, DR-16).
   peerCIDRs: []
-  # Nguồn WAL dự phòng từ kho Barman Cloud (ObjectStore bk-<site>-<cụm> do INF-17 dựng); tắt khi chưa có kho.
+  # Nguồn WAL dự phòng từ kho Barman Cloud của INF-17 (ObjectStore <backup.objectStorePrefix>-<cụm>, cần
+  # backup.enabled): khi luồng streaming đứt, cụm chờ đọc WAL của TTDL kia từ kho. Hai TTDL ghi chung một bucket nên
+  # serverName phải khác nhau: TTDL initdbSite giữ tên cụm (restore-check và runbook sao lưu của INF-17 không đổi),
+  # TTDL kia dùng <cụm>-<ttdl> (cùng quy ước với global-pg).
   walArchive:
-    enabled: false
-    objectFormat: "bk-%s-%s"
+    enabled: true
