@@ -8,7 +8,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import vn.viettel.okrkpi.shared.crypto.bcy.BcyCryptoConfiguration;
 
 /**
  * Auto-configuration cho mã hoá trường phong bì C2, {@link DekCache}, {@link DekService}, {@link
@@ -17,6 +19,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  */
 @AutoConfiguration
 @EnableConfigurationProperties(CryptoProperties.class)
+@Import(BcyCryptoConfiguration.class)
 @ConditionalOnProperty(
     prefix = "okrkpi.crypto",
     name = "enabled",
