@@ -1,0 +1,48 @@
+# QA-13 · Ngoại lệ cảnh báo ZAP (TL-04 mục 9.8: "các cảnh báo Medium có giải trình").
+#
+# Mỗi mục là một cảnh báo đã được xem xét: vì sao không phải lỗ hổng hoặc vì sao chấp nhận tạm, ai duyệt, khi nào
+# xem lại. kiem-ngoai-le.mjs đọc tệp này sau mỗi lần quét:
+#   - cảnh báo Medium khớp một mục còn hạn thì được coi là đã giải trình (in kèm lý do vào nhật ký pipeline);
+#   - cảnh báo High chỉ được bỏ qua khi mục có trangThai: da-duyet (dương tính giả đã xác minh);
+#   - mục quá ngayXemLai hoặc thiếu giaiTrinh, nguoiDuyet thì pipeline chặn cho tới khi được xem lại.
+# Định dạng: danh sách ánh xạ một cấp, mỗi giá trị trên một dòng (không dùng khối nhiều dòng).
+#   ruleId      mã quy tắc ZAP (pluginId)
+#   ten         tên quy tắc để người đọc nhận ra
+#   keHoach     api | web | ca-hai
+#   urlRegex    biểu thức chính quy giới hạn URL áp dụng (bỏ trống là mọi URL)
+#   ruiRo       mức ZAP báo
+#   giaiTrinh   lý do, kèm mã thiết kế làm căn cứ
+#   nguoiDuyet  vai trò hoặc người duyệt (không ghi thông tin liên lạc)
+#   trangThai   cho-duyet | da-duyet
+#   ngayDuyet, ngayXemLai  YYYY-MM-DD; xem lại tối đa 3 tháng một lần
+ngoaiLe:
+  - ruleId: 10049
+    ten: Non-Storable Content / Storable and Cacheable Content
+    keHoach: web
+    urlRegex: /(remotes|ui-packs|embed)/.*\.(js|css|woff2?)$
+    ruiRo: Informational
+    giaiTrinh: Tệp tĩnh có băm nội dung trong tên được đệm lâu có chủ đích (deploy/web/nginx.conf, TL-01 ngân sách hiệu năng); không chứa dữ liệu người dùng.
+    nguoiDuyet: Phụ trách ATTT dự án
+    trangThai: cho-duyet
+    ngayDuyet: 2026-10-23
+    ngayXemLai: 2027-01-23
+  - ruleId: 10098
+    ten: Cross-Domain Misconfiguration
+    keHoach: web
+    urlRegex: (/(config\.json|federation\.manifest\.json|remoteEntry\.json)$|/(remotes|ui-packs|embed)/|\.(js|css|woff2?|svg|png|ico)$)
+    ruiRo: Medium
+    giaiTrinh: Access-Control-Allow-Origin * chỉ trên tệp tĩnh công khai (mã JS, CSS, phông, tệp cấu hình chạy) mà remote khác nguồn và trang nhúng phải đọc (Native Federation, ADR-05); không kèm credentials, không có dữ liệu người dùng; API không dùng CORS * (kiểm ở kiem-thu-phu-dinh 05).
+    nguoiDuyet: Phụ trách ATTT dự án
+    trangThai: cho-duyet
+    ngayDuyet: 2026-10-23
+    ngayXemLai: 2027-01-23
+  - ruleId: 30001
+    ten: Buffer Overflow
+    keHoach: api
+    urlRegex: /api/v1/org/imports$
+    ruiRo: Medium
+    giaiTrinh: Không phải tràn bộ đệm (máy ảo Java); ZAP thấy 500 vì thân multipart hỏng chưa được ánh xạ sang 400 ở org-service. Lỗi đã ghi nhận ở QA-13 (ca todo trong kiem-thu-phu-dinh 04), phản hồi 500 không lộ chi tiết nội bộ. Gỡ mục này khi sửa xong.
+    nguoiDuyet: Phụ trách ATTT dự án
+    trangThai: cho-duyet
+    ngayDuyet: 2026-10-23
+    ngayXemLai: 2026-11-06
