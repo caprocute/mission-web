@@ -411,29 +411,6 @@
           </execution>
         </executions>
       </plugin>
-      <!--
-        DV-06-09: sự kiện "mẫu luồng đã phát hành" là đề xuất của BS-01, chưa có lược đồ trong contracts/events
-        (wiki trang 14). Lược đồ tạm đặt ở src/main/avro, chuyển sang contracts/events khi hợp đồng được duyệt.
-      -->
-      <plugin>
-        <groupId>org.apache.avro</groupId>
-        <artifactId>avro-maven-plugin</artifactId>
-        <version>${avro.version}</version>
-        <executions>
-          <execution>
-            <id>generate-avro-de-xuat</id>
-            <goals>
-              <goal>schema</goal>
-            </goals>
-            <phase>generate-sources</phase>
-            <configuration>
-              <sourceDirectory>${project.basedir}/src/main/avro</sourceDirectory>
-              <outputDirectory>${project.build.directory}/generated-sources/avro</outputDirectory>
-              <stringType>String</stringType>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
       <plugin>
         <groupId>com.github.spotbugs</groupId>
         <artifactId>spotbugs-maven-plugin</artifactId>

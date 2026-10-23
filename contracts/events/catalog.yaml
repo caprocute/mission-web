@@ -471,6 +471,22 @@ technicalTopics:
     schema: avro/agg/AggregateMetric.avsc
     artifactId: agg.province.metric.v1-value
 
+  # Sót hợp đồng (DV-06-09): BS-01 đề xuất sự kiện mà chưa cấp mã EVT; bên phát đã có, nên ghi ở đây như topic
+  # kỹ thuật cho tới khi baseline cấp mã. Phân vùng, thời gian giữ như nhóm nghiệp vụ thấp (TL-04 mục 4.6) vì
+  # phát hành mẫu luồng rất thưa, giống config.uipack.published.v1 (suy luận). Chưa có bên tiêu thụ.
+  - topic: config.wftemplate.published.v1
+    name: MauLuongDaPhatHanh
+    key: tenant:templateId
+    outbox: flowable.outbox_event
+    classification: C0
+    producer: SVC-06
+    consumers: []
+    partitions: 6
+    retention: 30d
+    note: SVC-06 phát khi một phiên bản mẫu luồng lên HIEU_LUC (BS-01); tên của BS-01 là config.wf_template.published.v1
+    schema: avro/config/MauLuongDaPhatHanh.avsc
+    artifactId: config.wftemplate.published.v1-value
+
 # Quy ước họ topic kỹ thuật sinh theo mẫu (TL-01, TL-03, TL-04 L767–768):
 technicalTopicFamilies:
   - pattern: "cdc.<db>.<schema>.<table>"

@@ -107,6 +107,7 @@ connect:
     integ: { cum: pg-platform, csdl: cell_shared }
     ledger: { cum: pg-ledger, csdl: ledger }
     esign: { cum: pg-secure, csdl: esign }
+    flowable: { cum: pg-flowable, csdl: flowable }
   # Namespace của cụm (data-pg: cụm ứng dụng ở data-pg, pg-ledger và pg-secure ở secure-data).
   namespaceCum: { pg-core: data-pg, pg-flowable: data-pg, pg-platform: data-pg, pg-iam: data-pg, pg-ledger: secure-data, pg-secure: secure-data }
   # CSDL tenant của cell (silo: td_<mã tenant>; bridge: td_<mã tỉnh>); khớp data-pg.tenantDatabases của cell.
