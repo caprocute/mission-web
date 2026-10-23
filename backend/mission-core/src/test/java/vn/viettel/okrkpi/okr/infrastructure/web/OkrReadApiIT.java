@@ -109,6 +109,12 @@ class OkrReadApiIT extends ContractConformanceTest {
   @Autowired
   @Qualifier("configTransactionManager") private PlatformTransactionManager configTm;
 
+  @Autowired
+  @Qualifier("orgReplicaDataSource") private DataSource replicaDataSource;
+
+  @Autowired
+  @Qualifier("orgReplicaTransactionManager") private PlatformTransactionManager replicaTm;
+
   private final TenantId tenant = TenantId.of(UUID.randomUUID());
   private final TenantId otherTenant = TenantId.of(UUID.randomUUID());
   private final UUID period = UUID.randomUUID();
@@ -322,6 +328,53 @@ class OkrReadApiIT extends ContractConformanceTest {
     } while (cursor != null && pages < 20);
     assertThat(seen).hasSize(2000);
     assertThat(pages).isEqualTo(10);
+  }
+
+  /**
+   * QA-03/04: cây và chi tiết mục tiêu trả tên đơn vị, tên người từ {@code org_replica} (phiên bản
+   * đơn vị mới nhất) thay cho tên rỗng; mã không có trong bản sao thì tên vẫn rỗng.
+   */
+  @Test
+  void tenHienThiLayTuBanSaoToChuc() throws Exception {
+    TenantContext.call(
+        tenant,
+        () ->
+            new TransactionTemplate(replicaTm)
+                .execute(
+                    s -> {
+                      JdbcClient jdbc = JdbcClient.create(replicaDataSource);
+                      for (Object[] v :
+                          List.of(
+                              new Object[] {"2020-01-01", "Phòng Kế hoạch cũ"},
+                              new Object[] {"2025-01-01", "Phòng Kế hoạch"})) {
+                        jdbc.sql(
+                                "INSERT INTO org_replica.org_unit_v (id, valid_from, code, name,"
+                                    + " unit_type, source_version, source_event_id) VALUES (?,"
+                                    + " ?::date, 'KH', ?, 'SO', 1, ?)")
+                            .params(UNIT, v[0], v[1], UUID.randomUUID())
+                            .update();
+                      }
+                      jdbc.sql(
+                              "INSERT INTO org_replica.person_v (id, full_name, employment_status,"
+                                  + " source_version, source_event_id) VALUES (?, 'Nguyễn Văn An',"
+                                  + " 'DANG_LAM_VIEC', 1, ?)")
+                          .params(ACTOR, UUID.randomUUID())
+                          .update();
+                      return null;
+                    }));
+    JsonNode tree = body(perform(get("/api/v1/okr/tree").param("period", period.toString())));
+    assertThat(tree.at("/unit/name").asText()).isEqualTo("Phòng Kế hoạch");
+    assertThat(tree.at("/objectives/0/ownerUnit/name").asText()).isEqualTo("Phòng Kế hoạch");
+    JsonNode detail = body(perform(get("/api/v1/okr/objectives/" + o1)));
+    assertThat(detail.at("/ownerUnit/name").asText()).isEqualTo("Phòng Kế hoạch");
+    assertThat(detail.at("/createdBy/name").asText()).isEqualTo("Nguyễn Văn An");
+    JsonNode peer =
+        body(
+            perform(
+                get("/api/v1/okr/tree")
+                    .param("period", period.toString())
+                    .param("unit", CHILD_UNIT.toString())));
+    assertThat(peer.at("/unit/name").asText()).isEmpty();
   }
 
   @Test
