@@ -148,10 +148,11 @@ class Render(unittest.TestCase):
         self.assertEqual(env["PHA_KINH"], "dba_pha_kinh_doc")
         self.assertFalse(c["automountServiceAccountToken"])
         self.assertTrue(tim(D, "NetworkPolicy", "pam-quet-csdl-ingress", "secure-data"))
-        self.assertFalse(tim(D, "NetworkPolicy", "pam-proxy-to-pg"))
+        # Không có Warpgate và không khai proxy PAM thì không mở đường nào cho người vào CSDL.
+        self.assertFalse(tim(docs("--set", "warpgate.enabled=false"), "NetworkPolicy", "pam-proxy-to-pg"))
 
     def test_mo_duong_proxy_pam_khi_khai_cidr(self):
-        d = docs("--set-json", 'pam.proxyCIDRs=["192.0.2.0/28"]')
+        d = docs("--set-json", 'pam.proxyCIDRs=["192.0.2.0/28"]', "--set", "warpgate.enabled=false")
         self.assertEqual(len(tim(d, "NetworkPolicy", "pam-proxy-to-pg")), 2)
 
     def test_tu_choi_noi_hop_dong(self):
@@ -372,7 +373,7 @@ class SqlThat(unittest.TestCase):
         self.assertEqual(self.quet(), {
             ("cong-khai", "PUBLIC"),
             ("doc-truc-tiep", "alice"), ("doc-truc-tiep", "gina"), ("doc-truc-tiep", "nhom_x"),
-            ("thua-ke-dich-vu", "bob"), ("thua-ke-dich-vu", "bao_admin"), ("thua-ke-dich-vu", "ivan"),
+            ("thua-ke-dich-vu", "bob"), ("thua-ke-dich-vu", "bao_cu"), ("thua-ke-dich-vu", "ivan"),
             ("thua-ke-khac", "carol"),
             ("doc-toan-bo", "dave"),
             ("sieu-nguoi-dung", "erin"), ("sieu-nguoi-dung", "frank"),
@@ -421,13 +422,13 @@ class SqlThat(unittest.TestCase):
                    SCHEMAS="^(task|okr)$", DICH_VU="^(svc|ro|mig|cdc)_[a-z_]+$", DONG="^v-", PHA_KINH="dba_pha_kinh_doc",
                    DBA="dba_ops", HAN="2 hours 10 minutes", SIEU="postgres")
         subprocess.run(["sh", os.path.join(CHART, "files", "scripts", "quet-csdl.sh")], env=env, check=True, capture_output=True, text=True)
-        env.update(CUM="pg-thu", NGOAI_LE=json.dumps([{"vaiTro": "bao_admin", "denNgay": "2999-12-31"}]), NGAN_SACH="10")
+        env.update(CUM="pg-thu", NGOAI_LE=json.dumps([{"vaiTro": "bao_cu", "denNgay": "2999-12-31"}]), NGAN_SACH="10")
         env.pop("PUSHGATEWAY", None)
         ra = subprocess.run([sys.executable, "-I", os.path.join(CHART, "files", "scripts", "day_chi_so_csdl.py")], env=env,
                             check=True, capture_output=True, text=True).stdout
         self.assertIn('vt_pam_cua_sau_csdl{cluster="pg-thu",loai="doc-truc-tiep",vai_tro="alice"} 1', ra)
-        self.assertIn('vt_pam_ngoai_le_csdl{cluster="pg-thu",vai_tro="bao_admin"} 1', ra)
-        self.assertNotIn('loai="thua-ke-dich-vu",vai_tro="bao_admin"', ra)
+        self.assertIn('vt_pam_ngoai_le_csdl{cluster="pg-thu",vai_tro="bao_cu"} 1', ra)
+        self.assertNotIn('vai_tro="bao_admin"', ra)
         # CSDL postgres, template không cho nối bị bỏ; thu và postgres được quét.
         self.assertIn('vt_pam_quet_csdl_so_csdl{cluster="pg-thu"} 2', ra)
         su_kien = [json.loads(l) for l in ra.splitlines() if l.startswith("{")]

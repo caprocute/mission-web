@@ -14,8 +14,8 @@
 
 - **Tổng tiến độ đã gộp `main`**: **376 / 408 task (92.2%)** — Khối lượng quy đổi đã gộp: **449 / 492.5 đơn vị**.
 - **Tổng tiến độ tính cả các task đã xong chờ gộp**: **376 / 408 task (92.2%)** (gồm **376** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **15 task** (3 đang làm, 12 làm một phần).
-- **Chưa bắt đầu**: **17 task**.
+- **Đang thực hiện / Làm một phần**: **16 task** (3 đang làm, 13 làm một phần).
+- **Chưa bắt đầu**: **16 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **21 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: `VH-08`).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -27,12 +27,12 @@
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **117** | 0 | 0 | 0 | **100.0%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **104** | 0 | 0 | 0 | **100.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **13** | 0 | 0 | 0 | **100.0%** |
-| **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **20** | 0 | 7 | 1 | **71.4%** |
+| **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **20** | 0 | 8 | 0 | **71.4%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **5** | 0 | 3 | 8 | **31.2%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 2 | 8 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **7** | 0 | 2 | 0 | **77.8%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **376** | **0** | **15** | **17** | **92.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **376** | **0** | **16** | **16** | **92.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -43,7 +43,7 @@
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **120** | 0 | 0 | 0 | **100.0%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
-| **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **24** | 0 | 11 | 7 | **57.1%** |
+| **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **24** | 0 | 12 | 6 | **57.1%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **11** | 0 | 2 | 10 | **47.8%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **2** | 0 | 2 | 0 | **50.0%** |
 
@@ -542,7 +542,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DL-15](docs/tasks/DL-15-an-danh-hoa-phi-san-xuat.md) | Tác vụ ẩn danh hoá dữ liệu cho môi trường phi sản xuất (`anonymize`) | M | B11 | 14 | NEN-015, DL-08, NEN-005, NEN-006 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DL-16](docs/tasks/DL-16-ho-so-twd.md) | Hồ sơ TWĐ (giả lập theo UEB): Policy Pack điểm công việc, bảng hệ số, chuỗi xếp loại, ca vàng UEB, danh mục dự thảo số 25, chín quy tắc điểm nghẽn, tham số thẩm quyền và hạn | L | B11 | 19 | CORE-05-12, CORE-02-27, CORE-02-28, CORE-01-14, CORE-04-13, DV-07-03, DV-07-05 | **Đã gộp main** | Đã gộp main (6afcdf05) |
 
-### INF · Hạ tầng, CI/CD, bảo mật nền, quan sát, dự phòng (20/28 đã gộp `main`, 0 chờ gộp, 7 đang làm)
+### INF · Hạ tầng, CI/CD, bảo mật nền, quan sát, dự phòng (20/28 đã gộp `main`, 0 chờ gộp, 8 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -572,7 +572,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [INF-24](docs/tasks/INF-24-audit-archiver.md) | Dịch vụ `audit-archiver`: chuyển nhật ký kiểm toán sang kho lưu trữ bất biến theo thời hạn lưu giữ | M | B8 | 4 | INF-12, INF-19 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
 | [INF-25](docs/tasks/INF-25-bo-dieu-khien-suy-giam.md) | Bộ điều khiển suy giảm ba mức khi quá tải (tắt tính năng phụ, cắt tải theo ưu tiên) | M | B8 | 4 | DV-01-02, INF-15 | **Làm một phần** | Đã gộp phần repo; còn chạy thật trên dev/kind |
 | [INF-26](docs/tasks/INF-26-cong-cu-vtctl.md) | Công cụ vận hành `vtctl` cho các thao tác trong runbook (tenant, cell, khoá kỳ, phát lại sự kiện) | L | B8 | 9 | INF-04, DV-03-03 | **Làm một phần** | Đã gộp phần repo; còn chạy thật trên dev/kind |
-| [INF-27](docs/tasks/INF-27-quan-ly-truy-cap-dac-quyen.md) | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | B8 | 3 | INF-13 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần giải pháp PAM |
+| [INF-27](docs/tasks/INF-27-quan-ly-truy-cap-dac-quyen.md) | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | B8 | 3 | INF-13 | **Làm một phần** | Nhánh claude/b8-ha-tang-g7g48k: pam-integration (quét cửa sau, VAP binding có hạn, Warpgate 0.30), sửa thu hồi người dùng động OpenBao, bao_admin chỉ còn ADMIN, otel-siem transform/ecs-pam; kiểm thật trên PG16 và Warpgate; chờ chốt cách cấp quyền kubectl/psql qua Warpgate, chưa chạy kind |
 | [INF-28](docs/tasks/INF-28-cum-cho-am-ttdl-hai.md) | Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite | L | B8 | 9 | INF-11, INF-18, INF-20, INF-04, INF-08, INF-09, INF-17 | **Đang làm** | Giao sau phát hành |
 
 ### QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng (5/16 đã gộp `main`, 0 chờ gộp, 3 đang làm)
@@ -1032,4 +1032,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 13:50 | Điều phối (main) | `VH-04` | Chuyển trạng thái sang **Đã gộp main** — Gộp 17bda177; chưa chạy staging |
 | 23/10/2026 13:55 | B9 | `MOB-09` | Chuyển trạng thái sang **Làm một phần** — Máy chủ + giả lập gộp e40a8c1f; Flutter chờ MOB-01 |
 | 23/10/2026 13:58 | B7 | `MOB-02` | Chuyển trạng thái sang **Làm một phần** — Package ngoai_tuyen gộp c3063a30; tích hợp app chờ MOB-01 |
+| 23/10/2026 14:05 | Luồng B8 hạ tầng | `INF-27` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b8-ha-tang-g7g48k: pam-integration (quét cửa sau, VAP binding có hạn, Warpgate 0.30), sửa thu hồi người dùng động OpenBao, bao_admin chỉ còn ADMIN, otel-siem transform/ecs-pam; kiểm thật trên PG16 và Warpgate; chờ chốt cách cấp quyền kubectl/psql qua Warpgate, chưa chạy kind |
 <!-- PROGRESS_LOG_END -->
