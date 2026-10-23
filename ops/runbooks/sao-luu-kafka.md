@@ -13,6 +13,8 @@ Kiểm tra trạng thái ở cụm đích: `kubectl -n data-kafka get kafkamirro
 
 ## 2. Chuyển vùng (DR-10) và đảo chiều
 
+Cell có bản sao ấm hai TTDL (INF-28) đặt `mirrorMaker2.vaiTro: ttdl` trong `deploy/cells/<cell>/values-<site>.yaml`: chiều nhân bản, tên CR, bí danh và tài khoản suy từ `global.siteRole`, nên chuyển vùng có kế hoạch chỉ là commit đổi `primarySite` (ops/runbooks/ban-sao-am.md). Các bước dưới đây áp cho cell đặt `vaiTro` tay và cho sự cố mất hẳn Hoà Lạc (bước 1 vẫn phải làm: đặt `vaiTro: ""` ở cell phía Nam).
+
 1. Khi Hòa Lạc mất, dừng MM2 ở phía Nam bằng cách đặt `mirrorMaker2.vaiTro: ""` trong values của cell phía Nam rồi để Argo CD đồng bộ. MM2 không được chạy tiếp vì cụm nguồn không còn, và nếu Hòa Lạc sống lại giữa chừng thì MM2 sẽ đè dữ liệu cũ lên topic đang được phía Nam ghi mới.
 2. Nâng cấp cụm PostgreSQL phía Nam (QA-15, VH-02), chuyển lưu lượng, rồi phát lại outbox từ điểm an toàn theo mục 3.
 3. Khi Hòa Lạc dựng lại xong và trở thành bản dự phòng, đảo chiều nhân bản: ở cell phía Nam đặt `vaiTro: nguon` (tạo người dùng chỉ đọc cho MM2 phía kia); ở cell Hòa Lạc đặt `vaiTro: dich`, `ten: mm2-sn-to-hl`, `nguon.alias: sn`, `nguon.bootstrapServers` trỏ broker phía Nam, `dich.alias: hl`, và nạp CA cùng chứng thư khách của cụm phía Nam vào OpenBao `kv/cell-<mã>/kafka/mm2-nguon`. Không xoá các topic cũ ở Hòa Lạc trước khi MM2 mới chạy ổn định; MM2 sẽ bổ sung phần còn thiếu.

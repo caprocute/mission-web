@@ -22,14 +22,15 @@ spec:
         type: internal
         tls: true
         authentication: { type: tls }
-      {{- if $v.mirrorMaker.enabled }}
+      {{- $mm2 := fromYaml (include "kafka.mm2" $) }}
+      {{- if $mm2.lienTtdlMo }}
       # INF-28: listener liên TTDL cho MirrorMaker 2 (hai chiều để quay về, DR-16).
       - name: lienttdl
-        port: {{ $v.mirrorMaker.listener.port }}
-        type: {{ $v.mirrorMaker.listener.type }}
+        port: {{ $mm2.lienTtdl.port }}
+        type: {{ $mm2.lienTtdl.type }}
         tls: true
         authentication: { type: tls }
-        {{- with $v.mirrorMaker.listener.alternativeNames }}
+        {{- with $mm2.lienTtdl.alternativeNames }}
         configuration:
           bootstrap:
             alternativeNames: {{ toJson . }}

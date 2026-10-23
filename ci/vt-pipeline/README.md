@@ -127,7 +127,7 @@ từng loại nằm trong `CauHinhLoai.MAC_DINH`, tham số lạ hoặc ngưỡn
 | `vtGoPipeline` | govulncheck (chạy song song với gitleaks, Semgrep, Trivy fs, Dockerfile), `go vet`, độ phủ | `examples/go.Jenkinsfile` |
 | `vtPythonPipeline` | pip-audit với `--require-hashes`, pytest trong venv với `--cov-fail-under` | `examples/python.Jenkinsfile` |
 | `vtFlutterPipeline` | `flutter analyze`, kiểm thử và độ phủ lcov; bản phát hành Android và iOS chỉ trên `main`, SBOM và `cosign sign-blob` | `examples/flutter.Jenkinsfile` |
-| `vtHelmPipeline` | `kyverno test` và `kiem-ngoai-le.py`, `kiem-ba-mo-hinh.sh` (ba mô hình phân phối), ngân sách kết nối (INF-03); trên `main` đóng gói, `helm push`, ký chart | `examples/helm.Jenkinsfile`, `deploy/Jenkinsfile` |
+| `vtHelmPipeline` | cài Kyverno CLI và promtool đã ghim sha256 nếu ảnh chưa có (`resources/vn/vt/pipeline/cai-cong-cu-chart.sh`, gương qua `VT_CONG_CU_GUONG`), `kyverno test` và `kiem-ngoai-le.py`, `kiem-ba-mo-hinh.sh` (ba mô hình phân phối), các bộ kiểm thử chart trong `chartTests` (INF-28), ngân sách kết nối (INF-03); trên `main` đóng gói, `helm push`, ký chart | `examples/helm.Jenkinsfile`, `deploy/Jenkinsfile` |
 | `vtPolicyPackPipeline` | cú pháp quy tắc, kiểm thử đơn vị song song với ca mẫu vàng 100%; trên `main` kiểm chữ ký nghiệp vụ, đóng gói tất định, ký, chạy bóng, duyệt, gửi phát hành | `examples/policy-pack.Jenkinsfile`, `data/policy-pack/Jenkinsfile` |
 | `vtUiPackPipeline` | lược đồ, registry, an toàn, chế độ cao tuổi, CSS ≤ 30 KB gzip; axe-core; ảnh so sánh trên staging; ký; tải lên, gửi kiểm tra, duyệt, phát hành | `examples/ui-pack.Jenkinsfile` |
 

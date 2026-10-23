@@ -2,7 +2,7 @@
 Thành phần của vùng điều phối toàn cục (INF-20; TL-04 mục 2.6): mỗi thành phần một ApplicationSet, bộ sinh list theo
 TTDL (global-hl, global-sn chạy chủ động cả hai) ghép tệp digest của vùng. Values chồng: values của chart →
 deploy/environments/global/<thành phần>/values.yaml → values-<site>.yaml (tệp thiếu được bỏ qua) → site. Không có
-RollingSync: hai TTDL đồng bộ độc lập và cửa sổ đóng băng OPS-06 của AppProject vẫn áp dụng.
+RollingSync: hai TTDL đồng bộ độc lập; global.siteRole suy từ toanCuc.primarySite và cửa sổ đóng băng OPS-06 của AppProject vẫn áp dụng.
 */ -}}
 {{- $v := .Values }}
 {{- $g := $v.toanCuc }}
@@ -29,7 +29,7 @@ spec:
           - list:
               elements:
                 {{- range $g.sites }}
-                - { site: {{ . }} }
+                - { site: {{ . }}, primarySite: {{ $g.primarySite }} }
                 {{- end }}
           - git:
               repoURL: {{ $v.gitops.repoURL }}
@@ -57,6 +57,10 @@ spec:
             - '../../environments/global/{{ $a.name }}/values-{{ $L }} .site }}.yaml'
           valuesObject:
             site: '{{ $L }} .site }}'
+            # INF-28: vai trò TTDL cho thư viện nền và Job migration (chỉ chạy ở TTDL giữ primary của pg-registry).
+            global:
+              site: '{{ $L }} .site }}'
+              siteRole: '{{ $L }} if eq .site .primarySite }}primary{{ $L }} else }}standby{{ $L }} end }}'
           {{- with $a.params }}
           parameters:
             {{- range . }}

@@ -116,6 +116,7 @@ spec:
                 - { name: LECH_NGAY, value: {{ $r.lechNgay | quote }} }
                 - { name: LUI_GIAY, value: {{ $r.luiGiay | quote }} }
                 - { name: BUCKET, value: {{ include "bk.bucketPg" . | quote }} }
+                - { name: HAU_TO_SERVER, value: {{ include "bk.hauToServer" . | quote }} }
                 - { name: PLUGIN, value: {{ $v.pg.plugin | quote }} }
                 - { name: CRED_SECRET, value: {{ $v.pg.credentials.secretName | quote }} }
                 - { name: CA_SECRET, value: {{ ($v.khoSaoLuu.caBundle | default dict).secret | default "" | quote }} }
@@ -225,6 +226,7 @@ spec:
                 - { name: GIU_THANG, value: {{ $g.giuThang | quote }} }
                 - { name: GIU_NAM_NAM, value: {{ $g.giuNamNam | quote }} }
                 - { name: BUCKET, value: {{ include "bk.bucketPg" . | quote }} }
+                - { name: HAU_TO_SERVER, value: {{ include "bk.hauToServer" . | quote }} }
                 - { name: AWS_ACCESS_KEY_ID, valueFrom: { secretKeyRef: { name: {{ $v.pg.credentials.secretName }}, key: ACCESS_KEY_ID } } }
                 - { name: AWS_SECRET_ACCESS_KEY, valueFrom: { secretKeyRef: { name: {{ $v.pg.credentials.secretName }}, key: ACCESS_SECRET_KEY } } }
               resources:

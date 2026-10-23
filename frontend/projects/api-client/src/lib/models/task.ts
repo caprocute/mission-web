@@ -94,6 +94,8 @@ export interface TaskBlocker {
   resolveBy?: string;
   status: BlockerStatus;
   createdAt: string;
+  /** Phiên bản của điểm nghẽn, gửi trong `If-Match` khi người giao xử lý hoặc chuyển cấp trên. */
+  rowVersion?: number;
 }
 
 /** Báo điểm nghẽn: `/api/v1/tasks/{id}/blockers` (POST), EVT-21. */
@@ -104,6 +106,25 @@ export interface BlockerReport {
   impactLevel: ImpactLevel;
   /** Hạn mong muốn được xử lý (tuỳ chọn). */
   resolveBy?: string;
+}
+
+/**
+ * Người giao xử lý điểm nghẽn: `/api/v1/tasks/{id}/blockers/{bid}` (PATCH, JSON Merge Patch, If-Match theo
+ * phiên bản điểm nghẽn). Bảng chuyển `MO → DANG_XU_LY → DA_GIAI_QUYET → DONG`; giải quyết hoặc đóng khi còn
+ * mở phải có ghi chú kết quả.
+ */
+export interface BlockerPatch {
+  handlerPersonId?: string;
+  resolveBy?: string;
+  status?: BlockerStatus;
+  resolutionNote?: string;
+}
+
+/** Chuyển điểm nghẽn lên cấp trên: `/api/v1/tasks/{id}/blockers/{bid}/escalate` (POST, If-Match). */
+export interface BlockerEscalation {
+  note: string;
+  targetPersonId?: string;
+  targetUnitId?: string;
 }
 
 /**
@@ -157,6 +178,14 @@ export interface ChangeRequestDraft {
   causeClaimed: CauseKind;
   blockerId?: string;
   reason: string;
+}
+
+/** Quyết định đề nghị: `/api/v1/tasks/{id}/change-requests/{cid}/decision` (POST, Idempotency-Key). */
+export interface ChangeRequestDecision {
+  approve: boolean;
+  causeDecided: CauseKind;
+  /** Bắt buộc khi từ chối. */
+  note?: string;
 }
 
 /** Xem trước hệ quả với hệ số C (MSG-06-06): `/api/v1/tasks/{id}/change-requests/preview`. */
@@ -249,4 +278,16 @@ export interface TaskRegistration {
   quantity: number;
   proposedDueDate: string;
   note?: string;
+}
+
+/**
+ * Người quản lý trực tiếp quyết định nhiệm vụ đăng ký (QT-05 bước 1c):
+ * `/api/v1/tasks/{id}/registration-decision` (POST, If-Match); duyệt sang `DA_GIAO`, từ chối sang `HUY`.
+ */
+export interface TaskRegistrationDecision {
+  approve: boolean;
+  /** Bắt buộc khi từ chối. */
+  reason?: string;
+  dueDate?: string;
+  quantity?: number;
 }

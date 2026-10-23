@@ -1,10 +1,10 @@
 {{- /* MirrorMaker 2 một chiều (INF-18, TL-04 mục 8.3). vaiTro dich: CR KafkaMirrorMaker2 kéo từ cụm nguồn, KafkaUser
 của MM2 trên cụm đích (ghi topic nhân bản, topic nội bộ của MM2 và Connect, đặt offset nhóm tiêu thụ), Secret CA và
 chứng thư khách của cụm nguồn từ OpenBao, NetworkPolicy ra cụm nguồn. vaiTro nguon: KafkaUser chỉ đọc cho MM2 phía
-kia. offset-syncs ghi ở cụm đích để MM2 không cần quyền ghi trên cụm chủ động. */}}
+kia. offset-syncs ghi ở cụm đích để MM2 không cần quyền ghi trên cụm chủ động. vaiTro ttdl (INF-28) được kafka.mm2 giải
+thành nguon hoặc dich theo global.siteRole. */}}
 {{- $v := .Values }}
-{{- $m := $v.mirrorMaker2 }}
-{{- if not (has $m.vaiTro (list "" "nguon" "dich")) }}{{ fail (printf "kafka: mirrorMaker2.vaiTro %q không hợp lệ (nguon, dich)" $m.vaiTro) }}{{ end }}
+{{- $m := fromYaml (include "kafka.mm2" .) }}
 {{- if eq $m.vaiTro "nguon" }}
 ---
 apiVersion: kafka.strimzi.io/v1
@@ -148,6 +148,36 @@ spec:
           emit.checkpoints.interval.seconds: {{ $m.dongBoOffsetGiay }}
   resources:
     {{- toYaml $m.resources | nindent 4 }}
+  metricsConfig:
+    type: jmxPrometheusExporter
+    valueFrom:
+      configMapKeyRef: { name: mm2-metrics, key: metrics-config.yml }
+  template:
+    pod:
+      securityContext:
+        {{- toYaml $v.podSecurityContext | nindent 8 }}
+    connectContainer:
+      securityContext:
+        {{- toYaml $v.containerSecurityContext | nindent 8 }}
+---
+# Chỉ số độ trễ nhân bản cho cảnh báo của bản sao ấm (replication-latency-ms, record-age-ms của MirrorSourceConnector).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mm2-metrics
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+data:
+  metrics-config.yml: |
+    lowercaseOutputName: true
+    rules:
+      - pattern: 'kafka.connect.mirror<type=MirrorSourceConnector, target=(.+), topic=(.+), partition=([0-9]+)><>([a-z-]+)'
+        name: kafka_connect_mirror_source_connector_$4
+        labels: { target: "$1", topic: "$2", partition: "$3" }
+      - pattern: 'kafka.connect.mirror<type=MirrorCheckpointConnector, source=(.+), target=(.+), group=(.+), topic=(.+), partition=([0-9]+)><>([a-z-]+)'
+        name: kafka_connect_mirror_checkpoint_connector_$6
+        labels: { source: "$1", target: "$2", group: "$3", topic: "$4", partition: "$5" }
 ---
 # MM2 ra broker cụm đích (cùng namespace) và broker cụm nguồn ở TTDL kia.
 apiVersion: networking.k8s.io/v1
@@ -168,6 +198,10 @@ spec:
     {{- with $m.egressTo }}
     - to:
         {{- toYaml . | nindent 8 }}
-      ports: [{ port: 9093, protocol: TCP }]
+      ports: [{ port: {{ $m.nguonPort }}, protocol: TCP }]
     {{- end }}
+    # Kết nối nội bộ giữa các worker Connect của MirrorMaker 2 (REST 8083).
+    - to:
+        - podSelector: { matchLabels: { strimzi.io/cluster: {{ $m.ten }}, strimzi.io/kind: KafkaMirrorMaker2 } }
+      ports: [{ port: 8083, protocol: TCP }]
 {{- end }}

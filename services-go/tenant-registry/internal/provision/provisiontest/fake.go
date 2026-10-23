@@ -39,10 +39,20 @@ type Cell struct {
 	CalendarFails  int    // số lần đầu tạo lịch trả 503
 	CertReadyAfter int    // số lần GET Certificate trước khi Ready
 	PackGolden     float64
+	TreeDefault    bool // coi mọi tenant đã có cây tổ chức (bộ giả lập dev, cmd/provision-gia-lap)
+
+	handler http.Handler
 }
 
 // NewCell mở máy chủ giả.
 func NewCell() *Cell {
+	c := NewCellHandler()
+	c.Server = httptest.NewServer(c.handler)
+	return c
+}
+
+// NewCellHandler dựng hệ giả mà không mở máy chủ; người gọi tự phục vụ Handler() (bộ giả lập dev).
+func NewCellHandler() *Cell {
 	c := &Cell{DNS: map[string]string{}, Certs: map[string]int{}, Secrets: map[string]bool{}, Packs: map[uuid.UUID][]provision.PackState{},
 		UiPacks: map[uuid.UUID]bool{}, Calendars: map[uuid.UUID]int{}, Trees: map[uuid.UUID]bool{}, HighDisc: map[uuid.UUID]int{}, PackGolden: 100}
 	mux := http.NewServeMux()
@@ -70,9 +80,12 @@ func NewCell() *Cell {
 		writeJSON(w, 200, map[string]any{"status": "success", "data": map[string]any{"resultType": "vector",
 			"result": []any{map[string]any{"metric": map[string]string{}, "value": []any{1.7e9, fmt.Sprint(lag)}}}}})
 	})
-	c.Server = httptest.NewServer(c.record(mux))
+	c.handler = c.record(mux)
 	return c
 }
+
+// Handler trả bộ xử lý HTTP của hệ giả.
+func (c *Cell) Handler() http.Handler { return c.handler }
 
 // Close dừng máy chủ.
 func (c *Cell) Close() { c.Server.Close() }
@@ -298,7 +311,7 @@ func (c *Cell) tenantOf(r *http.Request) uuid.UUID {
 
 func (c *Cell) orgTree(w http.ResponseWriter, r *http.Request) {
 	c.mu.Lock()
-	ok := c.Trees[c.tenantOf(r)]
+	ok := c.TreeDefault || c.Trees[c.tenantOf(r)]
 	c.mu.Unlock()
 	roots := []any{}
 	if ok {

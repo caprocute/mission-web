@@ -50,6 +50,12 @@ pg:
   bucket: ""
   plugin: barman-cloud.cloudnative-pg.io
   credentials: { secretName: bk-sn-s3-pg, path: "" }   # path rỗng: kv/cell-<mã>/backup/pg
+  # INF-28: khi cell có replica cluster ở TTDL thứ hai, hai TTDL ghi chung bucket; TTDL initdbSite giữ serverName là
+  # tên cụm, TTDL kia dùng <cụm>-<ttdl> (data-pg replica.walArchive). Khôi phục thử và giữ dài hạn đọc bản của TTDL
+  # đang chạy job (global.site). Đặt cùng giá trị với data-pg.replica.
+  replica:
+    enabled: false
+    initdbSite: hl
 
 # Khôi phục thử hằng ngày (TL-04 bảng lịch sao lưu "Khôi phục thử hằng ngày một cụm luân phiên vào cụm cách ly",
 # OPS-18): mỗi ngày một cụm, chỉ số luân phiên = (số ngày từ 1970-01-01 + lechNgay) mod số cụm; lechNgay khác nhau

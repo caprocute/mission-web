@@ -15,7 +15,7 @@ import (
 )
 
 // DV-03-05: provisionConfigTenant, activateConfigTenant (config.yaml; QT-01 bước 4 và 9; SCR-0102);
-// INF-26: suspendConfigTenant (QT-01 DANG_VAN_HANH → TAM_NGUNG).
+// INF-26: suspendConfigTenant (QT-01 DANG_VAN_HANH → TAM_NGUNG); terminateConfigTenant (TAM_NGUNG → DA_CHAM_DUT).
 
 // provisionConfigTenant: POST /api/v1/config/tenants/{id}/provision → 202 + Location /api/v1/jobs/{id}.
 func (s *Server) provisionConfigTenant(w http.ResponseWriter, r *http.Request) {
@@ -143,6 +143,62 @@ func (s *Server) suspendConfigTenant(w http.ResponseWriter, r *http.Request) {
 	a := s.actor(r, p)
 	s.idempotentWrite(w, r, a, raw, modConfig, func(ctx context.Context, tx pgx.Tx) (*writeOut, error) {
 		v, err := s.Tenants.Suspend(ctx, tx, a, id, expected, reason)
+		if err != nil {
+			return nil, err
+		}
+		rv := v.RowVersion
+		return &writeOut{code: http.StatusOK, body: v, stored: v.WithoutC2(), etag: &rv}, nil
+	})
+}
+
+// terminateRequest là ConfigTenantTerminateRequest.
+type terminateRequest struct {
+	Reason      string `json:"reason"`
+	HandoverRef string `json:"handoverRef"`
+}
+
+// terminateConfigTenant: POST /api/v1/config/tenants/{id}/terminate (AAL2, Idempotency-Key, If-Match, lý do và
+// biên bản bàn giao bắt buộc; TAM_NGUNG → DA_CHAM_DUT).
+func (s *Server) terminateConfigTenant(w http.ResponseWriter, r *http.Request) {
+	p, ok := s.requireRole(w, r, true, auth.RolePlatformAdmin)
+	if !ok {
+		return
+	}
+	id, err := pathID(r)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	raw, err := httpx.ReadBody(r, "application/json")
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	var in terminateRequest
+	if err := httpx.DecodeStrict(raw, &in); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	reason, ref := strings.TrimSpace(in.Reason), strings.TrimSpace(in.HandoverRef)
+	var fe []problem.FieldError
+	if reason == "" || len([]rune(reason)) > 500 {
+		fe = append(fe, problem.FieldError{Field: "reason", Message: "Nhập lý do chấm dứt (tối đa 500 ký tự)"})
+	}
+	if ref == "" || len([]rune(ref)) > 200 {
+		fe = append(fe, problem.FieldError{Field: "handoverRef", Message: "Nhập số biên bản bàn giao dữ liệu (tối đa 200 ký tự)"})
+	}
+	if len(fe) > 0 {
+		s.fail(w, r, problem.Validation(fe...))
+		return
+	}
+	expected, err := httpx.IfMatch(r, modConfig)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	a := s.actor(r, p)
+	s.idempotentWrite(w, r, a, raw, modConfig, func(ctx context.Context, tx pgx.Tx) (*writeOut, error) {
+		v, err := s.Tenants.Terminate(ctx, tx, a, id, expected, reason, ref)
 		if err != nil {
 			return nil, err
 		}

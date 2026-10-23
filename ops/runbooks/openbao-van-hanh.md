@@ -31,7 +31,21 @@ Kiểm thử đầy đủ quy trình trên kind: `deploy/environments/kind/kiem-
 
 Nâng phiên bản OpenBao: StatefulSet dùng `OnDelete`. Xoá lần lượt từng pod standby, chờ pod mới mở khoá và vào Raft, cuối cùng `bao operator step-down` trên leader rồi xoá pod đó. Đổi ảnh luôn kèm đổi `seal.plugin.sha256` nếu plugin đổi.
 
-Thêm schema vào cụm PostgreSQL đã khởi tạo: khối SQL initdb của `data-pg` chỉ chạy lúc dựng cụm, nên với schema mới cần cấp ADMIN OPTION cho `bao_admin` bằng siêu người dùng: `kubectl cnpg psql <cụm> -n data-pg -- -c "GRANT svc_<schema> TO bao_admin WITH ADMIN TRUE, INHERIT TRUE, SET TRUE;"`, rồi thêm `svc_<schema>` vào `PG_CORE_SVC_ROLES` và chạy lại `cau-hinh.sh`.
+Thêm schema vào cụm PostgreSQL đã khởi tạo: khối SQL initdb của `data-pg` chỉ chạy lúc dựng cụm, nên với schema mới cần cấp ADMIN OPTION cho `bao_admin` bằng siêu người dùng: `kubectl cnpg psql <cụm> -n data-pg -- -c "GRANT svc_<schema> TO bao_admin WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;"`, rồi thêm `svc_<schema>` vào `PG_CORE_SVC_ROLES` và chạy lại `cau-hinh.sh`. Chỉ cấp ADMIN: `bao_admin` không được đọc bảng nghiệp vụ (SEC-58); quét `pam-quet-csdl` của pam-integration báo `thua-ke-dich-vu` nếu cấp kèm INHERIT hay SET.
+
+Chuyển cụm dựng trước 23/10/2026 sang mẫu quyền mới (INF-27 sửa INF-11, INF-13): khối initdb cũ cấp `svc_<schema>` cho `bao_admin` với `INHERIT TRUE, SET TRUE` và đặt `createrole_self_grant`, nên `bao_admin` đọc được bảng nghiệp vụ. Chạy bằng siêu người dùng (`kubectl cnpg psql <cụm> -n data-pg`), trong một giao dịch:
+
+```sql
+BEGIN;
+ALTER ROLE bao_admin RESET createrole_self_grant;
+ALTER ROLE bao_admin NOINHERIT;
+GRANT pg_signal_backend TO bao_admin WITH INHERIT TRUE;
+-- lặp cho từng svc_<schema> của cụm:
+GRANT svc_task TO bao_admin WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
+COMMIT;
+```
+
+Sau đó chạy lại `cau-hinh.sh` để ghi câu tạo và câu thu hồi mới của `pg-core-mission` (ngắt phiên rồi `DROP ROLE`, không còn `REASSIGN OWNED`, `DROP OWNED`). Người dùng động đã cấp trước vẫn có thành viên `bao_admin` kiểu cũ (tự cấp lúc tạo, `INHERIT TRUE, SET TRUE`); chúng hết hạn trong tối đa 72 giờ, hoặc thu hồi ngay bằng `bao lease revoke -prefix database/creds/pg-core-mission` (pod tự xin người dùng mới). Kiểm: `SELECT r.rolname, m.admin_option, m.inherit_option, m.set_option FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.roleid WHERE m.member = 'bao_admin'::regrole;` chỉ còn `pg_signal_backend` có `inherit_option = true`, mọi dòng khác `f`, `f`.
 
 Lộ mật khẩu CSDL động (DR-12): `bao lease revoke -prefix database/creds/pg-core-mission` thu hồi toàn bộ người dùng động; pod tự xin người dùng mới.
 

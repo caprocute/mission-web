@@ -275,6 +275,110 @@ describe('mock tasks – SCR-0601, SCR-0602 (WEB-031)', () => {
   });
 });
 
+describe('mock tasks – phần của người giao trên SCR-0601 (QA-05)', () => {
+  beforeEach(() => resetMockData());
+
+  it('xử lý điểm nghẽn theo bảng chuyển, kiểm If-Match của điểm nghẽn, bắt ghi kết quả', async () => {
+    const { api } = setup();
+    const t = await firstValueFrom(api.detail(ID_157));
+    const b = t.blockers[0];
+    const thieu = await statusOf(
+      firstValueFrom(api.handleBlocker(t, b, { status: 'DA_GIAI_QUYET' })),
+    );
+    expect(thieu.status).toBe(b.status === 'MO' ? 409 : 422);
+    const giao = await firstValueFrom(api.handleBlocker(t, b, { handlerPersonId: 'p-an' }));
+    expect(giao).toMatchObject({ status: 'DANG_XU_LY', handlerName: 'Nguyễn Văn An' });
+    expect(
+      (await statusOf(firstValueFrom(api.handleBlocker(t, b, { resolveBy: '2026-12-01' })))).status,
+    ).toBe(409);
+    expect(
+      (await statusOf(firstValueFrom(api.handleBlocker(t, giao, { status: 'DA_GIAI_QUYET' }))))
+        .status,
+    ).toBe(422);
+    const xong = await firstValueFrom(
+      api.handleBlocker(t, giao, { status: 'DA_GIAI_QUYET', resolutionNote: 'Đã có biểu mẫu mới' }),
+    );
+    expect(xong.status).toBe('DA_GIAI_QUYET');
+    expect((await firstValueFrom(api.detail(ID_157))).openBlockerCount).toBe(
+      t.openBlockerCount - 1,
+    );
+  });
+
+  it('báo cáo điểm nghẽn lên cấp trên cần người tiếp nhận và nội dung từ 5 ký tự', async () => {
+    const { api } = setup();
+    const t = await firstValueFrom(api.detail(ID_157));
+    const b = t.blockers[0];
+    expect(
+      (await statusOf(firstValueFrom(api.escalateBlocker(t, b, { note: 'Cần' })))).status,
+    ).toBe(422);
+    const u = await firstValueFrom(
+      api.escalateBlocker(t, b, { note: 'Đề nghị Trưởng ban chỉ đạo', targetPersonId: 'p-dung' }),
+    );
+    expect(u).toMatchObject({ status: 'DANG_XU_LY', handlerName: 'Hoàng Văn Dũng' });
+  });
+
+  it('duyệt đề nghị gia hạn đổi hạn; từ chối phải có lý do', async () => {
+    const { api } = setup();
+    const t = await firstValueFrom(api.detail(ID_157));
+    const due = new Date(Date.parse(t.dueDate) + 7 * 86_400_000).toISOString().slice(0, 10);
+    const u = await firstValueFrom(
+      api.submitChangeRequest(t, {
+        type: 'GIA_HAN',
+        newDueDate: due,
+        causeClaimed: 'KHACH_QUAN',
+        reason: '4 hồ sơ chờ kết quả thẩm tra lý lịch từ địa phương',
+      }),
+    );
+    const cr = u.changeRequests[0];
+    expect(
+      (
+        await statusOf(
+          firstValueFrom(
+            api.decideChangeRequest(u, cr.id, { approve: false, causeDecided: 'CHU_QUAN' }),
+          ),
+        )
+      ).status,
+    ).toBe(422);
+    const d = await firstValueFrom(
+      api.decideChangeRequest(u, cr.id, { approve: true, causeDecided: 'KHACH_QUAN' }),
+    );
+    expect(d.dueDate).toBe(due);
+    expect(d.scoreDueDate).toBe(due);
+    expect(d.changeRequests[0]).toMatchObject({ status: 'DA_DUYET', causeDecided: 'KHACH_QUAN' });
+    expect(
+      (
+        await statusOf(
+          firstValueFrom(
+            api.decideChangeRequest(d, cr.id, { approve: true, causeDecided: 'KHACH_QUAN' }),
+          ),
+        )
+      ).status,
+    ).toBe(409);
+  });
+
+  it('duyệt nhiệm vụ đăng ký sang Đã giao; từ chối sang Huỷ kèm lý do', async () => {
+    const { api, catalog } = setup();
+    const items = await firstValueFrom(catalog.items({ applicableToMe: true }));
+    const ci = items.items.find((i) => i.code === 'TC-DV-05')!;
+    const due = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
+    const reg = () =>
+      firstValueFrom(api.register({ catalogItemId: ci.id, quantity: 2, proposedDueDate: due }));
+    const a = await firstValueFrom(api.detail((await reg()).id));
+    const ok = await firstValueFrom(
+      api.decideRegistration(a, { approve: true, dueDate: due, quantity: 3 }),
+    );
+    expect(ok).toMatchObject({ status: 'DA_GIAO', plannedQuantity: 3 });
+    const b = await firstValueFrom(api.detail((await reg()).id));
+    expect(
+      (await statusOf(firstValueFrom(api.decideRegistration(b, { approve: false })))).status,
+    ).toBe(422);
+    const no = await firstValueFrom(
+      api.decideRegistration(b, { approve: false, reason: 'Đã có cán bộ khác đảm nhận' }),
+    );
+    expect(no.status).toBe('HUY');
+  });
+});
+
 describe('mock tasks – SCR-0501 Giao việc (WEB-028)', () => {
   const ref = (items: AssignCheckItem[], rule: string) => items.filter((i) => i.rule === rule);
 

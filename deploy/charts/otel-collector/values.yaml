@@ -90,6 +90,9 @@ siem:
     enabled: true
     port: 6514
     sourceCIDRs: []
+    # PAM chạy trong cụm: Warpgate của chart pam-integration (namespace pam), sidecar cầu nối gửi syslog TLS.
+    clientPods:
+      - { namespace: pam, name: warpgate }
   # Chặng ra SOC (namespace egress): đọc sys.siem.v1 và ghi sang Kafka của SOC bằng mTLS; chỉ cell đi ra, SOC không
   # kết nối vào. Địa chỉ Kafka của SOC là giá trị của môi trường, để trống thì không dựng.
   soc:

@@ -3,7 +3,7 @@
 # PostgreSQL của cell theo luân phiên, dựng cụm CNPG tạm trong namespace cách ly từ bản nền mới nhất cộng WAL tới
 # LUI_GIAY trước (plugin Barman Cloud, ObjectStore chỉ đọc trỏ cùng đường dẫn của cụm gốc), chạy truy vấn kiểm trên
 # mọi CSDL, đẩy backup_restore_check_success và backup_restore_duration_seconds, rồi xoá cụm tạm.
-# Biến môi trường: NS, CUMS ("<cụm>:<namespace> …"), LECH_NGAY, LUI_GIAY, BUCKET, PLUGIN, CRED_SECRET, CA_SECRET,
+# Biến môi trường: NS, CUMS ("<cụm>:<namespace> …"), HAU_TO_SERVER (INF-28, "" hoặc -<ttdl>), LECH_NGAY, LUI_GIAY, BUCKET, PLUGIN, CRED_SECRET, CA_SECRET,
 # CA_KEY, IMAGE_PG, STORAGE_CLASS, KICH_THUOC ("<cụm>=<dung lượng> …"), CHO_GIAY, KIEM_FK, NGUONG_DONG, TI_LE,
 # SO_CAI ("<cụm>=<CSDL> …"), RESOURCES, NODE_SELECTOR, TOLERATIONS (JSON), S3_ENDPOINT, PUSHGATEWAY, CELL.
 set -euo pipefail
@@ -97,7 +97,7 @@ spec:
         name: $PLUGIN
         parameters:
           barmanObjectName: $kho
-          serverName: $ten
+          serverName: $ten${HAU_TO_SERVER:-}
 YAML
 
 # Chờ cụm tạm sẵn sàng; Job khôi phục của CNPG thất bại (bản nền hỏng, thiếu WAL) thì dừng sớm.
