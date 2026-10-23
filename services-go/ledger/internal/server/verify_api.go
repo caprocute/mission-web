@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"mission/services-go/ledger/internal/auth"
+	"mission/services-go/ledger/internal/export"
 	"mission/services-go/ledger/internal/verify"
 	"vn.viettel.okrkpi/services-go/vtplatform/otel"
 	"vn.viettel.okrkpi/services-go/vtplatform/problem"
@@ -24,13 +25,15 @@ type Auditor interface {
 // API kiểm tra toàn vẹn (oversight.yaml: listLedgerVerifyRuns, createLedgerVerifyRun, getLedgerVerifyRun) và
 // GET /api/v1/jobs/{id} cho tác vụ dài của ledger-service.
 func (s *Server) registerVerifyRoutes() {
+	if s.deps.Auth != nil && (s.deps.Verify != nil || s.deps.Export != nil) {
+		s.mux.HandleFunc("GET /api/v1/jobs/{id}", s.authed(nil, s.getJob))
+	}
 	if s.deps.Verify == nil || s.deps.Auth == nil {
 		return
 	}
 	s.mux.HandleFunc("POST /api/v1/ledger/verify-runs", s.authed([]string{auth.RoleInspector}, s.createVerifyRun))
 	s.mux.HandleFunc("GET /api/v1/ledger/verify-runs", s.authed([]string{auth.RoleInspector, auth.RoleAppraiser}, s.listVerifyRuns))
 	s.mux.HandleFunc("GET /api/v1/ledger/verify-runs/{id}", s.authed([]string{auth.RoleInspector, auth.RoleAppraiser}, s.getVerifyRun))
-	s.mux.HandleFunc("GET /api/v1/jobs/{id}", s.authed(nil, s.getJob))
 }
 
 type caller struct {
@@ -209,21 +212,38 @@ func (s *Server) listVerifyRuns(w http.ResponseWriter, r *http.Request, c caller
 	writeJSON(w, http.StatusOK, map[string]any{"items": items, "nextCursor": nc})
 }
 
-// getJob: chỉ người khởi tạo xem được; người khác (và lần chạy theo lịch) nhận 404 (jobs.yaml).
+// getJob: chỉ người khởi tạo xem được; người khác (và lần chạy theo lịch) nhận 404 (jobs.yaml). Mã Job là mã lần
+// kiểm tra toàn vẹn hoặc mã tác vụ xuất.
 func (s *Server) getJob(w http.ResponseWriter, r *http.Request, c caller) {
 	id, err := uuid.Parse(r.PathValue("id"))
-	var run *verify.Run
-	if err == nil {
-		run, err = s.deps.Verify.Get(r.Context(), c.tenant, id)
-	}
-	if err != nil || run.RequestedBy == nil || c.actor == nil || *run.RequestedBy != *c.actor {
-		problem.Write(w, problem.NotFound("", r.URL.Path, otel.TraceIDFromContext(r.Context())))
+	notFound := func() { problem.Write(w, problem.NotFound("", r.URL.Path, otel.TraceIDFromContext(r.Context()))) }
+	if err != nil || c.actor == nil {
+		notFound()
 		return
 	}
-	if run.Status == verify.StatusPending || run.Status == verify.StatusRunning {
-		w.Header().Set("Retry-After", "2")
+	if s.deps.Verify != nil {
+		if run, err := s.deps.Verify.Get(r.Context(), c.tenant, id); err == nil {
+			if run.RequestedBy == nil || *run.RequestedBy != *c.actor {
+				notFound()
+				return
+			}
+			if run.Status == verify.StatusPending || run.Status == verify.StatusRunning {
+				w.Header().Set("Retry-After", "2")
+			}
+			writeJSON(w, http.StatusOK, jobView(run))
+			return
+		}
 	}
-	writeJSON(w, http.StatusOK, jobView(run))
+	if s.deps.Export != nil {
+		if j, err := s.deps.Export.Get(r.Context(), c.tenant, id); err == nil && j.RequestedBy == *c.actor {
+			if j.Status == export.StatusPending || j.Status == export.StatusRunning {
+				w.Header().Set("Retry-After", "2")
+			}
+			writeJSON(w, http.StatusOK, s.exportJobView(r, j))
+			return
+		}
+	}
+	notFound()
 }
 
 func jobView(run *verify.Run) map[string]any {

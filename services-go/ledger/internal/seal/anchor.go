@@ -30,22 +30,6 @@ var anchorTargets = map[string]bool{AnchorOtherCell: true, AnchorArchive: true, 
 // ErrNoSealForDay: trong ngày chưa có niêm phong cell nào.
 var ErrNoSealForDay = errors.New("seal: ngày chưa có niêm phong cell để neo")
 
-// AnchorDocument là bản neo của một ngày: gốc cell cuối ngày kèm chữ ký và token TSA, đủ để bên nhận
-// kiểm độc lập (TL-01 "Niêm phong Merkle, dấu thời gian và bản neo").
-type AnchorDocument struct {
-	Day              string    `json:"day"`
-	CellCode         string    `json:"cellCode"`
-	CellSealID       uuid.UUID `json:"cellSealId"`
-	WindowStart      time.Time `json:"windowStart"`
-	WindowEnd        time.Time `json:"windowEnd"`
-	CellRoot         string    `json:"cellRoot"`
-	PrevCellRoot     string    `json:"prevCellRoot"`
-	SignerKeyID      string    `json:"signerKeyId"`
-	Signature        string    `json:"signature"`
-	SignerCertSHA256 string    `json:"signerCertSha256"`
-	TSAToken         string    `json:"tsaToken"`
-}
-
 // ObjectLockStore ghi bản neo vào bucket có Object Lock (đích OBJECT_LOCK do ledger ghi trực tiếp; bucket
 // thuộc INF-12) và trả biên nhận.
 type ObjectLockStore interface {

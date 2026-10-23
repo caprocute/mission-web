@@ -31,6 +31,9 @@ type Config struct {
 	SealPeriodEnds []time.Time
 	SealGrace      time.Duration
 	AnchorDir      string
+	// ExportDir, ExportURLBase: nơi lưu gói bằng chứng và tiền tố đường dẫn tải về (DV-09-05).
+	ExportDir     string
+	ExportURLBase string
 	// Xác thực API kiểm tra toàn vẹn (Keycloak JWKS, DV-09-04); rỗng thì không mở API.
 	JWKSURL      string
 	Issuers      []string
@@ -147,6 +150,8 @@ func Load() (*Config, error) {
 		SealPeriodEnds:        periodEnds,
 		SealGrace:             sealGrace,
 		AnchorDir:             strings.TrimSpace(os.Getenv("ANCHOR_DIR")),
+		ExportDir:             strings.TrimSpace(os.Getenv("EXPORT_DIR")),
+		ExportURLBase:         strings.TrimSpace(os.Getenv("EXPORT_URL_BASE")),
 		JWKSURL:               jwksURL,
 		Issuers:               issuers,
 		Audience:              strings.TrimSpace(os.Getenv("OIDC_AUDIENCE")),

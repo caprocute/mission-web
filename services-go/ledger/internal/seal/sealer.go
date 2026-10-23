@@ -47,14 +47,6 @@ var sealCodec = func() *goavro.Codec {
 // ErrTSAUnavailable: TSA không cấp được token; cửa sổ chưa ghi và sẽ được gộp vào lần sau.
 var ErrTSAUnavailable = errors.New("seal: TSA chưa cấp dấu thời gian, cửa sổ gộp vào lần niêm phong sau")
 
-// ChainRange là khoảng seq_no mới của một chuỗi trong cửa sổ.
-type ChainRange struct {
-	Partition int16  `json:"p"`
-	From      int64  `json:"from"`
-	To        int64  `json:"to"`
-	Tip       string `json:"tip"`
-}
-
 // TenantSeal là niêm phong mức tenant của một cửa sổ.
 type TenantSeal struct {
 	ID        uuid.UUID
@@ -230,20 +222,6 @@ func (s *Sealer) pending(ctx context.Context, t uuid.UUID, windowEnd time.Time) 
 		return rows.Err()
 	})
 	return ranges, total, oldest, err
-}
-
-// TenantRoot là gốc cây mức tenant: lá là SHA-256(0x01 || entry_hash cuối) của từng chuỗi có bản ghi
-// mới, sắp theo chain_partition.
-func TenantRoot(ranges []ChainRange) ([32]byte, error) {
-	leaves := make([][32]byte, 0, len(ranges))
-	for _, r := range ranges {
-		tip, err := hex.DecodeString(r.Tip)
-		if err != nil || len(tip) != 32 {
-			return [32]byte{}, fmt.Errorf("seal: entry_hash cuối của chuỗi %d không hợp lệ", r.Partition)
-		}
-		leaves = append(leaves, Leaf(tip))
-	}
-	return Root(leaves)
 }
 
 // SealWindow niêm phong mọi bản ghi ghi trước windowEnd chưa được niêm phong. Cửa sổ bắt đầu ở cuối lần

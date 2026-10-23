@@ -1,7 +1,8 @@
-// Package seal hiện thực niêm phong Merkle hai mức của SVC-09 (DV-09-03, TL-03 "Niêm phong Merkle và
-// dấu thời gian", ADR-26): cây mức tenant có lá là entry_hash cuối của từng chuỗi có bản ghi mới, cây
-// mức cell có lá là gốc các tenant; gốc cell được ký một lần và lấy dấu thời gian RFC 3161 một lần.
-package seal
+// Package proof gom phần thuần tính toán của niêm phong Merkle hai mức (DV-09-03, TL-03 "Niêm phong Merkle và
+// dấu thời gian", ADR-26): cây Merkle, gốc tenant từ đầu chuỗi, thông điệp ký, kiểm chữ ký và token RFC 3161,
+// bản neo. Package không phụ thuộc CSDL hay mạng để công cụ ledger-verify dùng được ngoại tuyến (DV-09-05);
+// package seal dùng lại qua bí danh.
+package proof
 
 import (
 	"bytes"
@@ -42,7 +43,7 @@ func split(n int) int {
 // Root là gốc cây của các lá đã băm (Leaf). Cây rỗng không có gốc.
 func Root(leaves [][32]byte) ([32]byte, error) {
 	if len(leaves) == 0 {
-		return [32]byte{}, errors.New("seal: cây Merkle rỗng")
+		return [32]byte{}, errors.New("proof: cây Merkle rỗng")
 	}
 	return root(leaves), nil
 }
@@ -64,7 +65,7 @@ type Step struct {
 // Path là đường đi từ lá thứ i tới gốc, từ dưới lên.
 func Path(leaves [][32]byte, i int) ([]Step, error) {
 	if i < 0 || i >= len(leaves) {
-		return nil, errors.New("seal: vị trí lá ngoài cây")
+		return nil, errors.New("proof: vị trí lá ngoài cây")
 	}
 	return path(leaves, i), nil
 }

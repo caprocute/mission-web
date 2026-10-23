@@ -45,3 +45,4 @@ env:
   SEAL_GRACE: "5s"
   # Bộ chuyển tiếp topic nghiệp vụ → sys.ledger.append.v1 (nhóm ledger-forwarder); FORWARD_TOPICS rỗng là cả danh mục.
   FORWARD_ENABLED: "true"
+  # Gói bằng chứng (DV-09-05): API xuất chỉ mở khi đặt EXPORT_DIR (dev); production cần kho đối tượng, chưa nối.

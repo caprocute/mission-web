@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"mission/services-go/ledger/internal/auth"
+	"mission/services-go/ledger/internal/export"
 	"mission/services-go/ledger/internal/lookup"
 	"mission/services-go/ledger/internal/verify"
 
@@ -40,7 +41,9 @@ type Deps struct {
 	Gauges    func() map[string]float64
 	Verify    *verify.Service
 	// Lookup phục vụ API tra cứu sổ cái (DV-09-05); thiếu thì không mở tuyến.
-	Lookup  *lookup.Service
+	Lookup *lookup.Service
+	// Export phục vụ API xuất gói bằng chứng (DV-09-05).
+	Export  *export.Service
 	Auth    auth.Verifier
 	Auditor Auditor
 }
@@ -67,6 +70,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /metrics", s.handleMetrics)
 	s.registerVerifyRoutes()
 	s.registerLedgerRoutes()
+	s.registerExportRoutes()
 	s.mux.HandleFunc("/", s.handleNotFound)
 }
 

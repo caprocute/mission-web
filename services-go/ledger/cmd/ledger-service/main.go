@@ -18,6 +18,7 @@ import (
 
 	"mission/services-go/ledger/internal/auth"
 	"mission/services-go/ledger/internal/config"
+	"mission/services-go/ledger/internal/export"
 	"mission/services-go/ledger/internal/forward"
 	"mission/services-go/ledger/internal/ingest"
 	"mission/services-go/ledger/internal/lookup"
@@ -127,6 +128,7 @@ func main() {
 		Engine: &verify.Engine{Pool: pool, Workers: cfg.VerifyWorker, Certs: sealCerts}}
 	verifySched := &verify.Scheduler{Service: verifier}
 	var lastSeal func() int64
+	var exporter *export.Service
 	if cfg.SealEnabled {
 		sealer, anchorer, err := sealers()
 		if err != nil {
@@ -137,6 +139,13 @@ func main() {
 		lastSeal = sealer.LastSealed
 		go func() { _ = sealer.Run(ctx, *sealer.Schedule, cfg.SealGrace) }()
 		go anchorer.Run(ctx, func(msg string, args ...any) { log.Error(msg, args...) })
+		// Gói bằng chứng ký bằng khoá của ledger-service; ở dev dùng chính khoá niêm phong trong tiến trình.
+		if ks, ok := sealer.Signer.(*seal.KeySigner); ok && cfg.ExportDir != "" {
+			exporter = &export.Service{Pool: roPool, Cell: cfg.CellCode, Signer: export.SignerOf(ks), Certs: sealCerts, Log: log,
+				Store: export.DirStore{Dir: cfg.ExportDir, URLBase: cfg.ExportURLBase}}
+		} else {
+			log.Warn("chưa có khoá ký trong tiến trình hoặc EXPORT_DIR, API xuất bằng chứng chưa mở")
+		}
 	}
 	go verifySched.Run(ctx)
 
@@ -148,6 +157,7 @@ func main() {
 		Stats:        ing.Stats,
 		Verify:       verifier,
 		Lookup:       &lookup.Service{Pool: roPool, Certs: sealCerts},
+		Export:       exporter,
 		Auditor:      ing,
 		Lag:          ing.LagHistogram,
 		LagBounds:    ingest.LagBounds,

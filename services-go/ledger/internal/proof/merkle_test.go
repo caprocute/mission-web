@@ -1,4 +1,4 @@
-package seal
+package proof
 
 import (
 	"crypto/sha256"

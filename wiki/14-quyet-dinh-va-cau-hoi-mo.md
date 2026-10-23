@@ -1501,6 +1501,17 @@ Mã ở `services-go/ledger/internal/lookup` và `internal/server/ledger_api.go`
 5. **`actor.name` để rỗng.** Sổ cái chỉ giữ mã người thực hiện, nên giao diện (WEB-043) phải tra tên theo mã. `metadata` trả nguyên dạng đã lưu, vì luồng ghi đã chặn khoá C2 ngay khi ghi.
 6. **Tra cứu đọc qua pool chỉ đọc (`READONLY_DATABASE_URL`, mặc định bằng pool chính).** Mỗi lần tra cứu, xem chi tiết hay lấy bằng chứng đều ghi một sự kiện `sys.audit.v1` vào sổ cái.
 
+### Ghi chú và quyết định từ gói bằng chứng và `ledger-verify` (DV-09-05 phần b, 23/10/2026)
+
+Mã ở `services-go/ledger/internal/bundle` (định dạng gói, kiểm chứng), `internal/export` (tác vụ xuất), `internal/proof` (phần thuần tính toán tách khỏi `seal`), `cmd/ledger-verify` (kèm README công bố); migration `V6__ledger_export_job.sql`; gói mẫu ở `data/golden/ledger-canon/ledger-verify/`.
+
+1. **Định dạng gói `mission-ledger-bundle/1` (suy luận).** TL-01 chỉ kể thành phần của gói. Gói là tệp tar gồm `manifest.json`, `manifest.sig`, `entries.json`, `seals.json`, `anchors.json`, `verify-run.json` và `certs/*.pem`, các tệp JSON đều chuẩn hoá RFC 8785. Kê khai ghi SHA-256 của từng tệp và được ký ECDSA bằng khoá của ledger-service; ở dev, khoá ký là khoá niêm phong trong tiến trình. Đặc tả đầy đủ nằm trong `cmd/ledger-verify/README.md`.
+2. **Gói chỉ chứa bản ghi đã niêm phong.** Với mỗi bản ghi trong phạm vi, gói có đoạn chuỗi từ bản ghi đó tới đầu chuỗi của lần niêm phong chứa nó, theo TL-01 "bằng chứng bao hàm", và các đoạn chồng nhau được gộp lại. Bản ghi ngoài phạm vi chỉ có mặt để nối chuỗi và không mang `metadata`. Số bản ghi chưa niêm phong được ghi ở kê khai.
+3. **Bảng `ledger.export_job` mới (suy luận).** TL-03 không có bảng cho tác vụ xuất, nên V6 thêm bảng này với RLS theo tenant, Idempotency-Key và băm thân yêu cầu. `/api/v1/jobs/{id}` tra cả lần kiểm tra toàn vẹn lẫn tác vụ xuất (`type: EXPORT`, `message` là MSG-13-07, `resultLocation` là đường dẫn tải gói).
+4. **Kho lưu gói ở production chưa nối.** Hiện chỉ có `DirStore` cho dev (`EXPORT_DIR`, `EXPORT_URL_BASE`), và API xuất chỉ mở khi có khoá ký trong tiến trình cùng `EXPORT_DIR`. Production cần bucket kho đối tượng có URL tải có hạn (do INF cấp) và khoá ký gói qua HSM, nên Helm chưa đặt `EXPORT_DIR`. Bộ máy dựng gói hiện giữ toàn bộ phạm vi trong bộ nhớ; với phạm vi cả tenant trong 2 năm, cần chuyển sang ghi theo luồng (suy luận, chưa đo theo YC-PT-19).
+5. **Rủi ro thiết kế: `metadata` không nằm trong `metadata_hash`.** TL-03 tính `metadata_hash` trên tenant, chuỗi, `seq_no`, loại sự kiện, đối tượng, người thực hiện và hai mốc thời gian, không gồm cột `metadata` (trạng thái trước, sau). Vì vậy sửa cột này không phá chuỗi, và cả ledger-verify lẫn kiểm tra toàn vẹn đều không phát hiện được. Đổi công thức sẽ làm hỏng các chuỗi đã ghi, nên cần người phụ trách thiết kế quyết định.
+6. **`ledger-verify` không phụ thuộc CSDL.** Phần cây Merkle, gốc tenant, thông điệp ký, kiểm token RFC 3161 và bản neo được chuyển sang package `proof`; `seal` dùng lại qua bí danh. Tệp chạy tĩnh chỉ phụ thuộc `digitorus/timestamp`, `digitorus/pkcs7`, `x/text` và `uuid`, đã dựng được cho Linux và Windows, và đã chạy được trong không gian mạng không có giao diện mạng nào.
+
 ### Ghi chú và quyết định từ bộ chuyển tiếp sang sổ cái (DV-09-02 bổ sung, 23/10/2026)
 
 Mã ở `services-go/ledger/internal/forward`. Phần này lấp điều kiện (a) của R2 ở mục DL-12d.
