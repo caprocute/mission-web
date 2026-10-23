@@ -13,8 +13,8 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **359 / 408 task (88.0%)** — Khối lượng quy đổi đã gộp: **426 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **359 / 408 task (88.0%)** (gồm **359** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **7 task** (5 đang làm, 2 làm một phần).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **360 / 408 task (88.2%)** (gồm **359** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **6 task** (4 đang làm, 2 làm một phần).
 - **Chưa bắt đầu**: **42 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
@@ -28,11 +28,11 @@
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **104** | 0 | 0 | 0 | **100.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **13** | 0 | 0 | 0 | **100.0%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 3 | 9 | **57.1%** |
-| **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 2 | 14 | **0.0%** |
+| **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 1 | 1 | 14 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **359** | **0** | **7** | **42** | **88.0%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **359** | **1** | **6** | **42** | **88.0%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -43,7 +43,7 @@
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **119** | 0 | 1 | 0 | **99.2%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
-| **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **16** | 0 | 6 | 20 | **38.1%** |
+| **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **16** | 1 | 5 | 20 | **38.1%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **4** | 0 | 0 | 19 | **17.4%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **1** | 0 | 0 | 3 | **25.0%** |
 
@@ -575,11 +575,11 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [INF-27](docs/tasks/INF-27-quan-ly-truy-cap-dac-quyen.md) | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | B8 | 3 | INF-13 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần giải pháp PAM |
 | [INF-28](docs/tasks/INF-28-cum-cho-am-ttdl-hai.md) | Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite | L | B8 | 9 | INF-11, INF-18, INF-20, INF-04, INF-08, INF-09, INF-17 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần TTDL thứ hai |
 
-### QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng (0/16 đã gộp `main`, 0 chờ gộp, 2 đang làm)
+### QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng (0/16 đã gộp `main`, 1 chờ gộp, 1 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
-| [QA-01](docs/tasks/QA-01-chien-luoc-kiem-thu.md) | Chiến lược kiểm thử toàn hệ thống và danh mục khoảng 40 hành trình đầu cuối | S | B9 | 1 | – | **Đang làm** | Giao sau bản phát hành 64952ef6 |
+| [QA-01](docs/tasks/QA-01-chien-luoc-kiem-thu.md) | Chiến lược kiểm thử toàn hệ thống và danh mục khoảng 40 hành trình đầu cuối | S | B9 | 1 | – | **Xong, chờ gộp** | Nhánh claude/project-thread-uusb7v: chiến lược kiểm thử trong wiki 11, danh mục 42 hành trình (38 web, 4 di động) đã kiểm khớp hợp đồng |
 | [QA-02](docs/tasks/QA-02-pact-hop-dong.md) | Pact Broker và kiểm thử hợp đồng frontend với API, service với service | M | B9 | 4 | NEN-006, INF-05 | **Chưa bắt đầu** |  |
 | [QA-03](docs/tasks/QA-03-e2e-he-thong-that.md) | Bộ kiểm thử đầu cuối với hệ thống thật trên server dev (backend thật, Keycloak, APISIX) | M | B9 | 11 | INF-22, QA-01 | **Đang làm** | Giao sau bản phát hành 64952ef6 |
 | [QA-04](docs/tasks/QA-04-hanh-trinh-okr.md) | Hành trình đầu cuối: đăng nhập, khởi tạo tenant, tổ chức, OKR, check-in | M | B9 | 14 | QA-03, CORE-01-08, DV-03-05 | **Chưa bắt đầu** |  |
@@ -1001,4 +1001,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 08:50 | Điều phối (main) | `WEB-020`, `CORE-02-16`, `CORE-03-08`, `CORE-06-08`, `CORE-07-09`, `DV-01-01`, `DV-01-02`, `DV-01-03`, `DV-01-04`, `DV-02-04`, `DV-06-09`, `DV-06-10`, `DV-06-11`, `DV-06-12`, `DV-10-03`, `DV-10-04`, `DV-10-05`, `DV-10-06`, `DV-13-04`, `DV-13-07`, `DV-13-09`, `DV-13-10`, `DV-13-11`, `DV-15-11`, `CORE-05-11`, `DV-09-02` | Chuyển trạng thái sang **Đã gộp main** — Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
 | 23/10/2026 08:50 | Điều phối (main) | `WEB-070`, `WEB-071`, `WEB-072` | Chuyển trạng thái sang **Đã gộp main** — Đợt gộp 11; còn ngoại lệ: chạy với backend thật chờ QA-03 |
 | 23/10/2026 10:52 | Điều phối (main) | `INF-22`, `QA-01`, `QA-03`, `INF-24`, `INF-26` | Chuyển trạng thái sang **Đang làm** — Giao sau bản phát hành 64952ef6 |
+| 23/10/2026 10:53 | B4 | `QA-01` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-uusb7v: đang thực hiện |
+| 23/10/2026 11:00 | B4 | `QA-01` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: chiến lược kiểm thử trong wiki 11, danh mục 42 hành trình (38 web, 4 di động) đã kiểm khớp hợp đồng |
 <!-- PROGRESS_LOG_END -->
