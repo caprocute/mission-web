@@ -12,10 +12,10 @@
 
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
-- **Tổng tiến độ đã gộp `main`**: **368 / 408 task (90.2%)** — Khối lượng quy đổi đã gộp: **438.5 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **368 / 408 task (90.2%)** (gồm **368** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **17 task** (7 đang làm, 10 làm một phần).
-- **Chưa bắt đầu**: **23 task**.
+- **Tổng tiến độ đã gộp `main`**: **370 / 408 task (90.7%)** — Khối lượng quy đổi đã gộp: **442.5 / 492.5 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **370 / 408 task (90.7%)** (gồm **370** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **16 task** (6 đang làm, 10 làm một phần).
+- **Chưa bắt đầu**: **22 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **20 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: `VH-08`).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -30,9 +30,9 @@
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **20** | 0 | 7 | 1 | **71.4%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **4** | 0 | 3 | 9 | **25.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
-| **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 6 | 3 | **0.0%** |
+| **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **2** | 0 | 5 | 2 | **22.2%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **368** | **0** | **17** | **23** | **90.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **370** | **0** | **16** | **22** | **90.7%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -44,7 +44,7 @@
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **120** | 0 | 0 | 0 | **100.0%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **23** | 0 | 11 | 8 | **54.8%** |
-| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **4** | 0 | 4 | 15 | **17.4%** |
+| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **6** | 0 | 3 | 14 | **26.1%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **2** | 0 | 2 | 0 | **50.0%** |
 
 ### 1.3. Trạng thái 23 task trên Đường găng
@@ -611,19 +611,19 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [MOB-09](docs/tasks/MOB-09-thong-bao-day.md) | Thông báo đẩy FCM, APNs | S | B10 | 9 | MOB-01, DV-12-03, DV-12-05 | **Chưa bắt đầu** |  |
 | [MOB-10](docs/tasks/MOB-10-pipeline-phat-hanh.md) | Pipeline build, ký và phát hành ứng dụng; kiểm thử đầu cuối và khả năng truy cập trên di động | M | B10 | 19 | MOB-03, INF-06 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần tài khoản cửa hàng ứng dụng |
 
-### VH · Vận hành và đưa vào sử dụng (0/9 đã gộp `main`, 0 chờ gộp, 6 đang làm)
+### VH · Vận hành và đưa vào sử dụng (2/9 đã gộp `main`, 0 chờ gộp, 5 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
-| [VH-01](docs/tasks/VH-01-runbook-ops-01-13.md) | Runbook OPS-01..OPS-13 | L | B11 | 4 | INF-04 | **Đang làm** | Giao B9 |
-| [VH-02](docs/tasks/VH-02-runbook-ops-14-26.md) | Runbook OPS-14..OPS-26 | L | B11 | 4 | INF-17 | **Đang làm** | Giao B9 |
+| [VH-01](docs/tasks/VH-01-runbook-ops-01-13.md) | Runbook OPS-01..OPS-13 | L | B11 | 4 | INF-04 | **Đã gộp main** | Gộp 07c879b3; chưa chạy thử trên cụm |
+| [VH-02](docs/tasks/VH-02-runbook-ops-14-26.md) | Runbook OPS-14..OPS-26 | L | B11 | 4 | INF-17 | **Đã gộp main** | Gộp 07c879b3; chưa chạy thử trên cụm |
 | [VH-03](docs/tasks/VH-03-truc-su-co-cab.md) | Trực vận hành, mức sự cố SEV-1..SEV-4, quy trình thay đổi, đóng băng thay đổi | M | B11 | 5 | VH-01 | **Chưa bắt đầu** |  |
 | [VH-04](docs/tasks/VH-04-dien-tap-onboarding.md) | Diễn tập vòng đời tenant: đưa tenant mới vào vận hành trong một ngày (OPS-07) | M | B11 | 13 | DV-03-05, INF-04 | **Chưa bắt đầu** |  |
 | [VH-05](docs/tasks/VH-05-huong-dan-su-dung.md) | Hướng dẫn sử dụng theo vai trò (AC-01..AC-10) | L | B11 | 24 | QA-07 | **Đang làm** | Giao B2 |
 | [VH-06](docs/tasks/VH-06-tai-lieu-quan-tri.md) | Tài liệu quản trị, cài đặt cho ba mô hình phân phối | M | B11 | 6 | INF-23 | **Đang làm** | Giao sau phát hành |
 | [VH-07](docs/tasks/VH-07-ho-so-cap-do-4.md) | Hồ sơ đề xuất cấp độ 4 theo TCVN 11930:2017 | M | B11 | 13 | QA-13, INF-19 | **Đang làm** | Giao B3 |
 | [VH-08](docs/tasks/VH-08-thi-diem-chuyen-tenant.md) | Kế hoạch đưa tenant thí điểm vào sử dụng và mở rộng theo nhóm tenant (hệ thống mới độc lập, không chuyển từ hệ cũ) | M | B11 | 25 | QA-16 | **Đang làm** | Giao B2 |
-| [VH-09](docs/tasks/VH-09-cham-checklist-quy.md) | Chấm lại checklist 110 tiêu chí và bảng chỉ số chuyển đổi mỗi quý | S | B11 | 6 | VH-03 | **Chưa bắt đầu** |  |
+| [VH-09](docs/tasks/VH-09-cham-checklist-quy.md) | Chấm lại checklist 110 tiêu chí và bảng chỉ số chuyển đổi mỗi quý | S | B11 | 6 | VH-03 | **Đang làm** | Giao B9 |
 
 ### WEB · Phân hệ web: phần còn thiếu so với toàn hệ thống (7/7 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -1023,4 +1023,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 13:04 | Điều phối (main) | `QA-03`, `QA-04`, `QA-06`, `INF-17`, `INF-18`, `INF-19`, `INF-22`, `INF-25`, `INF-26` | Chuyển trạng thái sang **Làm một phần** — Đã gộp phần repo; còn chạy thật trên dev/kind |
 | 23/10/2026 13:13 | Điều phối (main) | `VH-07` | Chuyển trạng thái sang **Đang làm** — Giao B3 |
 | 23/10/2026 13:19 | Điều phối (main) | `VH-08` | Chuyển trạng thái sang **Đang làm** — Giao B2 |
+| 23/10/2026 13:22 | Điều phối (main) | `VH-01`, `VH-02` | Chuyển trạng thái sang **Đã gộp main** — Gộp 07c879b3; chưa chạy thử trên cụm |
+| 23/10/2026 13:22 | Điều phối (main) | `VH-09` | Chuyển trạng thái sang **Đang làm** — Giao B9 |
 <!-- PROGRESS_LOG_END -->
