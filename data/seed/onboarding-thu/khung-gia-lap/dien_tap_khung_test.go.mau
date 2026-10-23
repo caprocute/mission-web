@@ -1,0 +1,132 @@
+package api_test
+
+// VH-04 (OPS-07): khung giả lập để chạy kịch bản diễn tập dien-tap.sh trên máy có Docker mà không cần cụm
+// Kubernetes. Khung dựng Server thật của tenant-registry trên PostgreSQL thật (Testcontainers), saga cấp phát
+// thật với hệ giả provisiontest (PowerDNS, cert-manager, MOD-05, MOD-08, org-service, Prometheus, Keycloak trong
+// bộ nhớ), rồi mở cổng TCP để script gọi qua HTTP như với môi trường thật.
+//
+// Tệp mẫu, không phải kiểm thử của gói: chép vào internal/api/ của tenant-registry rồi chạy (xem README cùng thư
+// mục), chạy xong thì xoá bản chép.
+//
+// Đường điều khiển /__khung/* chỉ có trong khung, đóng vai các việc ngoài tenant-registry:
+//   GET  /__khung/token?vai-tro=platform_admin|tenant_admin[&tenant=<mã>]  token AAL2 ký bằng khoá kiểm thử
+//   POST /__khung/san-sang/{id}?idp=<bí danh>...  ghi kiểm IdP đạt (DV-03-06), có cây tổ chức, không lệch Cao
+//   POST /__khung/loi-org?bat=1|0                 bật, tắt lỗi 503 ở bước Organization Keycloak (bước 4)
+//   GET  /__khung/su-kien/{id}                    đếm sự kiện outbox của tenant theo topic
+//   POST /__khung/dung                            dừng khung
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net"
+	"net/http"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"mission/services-go/tenant-registry/internal/platform/auth/authtest"
+	"mission/services-go/tenant-registry/internal/store"
+)
+
+func TestDienTapKhung(t *testing.T) {
+	addr := os.Getenv("DIEN_TAP_KHUNG_ADDR")
+	if addr == "" {
+		t.Skip("đặt DIEN_TAP_KHUNG_ADDR (ví dụ 127.0.0.1:35910) để mở khung diễn tập")
+	}
+	f := newSagaFixture(t)
+	dung := make(chan struct{})
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /__khung/token", func(w http.ResponseWriter, r *http.Request) {
+		c := authtest.Claims{Subject: "0192f1a2-3333-7000-8000-000000000003", Roles: []string{"platform_admin"}, ACR: "aal2", AuthTime: time.Now()}
+		if r.URL.Query().Get("vai-tro") == "tenant_admin" {
+			c = authtest.Claims{Subject: "0192f1a2-4444-7000-8000-000000000004", Tenant: r.URL.Query().Get("tenant"),
+				Roles: []string{"tenant_admin"}, ACR: "aal2", AuthTime: time.Now()}
+		}
+		_, _ = fmt.Fprint(w, keys.Token(c))
+	})
+	mux.HandleFunc("POST /__khung/san-sang/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id, err := uuid.Parse(r.PathValue("id"))
+		if err != nil {
+			http.Error(w, err.Error(), 400)
+			return
+		}
+		ctx := r.Context()
+		m, err := store.LoadIdpMeta(ctx, f.pool, id)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		ok, now := true, time.Now()
+		for _, alias := range r.URL.Query()["idp"] {
+			x := m[alias]
+			x.LastTestOk, x.LastTestedAt = &ok, &now
+			m[alias] = x
+		}
+		if err := store.SaveIdpMeta(ctx, f.pool, id, m, store.SystemActor); err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		f.cell.Lock()
+		f.cell.Trees[id], f.cell.HighDisc[id], f.cell.LagSec = true, 0, 3
+		f.cell.Unlock()
+		w.WriteHeader(204)
+	})
+	mux.HandleFunc("POST /__khung/loi-org", func(w http.ResponseWriter, r *http.Request) {
+		f.kc.FailOrg = r.URL.Query().Get("bat") == "1"
+		w.WriteHeader(204)
+	})
+	mux.HandleFunc("GET /__khung/su-kien/{id}", func(w http.ResponseWriter, r *http.Request) {
+		pool, err := pgxpool.New(context.Background(), db.AdminDSN)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		defer pool.Close()
+		rows, err := pool.Query(r.Context(), `SELECT topic, count(*) FROM registry.outbox_event WHERE tenant_id = $1 GROUP BY topic ORDER BY topic`,
+			r.PathValue("id"))
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		defer rows.Close()
+		out := map[string]int{}
+		for rows.Next() {
+			var topic string
+			var n int
+			if err := rows.Scan(&topic, &n); err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+			out[topic] = n
+		}
+		writeJSONKhung(w, out)
+	})
+	mux.HandleFunc("POST /__khung/dung", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(204)
+		close(dung)
+	})
+	mux.Handle("/", f.h)
+
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hs := &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	go func() { _ = hs.Serve(ln) }()
+	t.Logf("khung diễn tập sẵn sàng tại http://%s", addr)
+	select {
+	case <-dung:
+	case <-time.After(30 * time.Minute):
+	}
+	_ = hs.Shutdown(context.Background())
+	f.srv.WaitSagas()
+}
+
+func writeJSONKhung(w http.ResponseWriter, v map[string]int) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(v)
+}

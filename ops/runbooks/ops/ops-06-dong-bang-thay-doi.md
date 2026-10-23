@@ -6,7 +6,7 @@
 
 ## Điều kiện kích hoạt
 
-Hai cửa sổ cố định: từ 00:00 ngày 24 tháng cuối quý tới hết ngày 10 tháng đầu quý sau (408 giờ), và từ 20/1 tới hết 04/2 (384 giờ), giờ Việt Nam. Cửa sổ bổ sung theo mốc hạn của từng tenant do `sinh_lich.py` sinh. Sổ tay cũng dùng khi CAB khẩn duyệt một bản sửa lỗi nghiêm trọng hoặc vá an ninh CVSS ≥ 9 trong cửa sổ.
+Hai cửa sổ cố định: từ 00:00 ngày 24 tháng cuối quý tới hết ngày 10 tháng đầu quý sau (432 giờ cho cửa sổ bắt đầu 24/3 và 24/12, 408 giờ cho 24/6 và 24/9, vì tháng bắt đầu dài 31 hoặc 30 ngày), và từ 20/1 tới hết 04/2 (384 giờ), giờ Việt Nam. Cửa sổ bổ sung theo mốc hạn của từng tenant do `sinh_lich.py` sinh. Sổ tay cũng dùng khi CAB khẩn duyệt một bản sửa lỗi nghiêm trọng hoặc vá an ninh CVSS ≥ 9 trong cửa sổ.
 
 ## Tác động
 
@@ -54,4 +54,4 @@ Không có người `release-manager` trực khi cần đồng bộ khẩn: gọ
 
 ## Liên quan
 
-[OPS-17](ops-17-chuan-bi-truoc-moc-han.md), [OPS-19](ops-19-hoi-dong-thay-doi.md), [release-freeze](../canh-bao/release-freeze.md).
+[OPS-17](ops-17-chuan-bi-truoc-moc-han.md), [OPS-19](ops-19-hoi-dong-thay-doi.md), [release-freeze](../canh-bao/release-freeze.md); quy trình con người của cửa sổ đóng băng (việc được phép, đồng bộ thủ công có kiểm soát, mở lại sau cửa sổ): `ops/van-hanh/dong-bang.md`.
