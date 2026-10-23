@@ -57,7 +57,8 @@ public interface TaskDraftRepository {
       String q) {}
 
   /** Một dòng danh sách đơn vị: nhiệm vụ, chủ trì và cờ hạn chế. */
-  record UnitTaskRow(TaskRow task, UUID leadAssigneeId, boolean restricted) {}
+  /** {@code orgUnitId} là {@code task.task.org_unit_id} (đơn vị của nhiệm vụ). */
+  record UnitTaskRow(TaskRow task, UUID leadAssigneeId, boolean restricted, UUID orgUnitId) {}
 
   /**
    * Số thứ tự kế tiếp của mã trong phân vùng; giữ khoá tư vấn theo tenant và phân vùng tới hết giao

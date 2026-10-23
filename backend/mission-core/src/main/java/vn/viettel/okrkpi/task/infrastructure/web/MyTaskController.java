@@ -46,6 +46,7 @@ import vn.viettel.okrkpi.shared.paging.PageRequest;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 import vn.viettel.okrkpi.task.application.assign.TaskDraftService;
 import vn.viettel.okrkpi.task.application.assign.TaskQueryService;
+import vn.viettel.okrkpi.task.application.direct.TaskPermittedActions;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskDelayRiskService;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository.TaskRow;
@@ -242,7 +243,8 @@ public class MyTaskController {
             t.unit(),
             item.row().openBlockers(),
             item.workingDaysLeft())
-        .keyResultId(t.keyResultId());
+        .keyResultId(t.keyResultId())
+        .permittedActions(TaskPermittedActions.mine(t.status(), item.row().role()));
   }
 
   private static int percent(BigDecimal ratio) {
