@@ -206,8 +206,9 @@ okrkpi:
     schema: flowable
   # DV-06-04: consumer EVT-11, EVT-13, EVT-18, EVT-25 của bốn mẫu phần 2 qua inbox idempotent
   # flowable.inbox_processed.
-  # DV-06-10: consumer EVT-15 và org.bootstrap.v1 điền org_replica.assignment_v qua inbox idempotent
-  # flowable.inbox_processed (NEN-012). Tên consumer là nhóm consumer Kafka, khác tên của mission-core.
+  # DV-06-10: consumer EVT-14, EVT-15, EVT-16 và org.bootstrap.v1 điền org_replica.org_unit_v,
+  # assignment_v, person_v qua inbox idempotent flowable.inbox_processed (NEN-012). Tên consumer là
+  # nhóm consumer Kafka, khác tên của mission-core.
   inbox:
     schema: flowable
     registry:
