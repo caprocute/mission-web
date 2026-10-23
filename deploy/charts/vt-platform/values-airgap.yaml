@@ -30,5 +30,9 @@ integration-gateway:
 ai-gateway:
   thanhPhan:
     vllm:
-      # Mô hình chạy tại chỗ trên GPU riêng, không gọi ra ngoài.
+      # Mô hình chạy tại chỗ trên GPU riêng, không gọi ra ngoài (TL-04 mục 2.1, 2.4). Đơn vị không có GPU tắt bằng
+      # values của khách hàng (TL-04 mục 9.9 "có thể tắt hoàn toàn"); mô hình khi bật đi cùng gói cài.
       enabled: true
+# Ngăn xếp quan sát trong cell (observability-cell) chỉ gồm Prometheus, Thanos sidecar, Fluent Bit (Apache-2.0); Grafana
+# tắt. Gói cách ly không mang chart observability-mgmt (Grafana, Loki, Tempo giấy phép AGPL) khi pháp chế chưa duyệt
+# (TL-04 mục 9.9, 10.1); infra/airgap/dong-goi.sh chỉ đóng gói chart vt-platform.
