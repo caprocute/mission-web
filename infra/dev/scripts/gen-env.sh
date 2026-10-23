@@ -105,7 +105,7 @@ case "${MODE}" in
       echo "  .env đủ khoá."
       exit 0
     fi
-    for k in "${keys[@]}"; do
+    for k in ${keys[@]+"${keys[@]}"}; do
       sample="$(grep -E "^${k}=" "${EXAMPLE}" | head -1 | cut -d= -f2-)"
       how="giá trị mẫu"
       if [[ "${k}" == POSTGRES_USER || "${k}" == POSTGRES_PASSWORD ]] && grep -qE "^PG_SUPERUSER(_PASSWORD)?=.+" "${ENV}"; then
@@ -115,7 +115,7 @@ case "${MODE}" in
       fi
       printf '  %s: %s\n' "${k}" "${how}"
     done
-    for k in "${opa[@]}"; do
+    for k in ${opa[@]+"${opa[@]}"}; do
       printf '  %s: nâng 2s lên 5s\n' "${k}"
     done
     [[ "${MODE}" == "--kiem" ]] && exit 0
@@ -124,18 +124,18 @@ case "${MODE}" in
     # Bỏ dòng <FILL_IN>/__GENERATE__ còn sót và dòng OPA 2s; mọi dòng khác giữ nguyên thứ tự.
     # Khoá bí mật cần sinh mà đang để trống cũng bị bỏ dòng cũ để không trùng khoá.
     drop='^[A-Z0-9_]+=(<FILL_IN>|__GENERATE__)$|^OPA_(CONNECT|READ)_TIMEOUT=2s$'
-    for k in "${keys[@]}"; do
+    for k in ${keys[@]+"${keys[@]}"}; do
       drop+="|^${k}=$"
     done
     grep -vE "${drop}" "${ENV}" >"${tmp}" || true
     {
       echo ""
       echo "# Bổ sung bởi scripts/gen-env.sh --bo-sung ngày $(date +%F)"
-      for k in "${keys[@]}"; do
+      for k in ${keys[@]+"${keys[@]}"}; do
         sample="$(grep -E "^${k}=" "${EXAMPLE}" | head -1 | cut -d= -f2-)"
         echo "${k}=$(value_for "${k}" "${sample}")"
       done
-      for k in "${opa[@]}"; do
+      for k in ${opa[@]+"${opa[@]}"}; do
         echo "${k}=5s"
       done
     } >>"${tmp}"
