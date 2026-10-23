@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **311 / 408 task (76.2%)** — Khối lượng quy đổi đã gộp: **361 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **318 / 408 task (77.9%)** (gồm **311** đã gộp `main` + **7** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **319 / 408 task (78.2%)** (gồm **311** đã gộp `main` + **8** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **5 task** (1 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **85 task**.
+- **Chưa bắt đầu**: **84 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -25,14 +25,14 @@
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **68** | 0 | 2 | 2 | **94.4%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **104** | 2 | 2 | 9 | **88.9%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **72** | 5 | 1 | 26 | **69.2%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **72** | 6 | 1 | 25 | **69.2%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **12** | 0 | 0 | 1 | **92.3%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **311** | **7** | **5** | **85** | **76.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **311** | **8** | **5** | **84** | **76.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -41,7 +41,7 @@
 | **M0 – Nền móng phát triển & CSDL** | 60 | **60** | 0 | 0 | 0 | **100.0%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **34** | 0 | 0 | 6 | **85.0%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **89** | 5 | 3 | 23 | **74.2%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **89** | 6 | 3 | 22 | **74.2%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **61** | 2 | 1 | 8 | **84.7%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **16** | 0 | 1 | 25 | **38.1%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **3** | 0 | 0 | 20 | **13.0%** |
@@ -473,7 +473,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-12-04](docs/tasks/DV-12-04-thong-bao-hang-loat.md) | Thông báo hàng loạt cuối kỳ chia theo tenant, giới hạn tốc độ theo kênh | S | B7 | 9 | DV-12-03 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DV-12-05](docs/tasks/DV-12-05-thiet-bi-day-tuy-chon-kenh.md) | Đăng ký thiết bị nhận thông báo đẩy và tuỳ chọn kênh: bảng `notify`, API | S | B7 | 8 | DV-12-01, NEN-043 | **Đã gộp main** | Gộp main; notification-service Go |
 
-### DV-13 · SVC-13 integration-gateway (4/11 đã gộp `main`, 2 chờ gộp, 0 đang làm)
+### DV-13 · SVC-13 integration-gateway (4/11 đã gộp `main`, 3 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -486,7 +486,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-13-07](docs/tasks/DV-13-07-csdl-dang-vien.md) | CSDL đảng viên | M | B5 | 11 | DV-13-06 | **Xong, chờ gộp** | Nhánh claude/project-thread-z7s8x3: CSDL đảng viên, đã qua build & test |
 | [DV-13-08](docs/tasks/DV-13-08-hrm-so-lieu-kr.md) | HRM và số liệu nguồn cho KR | M | B5 | 10 | DV-13-01 | **Đã gộp main** | Đã gộp main ở 893f33ec |
 | [DV-13-09](docs/tasks/DV-13-09-ban-neo-chia-se-xep-loai.md) | Gửi bản neo sổ cái cho bên thứ ba và chia sẻ quyết định xếp loại ra ngoài | M | B5 | 12 | DV-13-02, DV-09-03 | **Chưa bắt đầu** |  |
-| [DV-13-10](docs/tasks/DV-13-10-goi-chuyen-ho-so-lien-cell.md) | Gói chuyển hồ sơ cán bộ liên cell có ký số | M | B5 | 11 | DV-13-02, DV-10-01 | **Chưa bắt đầu** |  |
+| [DV-13-10](docs/tasks/DV-13-10-goi-chuyen-ho-so-lien-cell.md) | Gói chuyển hồ sơ cán bộ liên cell có ký số | M | B5 | 11 | DV-13-02, DV-10-01 | **Xong, chờ gộp** | Nhánh claude/project-thread-z7s8x3: đã qua build & test (gate gateway xanh, CellTransferIT hai cell 4/4) |
 | [DV-13-11](docs/tasks/DV-13-11-pact-he-ngoai.md) | Kiểm thử hợp đồng Pact với từng hệ ngoài bằng đối tác giả lập | M | B5 | 11 | DV-13-03, QA-02 | **Chưa bắt đầu** |  |
 
 ### DV-14 · SVC-14 ai-gateway (Python) (7/7 đã gộp `main`, 0 chờ gộp, 0 đang làm)
@@ -997,4 +997,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 04:24 | B9 | `CORE-01-10` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main ở 7ab2f481 |
 | 23/10/2026 04:24 | B9 | `DV-13-08` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main ở 893f33ec |
 | 23/10/2026 04:54 | B9 | `CORE-07-09` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: điều phối hậu kiểm và đợt hậu kiểm có bằng chứng sổ cái (oversight V7), đã qua build & test |
+| 23/10/2026 04:59 | B9 | `DV-13-10` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-z7s8x3: đang thực hiện |
+| 23/10/2026 05:30 | B9 | `DV-13-10` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: đã qua build & test (gate gateway xanh, CellTransferIT hai cell 4/4) |
 <!-- PROGRESS_LOG_END -->

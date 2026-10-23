@@ -26,6 +26,8 @@
     <jib.jvm.gc>-XX:+UseZGC</jib.jvm.gc>
     <!-- DV-13-08: đọc tệp lô Excel của HRM, cùng bản với mission-core (YC-PT-18). -->
     <fastexcel.version>0.18.4</fastexcel.version>
+    <!-- DV-13-10: bucket transfer trên Ceph RGW, cùng bản AWS SDK với document-service. -->
+    <awssdk.version>2.31.6</awssdk.version>
   </properties>
 
   <dependencyManagement>
@@ -78,6 +80,27 @@
           <artifactId>commons-compress</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <!-- DV-13-10: gói chuyển liên cell trong bucket transfer (S3 Ceph RGW), HTTP client của JDK. -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>s3</artifactId>
+      <version>${awssdk.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>apache-client</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>netty-nio-client</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>url-connection-client</artifactId>
+      <version>${awssdk.version}</version>
     </dependency>
     <dependency>
       <groupId>vn.viettel.okrkpi</groupId>
