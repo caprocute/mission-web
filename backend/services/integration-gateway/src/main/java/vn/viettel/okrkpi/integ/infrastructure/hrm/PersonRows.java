@@ -86,8 +86,10 @@ final class PersonRows {
   private final Map<String, String> fields = new HashMap<>();
   private final Map<String, Map<String, String>> values = new HashMap<>();
   private final List<String> required = new ArrayList<>();
+  private final boolean partyRoll;
 
   PersonRows(Profile profile) {
+    this.partyRoll = profile.party() != null;
     // Khoá cấu hình so khớp không phân biệt hoa thường và gạch nối (externalId, external-id).
     profile.fields().forEach((k, v) -> fields.put(canon(k), v));
     profile.values().forEach((k, v) -> values.put(canon(k), v));
@@ -165,12 +167,13 @@ final class PersonRows {
       String fullName = text(in, "fullName", 255, bad);
       String nationalId = text(in, "nationalId", 32, bad);
       LocalDate birth = date(in, "birthDate", bad);
-      String status = code(in, "employmentStatus", STATUSES, "DANG_CONG_TAC", bad);
-      boolean party = bool(in, "partyMember", bad);
+      String status =
+          code(in, "employmentStatus", STATUSES, partyRoll ? null : "DANG_CONG_TAC", bad);
+      boolean party = bool(in, "partyMember", partyRoll, bad);
       String unit = text(in, "orgUnit", 128, bad);
       String title = text(in, "jobTitle", 128, bad);
       String kind = code(in, "kind", KINDS, "CHINH", bad);
-      boolean head = bool(in, "head", bad);
+      boolean head = bool(in, "head", false, bad);
       LocalDate from = date(in, "effectiveFrom", bad);
       if (unit != null && title == null) {
         bad.add("thiếu chức danh");
@@ -262,10 +265,10 @@ final class PersonRows {
     return c;
   }
 
-  private boolean bool(Input in, String field, List<String> bad) {
+  private boolean bool(Input in, String field, boolean fallback, List<String> bad) {
     String v = in.cells().get(field);
     if (blank(v)) {
-      return false;
+      return fallback;
     }
     String m = mapped(field, v);
     String s = (m != null ? m : v).strip().toLowerCase(Locale.ROOT);
