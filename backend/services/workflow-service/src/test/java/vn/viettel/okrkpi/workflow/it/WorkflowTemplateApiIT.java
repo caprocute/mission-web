@@ -37,6 +37,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import vn.viettel.okrkpi.shared.job.JobIds;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
@@ -46,6 +47,7 @@ import vn.viettel.okrkpi.workflow.domain.saga.SagaStatus;
 import vn.viettel.okrkpi.workflow.infrastructure.release.LocalCellEngineGateway;
 import vn.viettel.okrkpi.workflow.infrastructure.release.OutboxTemplateEventPublisher;
 import vn.viettel.okrkpi.workflow.infrastructure.saga.FlowableSagaEngine;
+import vn.viettel.okrkpi.workflow.infrastructure.saga.SagaJobSource;
 import vn.viettel.okrkpi.workflow.infrastructure.saga.SagaWorker;
 import vn.viettel.okrkpi.workflow.support.WorkflowIntegrationTest;
 import vn.viettel.okrkpi.workflow.support.WorkflowTestDatabase;
@@ -191,7 +193,7 @@ class WorkflowTemplateApiIT extends WorkflowIntegrationTest {
             .andReturn();
     assertResponseConforms(accepted, "/workflow/templates/{id}/test", PathItem.HttpMethod.POST);
     String location = accepted.getResponse().getHeader("Location");
-    assertThat(location).startsWith("/api/v1/jobs/");
+    assertThat(location).startsWith("/api/v1/jobs/" + SagaJobSource.JOB_PREFIX + "-");
     JsonNode[] last = new JsonNode[1];
     await()
         .atMost(Duration.ofSeconds(60))
@@ -245,6 +247,13 @@ class WorkflowTemplateApiIT extends WorkflowIntegrationTest {
                             "pipelineRef",
                             "pipeline-42"))))
         .andExpect(status().isOk());
+  }
+
+  /** Mã tác vụ saga có tiền tố {@code wf-} (cổng cell định tuyến theo tiền tố). */
+  UUID sagaId(MvcResult accepted) throws Exception {
+    String jobId = body(accepted).path("id").asText();
+    assertThat(jobId).startsWith(SagaJobSource.JOB_PREFIX + "-");
+    return JobIds.parse(SagaJobSource.JOB_PREFIX, jobId).orElseThrow();
   }
 
   SagaInstance load(UUID sagaId) throws Exception {
@@ -372,7 +381,7 @@ class WorkflowTemplateApiIT extends WorkflowIntegrationTest {
     assertThat(accepted.getResponse().getStatus()).isEqualTo(202);
     assertResponseConforms(accepted, "/workflow/templates/{id}/approve", PathItem.HttpMethod.POST);
     assertThat(body(accepted).path("type").asText()).isEqualTo("WF_TEMPLATE_RELEASE");
-    UUID sagaId = UUID.fromString(body(accepted).path("id").asText());
+    UUID sagaId = sagaId(accepted);
 
     MvcResult planned =
         mvc.perform(MockMvcRequestBuildersGet.of(BASE + "/" + id + "/rollouts").with(asApprover()))
@@ -530,7 +539,7 @@ class WorkflowTemplateApiIT extends WorkflowIntegrationTest {
     cells.simulateOutage("CELL-B", true);
     MvcResult accepted = approve(id, p.getValue(), asApprover());
     assertThat(accepted.getResponse().getStatus()).isEqualTo(202);
-    UUID sagaId = UUID.fromString(body(accepted).path("id").asText());
+    UUID sagaId = sagaId(accepted);
     sign(id);
     SagaInstance undone = drive(sagaId);
     assertThat(undone.status()).isEqualTo(SagaStatus.DA_BU_TRU);
