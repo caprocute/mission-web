@@ -343,9 +343,10 @@ const SIGN_REASON = 'Cần xác thực bổ sung để ký số văn bản trả
             <h2 class="h" id="k-h"><span class="num" aria-hidden="true">4</span> Kết luận</h2>
             @if (canConclude()) {
               <div class="field">
-                <label for="kl-outcome">Kết quả xử lý (bắt buộc)</label>
+                <label for="kl-outcome" id="kl-outcome-l">Kết quả xử lý (bắt buộc)</label>
                 <p-select
                   inputId="kl-outcome"
+                  ariaLabelledBy="kl-outcome-l"
                   [options]="outcomes"
                   optionLabel="label"
                   optionValue="value"

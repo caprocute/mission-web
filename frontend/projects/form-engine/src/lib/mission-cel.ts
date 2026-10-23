@@ -322,9 +322,11 @@ function baseEnvironment(calendar: WorkingCalendarConfig): Environment {
     .registerConstant('math', 'MathNamespace', new MathNamespace())
     .registerFunction('sum(list<double>): double', (l: number[]) => sumCelValues(l))
     .registerFunction('sum(list<int>): double', (l: bigint[]) => sumCelValues(l.map(Number)))
+    // ui-text-ok: chữ ký hàm CEL khai báo cho thư viện, không hiện lên giao diện
     .registerFunction('min_muc(string, string): string', (a: string, b: string) =>
       minMucXepLoai(a, b),
     )
+    // ui-text-ok: chữ ký hàm CEL khai báo cho thư viện, không hiện lên giao diện
     .registerFunction('ngay_lam_viec(string, string): int', (a: string, b: string) =>
       BigInt(countWorkingDays(a, b, calendar)),
     )
