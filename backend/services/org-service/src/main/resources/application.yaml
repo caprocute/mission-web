@@ -71,6 +71,14 @@ okrkpi:
     auth-enabled: ${AUTH_ENABLED:true}
     dev-tenant-id: ${DEV_TENANT_ID:01960000-0000-7000-8000-000000000001}
     dev-user-id: ${DEV_USER_ID:01960000-0000-7000-8000-000000000101}
+    # CORE-07-06: khoá ký danh bạ khoá công khai C3 trong OpenBao Transit (ecdsa-p256 mỗi tenant). Trống thì từ chối
+    # ký (503). Token đọc từ tệp do OpenBao Agent cấp, không đặt trong cấu hình.
+    directory-signer:
+      base-url: ${OPENBAO_ADDR:}
+      mount: ${OPENBAO_TRANSIT_MOUNT:transit}
+      key-prefix: org-directory-
+      token-file: ${OPENBAO_TOKEN_FILE:/vault/secrets/token}
+      auto-create: ${OPENBAO_DIRECTORY_AUTO_CREATE:false}
 ---
 spring:
   config:

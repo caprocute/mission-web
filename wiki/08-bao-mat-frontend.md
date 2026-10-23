@@ -59,6 +59,8 @@ ADR-27 quy định dữ liệu C3 được mã hoá đầu cuối (E2EE) ngay tr
 
 Thư viện dự kiến là `@vt/e2ee`, chưa có trong mã và chưa có trong danh sách thư viện của baseline mục 5.2. Đây là ngoại lệ duy nhất cho phép lưu khoá ở IndexedDB, và chỉ lưu khoá không trích xuất được, không lưu nội dung giải mã.
 
+Phía máy chủ đã có từ CORE-07-06: `PUT /api/v1/tasks/{id}/secret-content` nhận bản mã base64, nonce 96 bit, `aadHash`, `sha256` (máy chủ tính lại trên bản mã) và danh sách bản bọc, trong đó `deviceId` là SHA-256 dạng hex của SPKI khoá thiết bị; danh sách phải có bản bọc cho chính người lưu và cho khoá phục hồi tổ chức (vân tay trong cấu hình tenant `e2ee.recovery-key`), nếu không máy chủ trả 422. `GET` chỉ trả bản mã kèm bản bọc của chính người gọi, người không giữ bản bọc hoặc đã bị thu hồi nhận 403. `@vt/e2ee` khi bọc lại cho người mới gọi `POST .../secret-content/shares`; khi đổi nội dung phải sinh CEK mới và gửi lại toàn bộ danh sách bọc. Minh chứng C3 gửi bản bọc qua `POST /api/v1/evidences/{id}/versions/{v}/key-wraps`; vì hợp đồng chưa có `ephemeralPublicKey` cho minh chứng, khoá tạm ECDH phải gói trong `wrappedKey`. Chi tiết và giả định ở [trang 14](14-quyet-dinh-va-cau-hoi-mo.md) mục CORE-07-06.
+
 ## Tải tệp và minh chứng
 
 Tệp minh chứng được tải lên qua URL ký trước (presigned) tới kho đối tượng, không đi qua mission-core. Trình duyệt tính SHA-256 của tệp trước khi tải để máy chủ đối chiếu toàn vẹn (xem QT-07 ở [trang 05a](05a-quy-trinh-va-man-hinh-qt00-08.md)). SEC-47 yêu cầu quét mã độc bằng ClamAV và SEC-48 giới hạn kích thước, kiểu tệp; giao diện kiểm sớm để báo lỗi nhanh nhưng máy chủ vẫn là nơi quyết định.
