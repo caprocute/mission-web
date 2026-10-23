@@ -1,4 +1,4 @@
-> Nguồn: TL-01 mục kiểm thử (Pact, Playwright, k6), mục CI/CD (Jenkins, cổng chất lượng, chuỗi cung ứng), mục kiểm thử UI Pack bốn tầng, mục form engine (bộ test CEL dùng chung); TL-04 mục PERF (PERF-01, PERF-02, PERF-21), OPS-10, OPS-11, SEC-37 đến SEC-40; `AGENTS.md` quy tắc 11 và 12; `docs/tasks/README.md`, `WEB-001`, `WEB-002`, `WEB-005`; mã `frontend/angular.json`, `package.json`, `Jenkinsfile`, `deploy/web/ci/`; TL-04 mục 9.6 (Jenkinsfile mẫu), `ci/vt-pipeline/README.md` (INF-05); TL-04 mục G (hồ sơ cell), `infra/perf/datagen/README.md` (DL-08); TL-04 mục 9.7 "Dữ liệu cá nhân (SEC-52)", `infra/anonymize/README.md` (DL-15); TL-01 "Các bộ kết nối" (kiểm thử hợp đồng Pact), `docs/tasks/DV-13-11-pact-he-ngoai.md`, `data/golden/integ-recordings/README.md`.
+> Nguồn: TL-01 mục kiểm thử (Pact, Playwright, k6), mục CI/CD (Jenkins, cổng chất lượng, chuỗi cung ứng), mục kiểm thử UI Pack bốn tầng, mục form engine (bộ test CEL dùng chung); TL-04 mục PERF (PERF-01, PERF-02, PERF-21), OPS-10, OPS-11, SEC-37 đến SEC-40; `AGENTS.md` quy tắc 11 và 12; `docs/tasks/README.md`, `WEB-001`, `WEB-002`, `WEB-005`; mã `frontend/angular.json`, `package.json`, `Jenkinsfile`, `deploy/web/ci/`; TL-04 mục 9.6 (Jenkinsfile mẫu), `ci/vt-pipeline/README.md` (INF-05); TL-04 mục G (hồ sơ cell), `infra/perf/datagen/README.md` (DL-08); TL-04 mục 9.7 "Dữ liệu cá nhân (SEC-52)", `infra/anonymize/README.md` (DL-15); TL-01 "Các bộ kết nối" (kiểm thử hợp đồng Pact), `docs/tasks/DV-13-11-pact-he-ngoai.md`, `data/golden/integ-recordings/README.md`. QA-01: TL-01 "Tháp kiểm thử", "Đường ống CI/CD", "Trục J"; TL-04 "Danh mục kịch bản thử tải PERF", mục 8.11 "Kịch bản DR", "Diễn tập khôi phục", mục 9.8 (ASVS, ZAP); Baseline mục 9.1, 10, 11; `docs/tasks/QA-01..QA-16`; `docs/phan-quyen/ma-tran.json`; `infra/dev/keycloak/realm-mission.json`; `frontend/e2e/hanh-trinh/danh-muc.json`.
 
 # Kiểm thử và chất lượng
 
@@ -13,7 +13,7 @@ Bảng dưới liệt kê các loại kiểm thử theo TL-01 và TL-04, kèm hi
 | Đơn vị | Vitest qua `@angular/build:unit-test`, jsdom | Hàm thuần, service, component | Đã có (WEB-001): spec cho `@vt/design-system`, `@vt/form-engine`, `@vt/api-client` (giả lập), `app.spec.ts` của hai ứng dụng |
 | Hợp đồng | Pact (frontend là bên tiêu dùng) | Hợp đồng frontend với API mission-core | Chưa có |
 | Hợp đồng hệ ngoài | Pact đặc tả v3, tệp hợp đồng trong repo | SVC-13 với vOffice, HRM, LGSP (DV-13-11) | Đã có, chạy trong `mvn verify` của integration-gateway; Pact Broker chờ QA-02 |
-| Đầu cuối | Playwright, khoảng 40 hành trình chính | Luồng nghiệp vụ trên trình duyệt thật | Mới có bộ đối chiếu ma trận phân quyền (WEB-057); hành trình nghiệp vụ chưa có |
+| Đầu cuối | Playwright, khoảng 40 hành trình chính | Luồng nghiệp vụ trên trình duyệt thật | Có bộ đối chiếu ma trận phân quyền (WEB-057) và kịch bản luồng chính (WEB-070); danh mục 42 hành trình đã chốt ở QA-01 (mục "Chiến lược kiểm thử toàn hệ thống"), mã hành trình viết ở QA-03..QA-07 |
 | Giao diện theo token | Storybook, Playwright chụp ảnh, axe-core | Component registry × 4 bộ token | Đã có (WEB-005): 6 story × 4 bộ token và chế độ cao tuổi, `npm run test:visual` |
 | Hiệu năng trang | Lighthouse CI, WebPageTest 4G | PERF-21 mỗi bản build | Đã cấu hình (WEB-003), số đo chưa đạt |
 | Tải | k6 | PERF-22 đến PERF-24 | Chưa có |
@@ -149,6 +149,160 @@ Dữ liệu thử tải của DL-08 là dữ liệu tổng hợp từ đầu. Kh
 
 Tác vụ giải mã trường C2 bằng khoá nguồn, thay giá trị bằng giá trị giả giữ định dạng và phân phối, mã hoá lại bằng DEK mới bọc bởi KEK staging (giữ nguyên `keyring.dek.id`), tính lại chỉ mục mù, rồi loại bỏ outbox, inbox, idempotency, bản bọc khoá E2EE và bảng kiểm toán. Ánh xạ nhất quán trong một lần chạy nhờ HMAC với khoá dùng một lần, khoá này bị huỷ khi chạy xong. Bước quét sau che đối chiếu mọi cột văn bản, JSON và bản rõ của cột `_enc` với tập số định danh, điện thoại, thư và họ tên của nguồn; còn trúng thì biên bản là `CHAN` và lệnh trả mã thoát 2, bản sao không được chuyển đi. Mã Python của phong bì C2 và chỉ mục mù được kiểm bằng cùng tệp vector `c2-test-vectors.json` với Java (NEN-015), nên ba ngôn ngữ phải giữ tệp vector này đồng bộ. Kiểm thử CSDL của DL-15 dùng chung PostgreSQL 17 đã áp migration thật của DL-08.
 
+## Chiến lược kiểm thử toàn hệ thống (QA-01)
+
+Mục này áp cho toàn hệ thống Mission: phân hệ web, mission-core, các microservice, ứng dụng di động và hạ tầng. Nó dựng trên tháp kiểm thử của TL-01 chương 18 và trục J (J1 đến J9), và chia rõ việc giữa các task. Mỗi task phát triển tự viết kiểm thử đơn vị, tích hợp và kiến trúc cho phần mình làm. Các task QA-02 đến QA-16 dựng những tầng nằm ngoài một task đơn lẻ: hợp đồng, đầu cuối, thử tải, bảo mật, diễn tập khôi phục và chấp nhận nghiệp vụ. Theo YC-PT-19, giai đoạn hiện tại chỉ ghi mục tiêu thử tải và thời gian khôi phục; việc đo ở quy mô định cỡ làm tập trung ở giai đoạn sau và không chặn task nào.
+
+### Tầng kiểm thử theo phân hệ
+
+Đáy tháp là kiểm thử đơn vị trên lớp `domain` và `application`, chạy trong vài giây. Tầng giữa là kiểm thử tích hợp với hạ tầng thật dựng bằng Testcontainers, cộng kiểm thử module và kiểm thử kiến trúc. Tầng trên là kiểm thử hợp đồng Pact và khoảng 40 hành trình Playwright. Bên cạnh tháp có bốn loại đặc thù: ca mẫu vàng của Policy Pack, kiểm thử thuộc tính jqwik, thử tải và diễn tập khôi phục. Bảng dưới cho biết tầng nào bắt buộc ở phân hệ nào và ai viết. Ô "task" nghĩa là chính task phát triển viết và chạy trong `verify` hoặc `npm test` của nó.
+
+| Tầng | Công cụ đã chốt | Web (Angular) | mission-core (Java) | Microservice Java | Dịch vụ Go, Python | Di động (Flutter) | Hạ tầng (Helm, OpenTofu) |
+|---|---|---|---|---|---|---|---|
+| Đơn vị | Vitest; JUnit 5, AssertJ, Mockito; `go test`; pytest; `flutter test` | task | task | task | task | task | `helm template` có kiểm giá trị (task) |
+| Đột biến | PIT | – | task: máy trạng thái, tính điểm, saga | task: scoring, ledger, workflow | – | – | – |
+| Thuộc tính | jqwik | – | task: máy trạng thái nhiệm vụ, hồ sơ, kỳ | task: scoring | – | – | – |
+| Tích hợp | Testcontainers (PostgreSQL 17, Kafka, Valkey, Keycloak 26, OpenBao, MinIO hoặc S3 giả) | – | task: repository, RLS hai tenant, outbox tới Kafka, consumer idempotent | task, cùng danh mục | task (container cùng loại) | `integration_test` với máy chủ giả lập (task) | cài lên kind hoặc k3d, pod sẵn sàng (task) |
+| Module và kiến trúc | Spring Modulith `verify()`, `@ApplicationModuleTest`, ArchUnit | ranh giới thư viện `@vt/*` (task) | task | ArchUnit (task) | – | – | Kyverno, kiểm ba mô hình phân phối (INF-06) |
+| Hợp đồng API | `openapi-diff`, so khớp phản hồi với OpenAPI | `@vt/api-client` sinh từ hợp đồng | task | task | task | client sinh từ hợp đồng | – |
+| Hợp đồng tiêu dùng | Pact, Pact Broker, `can-i-deploy` | QA-02 (bên tiêu dùng) | QA-02 (bên cung cấp) | QA-02; hệ ngoài DV-13-11 | QA-02 | QA-02 (khi có) | – |
+| Ca mẫu vàng | bộ ca ký số, đạt 100% | – | Policy Pack, hai engine | scoring-service | – | – | `vtPolicyPackPipeline` |
+| Đầu cuối | Playwright (web); `integration_test` hoặc Patrol (di động, suy luận) | QA-03 khung, QA-04..QA-07 hành trình | qua hành trình | qua hành trình | qua hành trình | bộ MOB | – |
+| Bảo mật | SpotBugs + Find Security Bugs, govulncheck, pip-audit, Semgrep, gitleaks, Trivy; OWASP ZAP, ASVS 4.0.3 | CSP, Trusted Types, ZAP thụ động (QA-13) | task + QA-13 | task + QA-13 | task + QA-13 | Semgrep Dart (INF-06) | Trivy, Kyverno |
+| Thử tải | k6, Gatling, Lighthouse CI | PERF-21 (QA-11) | QA-08, QA-10, QA-11 | QA-09, QA-10, QA-11 | QA-11 (AI) | PERF-15 trên thiết bị (QA-10) | QA-12 trên `CELL-PERF` |
+| Diễn tập khôi phục | runbook OPS-14, Velero, CNPG, Chaos Mesh (suy luận) | – | – | – | – | – | QA-14, QA-15 |
+| Chấp nhận nghiệp vụ | kịch bản theo kỳ đánh giá | QA-16 | QA-16 | QA-16 | – | QA-16 | – |
+
+### Ngưỡng chặn hợp nhất và phát hành
+
+Ngưỡng dưới đây lấy từ TL-01 (J2, J3, J6) và TL-04 mục 9.8. Ngưỡng độ phủ áp cho mã mới. mission-core chặn ngay ở `mvn verify` theo từng gói `*.domain` và `*.application`.
+
+| Chỉ số | Ngưỡng | Đo ở | Chặn |
+|---|---|---|---|
+| Độ phủ dòng | ≥ 80% mã mới | JaCoCo, lcov, Vitest | hợp nhất |
+| Độ phủ nhánh | ≥ 70% mã mới | JaCoCo | hợp nhất |
+| Kiểm thử đột biến | ≥ 70% cho máy trạng thái và tính điểm | PIT | hợp nhất các gói đó |
+| Ca mẫu vàng Policy Pack | 100% đạt trên cả hai engine | `runPolicyTests` | phát hành Policy Pack |
+| Lỗi phân tích tĩnh | không có lỗi Blocker, Critical mới; SpotBugs không có lỗi mức cao | SonarQube, SpotBugs | hợp nhất |
+| Lỗ hổng thư viện | không có CVSS ≥ 7,0 chưa có ngoại lệ được duyệt | Trivy, Dependency-Track | hợp nhất |
+| Hợp đồng | không thay đổi phá tương thích; `can-i-deploy` đạt | `openapi-diff`, Pact Broker | hợp nhất, phát hành |
+| Hành trình đầu cuối | 100% hành trình ở trạng thái `dat` qua | Playwright | phát hành |
+| ZAP | không có cảnh báo High | ZAP quét thụ động và chủ động | phát hành vào staging |
+| ASVS | 100% mục áp dụng ở mức 2; mức 3 cho V2, V3, V6 | bảng tự đánh giá QA-13 | phát hành chính |
+| Nội dung giao diện | `npm run check:ui-text` và `gia-lap.noi-dung.spec.ts` xanh | CI web | hợp nhất |
+
+### Năm môi trường kiểm thử và dữ liệu thử
+
+SEC-52 cấm dữ liệu thật ngoài môi trường sản xuất. Vì vậy mọi môi trường dưới đây dùng dữ liệu sinh, dữ liệu giả lập hoặc bản sao đã ẩn danh hoá. Không môi trường nào chép thẳng dữ liệu sản xuất.
+
+| Môi trường | Ở đâu | Chạy gì | Dữ liệu |
+|---|---|---|---|
+| CI | agent Jenkins trong Kubernetes, Testcontainers | đơn vị, tích hợp, kiến trúc, hợp đồng, ca vàng, bộ Playwright giả lập (`gia-lap.*`), Lighthouse CI | sinh trong từng kiểm thử, xoá khi kết thúc; số định danh và tên là giá trị giả |
+| Môi trường tạm theo nhánh | namespace tạm cho mỗi PR (TL-01 J5; chưa dựng, suy luận là việc của INF) | hành trình đầu cuối của nhánh, ZAP thụ động | `data/seed/e2e/` nạp bằng API khi dựng, huỷ cùng namespace |
+| Server dev dùng chung | Docker Compose project `mission-dev`, cổng 35xxx, realm `mission` | hành trình đầu cuối trên hệ thống thật trong giai đoạn hiện tại (QA-03..QA-07, YC-PT-08), thử thủ công | dữ liệu giả lập DL-07 và `data/seed/e2e/`, nạp bằng API; mỗi lần chạy dùng tiền tố riêng để dọn |
+| Staging (tiền vận hành) | cụm staging theo GitOps | PERF-01, PERF-02, PERF-21 rút gọn 15 phút mỗi bản phát hành, ZAP chủ động hằng đêm, `restore-check` hằng ngày, chấp nhận nghiệp vụ QA-16 | bản sao ẩn danh hoá theo DL-15 hoặc dữ liệu tổng hợp; tenant thí điểm giả lập |
+| `CELL-PERF` | cell riêng định cỡ như cell hạng L, cụm `perf-gen` | toàn bộ PERF-01..PERF-26, diễn tập DR-05, DR-06, DR-07, DR-13 | dữ liệu tổng hợp DL-08 (`infra/perf/datagen`) theo hồ sơ cell |
+
+Tài khoản thử khớp realm dev `mission` (`infra/dev/keycloak/realm-mission.json`). Mật khẩu và khoá OTP chỉ đọc từ biến môi trường `KC_TEST_USER_PASSWORD`, `KC_TEST_OTP_SECRET` và không ghi vào repo, log hay ảnh chụp. Môi trường tạm và staging dùng cùng tên tài khoản trong realm riêng của chúng (suy luận). AC-11 (hệ ngoài) và AC-12 (trợ lý AI) là danh tính kỹ thuật, không có tài khoản đăng nhập. Hành trình đóng vai các tác nhân này qua hệ giả lập (YC-PT-13) hoặc qua chính ai-gateway.
+
+| Tác nhân | Vai trò | Tài khoản thử | Đơn vị |
+|---|---|---|---|
+| AC-01 | `platform_admin` | `nentang` | – |
+| AC-02 | `tenant_admin` | `quantri`, `quantri2` (người thứ hai cho thao tác bốn mắt cùng vai trò) | Phòng Tổng hợp |
+| AC-03 | `policy_author` | `chinhsach` | Phòng Tổng hợp |
+| AC-04 | `leader` | `lanhdao` | Phòng Tổng hợp |
+| AC-05 | `manager` | `quanly` | Phòng Tổng hợp |
+| AC-06 | `member` | `canbo` | Phòng Tổng hợp |
+| AC-07 | `appraiser` | `thamdinh` | Ban Tổ chức |
+| AC-08 | `decider` | `quyetdinh` | Ban Tổ chức |
+| AC-09 | `second_approver` | `duyet2` | Ban Tổ chức |
+| AC-10 | `inspector` | `kiemtra` | Uỷ ban Kiểm tra |
+
+### Tiêu chí một hành trình đạt
+
+Một hành trình chỉ được đánh dấu `dat` trong `frontend/e2e/hanh-trinh/danh-muc.json` khi lần chạy trên hệ thống thật thoả cả năm điều kiện sau:
+
+1. Hành trình chạy trên hệ thống thật, không giả lập API. Giao diện là bản build thật, đăng nhập qua Keycloak thật (có OTP khi vai trò yêu cầu), và lời gọi đi qua APISIX tới dịch vụ thật. Hệ ngoài được thay bằng bản giả lập theo YC-PT-13.
+2. Trong suốt hành trình, trình duyệt không có lỗi console nào và không có yêu cầu mạng nào trả 5xx.
+3. Mọi sự kiện trong cột "Sự kiện" xuất hiện trên Kafka sau thao tác tương ứng. Bộ kiểm lọc sự kiện theo `traceparent` hoặc theo khoá tổng hợp của dữ liệu do lần chạy tạo ra.
+4. Dữ liệu cuối ở đúng trạng thái chuẩn của baseline mục 9.1. Cột `trangThaiCuoi` của danh mục liệt kê đối tượng và trạng thái cần kiểm, đọc lại qua API. Màn hình chỉ hiện nhãn nghiệp vụ, không hiện mã trạng thái thô.
+5. Ca phủ định đi kèm (cột `caPhuDinh`) bị máy chủ từ chối, và giao diện hiện thông báo nghiệp vụ tương ứng. Mỗi QT có ít nhất một hành trình đánh dấu `cheDoCaoTuoi` chạy được ở chế độ Đảng viên cao tuổi (`data-mode="elderly"`).
+
+### Danh mục hành trình đầu cuối
+
+Danh mục gồm 42 hành trình: 38 trên web và 4 trên di động. Chúng phủ QT-00 đến QT-18 và cả 26 sự kiện EVT-01 đến EVT-26. Mã `HT-xx` là mã cục bộ của bộ kiểm thử, không phải mã thiết kế, nên không được in lên màn hình.
+
+Bản máy đọc được là `frontend/e2e/hanh-trinh/danh-muc.json`. Tệp này có thêm danh sách đầy đủ `operationId`, tài khoản thử, trạng thái cuối, ca phủ định và trạng thái viết mã của từng hành trình (`chua_viet`, `dang_viet`, `dat`, `tam_hoan`). Khi hai bản lệch nhau, tệp JSON là nguồn đúng. QA-04 đến QA-07 chỉ cập nhật trạng thái hành trình trong tệp, còn thêm hay bớt hành trình phải sửa cả hai nơi.
+
+Phân bổ theo task như sau. QA-04 nhận QT-00 đến QT-03. QA-05 nhận QT-04 đến QT-07. QA-06 nhận QT-08 đến QT-10. QA-07 nhận QT-11 đến QT-18. Bốn hành trình trên SCR-0302, SCR-0504, SCR-0702 và SCR-1803 thuộc bộ kiểm thử di động (MOB).
+
+| Mã | Hành trình | Tác nhân | QT | SCR | `operationId` chính | Sự kiện | Bộ | Cao tuổi |
+|---|---|---|---|---|---|---|---|---|
+| HT-01 | Đăng nhập tài khoản cơ quan và mở trang Việc của tôi hôm nay | AC-06 | QT-00 | SCR-0001, SCR-0002 | `resolveTenantCell`, `getMyOrgProfile`, `getHomeLayout`, `listMyTasks` | – | QA-04 | Có |
+| HT-02 | Chọn đơn vị và vai trò khi có nhiều phân công | AC-05 | QT-00 | SCR-0001, SCR-0002 | `getMyOrgProfile`, `setMyContext` | – | QA-04 |  |
+| HT-03 | Xác thực bậc hai bằng OTP và xác thực lại khi phê duyệt | AC-07, AC-05 | QT-00 | SCR-0001 | `getMyOrgProfile`, `approveOkrObjective` | – | QA-04 |  |
+| HT-04 | Đăng nhập bằng VNeID mức 2 và liên kết với hồ sơ cán bộ | AC-06, AC-11 | QT-00 | SCR-0001 | `resolveTenantCell`, `getMyOrgProfile` | – | QA-04 |  |
+| HT-05 | Khởi tạo, cấp phát và kích hoạt tenant mới | AC-01 | QT-01 | SCR-0101, SCR-0102 | `createConfigTenant`, `provisionConfigTenant`, `getJob`, `activateConfigTenant` … | – | QA-04 | Có |
+| HT-06 | Ghi thay đổi đơn vị có hiệu lực từ ngày và phân công cán bộ | AC-02 | QT-01 | SCR-0103 | `getOrgTree`, `changeOrgUnit`, `listOrgUnitHistory`, `createOrgAssignment` | EVT-14, EVT-15 | QA-04 |  |
+| HT-07 | Chạy đồng bộ nhân sự và xử lý sai lệch đối soát | AC-02 | QT-01 | SCR-0104 | `startOrgSyncRun`, `resolveOrgDiscrepancies`, `mapOrgDiscrepancy` | EVT-16 | QA-04 |  |
+| HT-08 | Lập mục tiêu và kết quả then chốt, bị trả lại, sửa và được phê duyệt | AC-06, AC-05 | QT-02 | SCR-0201, SCR-0202, SCR-0203 | `createOkrObjective`, `createOkrKeyResult`, `submitOkrObjective`, `returnOkrObjective` … | EVT-01 | QA-04 | Có |
+| HT-09 | Check-in kết quả then chốt và gửi lại không tạo bản ghi trùng | AC-06 | QT-03 | SCR-0301 | `getOkrObjective`, `createOkrCheckin` | EVT-02 | QA-04 | Có |
+| HT-10 | Check-in kết quả then chốt trên di động trong ba chạm | AC-06 | QT-03 | SCR-0302 | `createOkrCheckin` | EVT-02 | MOB (di động) | Có |
+| HT-11 | Lập kế hoạch quý từ danh mục công việc, bị trả lại và được phê duyệt | AC-05, AC-04 | QT-04 | SCR-0401, SCR-0402, SCR-0403 | `createPlan`, `savePlanVersion`, `checkPlanVersion`, `submitPlanVersion` … | EVT-03 | QA-05 | Có |
+| HT-12 | Điều chỉnh kế hoạch đã duyệt thành phiên bản mới | AC-05, AC-04 | QT-04 | SCR-0402, SCR-0403 | `createPlanAdjustment`, `submitPlanVersion`, `approvePlanVersion` | EVT-03 | QA-05 |  |
+| HT-13 | Giao nhiệm vụ từ kế hoạch và cán bộ nhận việc | AC-05, AC-06 | QT-05 | SCR-0501, SCR-0503 | `createTaskDraft`, `checkTaskAssignment`, `assignTask`, `listMyTasks` … | EVT-04, EVT-06 | QA-05 | Có |
+| HT-14 | Tạo nhiệm vụ từ văn bản chỉ đạo đến | AC-05 | QT-05 | SCR-0502 | `createTaskFromDocument`, `assignTask` | EVT-24, EVT-04 | QA-05 |  |
+| HT-15 | Cán bộ đăng ký nhiệm vụ và quản lý quyết định | AC-06, AC-05 | QT-05 | SCR-0503, SCR-0501 | `registerTask`, `decideTaskRegistration` | EVT-04 | QA-05 |  |
+| HT-16 | Việc của tôi và cập nhật tiến độ nhanh trên di động | AC-06 | QT-05, QT-06 | SCR-0504 | `listMyTasks`, `updateTaskProgress` | EVT-05 | MOB (di động) | Có |
+| HT-17 | Cập nhật tiến độ nhiệm vụ từ trang chủ trong ba chạm | AC-06 | QT-06 | SCR-0002, SCR-0601 | `listMyTasks`, `getTask`, `updateTaskProgress` | EVT-05 | QA-05 | Có |
+| HT-18 | Báo điểm nghẽn, quản lý xử lý và báo cáo lên cấp trên | AC-06, AC-05 | QT-06 | SCR-0601 | `reportTaskBlocker`, `handleTaskBlocker`, `escalateTaskBlocker` | EVT-21 | QA-05 |  |
+| HT-19 | Đề nghị gia hạn nhiệm vụ và quản lý phê duyệt | AC-06, AC-05 | QT-06 | SCR-0601, SCR-0602 | `previewTaskChangeRequest`, `submitTaskChangeRequest`, `decideTaskChangeRequest` | EVT-06 | QA-05 |  |
+| HT-20 | Tải lên và nộp minh chứng sau khi quét mã độc | AC-06 | QT-07 | SCR-0701 | `createFileUpload`, `uploadFilePart`, `completeFileUpload`, `createEvidence` … | EVT-07 | QA-05 | Có |
+| HT-21 | Nghiệm thu năm mức, yêu cầu bổ sung rồi xác nhận minh chứng | AC-05, AC-06 | QT-07 | SCR-0703, SCR-0701 | `openEvidenceReview`, `previewAppraisalTaskScore`, `requestEvidenceRevision`, `createEvidenceVersion` … | EVT-07, EVT-08, EVT-06 | QA-05 |  |
+| HT-22 | Chụp văn bản giấy và nộp minh chứng trên di động | AC-06 | QT-07 | SCR-0702 | `createFileUpload`, `completeFileUpload`, `ocrEvidenceObject`, `createEvidence` … | EVT-07 | MOB (di động) |  |
+| HT-23 | Lập lệnh khoá kỳ, duyệt và theo dõi saga chốt kỳ tới khi khoá xong | AC-02, AC-04 | QT-08 | SCR-0801 | `createPeriodLockOrder`, `approvePeriodLockOrder`, `startPeriodLock`, `getPeriodLockProgress` … | EVT-09, EVT-10, EVT-17, EVT-18, EVT-19 | QA-06 | Có |
+| HT-24 | Huỷ khoá kỳ trước bước ký lô và trở về kỳ mở | AC-02, AC-09 | QT-08 | SCR-0801 | `requestPeriodLockCancel`, `approvePeriodLockCancel`, `getPeriod` | EVT-26 | QA-06 |  |
+| HT-25 | Tự đánh giá, bị trả lại, sửa và gửi lại | AC-06, AC-07 | QT-09 | SCR-0901 | `listMyAppraisalProfiles`, `saveAppraisalSelfAssessment`, `submitAppraisalSelfAssessment`, `returnAppraisalProfile` | EVT-11 | QA-06 | Có |
+| HT-26 | Thẩm định và đề xuất mức xếp loại | AC-07 | QT-09 | SCR-0902 | `listAppraisalProfiles`, `getAppraisalProfile`, `appraiseAppraisalProfile`, `proposeAppraisalRating` | EVT-11 | QA-06 |  |
+| HT-27 | Quyết định xếp loại hàng loạt có ký số và xem phiếu có giải thích | AC-08, AC-06 | QT-09 | SCR-0904, SCR-0903 | `createAppraisalBatchDecision`, `getAppraisalBatchDecision`, `createEsignRequest`, `getAppraisalScores` … | EVT-12, EVT-18 | QA-06 |  |
+| HT-28 | Xếp loại năm từ bốn quý và giải thích kết quả | AC-07 | QT-10 | SCR-1001 | `listAnnualAppraisalRatings`, `getAnnualAppraisalExplanation` | – | QA-06 | Có |
+| HT-29 | Phân nhóm cán bộ triển vọng | AC-04 | QT-10 | SCR-1002 | `getProspectGroupBoard`, `saveProspectGroupBoard`, `submitProspectGroupBoard` | – | QA-06 |  |
+| HT-30 | Điều hành hội nghị kiểm điểm và lập biên bản | AC-04, AC-06 | QT-11 | SCR-1101 | `createDossierMeeting`, `sendDossierMeetingDraft`, `createDossierMeetingComment`, `createDossierMeetingMinutes` … | – | QA-07 | Có |
+| HT-31 | Lập gói hồ sơ số, ký số và xuất gói | AC-07 | QT-11 | SCR-1102 | `createDossierPackage`, `getDossierPackageChecklist`, `signDossierPackage`, `exportDossierPackage` … | EVT-17, EVT-18 | QA-07 |  |
+| HT-32 | Cán bộ gửi khiếu nại kết quả xếp loại | AC-06 | QT-12 | SCR-1201 | `listComplainableProfiles`, `createComplaint`, `submitComplaint` | EVT-25 | QA-07 | Có |
+| HT-33 | Tiếp nhận khiếu nại, yêu cầu giải trình, kết luận và trả lời | AC-10, AC-07 | QT-12 | SCR-1202 | `acceptComplaint`, `requestComplaintExplanations`, `submitComplaintExplanation`, `saveComplaintConclusion` … | EVT-21 | QA-07 |  |
+| HT-34 | Yêu cầu mở lại kỳ, mô phỏng tác động và hai người duyệt | AC-10, AC-08, AC-09 | QT-13 | SCR-1301 | `createReopenRequest`, `simulateReopenRequest`, `approveReopenRequest` | EVT-22 | QA-07 | Có |
+| HT-35 | Tra cứu sổ cái và kiểm tra toàn vẹn chuỗi băm | AC-10 | QT-13 | SCR-1302 | `listLedgerEntries`, `createLedgerVerifyRun`, `getLedgerVerifyRun`, `getLedgerInclusionProof` | – | QA-07 |  |
+| HT-36 | Xem cảnh báo bất thường, giao kiểm tra và kết luận | AC-10 | QT-14 | SCR-1401, SCR-1603 | `listAnomalyAlerts`, `getAnomalyAlert`, `createAlertAction` | EVT-20 | QA-07 | Có |
+| HT-37 | Soạn phiên bản Policy Pack, chạy ca vàng và phát hành | AC-03, AC-08 | QT-15 | SCR-1501, SCR-1502, SCR-1503 | `createPolicyPackVersion`, `savePolicyRule`, `saveDecisionTable`, `runPolicyTests` … | EVT-13 | QA-07 | Có |
+| HT-38 | Cấu hình luồng duyệt từ mẫu và mô phỏng ràng buộc | AC-03 | QT-15 | SCR-1504 | `listPolicyWorkflowTemplates`, `saveWorkflowBinding`, `simulateWorkflowBinding` | – | QA-07 |  |
+| HT-39 | Bảng điều hành, dựng dashboard và đi xuống tới minh chứng | AC-04, AC-05 | QT-16 | SCR-1601, SCR-1602, SCR-1603 | `queryAnalytics`, `createDashboard`, `getDashboard`, `getTraceChain` | – | QA-07 | Có |
+| HT-40 | Trợ lý AI gợi ý kết quả then chốt, người dùng chấp nhận hoặc bỏ qua | AC-06, AC-12 | QT-17 | SCR-1701 | `assistOkrDraft`, `reviewOkrKeyResults`, `decideAiSuggestion` | – | QA-07 | Có |
+| HT-41 | Soạn, xem trước và phát hành UI Pack cùng biểu mẫu động | AC-02 | QT-18 | SCR-1801, SCR-1802 | `createUiPackVersion`, `createUiFormVersion`, `runUiFormTests`, `attachUiPackForm` … | EVT-23 | QA-07 | Có |
+| HT-42 | Chế độ Đảng viên cao tuổi trên di động | AC-06 | QT-18 | SCR-1803 | `getCurrentUiPack`, `listMyTasks` | – | MOB (di động) | Có |
+
+Chọn tác nhân theo ma trận phân quyền `wiki/15a`. Có ba điểm chọn theo suy luận. Người duyệt phát hành Policy Pack là AC-08, vì ma trận ghi AC-08 POST là phê duyệt. Người duyệt phát hành UI Pack là người quản trị tenant thứ hai, vì ma trận không cho AC-09 ghi vào `/ui`. Người lập yêu cầu mở lại kỳ là AC-10, còn hai người duyệt là AC-08 và AC-09.
+
+Kiểm danh mục khớp hợp đồng bằng lệnh trong `frontend/e2e/hanh-trinh/README.md`. Lệnh kiểm mỗi `operationId` có trong `contracts/openapi/modules/`, mỗi QT có hành trình web, và mỗi QT có hành trình chạy ở chế độ cao tuổi. Lần chạy ngày 23/10/2026 cho kết quả: 42 hành trình, 137 `operationId` khác nhau, không thiếu mã nào.
+
+### Ánh xạ kịch bản thử tải và diễn tập khôi phục sang task QA
+
+Mỗi mã PERF và DR của TL-04 thuộc đúng một task QA viết kịch bản hoặc runbook. QA-12 không giữ mã riêng: nó chạy lại toàn bộ kịch bản của QA-08 đến QA-11 trên `CELL-PERF` để hiệu chuẩn bảng định cỡ. Thử hỏng PERF-07, PERF-09, PERF-10 vẫn thuộc QA-08 (kịch bản tải nền). QA-14 dùng lại ba kịch bản đó làm bước diễn tập DR-01 đến DR-04. Trong giai đoạn hiện tại chỉ viết kịch bản và runbook, ghi mục tiêu đạt; số đo ở quy mô định cỡ để giai đoạn sau (YC-PT-19).
+
+| Task | Mã PERF | Nội dung |
+|---|---|---|
+| QA-08 | PERF-01, PERF-02, PERF-03, PERF-04, PERF-05, PERF-06, PERF-07, PERF-08, PERF-09, PERF-10 | k6: tải thường, hiệu chuẩn pod, đỉnh 300.000 CCU, đột biến, chạy bền 72 giờ, điểm gãy, thử hỏng node, broker, primary CSDL, vùng sự cố |
+| QA-09 | PERF-11, PERF-12, PERF-13 | Gatling: thông lượng engine Flowable, 1.000 tenant và 30 mẫu luồng, kích thước bảng runtime (góp ý G2) |
+| QA-10 | PERF-14, PERF-15, PERF-16, PERF-17, PERF-18, PERF-25 | chi phí mã hoá trường C2, E2EE C3 trên thiết bị, outbox tới sổ cái, ký lô, tải lên và quét minh chứng, bảy lớp bảo vệ (góp ý G3) |
+| QA-11 | PERF-19, PERF-20, PERF-21, PERF-22, PERF-23, PERF-24, PERF-26 | tính lại 1,2 triệu hồ sơ, sinh và ký 100.000 phiếu, hiệu năng frontend, 60.000 kết nối SSE, đăng nhập dồn, bảng điều hành, suy luận AI |
+
+| Task | Mã DR | Nội dung |
+|---|---|---|
+| QA-14 | DR-01, DR-02, DR-03, DR-04, DR-05, DR-06, DR-07, DR-08, DR-09 | trong một TTDL: mất pod, node, vùng sự cố, primary PostgreSQL, cả cụm PostgreSQL, PITR, mất Kafka, Ceph, dựng lại cụm Kubernetes |
+| QA-15 | DR-10, DR-11, DR-12, DR-13, DR-14, DR-15, DR-16 | giữa hai TTDL và an ninh: mất TTDL Hoà Lạc, mã độc tống tiền, lộ khoá, mất vùng điều phối toàn cục, đứt chuỗi băm sổ cái, mất OpenBao hoặc HSM, quay về TTDL chính |
+
+Hai bảng trên phủ đủ PERF-01 đến PERF-26 và DR-01 đến DR-16, mỗi mã đúng một task. QA-13 (ASVS, ZAP) và QA-16 (chấp nhận nghiệp vụ) không giữ mã PERF hay DR. QA-13 quét thụ động lưu lượng của chính bộ hành trình trên, còn QA-16 dùng danh mục hành trình làm khung kịch bản cho một kỳ đánh giá trọn vẹn.
+
 ## Kiểm thử đầu cuối trên hệ thống thật (QA-03)
 
 Bộ hành trình QA-03 kiểm toàn bộ chuỗi thật trên server dev: trình duyệt đăng nhập Keycloak realm `mission` có OTP, ứng dụng gọi API qua APISIX tới mission-core thật, máy chủ ghi CSDL và phát sự kiện lên Kafka. Khác với chế độ `that` của WEB-070 (vẫn cho phép giữ một số module giả lập qua `MOCK_API_MODULES`), chế độ `E2E_MODE=he-thong` tắt giả lập hoàn toàn: `e2e/serve.mjs` chuyển mọi `/api/*` tới APISIX và không rơi về giả lập khi máy chủ trả 404 hay 5xx, nên lỗi thật hiện ngay trong kiểm thử. Lệnh chạy là `npm run e2e:he-thong` (hoặc `E2E_MODE=he-thong npm run e2e`) sau `npm run e2e:prepare`; chỉ nạp các tệp `*.spec.ts` trong `frontend/e2e/hanh-trinh/`, chạy tuần tự một luồng, thời gian chờ mỗi ca 300 giây, không chụp màn hình hay trace để không lưu lại màn hình nhập mật khẩu và OTP.
@@ -175,3 +329,6 @@ Ngoài ba điều kiện bắt buộc, người duyệt PR nên kiểm thêm: m�
 - [Bảo mật frontend](08-bao-mat-frontend.md)
 - [Giao diện theo tenant](03-giao-dien-theo-tenant.md)
 - [Hạ tầng dev và triển khai](12-ha-tang-dev-va-trien-khai.md)
+- [Quy trình và màn hình QT-00..QT-08](05a-quy-trinh-va-man-hinh-qt00-08.md), [QT-09..QT-18](05b-quy-trinh-va-man-hinh-qt09-18.md)
+- [Ma trận phân quyền](15a-ma-tran-phan-quyen.md)
+- [Sự kiện và đồng bộ dữ liệu](18-su-kien-va-dong-bo-du-lieu.md)

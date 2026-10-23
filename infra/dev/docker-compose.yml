@@ -250,9 +250,15 @@ services:
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:9094,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://${DEV_HOST:-localhost}:${KAFKA_EXTERNAL_PORT:-35094}
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      # Ba listener cho client (INF-22):
+      #   INTERNAL kafka:9092   cho container cùng mạng mission-net (Debezium, Apicurio, backend profile);
+      #   TUNNEL   cổng KAFKA_PORT (mặc định 35092), quảng bá 127.0.0.1 để dùng được trên chính máy chủ
+      #            và qua hầm SSH (-L 35092:127.0.0.1:35092), khớp mặc định KAFKA_BOOTSTRAP_SERVERS của backend;
+      #   EXTERNAL cổng KAFKA_EXTERNAL_PORT (mặc định 35094), quảng bá DEV_HOST khi tường lửa mở cổng.
+      # Địa chỉ thật chỉ nằm trong .env, không ghi vào repo.
+      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:9094,TUNNEL://:9095,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://${DEV_HOST:-localhost}:${KAFKA_EXTERNAL_PORT:-35094},TUNNEL://${KAFKA_TUNNEL_ADVERTISED_HOST:-127.0.0.1}:${KAFKA_PORT:-35092}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,TUNNEL:PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
@@ -264,7 +270,8 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
     ports:
-      - "${KAFKA_PORT:-35092}:9092"
+      # TUNNEL chỉ mở trên loopback của máy chủ; truy cập từ máy trạm đi qua hầm SSH.
+      - "${KAFKA_TUNNEL_BIND:-127.0.0.1}:${KAFKA_PORT:-35092}:9095"
       - "${KAFKA_EXTERNAL_PORT:-35094}:9094"
     volumes:
       - kafka_data:/var/lib/kafka/data
