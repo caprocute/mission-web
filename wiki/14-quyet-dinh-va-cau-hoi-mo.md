@@ -1441,6 +1441,20 @@ Task DV-13-01 dựng khung SVC-13 `integration-gateway` theo ADR-20 và TL-01 "L
 - **Gửi chiều ra trong giao dịch.** Lượt gửi của một thông điệp ra chạy trong giao dịch giữ bản ghi (`FOR UPDATE SKIP LOCKED`), nên nhiều bản sao không gửi trùng; đổi lại, giao dịch kéo dài bằng thời gian gọi đối tác (giới hạn bởi timeout của adapter).
 - **Thư viện.** Dùng Camel 4.14 (`camel-spring-boot-bom`) với các starter kafka, rest, jackson, resilience4j, ftp (gồm SFTP); `camel-cxf` cho SOAP hoãn tới task có kết nối SOAP thật.
 
+## Ghi chú và quyết định từ bộ kết nối vOffice (DV-13-03, 23/10/2026)
+
+Task DV-13-03 hiện thực bộ kết nối vOffice (và ĐHTN cùng giao thức, khai báo thêm mã qua `okrkpi.integ.voffice.codes`) trên khung DV-13-01, làm với vOffice giả lập theo quyết định 20/10/2026.
+
+- **REST kéo và EdXML.** TL-01 mô tả vOffice qua REST OpenAPI kéo có con trỏ, còn TL-02a QT-05 bước 1b mô tả vOffice gửi EdXML. Bộ kết nối mặc định REST kéo theo TL-01 (`GET /api/v2/directives?updatedSince=&limit=200`, mỗi 30 giây, stream `directives`); phần tử nào có trường `edxml` thì lưu nguyên gói EdXML và dịch bằng bộ phân tích EdXML tối thiểu (chỉ phần `MessageHeader`, tắt DTD và thực thể ngoài) để DV-13-05 dùng lại. Cổng nhận EdXML đẩy (webhook) chưa mở vì hợp đồng chưa có (suy luận).
+- **Chống trùng và đổi phiên bản.** Mã thông điệp phía ngoài là `<id>:<version>`, tương ứng khoá `voffice:${id}:${version}` của TL-01; văn bản đổi phiên bản tạo EVT-24 mới với `aggregateVersion` bằng phiên bản vOffice, còn mã văn bản nội bộ giữ nguyên qua `mapping_xref` `VAN_BAN`. Con trỏ `updatedSince` tính cả mốc nên phần tử cuối trang được kéo lại và bị chống trùng bỏ qua.
+- **Đơn vị nhận chưa ánh xạ.** Translator ném `TranslationRejectedException`; luồng vào không thử lại, đặt `inbox_message` ở `LOI` và ghi một thư chết `error_code = DON_VI_CHUA_ANH_XA` (hoặc `THIEU_DON_VI_NHAN`) với lý do nêu mã đơn vị phía ngoài; thư chết là hàng xử lý của quản trị tenant, phát lại sau khi bổ sung ánh xạ. Phát lại mà vẫn bị từ chối thì thư cũ giữ mở, không sinh thư mới.
+- **Giữ con trỏ khi chưa lưu được.** Thông điệp lỗi trước khi lưu `inbox_message` (ví dụ dịch vụ mã hoá không sẵn sàng) không vào được thư chết; khi đó route không tiến con trỏ để lượt sau kéo lại, tránh mất văn bản.
+- **EVT-24 không có đơn vị nhận.** Lược đồ `integ.document.received.v1` chỉ có số, ngày, cơ quan ban hành, trích yếu, `objectKey`; đơn vị nhận chỉ dùng để kiểm tra ánh xạ. Tệp đính kèm chưa chuyển sang evidence-service (chưa có cổng nhận tệp nội bộ) nên `objectKey` để trống; mission-core dùng tham chiếu phía ngoài khi cần.
+- **Tra cứu văn bản đã ban hành.** Use case `IssuedDocumentSearch` đổi đơn vị nội bộ sang mã đơn vị vOffice qua `mapping_xref`, gọi `GET /api/v2/documents`; đơn vị chưa ánh xạ thì trả rỗng. MOD-03 gọi qua cổng nội bộ `GET /internal/v1/integ/issued-docs?tenantId=&orgUnitId=&q=&limit=&cursor=` (token dịch vụ vai trò `svc_mission_core`, cùng cách cổng nội bộ của org-service; hợp đồng nội bộ chưa có trong `contracts/openapi`, suy luận), trả đúng tên trường của `EvidenceExternalDocList`. Trạng thái chữ ký số lấy theo kết quả vOffice kiểm khi nhận tệp gốc; kiểm lại bằng esign-service để task sau.
+- **Bí mật kết nối.** Địa chỉ ở `integ.connector.endpoint`, mã thông báo đọc từ tệp `<okrkpi.integ.secrets-dir>/<secret_path>` do OpenBao Agent hoặc CSI kết xuất; kiểm thử chứng minh đổi sang vOffice khác chỉ bằng sửa bản ghi kết nối.
+- **Hợp đồng phía tiêu dùng.** Pact JVM 4.6 làm hỏng việc chép tệp pg_partman vào container Testcontainers của kiểm thử lược đồ, nên hợp đồng được công bố dưới dạng ánh xạ WireMock ở `backend/services/integration-gateway/src/test/resources/voffice-gia-lap` (QA-02 chạy lại bằng WireMock standalone), có `VOfficeContractTest` giữ mã và hợp đồng khớp nhau.
+- **Chưa làm.** Phản hồi "gửi nhầm đơn vị" về vOffice chưa làm vì baseline chưa có sự kiện MOD-02 bỏ văn bản để gắn chiều ra; khung `OutboundSender` đã sẵn sàng khi CORE-02-16 có sự kiện đó. Cổng nội bộ của integration-gateway có thêm chuỗi bảo mật Spring (`/internal/**` cần token dịch vụ, `/actuator/**` mở, đường khác từ chối).
+
 ## Liên quan
 
 - [README của wiki](README.md)

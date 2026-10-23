@@ -8,6 +8,11 @@
 #   trỏ tới 127.0.0.1 qua dải cổng SSH tunnel 35xxx của infra/dev để dễ dàng thay đổi động qua .env.
 
 spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8080/realms/mission}
   application:
     name: ${SERVICE_NAME:integration-gateway}
   threads:
@@ -90,6 +95,15 @@ okrkpi:
     registry:
       url: ${APICURIO_REGISTRY_URL:http://127.0.0.1:35081/apis/registry/v2}
   integ:
+    # Cổng nội bộ /internal/** đòi token dịch vụ; chỉ tắt ở kiểm thử và môi trường giả lập.
+    auth-enabled: ${INTEG_AUTH_ENABLED:true}
+    # Thư mục OpenBao Agent/CSI kết xuất bí mật kết nối theo secret_path; trống ở bản giả lập.
+    secrets-dir: ${INTEG_SECRETS_DIR:}
+    voffice:
+      enabled: ${INTEG_VOFFICE_ENABLED:true}
+      codes: ${INTEG_VOFFICE_CODES:VOFFICE}
+      period: ${INTEG_VOFFICE_PERIOD:PT30S}
+      request-timeout: ${INTEG_VOFFICE_TIMEOUT:PT5S}
     route:
       max-redeliveries: ${INTEG_MAX_REDELIVERIES:5}
       redelivery-delay: ${INTEG_REDELIVERY_DELAY:PT2S}

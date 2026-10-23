@@ -1,7 +1,10 @@
 package vn.viettel.okrkpi.integ.infrastructure.config;
 
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import org.apache.camel.RoutesBuilder;
 import org.springframework.beans.factory.ObjectProvider;
@@ -16,6 +19,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.integ.application.DeadLetterService;
 import vn.viettel.okrkpi.integ.application.InboundConnector;
 import vn.viettel.okrkpi.integ.application.InboundPipeline;
+import vn.viettel.okrkpi.integ.application.IssuedDocumentSearch;
+import vn.viettel.okrkpi.integ.application.IssuedDocumentSource;
 import vn.viettel.okrkpi.integ.application.MappingXrefService;
 import vn.viettel.okrkpi.integ.application.OutboundBinding;
 import vn.viettel.okrkpi.integ.application.OutboundPipeline;
@@ -24,6 +29,7 @@ import vn.viettel.okrkpi.integ.application.PullService;
 import vn.viettel.okrkpi.integ.application.SyncCursorService;
 import vn.viettel.okrkpi.integ.application.Translators;
 import vn.viettel.okrkpi.integ.application.port.CanonicalEventSink;
+import vn.viettel.okrkpi.integ.application.port.ConnectorSecrets;
 import vn.viettel.okrkpi.integ.application.port.Connectors;
 import vn.viettel.okrkpi.integ.application.port.DeadLetters;
 import vn.viettel.okrkpi.integ.application.port.InboxMessages;
@@ -47,6 +53,8 @@ import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcInboxMessages;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcMappingXrefs;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcOutboundMessages;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcSyncCursors;
+import vn.viettel.okrkpi.integ.infrastructure.secrets.FileConnectorSecrets;
+import vn.viettel.okrkpi.integ.infrastructure.voffice.VOfficeConfiguration.VOfficeBeans;
 import vn.viettel.okrkpi.shared.crypto.FieldEncryptor;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
 
@@ -139,14 +147,43 @@ public class IntegConfiguration {
   }
 
   @Bean
-  Translators integTranslators(ObjectProvider<InboundConnector> connectors) {
-    return new Translators(connectors.orderedStream().toList(), Map.of());
+  Translators integTranslators(
+      ObjectProvider<InboundConnector> connectors, ObjectProvider<VOfficeBeans> voffice) {
+    return new Translators(inboundConnectors(connectors, voffice), Map.of());
+  }
+
+  /** Bộ kết nối vào khai báo thẳng là bean cộng với các bộ kiểu vOffice dựng theo danh sách mã. */
+  static List<InboundConnector> inboundConnectors(
+      ObjectProvider<InboundConnector> connectors, ObjectProvider<VOfficeBeans> voffice) {
+    List<InboundConnector> all = new ArrayList<>(connectors.orderedStream().toList());
+    voffice.ifAvailable(v -> all.addAll(v.connectors()));
+    return all;
+  }
+
+  @Bean
+  ConnectorSecrets integConnectorSecrets(@Value("${okrkpi.integ.secrets-dir:}") String secretsDir) {
+    return new FileConnectorSecrets(secretsDir.isBlank() ? null : Path.of(secretsDir));
+  }
+
+  @Bean
+  IssuedDocumentSearch integIssuedDocumentSearch(
+      Connectors connectors,
+      MappingXrefService mappings,
+      ObjectProvider<IssuedDocumentSource> sources,
+      ObjectProvider<VOfficeBeans> voffice,
+      TransactionTemplate integTransactions,
+      ObjectProvider<Clock> clock) {
+    List<IssuedDocumentSource> all = new ArrayList<>(sources.orderedStream().toList());
+    voffice.ifAvailable(v -> all.addAll(v.sources()));
+    return new IssuedDocumentSearch(
+        connectors, mappings, all, integTransactions, clock.getIfAvailable(Clock::systemUTC));
   }
 
   @Bean
   InboundPipeline integInboundPipeline(
       Connectors connectors,
       InboxMessages inbox,
+      DeadLetters deadLetters,
       PayloadCipher cipher,
       CanonicalEventSink sink,
       MappingXrefService mappings,
@@ -157,6 +194,7 @@ public class IntegConfiguration {
     return new InboundPipeline(
         connectors,
         inbox,
+        deadLetters,
         cipher,
         sink,
         mappings,
@@ -234,12 +272,12 @@ public class IntegConfiguration {
   RoutesBuilder integPollingRoutes(
       RouteSettings settings,
       ObjectProvider<InboundConnector> connectors,
+      ObjectProvider<VOfficeBeans> voffice,
       PullService pulls,
       InboundPipeline pipeline,
       InboxIdempotentRepository idempotent) {
     return new CompositeRoutes(
-        connectors
-            .orderedStream()
+        inboundConnectors(connectors, voffice).stream()
             .map(source -> new PollingConnectorRoute(settings, source, pulls, pipeline, idempotent))
             .toList());
   }

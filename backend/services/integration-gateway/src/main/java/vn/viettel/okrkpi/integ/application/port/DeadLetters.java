@@ -36,6 +36,9 @@ public interface DeadLetters {
 
   Optional<Letter> find(TenantId tenant, UUID id);
 
+  /** Đã có thư chết chưa xử lý cho thông điệp {@code refMessageId}. */
+  boolean hasOpen(TenantId tenant, UUID refMessageId);
+
   /**
    * Trang theo {@code (created_at, id)} tăng dần sau con trỏ; {@code connectorId} rỗng là mọi kết
    * nối.
