@@ -18,12 +18,17 @@ import (
 //
 //	ledger-service admin tenant-moved-in --tenant --chain --origin-cell --last-seal --origin-hash --origin-seq --actor --reason
 //	ledger-service admin incident-recovery --tenant --chain --last-valid-seal --incident --actor --reason
+//	ledger-service admin seal [--window-end RFC3339] [--kind DOT_XUAT]   (bước 6 saga chốt kỳ, DV-09-03)
+//	ledger-service admin anchor --day YYYY-MM-DD
 //
 // Người thực hiện và lý do được ghi vào chính bản ghi sổ cái và nhật ký vận hành.
-func runAdmin(ctx context.Context, ing *ingest.Ingester, args []string, log *slog.Logger) int {
+func runAdmin(ctx context.Context, ing *ingest.Ingester, sealers sealerFactory, args []string, log *slog.Logger) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "cần lệnh con: tenant-moved-in hoặc incident-recovery")
+		fmt.Fprintln(os.Stderr, "cần lệnh con: tenant-moved-in, incident-recovery, seal hoặc anchor")
 		return 2
+	}
+	if args[0] == "seal" || args[0] == "anchor" {
+		return runSealAdmin(ctx, sealers, args, log)
 	}
 	fs := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	tenant := fs.String("tenant", "", "mã tenant")

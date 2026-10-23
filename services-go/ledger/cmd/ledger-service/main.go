@@ -19,6 +19,7 @@ import (
 	"mission/services-go/ledger/internal/config"
 	"mission/services-go/ledger/internal/ingest"
 	"mission/services-go/ledger/internal/partition"
+	"mission/services-go/ledger/internal/seal"
 	"mission/services-go/ledger/internal/server"
 	"vn.viettel.okrkpi/services-go/vtplatform/otel"
 )
@@ -78,8 +79,9 @@ func main() {
 	}
 
 	ing := ingest.NewIngester(pool, otelProvider, log)
+	sealers := func() (*seal.Sealer, *seal.Anchorer, error) { return buildSealer(cfg, pool, otelProvider, log) }
 	if len(os.Args) >= 2 && os.Args[1] == "admin" {
-		os.Exit(runAdmin(ctx, ing, os.Args[2:], log))
+		os.Exit(runAdmin(ctx, ing, sealers, os.Args[2:], log))
 	}
 
 	go partition.RunPeriodic(ctx, pool, cfg.PartitionSyncInterval, log)
@@ -98,6 +100,16 @@ func main() {
 		}()
 	} else {
 		log.Warn("chưa đặt KAFKA_BROKERS, ledger-ingester không chạy")
+	}
+
+	if cfg.SealEnabled {
+		sealer, anchorer, err := sealers()
+		if err != nil {
+			log.Error("không dựng được job niêm phong", "err", err.Error())
+			os.Exit(1)
+		}
+		go func() { _ = sealer.Run(ctx, *sealer.Schedule, cfg.SealGrace) }()
+		go anchorer.Run(ctx, func(msg string, args ...any) { log.Error(msg, args...) })
 	}
 
 	srv := server.New(server.Deps{

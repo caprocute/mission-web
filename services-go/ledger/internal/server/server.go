@@ -97,6 +97,9 @@ func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 			"ledger.ingest.duplicates_total",
 			"ledger.ingest.rejected_c2_total",
 			"ledger.ingest.incidents_total",
+			"ledger.seal.cell_seals_total",
+			"ledger.seal.tsa_failures_total",
+			"ledger.seal.tsa_overdue_total",
 		} {
 			metrics[name] = s.deps.OTel.CounterValue(name)
 		}

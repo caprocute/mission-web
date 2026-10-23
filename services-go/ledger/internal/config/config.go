@@ -22,6 +22,15 @@ type Config struct {
 	IngestFlushTimeout    time.Duration
 	PartitionSyncInterval time.Duration
 	ShutdownTimeout       time.Duration
+	// Niêm phong Merkle (DV-09-03).
+	SealEnabled    bool
+	SealKeyFile    string
+	SealCertFile   string
+	SealKeyID      string
+	TSAURL         string
+	SealPeriodEnds []time.Time
+	SealGrace      time.Duration
+	AnchorDir      string
 }
 
 // Load đọc cấu hình từ biến môi trường với giá trị mặc định an toàn.
@@ -62,6 +71,27 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("INGEST_FLUSH_TIMEOUT không hợp lệ: %w", err)
 	}
 
+	var periodEnds []time.Time
+	if raw := strings.TrimSpace(os.Getenv("SEAL_PERIOD_ENDS")); raw != "" {
+		for _, p := range strings.Split(raw, ",") {
+			p = strings.TrimSpace(p)
+			t, err := time.Parse(time.RFC3339, p)
+			if err != nil {
+				d, derr := time.Parse(time.DateOnly, p)
+				if derr != nil {
+					return nil, fmt.Errorf("SEAL_PERIOD_ENDS không hợp lệ (%q): cần RFC 3339 hoặc YYYY-MM-DD", p)
+				}
+				// Ngày cuối kỳ tính hết 24 giờ giờ Việt Nam.
+				t = time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, time.FixedZone("ICT", 7*3600)).AddDate(0, 0, 1)
+			}
+			periodEnds = append(periodEnds, t)
+		}
+	}
+	sealGrace, err := time.ParseDuration(envOrDefault("SEAL_GRACE", "5s"))
+	if err != nil || sealGrace < 0 {
+		return nil, fmt.Errorf("SEAL_GRACE không hợp lệ: %w", err)
+	}
+
 	return &Config{
 		ServiceName:           "ledger",
 		CellCode:              cellCode,
@@ -75,6 +105,14 @@ func Load() (*Config, error) {
 		IngestFlushTimeout:    flushTimeout,
 		PartitionSyncInterval: partInterval,
 		ShutdownTimeout:       shutdownTimeout,
+		SealEnabled:           envOrDefault("SEAL_ENABLED", "true") == "true",
+		SealKeyFile:           strings.TrimSpace(os.Getenv("SEAL_KEY_FILE")),
+		SealCertFile:          strings.TrimSpace(os.Getenv("SEAL_CERT_FILE")),
+		SealKeyID:             envOrDefault("SEAL_KEY_ID", "seal-"+strings.ToLower(cellCode)),
+		TSAURL:                strings.TrimSpace(os.Getenv("TSA_URL")),
+		SealPeriodEnds:        periodEnds,
+		SealGrace:             sealGrace,
+		AnchorDir:             strings.TrimSpace(os.Getenv("ANCHOR_DIR")),
 	}, nil
 }
 
