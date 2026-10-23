@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.dossier.infrastructure.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -29,6 +30,7 @@ import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.config.api.PeriodStatus;
 import vn.viettel.okrkpi.dossier.application.comment.port.CommentSealer;
 import vn.viettel.okrkpi.dossier.application.transfer.DossierTransferService;
+import vn.viettel.okrkpi.dossier.application.transfer.TransferImportService;
 import vn.viettel.okrkpi.shared.audit.AuditEvent;
 import vn.viettel.okrkpi.shared.audit.AuditEventType;
 import vn.viettel.okrkpi.shared.audit.AuditLogger;
@@ -214,6 +216,108 @@ class TransferPartsIT {
       assertThat(none.conclusions(t, UUID.randomUUID())).isEmpty();
       assertThat(none.signedDossiers(t, UUID.randomUUID())).isEmpty();
       verify(quiet, never()).record(any());
+    }
+  }
+
+  @Test
+  void importKeepsPartSealedAndIdempotent() throws SQLException {
+    CommentSealer sealer = sealer();
+    TenantId t = TenantId.of(tenant);
+    UUID packageId = UUID.randomUUID();
+    byte[] body =
+        ("{\"version\":1,\"personId\":\""
+                + person
+                + "\",\"items\":[{\"content\":\"Cần khắc phục\"}]}")
+            .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    TransferImportService.Part part =
+        new TransferImportService.Part(
+            packageId,
+            "ket-luan.json",
+            "KET_LUAN_KIEM_DIEM",
+            "HN-BO-A",
+            person,
+            "application/json",
+            body);
+    try (Connection c = service("svc_dossier", tenant)) {
+      TransferImportService svc =
+          new TransferImportService(
+              new JdbcTransferredRecords(
+                  JdbcClient.create(new SingleConnectionDataSource(c, true))),
+              sealer);
+      UUID actor = DossierTransferService.SYSTEM_ACTOR;
+      assertThat(svc.importPart(t, part, actor).created()).isTrue();
+      assertThat(svc.importPart(t, part, actor).created()).isFalse();
+      byte[] other = body.clone();
+      other[other.length - 3] = 'X';
+      assertThatThrownBy(
+              () ->
+                  svc.importPart(
+                      t,
+                      new TransferImportService.Part(
+                          packageId,
+                          "ket-luan.json",
+                          "KET_LUAN_KIEM_DIEM",
+                          "HN-BO-A",
+                          person,
+                          "application/json",
+                          other),
+                      actor))
+          .isInstanceOf(TransferImportService.ConflictException.class);
+      for (TransferImportService.Part bad :
+          List.of(
+              new TransferImportService.Part(
+                  packageId, "../x", "KET_LUAN_KIEM_DIEM", "HN", person, "application/json", body),
+              new TransferImportService.Part(
+                  packageId,
+                  "a.json",
+                  "QUA_TRINH_CONG_TAC",
+                  "HN",
+                  person,
+                  "application/json",
+                  body),
+              new TransferImportService.Part(
+                  packageId, "a.json", "HO_SO_DA_KY", "HN", person, "text/plain", body),
+              new TransferImportService.Part(
+                  packageId,
+                  "a.json",
+                  "HO_SO_DA_KY",
+                  "HN",
+                  person,
+                  "application/json",
+                  "khong".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+              new TransferImportService.Part(
+                  packageId, "a.json", "HO_SO_DA_KY", " ", person, "application/json", body),
+              new TransferImportService.Part(
+                  null, "a.json", "HO_SO_DA_KY", "HN", person, "application/json", body))) {
+        assertThatThrownBy(() -> svc.importPart(t, bad, actor))
+            .isInstanceOf(TransferImportService.InvalidPartException.class);
+      }
+    }
+    try (Connection c = admin();
+        Statement st = c.createStatement();
+        var rs =
+            st.executeQuery(
+                "SELECT content_enc, dek_id, source_person_id, id FROM dossier.transferred_record"
+                    + " WHERE package_id = '"
+                    + packageId
+                    + "'")) {
+      assertThat(rs.next()).isTrue();
+      byte[] enc = rs.getBytes(1);
+      assertThat(new String(enc, java.nio.charset.StandardCharsets.UTF_8))
+          .doesNotContain("khắc phục");
+      assertThat(
+              sealer.open(
+                  t, TransferImportService.CONTENT_COLUMN, rs.getObject(4, UUID.class), enc))
+          .contains("Cần khắc phục");
+      assertThat(rs.getObject(3, UUID.class)).isEqualTo(person);
+      assertThat(rs.next()).isFalse();
+    }
+    // Tenant khác không thấy phần đã nhập.
+    try (Connection c = service("svc_dossier", other)) {
+      assertThat(
+              new JdbcTransferredRecords(JdbcClient.create(new SingleConnectionDataSource(c, true)))
+                  .contentSha256(TenantId.of(other), packageId, "ket-luan.json"))
+          .isEmpty();
     }
   }
 
