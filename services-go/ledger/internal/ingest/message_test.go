@@ -164,6 +164,7 @@ func TestLuongGhiKhopVectorVang(t *testing.T) {
 		raw, _ := os.ReadFile(f)
 		var v struct {
 			Header       canon.MetadataHeader `json:"metadata_header"`
+			Metadata     string               `json:"input_metadata_raw"`
 			Prev         string               `json:"prev_hash"`
 			PayloadHash  string               `json:"payload_hash"`
 			MetadataHash string               `json:"metadata_hash"`
@@ -181,6 +182,9 @@ func TestLuongGhiKhopVectorVang(t *testing.T) {
 			ActorKind: h.ActorKind, OccurredAt: occurred,
 		}
 		ev.PayloadHash, _ = hex.DecodeString(v.PayloadHash)
+		if err := json.Unmarshal([]byte(v.Metadata), &ev.Metadata); err != nil {
+			t.Fatal(f, err)
+		}
 		if h.ActorID != nil {
 			a := uuid.MustParse(*h.ActorID)
 			ev.ActorID = &a

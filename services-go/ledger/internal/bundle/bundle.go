@@ -45,24 +45,26 @@ const (
 )
 
 // Record là một bản ghi sổ cái trong gói. Bản ghi ngoài phạm vi lọc (inScope=false) chỉ có mặt để nối
-// chuỗi tới đầu chuỗi đã niêm phong và không mang metadata.
+// chuỗi tới đầu chuỗi đã niêm phong và không mang metadata; MetadataSHA256 (băm cột metadata) luôn có để tính lại
+// metadata_hash, và với bản ghi trong phạm vi, công cụ kiểm còn đối chiếu nó với metadata đi kèm.
 type Record struct {
-	SeqNo         int64          `json:"seqNo"`
-	ID            string         `json:"id"`
-	EventID       string         `json:"eventId"`
-	EventType     string         `json:"eventType"`
-	AggregateType string         `json:"aggregateType"`
-	AggregateID   string         `json:"aggregateId"`
-	ActorID       *string        `json:"actorId"`
-	ActorKind     string         `json:"actorKind"`
-	OccurredAt    string         `json:"occurredAt"`
-	RecordedAt    string         `json:"recordedAt"`
-	PayloadHash   string         `json:"payloadHash"`
-	MetadataHash  string         `json:"metadataHash"`
-	PrevHash      string         `json:"prevHash"`
-	EntryHash     string         `json:"entryHash"`
-	InScope       bool           `json:"inScope"`
-	Metadata      map[string]any `json:"metadata,omitempty"`
+	SeqNo          int64          `json:"seqNo"`
+	ID             string         `json:"id"`
+	EventID        string         `json:"eventId"`
+	EventType      string         `json:"eventType"`
+	AggregateType  string         `json:"aggregateType"`
+	AggregateID    string         `json:"aggregateId"`
+	ActorID        *string        `json:"actorId"`
+	ActorKind      string         `json:"actorKind"`
+	OccurredAt     string         `json:"occurredAt"`
+	RecordedAt     string         `json:"recordedAt"`
+	PayloadHash    string         `json:"payloadHash"`
+	MetadataSHA256 string         `json:"metadataSha256"`
+	MetadataHash   string         `json:"metadataHash"`
+	PrevHash       string         `json:"prevHash"`
+	EntryHash      string         `json:"entryHash"`
+	InScope        bool           `json:"inScope"`
+	Metadata       map[string]any `json:"metadata,omitempty"`
 }
 
 // Segment là các bản ghi liên tục seq_no của một chuỗi.

@@ -63,6 +63,11 @@ type MetadataHeader struct {
 	ActorKind      string  `json:"actor_kind"`
 	OccurredAt     string  `json:"occurred_at"`
 	RecordedAt     string  `json:"recorded_at"`
+	// MetadataSHA256 là SHA-256 (hex chữ thường) của cột metadata chuẩn hoá RFC 8785 + NFC, tính bằng MetadataDigest.
+	// Đưa vào metadata_hash để sửa cột metadata (trạng thái trước, sau) cũng phá chuỗi; TL-03 không gồm cột này,
+	// người phụ trách đã chọn bổ sung (wiki/14 DV-09-05 mục 5). Băm thay vì chép nguyên văn để gói bằng chứng
+	// không phải mang metadata của bản ghi ngoài phạm vi mà vẫn tính lại được metadata_hash.
+	MetadataSHA256 string `json:"metadata_sha256"`
 }
 
 // NormalizeNFC chuẩn hoá chuỗi sang dạng dựng sẵn Unicode NFC.
@@ -177,6 +182,11 @@ func MetadataHash(hdr MetadataHeader) ([32]byte, []byte, error) {
 		return [32]byte{}, nil, fmt.Errorf("canon: recorded_at không hợp lệ: %w", err)
 	}
 
+	digest := strings.ToLower(strings.TrimSpace(hdr.MetadataSHA256))
+	if b, err := hex.DecodeString(digest); err != nil || len(b) != sha256.Size {
+		return [32]byte{}, nil, fmt.Errorf("canon: metadata_sha256 %q phải là 64 ký tự hex", hdr.MetadataSHA256)
+	}
+
 	var normActorID *string
 	if hdr.ActorID != nil && strings.TrimSpace(*hdr.ActorID) != "" {
 		parsedActor, err := uuid.Parse(strings.TrimSpace(*hdr.ActorID))
@@ -198,6 +208,7 @@ func MetadataHash(hdr MetadataHeader) ([32]byte, []byte, error) {
 		ActorKind:      NormalizeNFC(strings.TrimSpace(hdr.ActorKind)),
 		OccurredAt:     occStr,
 		RecordedAt:     recStr,
+		MetadataSHA256: digest,
 	}
 
 	canonBytes, err := CanonicalizeValue(normalized)
@@ -205,6 +216,33 @@ func MetadataHash(hdr MetadataHeader) ([32]byte, []byte, error) {
 		return [32]byte{}, nil, err
 	}
 	return sha256.Sum256(canonBytes), canonBytes, nil
+}
+
+// MetadataDigest tính SHA-256 hex của cột metadata chuẩn hoá RFC 8785 + NFC; nil được coi như đối tượng rỗng,
+// giống giá trị luồng ghi lưu khi sự kiện không có metadata.
+func MetadataDigest(metadata map[string]any) (string, error) {
+	if metadata == nil {
+		metadata = map[string]any{}
+	}
+	raw, err := CanonicalizeValue(metadata)
+	if err != nil {
+		return "", fmt.Errorf("canon: chuẩn hoá metadata: %w", err)
+	}
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:]), nil
+}
+
+// MetadataDigestJSON như MetadataDigest nhưng nhận cột metadata dạng JSON thô (jsonb đọc từ CSDL).
+func MetadataDigestJSON(raw []byte) (string, error) {
+	if len(bytes.TrimSpace(raw)) == 0 {
+		return MetadataDigest(nil)
+	}
+	c, err := CanonicalizeJSON(raw)
+	if err != nil {
+		return "", fmt.Errorf("canon: chuẩn hoá metadata: %w", err)
+	}
+	sum := sha256.Sum256(c)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 // EntryHash tính SHA-256(prev_hash || payload_hash || metadata_hash) theo đúng công thức TL-03 L4100.
