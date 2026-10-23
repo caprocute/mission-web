@@ -262,12 +262,12 @@ class TestTenantDbAndKafkaAsync(unittest.TestCase):
             # 4. DirectProducer for SVC-14 EVT-20: deterministic event_id from alertKey + C2/C3 rejection
             producer = kafka.DirectProducer()
             alert = kafka.AnomalyAlertPayload(
-                alert_key="CB_01:TASK:task-500:2026-10",
-                signal_code="CB_01",
-                severity="HIGH",
-                subject_type="TASK",
-                subject_id="task-500",
-                evidence_chain=["prog-101", "prog-102"],
+                alert_key="TU_CHAM_CAO:CA_NHAN:0192f000-0000-7000-8000-0000000000b1:2026-Q4",
+                signal_code="TU_CHAM_CAO",
+                severity="CAO",
+                subject_type="CA_NHAN",
+                subject_id="0192f000-0000-7000-8000-0000000000b1",
+                evidence_chain=["ky:0192f000-0000-7000-8000-0000000000a4", "so_lieu:CHENH_DIEM=6.5"],
                 model_version="ew-v1.2.0",
             )
             with tenant.tenant_context(tenant_a):
@@ -282,6 +282,18 @@ class TestTenantDbAndKafkaAsync(unittest.TestCase):
             self.assertEqual(rec1.headers["ce_type"], "EVT-20")
             self.assertEqual(rec1.headers["ce_id"], rec2.headers["ce_id"])
             self.assertTrue(tenant.is_valid_uuid(rec1.headers["ce_id"]))
+            self.assertEqual(
+                json.loads(alert.to_avro_dict()["evidenceChain"]),
+                ["ky:0192f000-0000-7000-8000-0000000000a4", "so_lieu:CHENH_DIEM=6.5"],
+            )
+            # HET_DAU_HIEU (CORE-07-10): distinct event id so the consumer inbox does not drop the resolution.
+            alert.severity = "HET_DAU_HIEU"
+            with tenant.tenant_context(tenant_a):
+                rec3 = await producer.publish_anomaly_alert(alert, classification="C1")
+            self.assertNotEqual(rec3.headers["ce_id"], rec1.headers["ce_id"])
+            for bad in ({"signal_code": "CB_01"}, {"severity": "HIGH"}, {"subject_type": "TASK"}, {"subject_id": "task-500"}):
+                with self.assertRaises(ValueError):
+                    kafka.AnomalyAlertPayload(**{**alert.__dict__, **bad}).validate()
 
         asyncio.run(_run())
 

@@ -13,10 +13,12 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.config.api.PeriodApi;
+import vn.viettel.okrkpi.policy.api.PolicyQueryApi;
 import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
 import vn.viettel.okrkpi.task.application.catalog.CatalogImportService;
 import vn.viettel.okrkpi.task.application.catalog.CatalogPolicy;
 import vn.viettel.okrkpi.task.application.catalog.CatalogService;
+import vn.viettel.okrkpi.task.application.catalog.CoefficientTypes;
 
 /**
  * CORE-02-03, CORE-02-04: nối danh mục công việc của MOD-02 với {@code taskDataSource}. Tham số
@@ -35,9 +37,14 @@ public class CatalogConfiguration {
       JdbcCatalogRepository catalogRepository,
       ObjectProvider<CatalogPolicy> policy,
       PeriodApi periodApi,
-      OrgDirectoryApi orgDirectory) {
+      OrgDirectoryApi orgDirectory,
+      ObjectProvider<PolicyQueryApi> policies) {
     return new CatalogService(
-        catalogRepository, policy.getIfAvailable(CatalogPolicy::defaults), periodApi, orgDirectory);
+        catalogRepository,
+        policy.getIfAvailable(CatalogPolicy::defaults),
+        periodApi,
+        orgDirectory,
+        new CoefficientTypes(policies.getIfAvailable()));
   }
 
   /**

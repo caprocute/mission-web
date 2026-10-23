@@ -248,11 +248,11 @@ class TaskDraftServiceTest {
             s.basis());
     assertThatThrownBy(() -> f.drafts.saveDraft(TENANT, d.id(), 4, moved, MANAGER))
         .satisfies(e -> assertThat(code(e)).isEqualTo("COMMON-422-VALIDATION"));
-    when(f.repo.storeDraft(eq(TENANT), any(), eq(4L), any(), any(), any(), any(), any()))
+    when(f.repo.storeDraft(eq(TENANT), any(), eq(4L), any(), any(), any(), any(), any(), any()))
         .thenReturn(-1L);
     assertThatThrownBy(() -> f.drafts.saveDraft(TENANT, d.id(), 4, s, MANAGER))
         .isInstanceOf(VersionConflictException.class);
-    when(f.repo.storeDraft(eq(TENANT), any(), eq(4L), any(), any(), any(), any(), any()))
+    when(f.repo.storeDraft(eq(TENANT), any(), eq(4L), any(), any(), any(), any(), any(), any()))
         .thenReturn(5L);
     assertThat(f.drafts.saveDraft(TENANT, d.id(), 4, s, MANAGER).id()).isEqualTo(d.id());
     assertThatThrownBy(() -> f.drafts.saveDraft(TENANT, UUID.randomUUID(), 4, s, MANAGER))

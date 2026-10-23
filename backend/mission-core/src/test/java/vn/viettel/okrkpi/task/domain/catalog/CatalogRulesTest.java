@@ -132,4 +132,48 @@ class CatalogRulesTest {
         10,
         null);
   }
+
+  @Test
+  void khungChinhDiemVaMucHeSo() {
+    BigDecimal fifty = new BigDecimal("50");
+    ItemScoring band =
+        new ItemScoring(java.util.Map.of(), null, new BigDecimal("-0.2"), new BigDecimal("0.2"));
+    assertThat(CatalogRules.adjustViolation(fifty, band, new BigDecimal("62.5"))).isNotNull();
+    assertThat(CatalogRules.adjustViolation(fifty, band, new BigDecimal("40"))).isNull();
+    assertThat(CatalogRules.adjustViolation(fifty, band, new BigDecimal("39.9"))).isNotNull();
+    assertThat(CatalogRules.adjustViolation(fifty, ItemScoring.NONE, new BigDecimal("99")))
+        .isNull();
+    assertThat(CatalogRules.adjustViolation(null, band, new BigDecimal("99"))).isNull();
+    ItemScoring upOnly = new ItemScoring(null, null, null, new BigDecimal("0.1"));
+    assertThat(CatalogRules.adjustViolation(fifty, upOnly, new BigDecimal("49"))).isNotNull();
+    assertThat(CatalogRules.adjustViolation(fifty, upOnly, new BigDecimal("55"))).isNull();
+
+    assertThat(
+            CatalogRules.scoring(
+                new ItemScoring(
+                    java.util.Map.of("Hoa", "x", "ok", ""),
+                    "a b",
+                    new BigDecimal("-2"),
+                    new BigDecimal("11"))))
+        .extracting(CatalogViolationException.Violation::field)
+        .containsExactly("coefficientLevels", "axisCode", "scoreAdjustMin", "scoreAdjustMax");
+    assertThat(CatalogRules.scoring(ItemScoring.NONE)).isEmpty();
+    assertThat(
+            CatalogRules.declaredLevels(
+                java.util.Map.of("a", "1", "b", "2", "c", "3"),
+                java.util.Map.of("a", java.util.Set.of("1"), "b", java.util.Set.of())))
+        .hasSize(1);
+  }
+
+  @Test
+  void docOMucHeSoTuTep() {
+    java.util.List<CatalogViolationException.Violation> errors = new java.util.ArrayList<>();
+    assertThat(CatalogSheet.levels("He_So_Nhom = NHOM_2; du_phong=A", errors))
+        .containsEntry("he_so_nhom", "NHOM_2")
+        .containsEntry("du_phong", "A");
+    assertThat(CatalogSheet.levels(null, errors)).isEmpty();
+    assertThat(errors).isEmpty();
+    assertThat(CatalogSheet.levels("he_so_nhom", errors)).isEmpty();
+    assertThat(errors).hasSize(1);
+  }
 }

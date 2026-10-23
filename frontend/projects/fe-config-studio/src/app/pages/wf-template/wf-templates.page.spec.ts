@@ -164,6 +164,16 @@ describe('SCR-1505 Thư viện và trình soạn mẫu quy trình', () => {
       unobserve = noop;
       disconnect = noop;
     } as unknown as typeof ResizeObserver;
+    // jsdom không có `width.baseVal` của <svg>; d3-zoom đọc nó khi tính khung nhìn trong chuyển động,
+    // thiếu thì ném lỗi trong vòng hẹn giờ của d3 và tiến trình kiểm thử không thoát.
+    for (const dim of ['width', 'height'] as const) {
+      if (!Object.getOwnPropertyDescriptor(SVGSVGElement.prototype, dim)) {
+        Object.defineProperty(SVGSVGElement.prototype, dim, {
+          configurable: true,
+          get: () => ({ baseVal: { value: dim === 'width' ? 800 : 600 } }),
+        });
+      }
+    }
     const el = await render(AUTHOR, id(2), '[data-testid=save]');
     const [editor] = await fx.getDeferBlocks();
     await editor.render(DeferBlockState.Complete);
@@ -189,6 +199,8 @@ describe('SCR-1505 Thư viện và trình soạn mẫu quy trình', () => {
     expect(src()).not.toContain('buoc1');
     // Tệp đã ghi lại nên khác bản lưu; sơ đồ vẫn đạt luật nên lưu được.
     expect(button(el, 'save').disabled).toBe(false);
+    // huỷ trình soạn ngay để hẹn giờ chuyển động của d3 dừng trước ca sau
+    fx.destroy();
   });
 
   it('người phê duyệt: chỉ đọc, phê duyệt có xác thực nhiều lớp, thấy tiến độ triển khai', async () => {
