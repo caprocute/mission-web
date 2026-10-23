@@ -1,5 +1,5 @@
 # NEN-022 · ADR-03 · Ảnh container không root cho công cụ phát lại outbox (chạy dạng Kubernetes Job).
-FROM golang:1.23-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 WORKDIR /workspace
 COPY services-go/vtplatform ./services-go/vtplatform

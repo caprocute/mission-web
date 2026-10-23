@@ -31,7 +31,11 @@ outboxReplay:
   afterCreatedAt: ""
   afterId: ""
   confirm: false
-  # Secret do External Secrets đồng bộ, chứa thông tin nối CSDL và Kafka của cell dưới dạng biến môi trường.
+  # Secret do External Secrets đồng bộ, chứa DATABASE_URL, KAFKA_BROKERS và KAFKA_TLS_CA_FILE,
+  # KAFKA_TLS_CERT_FILE, KAFKA_TLS_KEY_FILE (đường dẫn tệp) của cell dưới dạng biến môi trường.
   envFromSecret: ""
+  # Secret KafkaUser của Strimzi (ca.crt, user.crt, user.key); khi đặt, Job gắn vào /etc/kafka/tls và
+  # tự đặt KAFKA_TLS_CA_FILE, KAFKA_TLS_CERT_FILE, KAFKA_TLS_KEY_FILE.
+  kafkaTLSSecret: ""
   activeDeadlineSeconds: 14400
   ttlSecondsAfterFinished: 86400

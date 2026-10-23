@@ -43,6 +43,7 @@ func NewPGOutboxStore(querier Querier) (*PGOutboxStore, error) {
 }
 
 // BuildSelectQuery constructs the parameterized SQL query and arguments for reading `<schema>.outbox_event`.
+// uuid and jsonb columns are cast to text so they scan into the string fields of OutboxRow.
 func BuildSelectQuery(filter Filter, afterCreatedAt *time.Time, afterID string, limit int) (string, []any) {
 	var (
 		conds []string
@@ -80,7 +81,7 @@ func BuildSelectQuery(filter Filter, afterCreatedAt *time.Time, afterID string, 
 
 	limitPlaceholder := addArg(limit)
 	sql := fmt.Sprintf(
-		`SELECT id, tenant_id, aggregate_type, aggregate_id, aggregate_version, event_type, topic, event_key, payload, schema_version, headers, created_at FROM %s.outbox_event WHERE %s ORDER BY created_at ASC, id ASC LIMIT %s`,
+		`SELECT id::text, tenant_id::text, aggregate_type, aggregate_id::text, aggregate_version, event_type, topic, event_key, payload, schema_version, headers::text, created_at FROM %s.outbox_event WHERE %s ORDER BY created_at ASC, id ASC LIMIT %s`,
 		filter.Schema,
 		strings.Join(conds, " AND "),
 		limitPlaceholder,
