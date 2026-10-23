@@ -39,6 +39,7 @@ import vn.viettel.okrkpi.integ.application.OutboundBinding;
 import vn.viettel.okrkpi.integ.application.OutboundPipeline;
 import vn.viettel.okrkpi.integ.application.OutboundSender;
 import vn.viettel.okrkpi.integ.application.PullService;
+import vn.viettel.okrkpi.integ.application.ReceivedDocumentReader;
 import vn.viettel.okrkpi.integ.application.SyncCursorService;
 import vn.viettel.okrkpi.integ.application.SyncRunService;
 import vn.viettel.okrkpi.integ.application.Translators;
@@ -81,6 +82,7 @@ import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcSyncRuns;
 import vn.viettel.okrkpi.integ.infrastructure.secrets.FileConnectorSecrets;
 import vn.viettel.okrkpi.integ.infrastructure.truc.TrucConfiguration.TrucBeans;
 import vn.viettel.okrkpi.integ.infrastructure.truc.TrucEdxmlComposer;
+import vn.viettel.okrkpi.integ.infrastructure.voffice.ReceivedDocumentContents;
 import vn.viettel.okrkpi.integ.infrastructure.voffice.VOfficeConfiguration.VOfficeBeans;
 import vn.viettel.okrkpi.shared.crypto.FieldEncryptor;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
@@ -290,6 +292,24 @@ public class IntegConfiguration {
     voffice.ifAvailable(v -> all.addAll(v.sources()));
     return new IssuedDocumentSearch(
         connectors, mappings, all, integTransactions, clock.getIfAvailable(Clock::systemUTC));
+  }
+
+  /** CORE-02-16: toàn văn văn bản chỉ đạo đã nhận cho MOD-02. */
+  @Bean
+  ReceivedDocumentReader integReceivedDocumentReader(
+      MappingXrefs xrefs,
+      InboxMessages inbox,
+      PayloadCipher cipher,
+      ObjectProvider<ObjectMapper> mapper,
+      TransactionTemplate integTransactions,
+      ObjectProvider<Clock> clock) {
+    return new ReceivedDocumentReader(
+        xrefs,
+        inbox,
+        cipher,
+        new ReceivedDocumentContents(mapper.getIfAvailable(ObjectMapper::new)),
+        integTransactions,
+        clock.getIfAvailable(Clock::systemUTC));
   }
 
   /**

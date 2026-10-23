@@ -5081,7 +5081,8 @@
       ],
       "roles": [
         "manager",
-        "leader"
+        "leader",
+        "ai_readonly"
       ],
       "scope": "Đv",
       "aal": 1,
