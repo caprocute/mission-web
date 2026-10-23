@@ -39,6 +39,8 @@ type Config struct {
 	Issuers      []string
 	Audience     string
 	VerifyWorker int
+	// DelegatingClients là các client dịch vụ được gửi tenant đích qua X-Tenant-Id (TENANT_DELEGATING_CLIENTS).
+	DelegatingClients []string
 	// ForwardEnabled bật bộ chuyển tiếp topic nghiệp vụ → sys.ledger.append.v1; ForwardTopics rỗng là cả danh mục.
 	ForwardEnabled bool
 	ForwardTopics  []string
@@ -123,6 +125,12 @@ func Load() (*Config, error) {
 	}
 
 	var fwdTopics []string
+	var delegating []string
+	for _, p := range strings.Split(os.Getenv("TENANT_DELEGATING_CLIENTS"), ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			delegating = append(delegating, p)
+		}
+	}
 	for _, p := range strings.Split(os.Getenv("FORWARD_TOPICS"), ",") {
 		if p = strings.TrimSpace(p); p != "" {
 			fwdTopics = append(fwdTopics, p)
@@ -158,6 +166,7 @@ func Load() (*Config, error) {
 		VerifyWorker:          workers,
 		ForwardEnabled:        envOrDefault("FORWARD_ENABLED", "true") == "true",
 		ForwardTopics:         fwdTopics,
+		DelegatingClients:     delegating,
 	}, nil
 }
 

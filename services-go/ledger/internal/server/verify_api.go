@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -67,6 +68,34 @@ func (s *Server) authed(roles []string, h func(http.ResponseWriter, *http.Reques
 			c.actor = &a
 		}
 		h(w, r.WithContext(auth.WithPrincipal(r.Context(), p)), c)
+	}
+}
+
+// TenantHeader là header tenant đích của lời gọi dịch vụ tới dịch vụ (wiki trang 14 mục 42).
+const TenantHeader = "X-Tenant-Id"
+
+// authedOrService như authed, thêm tài khoản dịch vụ của client thuộc DelegatingClients: token không có
+// claim tenant nên tenant đích đọc từ X-Tenant-Id; claim tenant trong token (nếu có) luôn thắng header.
+func (s *Server) authedOrService(roles []string, h func(http.ResponseWriter, *http.Request, caller)) http.HandlerFunc {
+	user := s.authed(roles, h)
+	return func(w http.ResponseWriter, r *http.Request) {
+		trace := otel.TraceIDFromContext(r.Context())
+		p, err := s.deps.Auth.Verify(r.Context(), auth.BearerToken(r))
+		if err != nil || !p.ServiceAccount() || !slices.Contains(s.deps.DelegatingClients, p.ClientID) {
+			user(w, r)
+			return
+		}
+		raw := p.Tenant
+		if raw == "" {
+			raw = r.Header.Get(TenantHeader)
+		}
+		t, err := uuid.Parse(raw)
+		if err != nil {
+			problem.Write(w, problem.OutOfScope("", r.URL.Path, trace))
+			return
+		}
+		// Tài khoản dịch vụ không phải người: actor để trống, kiểm toán ghi client ở detail.
+		h(w, r.WithContext(auth.WithPrincipal(r.Context(), p)), caller{p: p, tenant: t})
 	}
 }
 
