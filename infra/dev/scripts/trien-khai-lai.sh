@@ -23,7 +23,7 @@
 # Đọc từ `.env` ở gốc repo (không commit): DEV_SERVER_HOST, DEV_SERVER_SSH_PORT, DEV_SERVER_USER,
 # DEV_SERVER_INFRA_DIR (thư mục hạ tầng cũ, nguồn .env), DEV_SERVER_REPO_DIR (mặc định /home/<user>/mission-web),
 # DEV_SERVER_PROFILES (mặc định "core security events search"), TRIEN_KHAI_DICH_VU (mặc định "apisix mission-core
-# web"), JAR_BUILD (may-tram | may-chu), MIN_FREE_GB (mặc định 12, dung lượng trống tối thiểu cho cache dựng ảnh).
+# web"), JAR_BUILD (may-tram | may-chu), WEB_BUILD (may-tram | may-chu, mặc định may-tram khi máy trạm có Node), MIN_FREE_GB (mặc định 12, dung lượng trống tối thiểu cho cache dựng ảnh).
 #
 # Cách dùng:
 #   infra/dev/scripts/trien-khai-lai.sh plan                 # chỉ kiểm, không đổi gì trên máy chủ
@@ -282,10 +282,34 @@ build_and_copy_jars() {
   done
 }
 
+# Bản web dựng trên máy trạm khi có Node: esbuild của `ng build` treo trên máy chủ CentOS 7 tải cao. Ảnh web khi
+# đó dùng deploy/web/Dockerfile.co-san, chỉ đóng gói nginx từ frontend/dist-web/.
+web_mode() {
+  if [[ -n "${WEB_BUILD:-}" ]]; then
+    echo "${WEB_BUILD}"
+  elif command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+    echo "may-tram"
+  else
+    echo "may-chu"
+  fi
+}
+
+build_and_copy_web() {
+  local out="${REPO_ROOT}/frontend/dist-web"
+  echo "==> Dựng web trên máy trạm (npm ci, build:all, assemble)"
+  rm -rf "${out}"
+  (cd "${REPO_ROOT}/frontend" && npm ci --no-audit --no-fund >/dev/null && npm run build:all &&
+    node tools/remotes/workspace.mjs assemble "${out}/html" "${out}/remotes.tsv" &&
+    cp -r dist/fe-embed/browser "${out}/html/embed")
+  echo "  chép frontend/dist-web lên máy chủ"
+  (cd "${REPO_ROOT}/frontend" && tar -cf - dist-web) |
+    remote "rm -rf $(printf '%q' "${DEV_SERVER_REPO_DIR}/frontend/dist-web") && tar -C $(printf '%q' "${DEV_SERVER_REPO_DIR}/frontend") -xf -"
+}
+
 cmd_plan() {
   check_git
   check_compose_profiles
-  echo "  Service sẽ triển khai: ${SERVICES[*]:-không có}; dựng jar ở: $(jar_mode)"
+  echo "  Service sẽ triển khai: ${SERVICES[*]:-không có}; dựng jar ở: $(jar_mode); dựng web ở: $(web_mode)"
   check_server
   check_images
   sync_server plan
@@ -311,6 +335,10 @@ cmd_apply() {
   if [[ "$(jar_mode)" == "may-tram" ]]; then
     build_and_copy_jars
     prefix="SKIP_JARS=1"
+  fi
+  if [[ " ${SERVICES[*]-} " == *" web "* && "$(web_mode)" == "may-tram" ]]; then
+    build_and_copy_web
+    prefix+=" WEB_DOCKERFILE=deploy/web/Dockerfile.co-san"
   fi
   echo "==> deploy-backend.sh ${SERVICES[*]-} trên máy chủ"
   remote_script "${prefix}" deploy-backend.sh ${SERVICES[@]+"${SERVICES[@]}"}

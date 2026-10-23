@@ -707,7 +707,8 @@ services:
   web:
     build:
       context: ../..
-      dockerfile: deploy/web/Dockerfile
+      # trien-khai-lai.sh đặt deploy/web/Dockerfile.co-san khi web đã build ở máy trạm (WEB_BUILD=may-tram).
+      dockerfile: ${WEB_DOCKERFILE:-deploy/web/Dockerfile}
     image: mission-dev/web:dev
     container_name: mission-dev-web
     restart: unless-stopped
