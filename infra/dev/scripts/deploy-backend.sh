@@ -9,13 +9,14 @@
 #
 # Các bước: (1) `mvnw package` các mô-đun Java; (2) `docker compose build`; (3) kiểm hạ tầng core, security,
 # events đang chạy (không bật hay dựng lại); (4) migration bằng tài khoản mig_<schema>; (5) `docker compose up -d` các service
-# backend; (6) chờ healthcheck rồi gọi health.sh. Chỉ thao tác project compose `mission-dev`: không dùng
+# backend; (6) chờ healthcheck; (7) nạp kỳ đánh giá hiện hành khi có mission-core (seed-ky-hien-hanh.sh, bỏ bằng
+# SKIP_SEED=1) rồi gọi health.sh. Chỉ thao tác project compose `mission-dev`: không dùng
 # --remove-orphans, không prune, không đụng container khác trên máy.
 #
 # Cách dùng:
 #   infra/dev/scripts/deploy-backend.sh                       # toàn bộ
 #   infra/dev/scripts/deploy-backend.sh mission-core apisix   # chỉ vài service
-#   SKIP_JARS=1 SKIP_MIGRATE=1 infra/dev/scripts/deploy-backend.sh
+#   SKIP_JARS=1 SKIP_MIGRATE=1 SKIP_SEED=1 infra/dev/scripts/deploy-backend.sh
 # Mật khẩu đọc từ infra/dev/.env (không commit); script không in giá trị bí mật.
 # =============================================================================
 set -euo pipefail
@@ -90,7 +91,9 @@ for s in "${SERVICES[@]}"; do
 done
 if [[ ${#build[@]} -gt 0 ]]; then
   echo "==> Dựng ảnh: ${build[*]}"
-  compose build "${build[@]}"
+  # Nhãn commit trên ảnh để kiem-tuyen.py và docker inspect biết container chạy mã nào
+  revision="$(git -C "${SCRIPT_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+  compose build --build-arg "GIT_REVISION=${revision}" "${build[@]}"
 fi
 selected apisix && compose pull apisix
 
@@ -188,6 +191,14 @@ for s in "${SERVICES[@]}"; do
   done
   printf "  %-22s %s\n" "${s}" "${state:-không chạy}"
 done
+
+# --- (7) dữ liệu nền qua API ---------------------------------------------------------
+# Tenant thử cần một kỳ đang mở bao trùm hôm nay, nếu không cây mục tiêu trả 404 (CORE-01-04). Đi qua APISIX
+# bằng tài khoản quản trị đơn vị thử; lỗi ở bước này chỉ cảnh báo, không làm hỏng lần triển khai.
+if selected mission-core && [[ "${SKIP_SEED:-0}" != "1" ]]; then
+  "${SCRIPT_DIR}/seed-ky-hien-hanh.sh" ||
+    echo "  Cảnh báo: chưa nạp được kỳ hiện hành; chạy lại infra/dev/scripts/seed-ky-hien-hanh.sh khi APISIX và Keycloak sẵn sàng" >&2
+fi
 
 echo "==> Container sau khi áp: $(docker ps -q | wc -l) đang chạy, $(docker ps -q --filter "label=com.docker.compose.project=${PROJECT}" | wc -l) thuộc ${PROJECT}"
 "${SCRIPT_DIR}/health.sh"
