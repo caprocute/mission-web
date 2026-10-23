@@ -279,7 +279,7 @@ public class OrgController implements OrgApi {
     fingerprint.put("sha256", HexFormat.of().formatHex(sha256(content)));
     OrgImportService.ImportJobView job = imports.accept(actor(),
         hasher.of(idempotencyKey, "POST", request.getRequestURI(), fingerprint), file, content, effectiveFrom);
-    return ResponseEntity.accepted().location(URI.create("/api/v1/jobs/" + job.id())).header("Retry-After", "2")
+    return ResponseEntity.accepted().location(URI.create("/api/v1/jobs/" + JobWebMapper.jobId(job.id()))).header("Retry-After", "2")
         .body(JobWebMapper.toDto(job));
   }
 

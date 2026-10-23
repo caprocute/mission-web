@@ -178,7 +178,7 @@ func (s *Server) createVerifyRun(w http.ResponseWriter, r *http.Request, c calle
 	if !existing {
 		s.audit(r, c, "createLedgerVerifyRun", run.ID, map[string]any{"verifyKind": run.Kind})
 	}
-	w.Header().Set("Location", "/api/v1/jobs/"+run.ID.String())
+	w.Header().Set("Location", "/api/v1/jobs/"+jobID(run.ID))
 	w.Header().Set("Retry-After", "2")
 	writeJSON(w, http.StatusAccepted, jobView(run))
 }
@@ -244,7 +244,7 @@ func (s *Server) listVerifyRuns(w http.ResponseWriter, r *http.Request, c caller
 // getJob: chỉ người khởi tạo xem được; người khác (và lần chạy theo lịch) nhận 404 (jobs.yaml). Mã Job là mã lần
 // kiểm tra toàn vẹn hoặc mã tác vụ xuất.
 func (s *Server) getJob(w http.ResponseWriter, r *http.Request, c caller) {
-	id, err := uuid.Parse(r.PathValue("id"))
+	id, err := parseJobID(r.PathValue("id"))
 	notFound := func() { problem.Write(w, problem.NotFound("", r.URL.Path, otel.TraceIDFromContext(r.Context()))) }
 	if err != nil || c.actor == nil {
 		notFound()
@@ -280,7 +280,7 @@ func jobView(run *verify.Run) map[string]any {
 	if run.Status == verify.StatusDone || run.Status == verify.StatusFailed {
 		progress = 100
 	}
-	v := map[string]any{"id": run.ID.String(), "type": verify.JobType, "status": run.Status, "progress": progress,
+	v := map[string]any{"id": jobID(run.ID), "type": verify.JobType, "status": run.Status, "progress": progress,
 		"updatedAt": run.StartedAt.Format(time.RFC3339Nano)}
 	if run.FinishedAt != nil {
 		v["updatedAt"] = run.FinishedAt.Format(time.RFC3339Nano)
@@ -292,7 +292,7 @@ func jobView(run *verify.Run) map[string]any {
 		v["resultLocation"] = "/api/v1/ledger/verify-runs/" + run.ID.String()
 	}
 	if run.Status == verify.StatusFailed {
-		v["problem"] = problem.InternalServerError("/api/v1/jobs/"+run.ID.String(), "")
+		v["problem"] = problem.InternalServerError("/api/v1/jobs/"+jobID(run.ID), "")
 	}
 	return v
 }

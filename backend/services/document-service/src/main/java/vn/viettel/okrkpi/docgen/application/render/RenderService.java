@@ -31,6 +31,7 @@ import vn.viettel.okrkpi.docgen.domain.render.Template;
 import vn.viettel.okrkpi.docgen.domain.render.TemplateRepository;
 import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.job.Job;
+import vn.viettel.okrkpi.shared.job.JobIds;
 import vn.viettel.okrkpi.shared.job.JobStatus;
 import vn.viettel.okrkpi.shared.kernel.Ids;
 
@@ -54,6 +55,9 @@ public class RenderService {
 
   /** Loại tác vụ dài trong lược đồ {@code Job} của hợp đồng. */
   public static final String JOB_TYPE = "RENDER";
+
+  /** Tiền tố mã tác vụ của SVC-11: cổng cell định tuyến {@code /api/v1/jobs/doc-…} về đây. */
+  public static final String JOB_PREFIX = "doc";
 
   public static final String TEMPLATES_BUCKET = FormComposer.TEMPLATES_BUCKET;
   public static final String DOSSIER_BUCKET = "dossier";
@@ -518,7 +522,7 @@ public class RenderService {
         parts.stream().map(RenderJob::updatedAt).max(Comparator.naturalOrder()).orElseThrow();
     int progress = (int) ((done + failed) * 100 / parts.size());
     return new Job(
-        requestId.toString(),
+        JobIds.format(JOB_PREFIX, requestId),
         JOB_TYPE,
         status,
         status == JobStatus.THAT_BAI ? null : progress,

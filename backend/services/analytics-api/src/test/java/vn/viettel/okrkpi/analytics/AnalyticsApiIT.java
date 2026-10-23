@@ -581,6 +581,7 @@ class AnalyticsApiIT {
     Reply accepted = post("/analytics/trace/exports", bt, body, Map.of("Idempotency-Key", key));
     assertThat(accepted.status()).as(accepted.body()).isEqualTo(202);
     String jobId = accepted.json().path("id").asText();
+    assertThat(jobId).startsWith("ana-");
     assertThat(accepted.headers().get("location")).isEqualTo("/api/v1/jobs/" + jobId);
     assertThat(accepted.json().path("type").asText()).isEqualTo("EXPORT");
 

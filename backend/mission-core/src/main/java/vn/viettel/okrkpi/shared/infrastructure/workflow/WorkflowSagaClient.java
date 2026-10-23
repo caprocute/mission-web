@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import vn.viettel.okrkpi.shared.job.JobIds;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.resilience.DependencyUnavailableException;
 
@@ -70,7 +71,9 @@ public class WorkflowSagaClient {
       if (job == null || !(job.get("id") instanceof String id)) {
         throw new RestClientException("workflow-service không trả mã job");
       }
-      return UUID.fromString(id);
+      // Mã job của SVC-06 mang tiền tố wf- (wiki 14 mục DV-01-04); mã saga là phần UUID.
+      return JobIds.parse("wf", id)
+          .orElseThrow(() -> new IllegalArgumentException("Mã job không hợp lệ: " + id));
     } catch (HttpClientErrorException e) {
       if (e.getStatusCode().isSameCodeAs(HttpStatus.CONFLICT)) {
         throw new SagaExists(e);
