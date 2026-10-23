@@ -24,6 +24,7 @@ import vn.viettel.okrkpi.config.api.DelegationApi;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.events.EventTopics;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceAcceptanceService;
+import vn.viettel.okrkpi.product.application.evidence.EvidenceAiConfirmationService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceIntegrityAlarm;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceLifecycleService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceObjectProjector;
@@ -31,8 +32,10 @@ import vn.viettel.okrkpi.product.application.evidence.EvidenceQueryService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceReviewService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceSubmissionService;
 import vn.viettel.okrkpi.product.application.evidence.ReviewerAuthority;
+import vn.viettel.okrkpi.product.application.evidence.port.AiSuggestionDecisions;
 import vn.viettel.okrkpi.product.application.evidence.port.CommentSealer;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceEvents;
+import vn.viettel.okrkpi.product.infrastructure.client.HttpAiSuggestionDecisions;
 import vn.viettel.okrkpi.product.infrastructure.listener.EvidenceObjectListener;
 import vn.viettel.okrkpi.shared.audit.AuditLogger;
 import vn.viettel.okrkpi.shared.crypto.FieldEncryptor;
@@ -92,6 +95,24 @@ public class EvidenceSubmissionConfiguration {
         tasks,
         evidenceEvents,
         java.time.Clock.systemUTC());
+  }
+
+  /**
+   * CORE-03-05: nộp có ô do AI điền ghi quyết định gợi ý ở SVC-14 trước; để trống {@code
+   * mission.product.ai.base-url} (mặc định theo {@code mission.okr.ai.base-url}) thì bỏ qua bước
+   * này. Thời hạn 30 giây theo QT-07 bước 4.
+   */
+  @Bean
+  EvidenceAiConfirmationService evidenceAiConfirmationService(
+      EvidenceSubmissionService evidenceSubmissionService,
+      @Value("${mission.product.ai.base-url:${mission.okr.ai.base-url:}}") String baseUrl,
+      @Value("${mission.product.ai.timeout:PT30S}") java.time.Duration timeout,
+      ObjectProvider<AiSuggestionDecisions> override) {
+    AiSuggestionDecisions port = override.getIfAvailable();
+    if (port == null && !baseUrl.isBlank()) {
+      port = new HttpAiSuggestionDecisions(baseUrl, timeout);
+    }
+    return new EvidenceAiConfirmationService(evidenceSubmissionService, port);
   }
 
   @Bean
