@@ -23,7 +23,7 @@ Bảng dưới liệt kê các ADR của baseline có tác động trực tiếp
 | ADR-16 | Jenkins, Argo CD, cosign, Kyverno, SBOM | Pipeline và ảnh web đã ký |
 | ADR-18 | Valkey làm cache, không cache dữ liệu C2, C3 dạng rõ | Không dựa vào cache phía máy chủ cho dữ liệu nhạy cảm |
 | ADR-19 | CEL và DMN cho luật nghiệp vụ | `cel-js` ở trình duyệt, cùng bộ test với `cel-java` |
-| ADR-20 | Thay dần hệ cũ qua APISIX | Một số tuyến còn ở hệ cũ trong thời gian chuyển đổi |
+| ADR-20 | Thay dần hệ cũ qua APISIX (không áp dụng từ 23/10/2026: Mission là ứng dụng phát triển mới) | Không có tuyến nào ở hệ cũ; frontend không cần xử lý định tuyến song song |
 | ADR-21 | OPA cùng pod, đánh giá từng phần, lỗi thì từ chối | Ẩn hiện theo vai trò ở client chỉ là trải nghiệm |
 | ADR-25 | UI Pack khai dải Policy Pack tương thích | `UiPack` có tham chiếu Policy Pack; kiểm khi phát hành |
 | ADR-27 | E2EE cho C3: ECDH P-256, khoá không trích xuất, Shamir 3/5 | Thư viện `@vt/e2ee` dự kiến |

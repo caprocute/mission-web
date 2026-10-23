@@ -309,6 +309,8 @@ Mục này được thêm khi rà soát bộ tài liệu theo thực tế triể
 | ADR-32 | Hợp đồng API trước: mọi API công khai dưới `/api/v1` mô tả trước bằng OpenAPI 3.1 trong `contracts/openapi/`; hai phía sinh mã từ hợp đồng; phần mở rộng `x-mission` để truy vết | BS-02, TL-01 Phụ lục A và F |
 | ADR-33 | Hồ sơ tập khách hàng trên một lõi chung: lõi cung cấp đại lượng thô qua sáu điểm cắm DC-01 đến DC-06, khác biệt giữa các tập khách hàng nằm trong cấu hình có phiên bản | BS-03, TL-01 Phụ lục A và G |
 
+ADR-20 (Strangler Fig từ hệ hiện tại) không áp dụng từ ngày 23/10/2026: Mission là ứng dụng phát triển mới, không chuyển dần và không di trú dữ liệu từ hệ hiện tại. Mã ADR-20 vẫn giữ trong bảng mục 4 để truy vết, không cấp lại cho quyết định khác.
+
 ### 15.2. Sự kiện, màn hình, quy tắc bổ sung
 
 | Mã | Nội dung | Nguồn |

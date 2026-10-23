@@ -1428,6 +1428,8 @@ Hai bộ kết nối cần lưu ý riêng. Với VNeID, luồng hiện tại ở
 
 ## Chuyển dần theo Strangler Fig với APISIX
 
+> Cập nhật 23/10/2026: ADR-20 không áp dụng, vì Mission được phát triển như một ứng dụng mới, không chuyển dần từ hệ hiện tại (quyết định của người phụ trách, xem Phụ lục D mục D.6). Nội dung dưới đây chỉ còn giá trị tham khảo.
+
 Nền tảng mới không thay hệ cũ trong một lần. Theo ADR-20 và lộ trình của bản đánh giá, chức năng được chuyển dần theo thứ tự: danh mục và cấu hình, rồi đăng ký và giao việc, rồi đánh giá và xếp loại, cuối cùng là dashboard. Cơ chế chuyển là định tuyến theo đường dẫn tại APISIX, có thể bật theo tenant.
 
 ![Hình 6.3. Định tuyến Strangler Fig giữa hệ cũ và nền tảng mới tại APISIX](kt-strangler.png){width=16cm}
@@ -3140,6 +3142,8 @@ Giai đoạn triển khai liên tục theo GitOps: Jenkins cập nhật phiên b
 
 # Lộ trình chuyển đổi theo Strangler Fig
 
+> Cập nhật 23/10/2026: ADR-20 không áp dụng, vì Mission được phát triển như một ứng dụng mới, không chuyển dần từ hệ hiện tại (quyết định của người phụ trách, xem Phụ lục D mục D.6). Nội dung dưới đây chỉ còn giá trị tham khảo.
+
 ## Cách tiếp cận
 
 Hệ thống hiện tại đang phục vụ người dùng thật và không thể dừng để viết lại. Lộ trình vì vậy theo mẫu Strangler Fig (đã mô tả kỹ thuật ở chương 6, mục chuyển dần với APISIX, Hình 6.3): đặt APISIX trước hệ thống cũ, xây từng phần mới phía sau cổng, chuyển lưu lượng theo route và theo tenant, và chỉ tắt phần cũ khi phần mới đã chạy ổn định. Lộ trình gắn với các đợt của bản đánh giá kiến trúc (0a, 0b, 0c, 1, 2, 3) để thống nhất cách đo tiến độ: mỗi đợt có mục tiêu kỹ thuật, các vấn đề của bản đánh giá được đóng, và điều kiện chuyển bước đo được. Không chuyển sang đợt sau khi điều kiện của đợt trước chưa đạt, trừ khi Hội đồng kiến trúc chấp thuận ngoại lệ bằng văn bản.
@@ -3590,6 +3594,8 @@ Phụ lục này ghi lại các quyết định kiến trúc (Architecture Decis
 
 **Hệ quả.** Tích cực: chuyển dần, quay lui được theo route. Tiêu cực: hai hệ thống chạy song song trong nhiều quý, cần đồng bộ dữ liệu hai chiều tạm thời.
 
+**Trạng thái (cập nhật 23/10/2026).** Không áp dụng. Người phụ trách quyết định Mission là ứng dụng phát triển mới, không thay dần hệ hiện tại, nên không có định tuyến song song giữa hệ cũ và hệ mới, không đồng bộ hai chiều và không di trú dữ liệu từ Oracle. Lớp chống ô nhiễm của integration-gateway vẫn được giữ cho kết nối với hệ ngoài (giả lập trong giai đoạn phát triển theo YC-PT-13).
+
 ## ADR-21. OPA cùng pod với đánh giá từng phần {-}
 
 **Bối cảnh.** Kiểm tra quyền phân tán (S14); uỷ quyền phụ thuộc cây tổ chức; Istio ambient không có sidecar nên không có điểm chặn L7 trong pod.
@@ -3986,7 +3992,7 @@ Các service nằm ngoài mission-core được hiện thực với ngôn ngữ 
 
 ## D.6. Policy Pack và dữ liệu nền {-}
 
-Chương "Policy Pack" được hiện thực đúng hướng: gói có phiên bản, ký số, bộ ca vàng, kiểm thử hai bộ máy và saga phát hành. Đợt này phát sinh bốn quyết định nghiệp vụ đã chốt ngày 22/10/2026 và một số điểm kỹ thuật. Về nghiệp vụ, làm tròn theo hai bước như mục D.5; điều kiện "Hoàn thành xuất sắc nhiệm vụ" bao hàm điều kiện của mức thấp hơn; tên khối và chức danh trong dữ liệu giả lập theo DL-07; và hồ sơ khách hàng TWĐ là cấu hình riêng theo ADR-33. Về dữ liệu, mọi gói hiện có (`khoi-dang/quy-dinh-moi` 2.1.0, `khoi-chinh-quyen/nd335` 1.4.0, `twd/diem-cong-viec`) là dữ liệu giả lập có cờ `gia_lap`, vì hệ thống được xây dựng như một hệ mới độc lập, mọi hệ ngoài được giả lập (YC-PT-13). Vì vậy các task chuyển đổi từ hệ cũ (LEG-01 đến LEG-12, DL-09 đến DL-11) đã bỏ, và lộ trình Strangler Fig ở ADR-20 không còn là con đường triển khai của đợt này (suy luận, cần người phụ trách xác nhận có giữ ADR-20 cho giai đoạn sau hay không).
+Chương "Policy Pack" được hiện thực đúng hướng: gói có phiên bản, ký số, bộ ca vàng, kiểm thử hai bộ máy và saga phát hành. Đợt này phát sinh bốn quyết định nghiệp vụ đã chốt ngày 22/10/2026 và một số điểm kỹ thuật. Về nghiệp vụ, làm tròn theo hai bước như mục D.5; điều kiện "Hoàn thành xuất sắc nhiệm vụ" bao hàm điều kiện của mức thấp hơn; tên khối và chức danh trong dữ liệu giả lập theo DL-07; và hồ sơ khách hàng TWĐ là cấu hình riêng theo ADR-33. Về dữ liệu, mọi gói hiện có (`khoi-dang/quy-dinh-moi` 2.1.0, `khoi-chinh-quyen/nd335` 1.4.0, `twd/diem-cong-viec`) là dữ liệu giả lập có cờ `gia_lap`, vì hệ thống được xây dựng như một hệ mới độc lập, mọi hệ ngoài được giả lập (YC-PT-13). Vì vậy các task chuyển đổi từ hệ cũ (LEG-01 đến LEG-12, DL-09 đến DL-11) đã bỏ. Ngày 23/10/2026, người phụ trách quyết định ADR-20 (Strangler Fig) không áp dụng nữa vì đây là ứng dụng phát triển mới; chương "Lộ trình chuyển đổi theo Strangler Fig" và mục di trú từ Oracle của TL-03 chỉ còn giá trị tham khảo (Đã chốt).
 
 Ở phía kỹ thuật, manifest dạng tệp của gói (`policy.yaml`) viết `inputs`, `quotas`, `classification` khác lược đồ `PolicyManifest` của hợp đồng sau NEN-044; `PolicyPackController` chuẩn hoá khi trả qua API, chờ DL chốt một dạng. Khoá `wf_binding` của TL-03 không có phiên bản Policy Pack trong khi hợp đồng đặt tham số luồng dưới phiên bản gói; đây là câu hỏi mở cho TL-03.
 

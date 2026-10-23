@@ -4600,6 +4600,8 @@ Thay đổi lược đồ theo mô hình mở rộng rồi thu hẹp (expand and
 
 ## Di trú từ hệ hiện tại theo mẫu Strangler Fig
 
+> Cập nhật 23/10/2026: mục này không áp dụng, vì Mission được phát triển như một ứng dụng mới và không di trú dữ liệu từ hệ hiện tại (ADR-20 không áp dụng, xem TL-01 Phụ lục D). Nội dung dưới đây chỉ còn giá trị tham khảo.
+
 Hệ hiện tại chạy trên Oracle, dùng chung schema `VOFFICE` với vOffice và có 17 điểm ghép nối ở mức bảng dữ liệu: đọc trực tiếp `VHR_ORG` (32 tệp mã nguồn) và `VHR_EMPLOYEE` (30 tệp) cho tổ chức và nhân sự, kiểm token qua `USER_TOKENS`, ghi thẳng vào `NOTIFICATION` và `SMS_MASTER` để gửi thông báo, cùng các điểm đọc ghi khác vào bảng của vOffice; ngoài ra có 23 bảng mới của chức năng OKR, KPI được tạo trong schema `VOFFICE` (tiêu chí A2, K3, K4 đều chưa đạt). Di trú theo ADR-20 làm từng bước, không có ngày "chuyển đổi toàn bộ".
 
 ![Hình 15.1. Các giai đoạn di trú theo mẫu Strangler Fig](db-strangler.png){width=16cm}
