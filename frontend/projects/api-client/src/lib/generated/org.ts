@@ -384,6 +384,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/org/imports/{id}/report': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Báo cáo lỗi của một lần nhập cây tổ chức
+     * @description (bổ sung WEB-072) Đích `resultLocation` của job nhập khi tệp có lỗi: lỗi từng dòng, từng cột kèm lý do tiếng Việt và quy tắc vi phạm. Tệp có lỗi thì không đơn vị nào được ghi.
+     */
+    get: operations['getOrgImportReport'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/org/sync-runs': {
     parameters: {
       query?: never;
@@ -622,7 +642,7 @@ export interface paths {
     };
     /**
      * Khoá phục hồi của tổ chức đang hiệu lực
-     * @description Mỗi khoá nội dung C3 luôn được bọc thêm cho khoá phục hồi của tenant (ADR-27). Người gửi lấy khoá công khai phục hồi ở đây; `id` là mã người nhận đại diện dùng trong bản bọc. Chưa khai báo trả 404.
+     * @description Mỗi khoá nội dung C3 luôn được bọc thêm cho khoá phục hồi của tenant (ADR-27). Người gửi lấy khoá công khai phục hồi ở đây; `id` là mã người nhận đại diện dùng trong bản bọc. Chưa khai báo trả 404. Tài khoản dịch vụ (`service_client`, tenant trong `X-Tenant-Id`) của mission-core đọc để đồng bộ cấu hình tenant `e2ee.recovery-key`.
      */
     get: operations['getRecoveryKey'];
     put?: never;
@@ -668,6 +688,28 @@ export interface paths {
      * @description Ghi lần phục hồi đã làm ở máy trạm cách ly: ít nhất ba người giữ mảnh của khoá phục hồi cùng có mặt, khoá nội dung của đối tượng được bọc lại cho khoá thiết bị mới của người nhận. Máy chủ chỉ lưu nhật ký (không nhận mảnh khoá hay khoá riêng), ký bản ghi và ghi sổ cái.
      */
     post: operations['recordE2eeRecovery'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/org/e2ee/recoveries/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Một biên bản khôi phục khoá (đối chiếu nội bộ)
+     * @description mission-core đọc biên bản khôi phục để đối chiếu trước khi nhận khoá bọc khôi phục (`restoreTaskSecretKeyWrap`, `restoreEvidenceKeyWrap`). Chỉ tài khoản dịch vụ (`service_client`, tenant trong `X-Tenant-Id`); người dùng xem nhật ký qua `listE2eeRecoveries`.
+     */
+    get: operations['getE2eeRecovery'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -901,6 +943,34 @@ export interface components {
       status: 'NHAP' | 'DA_AP_DUNG' | 'DA_HUY';
       appliedAt?: components['schemas']['DateTime'];
       affectedUnitIds?: components['schemas']['Uuid'][];
+      /** @description Đơn vị mới sinh ra khi hợp nhất hoặc chia tách (bổ sung WEB-072). */
+      createdUnitIds?: components['schemas']['Uuid'][];
+      /** @description Số phân công đã chuyển sang đơn vị mới, điền {n} của MSG-01-11 (bổ sung WEB-072). */
+      movedAssignmentCount?: number;
+      /** @description Tên kỳ đã khoá mà ngày hiệu lực rơi vào, điền {kỳ} của MSG-01-10; vắng khi không ghi muộn vào kỳ đã khoá (bổ sung WEB-072). */
+      lockedPeriodName?: string;
+    };
+    /** @description Báo cáo một lần nhập cây tổ chức từ Excel (bổ sung WEB-072). */
+    OrgImportReport: {
+      jobId: components['schemas']['Uuid'];
+      /** @enum {string} */
+      status: 'CHO' | 'DANG_CHAY' | 'HOAN_TAT' | 'THAT_BAI' | 'DA_HUY';
+      totalRows: number;
+      createdUnits: number;
+      changeOrderId?: components['schemas']['Uuid'];
+      errors: components['schemas']['OrgImportError'][];
+    };
+    /** @description Một lỗi của tệp nhập; `row = 0` là lỗi cả tệp. */
+    OrgImportError: {
+      row: number;
+      /** @description Tên cột trong mẫu, rỗng khi lỗi cả dòng hoặc cả tệp */
+      column: string;
+      /** @description Trường tương ứng của `OrgUnitInput`, ví dụ `parentCode` */
+      field?: string;
+      /** @description Lý do tiếng Việt, ghi rõ dòng và cột */
+      message: string;
+      /** @description Quy tắc vi phạm, ví dụ BR-01-05 */
+      rule?: string;
     };
     /**
      * @description Nguồn đồng bộ (`integ.connector.code`, suy luận về mã).
@@ -2030,6 +2100,33 @@ export interface operations {
       default: components['responses']['Problem'];
     };
   };
+  getOrgImportReport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Mã job nhập. */
+        id: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Báo cáo nhập. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OrgImportReport'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
   listOrgSyncRuns: {
     parameters: {
       query?: {
@@ -2585,6 +2682,32 @@ export interface operations {
       404: components['responses']['NotFound'];
       422: components['responses']['UnprocessableEntity'];
       503: components['responses']['ServiceUnavailable'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getE2eeRecovery: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Biên bản khôi phục. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecoveryRecord'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
       default: components['responses']['Problem'];
     };
   };
