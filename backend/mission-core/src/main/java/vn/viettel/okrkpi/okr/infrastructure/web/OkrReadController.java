@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
@@ -125,6 +126,7 @@ public class OkrReadController {
   private final ObjectProvider<OkrCaller> callers;
   private final OkrCheckService checks;
   private final ObjectProvider<OkrCheckinDelegateService> delegates;
+  private final OkrNameFiller names;
 
   public OkrReadController(
       OkrReadService reads,
@@ -135,7 +137,9 @@ public class OkrReadController {
       ObjectProvider<AuthzSubjectResolver> subjects,
       ObjectProvider<OkrCaller> callers,
       OkrCheckService checks,
-      ObjectProvider<OkrCheckinDelegateService> delegates) {
+      ObjectProvider<OkrCheckinDelegateService> delegates,
+      OkrNameFiller names) {
+    this.names = Objects.requireNonNull(names, "names");
     this.delegates = Objects.requireNonNull(delegates, "delegates");
     this.checks = Objects.requireNonNull(checks, "checks");
     this.reads = Objects.requireNonNull(reads, "reads");
@@ -168,21 +172,32 @@ public class OkrReadController {
     UUID unit = scope.unit() != null ? scope.unit() : own.orElseThrow(() -> missing("unit"));
     TreeView tree = reads.tree(tenant, p, unit, own.map(unit::equals).orElse(false));
     OkrPeriodInfo info = periodInfo(tree.period());
-    return new OkrTree(
-        info,
-        List.of(info),
-        new Ref(unit, ""),
-        tree.viewerOwnUnit(),
-        tree.bases().stream().map(OkrReadController::basisRef).toList(),
-        tree.parent() == null ? null : objectiveRef(tree.parent()),
-        tree.recommendedMax(),
-        tree.objectives().stream()
-            .map(
-                o ->
-                    permitted(
-                        tenant, o, objective(o, List.of()).checks(checks(checks.check(tenant, o)))))
-            .toList(),
-        tree.peerLinks().stream().map(OkrReadController::peerLink).toList());
+    Map<UUID, String> peerUnits =
+        names.unitNames(
+            tenant, tree.peerLinks().stream().map(l -> l.peer().ownerUnitId()).toList());
+    OkrTree dto =
+        new OkrTree(
+            info,
+            List.of(info),
+            new Ref(unit, ""),
+            tree.viewerOwnUnit(),
+            tree.bases().stream().map(OkrReadController::basisRef).toList(),
+            tree.parent() == null ? null : objectiveRef(tree.parent()),
+            tree.recommendedMax(),
+            tree.objectives().stream()
+                .map(
+                    o ->
+                        permitted(
+                            tenant,
+                            o,
+                            objective(o, List.of()).checks(checks(checks.check(tenant, o)))))
+                .toList(),
+            tree.peerLinks().stream().map(l -> peerLink(l, peerUnits)).toList());
+    List<OkrObjectiveRef> refs = new ArrayList<>();
+    refs.add(dto.getParent());
+    dto.getObjectives().forEach(o -> refs.add(o.getParentObjective()));
+    names.objectiveRefs(tenant, refs);
+    return dto;
   }
 
   @GetMapping("/objectives")
@@ -255,6 +270,8 @@ public class OkrReadController {
                 .map(o -> permitted(tenant, o, objective(o, List.of())))
                 .toList(),
             result.nextCursor());
+    names.objectiveRefs(
+        tenant, dto.getItems().stream().map(OkrObjective::getParentObjective).toList());
     if (p.isPresent() && unit != null) {
       dto.counts(
           new OkrObjectivePageCounts()
@@ -282,6 +299,7 @@ public class OkrReadController {
       reads
           .objectiveRow(tenant, view.row().parentObjectiveId())
           .ifPresent(parent -> dto.parentObjective(objectiveRef(parent)));
+      names.objectiveRefs(tenant, java.util.Collections.singletonList(dto.getParentObjective()));
     }
     reads
         .optionalPeriod(tenant, view.row().periodId())
@@ -388,6 +406,7 @@ public class OkrReadController {
               currentUser().ifPresent(me -> dto.viewerIsOwner(me.equals(o.ownerPersonId())));
               dto.permittedActions(keyResultActions(tenant, o, id));
             });
+    names.objectiveRefs(tenant, java.util.Collections.singletonList(dto.getObjective()));
     // CORE-01-12: người được giao check-in thay còn hiệu lực cũng là "chủ" khi xem KR.
     OkrCheckinDelegateService delegation = delegates.getIfAvailable();
     if (delegation != null) {
@@ -430,9 +449,16 @@ public class OkrReadController {
     UUID unitValue = unit;
     AlignmentView graph =
         notFound(() -> reads.alignment(tenant, objective, periodValue, unitValue, levels));
+    Map<UUID, String> units =
+        names.unitNames(
+            tenant,
+            graph.nodes().stream()
+                .filter(n -> n.objective() != null)
+                .map(n -> n.objective().row().ownerUnitId())
+                .toList());
     OkrAlignmentGraph dto =
         new OkrAlignmentGraph(
-            graph.nodes().stream().map(OkrReadController::node).toList(),
+            graph.nodes().stream().map(n -> node(n, units)).toList(),
             graph.edges().stream().map(OkrReadController::edge).toList());
     dto.rootId(graph.rootId());
     return dto;
@@ -762,12 +788,17 @@ public class OkrReadController {
         time(k.lastCheckin().checkinAt()));
   }
 
-  private static OkrPeerLink peerLink(PeerLinkView v) {
+  private static OkrPeerLink peerLink(PeerLinkView v, Map<UUID, String> units) {
     String fromLabel =
         v.localKeyResult() != null
             ? v.localKeyResult().code()
             : v.localObjective() == null ? "" : v.localObjective().code();
-    return new OkrPeerLink(v.link().id(), fromLabel, "", v.peer().code(), v.peer().title())
+    return new OkrPeerLink(
+            v.link().id(),
+            fromLabel,
+            units.getOrDefault(v.peer().ownerUnitId(), ""),
+            v.peer().code(),
+            v.peer().title())
         .fromKeyResultId(v.localKeyResult() == null ? null : v.localKeyResult().id());
   }
 
@@ -784,12 +815,13 @@ public class OkrReadController {
         .rowVersion((int) l.rowVersion());
   }
 
-  private static OkrAlignmentNode node(AlignmentNode n) {
+  private static OkrAlignmentNode node(AlignmentNode n, Map<UUID, String> units) {
     OkrAlignmentNode.TypeEnum type = OkrAlignmentNode.TypeEnum.fromValue(n.type());
     if (n.objective() != null) {
       ObjectiveRow o = n.objective().row();
       return new OkrAlignmentNode(type, o.id(), o.title())
           .code(o.code())
+          .unitName(units.get(o.ownerUnitId()))
           .status(o.status())
           .progress(n.objective().progress());
     }
