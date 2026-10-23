@@ -14,7 +14,7 @@
 
 - **Tổng tiến độ đã gộp `main`**: **378 / 408 task (92.6%)** — Khối lượng quy đổi đã gộp: **452 / 492.5 đơn vị**.
 - **Tổng tiến độ tính cả các task đã xong chờ gộp**: **378 / 408 task (92.6%)** (gồm **378** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **17 task** (2 đang làm, 15 làm một phần).
+- **Đang thực hiện / Làm một phần**: **17 task** (1 đang làm, 16 làm một phần).
 - **Chưa bắt đầu**: **13 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **21 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: `VH-08`).
 
@@ -619,7 +619,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [VH-02](docs/tasks/VH-02-runbook-ops-14-26.md) | Runbook OPS-14..OPS-26 | L | B11 | 4 | INF-17 | **Đã gộp main** | Gộp 07c879b3; chưa chạy thử trên cụm |
 | [VH-03](docs/tasks/VH-03-truc-su-co-cab.md) | Trực vận hành, mức sự cố SEV-1..SEV-4, quy trình thay đổi, đóng băng thay đổi | M | B11 | 5 | VH-01 | **Đã gộp main** | Gộp 8d327008 |
 | [VH-04](docs/tasks/VH-04-dien-tap-onboarding.md) | Diễn tập vòng đời tenant: đưa tenant mới vào vận hành trong một ngày (OPS-07) | M | B11 | 13 | DV-03-05, INF-04 | **Đã gộp main** | Gộp 17bda177 + terminate tenant 5654cbfd + saga dev 4a5c5261 |
-| [VH-05](docs/tasks/VH-05-huong-dan-su-dung.md) | Hướng dẫn sử dụng theo vai trò (AC-01..AC-10) | L | B11 | 24 | QA-07 | **Đang làm** | Giao B2 |
+| [VH-05](docs/tasks/VH-05-huong-dan-su-dung.md) | Hướng dẫn sử dụng theo vai trò (AC-01..AC-10) | L | B11 | 24 | QA-07 | **Làm một phần** | Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: chụp lại 69 ảnh giả lập trên main 70146573, đối chiếu nhãn nút với màn hình thật và quy tắc ẩn theo quyền YC-PT-21, kiem-tra.py đạt; còn chụp ảnh trên server dev (E2E_MODE=he-thong) và cho người không làm kỹ thuật đọc thử AC-06 |
 | [VH-06](docs/tasks/VH-06-tai-lieu-quan-tri.md) | Tài liệu quản trị, cài đặt cho ba mô hình phân phối | M | B11 | 6 | INF-23 | **Đã gộp main** | Gộp sau bản phát hành; chưa chạy trên cụm thật |
 | [VH-07](docs/tasks/VH-07-ho-so-cap-do-4.md) | Hồ sơ đề xuất cấp độ 4 theo TCVN 11930:2017 | M | B11 | 13 | QA-13, INF-19 | **Đã gộp main** | Gộp e1b6490e |
 | [VH-08](docs/tasks/VH-08-thi-diem-chuyen-tenant.md) | Kế hoạch đưa tenant thí điểm vào sử dụng và mở rộng theo nhóm tenant (hệ thống mới độc lập, không chuyển từ hệ cũ) | M | B11 | 25 | QA-16 | **Đang làm** | Giao B2 |
@@ -1045,4 +1045,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 14:26 | B4 | `QA-05` | Chuyển trạng thái sang **Làm một phần** — Sửa phát hiện gộp fdc5c81a; giả lập 10/10; chế độ thật chờ env dev |
 | 23/10/2026 16:17 | Luồng B8 hạ tầng | `INF-27` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b8-ha-tang-g7g48k: pam-integration với Warpgate 0.30 (SA warpgate-<vai trò> token ngắn hạn, psql dba_ops động, bản ghi phiên sang RGW Object Lock 365 ngày), quét cửa sau, VAP; kiểm tĩnh và chạy thật PG16/Warpgate; chưa chạy kind, OpenBao và RGW thật |
 | 23/10/2026 16:18 | B8 | `INF-27` | Chuyển trạng thái sang **Đã gộp main** — Warpgate, SA kubectl, dba_ops, ghi phiên RGW (895eaaa2); chưa chạy cụm thật |
+| 23/10/2026 16:30 | B2 (luồng B6) | `VH-05` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: B6 tiếp bản nháp 6a174a8a, đối chiếu màn hình và quy tắc ẩn theo quyền |
+| 23/10/2026 16:41 | B2 (luồng B6) | `VH-05` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: chụp lại 69 ảnh giả lập trên main 70146573, đối chiếu nhãn nút với màn hình thật và quy tắc ẩn theo quyền YC-PT-21, kiem-tra.py đạt; còn chụp ảnh trên server dev (E2E_MODE=he-thong) và cho người không làm kỹ thuật đọc thử AC-06 |
 <!-- PROGRESS_LOG_END -->

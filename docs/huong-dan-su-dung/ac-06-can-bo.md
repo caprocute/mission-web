@@ -60,7 +60,7 @@ Các bước check-in như sau:
 
 ### 2.5. Soạn mục tiêu cá nhân
 
-Đầu kỳ, nếu đơn vị yêu cầu, đồng chí soạn mục tiêu và kết quả then chốt cá nhân trong phân hệ **Mục tiêu, OKR**. Trợ lý AI ở mục **Trợ lý AI** có thể gợi ý cách viết KR rõ ràng, đo được; trợ lý chỉ gợi ý, đồng chí quyết định dùng hay bỏ từng gợi ý. Soạn xong, đồng chí bấm **Trình phê duyệt** để gửi lãnh đạo duyệt.
+Đầu kỳ, nếu đơn vị yêu cầu, đồng chí soạn mục tiêu và kết quả then chốt cá nhân trong phân hệ **Mục tiêu, OKR**. Nếu đơn vị bật trợ lý AI, đồng chí bấm **Trợ lý AI soát KR** để nhận gợi ý cách viết KR rõ ràng, đo được; trợ lý chỉ gợi ý, đồng chí quyết định dùng hay bỏ từng gợi ý. Soạn xong, đồng chí bấm **Trình phê duyệt** để gửi lãnh đạo duyệt.
 
 ### 2.6. Nộp sản phẩm và minh chứng
 
