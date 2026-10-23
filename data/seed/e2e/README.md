@@ -60,8 +60,10 @@ Khoảng trống phía máy chủ còn chặn hành trình (ghi ngày 23/10/2026
   (sinh từ `data/policy-pack` bằng `data/policy-pack/sinh_seed_dev.py`, kèm quy tắc dựng từ manifest, wiki trang 14);
   compose có thêm `cel-js-runner` để lần chạy ca vàng đối chiếu được hai engine. Bảng quyết định tiêu chí chung đọc
   được qua `outputValue`. HT-25 đến HT-27 cần một phiên bản đã phát hành gắn vào kỳ, tức là HT-37 đi hết trước.
-- esign-service và document-service tự tạo `outbox_event` ở V1, trùng migration chung V0_x mà `MigrationRunner`
-  thêm vào, nên hai service không triển khai được và ký số (HT-27) trả 503.
+- ~~esign-service và document-service tự tạo `outbox_event` ở V1, trùng migration chung V0_x mà `MigrationRunner`
+  thêm vào, nên hai service không triển khai được và ký số (HT-27) trả 503.~~ Đã sửa: `MigrationRunner` coi `esign`,
+  `docgen` là schema tự chứa (chỉ áp thư mục riêng) và gỡ phần V0_x đã lỡ áp khi bảng dùng chung còn rỗng; chạy
+  lại `deploy-backend.sh` để áp (xem `backend/libs/vt-db-migration/README.md`).
 - Compose chưa có kafka-ui, nên bước kiểm sự kiện ghi "Chờ".
 
 ## Dựng đủ hệ thống thật trên một máy để chạy QA-03, QA-04
