@@ -14,8 +14,8 @@
 
 - **Tổng tiến độ đã gộp `main`**: **360 / 408 task (88.2%)** — Khối lượng quy đổi đã gộp: **426.5 / 492.5 đơn vị**.
 - **Tổng tiến độ tính cả các task đã xong chờ gộp**: **360 / 408 task (88.2%)** (gồm **360** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **9 task** (7 đang làm, 2 làm một phần).
-- **Chưa bắt đầu**: **39 task**.
+- **Đang thực hiện / Làm một phần**: **10 task** (8 đang làm, 2 làm một phần).
+- **Chưa bắt đầu**: **38 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -27,12 +27,12 @@
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **116** | 0 | 1 | 0 | **99.1%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **104** | 0 | 0 | 0 | **100.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **13** | 0 | 0 | 0 | **100.0%** |
-| **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 4 | 8 | **57.1%** |
+| **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 5 | 7 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **1** | 0 | 3 | 12 | **6.2%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **360** | **0** | **9** | **39** | **88.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **360** | **0** | **10** | **38** | **88.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -43,7 +43,7 @@
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **119** | 0 | 1 | 0 | **99.2%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
-| **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **17** | 0 | 8 | 17 | **40.5%** |
+| **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **17** | 0 | 9 | 16 | **40.5%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **4** | 0 | 0 | 19 | **17.4%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **1** | 0 | 0 | 3 | **25.0%** |
 
@@ -542,7 +542,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DL-15](docs/tasks/DL-15-an-danh-hoa-phi-san-xuat.md) | Tác vụ ẩn danh hoá dữ liệu cho môi trường phi sản xuất (`anonymize`) | M | B11 | 14 | NEN-015, DL-08, NEN-005, NEN-006 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DL-16](docs/tasks/DL-16-ho-so-twd.md) | Hồ sơ TWĐ (giả lập theo UEB): Policy Pack điểm công việc, bảng hệ số, chuỗi xếp loại, ca vàng UEB, danh mục dự thảo số 25, chín quy tắc điểm nghẽn, tham số thẩm quyền và hạn | L | B11 | 19 | CORE-05-12, CORE-02-27, CORE-02-28, CORE-01-14, CORE-04-13, DV-07-03, DV-07-05 | **Đã gộp main** | Đã gộp main (6afcdf05) |
 
-### INF · Hạ tầng, CI/CD, bảo mật nền, quan sát, dự phòng (16/28 đã gộp `main`, 0 chờ gộp, 4 đang làm)
+### INF · Hạ tầng, CI/CD, bảo mật nền, quan sát, dự phòng (16/28 đã gộp `main`, 0 chờ gộp, 5 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -564,7 +564,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [INF-16](docs/tasks/INF-16-co-gian-tu-dong.md) | Co giãn: Prometheus Adapter cho HPA, KEDA theo độ trễ Kafka, KEDA theo lịch hạn, Cluster Autoscaler có pod giữ chỗ | L | B8 | 5 | INF-14, INF-10, INF-01 | **Đã gộp main** | Gộp main; kiểm tĩnh xanh, kịch bản kind bỏ qua theo người dùng; kèm cấu hình clamav 200M và ingress Gotenberg |
 | [INF-17](docs/tasks/INF-17-sao-luu-csdl.md) | Sao lưu phần 1: CNPG Barman Cloud, kho sao lưu bất biến, `restore-check` hằng ngày, Velero và etcd | L | B8 | 3 | INF-11 | **Chưa bắt đầu** |  |
 | [INF-18](docs/tasks/INF-18-sao-luu-du-lieu-khac.md) | Sao lưu phần 2: MirrorMaker 2, Ceph multisite, snapshot OpenSearch, ClickHouse, Valkey, giữ outbox 72 giờ, lịch sao lưu | L | B8 | 8 | INF-17, INF-12, NEN-022 | **Chưa bắt đầu** |  |
-| [INF-19](docs/tasks/INF-19-bao-mat-nen-tang.md) | Bảo mật nền: Falco, nhật ký kiểm toán API Kubernetes và luồng `sys.audit.v1` tới SIEM, Pod Security, chính sách egress | M | B8 | 3 | INF-09 | **Chưa bắt đầu** |  |
+| [INF-19](docs/tasks/INF-19-bao-mat-nen-tang.md) | Bảo mật nền: Falco, nhật ký kiểm toán API Kubernetes và luồng `sys.audit.v1` tới SIEM, Pod Security, chính sách egress | M | B8 | 3 | INF-09 | **Đang làm** | Nhánh claude/b8-ha-tang-g7g48k: đang viết chart security-cell, audit policy, luồng SIEM (mức manifest, không đo tải) |
 | [INF-20](docs/tasks/INF-20-vung-dieu-phoi-toan-cuc.md) | Vùng điều phối toàn cục: cụm quản trị, PostgreSQL toàn cục, GeoDNS PowerDNS, `dns-sync`, CDN tài nguyên tĩnh | L | B8 | 4 | INF-04 | **Chưa bắt đầu** |  |
 | [INF-21](docs/tasks/INF-21-moi-truong-phi-san-xuat.md) | Môi trường phi sản xuất: staging, CELL-PERF, cụm sinh tải, môi trường tạm theo nhánh cho E2E | M | B8 | 4 | INF-04 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần tài nguyên hạ tầng |
 | [INF-22](docs/tasks/INF-22-backend-tren-server-dev.md) | Triển khai backend lên server dev bằng Docker Compose (profile backend, cổng 35xxx) để kiểm thử tích hợp thật | M | B8 | 10 | CORE-00-01, NEN-020 | **Đang làm** | Giao sau bản phát hành 64952ef6 |
@@ -1007,4 +1007,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 11:02 | Điều phối (main) | `QA-13` | Chuyển trạng thái sang **Đang làm** — Giao B4 |
 | 23/10/2026 11:03 | Điều phối (main) | `QA-02` | Chuyển trạng thái sang **Đang làm** — Giao B9; Pact bằng tệp, không dùng Broker (quyết định main) |
 | 23/10/2026 11:22 | Điều phối (main) | `INF-25` | Chuyển trạng thái sang **Đang làm** — Giao B7 |
+| 23/10/2026 12:03 | Luồng B8 hạ tầng | `INF-19` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b8-ha-tang-g7g48k: đang viết chart security-cell, audit policy, luồng SIEM (mức manifest, không đo tải) |
 <!-- PROGRESS_LOG_END -->
