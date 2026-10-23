@@ -1,0 +1,485 @@
+{
+  "consumer": {
+    "name": "integration-gateway"
+  },
+  "provider": {
+    "name": "voffice-van-ban"
+  },
+  "interactions": [
+    {
+      "description": "kéo trang văn bản chỉ đạo đầu tiên theo con trỏ thời điểm",
+      "providerStates": [
+        {
+          "name": "có một văn bản chỉ đạo gửi đơn vị DV-01",
+          "params": {
+            "donVi": "DV-01"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/directives",
+        "query": {
+          "updatedSince": [
+            "1970-01-01T00:00:00Z"
+          ],
+          "limit": [
+            "200"
+          ]
+        },
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer ma-gia-lap"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "items": [
+            {
+              "id": "VB-2026-0001",
+              "version": 1,
+              "docNumber": "12/CT-UBND",
+              "issuedDate": "2026-10-19",
+              "issuer": "Uỷ ban nhân dân tỉnh",
+              "summary": "Chỉ đạo triển khai nhiệm vụ trọng tâm quý IV năm 2026",
+              "recipientUnitId": "DV-01",
+              "updatedAt": "2026-10-20T01:00:00Z",
+              "attachments": [
+                {
+                  "id": "F-0001",
+                  "name": "12-CT-UBND.pdf"
+                }
+              ]
+            }
+          ],
+          "nextUpdatedSince": "2026-10-20T01:00:00Z"
+        },
+        "matchingRules": {
+          "body": {
+            "$.items": {
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.items[*].id": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "[A-Za-z0-9._:-]{1,100}"
+                }
+              ]
+            },
+            "$.items[*].version": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.items[*].docNumber": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].issuedDate": {
+              "matchers": [
+                {
+                  "match": "date",
+                  "format": "yyyy-MM-dd"
+                }
+              ]
+            },
+            "$.items[*].issuer": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].summary": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].recipientUnitId": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].updatedAt": {
+              "matchers": [
+                {
+                  "match": "timestamp",
+                  "format": "yyyy-MM-dd'T'HH:mm:ss[.SSS]XXX"
+                }
+              ]
+            },
+            "$.items[*].attachments": {
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 0
+                }
+              ]
+            },
+            "$.nextUpdatedSince": {
+              "matchers": [
+                {
+                  "match": "timestamp",
+                  "format": "yyyy-MM-dd'T'HH:mm:ss[.SSS]XXX"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "kéo sau con trỏ cuối trả trang rỗng",
+      "providerStates": [
+        {
+          "name": "không có văn bản chỉ đạo mới sau con trỏ",
+          "params": {
+            "conTro": "2026-10-20T01:00:00Z"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/directives",
+        "query": {
+          "updatedSince": [
+            "2026-10-20T01:00:00Z"
+          ],
+          "limit": [
+            "200"
+          ]
+        },
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer ma-gia-lap"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "items": []
+        }
+      }
+    },
+    {
+      "description": "tra cứu văn bản đã ban hành của đơn vị",
+      "providerStates": [
+        {
+          "name": "đơn vị DV-01 có văn bản đã ban hành 47-BC/BTCĐUK",
+          "params": {
+            "donVi": "DV-01"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/documents",
+        "query": {
+          "unitId": [
+            "DV-01"
+          ],
+          "limit": [
+            "20"
+          ]
+        },
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer ma-gia-lap"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "items": [
+            {
+              "id": "47-BC/BTCĐUK",
+              "docNumber": "47-BC/BTCĐUK",
+              "issuedDate": "2026-10-19",
+              "summary": "Báo cáo chuyên đề công tác kiểm tra quý III năm 2026",
+              "signerName": "Trần Thị Bình",
+              "signatureValid": true
+            }
+          ],
+          "nextCursor": null
+        },
+        "matchingRules": {
+          "body": {
+            "$.items": {
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.items[*].id": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].docNumber": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].issuedDate": {
+              "matchers": [
+                {
+                  "match": "date",
+                  "format": "yyyy-MM-dd"
+                }
+              ]
+            },
+            "$.items[*].summary": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].signerName": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].signatureValid": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.nextCursor": {
+              "combine": "OR",
+              "matchers": [
+                {
+                  "match": "null"
+                },
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "siêu dữ liệu tệp gốc của văn bản đã ban hành",
+      "providerStates": [
+        {
+          "name": "đơn vị DV-01 có văn bản đã ban hành 47-BC/BTCĐUK",
+          "params": {
+            "donVi": "DV-01"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/documents/detail",
+        "query": {
+          "id": [
+            "47-BC/BTCĐUK"
+          ],
+          "unitId": [
+            "DV-01"
+          ]
+        },
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer ma-gia-lap"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "id": "47-BC/BTCĐUK",
+          "docNumber": "47-BC/BTCĐUK",
+          "issuedDate": "2026-10-19",
+          "summary": "Báo cáo chuyên đề công tác kiểm tra quý III năm 2026",
+          "signerName": "Trần Thị Bình",
+          "signatureValid": true,
+          "unitId": "DV-01",
+          "fileName": "47-BC.pdf",
+          "mediaType": "application/pdf",
+          "sha256": "f6ccdefa32a8a2973db13b9cc5e0d9079979fa330d0915a55b7aafaac8c6f14e"
+        },
+        "matchingRules": {
+          "body": {
+            "$.signerName": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.summary": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.issuedDate": {
+              "matchers": [
+                {
+                  "match": "date",
+                  "format": "yyyy-MM-dd"
+                }
+              ]
+            },
+            "$.fileName": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.mediaType": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "[a-z]+/[a-z0-9.+-]+"
+                }
+              ]
+            },
+            "$.sha256": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "[0-9a-f]{64}"
+                }
+              ]
+            },
+            "$.signatureValid": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "nội dung tệp gốc của văn bản đã ban hành",
+      "providerStates": [
+        {
+          "name": "đơn vị DV-01 có văn bản đã ban hành 47-BC/BTCĐUK",
+          "params": {
+            "donVi": "DV-01"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/documents/content",
+        "query": {
+          "id": [
+            "47-BC/BTCĐUK"
+          ],
+          "unitId": [
+            "DV-01"
+          ]
+        },
+        "headers": {
+          "Accept": "*/*",
+          "Authorization": "Bearer ma-gia-lap"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/pdf"
+        },
+        "body": "%PDF-1.4\n% van ban gia lap da ky\n%%EOF\n",
+        "matchingRules": {
+          "body": {
+            "$": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?s)%PDF-.*"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "văn bản không thuộc đơn vị hoặc không có thì trả 404",
+      "providerStates": [
+        {
+          "name": "đơn vị DV-01 không có văn bản 99-BC/KHONG-CO",
+          "params": {
+            "donVi": "DV-01"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/documents/detail",
+        "query": {
+          "id": [
+            "99-BC/KHONG-CO"
+          ],
+          "unitId": [
+            "DV-01"
+          ]
+        },
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer ma-gia-lap"
+        }
+      },
+      "response": {
+        "status": 404
+      }
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "3.0.0"
+    },
+    "vt": {
+      "task": "DV-13-11",
+      "nguon": "đối tác giả lập (YC-PT-13)"
+    }
+  }
+}
