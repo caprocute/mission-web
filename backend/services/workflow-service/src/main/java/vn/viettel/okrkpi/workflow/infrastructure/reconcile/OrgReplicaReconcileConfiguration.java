@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.PlatformTransactionManager;
+import vn.viettel.okrkpi.platform.reconcile.OrgReplicaReconciler;
 import vn.viettel.okrkpi.platform.reconcile.ReconcileMetrics;
 
 /**
@@ -34,6 +35,7 @@ public class OrgReplicaReconcileConfiguration {
     Clock clock = Clock.systemUTC();
     return new OrgReplicaReconciler(
         jdbc,
+        OrgReplicaReconciler.DEFAULT_SCHEMA,
         new ReconcileMetrics(meters.getIfAvailable(SimpleMeterRegistry::new), clock),
         json,
         clock);
