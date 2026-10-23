@@ -1,7 +1,7 @@
 {
   "description": "Bảng chính sách thao tác trích từ mở rộng x-mission trong contracts/openapi/modules/*.yaml (NEN-014). Không sửa tay: chạy tools/extract-x-mission.mjs.",
   "source": "contracts/openapi/modules/*.yaml",
-  "count": 478,
+  "count": 479,
   "aal2Count": 82,
   "fourEyesCount": 19,
   "operations": [
@@ -1067,6 +1067,28 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-02a QT-04 bước 2, QT-05 bước 1a (suy luận đường dẫn)"
+    },
+    {
+      "operationId": "controlPeriodCloseSaga",
+      "file": "platform.yaml",
+      "module": "workflow",
+      "errorModule": "PLATFORM",
+      "method": "POST",
+      "path": "/workflow/sagas/period-close/{sagaId}/commands",
+      "owner": "SVC-06",
+      "qt": [
+        "QT-08"
+      ],
+      "scr": [
+        "SCR-0801"
+      ],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-02a QT-08 bước 9 và ngoại lệ; TL-03 `flowable.saga_instance`; wiki 14 DV-06-07"
     },
     {
       "operationId": "copyOkrObjectivesFromPeriod",

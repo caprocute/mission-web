@@ -59,7 +59,14 @@ public interface PeriodCloseGateway {
     /** Kỳ {@code DA_KHOA}, mục tiêu {@code DONG}, hồ sơ {@code CHUA_LAP}, thông báo (EVT-21). */
     HOAN_TAT_KY(Participant.MOD_08),
     /** Niêm phong Merkle đột xuất cho kỳ (EVT-19). */
-    NIEM_PHONG(Participant.SVC_09);
+    NIEM_PHONG(Participant.SVC_09),
+    /** Lô mới chỉ cho hồ sơ trong hàng đợi lỗi của lần tính chốt kỳ (EVT-10 khi xong). */
+    TINH_LAI_HO_SO_LOI(Participant.SVC_07),
+    /**
+     * Kiểm tất định (BR-08-11): {@code score_job} loại {@code KIEM_TRA_TAI_LAP} cho 0,1% hồ sơ chọn
+     * ngẫu nhiên với hạt giống là mã tác vụ, so {@code result_hash} với kết quả đã lưu.
+     */
+    KIEM_TAT_DINH(Participant.SVC_07);
 
     private final Participant participant;
 
@@ -84,27 +91,39 @@ public interface PeriodCloseGateway {
     }
   }
 
-  /** Trạng thái tác vụ dài ở bên nhận, theo lược đồ {@code Job} của hợp đồng chung. */
-  record JobState(Status status, Integer progress, String error) {
+  /**
+   * Trạng thái tác vụ dài ở bên nhận, theo lược đồ {@code Job} của hợp đồng chung.
+   *
+   * @param failedItems số hồ sơ lỗi còn lại khi tác vụ xong (tính điểm, chạy lại hồ sơ lỗi) hoặc số
+   *     hồ sơ lệch (kiểm tất định); {@code 0} với lệnh không đếm hồ sơ
+   */
+  record JobState(Status status, Integer progress, String error, int failedItems) {
     public JobState {
       Objects.requireNonNull(status, "status");
+      if (failedItems < 0) {
+        throw new IllegalArgumentException("failedItems không âm");
+      }
     }
 
     public static JobState running(Integer progress) {
-      return new JobState(Status.DANG_CHAY, progress, null);
+      return new JobState(Status.DANG_CHAY, progress, null, 0);
     }
 
     public static JobState done() {
-      return new JobState(Status.HOAN_TAT, 100, null);
+      return done(0);
+    }
+
+    public static JobState done(int failedItems) {
+      return new JobState(Status.HOAN_TAT, 100, null, failedItems);
     }
 
     public static JobState failed(String error) {
-      return new JobState(Status.THAT_BAI, null, error);
+      return new JobState(Status.THAT_BAI, null, error, 0);
     }
 
     /** Bên nhận chưa có tác vụ mang mã này (chưa giao, hoặc lần giao trước chưa ghi được). */
     public static JobState missing() {
-      return new JobState(Status.CHUA_CO, null, null);
+      return new JobState(Status.CHUA_CO, null, null, 0);
     }
 
     public enum Status {

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Luồng cha kiểm thử (DV-06-12): bước duyệt gọi mẫu duyet-kep-chi-huy-cap-uy bằng call activity. Không gắn tenant. -->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="https://okrkpi.vn/bpmn/test">
+  <process id="duyet-thu-kep" name="Kiểm thử luồng cha có bước duyệt kép" isExecutable="true">
+    <startEvent id="start"/>
+    <sequenceFlow id="f1" sourceRef="start" targetRef="duyetKep"/>
+    <callActivity id="duyetKep" calledElement="duyet-kep-chi-huy-cap-uy"
+                  flowable:inheritBusinessKey="true" flowable:fallbackToDefaultTenant="true">
+      <extensionElements>
+        <flowable:in source="tenantId" target="tenantId"/>
+        <flowable:in source="khoi" target="khoi"/>
+        <flowable:in source="donViId" target="donViId"/>
+        <flowable:in source="tieuDe" target="tieuDe"/>
+        <flowable:out source="decision" target="decision"/>
+      </extensionElements>
+    </callActivity>
+    <sequenceFlow id="f2" sourceRef="duyetKep" targetRef="ketQua"/>
+    <exclusiveGateway id="ketQua" default="f4"/>
+    <sequenceFlow id="f3" sourceRef="ketQua" targetRef="traLai">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${decision == 'TRA_LAI'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f4" sourceRef="ketQua" targetRef="daDuyet"/>
+    <endEvent id="traLai"/>
+    <endEvent id="daDuyet"/>
+  </process>
+</definitions>

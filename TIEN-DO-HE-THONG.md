@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **308 / 408 task (75.5%)** — Khối lượng quy đổi đã gộp: **357 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **314 / 408 task (77.0%)** (gồm **308** đã gộp `main` + **6** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **5 task** (1 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **89 task**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **315 / 408 task (77.2%)** (gồm **308** đã gộp `main` + **7** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **6 task** (2 đang làm, 4 làm một phần).
+- **Chưa bắt đầu**: **87 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -25,23 +25,23 @@
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **68** | 0 | 2 | 2 | **94.4%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **103** | 1 | 2 | 11 | **88.0%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **70** | 5 | 1 | 28 | **67.3%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **70** | 6 | 2 | 26 | **67.3%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **12** | 0 | 0 | 1 | **92.3%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **308** | **6** | **5** | **89** | **75.5%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **308** | **7** | **6** | **87** | **75.5%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
 | Mốc triển khai | Tổng task | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tiến độ gộp `main` |
 |---|---:|---:|---:|---:|---:|---:|
 | **M0 – Nền móng phát triển & CSDL** | 60 | **60** | 0 | 0 | 0 | **100.0%** |
-| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **34** | 0 | 0 | 6 | **85.0%** |
+| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **34** | 0 | 1 | 5 | **85.0%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **86** | 5 | 3 | 26 | **71.7%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **86** | 6 | 3 | 25 | **71.7%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **61** | 1 | 1 | 9 | **84.7%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **16** | 0 | 1 | 25 | **38.1%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **3** | 0 | 0 | 20 | **13.0%** |
@@ -354,14 +354,14 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-01-03](docs/tasks/DV-01-03-tuyen-cong-khai-ci.md) | Danh sách tuyến công khai tường minh và kiểm thử CI quét toàn bộ CRD | S | B5 | 3 | DV-01-01 | **Chưa bắt đầu** |  |
 | [DV-01-04](docs/tasks/DV-01-04-apisix-lop-ngoai.md) | APISIX lớp ngoài ở vùng toàn cục: phân giải tenant sang cell, đệm 5 phút, khám phá cell | M | B5 | 9 | DV-01-01, DV-03-02 | **Chưa bắt đầu** |  |
 
-### DV-02 · SVC-02 iam (Keycloak) (7/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-02 · SVC-02 iam (Keycloak) (7/8 đã gộp `main`, 0 chờ gộp, 1 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-02-01](docs/tasks/DV-02-01-mau-realm-production.md) | Mẫu realm production theo cell với Organizations, PKCE, chính sách mật khẩu, khoá sau 5 lần sai, thời hạn phiên | M | B5 | 1 | – | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main |
 | [DV-02-02](docs/tasks/DV-02-02-claim-ngu-canh.md) | Protocol mapper claim ngữ cảnh và API chọn đơn vị, vai trò (`PUT /org/me/context`) | M | B5 | 12 | DV-02-01, DV-04-04 | **Đã gộp main** | Đã gộp main (nhánh B1 d598b9e) |
 | [DV-02-03](docs/tasks/DV-02-03-mfa-step-up.md) | MFA theo vai trò, thiết bị, rủi ro; step-up `acr` và `auth_time` | M | B5 | 2 | DV-02-01 | **Đã gộp main** | Luồng đăng nhập theo bậc xác thực, MFA theo vai trò, thiết bị, rủi ro |
-| [DV-02-04](docs/tasks/DV-02-04-moi-gioi-vneid.md) | Môi giới VNeID: state, nonce, PKCE, liên kết danh tính bằng HMAC | L | B5 | 10 | DV-02-01, DV-04-01, NEN-015 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần môi trường thử VNeID |
+| [DV-02-04](docs/tasks/DV-02-04-moi-gioi-vneid.md) | Môi giới VNeID: state, nonce, PKCE, liên kết danh tính bằng HMAC | L | B5 | 10 | DV-02-01, DV-04-01, NEN-015 | **Đang làm** | Nhánh claude/project-thread-uusb7v: đang thực hiện với VNeID giả lập |
 | [DV-02-05](docs/tasks/DV-02-05-su-kien-keycloak.md) | Event listener Keycloak đẩy `iam.auth.event.v1`, báo truy cập bất thường, thu hồi phiên | M | B5 | 4 | DV-02-01, NEN-007 | **Đã gộp main** | Đã gộp main (nhánh B1 37a1606) |
 | [DV-02-06](docs/tasks/DV-02-06-dong-bo-nguoi-dung.md) | Consumer EVT-16 đồng bộ người dùng qua Admin API | M | B5 | 12 | DV-02-01, DV-04-03 | **Đã gộp main** | Đã gộp main (nhánh B1 6389317) |
 | [DV-02-07](docs/tasks/DV-02-07-consumer-evt14-keycloak.md) | Consumer EVT-14 cập nhật Organizations Keycloak khi tổ chức thay đổi | S | B5 | 12 | DV-02-01, DV-04-03 | **Đã gộp main** | Đã gộp main (nhánh B1 6389317) |
@@ -392,7 +392,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-04-07](docs/tasks/DV-04-07-doi-soat-nhan-su.md) | Đối soát nhân sự: khớp người bằng HMAC và ngày sinh, bảng lệch, phân loại, API giải quyết | L | B5 | 12 | DV-04-04, DV-13-06 | **Đã gộp main** | Đã gộp main (8b84e3a) |
 | [DV-04-08](docs/tasks/DV-04-08-org-republish.md) | Lệnh phát lại sự kiện tổ chức (`org-republish`) cho bên nhận bị lệch | S | B5 | 12 | DV-04-03, NEN-022 | **Đã gộp main** | Đã gộp main (nhánh B1 7dca3d2) |
 
-### DV-06 · SVC-06 workflow-service (Flowable) (5/12 đã gộp `main`, 1 chờ gộp, 0 đang làm)
+### DV-06 · SVC-06 workflow-service (Flowable) (5/12 đã gộp `main`, 2 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -402,7 +402,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-06-04](docs/tasks/DV-06-04-bpmn-duyet-phan-2.md) | Mẫu BPMN luồng duyệt phần 2: hồ sơ đánh giá, khiếu nại, mở lại kỳ, phát hành Policy Pack | L | B6 | 12 | DV-06-03 | **Chưa bắt đầu** |  |
 | [DV-06-05](docs/tasks/DV-06-05-khung-saga.md) | Khung saga tầng 3: bước, bù trừ, trạng thái bền, 202 và theo dõi | L | B6 | 10 | DV-06-01 | **Đã gộp main** | Đã gộp main (nhánh B6 fad5653) |
 | [DV-06-06](docs/tasks/DV-06-06-saga-chot-ky.md) | Saga chốt kỳ: tiền điều kiện, khoá, tính điểm, sinh biểu mẫu, ký lô, niêm phong, lập hồ sơ | L | B6 | 19 | DV-06-05, CORE-08-05, DV-07-06, DV-11-04, DV-10-06, DV-09-03 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: saga CHOT_KY 6 bước theo TL-02a, cổng cho SVC-07/11/10/09 và lệnh nội bộ MOD-08; verify workflow-service xanh |
-| [DV-06-07](docs/tasks/DV-06-07-bu-tru-chot-ky.md) | Bù trừ saga chốt kỳ, chạy lại hồ sơ lỗi, kiểm tất định bằng chạy lại mẫu | L | B6 | 20 | DV-06-06 | **Chưa bắt đầu** |  |
+| [DV-06-07](docs/tasks/DV-06-07-bu-tru-chot-ky.md) | Bù trừ saga chốt kỳ, chạy lại hồ sơ lỗi, kiểm tất định bằng chạy lại mẫu | L | B6 | 20 | DV-06-06 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: bù trừ saga chốt kỳ, chạy lại hồ sơ lỗi, kiểm tất định; verify xanh (175 unit, 38 IT) |
 | [DV-06-08](docs/tasks/DV-06-08-api-wf-binding.md) | API `wf_binding`: lưu, linter tham số, mô phỏng trên engine thử | M | B6 | 12 | DV-06-03 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 | [DV-06-09](docs/tasks/DV-06-09-mau-luong-noi-bo.md) | Mẫu luồng nội bộ (BS-01): mở rộng `wf_template`, `wf_template_rollout`, linter, saga phát hành cuốn chiếu | L | B6 | 13 | DV-06-08 | **Chưa bắt đầu** |  |
 | [DV-06-10](docs/tasks/DV-06-10-giam-sat-tien-trinh.md) | API giám sát tiến trình theo mẫu (BS-01): chuyển người xử lý, gia hạn, sơ đồ | M | B6 | 11 | DV-06-02 | **Chưa bắt đầu** |  |
@@ -485,7 +485,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-13-06](docs/tasks/DV-13-06-lgsp-ndxp-cbccvc.md) | LGSP, NDXP và CSDL cán bộ, công chức, viên chức (đồng bộ đêm, `sync_cursor`) | L | B5 | 10 | DV-13-01 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần kết nối thử NDXP |
 | [DV-13-07](docs/tasks/DV-13-07-csdl-dang-vien.md) | CSDL đảng viên | M | B5 | 11 | DV-13-06 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần kết nối thử |
 | [DV-13-08](docs/tasks/DV-13-08-hrm-so-lieu-kr.md) | HRM và số liệu nguồn cho KR | M | B5 | 10 | DV-13-01 | **Chưa bắt đầu** |  |
-| [DV-13-09](docs/tasks/DV-13-09-ban-neo-chia-se-xep-loai.md) | Gửi bản neo sổ cái cho bên thứ ba và chia sẻ quyết định xếp loại ra ngoài | M | B5 | 12 | DV-13-02, DV-09-03 | **Xong, chờ gộp** | Nhánh claude/project-thread-uusb7v (61137d85, a3d644e6): integration-gateway verify xanh, 91 kiểm thử; migration integ V5; hai đường nội bộ của ledger-service chờ B7 |
+| [DV-13-09](docs/tasks/DV-13-09-ban-neo-chia-se-xep-loai.md) | Gửi bản neo sổ cái cho bên thứ ba và chia sẻ quyết định xếp loại ra ngoài | M | B5 | 12 | DV-13-02, DV-09-03 | **Xong, chờ gộp** | Nhánh claude/project-thread-uusb7v: bản neo sổ cái và chia sẻ xếp loại, verify xanh |
 | [DV-13-10](docs/tasks/DV-13-10-goi-chuyen-ho-so-lien-cell.md) | Gói chuyển hồ sơ cán bộ liên cell có ký số | M | B5 | 11 | DV-13-02, DV-10-01 | **Chưa bắt đầu** |  |
 | [DV-13-11](docs/tasks/DV-13-11-pact-he-ngoai.md) | Kiểm thử hợp đồng Pact với từng hệ ngoài bằng đối tác giả lập | M | B5 | 11 | DV-13-03, QA-02 | **Chưa bắt đầu** |  |
 
@@ -989,7 +989,9 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 02:40 | B4 | `DV-07-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: đã qua build & test (verify scoring-service 197 unit + 20 IT, helm lint); chưa đo tải (YC-PT-19) |
 | 23/10/2026 02:40 | B4 | `DV-07-06` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: đã qua build & test (verify scoring-service 197 unit + 20 IT, helm lint); chưa đo tải (YC-PT-19) |
 | 23/10/2026 03:18 | B1 (Claude) | `DV-06-06` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: saga CHOT_KY 6 bước theo TL-02a, cổng cho SVC-07/11/10/09 và lệnh nội bộ MOD-08; verify workflow-service xanh |
-| 23/10/2026 04:44 | B4 | `DV-13-09` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v (61137d85, a3d644e6): integration-gateway verify xanh, 91 kiểm thử; migration integ V5; hai đường nội bộ của ledger-service chờ B7 |
-| 23/10/2026 04:44 | B4 | `DV-13-04` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-uusb7v: đang thực hiện với iOffice giả lập |
-| 23/10/2026 05:02 | B4 | `DV-13-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: iOffice REST và SOAP giả lập, EVT-24 cùng lược đồ với vOffice, hợp đồng Pact lưu tệp; integration-gateway verify xanh (171 kiểm thử) |
+| 23/10/2026 03:33 | B1 (Claude) | `DV-06-07` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b1-nen-mong-backend-8pacfm: bù trừ saga chốt kỳ trên khung saga |
+| 23/10/2026 03:49 | B1 (Claude) | `DV-06-07` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: bù trừ saga chốt kỳ, chạy lại hồ sơ lỗi, kiểm tất định; verify xanh (175 unit, 38 IT) |
+| 23/10/2026 05:04 | B4 | `DV-13-09` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: bản neo sổ cái và chia sẻ xếp loại, verify xanh |
+| 23/10/2026 05:04 | B4 | `DV-13-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: iOffice REST và SOAP giả lập, EVT-24 cùng lược đồ với vOffice, hợp đồng Pact lưu tệp; integration-gateway verify xanh (171 kiểm thử) |
+| 23/10/2026 05:04 | B4 | `DV-02-04` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-uusb7v: đang thực hiện với VNeID giả lập |
 <!-- PROGRESS_LOG_END -->

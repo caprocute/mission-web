@@ -124,12 +124,97 @@ class PeriodCloseStepsTest {
         .isInstanceOf(IllegalStateException.class);
   }
 
+  @Test
+  void tinhDiemGiuChoNguoiVanHanhKhiConHoSoLoiChayLaiChapNhanVaKiemTatDinh() {
+    FakeGateway gateway = new FakeGateway();
+    List<Integer> mismatches = new ArrayList<>();
+    SagaStepHandler step =
+        PeriodCloseSteps.handler(
+            PeriodCloseSaga.TINH_DIEM_CHOT_KY,
+            gateway,
+            new PeriodCloseAlarms() {
+              @Override
+              public void overBudget(StepInvocation inv, Duration budget, Duration elapsed) {
+                alarms.add(inv.stepCode());
+              }
+
+              @Override
+              public void determinismMismatch(StepInvocation inv, int profiles) {
+                mismatches.add(profiles);
+              }
+            },
+            clock);
+    UUID job = UUID.randomUUID();
+    UUID rerun = UUID.randomUUID();
+
+    // Lô chính chưa xong, rồi lỗi.
+    gateway.byCommand.put(
+        PeriodCloseGateway.Command.TINH_DIEM, PeriodCloseGateway.JobState.missing());
+    assertThat(step.poll(invocation(3, 1), job, NOW)).isEmpty();
+    assertThat(gateway.submits).containsExactly("TINH_DIEM");
+    gateway.byCommand.put(
+        PeriodCloseGateway.Command.TINH_DIEM, PeriodCloseGateway.JobState.failed("hỏng"));
+    assertThat(step.poll(invocation(3, 1), job, NOW)).contains(StepReply.failed("hỏng"));
+
+    // Lô chính xong nhưng còn 100 hồ sơ lỗi: giữ chờ người vận hành.
+    gateway.byCommand.put(
+        PeriodCloseGateway.Command.TINH_DIEM, PeriodCloseGateway.JobState.done(100));
+    assertThat(step.poll(invocation(3, 1), job, NOW))
+        .hasValueSatisfying(r -> assertThat(r.hold()).isTrue());
+
+    // Chạy lại: lần đầu giao lô mới, đang chạy, lỗi thì giữ, xong còn 2 lỗi thì vẫn giữ.
+    Map<String, Object> retry = Map.of(PeriodCloseSteps.Scoring.RETRY_NOTE, rerun.toString());
+    gateway.byCommand.put(
+        PeriodCloseGateway.Command.TINH_LAI_HO_SO_LOI, PeriodCloseGateway.JobState.missing());
+    assertThat(step.poll(invocation(3, 1, retry), job, NOW)).isEmpty();
+    assertThat(gateway.submits).containsExactly("TINH_DIEM", "TINH_LAI_HO_SO_LOI");
+    gateway.byCommand.put(
+        PeriodCloseGateway.Command.TINH_LAI_HO_SO_LOI, PeriodCloseGateway.JobState.running(50));
+    assertThat(step.poll(invocation(3, 1, retry), job, NOW)).isEmpty();
+    gateway.byCommand.put(
+        PeriodCloseGateway.Command.TINH_LAI_HO_SO_LOI, PeriodCloseGateway.JobState.failed("x"));
+    assertThat(step.poll(invocation(3, 1, retry), job, NOW))
+        .hasValueSatisfying(
+            r -> {
+              assertThat(r.hold()).isTrue();
+              assertThat(r.error()).contains("chạy lại");
+            });
+    gateway.byCommand.put(
+        PeriodCloseGateway.Command.TINH_LAI_HO_SO_LOI, PeriodCloseGateway.JobState.done(2));
+    assertThat(step.poll(invocation(3, 1, retry), job, NOW))
+        .hasValueSatisfying(r -> assertThat(r.error()).contains("Còn 2 hồ sơ"));
+
+    // Chấp nhận để lại lỗi: sang kiểm tất định; khớp thì xong, lệch thì cảnh báo và giữ.
+    Map<String, Object> accepted =
+        Map.of(PeriodCloseSteps.Scoring.ACCEPT_NOTE, Map.of("lyDo", "đã xác minh"));
+    gateway.byCommand.put(
+        PeriodCloseGateway.Command.KIEM_TAT_DINH, PeriodCloseGateway.JobState.running(1));
+    assertThat(step.poll(invocation(3, 1, accepted), job, NOW)).isEmpty();
+    gateway.byCommand.put(
+        PeriodCloseGateway.Command.KIEM_TAT_DINH, PeriodCloseGateway.JobState.done());
+    assertThat(step.poll(invocation(3, 1, accepted), job, NOW)).contains(StepReply.done());
+    gateway.byCommand.put(
+        PeriodCloseGateway.Command.KIEM_TAT_DINH, PeriodCloseGateway.JobState.done(3));
+    assertThat(step.poll(invocation(3, 1, accepted), job, NOW))
+        .hasValueSatisfying(r -> assertThat(r.hold()).isTrue());
+    assertThat(mismatches).containsExactly(3);
+    assertThatThrownBy(
+            () ->
+                new PeriodCloseGateway.JobState(
+                    PeriodCloseGateway.JobState.Status.HOAN_TAT, 100, null, -1))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
   private SagaStepHandler handler(String code, PeriodCloseGateway gateway) {
     return PeriodCloseSteps.handler(
         code, gateway, (inv, budget, elapsed) -> alarms.add(inv.stepCode()), clock);
   }
 
   private StepInvocation invocation(int stepNo, int attempt) {
+    return invocation(stepNo, attempt, Map.of());
+  }
+
+  private StepInvocation invocation(int stepNo, int attempt, Map<String, Object> notes) {
     String code = new PeriodCloseSaga().definition().steps().get(stepNo - 1).stepCode();
     return new StepInvocation(
         saga,
@@ -144,13 +229,15 @@ class PeriodCloseStepsTest {
             "periodId", period.toString(),
             "lockOrderId", UUID.randomUUID().toString(),
             "unitIds", List.of(UUID.randomUUID().toString()),
-            "requestedBy", UUID.randomUUID().toString()));
+            "requestedBy", UUID.randomUUID().toString()),
+        notes);
   }
 
   static final class FakeGateway implements PeriodCloseGateway {
     List<String> violations = List.of();
     JobState state = JobState.done();
     JobState sealState = JobState.done();
+    final Map<Command, JobState> byCommand = new java.util.EnumMap<>(Command.class);
     final List<String> submits = new ArrayList<>();
     final List<String> undone = new ArrayList<>();
 
@@ -166,6 +253,9 @@ class PeriodCloseStepsTest {
 
     @Override
     public JobState state(Command command, PeriodCloseRequest request, UUID jobId) {
+      if (byCommand.containsKey(command)) {
+        return byCommand.get(command);
+      }
       return command == Command.NIEM_PHONG ? sealState : state;
     }
 
