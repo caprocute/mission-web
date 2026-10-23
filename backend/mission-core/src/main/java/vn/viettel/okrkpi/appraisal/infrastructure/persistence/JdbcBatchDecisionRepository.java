@@ -356,4 +356,26 @@ public class JdbcBatchDecisionRepository implements BatchDecisionRepository {
         rs.getLong(13),
         rs.getTimestamp(14).toInstant());
   }
+
+  @Override
+  public Set<UUID> withOpenQuarterComplaint(
+      TenantId tenant, int bucket, Collection<UUID> profileIds) {
+    return new HashSet<>(
+        jdbc.sql(
+                """
+                SELECT a.id FROM appraisal.appraisal_profile a
+                 WHERE a.period_bucket = ? AND a.tenant_id = ? AND a.id = ANY(?::uuid[])
+                   AND EXISTS (SELECT 1 FROM appraisal.appraisal_profile q
+                                WHERE q.period_bucket = ANY(?::int[]) AND q.tenant_id = a.tenant_id
+                                  AND q.person_id = a.person_id AND q.flow = a.flow
+                                  AND q.status = 'KHIEU_NAI')
+                """)
+            .params(
+                bucket,
+                tenant.value(),
+                profileIds.toArray(UUID[]::new),
+                new Integer[] {bucket + 1, bucket + 2, bucket + 3, bucket + 4})
+            .query(UUID.class)
+            .list());
+  }
 }

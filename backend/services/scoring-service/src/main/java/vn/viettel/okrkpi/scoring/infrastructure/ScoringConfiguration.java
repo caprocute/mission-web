@@ -1,25 +1,34 @@
 package vn.viettel.okrkpi.scoring.infrastructure;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import vn.viettel.okrkpi.scoring.application.ScoreRecorder;
+import vn.viettel.okrkpi.scoring.application.ScoreSimulationService;
 import vn.viettel.okrkpi.scoring.application.ScoreTraceService;
+import vn.viettel.okrkpi.scoring.application.policy.PolicyPackCache;
 import vn.viettel.okrkpi.scoring.application.policy.ProfileScorer;
 import vn.viettel.okrkpi.scoring.application.policy.RatingClassifier;
 import vn.viettel.okrkpi.scoring.application.policy.ScoreCalculator;
+import vn.viettel.okrkpi.scoring.application.port.Designations;
 import vn.viettel.okrkpi.scoring.application.port.ScoreEvents;
 import vn.viettel.okrkpi.scoring.application.port.ScoreJobStore;
 import vn.viettel.okrkpi.scoring.application.port.ScoreResultStore;
 import vn.viettel.okrkpi.scoring.application.port.ScoreTraceStore;
+import vn.viettel.okrkpi.scoring.application.port.StoredScores;
 import vn.viettel.okrkpi.scoring.infrastructure.events.OutboxScoreEvents;
 import vn.viettel.okrkpi.scoring.infrastructure.persistence.CopyScoreResultStore;
 import vn.viettel.okrkpi.scoring.infrastructure.persistence.JdbcScoreJobStore;
 import vn.viettel.okrkpi.scoring.infrastructure.persistence.JdbcScoreTraceStore;
+import vn.viettel.okrkpi.scoring.infrastructure.persistence.JdbcStoredScores;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
 
-/** Lắp ráp đường ghi kết quả (DV-07-01) và đường đọc vết tính (DV-07-03) của SVC-07. */
+/**
+ * Lắp ráp đường ghi kết quả (DV-07-01), đường đọc vết tính (DV-07-03) và tính thử, xem trước điểm
+ * (DV-07-08) của SVC-07.
+ */
 @Configuration(proxyBeanMethods = false)
 public class ScoringConfiguration {
 
@@ -71,5 +80,26 @@ public class ScoringConfiguration {
   @Bean
   ProfileScorer profileScorer(ScoreCalculator calculator, RatingClassifier classifier) {
     return new ProfileScorer(calculator, classifier);
+  }
+
+  @Bean
+  StoredScores storedScores(JdbcClient jdbc) {
+    return new JdbcStoredScores(jdbc);
+  }
+
+  @Bean
+  ScoreSimulationService.Guard scoreSimulationGuard() {
+    return new ScoreSimulationService.Guard();
+  }
+
+  @Bean
+  ScoreSimulationService scoreSimulationService(
+      StoredScores store,
+      PolicyPackCache policies,
+      ProfileScorer scorer,
+      ObjectProvider<Designations> designations,
+      ScoreSimulationService.Guard guard) {
+    return new ScoreSimulationService(
+        store, policies, scorer, designations.getIfAvailable(() -> Designations.NONE), guard);
   }
 }

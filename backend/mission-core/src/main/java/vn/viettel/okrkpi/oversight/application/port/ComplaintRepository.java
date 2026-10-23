@@ -1,6 +1,8 @@
 package vn.viettel.okrkpi.oversight.application.port;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -39,9 +41,30 @@ public interface ComplaintRepository {
       After after,
       int limit);
 
+  /**
+   * Khiếu nại đã gửi có đơn vị xử lý thuộc {@code unitIds} hoặc đã do {@code handlerId} tiếp nhận
+   * (SCR-1202 trường 1), sắp theo hạn trả lời; {@code assignedOnly} chỉ lấy của {@code handlerId}.
+   */
+  List<Complaint> forHandler(
+      TenantId tenant,
+      Collection<UUID> unitIds,
+      UUID handlerId,
+      boolean assignedOnly,
+      UUID periodId,
+      Set<ComplaintStatus> statuses,
+      ComplaintKind kind,
+      HandlerAfter after,
+      int limit);
+
+  /** Còn khiếu nại khác (khác {@code exceptId}) giữ hồ sơ ở nhánh {@code KHIEU_NAI}. */
+  boolean otherOpenReopening(TenantId tenant, UUID profileId, UUID exceptId);
+
   /** Mã khiếu nại theo yêu cầu ký ở SVC-10. */
   Optional<Complaint> bySignRequest(TenantId tenant, UUID signRequestId);
 
   /** Con trỏ phân trang theo {@code (created_at, id)} giảm dần. */
   record After(Instant createdAt, UUID id) {}
+
+  /** Con trỏ danh sách người xử lý theo {@code (response_deadline, id)} tăng dần. */
+  record HandlerAfter(LocalDate deadline, UUID id) {}
 }

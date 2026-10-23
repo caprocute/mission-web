@@ -73,6 +73,9 @@ public class BatchDecisionService {
   static final String MSG_REASON = "Mức quyết định khác mức đề xuất, đồng chí cần nêu lý do.";
   static final String MSG_SUGGESTED =
       "Mức đồng chí chọn khác mức hệ thống gợi ý, đồng chí cần nêu lý do.";
+  static final String MSG_COMPLAINT =
+      "Chưa thể quyết định xếp loại năm vì khiếu nại về kết quả một quý trong năm chưa có kết"
+          + " luận.";
   static final String MSG_HEAD =
       "Hồ sơ của người đứng đầu chỉ được quyết định sau khi các đơn vị trực thuộc đã có mức"
           + " (QĐ khoản 14.3.3).";
@@ -103,7 +106,13 @@ public class BatchDecisionService {
   }
 
   /** Một hồ sơ của lô: mức quyết định, lý do và phiên bản người dùng đã thấy. */
-  public record Item(UUID profileId, RatingLevel rating, String reason, Long rowVersion) {}
+  public record Item(
+      UUID profileId, RatingLevel rating, String reason, Long rowVersion, UUID seenSnapshotId) {
+
+    public Item(UUID profileId, RatingLevel rating, String reason, Long rowVersion) {
+      this(profileId, rating, reason, rowVersion, null);
+    }
+  }
 
   /** Lệnh quyết định lô (thân {@code AppraisalBatchDecisionInput}). */
   public record Command(
@@ -171,6 +180,7 @@ public class BatchDecisionService {
       throw duplicate();
     }
     checkVersions(items, rows);
+    checkQuarterComplaints(tenant, bucket, items);
     Map<UUID, ProfileFacts> facts = batches.facts(tenant, bucket, ids);
     checkPending(items, facts);
     Set<UUID> outside = batches.outOfScope(tenant, bucket, ids, scope);
@@ -179,7 +189,7 @@ public class BatchDecisionService {
           "COMMON-403-OUT-OF-SCOPE", "Đồng chí không có quyền quyết định một số hồ sơ đã chọn.");
     }
     checkSeparation(tenant, actor, items, rows);
-    checkReasons(items, rows);
+    checkReasons(items, rows, suggestedRatings(tenant, items, rows));
     checkCalibration(tenant, command, rows);
     checkHeads(tenant, bucket, command, items, facts);
 
@@ -397,6 +407,30 @@ public class BatchDecisionService {
     }
   }
 
+  /**
+   * QT-10 ngoại lệ 2: hồ sơ năm còn quý đang khiếu nại chưa kết luận thì chưa quyết định năm
+   * (MSG-10-03). Kiểm trên trạng thái {@code KHIEU_NAI} của hồ sơ quý trong MOD-04, không hỏi
+   * MOD-07.
+   */
+  private void checkQuarterComplaints(TenantId tenant, int bucket, List<Item> items) {
+    if (bucket % 10 != 0) {
+      return;
+    }
+    Set<UUID> open =
+        batches.withOpenQuarterComplaint(
+            tenant, bucket, items.stream().map(Item::profileId).toList());
+    if (open == null || open.isEmpty()) {
+      return;
+    }
+    List<ProblemFieldError> errors = new ArrayList<>();
+    for (int i = 0; i < items.size(); i++) {
+      if (open.contains(items.get(i).profileId())) {
+        errors.add(field(i, "profileId", MSG_COMPLAINT));
+      }
+    }
+    throw new BusinessException("APPRAISAL-409-COMPLAINT-OPEN", MSG_COMPLAINT, errors, "MSG-10-03");
+  }
+
   private static void checkPending(List<Item> items, Map<UUID, ProfileFacts> facts) {
     List<ProblemFieldError> errors = new ArrayList<>();
     for (int i = 0; i < items.size(); i++) {
@@ -434,7 +468,40 @@ public class BatchDecisionService {
   }
 
   /** BR-09-12 và BS-03 DC-05: lý do khi khác mức liền trước (≥ 20 ký tự) hoặc khác mức gợi ý. */
-  private static void checkReasons(List<Item> items, Map<UUID, ProfileRow> rows) {
+  /**
+   * Mức gợi ý để so của từng hồ sơ: ảnh chụp người quyết định đã xem nếu dòng lô ghi {@code
+   * seenScoreSnapshotId}, ngược lại ảnh chụp hiện hành (BS-03 DC-05).
+   */
+  private Map<UUID, RatingLevel> suggestedRatings(
+      TenantId tenant, List<Item> items, Map<UUID, ProfileRow> rows) {
+    Map<UUID, RatingLevel> out = new java.util.HashMap<>();
+    List<ProblemFieldError> unknown = new ArrayList<>();
+    for (int i = 0; i < items.size(); i++) {
+      Item item = items.get(i);
+      ProfileRow r = rows.get(item.profileId());
+      if (item.seenSnapshotId() == null) {
+        if (r.autoRating() != null) {
+          out.put(item.profileId(), r.autoRating());
+        }
+        continue;
+      }
+      java.util.Optional<RatingLevel> seen =
+          profiles.snapshotRating(tenant, r.periodBucket(), r.id(), item.seenSnapshotId());
+      if (seen.isEmpty()) {
+        unknown.add(
+            field(i, "seenScoreSnapshotId", "Ảnh chụp điểm không thuộc hồ sơ đánh giá này."));
+      } else {
+        out.put(item.profileId(), seen.get());
+      }
+    }
+    if (!unknown.isEmpty()) {
+      throw new BusinessException("COMMON-422-VALIDATION", unknown.get(0).message(), unknown);
+    }
+    return out;
+  }
+
+  private static void checkReasons(
+      List<Item> items, Map<UUID, ProfileRow> rows, Map<UUID, RatingLevel> suggestedRatings) {
     List<ProblemFieldError> required = new ArrayList<>();
     List<ProblemFieldError> suggested = new ArrayList<>();
     List<ProblemFieldError> tooShort = new ArrayList<>();
@@ -446,7 +513,8 @@ public class BatchDecisionService {
       if (blank(item.reason())) {
         if (changed) {
           required.add(field(i, "reason", MSG_REASON, "BR-09-12"));
-        } else if (r.autoRating() != null && r.autoRating() != item.rating()) {
+        } else if (suggestedRatings.get(item.profileId()) != null
+            && suggestedRatings.get(item.profileId()) != item.rating()) {
           suggested.add(field(i, "reason", MSG_SUGGESTED));
         }
       } else if (changed && item.reason().strip().length() < MIN_REASON) {

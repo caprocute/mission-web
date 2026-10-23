@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.config.api.PeriodStatus;
+import vn.viettel.okrkpi.policy.api.PolicyQueryApi;
 import vn.viettel.okrkpi.policy.api.PolicyQueryApi.DecisionTableView;
 import vn.viettel.okrkpi.policy.api.PolicyQueryApi.PolicyContent;
 import vn.viettel.okrkpi.policy.api.PolicyQueryApi.ResolvedPack;
@@ -140,6 +141,33 @@ public class PolicyResolutionService {
         .filter(Map.class::isInstance)
         .map(p -> ((Map<?, ?>) p).get(key))
         .map(v -> v instanceof Map<?, ?> m && m.containsKey("mac_dinh") ? m.get("mac_dinh") : v);
+  }
+
+  /** Khai báo {@code inputs} của manifest, dạng ánh xạ tên → khai báo hoặc dạng mảng. */
+  @Transactional(transactionManager = PolicyPackService.TX, readOnly = true)
+  public List<PolicyQueryApi.InputDeclaration> inputs(TenantId tenant, UUID versionId) {
+    Object raw = snapshot(tenant, versionId).map(s -> s.manifest().get("inputs")).orElse(null);
+    List<PolicyQueryApi.InputDeclaration> out = new java.util.ArrayList<>();
+    if (raw instanceof Map<?, ?> map) {
+      map.forEach((k, v) -> out.add(declaration(String.valueOf(k), v)));
+    } else if (raw instanceof List<?> list) {
+      for (Object item : list) {
+        if (item instanceof Map<?, ?> m && m.get("name") != null) {
+          out.add(declaration(String.valueOf(m.get("name")), m));
+        }
+      }
+    }
+    return List.copyOf(out);
+  }
+
+  private static PolicyQueryApi.InputDeclaration declaration(String name, Object decl) {
+    if (decl instanceof Map<?, ?> m) {
+      return new PolicyQueryApi.InputDeclaration(
+          name,
+          m.get("type") instanceof String t ? t : null,
+          m.get("source") instanceof String src ? src : null);
+    }
+    return new PolicyQueryApi.InputDeclaration(name, decl instanceof String t ? t : null, null);
   }
 
   /**

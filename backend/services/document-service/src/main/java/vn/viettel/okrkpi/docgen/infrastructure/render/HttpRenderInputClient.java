@@ -51,7 +51,10 @@ public class HttpRenderInputClient implements RenderInputPort {
                         f.formInstanceId(),
                         f.formCode(),
                         f.subjectGroupCode(),
-                        HexFormat.of().parseHex(f.dataSnapshotHash())))
+                        HexFormat.of().parseHex(f.dataSnapshotHash()),
+                        f.templateVersion(),
+                        f.policyPackCode(),
+                        f.policyPackVersion()))
             .toList());
   }
 
@@ -72,6 +75,16 @@ public class HttpRenderInputClient implements RenderInputPort {
   /** Thân phản hồi danh sách biểu mẫu (suy luận); băm hex chữ thường như {@code DossierSha256}. */
   record Response(List<Form> forms) {}
 
+  /**
+   * Một biểu mẫu; {@code templateVersion}, {@code policyPackCode}, {@code policyPackVersion} là
+   * phiên bản mẫu và Policy Pack gắn với kỳ của gói (DV-11-04, suy luận).
+   */
   record Form(
-      UUID formInstanceId, String formCode, String subjectGroupCode, String dataSnapshotHash) {}
+      UUID formInstanceId,
+      String formCode,
+      String subjectGroupCode,
+      String dataSnapshotHash,
+      Integer templateVersion,
+      String policyPackCode,
+      String policyPackVersion) {}
 }

@@ -137,3 +137,13 @@ okrkpi:
       dpi: ${EVIDENCE_PREVIEW_DPI:150}
       max-pages: ${EVIDENCE_PREVIEW_MAX_PAGES:300}
       max-width: ${EVIDENCE_PREVIEW_MAX_WIDTH:1240}
+    # DV-08-05: đọc chữ tệp sạch qua ai-gateway, chỉ chạy ở worker quét; để trống URL là tắt.
+    ocr:
+      ai-gateway-url: ${AI_GATEWAY_URL:}
+      token-url: ${EVIDENCE_OCR_TOKEN_URL:}
+      client-id: ${EVIDENCE_OCR_CLIENT_ID:evidence-service}
+      client-secret: ${EVIDENCE_OCR_CLIENT_SECRET:}
+      timeout: ${EVIDENCE_OCR_TIMEOUT:PT120S}
+      lease: ${EVIDENCE_OCR_LEASE:PT10M}
+      retry-base: ${EVIDENCE_OCR_RETRY_BASE:PT30S}
+      max-attempts: ${EVIDENCE_OCR_MAX_ATTEMPTS:3}

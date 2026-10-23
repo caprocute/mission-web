@@ -18,7 +18,9 @@ import vn.viettel.okrkpi.platform.db.migration.TenantIsolationCatalogTest;
  * <p>{@code policy_pack_version} và {@code test_run} tham chiếu vòng nhau nên bộ sinh dòng tự động
  * không xếp được thứ tự; lớp này chèn trước một gói và một phiên bản cho mỗi tenant và cho {@code
  * test_run} một fixture trỏ về phiên bản đó. Ràng buộc {@code ck_policy_pack_version__signed} so
- * sánh {@code created_by} khiến bộ sinh tự động gán nhầm chuỗi, nên phiên bản cũng dùng fixture.
+ * sánh {@code created_by} khiến bộ sinh tự động gán nhầm chuỗi, nên phiên bản cũng dùng fixture. Ba
+ * bảng hồ sơ tập khách hàng (CORE-05-12) có CHECK dạng mã và dạng phiên bản nên cũng dùng fixture,
+ * trỏ về một hồ sơ và một phiên bản chèn trước cho mỗi tenant.
  */
 class PolicyTenantIsolationIT extends TenantIsolationCatalogTest {
 
@@ -70,6 +72,38 @@ class PolicyTenantIsolationIT extends TenantIsolationCatalogTest {
           row.put("created_by", ACTOR);
           row.put("updated_by", ACTOR);
           return row;
+        },
+        "policy.customer_profile",
+        (tenantId, seed) -> {
+          Map<String, Object> row = new LinkedHashMap<>();
+          row.put("id", seeded("profile-" + seed, tenantId));
+          row.put("code", "mau/ho-so-" + seed);
+          row.put("name", "Hồ sơ mẫu");
+          row.put("created_by", ACTOR);
+          row.put("updated_by", ACTOR);
+          return row;
+        },
+        "policy.customer_profile_version",
+        (tenantId, seed) -> {
+          Map<String, Object> row = new LinkedHashMap<>();
+          row.put("id", seeded("profile-ver-" + seed, tenantId));
+          row.put("customer_profile_id", seeded("profile", tenantId));
+          row.put("version", "1.0." + seed);
+          row.put("manifest", json("{}"));
+          row.put("change_note", "Bản mẫu");
+          row.put("created_by", ACTOR);
+          row.put("updated_by", ACTOR);
+          return row;
+        },
+        "policy.param_constraint",
+        (tenantId, seed) -> {
+          Map<String, Object> row = new LinkedHashMap<>();
+          row.put("id", seeded("constraint-" + seed, tenantId));
+          row.put("customer_profile_version_id", seeded("profile-ver", tenantId));
+          row.put("param_key", "tham_so.mau_" + seed);
+          row.put("created_by", ACTOR);
+          row.put("updated_by", ACTOR);
+          return row;
         });
   }
 
@@ -86,7 +120,16 @@ class PolicyTenantIsolationIT extends TenantIsolationCatalogTest {
             admin.prepareStatement(
                 "INSERT INTO policy.policy_pack_version (id, tenant_id, policy_pack_id, version,"
                     + " manifest, change_note, created_by, updated_by) VALUES (?, ?, ?, '0.0.1',"
-                    + " '{}'::jsonb, 'Bản mẫu', ?, ?)")) {
+                    + " '{}'::jsonb, 'Bản mẫu', ?, ?)");
+        PreparedStatement profile =
+            admin.prepareStatement(
+                "INSERT INTO policy.customer_profile (id, tenant_id, code, name, created_by,"
+                    + " updated_by) VALUES (?, ?, 'mau/ho-so-goc', 'Hồ sơ mẫu', ?, ?)");
+        PreparedStatement profileVersion =
+            admin.prepareStatement(
+                "INSERT INTO policy.customer_profile_version (id, tenant_id, customer_profile_id,"
+                    + " version, manifest, change_note, created_by, updated_by) VALUES (?, ?, ?,"
+                    + " '0.0.1', '{}'::jsonb, 'Bản mẫu', ?, ?)")) {
       for (UUID tenant : List.of(TENANT_A, TENANT_B)) {
         pack.setObject(1, seeded("pack", tenant));
         pack.setObject(2, tenant);
@@ -100,6 +143,17 @@ class PolicyTenantIsolationIT extends TenantIsolationCatalogTest {
         version.setObject(4, ACTOR);
         version.setObject(5, ACTOR);
         version.executeUpdate();
+        profile.setObject(1, seeded("profile", tenant));
+        profile.setObject(2, tenant);
+        profile.setObject(3, ACTOR);
+        profile.setObject(4, ACTOR);
+        profile.executeUpdate();
+        profileVersion.setObject(1, seeded("profile-ver", tenant));
+        profileVersion.setObject(2, tenant);
+        profileVersion.setObject(3, seeded("profile", tenant));
+        profileVersion.setObject(4, ACTOR);
+        profileVersion.setObject(5, ACTOR);
+        profileVersion.executeUpdate();
       }
     }
   }

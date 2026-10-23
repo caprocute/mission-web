@@ -10,6 +10,7 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -18,6 +19,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -121,6 +123,55 @@ public class JdbcComplaintProfiles implements ComplaintProfilesApi {
             return false;
           }
           profiles.transition(tenant, profileId, null, actorId, (p, r) -> p.fileComplaint(actorId));
+          return true;
+        });
+  }
+
+  @Override
+  public Participants participants(TenantId tenant, UUID profileId) {
+    List<Map.Entry<String, UUID>> rows =
+        call(
+            tenant,
+            () ->
+                tx.execute(
+                    s ->
+                        jdbc.sql(
+                                "SELECT DISTINCT level_kind, actor_id FROM appraisal.rating_proposal"
+                                    + " WHERE tenant_id = :tenant AND profile_id = :id"
+                                    + " AND level_kind IN ('DE_XUAT', 'THAM_DINH', 'QUYET_DINH')")
+                            .param("tenant", tenant.value())
+                            .param("id", profileId)
+                            .query(
+                                (rs, i) ->
+                                    Map.entry(
+                                        rs.getString("level_kind"),
+                                        rs.getObject("actor_id", UUID.class)))
+                            .list()));
+    Map<String, Set<UUID>> by = new HashMap<>();
+    for (Map.Entry<String, UUID> e : rows == null ? List.<Map.Entry<String, UUID>>of() : rows) {
+      by.computeIfAbsent(e.getKey(), k -> new HashSet<>()).add(e.getValue());
+    }
+    return new Participants(
+        by.getOrDefault("DE_XUAT", Set.of()),
+        by.getOrDefault("THAM_DINH", Set.of()),
+        by.getOrDefault("QUYET_DINH", Set.of()));
+  }
+
+  @Override
+  public boolean returnToSigned(TenantId tenant, UUID profileId, UUID actorId, String reason) {
+    return call(
+        tenant,
+        () -> {
+          String status = find(tenant, profileId).orElseThrow(NoSuchElementException::new).status();
+          if (!AppraisalStatus.KHIEU_NAI.name().equals(status)) {
+            return false;
+          }
+          profiles.transition(
+              tenant,
+              profileId,
+              null,
+              actorId,
+              (p, r) -> p.concludeComplaint(actorId, false, reason));
           return true;
         });
   }

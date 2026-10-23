@@ -1,5 +1,7 @@
 package vn.viettel.okrkpi.oversight.application.port;
 
+import java.util.Collection;
+import java.util.UUID;
 import vn.viettel.okrkpi.oversight.domain.complaint.Complaint;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 
@@ -11,4 +13,10 @@ public interface ComplaintEvents {
 
   /** Ký xong nhưng hồ sơ không còn khiếu nại được: EVT-21 báo người khiếu nại. */
   void notFiled(TenantId tenant, Complaint c);
+
+  /**
+   * Khiếu nại vừa đổi trạng thái (tiếp nhận, không thụ lý, rút): EVT-21 mẫu {@code template} gửi
+   * {@code recipients}; không có người nhận thì không ghi.
+   */
+  void stateChanged(TenantId tenant, Complaint c, String template, Collection<UUID> recipients);
 }

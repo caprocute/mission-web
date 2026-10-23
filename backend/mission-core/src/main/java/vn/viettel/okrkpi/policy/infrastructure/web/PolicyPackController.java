@@ -51,6 +51,7 @@ import vn.viettel.okrkpi.policy.application.PolicyApprovalService.Submit;
 import vn.viettel.okrkpi.policy.application.PolicyPackService;
 import vn.viettel.okrkpi.policy.application.PolicyPackService.PackView;
 import vn.viettel.okrkpi.policy.application.PolicyPackService.VersionView;
+import vn.viettel.okrkpi.policy.application.PolicyPublishSagaService;
 import vn.viettel.okrkpi.policy.domain.PackOrigin;
 import vn.viettel.okrkpi.policy.domain.PolicyPublishRequest.Scope;
 import vn.viettel.okrkpi.policy.domain.PolicyVersionStatus;
@@ -91,6 +92,7 @@ public class PolicyPackController {
   private final ObjectProvider<PeriodApi> periods;
   private final ObjectMapper json;
   private final ObjectProvider<PolicyApprovalService> approvals;
+  private final ObjectProvider<PolicyPublishSagaService> publishing;
 
   public PolicyPackController(
       PolicyPackService packs,
@@ -100,7 +102,8 @@ public class PolicyPackController {
       ObjectProvider<PolicyCaller> callers,
       ObjectProvider<PeriodApi> periods,
       ObjectProvider<ObjectMapper> json,
-      ObjectProvider<PolicyApprovalService> approvals) {
+      ObjectProvider<PolicyApprovalService> approvals,
+      ObjectProvider<PolicyPublishSagaService> publishing) {
     this.packs = Objects.requireNonNull(packs, "packs");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
     this.idempotency = Objects.requireNonNull(idempotency, "idempotency");
@@ -109,6 +112,7 @@ public class PolicyPackController {
     this.periods = Objects.requireNonNull(periods, "periods");
     this.json = json.getIfAvailable(ObjectMapper::new);
     this.approvals = Objects.requireNonNull(approvals, "approvals");
+    this.publishing = Objects.requireNonNull(publishing, "publishing");
   }
 
   @GetMapping
@@ -351,6 +355,75 @@ public class PolicyPackController {
         });
   }
 
+  @PostMapping("/{id}/versions/{v}/revoke")
+  @RequiresPermission(
+      action = "SCR-1503.ky-duyet",
+      operationId = "revokePolicyPackVersion",
+      module = "policies")
+  public ResponseEntity<PolicyPackVersion> revokePolicyPackVersion(
+      @PathVariable("id") UUID id,
+      @PathVariable("v") String version,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody PolicyDecisionReason body) {
+    TenantId tenant = TenantContext.require();
+    UUID actor = currentUser();
+    long expected = ETags.expectedVersion(ifMatch, "POLICY");
+    return idempotency.run(
+        tenant,
+        actor,
+        idempotencyKey,
+        "POST",
+        BASE + "/" + id + "/versions/" + version + "/revoke",
+        body,
+        PolicyPackVersion.class,
+        PolicyPackVersion::getRowVersion,
+        () -> {
+          notFound(
+              () ->
+                  publishing
+                      .getObject()
+                      .revoke(tenant, actor, id, version, expected, body.getReason()));
+          return versionResponse(tenant, id, version);
+        });
+  }
+
+  @PostMapping("/{id}/versions/{v}/republish")
+  @RequiresPermission(operationId = "republishPolicyPackVersion", module = "policies")
+  public ResponseEntity<Job> republishPolicyPackVersion(
+      @PathVariable("id") UUID id,
+      @PathVariable("v") String version,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch) {
+    TenantId tenant = TenantContext.require();
+    UUID actor = currentUser();
+    long expected = ETags.expectedVersion(ifMatch, "POLICY");
+    return idempotency.run(
+        tenant,
+        actor,
+        idempotencyKey,
+        "POST",
+        BASE + "/" + id + "/versions/" + version + "/republish",
+        java.util.Map.of(),
+        Job.class,
+        j -> 0,
+        () -> {
+          String jobId =
+              notFound(
+                  () -> publishing.getObject().republish(tenant, actor, id, version, expected));
+          return Jobs.accepted(
+              new Job(
+                  jobId,
+                  "POLICY_PUBLISH",
+                  vn.viettel.okrkpi.shared.job.JobStatus.CHO,
+                  0,
+                  null,
+                  null,
+                  null,
+                  OffsetDateTime.now(ZoneOffset.UTC)));
+        });
+  }
+
   private ResponseEntity<PolicyPackVersion> versionResponse(
       TenantId tenant, UUID id, String version) {
     VersionView view =
@@ -432,7 +505,8 @@ public class PolicyPackController {
                               Flow.fromValue(b.flow()),
                               b.frozen())
                           .subjectGroupId(b.subjectGroupId())
-                          .orgUnitId(b.orgUnitId())));
+                          .orgUnitId(b.orgUnitId())
+                          .customerProfileVersionId(b.customerProfileVersionId())));
     }
     return dto;
   }

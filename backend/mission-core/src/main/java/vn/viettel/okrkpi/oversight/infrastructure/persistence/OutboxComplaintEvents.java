@@ -1,5 +1,7 @@
 package vn.viettel.okrkpi.oversight.infrastructure.persistence;
 
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -62,10 +64,23 @@ public class OutboxComplaintEvents implements ComplaintEvents {
     notify(tenant, c, TEMPLATE_NOT_FILED);
   }
 
+  @Override
+  public void stateChanged(
+      TenantId tenant, Complaint c, String template, Collection<UUID> recipients) {
+    if (recipients.isEmpty()) {
+      return;
+    }
+    notify(tenant, c, template, List.copyOf(new LinkedHashSet<>(recipients)));
+  }
+
   private void notify(TenantId tenant, Complaint c, String template) {
+    notify(tenant, c, template, List.of(c.complainantId()));
+  }
+
+  private void notify(TenantId tenant, Complaint c, String template, List<UUID> recipients) {
     YeuCauThongBao payload =
         YeuCauThongBao.newBuilder()
-            .setRecipientIds(List.<UUID>of(c.complainantId()))
+            .setRecipientIds(recipients)
             .setTemplateCode(template)
             .setParams("{\"ma\":\"" + c.code() + "\"}")
             .setDeepLink(DEEP_LINK + c.id())

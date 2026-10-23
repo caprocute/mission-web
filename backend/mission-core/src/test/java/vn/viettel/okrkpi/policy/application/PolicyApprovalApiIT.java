@@ -50,6 +50,7 @@ import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
 import vn.viettel.okrkpi.policy.application.PolicyPackService.PackImport;
 import vn.viettel.okrkpi.policy.application.PolicyPackService.VersionView;
 import vn.viettel.okrkpi.policy.application.port.PolicyApprovalNotices;
+import vn.viettel.okrkpi.policy.application.port.PolicyPublishLauncher;
 import vn.viettel.okrkpi.policy.domain.DecisionTable;
 import vn.viettel.okrkpi.policy.domain.GoldenCaseStatus;
 import vn.viettel.okrkpi.policy.domain.GoldenTestCase;
@@ -107,6 +108,13 @@ class PolicyApprovalApiIT extends ContractConformanceTest {
           NOTICES.add("TU_CHOI:" + version.version() + ":" + to);
         }
       };
+    }
+
+    /** Saga phát hành có IT riêng (PolicyPublishSagaApiIT); ở đây chỉ nhận lệnh khởi chạy. */
+    @Bean
+    @Primary
+    PolicyPublishLauncher approvalTestLauncher() {
+      return (tenant, actor, version, request) -> UUID.randomUUID().toString();
     }
 
     @Bean

@@ -59,6 +59,14 @@ public class JdbcBindingReader implements BindingReader {
 
   /** Đọc tham số; khoá thiếu lấy mặc định của khối. */
   ApprovalParams parse(String raw, ApprovalFlow flow) {
+    return parse(json, raw, flow);
+  }
+
+  /**
+   * Đọc {@code params_json} thành tham số khởi động; dùng chung với engine thử của DV-06-08 để mô
+   * phỏng đúng cách khởi động thật.
+   */
+  public static ApprovalParams parse(ObjectMapper json, String raw, ApprovalFlow flow) {
     ApprovalParams defaults = ApprovalParams.defaults(flow);
     if (raw == null || raw.isBlank()) {
       return defaults;
