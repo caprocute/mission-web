@@ -20,7 +20,7 @@ import vn.viettel.okrkpi.workflow.domain.monitor.InstanceFilter;
  * {@link InstanceMonitorStore} trên {@code flowable.wf_task_projection} (BS-01 SCR-1506: "Dữ liệu
  * đọc từ {@code flowable.wf_task_projection} ..., không truy vấn trực tiếp bảng {@code ACT_*}").
  * Phạm vi cell đọc chéo tenant nhờ chính sách RLS {@code rls_wf_task_projection__nen_tang_doc} của
- * V10, chỉ mở khi giao dịch tự đặt {@code app.platform_scope = 'wf_instance_monitor'}; cờ đặt cục
+ * V11, chỉ mở khi giao dịch tự đặt {@code app.platform_scope = 'wf_instance_monitor'}; cờ đặt cục
  * bộ giao dịch và được xoá ngay sau câu đọc.
  */
 @Repository

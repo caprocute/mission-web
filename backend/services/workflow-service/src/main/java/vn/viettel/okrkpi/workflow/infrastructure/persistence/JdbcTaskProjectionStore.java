@@ -30,7 +30,7 @@ public class JdbcTaskProjectionStore implements TaskProjectionStore {
       "task_id, tenant_id, assignee_id, candidate_role, candidate_unit_id, business_type,"
           + " business_id, template_code, title, period_id, due_at, created_at, row_version";
 
-  /** Cột thông tin tiến trình bổ sung ở V10 cho giám sát (DV-06-10). */
+  /** Cột thông tin tiến trình bổ sung ở V11 cho giám sát (DV-06-10). */
   static final String PROCESS_COLUMNS =
       "process_instance_id, activity_id, activity_name, template_version, process_started_at";
 
