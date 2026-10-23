@@ -14,6 +14,8 @@
     "build:all": "node tools/remotes/workspace.mjs build",
     "api:gen": "node tools/openapi/generate.mjs",
     "api:check": "node tools/openapi/generate.mjs --check",
+    "pact": "vitest run --config pact/vitest.config.mts",
+    "pact:check": "vitest run --config pact/vitest.config.mts --mode kiem",
     "perf:prepare": "npm run build:all && node tools/remotes/workspace.mjs assemble dist/lhci",
     "perf:lhci": "npm run perf:prepare && cd dist && lhci autorun --config=../lighthouserc.json",
     "check:ui-text": "node tools/ui-text/check.mjs",

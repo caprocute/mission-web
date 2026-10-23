@@ -31,7 +31,7 @@ class CauHinh implements Serializable {
     sonar                : true,
     sonarServer          : 'sonarqube',
     sonarGoal            : 'sonar:sonar',
-    pact                 : false,                               // bật khi QA-02 dựng xong Pact Broker
+    pact                 : false,                               // chỉ khi có Pact Broker; QA-02 chạy Pact bằng tệp trong verify
     pactBrokerUrl        : 'https://pact.vt.local',
     pactCredentialsId    : 'pact-broker-token',
     dependencyTrack      : true,
