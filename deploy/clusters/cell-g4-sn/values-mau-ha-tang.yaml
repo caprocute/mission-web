@@ -1,0 +1,22 @@
+# MẪU thông số hạ tầng (không phải giá trị thật): dùng để render và kiểm schema khi chưa được cấp Viettel Cloud.
+# Bản thật đặt ở deploy/environments/viettel-cloud/cell-g4-sn.yaml, không commit thông tin bí mật.
+infrastructure:
+  cloudName: viettel-cloud-mau
+  identitySecret: cell-g4-sn-cloud-config
+  externalNetwork: public-mau
+  nodeCIDR: 10.120.0.0/20
+  image: ubuntu-2404-kube-v1.36.0
+  sshKeyName: ""
+controlPlane:
+  flavor: vm.8c32g
+pools:
+  system: { flavor: vm.8c32g }
+  ingress: { flavor: vm.16c32g-25g }
+  app-general: { flavor: vm.16c64g }
+  app-worker: { flavor: vm.16c64g }
+  data-postgres-large: { flavor: bm.48c384g-4nvme }
+  data-postgres-small: { flavor: bm.32c128g-2nvme }
+  data-kafka: { flavor: bm.16c64g-2nvme }
+  data-search: { flavor: bm.16c64g-2nvme }
+  security-zone: { flavor: bm.32c128g-hsm }
+  gpu: { flavor: bm.64c1t-8gpu }

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: standby-check
+description: Kiểm tra sẵn sàng hằng ngày của bản sao ấm ở TTDL thứ hai (INF-28, OPS-18)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

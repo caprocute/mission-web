@@ -1,0 +1,31 @@
+# INF-28 · Kiểm sẵn sàng của bản sao ấm (TL-04 "Topology hai trung tâm dữ liệu", "Kịch bản DR"; OPS-18). Cài ở cụm
+# TTDL chờ của từng cell. CronJob hằng ngày hỏi Prometheus của cụm: replica CNPG đang phục hồi và độ trễ WAL dưới
+# ngưỡng, MirrorMaker 2 có thông điệp mới trong 24 giờ và độ trễ dưới ngưỡng, RGW multisite không tụt shard. Job lỗi
+# (một điều kiện không đạt hoặc thiếu số liệu) là tín hiệu đỏ cho OPS-18 qua kube-state-metrics.
+cell: ""
+namespace: observability
+schedule: "30 6 * * *"
+image:
+  repository: harbor.vt.local/dockerhub/library/python
+  tag: 3.13-alpine
+  digest: sha256:bf12ecc0bea3f171d55145dd02c78b5eeb09f30ee2ac9cc2b4c9e4e8f5e30741
+prometheusUrl: http://prometheus-operated.observability.svc:9090
+# Sáu cụm CNPG của cell (hồ sơ compact gộp còn pg-core và pg-ledger).
+clusters: [pg-core, pg-flowable, pg-platform, pg-iam, pg-ledger, pg-secure]
+nguong:
+  # Độ trễ WAL tối đa của replica (giây). Tiêu chí của task: dưới 1 phút ở trạng thái bình thường.
+  walGiay: 60
+  # Độ trễ nhân bản MirrorMaker 2 tối đa (mili giây).
+  mm2Ms: 60000
+  # Cảnh báo độ trễ MirrorMaker 2 (giây): cảnh báo và nghiêm trọng, cùng mức với độ trễ WAL của TL-04.
+  mm2CanhBaoGiay: 300
+  mm2NghiemTrongGiay: 600
+# Dashboard "Bản sao ấm" (files/dashboard.json) dùng chung cho mọi cell, nạp ở Grafana của cụm quản trị
+# (observability-mgmt), chọn cell bằng nhãn cluster của Thanos.
+# Kiểm thêm (tên, PromQL, phép so, ngưỡng) cho hệ khác của cell.
+kiemThem: []
+canhBao:
+  enabled: true
+resources:
+  requests: { cpu: 50m, memory: 64Mi }
+  limits: { cpu: 200m, memory: 128Mi }

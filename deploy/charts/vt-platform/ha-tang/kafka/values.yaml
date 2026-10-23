@@ -195,3 +195,34 @@ mirrorMaker2:
     limits: { cpu: "4", memory: 4Gi }
   # Đích mạng tới broker cụm nguồn (NetworkPolicyPeer, khối địa chỉ khai theo cell).
   egressTo: []
+
+# INF-28 · Bản sao ấm ở TTDL thứ hai (TL-04 "Kafka: MirrorMaker 2"). Bật ở values của cả hai TTDL
+# (cells/<cell>/values-<site>.yaml): ở TTDL chờ dựng KafkaMirrorMaker2 kéo từ TTDL primary, ở TTDL primary dựng tài
+# khoản nguồn chỉ đọc; cả hai mở listener liên TTDL cổng 9094. Kafka Connect (Debezium) chỉ chạy ở TTDL primary.
+mirrorMaker:
+  enabled: false
+  sites: [hl, sn]
+  replicas: 3
+  # Bootstrap của listener liên TTDL ở TTDL nguồn; %s lần lượt: mã cell, TTDL.
+  sourceBootstrapFormat: "kafka-cell-kafka-lienttdl-bootstrap.data-kafka.cell-%s-%s.vt.local:9094"
+  # CA cụm Kafka của TTDL nguồn (chép qua OpenBao); %s: TTDL nguồn.
+  sourceCaSecretFormat: "kafka-cell-cluster-ca-cert-%s"
+  # Chứng thư tài khoản nguồn chỉ đọc (KafkaUser ở TTDL primary, chép sang TTDL chờ qua OpenBao).
+  sourceUser: mm2-nguon
+  targetUser: mm2
+  topicsPattern: "^(okr|task|product|config|scoring|appraisal|policy|org|dossier|esign|ledger|analytics|notify|oversight|integ|sys|iam)\\..*"
+  # Không nhân bản hàng đợi thử lại, phát lại và thư chết của consumer (OPS-24, TL-04 "Giữ outbox 72 giờ").
+  topicsExcludePattern: ".*\\.(retry|replay|dlq)\\..*"
+  groupsPattern: ".*"
+  sourceTasksMax: 24
+  checkpointTasksMax: 4
+  resources:
+    requests: { cpu: "2", memory: 4Gi }
+    limits: { cpu: "4", memory: 4Gi }
+  # Dải node của cụm TTDL kia (rỗng: không mở listener liên TTDL cho ai, dùng địa chỉ tài liệu 192.0.2.0/32).
+  peerCIDRs: []
+  # Listener liên TTDL (loadbalancer, mTLS) và tên thay thế trong chứng thư broker.
+  listener:
+    port: 9094
+    type: loadbalancer
+    alternativeNames: []
