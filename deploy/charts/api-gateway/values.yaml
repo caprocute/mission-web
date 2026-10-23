@@ -64,14 +64,41 @@ oidc:
   # Secret (do ExternalSecret từ OpenBao tạo) chứa client secret; APISIX 3.x bắt buộc trường này kể cả bearer_only.
   clientSecretRef: { name: apisix-oidc, key: client-secret }
 
-# TL-04 mục 6.8.
+# Ba tầng giới hạn tần suất (DV-01-02; TL-04 "Cắt tải và giới hạn tốc độ ở APISIX", TL-01 mục 12.5 và 14.5).
+# Số mặc định theo TL-04 (tài liệu triển khai mới hơn TL-01, xem wiki 14); mọi ngưỡng là giá trị Helm.
 rateLimit:
-  user: { count: 600, timeWindow: 60 }
+  # Tầng 1, người dùng: limit-count khoá "$vt_tenant $vt_sub", bộ đếm chung qua Valkey. group để mọi tuyến
+  # dùng chung một hạn mức 600/60 s cho mỗi người (không có group thì APISIX đếm riêng từng tuyến).
+  user: { count: 600, timeWindow: 60, group: vt-user }
+  # Tầng 2, tenant: limit-req cục bộ mỗi instance (6 instance ở đỉnh ≈ 2.400 rps cho một tenant).
   tenant: { rate: 400, burst: 200 }
+  # Ghi đè theo tenant sinh từ registry.tenant_quota (quota_key API_RPS; TL-01 mục 12.5: 2 rps mỗi 100 tài khoản,
+  # tối thiểu 20 rps, đột biến gấp 3 trong 10 s). Mỗi mục là một luật workflow → limit-count chung qua Valkey với
+  # count = rps × window: cửa sổ 30 s cho phép dồn gấp 3 trong 10 s rồi chặn tới hết cửa sổ (suy luận).
+  # Chỉ dùng để hạ hạn mức của tenant nhỏ; tenant lớn đã bị chặn bởi limit-req ở trên.
+  tenantQuota:
+    window: 30
+    accountsPerUnit: 100
+    rpsPerUnit: 2
+    minRps: 20
+    # - { tenant: "<uuid tenant>", accounts: 1200 }   # 24 rps
+    # - { tenant: "<uuid tenant>", rps: 50 }          # ghi đè trực tiếp theo hợp đồng
+    overrides: []
+  # Tầng 3, theo tuyến cho thao tác đắt (xuất báo cáo, gói hồ sơ, AI, tìm kiếm): limit-count riêng của tuyến,
+  # khoá "$vt_tenant $vt_sub" (TL-04: ví dụ 10 lần xuất mỗi phút mỗi người). Tuyến khai rateLimit: expensive.
+  # Tuyến có tầng 3 thay limit-count tầng 1 bằng giới hạn này (APISIX: plugin của tuyến đè plugin_config cùng tên).
+  routeTiers:
+    expensive: { count: 10, timeWindow: 60 }
+    ai: { count: 30, timeWindow: 60 }
+    search: { count: 60, timeWindow: 60 }
+    # Bảng điều hành nạp nhiều ô cùng lúc nên hạn mức cao hơn lệnh xuất.
+    analytics: { count: 120, timeWindow: 60 }
+  # Giới hạn kích thước thân request (TL-01 F6: JSON tối đa 1 MB); tuyến tải lên khai maxBodySize riêng.
+  maxBodySize: 1048576
   retryAfter: 30
   problemType: https://danhgia.vn/problems/rate-limited
   problemTitle: Vượt giới hạn tần suất
-  # redis-cluster cho cụm thật (Valkey 3 node, TLS); redis cho một Valkey đơn (kind).
+  # redis-cluster cho cụm thật (Valkey 3 node, TLS, kiểm chứng chỉ); redis cho một Valkey đơn (kind).
   policy: redis-cluster
   redisClusterName: apisix-ratelimit
   redisClusterNodes:
@@ -81,6 +108,50 @@ rateLimit:
   redisSsl: true
   redisHost: valkey.data-kafka.svc
   redisPort: 6379
+  redisTimeout: 200
+
+# Lớp ưu tiên của tuyến (TL-01 mục 14.5): 1 đăng nhập, ký, nộp hồ sơ; 2 thao tác nghiệp vụ hằng ngày (mặc định);
+# 3 bảng điều hành, tìm kiếm, xuất, AI. Mỗi lớp có ApisixPluginConfig riêng (protected-api cho lớp 2,
+# protected-api-p1, protected-api-p3) với limit-conn theo tenant, ngưỡng giảm dần để lớp 3 bị từ chối (503) trước.
+# conn, burst tính trên mỗi instance APISIX; lớp 3 lấy theo trích ApisixRoute của TL-01 (50, 20).
+priority:
+  defaultClass: 2
+  classes:
+    "1": { conn: 400, burst: 200 }
+    "2": { conn: 200, burst: 100 }
+    "3": { conn: 50, burst: 20 }
+  defaultConnDelay: 0.1
+
+# Cắt tải ba mức (TL-04 "Hành vi khi bão hoà", OPS-14). level là mức nền khai trong Git; bộ điều khiển suy giảm
+# đổi mức lúc chạy theo webhook Alertmanager hoặc lệnh của người trực, bằng cách ghi nhãn vt.io/degrade-level và
+# bộ plugin tương ứng (dựng sẵn trong ConfigMap apisix-degrade-levels) vào các ApisixPluginConfig protected-api*.
+#   1: tắt AI (503), báo mức cho upstream qua header để tìm kiếm rút gọn, bảng điều hành đọc tổng hợp sẵn,
+#      xuất báo cáo chuyển hàng đợi; 2: thêm giới hạn tenant giảm 30%;
+#   3: chỉ tuyến lớp 1 được qua, còn lại 503 kèm Retry-After: 60 và thân RFC 9457.
+degrade:
+  level: 0
+  tenantFactor: 0.7
+  retryAfter: 60
+  levelHeader: X-Vt-Degrade-Level
+  problemType: https://danhgia.vn/problems/overloaded
+  problemTitle: Hệ thống đang quá tải
+  problemDetail: Hệ thống đang ưu tiên các thao tác nộp và ký hồ sơ. Vui lòng thử lại sau ít phút.
+  # Đường dẫn của trợ lý AI bị tắt từ mức 1 (biểu thức chính quy trên $uri).
+  aiPaths: ["^/api/v1/ai/"]
+  controller:
+    # Chỉ ở chế độ controller (cụm thật); standalone dùng mức nền ở trên.
+    enabled: true
+    image:
+      repository: docker.io/library/python
+      digest: sha256:1b668429b3511ab407d8e00648891631b0b1a4d7e15e3ca70f38ab5b91ad4ab4
+    port: 8080
+    # Namespace của Alertmanager được gọi webhook (TL-04 mục 3.5).
+    alertmanagerNamespace: observability
+    # Secret (ExternalSecret từ OpenBao) chứa bearer token mà Alertmanager gửi kèm (http_config.authorization).
+    tokenSecretRef: { name: apisix-degrade-webhook, key: token }
+    resources:
+      requests: { cpu: 20m, memory: 64Mi }
+      limits: { cpu: 200m, memory: 128Mi }
 
 # SEC-34: Coraza (proxy-wasm) với OWASP CRS 4, paranoia 2, ngưỡng điểm bất thường 5.
 coraza:
@@ -93,11 +164,29 @@ coraza:
   wasmDir: /wasm
   paranoiaLevel: 2
   anomalyThreshold: 5
-  # On: chặn; DetectionOnly: chỉ ghi nhật ký (2 tuần đầu với tuyến mới, TL-04 SEC-34).
+  # On: chặn (staging trở lên); DetectionOnly: chỉ ghi nhật ký (dev và 2 tuần đầu với tuyến mới, TL-04 SEC-34).
+  # Giá trị theo môi trường đặt ở deploy/environments/<môi trường>/api-gateway/values.yaml.
   ruleEngine: "On"
   # Quy tắc loại trừ theo tuyến, quản lý trong Git (TL-04 SEC-34); nạp trước CRS, dạng ctl lúc chạy
   # (coraza-proxy-wasm 0.5.0 lỗi khi gặp SecRuleUpdateTargetById). 932236 (PL2) coi tên tham số "id" là lệnh Unix.
+  # Thân JSON, biểu mẫu, XML tới ngưỡng này được đưa vào Coraza qua plugin vt-waf-body (bằng giới hạn JSON 1 MB).
+  inspectBodyBytes: 1048576
+  # Phương thức của hợp đồng (CRS 4 mặc định chỉ cho GET HEAD POST OPTIONS, nên PUT, PATCH, DELETE bị 911100 chặn).
+  allowedMethods: GET HEAD POST OPTIONS PUT PATCH DELETE
   exclusions:
+    # Phần tải lên là nhị phân application/octet-stream (PUT /files/uploads/{uploadId}/parts/{n}): bỏ kiểm loại nội
+    # dung 920420 và không đọc thân 16 MB vào WAF; evidence-service quét ClamAV sau khi ghép (SVC-08).
+    - SecRule REQUEST_FILENAME "@rx ^/api/v1/files/uploads/[^/]+/parts/[0-9]+$" "id:10010,phase:1,pass,nolog,ctl:ruleRemoveById=920420,ctl:requestBodyAccess=Off"
+    # Tên trường JSON của hợp đồng profileId, profileIds chứa ".profile" nên 930120 (tệp hệ điều hành) bắt nhầm trên
+    # tên tham số. Coraza 0.5.0 không bỏ được cả tập ARGS_POST_NAMES hay khoá dạng regex trong ctl, nên request có
+    # trường này bỏ riêng 930120 (930100/930110 duyệt thư mục và nhóm 932 RCE vẫn kiểm giá trị).
+    - SecRule ARGS_POST_NAMES "@rx (?:^|[.])profileIds?(?:[.][0-9]+)?$" "id:10020,phase:2,pass,nolog,ctl:ruleRemoveById=930120"
+    # Mẫu luồng BPMN (POST, PUT /workflow/templates): bpmnXml là XML BPMN do quản trị viên tải lên, kiểm bằng linter
+    # của workflow-service (DV-06-03); CRS coi thẻ XML và namespace http://www.omg.org là XSS, RFI.
+    - SecRule REQUEST_FILENAME "@rx ^/api/v1/workflow/templates(/[^/]+)?$" "id:10030,phase:1,pass,nolog,ctl:ruleRemoveTargetByTag=OWASP_CRS;ARGS_POST:json.bpmnXml,ctl:ruleRemoveById=931130"
+    # Biểu thức CEL của quy tắc Policy Pack (PUT .../rules/{ruleId}): hàm math.least, phép chia bị coi là SQLi, RCE;
+    # policy-service biên dịch và kiểm biểu thức ở máy chủ.
+    - SecRule REQUEST_FILENAME "@rx ^/api/v1/policies/packs/[^/]+/versions/[^/]+/rules(/[^/]+)?$" "id:10040,phase:1,pass,nolog,ctl:ruleRemoveTargetByTag=OWASP_CRS;ARGS_POST:json.expression"
     - SecRule ARGS_NAMES "@streq id" "id:10001,phase:1,pass,nolog,ctl:ruleRemoveTargetById=932236;ARGS_NAMES:id"
     - SecRule ARGS_GET_NAMES "@streq id" "id:10002,phase:1,pass,nolog,ctl:ruleRemoveTargetById=932236;ARGS_GET_NAMES:id"
 
@@ -139,6 +228,80 @@ routes:
     pluginConfig: protected-api
     rewrite: ["^/api/v1/iam/(.*)$", "/realms/{realm}/mission-iam/$1"]
     timeout: { connect: 2, send: 10, read: 10 }
+
+# Tuyến theo lớp ưu tiên (DV-01-02): đường dẫn hẹp hơn tuyến module ở routes, cùng upstream, match priority 10
+# nên thắng tuyến module. Trường dùng được trên mọi tuyến (cả routes): priority (lớp 1/2/3, mặc định
+# priority.defaultClass), rateLimit (tầng 3: tên mục trong rateLimit.routeTiers), methods, maxBodySize (byte, đè
+# rateLimit.maxBodySize), uriRegex (lọc thêm trên $uri khi đường dẫn có tham số giữa chừng).
+# Không công bố thao tác chỉ dành cho client nội bộ (serviceClient: POST /ai/ocr, POST /esign/seals).
+classRoutes:
+  # Lớp 1: nộp và ký hồ sơ (vẫn qua ở mức suy giảm 3).
+  - name: core-submit
+    namespace: core
+    service: mission-core
+    port: 8080
+    hosts: ["*.danhgia.vn"]
+    paths: ["/api/v1/okr/objectives/*", "/api/v1/plans/*", "/api/v1/evidences/*", "/api/v1/appraisals/*", "/api/v1/dossiers/packages/*"]
+    uriRegex: "^/api/v1/(okr/objectives/[^/]+/submit|plans/[^/]+/versions/[^/]+/submit|evidences/[^/]+/versions/[^/]+/submit|appraisals/profiles/[^/]+/submit|appraisals/prospect-groups/[^/]+/[^/]+/submit|dossiers/packages/[^/]+/sign)$"
+    pluginConfig: protected-api
+    priority: 1
+    timeout: { connect: 2, send: 10, read: 10 }
+    canary: true
+  - name: esign
+    namespace: secure
+    service: esign-service
+    port: 8080
+    hosts: ["*.danhgia.vn"]
+    paths: ["/api/v1/esign/requests*", "/api/v1/esign/certificates*"]
+    pluginConfig: protected-api
+    priority: 1
+    timeout: { connect: 2, send: 10, read: 10 }
+  # Lớp 2 với giới hạn kích thước riêng: phần tải lên 5 đến 16 MB (hợp đồng PUT /files/uploads/{uploadId}/parts/{n}).
+  - name: files-uploads
+    namespace: platform
+    service: evidence-service
+    port: 8080
+    hosts: ["*.danhgia.vn"]
+    paths: ["/api/v1/files/uploads*"]
+    pluginConfig: protected-api
+    priority: 2
+    maxBodySize: 16777216
+    timeout: { connect: 2, send: 60, read: 30 }
+  # Lớp 3: xuất báo cáo, gói hồ sơ, bảng điều hành, AI (bị từ chối trước khi cell quá tải).
+  - name: core-export
+    namespace: core
+    service: mission-core
+    port: 8080
+    hosts: ["*.danhgia.vn"]
+    # Chỉ lệnh tạo tệp xuất (POST); hỏi trạng thái job xuất vẫn đi tuyến module ở lớp 2.
+    methods: ["POST"]
+    paths: ["/api/v1/tasks/export", "/api/v1/okr/objectives/export", "/api/v1/appraisals/exports", "/api/v1/dossiers/packages/*"]
+    uriRegex: "^/api/v1/(tasks/export|okr/objectives/export|appraisals/exports|dossiers/packages/[^/]+/export)$"
+    pluginConfig: protected-api
+    priority: 3
+    rateLimit: expensive
+    timeout: { connect: 2, send: 10, read: 30 }
+    canary: true
+  - name: analytics
+    namespace: analytics
+    service: analytics-api
+    port: 8080
+    hosts: ["*.danhgia.vn"]
+    paths: ["/api/v1/analytics/*"]
+    pluginConfig: protected-api
+    priority: 3
+    rateLimit: analytics
+    timeout: { connect: 2, send: 10, read: 30 }
+  - name: ai
+    namespace: secure
+    service: ai-gateway
+    port: 8080
+    hosts: ["*.danhgia.vn"]
+    paths: ["/api/v1/ai/suggestions*", "/api/v1/ai/extractions*", "/api/v1/ai/okr/*", "/api/v1/ai/assist/*", "/api/v1/ai/evidence/*", "/api/v1/ai/speech-to-text"]
+    pluginConfig: protected-api
+    priority: 3
+    rateLimit: ai
+    timeout: { connect: 2, send: 30, read: 60 }
 
 podSecurityContext:
   runAsNonRoot: true

@@ -300,38 +300,64 @@ spec:
       config:
         {{- toYaml $conf | nindent 8 }}
     {{- end }}
+{{- $routes := include "api-gateway.allRoutes" . | fromJsonArray }}
 {{- $nss := list }}
-{{- range $v.routes }}{{ $nss = append $nss .namespace }}{{ end }}
+{{- range $routes }}{{ $nss = append $nss .namespace }}{{ end }}
 {{- range $ns := uniq $nss }}
+{{- range $class := list "1" "2" "3" }}
 ---
-# protected-api đặt cạnh ApisixRoute của cùng namespace (plugin_config_name chỉ tra trong namespace của tuyến).
+# protected-api* đặt cạnh ApisixRoute của cùng namespace (plugin_config_name chỉ tra trong namespace của tuyến).
+# Một bản cho mỗi lớp ưu tiên; bộ điều khiển suy giảm ghi đè plugins và nhãn vt.io/degrade-level lúc chạy (DV-01-02).
 apiVersion: apisix.apache.org/v2
 kind: ApisixPluginConfig
 metadata:
-  name: protected-api
+  name: {{ include "api-gateway.classConfigName" $class }}
   namespace: {{ $ns }}
+  labels:
+    {{- include "api-gateway.labels" $ | nindent 4 }}
+    vt.io/priority-class: {{ $class | quote }}
+    vt.io/degrade-level: {{ $v.degrade.level | toString | quote }}
+    vt.io/degrade-managed: "true"
 spec:
   plugins:
-    {{- range $name, $conf := fromYaml (include "api-gateway.protectedApi" $) }}
+    {{- range $name, $conf := fromYaml (include "api-gateway.pluginConfig" (dict "root" $ "class" $class "level" $v.degrade.level)) }}
     - name: {{ $name }}
       enable: true
       config:
         {{- toYaml $conf | nindent 8 }}
     {{- end }}
 {{- end }}
-{{- range $v.routes }}
+{{- end }}
+{{- range $routes }}
+{{- $rp := include "api-gateway.routePlugins" (dict "root" $ "route" .) | fromYaml }}
 ---
 apiVersion: apisix.apache.org/v2
 kind: ApisixRoute
 metadata:
   name: {{ .name }}
   namespace: {{ .namespace }}
+  labels:
+    {{- include "api-gateway.labels" $ | nindent 4 }}
+    vt.io/priority-class: {{ include "api-gateway.routeClass" (dict "root" $ "route" .) | quote }}
 spec:
   http:
     - name: {{ .name }}
+      {{- if .uriRegex }}
+      # Tuyến lớp ưu tiên hẹp hơn tuyến module cùng tiền tố nên được xét trước.
+      priority: 10
+      {{- end }}
       match:
         hosts: {{ toJson .hosts }}
         paths: {{ toJson .paths }}
+        {{- with .methods }}
+        methods: {{ toJson . }}
+        {{- end }}
+        {{- with .uriRegex }}
+        exprs:
+          - subject: { scope: Path }
+            op: RegexMatch
+            value: {{ . | quote }}
+        {{- end }}
       backends:
         {{- if .canary }}
         # Argo Rollouts chỉnh trọng số hai backend này khi phát hành canary (OPS-03, INF-04).
@@ -342,15 +368,23 @@ spec:
           servicePort: {{ .port }}
           resolveGranularity: service
         {{- end }}
-      {{- with .pluginConfig }}
-      plugin_config_name: {{ . }}
+      {{- if .pluginConfig }}
+      plugin_config_name: {{ include "api-gateway.routePluginConfig" (dict "root" $ "route" .) }}
       {{- end }}
-      {{- with .rewrite }}
+      {{- if or .rewrite $rp }}
       plugins:
+        {{- with .rewrite }}
         - name: proxy-rewrite
           enable: true
           config:
             regex_uri: [{{ index . 0 | quote }}, {{ index . 1 | replace "{realm}" $v.oidc.realm | quote }}]
+        {{- end }}
+        {{- range $name, $conf := $rp }}
+        - name: {{ $name }}
+          enable: true
+          config:
+            {{- toYaml $conf | nindent 12 }}
+        {{- end }}
       {{- end }}
       timeout:
         connect: {{ .timeout.connect }}s

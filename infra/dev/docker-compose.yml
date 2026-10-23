@@ -537,6 +537,45 @@ services:
     networks:
       - mission-net
 
+  # HSM giả lập cho esign-service (DV-10-03): khởi tạo token SoftHSM2 "mission-dev" vào infra/dev/softhsm/tokens.
+  # PKCS#11 là thư viện nạp vào tiến trình JVM nên esign-service chạy trên máy dev dùng libsofthsm2 của máy đó
+  # với SOFTHSM2_CONF trỏ tới cùng thư mục token (xem README mục SoftHSM2). PIN chỉ ở infra/dev/.env.
+  softhsm-init:
+    build: ./softhsm
+    image: mission-dev/softhsm:2.6
+    container_name: mission-dev-softhsm-init
+    profiles: ["backend", "all"]
+    restart: "no"
+    command: ["/opt/mission/init-token.sh"]
+    environment:
+      ESIGN_HSM_PIN: ${ESIGN_HSM_PIN:?Đặt ESIGN_HSM_PIN trong infra/dev/.env}
+      ESIGN_HSM_SO_PIN: ${ESIGN_HSM_SO_PIN:?Đặt ESIGN_HSM_SO_PIN trong infra/dev/.env}
+    volumes:
+      - ./softhsm/tokens:/var/lib/softhsm/tokens
+    networks:
+      - mission-net
+
+  # Máy chủ dấu thời gian RFC 3161 giả lập (DV-10-03, YC-PT-13): openssl ts -reply sau một HTTP server tối giản;
+  # gốc tin cậy xuất ra infra/dev/softhsm/tsa/ca.pem cho ESIGN_TSA_TRUST_ANCHORS.
+  tsa-mock:
+    build: ./softhsm
+    image: mission-dev/softhsm:2.6
+    container_name: mission-dev-tsa-mock
+    restart: unless-stopped
+    profiles: ["backend", "all"]
+    command: ["/opt/mission/tsa-mock.sh"]
+    ports:
+      - "${TSA_MOCK_PORT:-35350}:8318"
+    volumes:
+      - ./softhsm/tsa:/var/lib/tsa
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8318/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mission-net
+
   # ---------------------------------------------------------------------------
   # PROFILE: analytics — Kho phân tích ClickHouse của SVC-15 (DV-15-01, ADR-14)
   # ---------------------------------------------------------------------------

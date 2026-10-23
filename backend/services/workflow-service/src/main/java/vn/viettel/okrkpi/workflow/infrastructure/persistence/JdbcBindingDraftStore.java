@@ -31,9 +31,10 @@ import vn.viettel.okrkpi.workflow.infrastructure.template.TemplateCatalog;
 /**
  * {@link BindingDraftStore} trên {@code flowable.wf_binding_draft} (bảng bổ sung của DV-06-08) và
  * {@code flowable.wf_binding} (TL-03). Kích hoạt ghi đè dòng {@code wf_binding} cùng khoá (tenant,
- * loại quy trình, khối đối tượng, luồng, loại kỳ), nhớ giá trị cũ trong {@code replaced_json} để gỡ
- * kích hoạt trả lại đúng dòng cũ; dòng {@code wf_template} được tra theo mã và phiên bản mẫu (mọi
- * tenant đọc được), thiếu thì đăng ký cho tenant từ danh mục mẫu đóng gói.
+ * loại quy trình, khối đối tượng, luồng, loại kỳ) và ghi phiên bản gói vào {@code
+ * policy_pack_version_id} (V10, khoá duy nhất của TL-03 có cột này), nhớ giá trị cũ trong {@code
+ * replaced_json} để gỡ kích hoạt trả lại đúng dòng cũ; dòng {@code wf_template} được tra theo mã và
+ * phiên bản mẫu (mọi tenant đọc được), thiếu thì đăng ký cho tenant từ danh mục mẫu đóng gói.
  */
 @Repository
 public class JdbcBindingDraftStore implements BindingDraftStore {
@@ -166,8 +167,8 @@ public class JdbcBindingDraftStore implements BindingDraftStore {
         ((ObjectNode) scope.deepCopy()).put("policyPackVersionId", packVersionId.toString());
     List<Map<String, Object>> existing =
         jdbc.queryForList(
-            "SELECT id, wf_template_id, scope_json::text AS scope, params_json::text AS params"
-                + " FROM flowable.wf_binding WHERE tenant_id = ? AND process_kind = ?"
+            "SELECT id, wf_template_id, policy_pack_version_id, scope_json::text AS scope,"
+                + " params_json::text AS params FROM flowable.wf_binding WHERE tenant_id = ? AND process_kind = ?"
                 + " AND subject_group_id IS NOT DISTINCT FROM ? AND flow IS NOT DISTINCT FROM ?"
                 + " AND period_type IS NOT DISTINCT FROM ? FOR UPDATE",
             tenantId,
@@ -180,11 +181,12 @@ public class JdbcBindingDraftStore implements BindingDraftStore {
     if (existing.isEmpty()) {
       bindingId = UUID.randomUUID();
       jdbc.update(
-          "INSERT INTO flowable.wf_binding (id, tenant_id, process_kind, subject_group_id, flow,"
-              + " period_type, wf_template_id, scope_json, params_json, created_by, updated_by)"
-              + " VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?)",
+          "INSERT INTO flowable.wf_binding (id, tenant_id, policy_pack_version_id, process_kind,"
+              + " subject_group_id, flow, period_type, wf_template_id, scope_json, params_json,"
+              + " created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?)",
           bindingId,
           tenantId,
+          packVersionId,
           kind,
           subjectGroup,
           flow,
@@ -199,6 +201,8 @@ public class JdbcBindingDraftStore implements BindingDraftStore {
       bindingId = (UUID) row.get("id");
       Map<String, Object> snapshot = new LinkedHashMap<>();
       snapshot.put("wfTemplateId", row.get("wf_template_id").toString());
+      Object oldVersion = row.get("policy_pack_version_id");
+      snapshot.put("policyPackVersionId", oldVersion == null ? null : oldVersion.toString());
       snapshot.put("scope", row.get("scope") == null ? null : read((String) row.get("scope")));
       snapshot.put("params", row.get("params") == null ? null : read((String) row.get("params")));
       List<UUID> previous =
@@ -212,10 +216,11 @@ public class JdbcBindingDraftStore implements BindingDraftStore {
       snapshot.put("draftId", previous.isEmpty() ? null : previous.get(0).toString());
       replaced = write(snapshot);
       jdbc.update(
-          "UPDATE flowable.wf_binding SET wf_template_id = ?, scope_json = ?::jsonb,"
-              + " params_json = ?::jsonb, updated_by = ?, updated_at = now(),"
+          "UPDATE flowable.wf_binding SET wf_template_id = ?, policy_pack_version_id = ?,"
+              + " scope_json = ?::jsonb, params_json = ?::jsonb, updated_by = ?, updated_at = now(),"
               + " row_version = row_version + 1 WHERE id = ? AND tenant_id = ?",
           templateId,
+          packVersionId,
           bindingScope.toString(),
           draft.get("params"),
           actor,
@@ -262,10 +267,11 @@ public class JdbcBindingDraftStore implements BindingDraftStore {
       } else {
         JsonNode old = read(replaced);
         jdbc.update(
-            "UPDATE flowable.wf_binding SET wf_template_id = ?, scope_json = ?::jsonb,"
-                + " params_json = ?::jsonb, updated_by = ?, updated_at = now(),"
+            "UPDATE flowable.wf_binding SET wf_template_id = ?, policy_pack_version_id = ?,"
+                + " scope_json = ?::jsonb, params_json = ?::jsonb, updated_by = ?, updated_at = now(),"
                 + " row_version = row_version + 1 WHERE id = ? AND tenant_id = ?",
             UUID.fromString(old.path("wfTemplateId").asText()),
+            uuid(old.path("policyPackVersionId")),
             nullableJson(old.path("scope")),
             nullableJson(old.path("params")),
             actor,
