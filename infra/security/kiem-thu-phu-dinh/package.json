@@ -1,0 +1,12 @@
+{
+  "name": "kiem-thu-phu-dinh",
+  "private": true,
+  "description": "QA-13: kiểm thử phủ định ATTT theo OWASP ASVS 4.0.3 chạy với một môi trường thật qua biến môi trường",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test --experimental-test-isolation=none --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=ket-qua-junit.xml \"test/*.test.mjs\""
+  }
+}

@@ -1,0 +1,99 @@
+# QA-13 · SEC-40 DAST OWASP ZAP cho API (TL-04 mục 9.8 "Kiểm thử bảo mật: ASVS mức 2 và OWASP ZAP").
+# Theo mẫu của TL-04, khác ở chỗ mọi địa chỉ và bí mật nạp từ biến môi trường (Automation Framework thay ${TÊN}),
+# để cùng một kế hoạch chạy được với dev, staging hay một service dựng riêng:
+#
+#   ZAP_API_URL        gốc API kết thúc bằng /api/, ví dụ https://<cổng APISIX>/api/
+#   ZAP_OPENAPI_FILE   tệp OpenAPI đã gộp của module cần quét, ví dụ /zap/hop-dong/org.yaml (contracts/dist)
+#   ZAP_TARGET_URL     gốc mà đường dẫn trong hợp đồng ghép vào: <ZAP_API_URL>v1
+#   ZAP_TOKEN_URL, ZAP_CLIENT_ID, ZAP_CLIENT_SECRET | ZAP_REFRESH_TOKEN: xem auth/keycloak-client-credentials.js
+#   ZAP_BAO_CAO        thư mục ghi báo cáo (mặc định /zap/wrk/ket-qua)
+#
+# Chạy: zap.sh -cmd -autorun infra/security/zap/okr-api.yaml (hoặc infra/security/zap/chay-zap.sh api).
+# Tiêu chí: 0 cảnh báo High; mọi cảnh báo Medium có giải trình trong ngoai-le.yaml (kiem-ngoai-le.mjs kiểm).
+env:
+  contexts:
+    - name: okr-api
+      urls: ["${ZAP_API_URL}"]
+      includePaths: ["${ZAP_API_URL}.*"]
+      excludePaths: [".*/actuator/.*"]
+      authentication:
+        method: script
+        parameters:
+          script: auth/keycloak-client-credentials.js
+          scriptEngine: "ECMAScript : Graal.js"
+        verification:
+          method: response
+          loggedOutRegex: '"status":401'
+          pollFrequency: 60
+          pollUnits: requests
+      sessionManagement:
+        method: headers
+        parameters:
+          Authorization: "Bearer {%json:access_token%}"
+      users:
+        - name: nguoi-dung-thu
+          credentials: {}
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    progressToStdout: true
+jobs:
+  - type: passiveScan-config
+    parameters:
+      maxAlertsPerRule: 10
+      scanOnlyInScope: true
+  - type: openapi
+    parameters:
+      apiFile: "${ZAP_OPENAPI_FILE}"
+      targetUrl: "${ZAP_TARGET_URL}"
+      context: okr-api
+      user: nguoi-dung-thu
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+  - type: activeScan
+    parameters:
+      context: okr-api
+      user: nguoi-dung-thu
+      policy: API-Minimal
+      maxScanDurationInMins: 60
+      threadPerHost: 4
+    policyDefinition:
+      defaultStrength: medium
+      defaultThreshold: "off"
+      rules:
+        # API-Minimal: chèn mã và lỗi máy chủ có ý nghĩa với API JSON (không quét lỗi chỉ có ở trang HTML).
+        - { id: 40018, name: SQL Injection, threshold: medium, strength: medium }
+        - { id: 40019, name: SQL Injection - MySQL, threshold: medium }
+        - { id: 40022, name: SQL Injection - PostgreSQL, threshold: medium, strength: medium }
+        - { id: 90019, name: Server Side Code Injection, threshold: medium }
+        - { id: 90020, name: Remote OS Command Injection, threshold: medium }
+        - { id: 90021, name: XPath Injection, threshold: medium }
+        - { id: 90023, name: XML External Entity Attack, threshold: medium }
+        - { id: 90024, name: Generic Padding Oracle, threshold: medium }
+        - { id: 40012, name: Cross Site Scripting (Reflected), threshold: medium }
+        - { id: 6, name: Path Traversal, threshold: medium }
+        - { id: 7, name: Remote File Inclusion, threshold: medium }
+        - { id: 40034, name: .env Information Leak, threshold: medium }
+        - { id: 40035, name: Hidden File Finder, threshold: medium }
+        - { id: 10045, name: Source Code Disclosure - /WEB-INF folder, threshold: medium }
+        - { id: 20019, name: External Redirect, threshold: medium }
+        - { id: 30001, name: Buffer Overflow, threshold: medium }
+        - { id: 40008, name: Parameter Tampering, threshold: medium }
+        - { id: 90034, name: Cloud Metadata Potentially Exposed, threshold: medium }
+        - { id: 40043, name: Log4Shell, threshold: medium }
+        - { id: 40045, name: Spring4Shell, threshold: medium }
+  - type: report
+    parameters:
+      template: sarif-json
+      reportDir: "${ZAP_BAO_CAO}"
+      reportFile: zap.sarif
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: "${ZAP_BAO_CAO}"
+      reportFile: zap-api.json
+  - type: exitStatus
+    parameters:
+      errorLevel: High
+      warnLevel: Medium

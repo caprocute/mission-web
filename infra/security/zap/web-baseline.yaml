@@ -1,0 +1,63 @@
+# QA-13 · SEC-40, SEC-19, SEC-24 (TL-04 mục 9.8, D11): quét thụ động trang web (shell, trang nhận kết quả đăng nhập,
+# tệp cấu hình chạy). Kế hoạch này là cổng chặn bản dựng làm mất CSP hay tiêu đề chống nhúng khung: hai quy tắc
+# 10038 (thiếu CSP) và 10020 (thiếu chống clickjacking) được nâng lên High nên exitStatus dừng pipeline.
+#
+#   ZAP_WEB_URL   gốc trang web, kết thúc bằng "/", ví dụ https://<tenant>.<miền dev>/
+#   ZAP_BAO_CAO   thư mục ghi báo cáo
+#
+# Chạy: zap.sh -cmd -autorun infra/security/zap/web-baseline.yaml (hoặc infra/security/zap/chay-zap.sh web).
+env:
+  contexts:
+    - name: okr-web
+      urls: ["${ZAP_WEB_URL}"]
+      includePaths: ["${ZAP_WEB_URL}.*"]
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    progressToStdout: true
+jobs:
+  - type: passiveScan-config
+    parameters:
+      maxAlertsPerRule: 10
+      scanOnlyInScope: true
+  - type: alertFilter
+    parameters:
+      deleteGlobalAlerts: false
+    alertFilters:
+      # SEC-19: trang thiếu CSP là lỗi chặn phát hành, không chỉ là cảnh báo Medium.
+      - { ruleId: 10038, ruleName: "Content Security Policy (CSP) Header Not Set", newRisk: High, context: okr-web }
+      # SEC-24, TL-04: frame-ancestors 'none' hoặc X-Frame-Options; thiếu cả hai là chặn.
+      - { ruleId: 10020, ruleName: "Anti-clickjacking Header", newRisk: High, context: okr-web }
+  - type: requestor
+    parameters:
+      user: ""
+    requests:
+      - { url: "${ZAP_WEB_URL}", method: GET }
+      - { url: "${ZAP_WEB_URL}index.html", method: GET }
+      - { url: "${ZAP_WEB_URL}silent-refresh.html", method: GET }
+      - { url: "${ZAP_WEB_URL}okr/muc-tieu", method: GET }
+      - { url: "${ZAP_WEB_URL}config.json", method: GET }
+      - { url: "${ZAP_WEB_URL}federation.manifest.json", method: GET }
+      - { url: "${ZAP_WEB_URL}khong-ton-tai-qa13", method: GET }
+  - type: spider
+    parameters:
+      context: okr-web
+      maxDuration: 2
+      maxDepth: 3
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+  - type: report
+    parameters:
+      template: sarif-json
+      reportDir: "${ZAP_BAO_CAO}"
+      reportFile: zap-web.sarif
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: "${ZAP_BAO_CAO}"
+      reportFile: zap-web.json
+  - type: exitStatus
+    parameters:
+      errorLevel: High
+      warnLevel: Medium
