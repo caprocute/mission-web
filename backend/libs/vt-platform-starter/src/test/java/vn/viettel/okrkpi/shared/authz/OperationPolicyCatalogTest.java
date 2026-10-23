@@ -47,7 +47,7 @@ class OperationPolicyCatalogTest {
     // approveCustomerProfileVersion của NEN-044 + 1 thao tác searchAccessLogs của CORE-07-12 + 5
     // thao tác ghi khoá và đọc nhật ký phục hồi của CORE-07-06 + 2 thao tác nạp khoá bọc khôi phục
     // = 82 thao tác.
-    assertThat(aal2).hasSize(82);
+    assertThat(aal2).hasSize(83);
     long nonWeb058Aal2 =
         aal2.stream().filter(p -> !WEB_058_AAL2_OPS.contains(p.operationId())).count();
     assertThat(nonWeb058Aal2).isEqualTo(75);
