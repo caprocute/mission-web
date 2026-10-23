@@ -28,23 +28,33 @@ import org.springframework.web.server.ResponseStatusException;
 import vn.viettel.okrkpi.appraisal.api.ComplaintProfilesApi;
 import vn.viettel.okrkpi.config.api.AccessDirectory;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
+import vn.viettel.okrkpi.contract.oversight.model.AcceptComplaintRequest;
 import vn.viettel.okrkpi.contract.oversight.model.ComplainableProfile;
 import vn.viettel.okrkpi.contract.oversight.model.Complaint;
+import vn.viettel.okrkpi.contract.oversight.model.ComplaintConclusion;
 import vn.viettel.okrkpi.contract.oversight.model.ComplaintInput;
+import vn.viettel.okrkpi.contract.oversight.model.ComplaintOutcome;
+import vn.viettel.okrkpi.contract.oversight.model.ComplaintResolution;
 import vn.viettel.okrkpi.contract.oversight.model.ComplaintSummary;
 import vn.viettel.okrkpi.contract.oversight.model.ComplaintTarget;
 import vn.viettel.okrkpi.contract.oversight.model.ComplaintTargetStage;
 import vn.viettel.okrkpi.contract.oversight.model.ListComplainableProfiles200Response;
 import vn.viettel.okrkpi.contract.oversight.model.ListComplaints200Response;
+import vn.viettel.okrkpi.contract.oversight.model.OversightReasonInput;
 import vn.viettel.okrkpi.contract.oversight.model.PeriodRef;
 import vn.viettel.okrkpi.contract.oversight.model.RatingLevel;
 import vn.viettel.okrkpi.contract.oversight.model.Ref;
+import vn.viettel.okrkpi.contract.oversight.model.RejectComplaintRequest;
+import vn.viettel.okrkpi.oversight.application.complaint.ComplaintHandlingService;
 import vn.viettel.okrkpi.oversight.application.complaint.ComplaintService;
 import vn.viettel.okrkpi.oversight.application.complaint.ComplaintService.Draft;
 import vn.viettel.okrkpi.oversight.application.complaint.ComplaintService.Eligible;
 import vn.viettel.okrkpi.oversight.application.complaint.ComplaintService.View;
+import vn.viettel.okrkpi.oversight.application.port.ComplaintHandlingRepository;
 import vn.viettel.okrkpi.oversight.application.port.ComplaintRepository;
 import vn.viettel.okrkpi.oversight.application.reopen.ReopenRequestService.Actor;
+import vn.viettel.okrkpi.oversight.domain.complaint.CloseReason;
+import vn.viettel.okrkpi.oversight.domain.complaint.ComplaintHandling;
 import vn.viettel.okrkpi.oversight.domain.complaint.ComplaintKind;
 import vn.viettel.okrkpi.oversight.domain.complaint.ComplaintStage;
 import vn.viettel.okrkpi.oversight.domain.complaint.ComplaintStatus;
@@ -67,7 +77,9 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
  * Gửi khiếu nại (CORE-07-02, QT-12 bước 1, 2, SCR-1201): {@code listComplainableProfiles}, {@code
  * listComplaints} (khiếu nại của chính người gọi), {@code createComplaint}, {@code getComplaint},
  * {@code updateComplaint}, {@code submitComplaint}. Gửi trả 202 với tác vụ {@code ESIGN}; khiếu nại
- * thành {@code MOI} khi SVC-10 báo ký xong (EVT-18).
+ * thành {@code MOI} khi SVC-10 báo ký xong (EVT-18). Tiếp nhận (CORE-07-03, QT-12 bước 3, 4,
+ * SCR-1202): {@code listComplaints} của người xử lý, người ký (phạm vi {@code Gn}, sắp theo hạn trả
+ * lời), {@code acceptComplaint}, {@code rejectComplaint}, {@code withdrawComplaint}.
  */
 @RestController
 @RequestMapping(ComplaintController.BASE)
@@ -75,8 +87,10 @@ public class ComplaintController {
 
   static final String BASE = "/api/v1/oversight/complaints";
   private static final String SCOPE = "complaints";
+  private static final String SCOPE_HANDLING = "complaints-handling";
 
   private final ObjectProvider<ComplaintService> service;
+  private final ObjectProvider<ComplaintHandlingService> handling;
   private final ObjectProvider<OversightIdempotency> idempotency;
   private final ObjectProvider<AccessDirectory> directory;
   private final ObjectProvider<AuthzSubjectResolver> subjects;
@@ -85,12 +99,14 @@ public class ComplaintController {
 
   public ComplaintController(
       ObjectProvider<ComplaintService> service,
+      ObjectProvider<ComplaintHandlingService> handling,
       ObjectProvider<OversightIdempotency> idempotency,
       ObjectProvider<AccessDirectory> directory,
       ObjectProvider<AuthzSubjectResolver> subjects,
       ObjectProvider<OversightCaller> custom,
       CursorCodec cursors) {
     this.service = Objects.requireNonNull(service, "service");
+    this.handling = Objects.requireNonNull(handling, "handling");
     this.idempotency = Objects.requireNonNull(idempotency, "idempotency");
     this.directory = Objects.requireNonNull(directory, "directory");
     this.subjects = Objects.requireNonNull(subjects, "subjects");
@@ -116,9 +132,24 @@ public class ComplaintController {
       @RequestParam(value = "periodId", required = false) UUID periodId,
       @RequestParam(value = "status", required = false) List<String> status,
       @RequestParam(value = "kind", required = false) String kind,
+      @RequestParam(value = "assignedToMe", required = false) Boolean assignedToMe,
       @RequestParam(value = "limit", required = false) Integer limit,
       @RequestParam(value = "cursor", required = false) String cursor) {
     TenantId tenant = TenantContext.require();
+    Actor actor = actor();
+    ComplaintHandlingService h = handling.getIfAvailable();
+    if (h != null && staff(actor)) {
+      return handlingList(
+          tenant,
+          h,
+          actor,
+          periodId,
+          status,
+          kind,
+          Boolean.TRUE.equals(assignedToMe),
+          limit,
+          cursor);
+    }
     PageRequest page = cursors.pageRequest(limit, cursor, SCOPE);
     ComplaintRepository.After after =
         page.afterKey()
@@ -126,7 +157,7 @@ public class ComplaintController {
             .orElse(null);
     ComplaintService s = service();
     List<vn.viettel.okrkpi.oversight.domain.complaint.Complaint> fetched =
-        s.list(tenant, actor(), periodId, statuses(status), kind(kind), after, page.fetchSize());
+        s.list(tenant, actor, periodId, statuses(status), kind(kind), after, page.fetchSize());
     CursorPage<vn.viettel.okrkpi.oversight.domain.complaint.Complaint> result =
         cursors.page(fetched, page, c -> CursorKey.of(c.createdAt(), c.id()));
     Map<UUID, String> names = names(tenant, result.items().stream().map(c -> c.complainantId()));
@@ -172,6 +203,11 @@ public class ComplaintController {
       resourceType = "complaint")
   public ResponseEntity<Complaint> getComplaint(@PathVariable("id") UUID id) {
     TenantId tenant = TenantContext.require();
+    ComplaintHandlingService h = handling.getIfAvailable();
+    if (h != null) {
+      ComplaintHandlingService.View v = guarded(() -> h.get(tenant, actor(), id));
+      return ETags.ok(toDto(tenant, v), v.complaint().rowVersion());
+    }
     View v = guarded(() -> service().get(tenant, actor(), id));
     return ETags.ok(toDto(tenant, v), v.complaint().rowVersion());
   }
@@ -234,6 +270,131 @@ public class ComplaintController {
                               .submit(tenant, actor, id, ifMatch, idempotencyKey, authorization));
               return Jobs.accepted(ComplaintSignJobs.pending(sign));
             });
+  }
+
+  @PostMapping("/{id}/accept")
+  @RequiresPermission(
+      operationId = "acceptComplaint",
+      module = "oversight",
+      resourceType = "complaint")
+  public ResponseEntity<Complaint> acceptComplaint(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody(required = false) AcceptComplaintRequest body) {
+    String note = body == null ? null : body.getNote();
+    return handle(
+        id,
+        idempotencyKey,
+        "/accept",
+        body,
+        (h, tenant, actor) -> h.accept(tenant, actor, id, ifMatch, note));
+  }
+
+  @PostMapping("/{id}/reject")
+  @RequiresPermission(
+      operationId = "rejectComplaint",
+      module = "oversight",
+      resourceType = "complaint")
+  public ResponseEntity<Complaint> rejectComplaint(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody(required = false) RejectComplaintRequest body) {
+    CloseReason reason =
+        body == null || body.getReasonCode() == null
+            ? null
+            : CloseReason.valueOf(body.getReasonCode().getValue());
+    String note = body == null ? null : body.getReason();
+    return handle(
+        id,
+        idempotencyKey,
+        "/reject",
+        body,
+        (h, tenant, actor) -> h.reject(tenant, actor, id, ifMatch, reason, note));
+  }
+
+  @PostMapping("/{id}/withdraw")
+  @RequiresPermission(
+      operationId = "withdrawComplaint",
+      module = "oversight",
+      resourceType = "complaint")
+  public ResponseEntity<Complaint> withdrawComplaint(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody(required = false) OversightReasonInput body) {
+    String note = body == null ? null : body.getReason();
+    return handle(
+        id,
+        idempotencyKey,
+        "/withdraw",
+        body,
+        (h, tenant, actor) -> h.withdraw(tenant, actor, id, ifMatch, note));
+  }
+
+  /** Bước xử lý trả {@code Complaint} kèm {@code ETag}, chống ghi trùng theo khoá. */
+  private ResponseEntity<Complaint> handle(
+      UUID id, String idempotencyKey, String suffix, Object body, HandlingStep step) {
+    TenantId tenant = TenantContext.require();
+    Actor actor = actor();
+    ComplaintHandlingService h = handling();
+    return idempotency()
+        .run(
+            tenant,
+            actor.userId(),
+            idempotencyKey,
+            "POST",
+            BASE + "/" + id + suffix,
+            body,
+            Complaint.class,
+            Complaint::getRowVersion,
+            () -> {
+              ComplaintHandlingService.View v = guarded(() -> step.apply(h, tenant, actor));
+              return ETags.ok(toDto(tenant, v), v.complaint().rowVersion());
+            });
+  }
+
+  @FunctionalInterface
+  private interface HandlingStep {
+    ComplaintHandlingService.View apply(ComplaintHandlingService h, TenantId tenant, Actor actor);
+  }
+
+  private ListComplaints200Response handlingList(
+      TenantId tenant,
+      ComplaintHandlingService h,
+      Actor actor,
+      UUID periodId,
+      List<String> status,
+      String kind,
+      boolean assignedToMe,
+      Integer limit,
+      String cursor) {
+    PageRequest page = cursors.pageRequest(limit, cursor, SCOPE_HANDLING);
+    ComplaintHandlingRepository.DeadlineAfter after =
+        page.afterKey()
+            .map(k -> new ComplaintHandlingRepository.DeadlineAfter(k.getDate(0), k.getUuid(1)))
+            .orElse(null);
+    List<vn.viettel.okrkpi.oversight.domain.complaint.Complaint> fetched =
+        guarded(
+            () ->
+                h.list(
+                    tenant,
+                    actor,
+                    periodId,
+                    statuses(status),
+                    kind(kind),
+                    assignedToMe,
+                    after,
+                    page.fetchSize()));
+    CursorPage<vn.viettel.okrkpi.oversight.domain.complaint.Complaint> result =
+        cursors.page(fetched, page, c -> CursorKey.of(c.responseDeadline(), c.id()));
+    Map<UUID, String> names = names(tenant, result.items().stream().map(c -> c.complainantId()));
+    List<ComplaintSummary> items = new ArrayList<>();
+    for (var c : result.items()) {
+      items.add(summary(c, names, h.responseDaysLeft(tenant, c)));
+    }
+    return new ListComplaints200Response().items(items).nextCursor(result.nextCursor());
   }
 
   // ---------------------------------------------------------------- ánh xạ
@@ -325,6 +486,63 @@ public class ComplaintController {
           dir == null ? Map.of() : dir.unitNames(tenant, List.of(c.handlerUnitId()));
       dto.setHandlerUnit(ref(c.handlerUnitId(), units));
     }
+    dto.setTimeline(new ArrayList<>());
+    return dto;
+  }
+
+  private Complaint toDto(TenantId tenant, ComplaintHandlingService.View v) {
+    var c = v.complaint();
+    ComplaintHandling h = v.handling();
+    Set<UUID> people = new HashSet<>(Set.of(c.complainantId()));
+    if (h.handlerPersonId() != null) {
+      people.add(h.handlerPersonId());
+    }
+    Map<UUID, String> names = names(tenant, people.stream());
+    Complaint dto =
+        new Complaint()
+            .id(c.id())
+            .code(c.code())
+            .complainant(ref(c.complainantId(), names))
+            .subjectLine(c.subjectLine())
+            .kind(
+                vn.viettel.okrkpi.contract.oversight.model.ComplaintKind.fromValue(c.kind().name()))
+            .targetStage(ComplaintTargetStage.fromValue(c.targetStage().name()))
+            .profileId(c.profileId())
+            .period(period(c.periodId(), v.period()))
+            .reserveOpinion(c.reserveOpinion())
+            .rowVersion(c.rowVersion());
+    dto.setStatus(status(c.status()));
+    dto.setFiledAt(odt(c.filedAt()));
+    dto.setResponseDeadline(c.responseDeadline());
+    dto.setWorkingDaysLeft(v.workingDaysLeft());
+    dto.setTargets(targets(c));
+    dto.setContent(v.content());
+    dto.setRequestText(v.requestText());
+    dto.setAttachmentObjectIds(
+        v.content() == null ? new ArrayList<>() : new ArrayList<>(c.attachmentIds()));
+    if (c.handlerUnitId() != null) {
+      AccessDirectory dir = directory.getIfAvailable();
+      Map<UUID, String> units =
+          dir == null ? Map.of() : dir.unitNames(tenant, List.of(c.handlerUnitId()));
+      dto.setHandlerUnit(ref(c.handlerUnitId(), units));
+    }
+    if (h.handlerPersonId() != null) {
+      dto.setHandler(ref(h.handlerPersonId(), names));
+    }
+    if (h.conclusion() != null) {
+      if (h.respondedAt() != null) {
+        dto.setOutcome(ComplaintOutcome.fromValue(h.conclusion().resolution().outcome()));
+      }
+      ComplaintConclusion k =
+          new ComplaintConclusion()
+              .outcome(ComplaintResolution.fromValue(h.conclusion().resolution().name()))
+              .responseDocRef(h.conclusion().docRef())
+              .signRequestId(h.responseSignRequestId())
+              .periodLocked(v.periodLocked());
+      k.setAdjustments(new ArrayList<>());
+      dto.setConclusion(k);
+    }
+    dto.setReopenRequestId(h.reopenRequestId());
     dto.setTimeline(new ArrayList<>());
     return dto;
   }
@@ -450,6 +668,18 @@ public class ComplaintController {
     } catch (IllegalArgumentException e) {
       throw unauthorized();
     }
+  }
+
+  private static boolean staff(Actor actor) {
+    return actor.roles().contains("appraiser") || actor.roles().contains("decider");
+  }
+
+  private ComplaintHandlingService handling() {
+    ComplaintHandlingService h = handling.getIfAvailable();
+    if (h == null) {
+      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
+    }
+    return h;
   }
 
   private ComplaintService service() {

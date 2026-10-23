@@ -21,13 +21,18 @@ import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.transaction.PlatformTransactionManager;
 import vn.viettel.okrkpi.appraisal.api.ComplaintProfilesApi;
+import vn.viettel.okrkpi.appraisal.api.ProfileParticipantsApi;
+import vn.viettel.okrkpi.config.api.AccessDirectory;
 import vn.viettel.okrkpi.config.api.PeriodApi;
+import vn.viettel.okrkpi.config.api.RoleHolderApi;
 import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
 import vn.viettel.okrkpi.events.EventTopics;
+import vn.viettel.okrkpi.oversight.application.complaint.ComplaintHandlingService;
 import vn.viettel.okrkpi.oversight.application.complaint.ComplaintService;
 import vn.viettel.okrkpi.oversight.application.port.ComplaintSealer;
 import vn.viettel.okrkpi.oversight.application.port.ComplaintSigner;
 import vn.viettel.okrkpi.oversight.infrastructure.client.EsignComplaintSigner;
+import vn.viettel.okrkpi.oversight.infrastructure.client.ModuleComplaintDirectory;
 import vn.viettel.okrkpi.oversight.infrastructure.listener.ComplaintSignedListener;
 import vn.viettel.okrkpi.oversight.infrastructure.web.ComplaintSignJobs;
 import vn.viettel.okrkpi.shared.crypto.FieldEncryptor;
@@ -49,7 +54,8 @@ import vn.vtokr.esign.v1.KySoDaHoanTat;
  * Khiếu nại (CORE-07-02): kho JDBC trên {@code oversightDataSource}, mã hoá C2 bằng {@code
  * FieldEncryptor} (không có thì từ chối ghi), ký số ở SVC-10 ({@code
  * mission.oversight.esign.base-url} hoặc bean {@link ComplaintSigner}; không có thì gửi trả 503),
- * EVT-25 và EVT-21 qua {@code oversight.outbox_event}, consumer EVT-18 và tác vụ {@code ESIGN}.
+ * EVT-25 và EVT-21 qua {@code oversight.outbox_event}, consumer EVT-18 và tác vụ {@code ESIGN}. Xử
+ * lý khiếu nại (CORE-07-03, CORE-07-04) dùng chung kho, bộ mã hoá và outbox đó.
  */
 @Configuration(proxyBeanMethods = false)
 public class ComplaintConfiguration {
@@ -62,6 +68,23 @@ public class ComplaintConfiguration {
   }
 
   @Bean
+  JdbcComplaintHandlingRepository complaintHandlingRepository(
+      @Qualifier("oversightDataSource") DataSource dataSource, ObjectProvider<ObjectMapper> json) {
+    return new JdbcComplaintHandlingRepository(
+        JdbcClient.create(dataSource), json.getIfAvailable(ObjectMapper::new));
+  }
+
+  @Bean
+  OutboxComplaintEvents complaintEvents(
+      @Qualifier("oversightDataSource") DataSource dataSource,
+      @Value("${mission.oversight.outbox.registry-url:${okrkpi.inbox.registry.url:}}")
+          String registry,
+      ObjectProvider<OutboxPayloadSerializer> serializer,
+      ObjectProvider<ObjectMapper> json) {
+    return new OutboxComplaintEvents(outbox(dataSource, registry, serializer, json));
+  }
+
+  @Bean
   ComplaintService complaintService(
       JdbcComplaintRepository complaintRepository,
       ComplaintProfilesApi profiles,
@@ -70,35 +93,79 @@ public class ComplaintConfiguration {
       ObjectProvider<ComplaintSealer> sealer,
       ObjectProvider<FieldEncryptor> encryptor,
       ObjectProvider<ComplaintSigner> signer,
+      OutboxComplaintEvents complaintEvents,
       @Qualifier("oversightDataSource") DataSource dataSource,
       @Value("${mission.oversight.outbox.registry-url:${okrkpi.inbox.registry.url:}}")
           String registry,
       @Value("${mission.oversight.esign.base-url:}") String esignUrl,
       ObjectProvider<OutboxPayloadSerializer> serializer,
       ObjectProvider<ObjectMapper> json) {
-    OutboxWriter outbox =
-        new OutboxWriter(
-            new JdbcTemplate(dataSource),
-            "oversight",
-            serializer.getIfAvailable(() -> new ApicurioPayloadSerializer(registry, Map.of())),
-            json.getIfAvailable(ObjectMapper::new),
-            Clock.systemUtc());
-    FieldEncryptor e = encryptor.getIfAvailable();
     return new ComplaintService(
         complaintRepository,
         profiles,
         periods,
         calendar.getIfAvailable(),
-        sealer.getIfAvailable(() -> e == null ? null : new FieldEncryptorComplaintSealer(e)),
+        sealer(sealer, encryptor),
         signer.getIfAvailable(
             () ->
                 esignUrl == null || esignUrl.isBlank()
                     ? null
                     : new EsignComplaintSigner(
                         new EsignRequestClient(esignUrl, json.getIfAvailable(ObjectMapper::new)))),
-        new OutboxComplaintEvents(outbox),
-        new OutboxOversightAudit(outbox),
+        complaintEvents,
+        new OutboxOversightAudit(outbox(dataSource, registry, serializer, json)),
         java.time.Clock.systemUTC());
+  }
+
+  @Bean
+  ComplaintHandlingService complaintHandlingService(
+      JdbcComplaintHandlingRepository complaintHandlingRepository,
+      ComplaintProfilesApi profiles,
+      PeriodApi periods,
+      ObjectProvider<WorkingCalendarApi> calendar,
+      ObjectProvider<ComplaintSealer> sealer,
+      ObjectProvider<FieldEncryptor> encryptor,
+      ObjectProvider<ProfileParticipantsApi> participants,
+      ObjectProvider<RoleHolderApi> roleHolders,
+      ObjectProvider<AccessDirectory> directory,
+      OutboxComplaintEvents complaintEvents,
+      @Qualifier("oversightDataSource") DataSource dataSource,
+      @Value("${mission.oversight.outbox.registry-url:${okrkpi.inbox.registry.url:}}")
+          String registry,
+      ObjectProvider<OutboxPayloadSerializer> serializer,
+      ObjectProvider<ObjectMapper> json) {
+    return new ComplaintHandlingService(
+        complaintHandlingRepository,
+        new ModuleComplaintDirectory(
+            participants.getIfAvailable(),
+            roleHolders.getIfAvailable(),
+            directory.getIfAvailable()),
+        profiles,
+        periods,
+        calendar.getIfAvailable(),
+        sealer(sealer, encryptor),
+        complaintEvents,
+        new OutboxOversightAudit(outbox(dataSource, registry, serializer, json)),
+        java.time.Clock.systemUTC());
+  }
+
+  private static ComplaintSealer sealer(
+      ObjectProvider<ComplaintSealer> sealer, ObjectProvider<FieldEncryptor> encryptor) {
+    FieldEncryptor e = encryptor.getIfAvailable();
+    return sealer.getIfAvailable(() -> e == null ? null : new FieldEncryptorComplaintSealer(e));
+  }
+
+  private static OutboxWriter outbox(
+      DataSource dataSource,
+      String registry,
+      ObjectProvider<OutboxPayloadSerializer> serializer,
+      ObjectProvider<ObjectMapper> json) {
+    return new OutboxWriter(
+        new JdbcTemplate(dataSource),
+        "oversight",
+        serializer.getIfAvailable(() -> new ApicurioPayloadSerializer(registry, Map.of())),
+        json.getIfAvailable(ObjectMapper::new),
+        Clock.systemUtc());
   }
 
   @Bean

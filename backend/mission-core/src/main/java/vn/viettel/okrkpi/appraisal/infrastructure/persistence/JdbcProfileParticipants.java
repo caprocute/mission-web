@@ -6,12 +6,14 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.appraisal.api.ProfileParticipantsApi;
+import vn.viettel.okrkpi.product.api.EvidenceQueryApi;
 import vn.viettel.okrkpi.shared.kernel.PeriodId;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
@@ -25,11 +27,21 @@ public class JdbcProfileParticipants implements ProfileParticipantsApi {
 
   private final JdbcClient jdbc;
   private final TransactionTemplate tx;
+  private final EvidenceQueryApi evidence;
 
   public JdbcProfileParticipants(JdbcClient jdbc, PlatformTransactionManager tm) {
+    this(jdbc, tm, null);
+  }
+
+  /**
+   * @param evidence cổng nghiệm thu minh chứng của MOD-03; vắng thì nhóm {@code acceptor} rỗng
+   */
+  public JdbcProfileParticipants(
+      JdbcClient jdbc, PlatformTransactionManager tm, EvidenceQueryApi evidence) {
     this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
     this.tx = new TransactionTemplate(Objects.requireNonNull(tm, "tm"));
     this.tx.setReadOnly(true);
+    this.evidence = evidence;
   }
 
   @Override
@@ -85,6 +97,68 @@ public class JdbcProfileParticipants implements ProfileParticipantsApi {
                                 rs.getObject("org_unit_id", UUID.class))))
                 .list());
     return out;
+  }
+
+  @Override
+  public Optional<Participants> participantsOf(TenantId tenant, UUID profileId) {
+    record Head(UUID person, UUID unit, UUID period) {}
+    record Step(String level, UUID actor) {}
+    record Read(Head head, List<Step> steps) {}
+    Read read =
+        read(
+            tenant,
+            () -> {
+              Head head =
+                  jdbc.sql(
+                          "SELECT person_id, org_unit_id, period_id FROM appraisal.appraisal_profile"
+                              + " WHERE tenant_id = :tenant AND id = :id")
+                      .param("tenant", tenant.value())
+                      .param("id", profileId)
+                      .query(
+                          (rs, row) ->
+                              new Head(
+                                  rs.getObject("person_id", UUID.class),
+                                  rs.getObject("org_unit_id", UUID.class),
+                                  rs.getObject("period_id", UUID.class)))
+                      .optional()
+                      .orElse(null);
+              if (head == null) {
+                return null;
+              }
+              List<Step> steps =
+                  jdbc.sql(
+                          "SELECT DISTINCT level_kind, actor_id FROM appraisal.rating_proposal"
+                              + " WHERE tenant_id = :tenant AND profile_id = :id"
+                              + " AND level_kind IN ('THAM_DINH', 'DE_XUAT', 'QUYET_DINH')")
+                      .param("tenant", tenant.value())
+                      .param("id", profileId)
+                      .query(
+                          (rs, row) ->
+                              new Step(
+                                  rs.getString("level_kind"), rs.getObject("actor_id", UUID.class)))
+                      .list();
+              return new Read(head, steps);
+            });
+    if (read == null) {
+      return Optional.empty();
+    }
+    Map<String, Set<UUID>> byLevel = new HashMap<>();
+    for (Step s : read.steps()) {
+      byLevel.computeIfAbsent(s.level(), k -> new LinkedHashSet<>()).add(s.actor());
+    }
+    Head h = read.head();
+    Set<UUID> acceptors =
+        evidence == null ? Set.of() : evidence.acceptors(tenant, h.period(), h.person());
+    return Optional.of(
+        new Participants(
+            profileId,
+            h.person(),
+            h.unit(),
+            h.period(),
+            acceptors,
+            byLevel.getOrDefault("THAM_DINH", Set.of()),
+            byLevel.getOrDefault("DE_XUAT", Set.of()),
+            byLevel.getOrDefault("QUYET_DINH", Set.of())));
   }
 
   private Set<UUID> query(TenantId tenant, String sql, PeriodId periodId, Collection<UUID> ids) {

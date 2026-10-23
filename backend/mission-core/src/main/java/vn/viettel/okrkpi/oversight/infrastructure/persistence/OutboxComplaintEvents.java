@@ -1,10 +1,16 @@
 package vn.viettel.okrkpi.oversight.infrastructure.persistence;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import vn.viettel.okrkpi.events.EventTopics;
 import vn.viettel.okrkpi.oversight.application.port.ComplaintEvents;
+import vn.viettel.okrkpi.oversight.application.port.ComplaintNotices;
 import vn.viettel.okrkpi.oversight.domain.complaint.Complaint;
 import vn.viettel.okrkpi.shared.kernel.Classification;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
@@ -18,14 +24,16 @@ import vn.vtokr.oversight.v1.KhieuNaiDaGui;
  * oversight.outbox_event} cùng giao dịch chuyển {@code MOI}; aggregate {@code Complaint}, phiên bản
  * là {@code row_version} mới. EVT-25 không mang nội dung C2. Mẫu {@code KHIEU_NAI_DA_GUI}
  * (MSG-12-02) và {@code KHIEU_NAI_KHONG_GUI_DUOC} là suy luận (wiki trang 14); tham số chỉ có mã
- * khiếu nại.
+ * khiếu nại. Các bước xử lý (CORE-07-03, CORE-07-04) gửi EVT-21 qua {@link ComplaintNotices}.
  */
-public class OutboxComplaintEvents implements ComplaintEvents {
+public class OutboxComplaintEvents implements ComplaintEvents, ComplaintNotices {
 
   static final String AGGREGATE_TYPE = "Complaint";
   static final String TEMPLATE_FILED = "KHIEU_NAI_DA_GUI";
   static final String TEMPLATE_NOT_FILED = "KHIEU_NAI_KHONG_GUI_DUOC";
   static final String DEEP_LINK = "/oversight/khieu-nai/";
+
+  private static final ObjectMapper JSON = new ObjectMapper();
 
   private final OutboxWriter outbox;
 
@@ -63,11 +71,35 @@ public class OutboxComplaintEvents implements ComplaintEvents {
   }
 
   private void notify(TenantId tenant, Complaint c, String template) {
+    notify(tenant, c, List.of(c.complainantId()), template, Map.of());
+  }
+
+  @Override
+  public void notify(
+      TenantId tenant,
+      Complaint c,
+      Collection<UUID> recipients,
+      String template,
+      Map<String, String> params) {
+    if (recipients == null || recipients.isEmpty()) {
+      return;
+    }
+    Map<String, String> all = new LinkedHashMap<>();
+    all.put("ma", c.code());
+    if (params != null) {
+      all.putAll(params);
+    }
+    String json;
+    try {
+      json = JSON.writeValueAsString(all);
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException(e);
+    }
     YeuCauThongBao payload =
         YeuCauThongBao.newBuilder()
-            .setRecipientIds(List.<UUID>of(c.complainantId()))
+            .setRecipientIds(List.copyOf(new java.util.LinkedHashSet<>(recipients)))
             .setTemplateCode(template)
-            .setParams("{\"ma\":\"" + c.code() + "\"}")
+            .setParams(json)
             .setDeepLink(DEEP_LINK + c.id())
             .setPriority("BINH_THUONG")
             .setAggregateVersion(c.rowVersion())

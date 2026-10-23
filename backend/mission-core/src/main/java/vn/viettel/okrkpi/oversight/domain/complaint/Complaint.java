@@ -105,4 +105,31 @@ public record Complaint(
         createdAt,
         rowVersion + 1);
   }
+
+  /** Bản ở trạng thái mới sau một bước của {@link ComplaintWorkflow}. */
+  public Complaint withStatus(ComplaintStatus next) {
+    return new Complaint(
+        id,
+        code,
+        periodId,
+        periodBucket,
+        complainantId,
+        profileId,
+        kind,
+        targetStage,
+        subjectLine,
+        targets,
+        contentEnc,
+        requestTextEnc,
+        dekId,
+        attachmentIds,
+        reserveOpinion,
+        next,
+        filedAt,
+        responseDeadline,
+        handlerUnitId,
+        signRequestId,
+        createdAt,
+        rowVersion + 1);
+  }
 }

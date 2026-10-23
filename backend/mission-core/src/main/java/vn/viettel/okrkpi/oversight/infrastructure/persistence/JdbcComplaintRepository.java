@@ -33,7 +33,7 @@ import vn.viettel.okrkpi.shared.kernel.TenantId;
 /** Kho {@code oversight.complaint} bằng JDBC (CORE-07-02); nháp có {@code status} null. */
 public class JdbcComplaintRepository implements ComplaintRepository {
 
-  private static final String COLUMNS =
+  static final String COLUMNS =
       "id, code, period_id, period_bucket, complainant_person_id, profile_id, kind, target_stage,"
           + " subject_line, targets_json::text AS targets_json, content_enc, request_text_enc,"
           + " dek_id, attachment_object_ids, reserve_opinion, status, filed_at,"
@@ -209,7 +209,7 @@ public class JdbcComplaintRepository implements ComplaintRepository {
         .optional();
   }
 
-  private RowMapper<Complaint> mapper() {
+  RowMapper<Complaint> mapper() {
     return (ResultSet rs, int row) -> {
       String status = rs.getString("status");
       Date deadline = rs.getDate("response_deadline");
@@ -269,7 +269,7 @@ public class JdbcComplaintRepository implements ComplaintRepository {
     return out;
   }
 
-  private static List<UUID> uuids(Array array) throws SQLException {
+  static List<UUID> uuids(Array array) throws SQLException {
     if (array == null) {
       return List.of();
     }
@@ -277,11 +277,11 @@ public class JdbcComplaintRepository implements ComplaintRepository {
     return Arrays.stream(values).map(v -> (UUID) v).toList();
   }
 
-  private static String uuidArray(Collection<UUID> ids) {
+  static String uuidArray(Collection<UUID> ids) {
     return ids.stream().map(UUID::toString).collect(Collectors.joining(",", "{", "}"));
   }
 
-  private static Instant instant(ResultSet rs, String column) throws SQLException {
+  static Instant instant(ResultSet rs, String column) throws SQLException {
     Timestamp t = rs.getTimestamp(column);
     return t == null ? null : t.toInstant();
   }
