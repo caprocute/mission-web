@@ -55,6 +55,7 @@ Khi máy chủ dev chỉ mở cổng SSH (`22`) và không mở trực tiếp d�
 
 ```bash
 ssh -N \
+  -L 35000:127.0.0.1:35000 \
   -L 35432:127.0.0.1:35432 \
   -L 35433:127.0.0.1:35433 \
   -L 35379:127.0.0.1:35379 \
@@ -76,6 +77,8 @@ ssh -N \
 Mọi service backend (`application-dev.yaml`) và công cụ dev đều mặc định trỏ về `127.0.0.1` với các biến môi trường động (`DB_HOST`, `DB_PORT`, `PGBOUNCER_PORT`, `VALKEY_HOST`, `VALKEY_PORT`, `KEYCLOAK_ISSUER_URI`, `OPA_URL`, `OPENBAO_URL`, `KAFKA_BOOTSTRAP_SERVERS`, `APICURIO_REGISTRY_URL`, `OTLP_METRICS_URI`), nên chạy ngay qua hầm SSH mà không cần sửa mã hay tệp cấu hình.
 
 **Kafka qua hầm SSH (INF-22).** Broker có ba listener cho client. `INTERNAL` (`kafka:9092`) dành cho container cùng mạng `mission-net`. `TUNNEL` mở ở cổng `KAFKA_PORT` (mặc định `35092`) chỉ trên loopback của máy chủ (`KAFKA_TUNNEL_BIND=127.0.0.1`) và quảng bá `KAFKA_TUNNEL_ADVERTISED_HOST:KAFKA_PORT` (mặc định `127.0.0.1:35092`), nên client chạy ngay trên máy chủ hoặc trên máy trạm qua `-L 35092:127.0.0.1:35092` đều nhận về đúng địa chỉ trong metadata; đây cũng là mặc định `KAFKA_BOOTSTRAP_SERVERS=127.0.0.1:35092` của các service backend. `EXTERNAL` (`35094`) quảng bá `DEV_HOST` và chỉ dùng được khi tường lửa mở cổng đó; trước đây hầm SSH chỉ chuyển `35094`, nên client nhận lại địa chỉ công khai của máy chủ và không kết nối được. Sau khi đổi, cần áp lại container `mission-dev-kafka` (mục 2.1).
+
+**Kiểm thử đầu cuối qua hầm SSH (QA-03/04).** Chế độ `E2E_MODE=he-thong` của Playwright gọi API qua APISIX dev, nên hầm phải chuyển cả cổng `35000` (đã có trong danh sách mặc định của `scripts/dev-tunnel.sh` và `.env.example`). Đặt `E2E_APISIX_URL=http://127.0.0.1:35000` và `E2E_KC_URL=http://127.0.0.1:35080`; địa chỉ Keycloak phải viết đúng `127.0.0.1` chứ không phải `localhost`, vì token mang `iss` theo địa chỉ đăng nhập và service kiểm `iss` theo `KEYCLOAK_PUBLIC_URL` (mục 3.1), lệch tên máy thì mọi lời gọi bị 401. Cổng web giữ `4200` vì client `mission-web` của realm chỉ cho redirect URI đó. Compose dev chưa có kafka-ui, nên bỏ trống `E2E_KAFKA_UI_URL` thì các ca kiểm sự kiện được ghi "Chờ" thay vì báo lỗi. Danh sách biến đầy đủ nằm ở mục cuối `.env.example` và `frontend/e2e/hanh-trinh/README.md`.
 
 ### 2.1. Đồng bộ compose trên máy chủ với repo (INF-22)
 
