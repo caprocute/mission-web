@@ -12,8 +12,8 @@
 
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
-- **Tổng tiến độ đã gộp `main`**: **308 / 408 task (75.5%)** — Khối lượng quy đổi đã gộp: **357 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **308 / 408 task (75.5%)** (gồm **308** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ đã gộp `main`**: **307 / 408 task (75.2%)** — Khối lượng quy đổi đã gộp: **356 / 492.5 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **308 / 408 task (75.5%)** (gồm **307** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **5 task** (1 đang làm, 4 làm một phần).
 - **Chưa bắt đầu**: **95 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
@@ -22,7 +22,7 @@
 
 | Mã nhóm | Phân hệ / Phạm vi | Tổng task | Khối lượng | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tỷ lệ gộp `main` |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **68** | 0 | 2 | 2 | **94.4%** |
+| **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **67** | 1 | 2 | 2 | **93.1%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **103** | 0 | 2 | 12 | **88.0%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **70** | 0 | 1 | 33 | **67.3%** |
@@ -32,14 +32,14 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **308** | **0** | **5** | **95** | **75.5%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **307** | **1** | **5** | **95** | **75.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
 | Mốc triển khai | Tổng task | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tiến độ gộp `main` |
 |---|---:|---:|---:|---:|---:|---:|
 | **M0 – Nền móng phát triển & CSDL** | 60 | **60** | 0 | 0 | 0 | **100.0%** |
-| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **34** | 0 | 0 | 6 | **85.0%** |
+| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 1 | 0 | 6 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **86** | 0 | 3 | 31 | **71.7%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **61** | 0 | 1 | 10 | **84.7%** |
@@ -74,7 +74,7 @@ Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 
 Mọi thay đổi trạng thái task đều được cập nhật trực tiếp vào bảng dưới đây. Các giá trị cột **Trạng thái** hợp lệ: `Đã gộp main`, `Xong, chờ gộp`, `Đang làm`, `Làm một phần`, `Chưa bắt đầu`.
 
-### WEB-001..065 · Phân hệ giao diện Web (Kế hoạch Web GĐ0–GĐ4) (64/65 đã gộp `main`, 0 chờ gộp, 1 đang làm)
+### WEB-001..065 · Phân hệ giao diện Web (Kế hoạch Web GĐ0–GĐ4) (63/65 đã gộp `main`, 1 chờ gộp, 1 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -97,7 +97,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [WEB-017](docs/tasks/WEB-017-wizard-tenant.md) | SCR-0102 Khởi tạo tenant (wizard) | M | W-Giám sát/CH | – | WEB-016 | **Đã gộp main** | Đã gộp `main` (SCR-0102 Wizard khởi tạo tenant) |
 | [WEB-018](docs/tasks/WEB-018-cay-to-chuc.md) | SCR-0103 Cây tổ chức có lịch sử | L | W-Giám sát/CH | – | WEB-015 | **Đã gộp main** | Đã gộp `main` (SCR-0103 Cây tổ chức có lịch sử hai trục thời gian) |
 | [WEB-019](docs/tasks/WEB-019-doi-soat-nhan-su.md) | SCR-0104 Đồng bộ và đối soát nhân sự | M | W-Giám sát/CH | – | WEB-018 | **Đã gộp main** | Đã gộp `main` (SCR-0104 Đồng bộ và đối soát nhân sự) |
-| [WEB-020](docs/tasks/WEB-020-theme-keycloak.md) | SCR-0001 Giao diện trang đăng nhập (theme Keycloak) | M | W-Nền tảng | – | WEB-004, WEB-006 | **Đã gộp main** | Theme Keycloak mission (SCR-0001) đã triển khai live trên 14.232.210.125:35080 |
+| [WEB-020](docs/tasks/WEB-020-theme-keycloak.md) | SCR-0001 Giao diện trang đăng nhập (theme Keycloak) | M | W-Nền tảng | – | WEB-004, WEB-006 | **Xong, chờ gộp** | Nhánh claude/project-thread-76telq: theme đăng nhập phủ đủ luồng (đăng nhập, OTP, quên/đổi mật khẩu, cài OTP, lỗi, đăng xuất), tiếng Việt 489 khoá; thử trên Keycloak 26.4.7 cục bộ, ảnh ở bao-cao-luong-okr/WEB-020-theme-keycloak |
 | [WEB-021](docs/tasks/WEB-021-cay-okr.md) | SCR-0201 Cây mục tiêu OKR | L | W-OKR/Đánh giá | – | WEB-015 | **Đã gộp main** | Đã gộp `main` (SCR-0201 Cây mục tiêu OKR) |
 | [WEB-022](docs/tasks/WEB-022-tao-sua-okr.md) | SCR-0202 Tạo/sửa O và KR | M | W-OKR/Đánh giá | – | WEB-021 | **Đã gộp main** | Đã gộp `main` (SCR-0202 Tạo/sửa O và KR) |
 | [WEB-023](docs/tasks/WEB-023-duyet-okr.md) | SCR-0203 Phê duyệt OKR | M | W-OKR/Đánh giá | – | WEB-022 | **Đã gộp main** | Đã gộp `main` (SCR-0203 Phê duyệt OKR) |
@@ -985,4 +985,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 00:50 | Điều phối | `CORE-05-11` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (fcfdd4ab) |
 | 23/10/2026 00:50 | Điều phối | `WEB-070` | Chuyển trạng thái sang **Làm một phần** — Công tắc giả lập và kịch bản e2e đã gộp main (fcfdd4ab); chạy với máy chủ thật chờ QA-03 |
 | 23/10/2026 02:34 | Điều phối | `CORE-05-10`, `DV-06-08`, `CORE-05-12`, `CORE-04-13`, `DV-11-04`, `CORE-02-17`, `DV-13-01`, `DV-13-03`, `DV-08-05`, `CORE-04-09`, `CORE-04-10`, `CORE-04-11`, `DV-07-08`, `CORE-07-03`, `CORE-07-06`, `CORE-02-24` | Chuyển trạng thái sang **Đã gộp main** — Đợt 8–9, main ff7be5b8 |
+| 23/10/2026 05:47 | Theme Keycloak | `WEB-020` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-76telq: mở lại để phủ đủ các trang luồng đăng nhập (quên mật khẩu, lỗi, thông báo, cài OTP, đăng xuất), gói tiếng Việt đầy đủ, bỏ chữ kỹ thuật |
+| 23/10/2026 05:58 | Theme Keycloak | `WEB-020` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-76telq: theme đăng nhập phủ đủ luồng (đăng nhập, OTP, quên/đổi mật khẩu, cài OTP, lỗi, đăng xuất), tiếng Việt 489 khoá; thử trên Keycloak 26.4.7 cục bộ, ảnh ở bao-cao-luong-okr/WEB-020-theme-keycloak |
 <!-- PROGRESS_LOG_END -->

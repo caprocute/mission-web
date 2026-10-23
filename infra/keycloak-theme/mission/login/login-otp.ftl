@@ -1,54 +1,40 @@
+<#-- SCR-0001 vùng 3: xác thực nhiều lớp (AAL2, BR-00-01/BR-00-02, MSG-00-05). Giữ mã phần tử otp,
+     kc-login vì kiểm thử e2e và cửa sổ bước lên của web dùng. -->
 <#import "template.ftl" as layout>
-<@layout.registrationLayout displayMessage=!messagesPerField.existsError('totp') displayInfo=false; section>
+<@layout.registrationLayout displayMessage=!messagesPerField.existsError('totp') step=2; section>
     <#if section = "header">
-        ${msg("loginOtpTitle")}
+        ${msg("missionOtpTitle")}
     <#elseif section = "form">
-        <form id="kc-otp-login-form" class="mission-form" onsubmit="login.disabled = true; return true;" action="${url.loginAction}" method="post">
-            <p class="mission-otp-hint">
-                Thao tác quan trọng yêu cầu xác thực bảo mật bước 2. Vui lòng nhập mã xác thực 6 chữ số từ ứng dụng định danh của đồng chí.
-            </p>
-
+        <p class="mission-lead">${msg("missionOtpHint")}</p>
+        <form id="kc-otp-login-form" class="mission-form" action="${url.loginAction}" method="post" data-once-submit>
             <#if otpLogin.userOtpCredentials?size gt 1>
-                <div class="mission-field">
-                    <label for="kc-otp-credential" class="mission-label">Thiết bị xác thực</label>
-                    <select id="kc-otp-credential" name="selectedCredentialId" class="mission-input">
+                <fieldset class="mission-field mission-fieldset">
+                    <legend class="mission-label">${msg("missionOtpDevice")}</legend>
+                    <div class="mission-tiles">
                         <#list otpLogin.userOtpCredentials as otpCredential>
-                            <option value="${otpCredential.id}" <#if otpCredential.id == otpLogin.selectedCredentialId>selected="selected"</#if>>
-                                ${otpCredential.userLabel}
-                            </option>
+                            <label class="mission-tile" for="kc-otp-credential-${otpCredential?index}">
+                                <input id="kc-otp-credential-${otpCredential?index}" class="mission-tile__input" type="radio" name="selectedCredentialId"
+                                       value="${otpCredential.id}" <#if otpCredential.id == otpLogin.selectedCredentialId>checked="checked"</#if>>
+                                <span class="mission-tile__title">${otpCredential.userLabel}</span>
+                            </label>
                         </#list>
-                    </select>
-                </div>
+                    </div>
+                </fieldset>
             </#if>
 
+            <#assign otpError = messagesPerField.existsError('totp')>
             <div class="mission-field">
-                <label for="otp" class="mission-label">${msg("loginTotpOneTime")}</label>
-                <input
-                    id="otp"
-                    name="otp"
-                    autocomplete="one-time-code"
-                    type="text"
-                    inputmode="numeric"
-                    pattern="[0-9]*"
-                    maxlength="6"
-                    class="mission-input mission-input--otp <#if messagesPerField.existsError('totp')>mission-input--error</#if>"
-                    autofocus
-                    placeholder="• • • • • •"
-                    aria-invalid="<#if messagesPerField.existsError('totp')>true<#else>false</#if>"
-                />
-                <#if messagesPerField.existsError('totp')>
-                    <span id="input-error-otp-code" class="mission-field-error" aria-live="polite">
-                        ${kcSanitize(messagesPerField.get('totp'))?no_esc}
-                    </span>
+                <label for="otp" class="mission-label">${msg("loginOtpOneTime")} <span class="mission-required" aria-hidden="true">*</span></label>
+                <input id="otp" name="otp" type="text" class="mission-input mission-input--otp" autocomplete="one-time-code"
+                       inputmode="numeric" pattern="[0-9]*" maxlength="6" autofocus required dir="ltr"
+                       aria-invalid="${otpError?then('true','false')}" aria-describedby="<#if otpError>input-error-otp-code </#if>otp-help" />
+                <span id="otp-help" class="mission-help">${msg("missionOtpExpiry")}</span>
+                <#if otpError>
+                    <span id="input-error-otp-code" class="mission-field-error" aria-live="polite">${kcSanitize(messagesPerField.get('totp'))?no_esc}</span>
                 </#if>
             </div>
 
-            <div class="mission-actions">
-                <button class="mission-btn mission-btn--primary" name="login" id="kc-login" type="submit">
-                    <span>${msg("doSubmit")}</span>
-                    <span aria-hidden="true">→</span>
-                </button>
-            </div>
+            <button class="mission-btn mission-btn--primary mission-btn--block" name="login" id="kc-login" type="submit">${msg("doSubmit")}</button>
         </form>
     </#if>
 </@layout.registrationLayout>
