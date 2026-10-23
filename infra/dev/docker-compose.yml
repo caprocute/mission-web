@@ -20,13 +20,71 @@
 #   search             : minio, minio-init, opensearch
 #   obs                : otel-collector, prometheus, loki, tempo, grafana
 #   backend            : gotenberg (chuyển DOCX sang PDF/A-2b cho document-service, DV-11-01),
-#                        llm-mock (máy chủ mô hình nhỏ chạy CPU, API tương thích vLLM cho ai-gateway, DV-14-01)
+#                        llm-mock (máy chủ mô hình nhỏ chạy CPU, API tương thích vLLM cho ai-gateway, DV-14-01),
+#                        apisix (cổng API dev 35000) và các service backend dựng từ repo, cổng 351xx (INF-22);
+#                        cần bật cùng core, security, events: xem scripts/deploy-backend.sh
 #   analytics          : clickhouse (kho phân tích một nút của SVC-15, DV-15-01; migration ở analytics/clickhouse),
 #                        cube (lớp ngữ nghĩa, DV-15-03), superset (dashboard nhúng qua Cube SQL API, DV-15-05)
-#   all                : tất cả dịch vụ trên
+#   all                : tất cả dịch vụ trên, trừ APISIX và service backend dựng từ repo
 # =============================================================================
 
 name: mission-dev
+
+# ---------------------------------------------------------------------------
+# Khối dùng chung của service backend dựng từ repo (INF-22, profile backend).
+# Trong mạng compose, service gọi hạ tầng bằng tên dịch vụ và cổng trong container (pgbouncer:6432,
+# kafka:9092...), không qua cổng 35xxx của máy. Token của Keycloak mang `iss` theo địa chỉ trình duyệt và
+# kiểm thử khói dùng (KEYCLOAK_PUBLIC_URL, mặc định http://127.0.0.1:35080), còn JWKS lấy qua đường nội bộ
+# keycloak:8080, nên mỗi service đặt issuer công khai cùng jwk-set-uri nội bộ.
+# ---------------------------------------------------------------------------
+x-backend-java-env: &backend-java-env
+  SERVER_PORT: "8080"
+  MANAGEMENT_PORT: "8081"
+  DB_HOST: pgbouncer
+  DB_PORT: "6432"
+  DB_NAME: ${POSTGRES_DB:-mission}
+  DB_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-}
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  APICURIO_REGISTRY_URL: http://apicurio:8080/apis/registry/v2
+  APICURIO_REGISTRY_V3_URL: http://apicurio:8080/apis/registry/v3
+  KEYCLOAK_ISSUER_URI: ${KEYCLOAK_PUBLIC_URL:-http://127.0.0.1:35080}/realms/mission
+  OIDC_ISSUER_URI: ${KEYCLOAK_PUBLIC_URL:-http://127.0.0.1:35080}/realms/mission
+  KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/mission/protocol/openid-connect/certs
+  SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI: http://keycloak:8080/realms/mission/protocol/openid-connect/certs
+  REDIS_HOST: valkey
+  REDIS_PORT: "6379"
+  SPRING_DATA_REDIS_PASSWORD: ${VALKEY_PASSWORD:-}
+  OPA_URL: http://opa:8181/v1/data/mission/authz
+  OPENBAO_URL: http://openbao:8200
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  TZ: Asia/Ho_Chi_Minh
+
+# Service backend và APISIX chỉ thuộc profile backend, không thuộc `all`: ảnh Java cần jar dựng trước
+# (deploy-backend.sh), nên `docker compose --profile all up` của hạ tầng không kéo theo chúng.
+# Cổng quản trị 8081 chỉ mở trong mạng compose; compose kiểm readiness bằng curl trong container.
+x-backend-java: &backend-java
+  restart: unless-stopped
+  profiles: ["backend"]
+  healthcheck:
+    test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8081/actuator/health/readiness"]
+    interval: 15s
+    timeout: 5s
+    retries: 20
+    start_period: 60s
+  networks:
+    - mission-net
+
+x-backend-go: &backend-go
+  restart: unless-stopped
+  profiles: ["backend"]
+  healthcheck:
+    test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/readyz"]
+    interval: 15s
+    timeout: 5s
+    retries: 20
+    start_period: 20s
+  networks:
+    - mission-net
 
 services:
   # ---------------------------------------------------------------------------
@@ -154,6 +212,9 @@ services:
       KC_TEST_OTP_SECRET: ${KC_TEST_OTP_SECRET:-}
       MISSION_CORE_CLIENT_SECRET: ${MISSION_CORE_CLIENT_SECRET:-}
       ORG_SERVICE_CLIENT_SECRET: ${ORG_SERVICE_CLIENT_SECRET:-}
+      # Gốc web thêm vào redirect URI của client mission-web; thiếu biến thì Keycloak 26 từ chối nhập realm
+      # vì "${WEB_ORIGIN}/*" không phải URI hợp lệ.
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:4200}
       KC_HOSTNAME_STRICT: "false"
       KC_PROXY_HEADERS: xforwarded
       TZ: Asia/Ho_Chi_Minh
@@ -582,6 +643,271 @@ services:
       retries: 5
     networks:
       - mission-net
+
+  # ---------------------------------------------------------------------------
+  # PROFILE: backend — cổng API dev và service backend dựng từ repo (INF-22)
+  # ---------------------------------------------------------------------------
+  # Cổng API dev SVC-01: định tuyến theo tiền tố module tới service sở hữu, kiểm JWT realm mission bằng
+  # openid-connect (apisix/apisix.yaml). Ảnh ghim cùng digest với deploy/charts/api-gateway.
+  apisix:
+    image: apache/apisix:3.13.0-debian@sha256:c5c7a55ebb5c07abc210dbb963a37f41030e12c91d23bacedbaa168fec633bd7
+    container_name: mission-dev-apisix
+    restart: unless-stopped
+    profiles: ["backend"]
+    environment:
+      # Issuer công khai của token (claim iss), thay vào apisix.yaml lúc nạp.
+      KEYCLOAK_PUBLIC_ISSUER: ${KEYCLOAK_PUBLIC_URL:-http://127.0.0.1:35080}/realms/mission
+    ports:
+      - "${APISIX_PORT:-35000}:9080"
+    volumes:
+      - ./apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ./apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+    networks:
+      - mission-net
+
+  # Ảnh Java dựng từ jar trong target/ của mô-đun (scripts/deploy-backend.sh chạy `mvnw package` trước);
+  # Dockerfile dev chung ở backend/Dockerfile.java. Migration không chạy lúc khởi động: deploy-backend.sh
+  # chạy Flyway bằng tài khoản mig_<schema> trước khi bật service.
+  mission-core:
+    <<: *backend-java
+    build:
+      context: ../../backend/mission-core
+      dockerfile: ../../infra/dev/backend/Dockerfile.java
+    image: mission-dev/mission-core:dev
+    container_name: mission-dev-mission-core
+    environment:
+      <<: *backend-java-env
+      SERVICE_NAME: mission-core
+      AUTH_ENABLED: ${MISSION_CORE_AUTH_ENABLED:-true}
+    ports:
+      - "${MISSION_CORE_PORT:-35100}:8080"
+      # Cổng quản trị chỉ mở trên loopback của máy chủ (health.sh, Prometheus cục bộ).
+      - "127.0.0.1:${MISSION_CORE_MGMT_PORT:-35101}:8081"
+
+  # SVC-04: dữ liệu ở schema org (CSDL mission), migration chạy bằng hồ sơ Spring `migrate` với mig_org.
+  org-service:
+    <<: *backend-java
+    build:
+      context: ../../backend/services/org-service
+      dockerfile: ../../../infra/dev/backend/Dockerfile.java
+    image: mission-dev/org-service:dev
+    container_name: mission-dev-org-service
+    environment:
+      <<: *backend-java-env
+      PORT: "8080"
+      ORG_DB_URL: jdbc:postgresql://pgbouncer:6432/${POSTGRES_DB:-mission}?currentSchema=org&prepareThreshold=0
+      ORG_DB_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-}
+      ORG_MIG_DB_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-}
+    ports:
+      - "${ORG_SERVICE_PORT:-35111}:8080"
+
+  # SVC-06: Flowable ở CSDL flowable, schema flowable.
+  workflow-service:
+    <<: *backend-java
+    build:
+      context: ../../backend/services/workflow-service
+      dockerfile: ../../../infra/dev/backend/Dockerfile.java
+    image: mission-dev/workflow-service:dev
+    container_name: mission-dev-workflow-service
+    environment:
+      <<: *backend-java-env
+      DB_NAME: flowable
+      CORE_BASE_URL: http://mission-core:8080/api/v1
+      # Flyway của chính service (schema flowable) chạy lúc khởi động bằng mig_flowable, nối thẳng PostgreSQL
+      # (khoá tư vấn của Flyway không đi qua PgBouncer chế độ transaction); ứng dụng vẫn dùng svc_flowable.
+      FLYWAY_ENABLED: "true"
+      SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/flowable
+      SPRING_FLYWAY_USER: mig_flowable
+      SPRING_FLYWAY_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-}
+    ports:
+      - "${WORKFLOW_SERVICE_PORT:-35112}:8080"
+
+  # SVC-07.
+  scoring-service:
+    <<: *backend-java
+    build:
+      context: ../../backend/services/scoring-service
+      dockerfile: ../../../infra/dev/backend/Dockerfile.java
+    image: mission-dev/scoring-service:dev
+    container_name: mission-dev-scoring-service
+    environment:
+      <<: *backend-java-env
+      MISSION_CORE_URL: http://mission-core:8080
+    ports:
+      - "${SCORING_SERVICE_PORT:-35113}:8080"
+
+  # SVC-11: dựng biểu mẫu qua gotenberg, lưu tệp ở MinIO (profile search).
+  document-service:
+    <<: *backend-java
+    build:
+      context: ../../backend/services/document-service
+      dockerfile: ../../../infra/dev/backend/Dockerfile.java
+    image: mission-dev/document-service:dev
+    container_name: mission-dev-document-service
+    environment:
+      <<: *backend-java-env
+      DOCGEN_CORE_URL: http://mission-core:8080
+      GOTENBERG_URL: http://gotenberg:3000
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-}
+    ports:
+      - "${DOCUMENT_SERVICE_PORT:-35114}:8080"
+
+  # SVC-08: quét virus tắt ở dev (không có clamd).
+  evidence-service:
+    <<: *backend-java
+    build:
+      context: ../../backend/services/evidence-service
+      dockerfile: ../../../infra/dev/backend/Dockerfile.java
+    image: mission-dev/evidence-service:dev
+    container_name: mission-dev-evidence-service
+    environment:
+      <<: *backend-java-env
+      GOTENBERG_URL: http://gotenberg:3000
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-}
+      EVIDENCE_SCAN_ENABLED: "false"
+    ports:
+      - "${EVIDENCE_SERVICE_PORT:-35115}:8080"
+
+  # SVC-10: ký số qua nhà cung cấp giả lập ở dev (ESIGN_FAKE_PROVIDER), HSM tắt.
+  esign-service:
+    <<: *backend-java
+    build:
+      context: ../../backend/services/esign-service
+      dockerfile: ../../../infra/dev/backend/Dockerfile.java
+    image: mission-dev/esign-service:dev
+    container_name: mission-dev-esign-service
+    environment:
+      <<: *backend-java-env
+      ESIGN_FAKE_PROVIDER: ${ESIGN_FAKE_PROVIDER:-true}
+    ports:
+      - "${ESIGN_SERVICE_PORT:-35116}:8080"
+
+  # SVC-13: chỉ có cổng nội bộ /internal/v1, không có tuyến qua APISIX.
+  integration-gateway:
+    <<: *backend-java
+    build:
+      context: ../../backend/services/integration-gateway
+      dockerfile: ../../../infra/dev/backend/Dockerfile.java
+    image: mission-dev/integration-gateway:dev
+    container_name: mission-dev-integration-gateway
+    environment:
+      <<: *backend-java-env
+    ports:
+      - "${INTEGRATION_GATEWAY_PORT:-35117}:8080"
+
+  # SVC-15: đọc ClickHouse và Cube (profile analytics).
+  analytics-api:
+    <<: *backend-java
+    build:
+      context: ../../backend/services/analytics-api
+      dockerfile: ../../../infra/dev/backend/Dockerfile.java
+    image: mission-dev/analytics-api:dev
+    container_name: mission-dev-analytics-api
+    environment:
+      <<: *backend-java-env
+      OPA_URL: http://opa:8181
+      MISSION_CORE_URL: http://mission-core:8080
+      ANALYTICS_CLICKHOUSE_URL: http://clickhouse:8123
+      ANALYTICS_CUBE_PASSWORD: ${ANALYTICS_CUBE_PASSWORD:-}
+      ANALYTICS_TOKEN_URL: http://keycloak:8080/realms/mission/protocol/openid-connect/token
+      CUBE_URL: http://cube:4000
+      CUBEJS_API_SECRET: ${CUBEJS_API_SECRET:-}
+      SUPERSET_URL: http://superset:8088
+      SUPERSET_SERVICE_PASSWORD: ${SUPERSET_SERVICE_PASSWORD:-}
+      VALKEY_URL: redis://valkey:6379
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD:-}
+      GOTENBERG_URL: http://gotenberg:3000
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-}
+    ports:
+      - "${ANALYTICS_API_PORT:-35118}:8080"
+
+  # SVC-16: chỉ mục OpenSearch (profile search).
+  search:
+    <<: *backend-java
+    build:
+      context: ../../backend/services/search
+      dockerfile: ../../../infra/dev/backend/Dockerfile.java
+    image: mission-dev/search:dev
+    container_name: mission-dev-search
+    environment:
+      <<: *backend-java-env
+      OPA_URL: http://opa:8181
+      OPENSEARCH_URL: http://opensearch:9200
+    ports:
+      - "${SEARCH_SERVICE_PORT:-35119}:8080"
+
+  # Service Go dựng trong Docker từ services-go/ (backend/Dockerfile.go). Chuỗi kết nối CSDL ghép mật khẩu
+  # svc_<schema>, nên DB_ROLE_PASSWORD_DEFAULT không được chứa ký tự phải mã hoá URL (@ : / ? #).
+  # SVC-03: schema registry (CSDL mission).
+  tenant-registry:
+    <<: *backend-go
+    build:
+      context: ../../services-go
+      dockerfile: ../infra/dev/backend/Dockerfile.go
+      args: { SERVICE: tenant-registry, CMD: tenant-registry }
+    image: mission-dev/tenant-registry:dev
+    container_name: mission-dev-tenant-registry
+    environment:
+      APP_ENV: dev
+      HTTP_ADDR: ":8080"
+      DATABASE_URL: postgres://svc_registry:${DB_ROLE_PASSWORD_DEFAULT:-}@pgbouncer:6432/${POSTGRES_DB:-mission}?search_path=registry
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_PUBLIC_URL:-http://127.0.0.1:35080}/realms/mission
+      OIDC_ISSUERS: ${KEYCLOAK_PUBLIC_URL:-http://127.0.0.1:35080}/realms/mission
+      OIDC_JWKS_URL: http://keycloak:8080/realms/mission/protocol/openid-connect/certs
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_ADDR: valkey:6379
+      OPA_URL: http://opa:8181
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "${TENANT_REGISTRY_PORT:-35110}:8080"
+
+  # SVC-09: sổ cái ở CSDL ledger.
+  ledger-service:
+    <<: *backend-go
+    build:
+      context: ../../services-go
+      dockerfile: ../infra/dev/backend/Dockerfile.go
+      args: { SERVICE: ledger, CMD: ledger-service }
+    image: mission-dev/ledger-service:dev
+    container_name: mission-dev-ledger-service
+    environment:
+      APP_ENV: dev
+      HTTP_ADDR: ":8080"
+      DATABASE_URL: postgres://svc_ledger:${DB_ROLE_PASSWORD_DEFAULT:-}@pgbouncer:6432/ledger?search_path=ledger
+      READONLY_DATABASE_URL: postgres://ro_ledger:${DB_ROLE_PASSWORD_DEFAULT:-}@pgbouncer:6432/ledger?search_path=ledger
+      KAFKA_BROKERS: kafka:9092
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_PUBLIC_URL:-http://127.0.0.1:35080}/realms/mission
+      OIDC_ISSUERS: ${KEYCLOAK_PUBLIC_URL:-http://127.0.0.1:35080}/realms/mission
+      OIDC_JWKS_URL: http://keycloak:8080/realms/mission/protocol/openid-connect/certs
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "${LEDGER_SERVICE_PORT:-35120}:8080"
+
+  # SVC-12: schema notify (CSDL mission); kênh email, SMS, đẩy tắt cho tới khi cấu hình ở .env.
+  notification-service:
+    <<: *backend-go
+    build:
+      context: ../../services-go
+      dockerfile: ../infra/dev/backend/Dockerfile.go
+      args: { SERVICE: notification, CMD: notification-service }
+    image: mission-dev/notification-service:dev
+    container_name: mission-dev-notification-service
+    environment:
+      APP_ENV: dev
+      HTTP_ADDR: ":8080"
+      DATABASE_URL: postgres://svc_notify:${DB_ROLE_PASSWORD_DEFAULT:-}@pgbouncer:6432/${POSTGRES_DB:-mission}?search_path=notify
+      READONLY_DATABASE_URL: postgres://ro_notify:${DB_ROLE_PASSWORD_DEFAULT:-}@pgbouncer:6432/${POSTGRES_DB:-mission}?search_path=notify
+      KAFKA_BROKERS: kafka:9092
+      VALKEY_ADDRS: valkey:6379
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-35121}:8080"
 
   # ---------------------------------------------------------------------------
   # PROFILE: analytics — Kho phân tích ClickHouse của SVC-15 (DV-15-01, ADR-14)
