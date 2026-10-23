@@ -147,7 +147,8 @@ export function buildAppConfig(
           return firstValueFrom(cells.resolve(tenant)).then(() => undefined);
         });
       }),
-      // Cờ tính năng (WEB-076): nạp khi khởi động và nạp lại khi đổi phân công; lỗi thì mọi cờ tắt
+      // Cờ tính năng (WEB-076): nạp khi khởi động và nạp lại khi đổi phân công; lỗi thì mọi cờ tắt.
+      // Chờ phiên có token như bước khám phá cell: gọi sớm nhận 401, bộ chặn coi là phiên hết hạn.
       provideAppInitializer(() => {
         const flags = inject(FeatureFlagService);
         const session = inject(SessionService);
@@ -159,7 +160,10 @@ export function buildAppConfig(
             void flags.load();
           }
         });
-        return flags.load();
+        return session.ready.then(() => {
+          if (cfg.auth.enabled && !session.isAuthenticated()) return;
+          return flags.load();
+        });
       }),
     ],
   };

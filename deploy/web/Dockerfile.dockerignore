@@ -1,0 +1,19 @@
+# Ngữ cảnh dựng là gốc repo; ảnh web chỉ cần frontend/ (không kèm node_modules, bộ đệm, bản build của máy dựng)
+# và tệp cấu hình trong deploy/web/. Bỏ các thư mục nặng để ngữ cảnh gửi cho Docker nhỏ và npm ci trong ảnh không bị ghi đè.
+.git
+**/node_modules
+frontend/.angular
+frontend/dist
+frontend/test-results
+frontend/playwright-report
+backend
+services-go
+mobile
+infra
+analytics
+services-py
+data
+ops
+ci
+docs
+wiki

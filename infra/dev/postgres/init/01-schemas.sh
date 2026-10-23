@@ -68,6 +68,8 @@ bootstrap_db() {
 
   psql_exec "${db_name}" <<EOSQL
 CREATE EXTENSION IF NOT EXISTS pgcrypto SCHEMA public;
+-- btree_gist cho ràng buộc EXCLUDE trộn uuid với khoảng thời gian (config.period, task, org); migration chạy bằng mig_<schema> trước khi DatabaseBootstrap (NEN-031) kịp cài.
+CREATE EXTENSION IF NOT EXISTS btree_gist SCHEMA public;
 CREATE SCHEMA IF NOT EXISTS partman;
 DO \$\$
 BEGIN
@@ -222,4 +224,7 @@ ALTER ROLE apicurio IN DATABASE mission SET search_path = apicurio, public;
 EOSQL
 
 bootstrap_db "flowable" "flowable" "" ""
+# V1 của workflow-service mở đầu bằng CREATE SCHEMA IF NOT EXISTS flowable; PostgreSQL kiểm quyền CREATE trên CSDL
+# trước khi xét schema đã có, nên mig_flowable cần quyền này (chỉ CSDL flowable riêng của Flowable).
+psql_exec "flowable" -c "GRANT CREATE ON DATABASE flowable TO mig_flowable" >/dev/null
 bootstrap_db "ledger" "ledger" "" ""

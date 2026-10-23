@@ -11,12 +11,15 @@ COPY vtplatform ./vtplatform
 COPY ${SERVICE}/go.mod ${SERVICE}/go.sum ./${SERVICE}/
 WORKDIR /src/${SERVICE}
 RUN --mount=type=secret,id=ca_bundle,required=false \
-    if [ -f /run/secrets/ca_bundle ]; then export SSL_CERT_FILE=/run/secrets/ca_bundle; fi; go mod download
+    if [ -s /run/secrets/ca_bundle ]; then export SSL_CERT_FILE=/run/secrets/ca_bundle; fi; go mod download
 COPY ${SERVICE} ./
 RUN CGO_ENABLED=0 GOOS=linux GOTOOLCHAIN=local go build -trimpath -ldflags="-s -w" -o /out/app ./cmd/${CMD}
 
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates tzdata
+# Chứng thư gốc bổ sung (BUILD_CA_BUNDLE của compose) chỉ dùng lúc tải gói, không vào ảnh.
+RUN --mount=type=secret,id=ca_bundle,required=false \
+    if [ -s /run/secrets/ca_bundle ]; then export SSL_CERT_FILE=/run/secrets/ca_bundle; fi; \
+    apk add --no-cache ca-certificates tzdata
 COPY --from=build /out/app /app
 USER 65532:65532
 EXPOSE 8080

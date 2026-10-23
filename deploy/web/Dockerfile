@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Build fe-shell + mọi remote một lần, phục vụ tĩnh bằng nginx không root (SVC-17).
 # config.json và federation.manifest.json sinh lúc khởi động từ biến môi trường để một image
 # dùng cho mọi cell (K6, C9). Danh mục remote: frontend/tools/remotes/remotes.json (WEB-015).
@@ -5,7 +6,10 @@
 FROM node:22-alpine AS build
 WORKDIR /src
 COPY frontend/package.json frontend/package-lock.json frontend/.npmrc ./
-RUN npm ci --no-audit --no-fund
+# Chứng thư gốc bổ sung khi dựng sau proxy chặn TLS (secret ca_bundle, tuỳ chọn; infra/dev BUILD_CA_BUNDLE).
+RUN --mount=type=secret,id=ca_bundle,required=false \
+    if [ -s /run/secrets/ca_bundle ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/ca_bundle; fi; \
+    npm ci --no-audit --no-fund
 COPY frontend/ .
 # Ghép shell ở gốc, mỗi remote ở remotes/<project>; remotes.tsv liệt kê khoá, biến URL, project
 RUN npm run build:all && node tools/remotes/workspace.mjs assemble /out/html /out/remotes.tsv

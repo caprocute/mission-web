@@ -46,6 +46,7 @@ Toàn bộ cổng host đặt trong dải `35000–35999` và đều cấu hình
 | search (SVC-16) | `mission-dev-search` | `35119` | `SEARCH_SERVICE_PORT` | `backend` | Cần OpenSearch (profile `search`) |
 | ledger-service (SVC-09, Go) | `mission-dev-ledger-service` | `35120` | `LEDGER_SERVICE_PORT` | `backend` | CSDL `ledger` |
 | notification-service (SVC-12, Go) | `mission-dev-notification-service` | `35121` | `NOTIFICATION_SERVICE_PORT` | `backend` | Schema `notify` |
+| web (SVC-17, nginx) | `mission-dev-web` | `35130` | `WEB_PORT` | `backend` | Ảnh dựng từ `deploy/web/Dockerfile`; người dùng vào qua APISIX `35000` (tuyến `/*`), cổng `35130` chỉ mở loopback để kiểm trực tiếp |
 
 ---
 
@@ -99,7 +100,7 @@ Khi máy trạm hoặc máy chủ thiếu `rsync`, script chép bằng `tar` cá
 
 ```bash
 cd infra/dev
-cp .env.example .env   # điền mật khẩu thật vào .env (không commit)
+./scripts/gen-env.sh   # sinh .env từ .env.example: mật khẩu ngẫu nhiên cho mọi ô __GENERATE__ hoặc <FILL_IN> (không commit)
 
 # 1. Chỉ bật nền tảng cốt lõi (Postgres + PgBouncer, Valkey, Keycloak)
 docker compose up -d
@@ -134,6 +135,37 @@ infra/dev/scripts/smoke-backend.sh                     # sức khoẻ, 401 khi k
 `deploy-backend.sh` chỉ kiểm hạ tầng đang chạy chứ không bật hay dựng lại Postgres, Kafka (tránh gắn nhầm volume khi `.env` thiếu `*_DATA`, xem mục 2.1), và chỉ thao tác project `mission-dev` (in số container trước và sau). Migration chạy trước khi bật service: schema của mission-core (`keyring` trước) và của scoring, document, evidence, esign, integration-gateway bằng `MigrationRunner` của `vt-db-migration` trong chính ảnh service, tài khoản `mig_<schema>`, nối thẳng PostgreSQL; org-service bằng hồ sơ Spring `migrate` (`mig_org`); workflow-service tự chạy Flyway schema `flowable` lúc khởi động bằng `mig_flowable`. Migration của ba service Go có lệnh tạo và đặt tham số vai trò nên chạy bằng tài khoản quản trị PostgreSQL, chỉ lần đầu (khi bảng mốc chưa có), giống chế độ `AUTO_MIGRATE` dev của chính service.
 
 Token của Keycloak mang `iss` theo địa chỉ dùng để đăng nhập, nên `KEYCLOAK_PUBLIC_URL` (mặc định `http://127.0.0.1:35080`) phải trùng địa chỉ mà trình duyệt và kiểm thử khói dùng; service trong container kiểm `iss` theo giá trị này và lấy JWKS qua đường nội bộ `keycloak:8080`. Kiểm thử khói đăng nhập tài khoản thử (mặc định `canbo`, đổi bằng `SMOKE_USER`) qua client `mission-web` đúng như trình duyệt (Authorization Code + PKCE, mã OTP sinh từ `KC_TEST_OTP_SECRET`, `scripts/lay-token-thu.py`), nên không cần bật direct grant cho client nào. Kiểm sự kiện sau thao tác ghi là tuỳ chọn: đặt `SMOKE_WRITE_PATH`, `SMOKE_EVENT_TOPIC` (và `SMOKE_WRITE_METHOD`, `SMOKE_WRITE_BODY`).
+
+Phân hệ web (SVC-17) cũng thuộc profile `backend` và được `deploy-backend.sh` dựng cùng các service khác. Ảnh web chứa bản build shell và các remote, tệp `config.json` sinh lúc khởi động từ biến môi trường: đăng nhập Keycloak bật sẵn với issuer `${KEYCLOAK_PUBLIC_URL}/realms/mission`, API đi qua `/api` cùng nguồn, API giả lập tắt (bật lại từng module chưa có máy chủ bằng `WEB_MOCK_API_MODULES`, hoặc toàn bộ bằng `WEB_USE_MOCK_API=true`). Người dùng mở `WEB_ORIGIN` (mặc định `http://127.0.0.1:35000`, tức cổng APISIX); vì realm chỉ nạp `redirectUris` từ `WEB_ORIGIN` ở lần nhập đầu, `deploy-backend.sh` gọi `scripts/them-goc-web.sh` để thêm nguồn này vào client `mission-web` một cách bất biến (chạy lại không sao) trước khi bật web.
+
+Khi máy dựng ảnh nằm sau proxy chặn TLS (máy cloud của agent, hoặc mạng công ty), đặt `BUILD_CA_BUNDLE` trỏ tới tệp PEM của CA proxy **nằm trong** `infra/dev` (ví dụ `./data/build-ca.pem`, thư mục `data/` không commit). Compose truyền tệp này vào bước `npm ci`, `go mod download` và `apk add` dưới dạng build secret, nên CA không nằm lại trong ảnh. Để trống khi không cần.
+
+### 3.2. Dựng trọn stack có web và seed (thứ tự đã chạy thử trên máy sạch)
+
+Các bước dưới đây đưa một máy có Docker từ trạng thái trống tới lúc đăng nhập được web bằng tài khoản thử và trang chủ có dữ liệu. Thứ tự quan trọng vì mỗi bước dựa vào bước trước: lược đồ sự kiện phải có trong Apicurio trước khi service phát sự kiện, dữ liệu tổ chức phải sang được bản sao của mission-core trước khi giao việc, và phân vùng theo kỳ phải có trước khi ghi dữ liệu của kỳ.
+
+```bash
+cd infra/dev
+./scripts/gen-env.sh                                   # chỉ máy mới; máy đã có .env thì bổ sung khoá mới từ .env.example
+docker compose --profile core --profile security --profile events --profile search up -d
+./scripts/create-topics.sh
+cd ../..
+infra/dev/scripts/deploy-backend.sh                    # jar, ảnh (kể cả web), migration, thêm nguồn web vào Keycloak, bật service
+python3 -I infra/dev/scripts/dang-ky-luoc-do.py        # đăng ký lược đồ Avro (cả dạng lớp sinh mà serde gửi lên)
+infra/dev/scripts/seed-org.sh                          # đơn vị, cán bộ, phân công; tenant và cell DEV trong tenant-registry
+infra/dev/scripts/dong-bo-to-chuc.sh                   # org-republish: dữ liệu tổ chức sang org_replica của mission-core
+# Kỳ tháng hiện tại: seed-ky-nhiem-vu.py tạo nếu chưa có; tạo phân vùng theo kỳ rồi chạy lại để giao nhiệm vụ mẫu
+python3 -I infra/dev/scripts/seed-ky-nhiem-vu.py || true
+infra/dev/scripts/tao-phan-vung-ky.sh
+python3 -I infra/dev/scripts/seed-ky-nhiem-vu.py
+# UI Pack mặc định (bố cục trang chủ); quantri gửi, quantri2 phát hành (bốn mắt)
+(cd data/seed/ui-pack && MISSION_API=http://127.0.0.1:35000/api/v1 \
+  MISSION_TOKEN="$(SMOKE_USER=quantri python3 -I ../../../infra/dev/scripts/lay-token-thu.py)" \
+  MISSION_TOKEN_DUYET="$(SMOKE_USER=quantri2 python3 -I ../../../infra/dev/scripts/lay-token-thu.py)" python3 -I nap_ui_pack.py)
+infra/dev/scripts/smoke-backend.sh
+```
+
+`lay-token-thu.py` đọc `KC_TEST_USER_PASSWORD`, `KC_TEST_OTP_SECRET` từ môi trường, nên trước các lệnh có token cần `set -a; source infra/dev/.env; set +a`. Keycloak từ chối dùng lại một mã OTP trong cùng khung 30 giây cho cùng tài khoản, nên hai lần lấy token liên tiếp của một người dùng phải cách nhau quá 30 giây. Sau khi xong, mở `WEB_ORIGIN` và đăng nhập `canbo`; trang chủ hiện nhiệm vụ mẫu trong "Việc của tôi hôm nay". `analytics-api` chỉ lên khi bật thêm profile `analytics` (ClickHouse, Superset).
 
 ---
 

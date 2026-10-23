@@ -22,6 +22,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import vn.viettel.okrkpi.evidence.domain.StoredFile;
 import vn.viettel.okrkpi.shared.audit.AuditLogger;
 import vn.viettel.okrkpi.shared.authz.AuthzAutoConfiguration;
+import vn.viettel.okrkpi.shared.authz.AuthzSubjectAutoConfiguration;
 import vn.viettel.okrkpi.shared.authz.OpaClient;
 import vn.viettel.okrkpi.shared.authz.OpaDecision;
 import vn.viettel.okrkpi.shared.authz.OpaInput;
@@ -44,7 +45,10 @@ class FileAccessGuardAuthzTest {
   private final ApplicationContextRunner runner =
       new ApplicationContextRunner()
           .withConfiguration(
-              AutoConfigurations.of(AopAutoConfiguration.class, AuthzAutoConfiguration.class))
+              AutoConfigurations.of(
+                  AopAutoConfiguration.class,
+                  AuthzSubjectAutoConfiguration.class,
+                  AuthzAutoConfiguration.class))
           .withBean(ErrorCatalog.class, ErrorCatalog::standard)
           .withBean(AuditLogger.class, () -> (AuditLogger) e -> {})
           .withBean(OpaClient.class, () -> new StubOpa(decision))

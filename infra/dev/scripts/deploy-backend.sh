@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 # Dựng và bật profile `backend` của hạ tầng dev (INF-22): APISIX dev cổng 35000 cùng mission-core và các
-# service đã có khung, cổng 351xx (bảng ở infra/dev/README.md).
+# service đã có khung, cổng 351xx (bảng ở infra/dev/README.md), và web (SVC-17) phục vụ sau APISIX.
 #
 # Chạy trên máy có Docker và bản checkout đầy đủ của repo (cần backend/, services-go/, contracts/), ví dụ máy
 # chủ dev có bản clone repo, hoặc máy trạm khi thử cục bộ. Dựng jar Java cần JDK 21 và Node (gộp hợp đồng
@@ -16,6 +16,7 @@
 #   infra/dev/scripts/deploy-backend.sh                       # toàn bộ
 #   infra/dev/scripts/deploy-backend.sh mission-core apisix   # chỉ vài service
 #   SKIP_JARS=1 SKIP_MIGRATE=1 infra/dev/scripts/deploy-backend.sh
+#   SKIP_JARS=1 SKIP_BUILD=1 infra/dev/scripts/deploy-backend.sh   # dùng lại ảnh đã dựng, chỉ migration và bật service
 # Mật khẩu đọc từ infra/dev/.env (không commit); script không in giá trị bí mật.
 # =============================================================================
 set -euo pipefail
@@ -53,7 +54,8 @@ declare -A JAVA_MODULES=(
   [search]=services/search
 )
 GO_SERVICES=(tenant-registry ledger-service notification-service)
-ALL_SERVICES=(apisix "${!JAVA_MODULES[@]}" "${GO_SERVICES[@]}")
+# web (SVC-17): shell và remote dựng trong Docker từ deploy/web/Dockerfile, phục vụ sau APISIX (tuyến "/*").
+ALL_SERVICES=(apisix "${!JAVA_MODULES[@]}" "${GO_SERVICES[@]}" web)
 
 if [[ $# -gt 0 ]]; then
   SERVICES=("$@")
@@ -88,7 +90,7 @@ build=()
 for s in "${SERVICES[@]}"; do
   [[ "${s}" != "apisix" ]] && build+=("${s}")
 done
-if [[ ${#build[@]} -gt 0 ]]; then
+if [[ ${#build[@]} -gt 0 && "${SKIP_BUILD:-0}" != "1" ]]; then
   echo "==> Dựng ảnh: ${build[*]}"
   compose build "${build[@]}"
 fi
@@ -112,9 +114,7 @@ done
 declare -A RUNNER_SCHEMAS=(
   [mission-core]="keyring,modulith,config,policy,okr,task,product,appraisal,dossier,oversight,org_replica"
   [scoring-service]=scoring
-  [document-service]=docgen
   [evidence-service]=evidence
-  [esign-service]=esign
   [integration-gateway]=integ
 )
 run_migration_runner() {
@@ -161,7 +161,9 @@ if [[ "${SKIP_MIGRATE:-0}" != "1" ]]; then
     compose run --rm --no-deps -T -e SPRING_PROFILES_ACTIVE=migrate \
       -e ORG_DB_URL="jdbc:postgresql://postgres:5432/${POSTGRES_DB:-mission}?currentSchema=org" org-service
   fi
-  # workflow-service tự chạy Flyway schema flowable bằng mig_flowable lúc khởi động (docker-compose.yml).
+  # workflow-service (flowable), document-service (docgen) và esign-service (esign) tự chạy Flyway lúc khởi động
+  # bằng mig_<schema> (docker-compose.yml): migration của hai schema sau tự tạo outbox, inbox, idempotency nên
+  # không chạy chung với phần V0_x của MigrationRunner (trùng bảng outbox_event).
   selected tenant-registry && run_go_migration "${POSTGRES_DB:-mission}" \
     "${REPO_ROOT}/services-go/tenant-registry/db/migration/registry" registry.tenant
   selected ledger-service && run_go_migration ledger \
@@ -172,7 +174,11 @@ fi
 
 # --- (5) bật service -------------------------------------------------------------
 echo "==> Bật service: ${SERVICES[*]}"
-compose up -d --no-deps "${SERVICES[@]}"
+compose up -d --no-deps --no-build "${SERVICES[@]}"
+
+# Client mission-web của Keycloak phải nhận gốc web (WEB_ORIGIN) làm redirect URI; realm đã nhập từ trước thì
+# không tự cập nhật, nên thêm bằng kcadm (chạy lại không trùng).
+selected web && "${SCRIPT_DIR}/them-goc-web.sh"
 
 # --- (6) chờ healthcheck ----------------------------------------------------------
 echo "==> Chờ healthcheck (tối đa 5 phút)"

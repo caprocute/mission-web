@@ -348,7 +348,9 @@ services:
       - mission-net
 
   apicurio:
-    image: quay.io/apicurio/apicurio-registry:3.0.9
+    # 3.3.3 khớp serde và maven plugin của backend; 3.0.9 không tìm được phiên bản theo nội dung (POST
+    # /search/versions luôn rỗng) nên serde với FIND_LATEST_ARTIFACT=false (org-republish) không phân giải lược đồ.
+    image: quay.io/apicurio/apicurio-registry:3.3.3
     container_name: mission-dev-apicurio
     restart: unless-stopped
     profiles: ["events", "all"]
@@ -406,8 +408,12 @@ services:
   # ---------------------------------------------------------------------------
   # PROFILE: search — MinIO (S3) & OpenSearch 2.x
   # ---------------------------------------------------------------------------
+  # MinIO ngừng phát hành ảnh minio/minio, minio/mc trên Docker Hub và quay.io từ 10/2025 (kéo mới báo "pull access
+  # denied"); dùng ảnh Chainguard miễn phí (có sẵn mc và sh), ghim digest. Chạy bằng root để đọc được thư mục dữ liệu
+  # cũ (MINIO_DATA) do ảnh minio/minio tạo.
   minio:
-    image: minio/minio:RELEASE.2025-02-18T16-25-55Z
+    image: cgr.dev/chainguard/minio@sha256:d88920d6a50bd0b088223b688be3b76c63e6205dbe494437f67ba1240ea12880
+    user: "0:0"
     container_name: mission-dev-minio
     restart: unless-stopped
     profiles: ["search", "all"]
@@ -429,7 +435,7 @@ services:
       - mission-net
 
   minio-init:
-    image: minio/mc:RELEASE.2025-02-15T10-36-16Z
+    image: cgr.dev/chainguard/minio@sha256:d88920d6a50bd0b088223b688be3b76c63e6205dbe494437f67ba1240ea12880
     container_name: mission-dev-minio-init
     profiles: ["search", "all"]
     depends_on:
@@ -452,7 +458,10 @@ services:
       - mission-net
 
   opensearch:
-    image: opensearchproject/opensearch:2.18.0
+    build:
+      context: ./opensearch
+      secrets: [ca_bundle]
+    image: mission-dev/opensearch:2.18.0-icu
     container_name: mission-dev-opensearch
     restart: unless-stopped
     profiles: ["search", "all"]
@@ -701,6 +710,8 @@ services:
       ORG_DB_URL: jdbc:postgresql://pgbouncer:6432/${POSTGRES_DB:-mission}?currentSchema=org&prepareThreshold=0
       ORG_DB_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-}
       ORG_MIG_DB_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-}
+      # Lệnh org-republish (hồ sơ republish) dùng serde Apicurio 3 qua API v3, khác giá trị v2 dùng chung ở trên.
+      APICURIO_REGISTRY_URL: http://apicurio:8080/apis/registry/v3
     ports:
       - "${ORG_SERVICE_PORT:-35111}:8080"
 
@@ -749,6 +760,12 @@ services:
     container_name: mission-dev-document-service
     environment:
       <<: *backend-java-env
+      # Schema tự chứa outbox, inbox, idempotency (phân vùng DEFAULT), không dùng phần chung V0_x của
+      # vt-db-migration, nên tự chạy Flyway lúc khởi động bằng mig_docgen như workflow-service.
+      FLYWAY_ENABLED: "true"
+      SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-mission}
+      SPRING_FLYWAY_USER: mig_docgen
+      SPRING_FLYWAY_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-}
       DOCGEN_CORE_URL: http://mission-core:8080
       GOTENBERG_URL: http://gotenberg:3000
       S3_ENDPOINT: http://minio:9000
@@ -785,6 +802,12 @@ services:
     container_name: mission-dev-esign-service
     environment:
       <<: *backend-java-env
+      # Schema tự chứa outbox, inbox, idempotency (phân vùng DEFAULT), không dùng phần chung V0_x của
+      # vt-db-migration, nên tự chạy Flyway lúc khởi động bằng mig_esign như workflow-service.
+      FLYWAY_ENABLED: "true"
+      SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-mission}
+      SPRING_FLYWAY_USER: mig_esign
+      SPRING_FLYWAY_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-}
       ESIGN_FAKE_PROVIDER: ${ESIGN_FAKE_PROVIDER:-true}
     ports:
       - "${ESIGN_SERVICE_PORT:-35116}:8080"
@@ -854,6 +877,7 @@ services:
       context: ../../services-go
       dockerfile: ../infra/dev/backend/Dockerfile.go
       args: { SERVICE: tenant-registry, CMD: tenant-registry }
+      secrets: [ca_bundle]
     image: mission-dev/tenant-registry:dev
     container_name: mission-dev-tenant-registry
     environment:
@@ -885,6 +909,10 @@ services:
       CERT_ISSUER: dev-gia-lap
       CERT_TOKEN_FILE: /run/provision/k8s-token-gia-lap
       PROVISION_BACKOFF: 2s
+      # Khoá mã hoá cột C2 (base64 đúng 32 byte) và khoá ký cookie định tuyến cell (base64, tối thiểu 32 byte);
+      # thiếu thì service dừng ngay lúc đọc cấu hình.
+      C2_KEY: ${REGISTRY_C2_KEY:-}
+      ROUTING_COOKIE_KEY: ${REGISTRY_ROUTING_COOKIE_C2_KEY:-}
     volumes:
       - ./provision/k8s-token-gia-lap:/run/provision/k8s-token-gia-lap:ro
     depends_on:
@@ -900,6 +928,7 @@ services:
       context: ../../services-go
       dockerfile: ../infra/dev/backend/Dockerfile.go
       args: { SERVICE: tenant-registry, CMD: provision-gia-lap }
+      secrets: [ca_bundle]
     image: mission-dev/provision-gia-lap:dev
     container_name: mission-dev-provision-gia-lap
     environment:
@@ -918,6 +947,7 @@ services:
       context: ../../services-go
       dockerfile: ../infra/dev/backend/Dockerfile.go
       args: { SERVICE: ledger, CMD: ledger-service }
+      secrets: [ca_bundle]
     image: mission-dev/ledger-service:dev
     container_name: mission-dev-ledger-service
     environment:
@@ -940,6 +970,7 @@ services:
       context: ../../services-go
       dockerfile: ../infra/dev/backend/Dockerfile.go
       args: { SERVICE: notification, CMD: notification-service }
+      secrets: [ca_bundle]
     image: mission-dev/notification-service:dev
     container_name: mission-dev-notification-service
     environment:
@@ -949,9 +980,44 @@ services:
       READONLY_DATABASE_URL: postgres://ro_notify:${DB_ROLE_PASSWORD_DEFAULT:-}@pgbouncer:6432/${POSTGRES_DB:-mission}?search_path=notify
       KAFKA_BROKERS: kafka:9092
       VALKEY_ADDRS: valkey:6379
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD:-}
       TZ: Asia/Ho_Chi_Minh
     ports:
       - "${NOTIFICATION_SERVICE_PORT:-35121}:8080"
+
+  # SVC-17 web-frontend: shell và mọi remote dựng một lần (deploy/web/Dockerfile, build context là gốc repo),
+  # phục vụ sau APISIX như cụm thật: trình duyệt mở http://<máy>:35000/, tuyến "/*" của apisix.yaml tới web:8080,
+  # API cùng nguồn qua /api. config.json sinh lúc khởi động từ biến môi trường (deploy/web/40-runtime-config.sh):
+  # đăng nhập Keycloak thật (realm mission), API thật; MOCK_API_MODULES giữ giả lập cho module chưa có máy chủ.
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/web/Dockerfile
+      secrets: [ca_bundle]
+    image: mission-dev/web:dev
+    container_name: mission-dev-web
+    restart: unless-stopped
+    profiles: ["backend"]
+    environment:
+      CELL: DEV
+      API_BASE_URL: /api
+      AUTH_ENABLED: "true"
+      AUTH_ISSUER: ${KEYCLOAK_PUBLIC_URL:-http://127.0.0.1:35080}/realms/mission
+      AUTH_CLIENT_ID: mission-web
+      # Dev chạy Keycloak bằng HTTP; thư viện OIDC chỉ nhận HTTP cho localhost nếu không bật cờ này.
+      AUTH_ALLOW_HTTP: "true"
+      USE_MOCK_API: ${WEB_USE_MOCK_API:-false}
+      MOCK_API_MODULES: ${WEB_MOCK_API_MODULES:-}
+    ports:
+      # Cổng trực tiếp chỉ để kiểm; người dùng vào qua APISIX (WEB_ORIGIN).
+      - "127.0.0.1:${WEB_PORT:-35130}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mission-net
 
   # ---------------------------------------------------------------------------
   # PROFILE: analytics — Kho phân tích ClickHouse của SVC-15 (DV-15-01, ADR-14)
@@ -1083,3 +1149,9 @@ networks:
   mission-net:
     name: mission-dev-net
     driver: bridge
+
+# Chứng thư gốc bổ sung cho bước dựng ảnh (go mod download, apk, npm ci) khi máy dựng ra Internet qua proxy chặn
+# TLS: đặt BUILD_CA_BUNDLE trỏ tới tệp PEM; để trống thì dùng /dev/null (tệp rỗng, Dockerfile bỏ qua).
+secrets:
+  ca_bundle:
+    file: ${BUILD_CA_BUNDLE:-/dev/null}

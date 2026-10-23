@@ -114,6 +114,8 @@ bootstrap_database_schemas() {
 
   run_psql "${db_name}" <<EOSQL
 CREATE EXTENSION IF NOT EXISTS pgcrypto SCHEMA public;
+-- btree_gist cho ràng buộc EXCLUDE trộn uuid với khoảng thời gian (config.period, task, org); migration chạy bằng mig_<schema> trước khi DatabaseBootstrap (NEN-031) kịp cài.
+CREATE EXTENSION IF NOT EXISTS btree_gist SCHEMA public;
 CREATE SCHEMA IF NOT EXISTS partman;
 DO \$\$
 BEGIN
@@ -334,6 +336,9 @@ EOSQL
 
 # 4. Khởi tạo CSDL flowable (schema flowable) và ledger (schema ledger)
 bootstrap_database_schemas "flowable" "flowable" "" ""
+# V1 của workflow-service mở đầu bằng CREATE SCHEMA IF NOT EXISTS flowable; PostgreSQL kiểm quyền CREATE trên CSDL
+# trước khi xét schema đã có, nên mig_flowable cần quyền này (chỉ CSDL flowable riêng của Flowable).
+run_psql "flowable" -c "GRANT CREATE ON DATABASE flowable TO mig_flowable" >/dev/null
 bootstrap_database_schemas "ledger" "ledger" "" ""
 
 echo "==> [NEN-020] Hoàn tất khởi tạo schema, pg_partman và bộ tài khoản mig_/svc_/ro_/cdc_."

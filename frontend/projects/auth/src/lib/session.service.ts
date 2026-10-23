@@ -189,6 +189,7 @@ export class SessionService {
       sessionChecksEnabled: false,
       showDebugInformation: false,
       clearHashAfterLogin: true,
+      requireHttps: this.cfg.auth.allowHttp ? false : 'remoteOnly',
       // state + nonce + PKCE S256 do thư viện sinh và kiểm (SEC-17)
     });
     this.oauth.events.subscribe((e) => {
