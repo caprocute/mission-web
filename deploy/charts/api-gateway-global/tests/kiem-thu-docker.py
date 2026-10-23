@@ -168,6 +168,8 @@ s, h, b, _ = goi("/", "app.danhgia.vn")
 ca("tên miền chung không có mã đơn vị, không có cookie: 400 Problem Details", problem(s, h, b, 400), f"(mã {s})")
 s, h, b, _ = goi("/api/v1/registry/cells", "app.danhgia.vn")
 ca("đường quản trị /api/v1/registry* ở lớp toàn cục tới SVC-03", s == 200 and json.loads(b).get("registry") is True, f"(mã {s})")
+s, h, b, _ = goi("/api/v1/jobs/0192f1a2", "app.danhgia.vn")
+ca("tác vụ dài trên tên miền chung tới SVC-03", s == 200 and json.loads(b).get("registry") is True, f"(mã {s})")
 s, h, b, _ = goi("/api/v1/tasks", "khong-co.danhgia.vn")
 ca("tên miền không có trong registry: 404 Problem Details", problem(s, h, b, 404), f"(mã {s})")
 

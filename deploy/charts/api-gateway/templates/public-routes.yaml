@@ -23,7 +23,7 @@ spec:
     - name: {{ $name }}
       priority: 50
       match:
-        hosts: {{ toJson $v.routeDefaults.hosts }}
+        hosts: {{ include "api-gateway.hosts" $ }}
         paths: [{{ $r.path | quote }}]
         methods: [{{ $r.method | quote }}]
       backends:

@@ -126,7 +126,7 @@ data:
       - id: public-{{ lower $r.method }}-{{ regexReplaceAll "[^a-z0-9]+" (lower $r.path) "-" | trimAll "-" }}
         uri: {{ $r.path | quote }}
         methods: [{{ $r.method | quote }}]
-        hosts: {{ toJson $v.routeDefaults.hosts }}
+        hosts: {{ include "api-gateway.hosts" $ }}
         priority: 50
         labels: { vt.io/public: "true" }
         plugins:

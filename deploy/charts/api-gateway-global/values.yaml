@@ -65,9 +65,10 @@ externalSecrets:
 cells: {}
 
 # Đường quản trị nền tảng ở lớp toàn cục (DV-01-01 notInCell): chuyển thẳng tới SVC-03, xác thực ở SVC-03.
+# /jobs* trên tên miền chung là tác vụ dài của SVC-03 (khởi tạo, chuyển cell tenant); tác vụ nghiệp vụ ở cổng cell.
 globalRoutes:
   - name: registry
-    paths: ["/api/v1/registry*", "/api/v1/config/tenants*"]
+    paths: ["/api/v1/registry*", "/api/v1/config/tenants*", "/api/v1/jobs*"]
     service: tenant-registry
     namespace: global
     port: 8080

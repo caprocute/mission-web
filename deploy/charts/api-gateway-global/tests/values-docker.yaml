@@ -17,4 +17,4 @@ routingCookie:
 externalSecrets:
   enabled: false
 globalRoutes:
-  - { name: registry, paths: ["/api/v1/registry*", "/api/v1/config/tenants*"], service: registry, namespace: test, port: 8080 }
+  - { name: registry, paths: ["/api/v1/registry*", "/api/v1/config/tenants*", "/api/v1/jobs*"], service: registry, namespace: test, port: 8080 }

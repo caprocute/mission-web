@@ -88,6 +88,17 @@ ca("tuyến công khai chỉ nhận đúng phương thức GET", s == 404, f"(m�
 s, h, b = goi("GET", "/.well-known/openid-configuration")
 ca("đường /.well-known khác không công khai", s == 404, f"(mã {s})")
 
+# Host của cổng cell theo registry.cell.api_base_url (APISIX lớp ngoài chuyển tiếp với Host này).
+req_h = {"Host": "api.cell-dn1.okrkpi.vn"}
+s, h, b = goi("GET", "/api/v1/tasks", TOKS["dung"], req_h)
+ca("nhận Host là tên máy cổng cell của registry (api.cell-dn1.okrkpi.vn)", s == 200, f"(mã {s})")
+
+# Tác vụ dài: tiền tố mã tác vụ chọn service (wiki 14 DV-01-04).
+s, h, b = goi("GET", "/api/v1/jobs/score-0192f1a2", TOKS["dung"])
+ca("/jobs/score-… tới scoring-service", s == 200 and json.loads(b)["service"] == "scoring", f"(mã {s})")
+s, h, b = goi("GET", "/api/v1/jobs/0192f1a2-3b4c", TOKS["dung"])
+ca("/jobs/<uuid> không tiền tố tới mission-core", s == 200 and json.loads(b)["service"] == "chung", f"(mã {s})")
+
 # Cookie định tuyến ký HMAC (DV-01-04).
 def ck(ten):
     return {"Cookie": "mission_route=" + TOKS[ten]}

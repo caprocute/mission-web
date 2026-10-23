@@ -96,7 +96,7 @@ openid-connect:
 {{- fail "api-gateway: oidc.signingAlg của vt-claims chỉ nhận ES256, ES384, RS256" }}
 {{- end }}
 vt-claims:
-  required_cell: {{ $v.cell | quote }}
+  required_cell: {{ include "api-gateway.cellCode" . | quote }}
   tenant_claim: {{ $v.oidc.claims.tenant | quote }}
   cell_claim: {{ $v.oidc.claims.cell | quote }}
   {{- if eq $v.oidc.verifier "vt-claims" }}
@@ -109,7 +109,7 @@ vt-claims:
   {{- if $v.routingCookie.enabled }}
   # Cookie định tuyến ký HMAC của SVC-03 và APISIX lớp ngoài (DV-01-04).
   route_cookie:
-    cell_code: {{ default $v.cell $v.routingCookie.cellCode | quote }}
+    cell_code: {{ include "api-gateway.cellCode" . | quote }}
   {{- end }}
 limit-count:
   count: {{ $r.user.count | int }}
@@ -159,11 +159,29 @@ collector:
 {{- end -}}
 
 
+{{/* Mã cell theo registry.cell.code (nguồn chuẩn: SVC-03), ví dụ CELL-HN; mặc định "CELL-" + tên cell viết hoa,
+đúng quy ước displayName của deploy/cells/<cell>/cell.yaml. Claim cell của token và cookie định tuyến so với mã này. */}}
+{{- define "api-gateway.cellCode" -}}
+{{- default (printf "CELL-%s" (upper .Values.cell)) .Values.cellCode -}}
+{{- end -}}
+
+{{/* Tên máy của cổng API cell, phải trùng host của registry.cell.api_base_url (SVC-03); APISIX lớp ngoài chuyển tiếp
+với Host này. Mặc định api.cell-<cell>.okrkpi.vn như dữ liệu registry. */}}
+{{- define "api-gateway.apiHost" -}}
+{{- default (printf "api.cell-%s.okrkpi.vn" (lower .Values.cell)) .Values.cellApiHost -}}
+{{- end -}}
+
+{{/* Host mặc định của mọi tuyến: tên máy cổng cell (registry) cộng các tên miền tenant ở routeDefaults.hosts. */}}
+{{- define "api-gateway.hosts" -}}
+{{- uniq (append (default list .Values.routeDefaults.hosts) (include "api-gateway.apiHost" .)) | toJson -}}
+{{- end -}}
+
 {{/* Danh sách tuyến đã trộn routeDefaults (DV-01-01), dạng JSON để template dùng fromJsonArray. */}}
 {{- define "api-gateway.routes" -}}
 {{- $out := list -}}
 {{- range .Values.routes -}}
 {{- $r := mergeOverwrite (deepCopy $.Values.routeDefaults) (deepCopy .) -}}
+{{- if not .hosts }}{{ $_ := set $r "hosts" (include "api-gateway.hosts" $ | fromJsonArray) }}{{ end -}}
 {{- if and $r.uriRegex (not (regexMatch "^\\^" $r.uriRegex)) }}{{ fail (printf "api-gateway: uriRegex của tuyến %s phải neo ^...$" $r.name) }}{{ end -}}
 {{- $out = append $out $r -}}
 {{- end -}}

@@ -47,7 +47,7 @@ class H(BaseHTTPRequestHandler):
                                  {"Location": "http://cell-b.test:8080"}, "application/problem+json")
             return self.send(200, {"tenantId": tid, "tenantCode": code, "status": "DANG_VAN_HANH", "cacheTtlSeconds": 300,
                                    "cell": {"id": tid, "code": cell, "apiBaseUrl": url}})
-        if u.path.startswith("/api/v1/registry/"):
+        if u.path.startswith("/api/v1/registry/") or u.path.startswith("/api/v1/jobs/"):
             return self.send(200, {"registry": True, "path": u.path})
         self.send(404, {"status": 404})
 

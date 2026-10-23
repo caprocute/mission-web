@@ -44,13 +44,13 @@ open(f"{d}/kc/realms/mission/.well-known/openid-configuration", "w").write(json.
   "token_endpoint": iss + "/protocol/openid-connect/token", "id_token_signing_alg_values_supported": ["ES256", "RS256"]}))
 now = int(time.time())
 def tok(key, alg, kid, **kw):
-    c = {"iss": iss, "sub": "u-thu", "aud": "apisix-gateway", "azp": "mission-web", "tenant_id": "t-thu", "cell": "dn1",
+    c = {"iss": iss, "sub": "u-thu", "aud": "apisix-gateway", "azp": "mission-web", "tenant_id": "t-thu", "cell": "CELL-DN1",
          "iat": now, "exp": now + 3600}; c.update(kw)
     return jwt.encode(c, key, algorithm=alg, headers={"kid": kid})
 toks = {"dung": tok(k, "ES256", "thu"), "sai_chu_ky": tok(khac, "ES256", "thu"), "rs256": tok(r, "RS256", "rsa"),
-        "sai_cell": tok(k, "ES256", "thu", cell="hcm1"), "het_han": tok(k, "ES256", "thu", exp=now - 600),
+        "sai_cell": tok(k, "ES256", "thu", cell="CELL-HCM1"), "het_han": tok(k, "ES256", "thu", exp=now - 600),
         "sai_iss": tok(k, "ES256", "thu", iss="http://khac/realms/mission"),
-        "none": jwt.encode({"iss": iss, "sub": "u", "cell": "dn1", "exp": now + 600}, None, algorithm="none")}
+        "none": jwt.encode({"iss": iss, "sub": "u", "cell": "CELL-DN1", "exp": now + 600}, None, algorithm="none")}
 # Cookie định tuyến (DV-01-04): cùng định dạng routecookie của SVC-03.
 import hmac as _h, hashlib, os as _os
 rk = _os.urandom(32); open(f"{d}/route-key", "w").write(base64.b64encode(rk).decode())
@@ -58,10 +58,10 @@ def b64u(b): return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
 def ck(t, c, exp):
     head = "v1." + b64u(json.dumps({"t": t, "c": c, "exp": exp}).encode())
     return head + "." + b64u(_h.new(rk, head.encode(), hashlib.sha256).digest())
-good = ck("t-thu", "dn1", now + 300)
+good = ck("t-thu", "CELL-DN1", now + 300)
 bad = good[:-2] + ("A" if good[-2] != "A" else "B") + good[-1]
-toks.update(ck_dung=good, ck_sua=bad, ck_cell_khac=ck("t-thu", "hcm1", now + 300),
-            ck_tenant_khac=ck("t-khac", "dn1", now + 300), ck_het_han=ck("t-thu", "dn1", now - 10))
+toks.update(ck_dung=good, ck_sua=bad, ck_cell_khac=ck("t-thu", "CELL-HCM1", now + 300),
+            ck_tenant_khac=ck("t-khac", "CELL-DN1", now + 300), ck_het_han=ck("t-thu", "CELL-DN1", now - 10))
 json.dump(toks, open(f"{d}/toks.json", "w"))
 PY
 cat > "$W/echo.py" <<'PY'

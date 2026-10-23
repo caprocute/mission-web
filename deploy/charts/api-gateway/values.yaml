@@ -1,5 +1,10 @@
 # Mã cell; vt-claims từ chối JWT có claim cell khác giá trị này.
 cell: g4
+# Mã cell trong registry.cell.code của SVC-03 (nguồn chuẩn), cũng là thuộc tính realm mission.cell mà Keycloak phát
+# thành claim cell. Trống thì lấy "CELL-" + cell viết hoa (g4 → CELL-G4), đúng displayName ở deploy/cells.
+cellCode: ""
+# Tên máy cổng API cell, phải trùng host của registry.cell.api_base_url; trống thì api.cell-<cell>.okrkpi.vn.
+cellApiHost: ""
 
 # controller: APISIX đọc cấu hình từ etcd, APISIX Ingress Controller đồng bộ CRD ApisixRoute,
 # ApisixPluginConfig, ApisixGlobalRule từ kho GitOps (TL-04 mục 3.7, dùng cho cụm thật).
@@ -81,8 +86,6 @@ oidc:
 # Khoá HMAC dùng chung với SVC-03 và APISIX lớp ngoài, đồng bộ từ OpenBao vào Secret dưới đây (không đặt trong values).
 routingCookie:
   enabled: true
-  # Mã cell trong registry.cell (ví dụ CELL-HN); trống thì dùng giá trị cell ở trên.
-  cellCode: ""
   secretName: apisix-routing-key
   keyCurrent: ROUTING_COOKIE_KEY
   keyPrevious: ROUTING_COOKIE_KEY_PREVIOUS
@@ -154,6 +157,7 @@ opentelemetry:
 # Kiểm đối chiếu với hợp đồng: tests/doi-chieu-hop-dong.py (mọi đường dẫn khớp một tuyến, thao tác chỉ dành
 # cho client nội bộ không ra cổng ngoài).
 routeDefaults:
+  # Tên miền tenant (CNAME về cell, TL-04); tên máy cổng cell (cellApiHost) luôn được thêm vào.
   hosts: ["*.danhgia.vn"]
   pluginConfig: protected-api
   port: 8080
@@ -236,6 +240,13 @@ routes:
     service: evidence-service
     paths: ["/api/v1/files*"]
     timeout: { connect: 2, send: 60, read: 60 }
+  # Tác vụ dài của service khác SVC-05 (wiki 14 DV-01-04 ý 7): mã tác vụ mang tiền tố của service tạo ra nó.
+  - { name: jobs-org, namespace: identity, service: org-service, paths: ["/api/v1/jobs/*"], uriRegex: "^/api/v1/jobs/org-[^/]+$", priority: 20 }
+  - { name: jobs-workflow, namespace: core, service: workflow-service, paths: ["/api/v1/jobs/*"], uriRegex: "^/api/v1/jobs/wf-[^/]+$", priority: 20 }
+  - { name: jobs-scoring, namespace: workers, service: scoring-service, paths: ["/api/v1/jobs/*"], uriRegex: "^/api/v1/jobs/score-[^/]+$", priority: 20 }
+  - { name: jobs-document, namespace: workers, service: document-service, paths: ["/api/v1/jobs/*"], uriRegex: "^/api/v1/jobs/doc-[^/]+$", priority: 20 }
+  - { name: jobs-ledger, namespace: secure, service: ledger-service, paths: ["/api/v1/jobs/*"], uriRegex: "^/api/v1/jobs/ledger-[^/]+$", priority: 20 }
+  - { name: jobs-analytics, namespace: analytics, service: analytics-api, paths: ["/api/v1/jobs/*"], uriRegex: "^/api/v1/jobs/ana-[^/]+$", priority: 20 }
   # SVC-12 notification-service; luồng SSE giữ kết nối lâu nên có tuyến riêng.
   - name: notifications
     namespace: platform
