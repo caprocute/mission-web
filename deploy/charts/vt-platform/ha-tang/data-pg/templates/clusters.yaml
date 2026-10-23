@@ -34,7 +34,7 @@ spec:
       isWALArchiver: true
       parameters:
         barmanObjectName: {{ $v.backup.objectStorePrefix }}-{{ $ten }}
-        serverName: {{ $ten }}
+        serverName: {{ include "data-pg.serverName" (dict "root" $root "ten" $ten "site" $rp.self) }}
   {{- end }}
   {{- if $rp.enabled }}
   {{- $ns := include "data-pg.ns" (dict "root" $root "zone" $c.zone) }}
@@ -55,11 +55,12 @@ spec:
       sslCert: { name: {{ printf $v.replica.replicationSecretFormat $ten }}, key: tls.crt }
       sslRootCert: { name: {{ printf $v.replica.caSecretFormat $ten $site }}, key: ca.crt }
       {{- if $v.replica.walArchive.enabled }}
+      {{- if not $v.backup.enabled }}{{ fail "data-pg: replica.walArchive cần backup.enabled (ObjectStore của INF-17)" }}{{ end }}
       plugin:
-        name: barman-cloud.cloudnative-pg.io
+        name: {{ $v.backup.plugin }}
         parameters:
-          barmanObjectName: {{ printf $v.replica.walArchive.objectFormat $site $ten }}
-          serverName: {{ $ten }}
+          barmanObjectName: {{ $v.backup.objectStorePrefix }}-{{ $ten }}
+          serverName: {{ include "data-pg.serverName" (dict "root" $root "ten" $ten "site" $site) }}
       {{- end }}
     {{- end }}
   {{- end }}
