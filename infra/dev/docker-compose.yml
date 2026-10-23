@@ -780,10 +780,25 @@ services:
       <<: *backend-java-env
       SERVICE_NAME: mission-core
       AUTH_ENABLED: ${MISSION_CORE_AUTH_ENABLED:-true}
+      # Đối chiếu cel-js khi chạy kiểm thử Policy Pack (CORE-05-07, BR-15-07); thiếu thì lần chạy luôn "Chưa đạt".
+      MISSION_POLICY_CELJS_URL: http://cel-js-runner:8080
     ports:
       - "${MISSION_CORE_PORT:-35100}:8080"
       # Cổng quản trị chỉ mở trên loopback của máy chủ (health.sh, Prometheus cục bộ).
       - "127.0.0.1:${MISSION_CORE_MGMT_PORT:-35101}:8081"
+
+  # Bộ chạy cel-js mà mission-core gọi để đối chiếu hai engine khi chạy ca vàng (CORE-05-07). Không mở cổng ra
+  # ngoài: chỉ mission-core gọi trong mạng compose.
+  cel-js-runner:
+    build:
+      context: ../..
+      dockerfile: backend/services/cel-js-runner/Dockerfile
+    image: mission-dev/cel-js-runner:dev
+    container_name: mission-dev-cel-js-runner
+    restart: unless-stopped
+    profiles: ["backend"]
+    networks:
+      - mission-net
 
   # SVC-04: dữ liệu ở schema org (CSDL mission), migration chạy bằng hồ sơ Spring `migrate` với mig_org.
   org-service:
