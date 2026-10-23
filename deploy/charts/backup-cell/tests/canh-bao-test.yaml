@@ -109,3 +109,54 @@ tests:
             exp_annotations:
               summary: "Cell g4: không có snapshot etcd trong 7 giờ"
               description: "CronJob chup-etcd trong kube-system lỗi. Xem ops/runbooks/sao-luu-kubernetes.md."
+  # INF-18 · Minh chứng: ev-cell-g4 có bản sao lưu ngày tới 2h rồi dừng; kiểm mẫu báo 1 bản lệch.
+  - interval: 5m
+    input_series:
+      - series: 'backup_evidence_sync_last_success_timestamp_seconds{cell="g4",bucket="ev-cell-g4"}'
+        values: '0+300x24 7200x400'
+      - series: 'backup_evidence_sample_missing{cell="g4"}'
+        values: '0x10'
+      - series: 'backup_evidence_sample_mismatch{cell="g4"}'
+        values: '0 0 1x8'
+      - series: 'backup_evidence_sample_last_run_timestamp_seconds{cell="g4"}'
+        values: '0+300x400'
+    alert_rule_test:
+      - { eval_time: 27h, alertname: EvidenceBackupSyncStale, exp_alerts: [] }
+      - eval_time: 29h
+        alertname: EvidenceBackupSyncStale
+        exp_alerts:
+          - exp_labels: { severity: critical, cell: g4, bucket: ev-cell-g4 }
+            exp_annotations:
+              summary: "Cell g4: bucket ev-cell-g4 không có bản sao lưu ngày trong 26 giờ"
+              description: "Job sao-luu-minh-chung (rclone sync) lỗi: tệp đổi nội dung hoặc mất ở nguồn, hoặc lỗi kết nối. Xem ops/runbooks/sao-luu-minh-chung.md mục 2."
+      - { eval_time: 5m, alertname: EvidenceBackupSampleMismatch, exp_alerts: [] }
+      - eval_time: 15m
+        alertname: EvidenceBackupSampleMismatch
+        exp_alerts:
+          - exp_labels: { severity: critical, cell: g4 }
+            exp_annotations:
+              summary: "Cell g4: bản sao lưu minh chứng thiếu hoặc lệch SHA-256"
+              description: "Kiểm mẫu hằng ngày phát hiện bản sao trên kho sao lưu không khớp mã băm đã ghi lúc nhận tệp. Xem ops/runbooks/sao-luu-minh-chung.md mục 3."
+  # INF-18 · OpenBao chụp mỗi giờ tới phút 60 rồi dừng: sau 2 giờ cộng 10 phút thì báo. Harbor: một ảnh không kéo được.
+  - interval: 5m
+    input_series:
+      - series: 'backup_openbao_snapshot_last_success_timestamp_seconds{cell="g4"}'
+        values: '0 0 0 0 0 0 0 0 0 0 0 0 3600x100'
+      - series: 'backup_harbor_pull_check_failed{cell="g4"}'
+        values: '0 1x10'
+    alert_rule_test:
+      - { eval_time: 2h50m, alertname: OpenBaoSnapshotStale, exp_alerts: [] }
+      - eval_time: 3h15m
+        alertname: OpenBaoSnapshotStale
+        exp_alerts:
+          - exp_labels: { severity: critical, cell: g4 }
+            exp_annotations:
+              summary: "Cell g4: không có snapshot Raft OpenBao trong 2 giờ"
+              description: "CronJob openbao-sao-luu-raft lỗi (đăng nhập, chụp hoặc tải lên). Xem ops/runbooks/sao-luu-openbao.md mục 2."
+      - eval_time: 10m
+        alertname: HarborPullCheckFailed
+        exp_alerts:
+          - exp_labels: { severity: warning, cell: g4 }
+            exp_annotations:
+              summary: "Cell g4: có ảnh đang chạy không kéo được từ harbor-sn theo digest"
+              description: "Nhân bản Harbor sang harbor-sn thiếu ảnh; khi chuyển vùng cụm không kéo được ảnh đó. Xem ops/runbooks/sao-luu-git-harbor.md mục 2."

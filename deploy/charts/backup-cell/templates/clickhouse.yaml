@@ -1,0 +1,49 @@
+{{- /* Sao lưu ClickHouse hằng ngày (đầy đủ chủ nhật, gia tăng ngày khác) và khôi phục thử hằng tháng (INF-18, TL-04 mục
+8.8, bảng lịch sao lưu). Lệnh BACKUP/RESTORE chạy trên ClickHouse, job chỉ gửi lệnh, theo dõi và liệt kê bucket. */}}
+{{- $v := .Values }}
+{{- $c := $v.clickhouse }}
+{{- if $c.enabled }}
+{{- $ns := $v.saoLuu.namespace }}
+{{- $data := dict "chung.sh" (.Files.Get "files/chung.sh") "sao-luu-clickhouse.sh" (.Files.Get "files/sao-luu-clickhouse.sh") "khoi-phuc-thu-clickhouse.sh" (.Files.Get "files/khoi-phuc-thu-clickhouse.sh") }}
+{{- $cfg := printf "clickhouse-%s" (toJson $data | sha256sum | trunc 10) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $cfg }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+data:
+  {{- range $k := keys $data | sortAlpha }}
+  {{ $k }}: {{ index $data $k | quote }}
+  {{- end }}
+{{- if $v.externalSecrets.enabled }}
+---
+{{ include "bk.externalSecret" (dict "root" . "ten" $c.credentials.secretName "ns" $ns "khoa" (include "bk.khoa" (dict "root" . "path" $c.credentials.path "loai" "ch"))) }}
+---
+{{ include "bk.externalSecretMot" (dict "root" . "ten" $c.password.secretName "ns" $ns "khoa" $c.password.path) }}
+{{- end }}
+{{- $env := list
+  (dict "name" "CH_URL" "value" $c.url)
+  (dict "name" "CH_USER" "value" $c.user)
+  (dict "name" "CH_PASSWORD_FILE" "value" "/ch/password")
+  (dict "name" "CH_CA" "value" (printf "/ca-ch/%s" $c.caSecret.key))
+  (dict "name" "CH_DB" "value" $c.database)
+  (dict "name" "CH_CLUSTER" "value" $c.cluster)
+  (dict "name" "CH_NAMED_COLLECTION" "value" $c.namedCollection)
+  (dict "name" "BUCKET" "value" (include "bk.bucket" (dict "root" . "bucket" $c.bucket "loai" "ch")))
+  (dict "name" "AWS_ACCESS_KEY_ID" "valueFrom" (dict "secretKeyRef" (dict "name" $c.credentials.secretName "key" "ACCESS_KEY_ID")))
+  (dict "name" "AWS_SECRET_ACCESS_KEY" "valueFrom" (dict "secretKeyRef" (dict "name" $c.credentials.secretName "key" "ACCESS_SECRET_KEY"))) }}
+{{- $mounts := list (dict "name" "ch" "mountPath" "/ch" "readOnly" true) (dict "name" "ca-ch" "mountPath" "/ca-ch" "readOnly" true) }}
+{{- $vols := list (dict "name" "ch" "secret" (dict "secretName" $c.password.secretName)) (dict "name" "ca-ch" "secret" (dict "secretName" $c.caSecret.name)) }}
+{{- $kp := $c.khoiPhucThu }}
+{{- $env2 := concat $env (list (dict "name" "NGUONG_DONG" "value" (toString $kp.nguongDong)) (dict "name" "TI_LE" "value" (toString $kp.tiLe))) }}
+---
+{{ include "bk.cronJobSaoLuu" (dict "root" . "ten" "sao-luu-clickhouse" "cfg" $cfg "schedule" $c.saoLuu.schedule "deadline" $c.saoLuu.activeDeadlineSeconds "script" "sao-luu-clickhouse.sh" "env" $env "mounts" $mounts "volumes" $vols) }}
+---
+{{ include "bk.cronJobSaoLuu" (dict "root" . "ten" "khoi-phuc-thu-clickhouse" "cfg" $cfg "schedule" $kp.schedule "deadline" $kp.activeDeadlineSeconds "script" "khoi-phuc-thu-clickhouse.sh" "env" $env2 "mounts" $mounts "volumes" $vols) }}
+{{- range $ten := list "sao-luu-clickhouse" "khoi-phuc-thu-clickhouse" }}
+---
+{{ include "bk.mangJob" (dict "root" $ "ten" $ten "dich" (list (dict "to" $c.egressTo "ports" (list 8443)))) }}
+{{- end }}
+{{- end }}

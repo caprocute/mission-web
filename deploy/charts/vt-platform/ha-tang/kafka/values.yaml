@@ -161,3 +161,37 @@ containerSecurityContext:
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
   capabilities: { drop: [ALL] }
+
+# Nhân bản một chiều sang TTDL còn lại bằng MirrorMaker 2 (INF-18, TL-04 mục 8.3). Mô hình chủ động, thụ động:
+# MM2 chạy ở cụm thụ động (phía Nam), kéo từ cụm chủ động; IdentityReplicationPolicy giữ nguyên tên topic nên chỉ
+# một chiều tại một thời điểm, đảo chiều khi chuyển vùng (ops/runbooks/sao-luu-kafka.md). Ở cụm chủ động đặt
+# vaiTro: nguon để chỉ tạo KafkaUser cho MM2 phía kia đọc; ở cụm thụ động đặt vaiTro: dich để chạy MM2.
+mirrorMaker2:
+  vaiTro: ""            # "", nguon, dich
+  ten: mm2-hl-to-sn
+  replicas: 3
+  # Bí danh và địa chỉ cụm nguồn (chủ động), CA và chứng thư khách do cụm nguồn cấp, chép sang qua ESO từ OpenBao
+  # (kv/cell-<mã>/kafka/mm2-nguon: ca.crt, user.crt, user.key; suy luận cách chuyển Secret giữa hai TTDL).
+  nguon:
+    alias: hl
+    bootstrapServers: ""    # ví dụ kafka-hl-bootstrap.cell-hcm-hl.vt.local:9093
+    caSecret: kafka-hl-cluster-ca-cert
+    userSecret: mm2-hl-user
+    openbaoPath: ""         # rỗng: kv/cell-<mã>/kafka/mm2-nguon
+  # Bí danh của cụm đích (cụm có chart này); người dùng mTLS của MM2 trên cụm đích do chart tạo.
+  dich:
+    alias: sn
+    user: mm2-sn-user
+  # Tên KafkaUser trên cụm nguồn cho MM2 đọc (vaiTro: nguon).
+  nguoiDungNguon: mm2-hl-user
+  topicsPattern: "^(okr|task|product|config|scoring|appraisal|policy|org|dossier|esign|ledger|analytics|notify|oversight|integ|sys|iam)\\..*"
+  topicsExcludePattern: ".*\\.(retry|replay)\\..*"
+  groupsPattern: ".*"
+  sourceTasksMax: 24
+  checkpointTasksMax: 4
+  dongBoOffsetGiay: 30
+  resources:
+    requests: { cpu: "2", memory: 4Gi }
+    limits: { cpu: "4", memory: 4Gi }
+  # Đích mạng tới broker cụm nguồn (NetworkPolicyPeer, khối địa chỉ khai theo cell).
+  egressTo: []

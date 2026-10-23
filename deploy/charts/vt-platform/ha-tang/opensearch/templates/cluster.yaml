@@ -34,6 +34,28 @@ spec:
       capabilities: { drop: [ALL] }
     monitoring:
       enable: false
+    {{- with $v.snapshot }}{{ if .enabled }}
+    # Kho snapshot S3 trên kho sao lưu phía Nam (INF-18, TL-04 mục 8.8): plugin repository-s3, khoá S3 trong keystore
+    # (ESO, không có quyền xoá phiên bản), điểm cuối trong opensearch.yml; repo đăng ký bằng snapshotRepositories.
+    pluginsList: [{{ .plugin | quote }}]
+    keystore:
+      - secret: { name: {{ .credentials.secretName }} }
+        keyMappings:
+          ACCESS_KEY_ID: s3.client.default.access_key
+          ACCESS_SECRET_KEY: s3.client.default.secret_key
+    additionalConfig:
+      s3.client.default.endpoint: {{ .endpoint | quote }}
+      s3.client.default.protocol: {{ .protocol | quote }}
+      s3.client.default.region: {{ .region | quote }}
+      s3.client.default.path_style_access: "true"
+    snapshotRepositories:
+      - name: {{ .repository }}
+        type: s3
+        settings:
+          bucket: {{ include "opensearch.bucketSnapshot" $ | quote }}
+          base_path: {{ .basePath | quote }}
+          server_side_encryption: "false"
+    {{- end }}{{ end }}
   security:
     tls:
       transport:

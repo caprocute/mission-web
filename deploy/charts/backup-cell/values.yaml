@@ -1,14 +1,14 @@
-# Sao lưu của cell (INF-17, TL-04 chương 8). Bản nền và WAL PostgreSQL do plugin Barman Cloud của CNPG ghi (chart
+# Sao lưu của cell (INF-17, INF-18, TL-04 chương 8). Bản nền và WAL PostgreSQL do plugin Barman Cloud của CNPG ghi (chart
 # data-pg); chart này kiểm chứng và bổ sung: khôi phục thử hằng ngày, giữ bản cuối tháng, cuối năm, etcd, Velero và
 # cảnh báo. Mọi khoá S3 nạp từ OpenBao qua ESO; khoá của cell trên kho sao lưu không có quyền xoá (SEC-44).
-# Mã cell (g4, hcm…): bucket bk-cell-<mã>-pg, -k8s; khoá OpenBao kv/cell-<mã>/backup/<pg|k8s>.
+# Mã cell (g4, hcm…): bucket bk-cell-<mã>-pg, -k8s, -ev, -ch, -git; khoá OpenBao kv/cell-<mã>/backup/<pg|k8s|ev|ch|git>.
 cell: ""
 
-# Ảnh công cụ dựng từ anh/Dockerfile (bash, kubectl, psql, aws-cli, age, etcdctl, etcdutl, curl, jq), qua Harbor,
+# Ảnh công cụ dựng từ anh/Dockerfile (bash, kubectl, psql, aws-cli, age, etcdctl, etcdutl, curl, jq, rclone, git), qua Harbor,
 # ghim digest (SEC-55). digest rỗng chỉ được ở kind (ảnh nạp cục bộ, choPhepKhongDigest).
 image:
   repository: harbor.vt.local/platform/backup-tools
-  tag: 0.1.0
+  tag: 0.2.0
   digest: ""
   pullPolicy: IfNotPresent
 choPhepKhongDigest: false
@@ -164,3 +164,125 @@ canhBao:
   walTreToiDaGiay: 300
   restoreToiDaNgay: 8
   etcdToiDaGio: 7
+  # INF-18
+  minhChungToiDaGio: 26
+  clickhouseToiDaGio: 26
+  khoiPhucClickhouseToiDaNgay: 32
+  khoiPhucOpensearchToiDaNgay: 8
+  openbaoToiDaGio: 2
+  gitGuongToiDaPhut: 60
+  gitBundleToiDaGio: 26
+  gitCloneToiDaNgay: 8
+  harborToiDaGio: 26
+
+# ---------------------------------------------------------------- INF-18
+# Namespace của các job sao lưu kho ngoài PostgreSQL (minh chứng, ClickHouse, OpenSearch, Git, Harbor): default-deny,
+# mỗi job một NetworkPolicy ra đúng đích của nó. Không có luồng nào vào namespace này. CA nội bộ (Secret vt-noi-bo-ca do
+# trust bundle của cert-manager phát vào namespace, INF-13) dùng để kiểm TLS của RGW, PostgreSQL, ClickHouse, OpenSearch,
+# Harbor (suy luận: bundle chứa cả CA trung gian PKI của cell).
+saoLuu:
+  namespace: sao-luu
+  resourcesJob:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: "2", memory: 1Gi }
+
+# Minh chứng và biểu mẫu ký (TL-04 mục 8.4, bảng lịch sao lưu). Sao lưu ngày: rclone sync từ RGW của cell bằng tài
+# khoản chỉ đọc sao-luu-minh-chung (rgw-cell tạo Secret rgw-sao-luu-minh-chung trong namespace sao-luu) sang
+# bk-cell-<mã>-ev. Kiểm mẫu: soMau đối tượng mỗi ngày chia đều cho tenants, so SHA-256 và kích thước với
+# evidence.object_version (SVC-08) đọc bằng ro_evidence qua Pooler ro của pg-platform.
+minhChung:
+  enabled: true
+  bucket: ""                     # rỗng: bk-cell-<mã>-ev
+  credentials: { secretName: bk-sn-s3-ev, path: "" }   # path rỗng: kv/cell-<mã>/backup/ev
+  nguon:
+    endpoint: ""                 # rỗng: https://s3.cell-<mã>.hl.vt.local (zone master)
+    region: ""                   # rỗng: cell-<mã>-zg
+    secretName: rgw-sao-luu-minh-chung
+    caBundle: { secret: vt-noi-bo-ca, key: ca.crt }
+    # Bucket nguồn và tiền tố được phép liệt kê (chính sách bucket theo tenant giới hạn ListBucket ở t/).
+    buckets: ["ev-cell-{cell}:t", "ds-cell-{cell}:t"]
+    egressTo: []
+    egressPort: 443
+  saoLuu:
+    schedule: "30 0 * * *"
+    activeDeadlineSeconds: 28800
+    thamSo: "--transfers 32 --checkers 64"
+  kiemMau:
+    schedule: "0 6 * * *"
+    soMau: 1000
+    # Tenant của cell (cùng danh sách MISSION_RECONCILE_EVIDENCE_TENANTS của evidence-service).
+    tenants: []
+    db:
+      host: pg-platform-pooler-ro.data-pg.svc
+      port: 5432
+      dbname: td_mau
+      user: ro_evidence
+      sslmode: verify-full
+      caSecret: { name: vt-noi-bo-ca, key: ca.crt }
+      password: { secretName: bk-db-ro-evidence, path: kv/data-pg/pg-platform/ro_evidence }
+      egressTo: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: data-pg } }, podSelector: { matchLabels: { cnpg.io/poolerName: pg-platform-pooler-ro } } }]
+    tamGioiHan: 4Gi
+    activeDeadlineSeconds: 7200
+
+# ClickHouse (TL-04 mục 8.8): BACKUP qua HTTPS bằng người dùng sao_luu (chart clickhouse), tập hợp có tên bk_sn trỏ
+# bucket bk-cell-<mã>-ch. Job chỉ liệt kê bucket bằng khoá -ch để tìm bản đầy đủ gần nhất.
+clickhouse:
+  enabled: true
+  url: https://clickhouse-analytics.data-search.svc:8443
+  user: sao_luu
+  password: { secretName: bk-clickhouse-sao-luu, path: kv/clickhouse/sao_luu }
+  caSecret: { name: vt-noi-bo-ca, key: ca.crt }
+  database: analytics
+  cluster: analytics
+  namedCollection: bk_sn
+  bucket: ""                     # rỗng: bk-cell-<mã>-ch
+  credentials: { secretName: bk-sn-s3-ch, path: "" }   # path rỗng: kv/cell-<mã>/backup/ch
+  saoLuu: { schedule: "30 1 * * *", activeDeadlineSeconds: 18000 }
+  khoiPhucThu: { schedule: "0 7 1 * *", activeDeadlineSeconds: 25200, nguongDong: 1000, tiLe: 0.5 }
+  egressTo: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: data-search } }, podSelector: { matchLabels: { app.kubernetes.io/name: clickhouse } } }]
+
+# OpenSearch: snapshot do chính sách daily-to-sn của chart opensearch tạo; ở đây chỉ khôi phục thử hằng tuần bằng người
+# dùng sao-luu (mật khẩu kv/opensearch/sao-luu), một nhóm chỉ mục mỗi tuần.
+opensearch:
+  enabled: true
+  url: https://opensearch.data-search.svc:9200
+  user: sao-luu
+  password: { secretName: bk-opensearch-sao-luu, path: kv/opensearch/sao-luu }
+  caSecret: { name: vt-noi-bo-ca, key: ca.crt }
+  repository: bk-sn
+  nhom: ["org-*", "okr-*", "mission-*", "evidence-*"]
+  khoiPhucThu: { schedule: "0 6 * * 6", activeDeadlineSeconds: 21600, nguongTaiLieu: 1000, tiLe: 0.5, lechTuan: 0 }
+  egressTo: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: data-search } }, podSelector: { matchLabels: { opster.io/opensearch-cluster: opensearch } } }]
+
+# Kho Git (TL-04 bảng lịch sao lưu): chỉ bật ở một bản phát hành (cụm quản trị giữ git.vt.local, suy luận). Gương
+# đẩy mỗi 15 phút, bundle hằng ngày lên bk-cell-<mã>-git, chủ nhật clone thử từ bundle và từ gương.
+git:
+  enabled: false
+  nguon: https://git.vt.local
+  guong: https://git-sn.vt.local
+  kho: [okr/gitops, okr/mission-web, okr/policy-pack]
+  user: sao-luu
+  token: { secretName: bk-git-token, path: kv/mgmt/git/sao-luu, property: token }
+  tokenGuong: { secretName: bk-git-token-sn, path: kv/mgmt/git-sn/sao-luu, property: token }
+  bucket: ""                     # rỗng: bk-cell-<mã>-git
+  credentials: { secretName: bk-sn-s3-git, path: "" }  # path rỗng: kv/cell-<mã>/backup/git
+  guongSchedule: "*/15 * * * *"
+  bundleSchedule: "15 3 * * *"
+  tamGioiHan: 10Gi
+  egressTo: []
+  egressPort: 443
+
+# Kéo thử theo digest từ harbor-sn hằng ngày (TL-04 bảng lịch sao lưu): ảnh đang chạy trong cụm thuộc project được nhân
+# bản, tối đa toiDa digest mỗi ngày.
+harbor:
+  enabled: true
+  schedule: "30 7 * * *"
+  registryGoc: harbor.vt.local
+  harborSn: https://harbor-sn.vt.local
+  duAn: [okr, platform, k8s]
+  toiDa: 50
+  # Robot chỉ kéo của cell trên harbor-sn (cau-hinh-sn.yaml); rỗng: kv/mgmt/harbor-sn/robots/pull-cell-<mã>, thuộc tính
+  # secret, tên robot$pull-cell-<mã> (suy luận: ClusterSecretStore của cell đọc được nhánh kv/mgmt của OpenBao quản trị).
+  robot: { secretName: bk-harbor-sn-pull, path: "", user: "" }
+  egressTo: []
+  egressPort: 443

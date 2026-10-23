@@ -79,6 +79,9 @@ spec:
         valueFrom: { secretKeyRef: { name: clickhouse-users, key: {{ $ten }} } }
       {{ $ten }}/profile: {{ $u.profile }}
       {{ $ten }}/networks/ip: ["0.0.0.0/0"]
+      {{- with $u.grants }}
+      {{ $ten }}/grants/query: {{ toJson . }}
+      {{- end }}
       {{- end }}
     files:
       config.d/tls.xml: |
@@ -107,6 +110,20 @@ spec:
             </client>
           </openSSL>
         </clickhouse>
+      {{- with $v.saoLuu }}{{ if .enabled }}
+      # Kho sao lưu phía Nam cho BACKUP/RESTORE (INF-18, TL-04 mục 8.8): khoá S3 không viết trong câu lệnh mà lấy từ
+      # biến môi trường do Secret ESO nạp; tên tập hợp dùng trong câu lệnh: S3({{ .namedCollection }}, '<tên bản>').
+      config.d/sao-luu.xml: |
+        <clickhouse>
+          <named_collections>
+            <{{ .namedCollection }}>
+              <url>{{ include "clickhouse.urlSaoLuu" $ }}</url>
+              <access_key_id from_env="BK_SN_ACCESS_KEY_ID"/>
+              <secret_access_key from_env="BK_SN_SECRET_ACCESS_KEY"/>
+            </{{ .namedCollection }}>
+          </named_collections>
+        </clickhouse>
+      {{- end }}{{ end }}
     clusters:
       - name: analytics
         secure: "yes"
@@ -138,6 +155,11 @@ spec:
               resources:
                 requests: { cpu: {{ $hs.cpu | quote }}, memory: {{ $hs.memory }} }
                 limits: { cpu: {{ $hs.cpu | quote }}, memory: {{ $hs.memory }} }
+              {{- with $v.saoLuu }}{{ if .enabled }}
+              env:
+                - { name: BK_SN_ACCESS_KEY_ID, valueFrom: { secretKeyRef: { name: {{ .credentials.secretName }}, key: ACCESS_KEY_ID } } }
+                - { name: BK_SN_SECRET_ACCESS_KEY, valueFrom: { secretKeyRef: { name: {{ .credentials.secretName }}, key: ACCESS_SECRET_KEY } } }
+              {{- end }}{{ end }}
               securityContext:
                 {{- include "clickhouse.ctrSec" . | nindent 16 }}
               volumeMounts:

@@ -40,6 +40,30 @@ externalSecrets:
 users:
   analytics: { profile: readonly, namespace: analytics }
   ingest:    { profile: default,  namespace: analytics }
+  # Job sao lưu và khôi phục thử của backup-cell (INF-18): BACKUP CSDL analytics, khôi phục thử vào
+  # analytics_khoi_phuc_thu rồi xoá; không đọc, không ghi bảng thật.
+  sao_luu:
+    profile: default
+    namespace: sao-luu
+    grants:
+      - GRANT BACKUP, SHOW TABLES ON analytics.*
+      - GRANT CREATE DATABASE, DROP DATABASE, CREATE TABLE, DROP TABLE, INSERT, SELECT, SHOW TABLES ON analytics_khoi_phuc_thu.*
+      - GRANT SELECT ON system.backups
+      - GRANT SELECT ON system.tables
+      - GRANT S3, CLUSTER ON *.*
+      - GRANT NAMED COLLECTION ON bk_sn
 
 observabilityNamespace: observability
 operatorNamespace: clickhouse-operator
+
+# Sao lưu ra kho sao lưu phía Nam (INF-18, TL-04 mục 8.8, bảng lịch sao lưu: đầy đủ chủ nhật, gia tăng hằng ngày, giữ
+# 5 tuần, Object Lock 35 ngày). Lệnh BACKUP do CronJob của backup-cell gửi qua HTTPS bằng người dùng sao_luu; chart
+# này khai tập hợp có tên chứa URL và khoá S3 (Secret ESO từ kv/cell-<mã>/backup/ch) và luồng ra kho sao lưu.
+saoLuu:
+  enabled: true
+  namedCollection: bk_sn
+  endpoint: https://s3-bk.sn.vt.local
+  bucket: ""            # rỗng: bk-cell-<global.cell>-ch
+  credentials: { secretName: bk-sn-s3-ch, path: "" }   # path rỗng: kv/cell-<mã>/backup/ch
+  egressTo: []
+  egressPort: 443

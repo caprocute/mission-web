@@ -1,7 +1,7 @@
 # Kho sao lưu phía Nam ceph-sn-bk (INF-17, TL-04 mục 8.1, 8.2, 8.6, 8.9; TL-05 "Kho sao lưu"): bản phát hành thứ hai của
 # chart rgw-cell cho mỗi cell, trỏ tới RGW của cụm sao lưu riêng (miền quản trị riêng, SEC-42) thay vì RGW của cell.
 # Dùng: helm template bk-<mã> deploy/charts/rgw-cell -f deploy/charts/rgw-cell/values-kho-sao-luu.yaml --set cell=<mã>
-# Mỗi cell có ba bucket bk-cell-<mã>-pg, -ch, -k8s bật Object Lock COMPLIANCE; khoá S3 của cell chỉ đọc, ghi, liệt kê
+# Mỗi cell có các bucket bk-cell-<mã>-pg, -ch, -k8s (INF-17) và -ev, -os, -bao, -git (INF-18) bật Object Lock COMPLIANCE; khoá S3 của cell chỉ đọc, ghi, liệt kê
 # (không DeleteObject, không đổi Object Lock, vòng đời hay chính sách); dọn bản quá hạn bằng vòng đời dưới tài khoản
 # quản trị kho sao lưu (SEC-44).
 endpoint: https://s3-bk.sn.vt.local
@@ -54,14 +54,48 @@ buckets:
         - { tienTo: etcd/, sauNgay: 31 }
         - { tienTo: velero/, sauNgay: 31 }
 
+  # Bản sao ngày minh chứng và biểu mẫu ký (rclone sync của backup-cell, TL-04 mục 8.4 và bảng lịch sao lưu: 10 năm,
+  # Object Lock 10 năm): hien-tai/<bucket nguồn>/ là bản gương, thay-the/<ngày>/ nhận bản bị thay hoặc bị xoá ở nguồn
+  # (--backup-dir). Khoá nội dung theo băm và Object Lock ở nguồn nên không dọn theo tuổi (suy luận); biểu mẫu ký giữ
+  # 20 năm ở bản chính, bản sao theo hạn 10 năm của bảng lịch (lệch ghi ở wiki 14).
+  ev:
+    ten: bk-cell-{cell}-ev
+    theoTenant: false
+    versioning: true
+    khoa: { mode: COMPLIANCE, years: 10 }
+    vongDoi: { huyMultipartSauNgay: 1 }
+  # Kho snapshot OpenSearch bk-sn (14 bản, Object Lock 14 ngày). OpenSearch tự xoá tệp của bản hết hạn (delete marker,
+  # quyền xoa-danh-dau); phiên bản cũ được dọn sau hạn khoá. Không hết hạn theo tuổi vì bản gia tăng dùng lại tệp cũ.
+  os:
+    ten: bk-cell-{cell}-os
+    theoTenant: false
+    versioning: true
+    khoa: { mode: COMPLIANCE, days: 14 }
+    vongDoi: { huyMultipartSauNgay: 1, donPhienBanCuSauNgay: 15 }
+  # Snapshot Raft OpenBao mỗi giờ (90 ngày, Object Lock 90 ngày).
+  bao:
+    ten: bk-cell-{cell}-bao
+    theoTenant: false
+    versioning: true
+    khoa: { mode: COMPLIANCE, days: 90 }
+    vongDoi: { huyMultipartSauNgay: 1, don: [{ tienTo: raft/, sauNgay: 91 }] }
+  # Bundle Git hằng ngày (1 năm, Object Lock 1 năm); chỉ bản phát hành backup-cell giữ kho Git dùng.
+  git:
+    ten: bk-cell-{cell}-git
+    theoTenant: false
+    versioning: true
+    khoa: { mode: COMPLIANCE, days: 365 }
+    vongDoi: { huyMultipartSauNgay: 1, don: [{ tienTo: bundle/, sauNgay: 366 }] }
+
 # Người dùng S3 của cell trên kho sao lưu. namespace rỗng: chart này không tạo Secret; khoá nằm ở OpenBao
-# kv/cell-<mã>/backup/<pg|ch|k8s> và được data-pg, backup-cell nạp qua ESO (SEC-10). "ghi" trên bucket có khoá gồm
+# kv/cell-<mã>/backup/<pg|ch|k8s|ev|os|bao|git> và được data-pg, backup-cell nạp qua ESO (SEC-10). "ghi" trên bucket có khoá gồm
 # PutObjectRetention: ở COMPLIANCE chỉ kéo dài được hạn giữ, không rút ngắn.
 nguoiDung:
   evidence-service: null
   document-service: null
   ledger-service: null
   tenant-registry: null
+  sao-luu-minh-chung: null
   pg:
     uid: bk-cell-{cell}-pg
     namespace: ""
@@ -74,6 +108,22 @@ nguoiDung:
     uid: bk-cell-{cell}-k8s
     namespace: ""
     quyen: { k8s: [doc, ghi, liet-ke] }
+  ev:
+    uid: bk-cell-{cell}-ev
+    namespace: ""
+    quyen: { ev: [doc, ghi, liet-ke] }
+  os:
+    uid: bk-cell-{cell}-os
+    namespace: ""
+    quyen: { os: [doc, ghi, liet-ke, xoa-danh-dau] }
+  bao:
+    uid: bk-cell-{cell}-bao
+    namespace: ""
+    quyen: { bao: [doc, ghi, liet-ke] }
+  git:
+    uid: bk-cell-{cell}-git
+    namespace: ""
+    quyen: { git: [doc, ghi, liet-ke] }
 
 # Tài khoản quản trị của kho sao lưu (chủ bucket), khác mọi tài khoản quản trị của cụm ứng dụng (SEC-42).
 quanTri:

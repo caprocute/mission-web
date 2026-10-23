@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -454,5 +455,27 @@ func TestSafetyGuardsRetentionAndCheckpointResume(t *testing.T) {
 		if gotID, _ := r.HeaderValue("ce_id"); gotID != wantID {
 			t.Fatalf("record %d has ce_id=%q, want %q", i, gotID, wantID)
 		}
+	}
+}
+
+type moc struct {
+	ts  time.Time
+	ok  bool
+	err error
+}
+
+func (m moc) LastReplayTimestamp(context.Context) (time.Time, bool, error) { return m.ts, m.ok, m.err }
+
+func TestSafePoint(t *testing.T) {
+	ts := time.Date(2026, 10, 20, 10, 15, 0, 0, time.FixedZone("ICT", 7*3600))
+	got, err := SafePoint(context.Background(), moc{ts: ts, ok: true}, 15*time.Minute)
+	if err != nil || !got.Equal(time.Date(2026, 10, 20, 3, 0, 0, 0, time.UTC)) || got.Location() != time.UTC {
+		t.Fatalf("SafePoint = %v, %v", got, err)
+	}
+	if _, err := SafePoint(context.Background(), moc{}, time.Minute); err == nil || !strings.Contains(err.Error(), "--from") {
+		t.Fatalf("cụm chưa khôi phục phải báo lỗi: %v", err)
+	}
+	if _, err := SafePoint(context.Background(), moc{err: errors.New("mất kết nối")}, time.Minute); err == nil || !strings.Contains(err.Error(), "mất kết nối") {
+		t.Fatalf("lỗi truy vấn phải được trả về: %v", err)
 	}
 }

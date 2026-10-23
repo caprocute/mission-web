@@ -133,7 +133,7 @@ roleLimits: { ro: 20, cdc: 5, mig: 10 }
 clients:
   pg-core:     { rw: [core], ro: [core, analytics] }
   pg-flowable: { rw: [core, workers] }
-  pg-platform: { rw: [platform, workers, analytics], ro: [analytics] }
+  pg-platform: { rw: [platform, workers, analytics], ro: [analytics, sao-luu] }   # sao-luu: kiểm mẫu minh chứng (INF-18)
   pg-iam:      { rw: [identity] }
   pg-ledger:   { rw: [secure] }
   pg-secure:   { rw: [secure] }

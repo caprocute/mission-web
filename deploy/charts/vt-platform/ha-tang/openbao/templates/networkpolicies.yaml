@@ -23,6 +23,7 @@ spec:
       ports: [{ port: 8200, protocol: TCP }, { port: 8201, protocol: TCP }]
     - from:
         - podSelector: { matchLabels: { app.kubernetes.io/name: openbao-xoay-khoa } }
+        - podSelector: { matchLabels: { app.kubernetes.io/name: openbao-sao-luu-raft } }
         {{- range (concat $v.clientNamespaces (list $v.certManager.namespace $v.eso.namespace $v.observabilityNamespace)) }}
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ . }} } }
         {{- end }}

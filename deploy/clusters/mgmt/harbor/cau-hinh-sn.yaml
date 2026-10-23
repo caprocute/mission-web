@@ -1,0 +1,31 @@
+# Cấu hình khai báo của harbor-sn (INF-18; TL-04 mục 12, bảng lịch sao lưu dòng Harbor): đích nhân bản theo sự kiện
+# đẩy ảnh từ harbor-hl. Áp bằng ap-dung-cau-hinh.sh với CAU_HINH=cau-hinh-sn.yaml, HARBOR_URL=https://harbor-sn.vt.local,
+# BAO_ROBOT=kv/mgmt/harbor-sn/robots. Không chứa bí mật; không có proxy-cache (ảnh bên thứ ba kéo lại qua harbor-hl
+# hoặc cache riêng khi chuyển vùng, suy luận) và không nhân bản tiếp.
+
+macDinhProject: &md
+  public: "false"
+  auto_scan: "true"
+  prevent_vul: "true"
+  severity: critical
+  enable_content_trust_cosign: "true"
+  reuse_sys_cve_allowlist: "true"
+
+# Cùng tên project với harbor-hl để ảnh nhân bản giữ nguyên đường dẫn <project>/<repo>@<digest>.
+projects:
+  - {ten: platform, mucDich: "bản nhân bản từ harbor-hl", metadata: *md}
+  - {ten: okr, mucDich: "bản nhân bản từ harbor-hl", metadata: *md}
+  - {ten: k8s, mucDich: "bản nhân bản từ harbor-hl", metadata: *md}
+
+# replicate-sn: harbor-hl dùng để đẩy ảnh, chữ ký, attestation vào (đẩy và kéo, không xoá). pull-*: cụm kéo ảnh từ
+# harbor-sn khi chuyển vùng và job kiem-keo-harbor của backup-cell kéo thử theo digest hằng ngày.
+robots:
+  - ten: replicate-sn
+    moTa: harbor-hl nhân bản ảnh sang harbor-sn (INF-18)
+    hanNgay: 90
+    quyen:
+      - {project: okr,      hanhDong: [push, pull]}
+      - {project: platform, hanhDong: [push, pull]}
+      - {project: k8s,      hanhDong: [push, pull]}
+  - {ten: pull-cell-g4, moTa: "cụm cell G4 kéo từ harbor-sn", hanNgay: 90, quyen: [{project: "*", hanhDong: [pull]}]}
+  - {ten: pull-mgmt,    moTa: "cụm quản trị kéo từ harbor-sn", hanNgay: 90, quyen: [{project: "*", hanhDong: [pull]}]}

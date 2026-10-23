@@ -1,0 +1,65 @@
+{{- /* Snapshot sang kho sao lưu phía Nam (INF-18, TL-04 mục 8.8): khoá S3 cho keystore, chính sách Snapshot Management
+daily-to-sn (CR OpenSearchSnapshotPolicy của operator) và luồng ra RGW kho sao lưu. */}}
+{{- $v := .Values }}
+{{- with $v.snapshot }}{{ if .enabled }}
+{{- $p := .policy }}
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ .credentials.secretName }}
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "opensearch.labels" $ | nindent 4 }}
+{{ include "opensearch.es" (dict "v" $v) }}
+  target:
+    name: {{ .credentials.secretName }}
+    creationPolicy: Owner
+  data:
+    {{- range $k := list "ACCESS_KEY_ID" "ACCESS_SECRET_KEY" }}
+    - secretKey: {{ $k }}
+      remoteRef: { key: {{ $.Values.snapshot.credentials.path | default (printf "kv/cell-%s/backup/os" ($.Values.global.cell | lower)) }}, property: {{ $k }} }
+    {{- end }}
+---
+apiVersion: opensearch.org/v1
+kind: OpenSearchSnapshotPolicy
+metadata:
+  name: {{ $p.name }}
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "opensearch.labels" $ | nindent 4 }}
+spec:
+  opensearchCluster: { name: opensearch }
+  policyName: {{ $p.name }}
+  description: {{ $p.description | quote }}
+  enabled: true
+  creation:
+    schedule:
+      cron: { expression: {{ $p.tao | quote }}, timezone: {{ $p.timezone }} }
+  deletion:
+    schedule:
+      cron: { expression: {{ $p.xoa | quote }}, timezone: {{ $p.timezone }} }
+    deleteCondition: { maxCount: {{ $p.maxCount }}, minCount: {{ $p.minCount }} }
+  snapshotConfig:
+    repository: {{ .repository }}
+    indices: {{ $p.indices | quote }}
+    includeGlobalState: false
+    partial: false
+{{- with .egressTo }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: opensearch-ra-kho-sao-luu
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "opensearch.labels" $ | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { opster.io/opensearch-cluster: opensearch }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        {{- toYaml . | nindent 8 }}
+      ports: [{ port: {{ $v.snapshot.egressPort }}, protocol: TCP }]
+{{- end }}
+{{- end }}{{ end }}
