@@ -1,0 +1,33 @@
+# DV-15-11 · Luồng phân tích quốc gia (baseline mục 8 cơ chế 7, TL-03 "Đồng bộ giữa các cell", TL-01 vùng toàn cục):
+# MirrorMaker 2 của mỗi cell chỉ sao chép họ topic agg.* (số liệu tổng hợp C0 đã che nhóm nhỏ) sang Kafka của kho phân
+# tích quốc gia. Luồng này tách hẳn luồng DR của TL-04 "Kafka: MirrorMaker 2" (mm2-hl-to-sn, IdentityReplicationPolicy,
+# đồng bộ offset nhóm): tên khác, tài khoản khác, không checkpoint, không đồng bộ offset nhóm tiêu thụ.
+# Chỉ có địa chỉ và tên Secret; chứng thư và khoá do External Secrets cấp, không nằm ở đây.
+# Sinh manifest: python3 analytics/mirrormaker/sinh_mm2.py (ghi generated/<cell>.yaml).
+namespace: data-kafka
+kafkaVersion: 4.3.1            # cùng phiên bản cụm của cell (deploy/charts/vt-platform/ha-tang/kafka/values.yaml)
+replicas: 1
+tasksMax: 2                    # agg.province.metric.v1 có 6 partition, lưu lượng vài nghìn bản ghi mỗi giờ (suy luận)
+topicsPattern: "agg\\..*"
+topicsExcludePattern: ".*\\.(retry|dlq|replay)\\..*"
+resources:
+  requests: { cpu: 250m, memory: 1Gi }
+  limits: { cpu: "1", memory: 1Gi }
+
+source:
+  # Cụm Kafka của cell (Strimzi kafka-cell, cổng mTLS 9093).
+  cluster: kafka-cell
+  bootstrapServers: kafka-cell-kafka-bootstrap.data-kafka.svc:9093
+  caSecret: kafka-cell-cluster-ca-cert
+
+target:
+  # Kafka của kho phân tích quốc gia, do bên vận hành quốc gia dựng (ngoài phạm vi cell, wiki/14 DV-15-11).
+  alias: quoc-gia
+  bootstrapServers: kafka-quoc-gia.analytics-national.vt.local:9093   # chỗ giữ chỗ, chốt cùng INF-10/INF-18
+  caSecret: kafka-quoc-gia-ca-cert
+  userSecret: mm2-agg-quoc-gia-dich
+  replicationFactor: 3
+
+# Mỗi cell một manifest; alias là tiền tố topic ở cụm đích (cell-01.agg.province.metric.v1).
+cells:
+  - cell-01

@@ -1,0 +1,28 @@
+[project]
+name = "mission-analytics-mirrormaker"
+version = "0.1.0"
+description = "MirrorMaker 2 luồng phân tích quốc gia của cell (DV-15-11): bộ sinh manifest Strimzi và kiểm thử"
+requires-python = ">=3.12"
+dependencies = ["pyyaml>=6.0"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "testcontainers>=4.9",
+    "confluent-kafka>=2.6",
+    "ruff>=0.8",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S603", "S607"]
+
+[tool.pytest.ini_options]
+markers = ["integration: cần Docker (hai cụm Kafka, MirrorMaker 2)"]

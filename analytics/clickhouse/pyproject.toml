@@ -1,12 +1,19 @@
 [project]
 name = "mission-analytics-clickhouse"
 version = "0.1.0"
-description = "Kho phân tích ClickHouse của cell (DV-15-01, SVC-15/ADR-14): migration và kiểm thử"
+description = "Kho phân tích ClickHouse của cell (DV-15-01, SVC-15/ADR-14): migration, bộ xuất agg (DV-15-11) và kiểm thử"
 requires-python = ">=3.12"
 dependencies = []
 
 [project.optional-dependencies]
+# Bộ xuất số liệu tổng hợp lên agg.province.metric.v1 (DV-15-11).
+agg = [
+    "confluent-kafka>=2.6",
+    "fastavro>=1.9",
+]
 dev = [
+    "fastavro>=1.9",
+    "pyyaml>=6.0",
     "pytest>=8.3",
     "testcontainers>=4.9",
     "confluent-kafka>=2.6",
@@ -24,6 +31,7 @@ ignore = ["RUF001", "RUF002", "RUF003"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S105", "S106", "S311", "S608"]
 "migrate.py" = ["S608"]
+"agg_export.py" = ["S608"]
 
 [tool.pytest.ini_options]
 markers = ["integration: cần Docker (ClickHouse, Kafka)"]

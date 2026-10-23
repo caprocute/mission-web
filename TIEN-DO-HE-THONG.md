@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **308 / 408 task (75.5%)** — Khối lượng quy đổi đã gộp: **357 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **311 / 408 task (76.2%)** (gồm **308** đã gộp `main` + **3** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **312 / 408 task (76.5%)** (gồm **308** đã gộp `main` + **4** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **5 task** (1 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **92 task**.
+- **Chưa bắt đầu**: **91 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -25,14 +25,14 @@
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **68** | 0 | 2 | 2 | **94.4%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **103** | 0 | 2 | 12 | **88.0%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **70** | 2 | 1 | 31 | **67.3%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **70** | 3 | 1 | 30 | **67.3%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **12** | 1 | 0 | 0 | **92.3%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **308** | **3** | **5** | **92** | **75.5%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **308** | **4** | **5** | **91** | **75.5%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -42,7 +42,7 @@
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **34** | 0 | 0 | 6 | **85.0%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **86** | 2 | 3 | 29 | **71.7%** |
-| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **61** | 0 | 1 | 10 | **84.7%** |
+| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **61** | 1 | 1 | 9 | **84.7%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **16** | 0 | 1 | 25 | **38.1%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **3** | 1 | 0 | 19 | **13.0%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **1** | 0 | 0 | 3 | **25.0%** |
@@ -501,7 +501,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-14-06](docs/tasks/DV-14-06-nhat-ky-goi-y-tom-tat.md) | Nhật ký gợi ý (chấp nhận, bỏ qua, nguồn) và tóm tắt tuần cho lãnh đạo | M | B7 | 8 | DV-14-04 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DV-14-07](docs/tasks/DV-14-07-chuyen-giong-noi-van-ban.md) | Chuyển giọng nói thành văn bản (`transcribeSpeech`) | M | B7 | 6 | DV-14-01 | **Đã gộp main** | Gộp main 2026-10-22 |
 
-### DV-15 · SVC-15 analytics (10/11 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-15 · SVC-15 analytics (10/11 đã gộp `main`, 1 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -515,7 +515,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-15-08](docs/tasks/DV-15-08-dau-hieu-3-5-7.md) | Dấu hiệu bất thường 3, 5, 7 | M | B7 | 6 | DV-15-07 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [DV-15-09](docs/tasks/DV-15-09-dau-hieu-6-8.md) | Dấu hiệu bất thường 6, 8 và tự đóng khi hết dấu hiệu; dấu hiệu tỷ lệ chấp nhận khách quan | M | B7 | 6 | DV-15-07 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [DV-15-10](docs/tasks/DV-15-10-du-bao-tre-han.md) | Dự báo nguy cơ trễ nhiệm vụ | M | B7 | 14 | DV-15-01, CORE-02-26 | **Đã gộp main** | Đã gộp main (f74d95f1) |
-| [DV-15-11](docs/tasks/DV-15-11-mirrormaker-kho-quoc-gia.md) | MirrorMaker 2 đẩy dữ liệu tổng hợp lên kho phân tích quốc gia | M | B7 | 5 | DV-15-01, INF-10 | **Chưa bắt đầu** |  |
+| [DV-15-11](docs/tasks/DV-15-11-mirrormaker-kho-quoc-gia.md) | MirrorMaker 2 đẩy dữ liệu tổng hợp lên kho phân tích quốc gia | M | B7 | 5 | DV-15-01, INF-10 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: job agg V014 (k=10), bộ xuất Avro, MM2 agg.* + KafkaUser, kubeconform, kiểm thử tĩnh và tích hợp xanh; hạ tầng đích chờ INF-10/INF-18 |
 
 ### DV-16 · SVC-16 search (2/2 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -990,4 +990,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 05:01 | B7 | `DV-10-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: Viettel-CA, CA Chính phủ qua CSC, OCSP/CRL, nhà cung cấp theo tenant; esign-service verify xanh (33 UT, 15 IT) |
 | 23/10/2026 05:03 | B7 | `DV-10-06` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-x87cen: đang thực hiện ký lô |
 | 23/10/2026 05:29 | B7 | `DV-10-06` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: ký lô một lần xác nhận (SAD/step-up), worker esign-batch-worker, metric KEDA; esign verify xanh (33 UT, 19 IT); HSM SoftHSM chờ DV-10-03 |
+| 23/10/2026 05:38 | B7 | `DV-15-11` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-x87cen: cấu hình MirrorMaker 2, sinh cấu hình và kiểm thử tĩnh |
+| 23/10/2026 06:10 | B7 | `DV-15-11` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: job agg V014 (k=10), bộ xuất Avro, MM2 agg.* + KafkaUser, kubeconform, kiểm thử tĩnh và tích hợp xanh; hạ tầng đích chờ INF-10/INF-18 |
 <!-- PROGRESS_LOG_END -->
