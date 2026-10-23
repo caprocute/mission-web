@@ -402,6 +402,14 @@
                     </artifact>
                     <artifact>
                       <groupId>${schema.compat.groupId}</groupId>
+                      <artifactId>config.wftemplate.published.v1-value</artifactId>
+                      <artifactType>AVRO</artifactType>
+                      <file>${schema.compat.baselineDir}/config/MauLuongDaPhatHanh.avsc</file>
+                      <ifExists>FIND_OR_CREATE_VERSION</ifExists>
+                      <canonicalize>true</canonicalize>
+                    </artifact>
+                    <artifact>
+                      <groupId>${schema.compat.groupId}</groupId>
                       <artifactId>config.access.changed.v1-value</artifactId>
                       <artifactType>AVRO</artifactType>
                       <file>${schema.compat.baselineDir}/config/VaiTroDaThayDoi.avsc</file>
@@ -670,6 +678,11 @@
                       <groupId>${schema.compat.groupId}</groupId>
                       <artifactId>config.uipack.published.v1-value</artifactId>
                       <file>${schema.compat.candidateDir}/config/UiPackDaPhatHanh.avsc</file>
+                    </artifact>
+                    <artifact>
+                      <groupId>${schema.compat.groupId}</groupId>
+                      <artifactId>config.wftemplate.published.v1-value</artifactId>
+                      <file>${schema.compat.candidateDir}/config/MauLuongDaPhatHanh.avsc</file>
                     </artifact>
                     <artifact>
                       <groupId>${schema.compat.groupId}</groupId>
