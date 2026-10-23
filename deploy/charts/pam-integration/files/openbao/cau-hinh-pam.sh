@@ -14,6 +14,10 @@
 #   - Static role "<cụm>-pam-quet": xoay mật khẩu pam_quet 24 giờ cho CronJob quét (đọc qua ESO).
 #   - Chính sách pam-broker, pam-quet-<cell>, quan-tri-khoa, warpgate; auth cert cho broker PAM; vai trò OIDC
 #     quan-tri-khoa; vai trò auth kubernetes "warpgate" (kho bí mật của Warpgate, chỉ đọc kv/warpgate/*).
+#   - Chính sách và vai trò auth kubernetes "warpgate-lam-moi" (CronJob làm mới bí mật mục tiêu Warpgate): đọc người
+#     dùng động database/creds/<cụm>-dba-ops của các cụm trong WARPGATE_PSQL, ghi đúng các khoá
+#     kv/warpgate/<WARPGATE_KUBECTL>-<vai trò> và kv/warpgate/psql-<cụm>; không đọc được token kubectl đã ghi, không
+#     liệt kê, không xoá, không đọc vai trò phá kính.
 #     Token của người và của broker bị ràng buộc token_bound_cidrs = dải proxy PAM, nên chỉ dùng được khi đi qua PAM.
 #
 # Biến:
@@ -26,6 +30,9 @@
 #   NHOM_QUAN_TRI_KHOA  nhóm Keycloak được nhận chính sách quan-tri-khoa (mặc định platform-ops-quan-tri-khoa)
 #   APP_NS_QUET         namespace CronJob quét (mặc định pam-kiem-soat); SA pam-quet-csdl
 #   WARPGATE_NS         namespace của Warpgate (mặc định pam; trống thì bỏ qua vai trò warpgate); SA warpgate
+#   WARPGATE_KUBECTL    tiền tố mục tiêu kubectl (warpgate.kubectl.tenMucTieu, mặc định kubectl-<CELL>)
+#   WARPGATE_PSQL       cụm có mục tiêu psql trên Warpgate, cách nhau dấu cách (warpgate.psql, mặc định pg-core)
+#   VAI_TRO_PAM         vai trò PAM có mục tiêu kubectl (mặc định debug-app operate-data platform-admin)
 #   THOI_HAN_DBA        mặc định 4h;  THOI_HAN_PHA_KINH mặc định 2h;  KET_NOI_MOI_NGUOI mặc định 2
 set -euo pipefail
 PG_CLUSTERS=${PG_CLUSTERS-pg-core:data-pg}
@@ -35,6 +42,8 @@ OIDC_PATH=${OIDC_PATH-oidc-platform-ops}
 NHOM_QUAN_TRI_KHOA=${NHOM_QUAN_TRI_KHOA:-platform-ops-quan-tri-khoa}
 APP_NS_QUET=${APP_NS_QUET:-pam-kiem-soat}
 WARPGATE_NS=${WARPGATE_NS-pam}
+WARPGATE_PSQL=${WARPGATE_PSQL-pg-core}
+VAI_TRO_PAM=${VAI_TRO_PAM:-debug-app operate-data platform-admin}
 THOI_HAN_DBA=${THOI_HAN_DBA:-4h}
 THOI_HAN_PHA_KINH=${THOI_HAN_PHA_KINH:-2h}
 KET_NOI_MOI_NGUOI=${KET_NOI_MOI_NGUOI:-2}
@@ -50,11 +59,26 @@ cau_tao() { # <vai trò nhóm> <số kết nối>
 cau_thu_hoi() {
   printf '%s' 'SELECT pg_terminate_backend(pid, 5000) FROM pg_stat_activity WHERE usename = '"'"'{{name}}'"'"'; DROP ROLE IF EXISTS "{{name}}";'
 }
+# Chính sách của CronJob warpgate-lam-moi (đặc quyền tối thiểu). kubectl: chỉ create/update (ghi token mới, không
+# đọc lại); psql: thêm read để biết lease còn bao lâu (khoá đó chỉ chứa người dùng do chính CronJob xin).
+chinh_sach_lam_moi() {
+  local cum vt
+  for cum in $WARPGATE_PSQL; do
+    printf 'path "database/creds/%s-dba-ops" { capabilities = ["read"] }\n' "$cum"
+    printf 'path "kv/data/warpgate/psql-%s" { capabilities = ["create", "update", "read"] }\n' "$cum"
+  done
+  for vt in $VAI_TRO_PAM; do
+    printf 'path "kv/data/warpgate/%s-%s" { capabilities = ["create", "update"] }\n' "$WARPGATE_KUBECTL" "$vt"
+  done
+}
+# "--in-chinh-sach-lam-moi": chỉ in chính sách warpgate-lam-moi (kiểm thử), không gọi OpenBao.
+if [ "${1:-}" = "--in-chinh-sach-lam-moi" ]; then WARPGATE_KUBECTL=${WARPGATE_KUBECTL:-kubectl-${CELL:?cần CELL}}; chinh_sach_lam_moi; exit 0; fi
 # "--in-sql <vai trò nhóm> <số kết nối>": chỉ in câu tạo và câu thu hồi (kiểm thử), không gọi OpenBao.
 if [ "${1:-}" = "--in-sql" ]; then cau_tao "${2:-dba_ops}" "${3:-$KET_NOI_MOI_NGUOI}"; echo; cau_thu_hoi; echo; exit 0; fi
 : "${CELL:?cần CELL}"
 : "${PAM_CIDRS:?cần PAM_CIDRS (dải proxy PAM)}"
 AUTH=k8s-cell-$CELL
+WARPGATE_KUBECTL=${WARPGATE_KUBECTL:-kubectl-$CELL}
 
 chinh_sach_broker=""
 chinh_sach_quet=""
@@ -86,7 +110,8 @@ HCL=$THU_MUC/chinh-sach/quan-tri-khoa.hcl
 sed -e "s/@CELL@/$CELL/g" "$HCL" | bao policy write quan-tri-khoa - >/dev/null
 # Warpgate: chỉ đọc tham chiếu secret:// của mục tiêu (token kubectl, mật khẩu psql) trong KV v2 kv/warpgate/*.
 printf '%s\n' 'path "kv/data/warpgate/*" { capabilities = ["read"] }' | bao policy write warpgate - >/dev/null
-echo "  pam-broker, pam-quet-$CELL, quan-tri-khoa, warpgate"
+chinh_sach_lam_moi | bao policy write warpgate-lam-moi - >/dev/null
+echo "  pam-broker, pam-quet-$CELL, quan-tri-khoa, warpgate, warpgate-lam-moi"
 
 buoc "Auth kubernetes: CronJob quét đọc mật khẩu pam_quet (ESO SecretStore trong $APP_NS_QUET)"
 bao write "auth/$AUTH/role/pam-quet" bound_service_account_names=pam-quet-csdl bound_service_account_namespaces="$APP_NS_QUET" \
@@ -96,6 +121,10 @@ if [ -n "$WARPGATE_NS" ]; then
   buoc "Auth kubernetes: Warpgate đọc kho bí mật (SA warpgate trong $WARPGATE_NS)"
   bao write "auth/$AUTH/role/warpgate" bound_service_account_names=warpgate bound_service_account_namespaces="$WARPGATE_NS" \
     audience=openbao token_policies=warpgate token_ttl=15m token_max_ttl=1h >/dev/null
+  buoc "Auth kubernetes: CronJob warpgate-lam-moi (SA warpgate-lam-moi trong $WARPGATE_NS)"
+  bao write "auth/$AUTH/role/warpgate-lam-moi" bound_service_account_names=warpgate-lam-moi \
+    bound_service_account_namespaces="$WARPGATE_NS" audience=openbao token_policies=warpgate-lam-moi \
+    token_ttl=10m token_max_ttl=15m >/dev/null
 fi
 
 if [ -n "$PAM_BROKER_CA" ]; then

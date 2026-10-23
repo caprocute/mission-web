@@ -517,12 +517,15 @@ Chart `deploy/charts/pam-integration` nối PAM (SEC-42, SEC-58) với RBAC sáu
 - Warpgate 0.30.0 (khối `warpgate`, mặc định bật): namespace `pam` restricted, mặc định từ chối mọi chiều. Thành phần:
   - StatefulSet một bản sao, ảnh `harbor.vt.local/ghcr/warp-tech/warpgate` theo digest; PVC `/data` chứa CSDL SQLite và bản ghi phiên.
   - Bốn cổng 8888 (HTTPS), 2222 (SSH), 8443 (kubectl), 55432 (psql); chứng thư máy chủ cấp từ `openbao-pki-cell`.
-  - SSO OIDC tới `https://sso-ops.vt.local/realms/platform-ops`, claim `groups` ánh xạ sang vai trò Warpgate `pam-kubectl`, `pam-ssh`, `pam-psql`.
+  - SSO OIDC tới `https://sso-ops.vt.local/realms/platform-ops`, claim `groups` ánh xạ sang vai trò Warpgate `pam-ssh`, `pam-psql`; vai trò `pam-kubectl-<vai trò>` không ánh xạ từ nhóm, chỉ broker cấp với `expires_at`.
   - Init container chèn client_secret từ `secretKeyRef` vào tệp cấu hình trên emptyDir bộ nhớ: Warpgate chỉ đọc cấu hình từ tệp, không thay biến môi trường.
   - Mục tiêu, vai trò và kho bí mật không nằm trong tệp cấu hình mà trong CSDL Warpgate. ConfigMap `warpgate-nhap` giữ JSON theo lược đồ API quản trị 0.30 (`TargetDataRequest`, kind viết hoa `Kubernetes`, `Ssh`, `Postgres`), chỉ có tham chiếu `secret://openbao-cell/kv/warpgate/...`. Kho bí mật kiểu `openbao`, auth kubernetes, vai trò `warpgate` do `cau-hinh-pam.sh` tạo, chỉ đọc `kv/data/warpgate/*`.
   - Sidecar `cau-noi` (`files/warpgate/warpgate_pam.py`, ảnh Python dùng chung) nhận sự kiện JSON qua socket datagram Unix (`log.send_to`), giữ sự kiện `target: audit`, đổi `_type` (`TargetSessionStarted1`, `AccessRoleGranted1`, `KubernetesExecStarted1`…) sang `event_action` của hợp đồng, rồi gửi syslog RFC 5424 SD-ID `vtpam@32473` qua mTLS tới `otel-siem:6514`.
   - NetworkPolicy `pam-proxy-to-pg` tự mở CSDL cho pod Warpgate.
-- Cảnh báo `vt-pam`: `PamCuaSauRbac`, `PamBindingQuaHan`, `PamCuaSauCsdl`, `PamPhaKinhDangMo`, `PamKetNoiQuanTriVuotNganSach`, `PamNgoaiLeCsdl`, `PamQuetKhongChay`, `PamQuetRbacVangMat`. Runbook `ops/runbooks/pam-cap-quyen.md` (kèm bảng ánh xạ ECS và mẫu báo cáo phiên tháng cho VH-07), `ops/runbooks/pam-pha-kinh.md`.
+  - Mục tiêu `kubectl` theo vai trò (duyệt 23/10/2026, trang 14 INF-27 mục 9): ServiceAccount `warpgate-<vai trò>` không binding thường trực; broker tạo binding có thời hạn tới đúng ServiceAccount đó (chính sách nhập `vt-pam-binding-co-thoi-han` nhận chủ thể này, `vt-pam-tai-khoan-warpgate` chặn mọi binding khác) và cấp vai trò Warpgate `pam-kubectl-<vai trò>` có hạn cho người yêu cầu.
+  - CronJob `warpgate-lam-moi` (20 phút, `files/warpgate/warpgate_lam_moi.py`): token TokenRequest 1 giờ cho ba ServiceAccount vào `kv/warpgate/kubectl-<cell>-<vai trò>`; người dùng động `database/creds/<cụm>-dba-ops` (4 giờ, đổi khi còn dưới 90 phút) vào `kv/warpgate/psql-<cụm>` và đổi `username` mục tiêu `psql-<cụm>` qua API quản trị (Secret `warpgate-api`). Chính sách và vai trò OpenBao `warpgate-lam-moi` do `cau-hinh-pam.sh` tạo.
+  - CronJob `warpgate-ghi-phien` (15 phút, `files/warpgate/sao_chep_ghi_phien.py`): chép bản ghi phiên từ PVC (gắn chỉ đọc, cùng node với `warpgate-0`) sang bucket `pam-cell-<mã>` của `rgw-cell` (Object Lock COMPLIANCE 365 ngày, người dùng S3 `pam-ghi-phien` chỉ ghi và liệt kê).
+- Cảnh báo `vt-pam`: `PamCuaSauRbac`, `PamBindingQuaHan`, `PamCuaSauCsdl`, `PamPhaKinhDangMo`, `PamKetNoiQuanTriVuotNganSach`, `PamNgoaiLeCsdl`, `PamQuetKhongChay`, `PamQuetRbacVangMat`, `PamGhiPhienCu`, `PamGhiPhienVangMat`, `PamWarpgateBiMatSapHet`, `PamWarpgateLamMoiLoi`. Runbook `ops/runbooks/pam-cap-quyen.md` (kèm bảng ánh xạ ECS và mẫu báo cáo phiên tháng cho VH-07), `ops/runbooks/pam-pha-kinh.md`.
 
 Bẫy và quyết định đã gặp:
 
@@ -530,13 +533,20 @@ Bẫy và quyết định đã gặp:
 - `VALID UNTIL` chỉ chặn đăng nhập bằng mật khẩu mới, không cắt phiên đang mở: câu thu hồi của vai trò động ngắt phiên (`pg_terminate_backend`, `bao_admin` có `pg_signal_backend`) trước khi `DROP ROLE`. Không dùng `REASSIGN OWNED`, `DROP OWNED BY`: trong PostgreSQL 16 người tạo vai trò (CREATEROLE, `createrole_self_grant` rỗng) chỉ có ADMIN trên vai trò mới, nên hai lệnh này báo "permission denied" khi chạy bằng `bao_admin` (đã thử trên PostgreSQL 16 tạm). ~~Câu thu hồi của `pg-core-mission` ở INF-13 đang dùng hai lệnh này (trang 14).~~ [Sửa 23/10/2026: INF-13 có `createrole_self_grant` nên hai lệnh đó chạy được, đổi lại `bao_admin` thừa hưởng quyền của mọi người dùng động; nay `pg-core-mission` cũng ngắt phiên rồi `DROP ROLE`, kiểm thật ở `deploy/openbao/tests/test_vai_tro_dong.py`.] Với `bao_admin` `NOINHERIT`, `GRANT pg_signal_backend` mặc định `INHERIT FALSE`, nên phải cấp `WITH INHERIT TRUE`, không thì `pg_terminate_backend` bị từ chối.
 - Warpgate 0.30 in thời điểm nano giây (9 chữ số), RFC 5424 chỉ cho tối đa 6. Receiver syslog của otelcol không tách dòng như vậy (thuộc tính rỗng, cả dòng vào `message`), nên cầu nối cắt còn 6 chữ số. `transform/dau` của otel-siem trước đây ghi đè `message` đã tách bằng cả dòng gốc; nay chỉ đặt khi chưa có.
 - Warpgate 0.30: mục `recordings` của tệp cấu hình chỉ nạp vào CSDL ở lần chạy đầu (`warpgate check` cảnh báo đã cũ); khoá SSH sinh và lưu trong CSDL; `http.enable` không phải khoá hợp lệ. `warpgate check` cảnh báo mọi khoá lạ, nên kiểm thử dùng nó để bắt lỗi cấu hình.
+- Warpgate 0.30 không mạo danh người dùng tới API server và `username` của mục tiêu không nhận `secret://`: token kubectl do CronJob xin bằng TokenRequest, username psql đổi qua API quản trị. Khi đổi người dùng psql có vài giây username và mật khẩu lệch nhau.
+- Biểu thức CEL của ValidatingAdmissionPolicy chạy trên đối tượng unstructured: viết `object.subjects[0].namespace` (không thoát thành `__namespace__` như với schema có kiểu). `tests/vap-cel` dựng môi trường CEL của kube-apiserver 1.33 để kiểm ngoài cụm (`VAP_CEL=<tệp>`).
+- Chỉ số "lần thành công cuối" đẩy lên Pushgateway bằng POST (không PUT), để lần chạy lỗi không xoá giá trị cũ và cảnh báo "quá cũ" đo đúng.
 - Pushgateway của `security-cell` chỉ mở chiều vào cho ba ứng dụng; chart thêm NetworkPolicy cộng dồn trong `observability`, tương tự đường vào CNPG trong `data-pg`, `secure-data`.
-- Chưa chạy trên kind (đĩa còn khoảng 2 GB): kịch bản `deploy/environments/kind/kiem-thu-pam.sh` với `values-kind-pam.yaml`. Đã kiểm: `helm lint`, `helm template`, `kubeconform -strict`, kube-linter, Kyverno, promtool (8 luật, ca kiểm), shellcheck, 41 ca unittest:
+- Chưa chạy trên kind (đĩa còn khoảng 2 GB): kịch bản `deploy/environments/kind/kiem-thu-pam.sh` với `values-kind-pam.yaml`. Đã kiểm: `helm lint`, `helm template`, `kubeconform -strict`, kube-linter, Kyverno, promtool (12 luật, ca kiểm), shellcheck, 70 ca unittest:
   - SQL quét, tạo và thu hồi vai trò động chạy thật trên PostgreSQL 16 tạm của máy (socket cục bộ, không container);
   - Warpgate 0.30.0 chạy thật bằng nhị phân rút từ lớp ảnh (`WARPGATE_BIN`), cùng otelcol-contrib (`OTELCOL`):
     - `warpgate check` trên cấu hình render;
     - nhập vai trò, kho bí mật và ba mục tiêu qua API quản trị;
-    - sự kiện kiểm toán thật đi qua cầu nối và mTLS tới `syslog/pam`, `transform/ecs-pam`, ra ECS.
+    - sự kiện kiểm toán thật đi qua cầu nối và mTLS tới `syslog/pam`, `transform/ecs-pam`, ra ECS;
+    - `warpgate_lam_moi.py` đổi username mục tiêu `psql-pg-core` trên Warpgate thật, giữ nguyên các tuỳ chọn khác;
+  - người dùng động `dba_ops` tạo bằng đúng câu của `cau-hinh-pam.sh` trên PostgreSQL 16 thật, đăng nhập scram được bằng mật khẩu CronJob ghi vào KV (OpenBao và API server giả);
+  - hai ValidatingAdmissionPolicy chạy bằng môi trường CEL của kube-apiserver 1.33 (`VAP_CEL`): người và ServiceAccount hợp lệ, lệch vai trò hay namespace, quá 4 giờ, thiếu người duyệt, tự duyệt, không phải broker, binding thường trực tới ServiceAccount của Warpgate;
+  - chữ ký SigV4 theo ví dụ mẫu của AWS, S3 giả kiểm chữ ký và Content-MD5. Chưa thử với RGW thật (Object Lock thật) và OpenBao thật.
 
   Kiểm thử INF-13 riêng: `python3 -m unittest discover -s deploy/openbao/tests` (7 ca, PostgreSQL 16 tạm).
 
