@@ -25,8 +25,10 @@ probes:
     failureThreshold: 3
 pdb:
   maxUnavailable: 25%
-# Mẫu TL-04 mục 6.3: 2/24 pod, độ trễ hai topic đầu vào, CPU 80%, behavior riêng của worker.
-# config.period.locked.v1 (đợt tính điểm khi khoá kỳ) giữ ngưỡng như topic minh chứng.
+# Mẫu TL-04 mục 6.3: 2/24 pod, độ trễ topic đầu vào, CPU 80%, behavior riêng của worker.
+# DV-07-04: bốn topic tính dần cùng nhóm tiêu thụ scoring-incremental (EVT-06, EVT-08, EVT-09, EVT-22).
+# DV-07-06: yêu cầu tính lại xếp vào hàng đợi lô trong CSDL (score_job_chunk) thay cho topic
+# scoring.recompute.requested.v1 chưa có lược đồ, nên co giãn thêm theo số lô chờ (gauge scoring.chunk.pending).
 autoscaling:
   keda:
     enabled: true
@@ -45,10 +47,20 @@ autoscaling:
         policies:
           - { type: Percent, value: 25, periodSeconds: 120 }
     kafka:
+      consumerGroup: scoring-incremental
       topics:
+        - { topic: task.task.statuschanged.v1, lagThreshold: 500, activationLagThreshold: 10, name: lag-task-status }
         - { topic: product.evidence.accepted.v1, lagThreshold: 500, activationLagThreshold: 10, name: lag-evidence-accepted }
-        - { topic: scoring.recompute.requested.v1, lagThreshold: 200, activationLagThreshold: 1, name: lag-recompute }
         - { topic: config.period.locked.v1, lagThreshold: 500, activationLagThreshold: 10, name: lag-period-locked }
+        - { topic: oversight.period.reopened.v1, lagThreshold: 200, activationLagThreshold: 1, name: lag-period-reopened }
+    triggers:
+      - type: prometheus
+        name: lo-tinh-cho
+        metadata:
+          serverAddress: http://prometheus-operated.observability.svc:9090
+          query: max(scoring_chunk_pending{namespace="workers",application="scoring-service"})
+          threshold: '8'
+          activationThreshold: '1'
     preScale:
       cuoiQuy: 8
 java:
@@ -71,6 +83,10 @@ env:
     value: '2'
   - name: VT_SCORING_RECOMPUTE_PARALLELISM
     value: '16'
+  - name: SCORING_WORKER_ENABLED
+    value: 'true'
+  - name: MISSION_CORE_URL
+    value: http://mission-core.core.svc:8080
 service:
   exposeMgmt: true
 networkPolicy:
@@ -79,6 +95,12 @@ networkPolicy:
       ports:
         - port: 8081
   egressTo:
+    # Đầu vào tính điểm (MOD-04) và gói quy định (MOD-05) ở mission-core.
+    - namespace: core
+      podLabels:
+        app.kubernetes.io/name: mission-core
+      ports:
+        - port: 8080
     - namespace: data-pg
       podLabels:
         cnpg.io/poolerName: pg-platform-pooler-rw

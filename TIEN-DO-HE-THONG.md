@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **285 / 408 task (69.9%)** — Khối lượng quy đổi đã gộp: **327 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **288 / 408 task (70.6%)** (gồm **285** đã gộp `main` + **3** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **5 task** (2 đang làm, 3 làm một phần).
-- **Chưa bắt đầu**: **115 task**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **290 / 408 task (71.1%)** (gồm **285** đã gộp `main` + **5** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **4 task** (1 đang làm, 3 làm một phần).
+- **Chưa bắt đầu**: **114 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **18 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-10`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -25,14 +25,14 @@
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **68** | 0 | 1 | 3 | **94.4%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **89** | 2 | 2 | 24 | **76.1%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **61** | 1 | 2 | 40 | **58.7%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **61** | 3 | 1 | 39 | **58.7%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **12** | 0 | 0 | 1 | **92.3%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **285** | **3** | **5** | **115** | **69.9%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **285** | **5** | **4** | **114** | **69.9%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -41,7 +41,7 @@
 | **M0 – Nền móng phát triển & CSDL** | 60 | **60** | 0 | 0 | 0 | **100.0%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **44** | 0 | 0 | 3 | **93.6%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **75** | 1 | 3 | 41 | **62.5%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **75** | 3 | 2 | 40 | **62.5%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **53** | 2 | 1 | 16 | **73.6%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **16** | 0 | 1 | 25 | **38.1%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **3** | 0 | 0 | 20 | **13.0%** |
@@ -409,16 +409,16 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-06-11](docs/tasks/DV-06-11-chieu-lich-su-g2.md) | Chiếu lịch sử tiến trình sang kho phân tích và chỉ số giám sát G2 | M | B6 | 11 | DV-06-02, DV-15-01 | **Chưa bắt đầu** |  |
 | [DV-06-12](docs/tasks/DV-06-12-mau-duyet-kep-chi-huy.md) | Mẫu BPMN duyệt kép chỉ huy và cấp uỷ (`duyet-kep-chi-huy-cap-uy`) | M | B6 | 13 | DV-06-04 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
 
-### DV-07 · SVC-07 scoring-service (2/8 đã gộp `main`, 1 chờ gộp, 1 đang làm)
+### DV-07 · SVC-07 scoring-service (2/8 đã gộp `main`, 3 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-07-01](docs/tasks/DV-07-01-khung-scoring.md) | Khung service và migration schema `scoring` | M | B4 | 9 | NEN-019, NEN-033 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DV-07-02](docs/tasks/DV-07-02-nap-policy-pack.md) | Nạp Policy Pack, biên dịch sẵn CEL và DMN, đệm theo phiên bản | M | B4 | 14 | DV-07-01, NEN-041, CORE-05-03 | **Đã gộp main** | Đã gộp main (ad623eff) |
 | [DV-07-03](docs/tasks/DV-07-03-chuoi-tinh-diem.md) | Chuỗi tính A, B, C, KPI nhóm, điểm và `score_trace` | L | B4 | 15 | DV-07-02 | **Chưa bắt đầu** |  |
-| [DV-07-04](docs/tasks/DV-07-04-tinh-dan-su-kien.md) | Tính dần theo sự kiện EVT-06, EVT-08, EVT-13, EVT-22, phát EVT-10 | M | B4 | 16 | DV-07-03, NEN-012 | **Đang làm** | Nhánh claude/project-thread-uusb7v: bộ tiêu thụ sự kiện scoring-service |
+| [DV-07-04](docs/tasks/DV-07-04-tinh-dan-su-kien.md) | Tính dần theo sự kiện EVT-06, EVT-08, EVT-13, EVT-22, phát EVT-10 | M | B4 | 16 | DV-07-03, NEN-012 | **Xong, chờ gộp** | Nhánh claude/project-thread-uusb7v: đã qua build & test (verify scoring-service 197 unit + 20 IT, helm lint); chưa đo tải (YC-PT-19) |
 | [DV-07-05](docs/tasks/DV-07-05-dmn-xep-loai.md) | DMN xếp loại, câu giải thích, snapshot có `input_hash`; luồng Đảng và Nhà nước song song | L | B4 | 16 | DV-07-03 | **Chưa bắt đầu** |  |
-| [DV-07-06](docs/tasks/DV-07-06-tinh-lai-hang-loat.md) | Tính lại hàng loạt cuối kỳ: chia lô, worker co giãn, đọc `inputs`, hàng đợi lỗi (NFR-06) | L | B4 | 18 | DV-07-05, CORE-04-06 | **Chưa bắt đầu** |  |
+| [DV-07-06](docs/tasks/DV-07-06-tinh-lai-hang-loat.md) | Tính lại hàng loạt cuối kỳ: chia lô, worker co giãn, đọc `inputs`, hàng đợi lỗi (NFR-06) | L | B4 | 18 | DV-07-05, CORE-04-06 | **Xong, chờ gộp** | Nhánh claude/project-thread-uusb7v: đã qua build & test (verify scoring-service 197 unit + 20 IT, helm lint); chưa đo tải (YC-PT-19) |
 | [DV-07-07](docs/tasks/DV-07-07-snapshot-nam.md) | Snapshot năm (băm của các băm quý) và DMN năm | M | B4 | 17 | DV-07-05 | **Chưa bắt đầu** |  |
 | [DV-07-08](docs/tasks/DV-07-08-mo-phong-xem-truoc.md) | API mô phỏng và xem trước với phiên bản Policy Pack gốc | M | B4 | 17 | DV-07-05 | **Xong, chờ gộp** | Nhánh claude/project-thread-uusb7v: đã qua build & test, chờ gộp |
 
@@ -980,4 +980,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 01:51 | B4 | `CORE-04-11` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: đã qua build & test, chờ gộp |
 | 23/10/2026 01:51 | B4 | `CORE-04-12` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: đã qua build & test, chờ gộp |
 | 23/10/2026 01:51 | B4 | `DV-07-04` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-uusb7v: bộ tiêu thụ sự kiện scoring-service |
+| 23/10/2026 02:35 | B4 | `DV-07-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: đã qua build & test (verify scoring-service 197 unit + 20 IT, helm lint); chưa đo tải (YC-PT-19) |
+| 23/10/2026 02:35 | B4 | `DV-07-06` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: đã qua build & test (verify scoring-service 197 unit + 20 IT, helm lint); chưa đo tải (YC-PT-19) |
 <!-- PROGRESS_LOG_END -->
