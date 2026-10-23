@@ -6,3 +6,7 @@ lokiColdCopy:
   image: { digest: sha256:3333333333333333333333333333333333333333333333333333333333333333 }
 alertmanager:
   image: { digest: sha256:4444444444444444444444444444444444444444444444444444444444444444 }
+  congCell:
+    host: alertmanager.quan-tri.invalid
+    cidrs: [192.0.2.0/24, 198.51.100.0/24]
+    choPhep: { ou: [prometheus-cell] }
