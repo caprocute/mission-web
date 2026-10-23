@@ -40,3 +40,9 @@ env:
   KAFKA_GROUP_ID: "ledger-ingester"
   PARTITION_SYNC_INTERVAL: "6h"
   SHUTDOWN_TIMEOUT: "15s"
+  # Niêm phong Merkle (DV-09-03): khoá niêm phong và TSA_URL nạp từ Secret/esign-service, không ghi ở đây.
+  SEAL_ENABLED: "true"
+  SEAL_GRACE: "5s"
+  # Bộ chuyển tiếp topic nghiệp vụ → sys.ledger.append.v1 (nhóm ledger-forwarder); FORWARD_TOPICS rỗng là cả danh mục.
+  FORWARD_ENABLED: "true"
+  # Gói bằng chứng (DV-09-05): API xuất chỉ mở khi đặt EXPORT_DIR (dev); production cần kho đối tượng, chưa nối.

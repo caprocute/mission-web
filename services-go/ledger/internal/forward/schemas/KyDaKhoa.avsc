@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "name": "KyDaKhoa",
+  "namespace": "vn.vtokr.config.v1",
+  "doc": "EVT-09 · config.period.locked.v1 · MOD-08 phát qua saga SVC-06 khi kỳ đã khoá.",
+  "fields": [
+    {"name": "periodId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "config.period.id"},
+    {"name": "periodBucket", "type": "int", "doc": "Giá trị phân vùng năm × 10 + quý"},
+    {"name": "lockedAt", "type": {"type": "long", "logicalType": "timestamp-micros"}, "doc": "Thời điểm khoá"},
+    {"name": "sagaId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "flowable.saga_instance.id của saga chốt kỳ"},
+    {"name": "policyPackVersionIds", "type": {"type": "array", "items": {"type": "string", "logicalType": "uuid"}}, "default": [], "doc": "Các phiên bản Policy Pack đóng băng cho kỳ"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}

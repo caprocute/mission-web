@@ -50,7 +50,7 @@ public final class OrgRepublishCommandArgs {
       throw new IllegalArgumentException("--tenant phải là UUID");
     }
     return new RepublishRequest(tenantId, entities, buckets, at, args.containsOption("dry-run"),
-        single(args, "operator"));
+        single(args, "operator"), args.containsOption("hashes-only"));
   }
 
   private static String single(ApplicationArguments args, String name) {

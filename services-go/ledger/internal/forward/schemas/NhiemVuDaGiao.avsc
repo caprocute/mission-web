@@ -1,0 +1,18 @@
+{
+  "type": "record",
+  "name": "NhiemVuDaGiao",
+  "namespace": "vn.vtokr.task.v1",
+  "doc": "EVT-04 · task.task.assigned.v1 · MOD-02 phát khi nhiệm vụ được giao.",
+  "fields": [
+    {"name": "taskId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "task.task.id"},
+    {"name": "planItemId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null, "doc": "Dòng kế hoạch nguồn; null với nhiệm vụ phát sinh, từ văn bản"},
+    {"name": "title", "type": "string", "doc": "Tiêu đề nhiệm vụ; với nhiệm vụ mật là chuỗi che \"Nhiệm vụ hạn chế\", nội dung thật không đi qua sự kiện"},
+    {"name": "leadAssigneeId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Người hoặc đơn vị chủ trì duy nhất"},
+    {"name": "assigneeIds", "type": {"type": "array", "items": {"type": "string", "logicalType": "uuid"}}, "default": [], "doc": "Người hoặc đơn vị phối hợp"},
+    {"name": "dueDate", "type": {"type": "int", "logicalType": "date"}, "doc": "Hạn thực hiện"},
+    {"name": "weight", "type": ["null", {"type": "bytes", "logicalType": "decimal", "precision": 6, "scale": 4}], "default": null, "doc": "(suy luận) Trọng số nhiệm vụ (numeric(6,4)); task.task chưa có cột tương ứng nên để tuỳ chọn"},
+    {"name": "isKeyTask", "type": "boolean", "doc": "Nhiệm vụ then chốt"},
+    {"name": "isSecret", "type": "boolean", "doc": "Nhiệm vụ mật (task.task.is_restricted)"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}

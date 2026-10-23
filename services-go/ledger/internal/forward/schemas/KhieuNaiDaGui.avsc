@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "KhieuNaiDaGui",
+  "namespace": "vn.vtokr.oversight.v1",
+  "doc": "EVT-25 · oversight.complaint.filed.v1 · MOD-07 phát khi khiếu nại được gửi; không mang nội dung khiếu nại (C2).",
+  "fields": [
+    {"name": "complaintId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "oversight.complaint.id"},
+    {"name": "profileId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Hồ sơ đánh giá bị khiếu nại"},
+    {"name": "targetStage", "type": "string", "doc": "Bước bị khiếu nại: THAM_DINH, DE_XUAT, QUYET_DINH"},
+    {"name": "complainantId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Người khiếu nại"},
+    {"name": "filedAt", "type": {"type": "long", "logicalType": "timestamp-micros"}, "doc": "Thời điểm gửi"},
+    {"name": "responseDeadline", "type": {"type": "int", "logicalType": "date"}, "doc": "Hạn trả lời"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}
