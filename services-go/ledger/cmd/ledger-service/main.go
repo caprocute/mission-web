@@ -18,6 +18,7 @@ import (
 
 	"mission/services-go/ledger/internal/auth"
 	"mission/services-go/ledger/internal/config"
+	"mission/services-go/ledger/internal/forward"
 	"mission/services-go/ledger/internal/ingest"
 	"mission/services-go/ledger/internal/partition"
 	"mission/services-go/ledger/internal/seal"
@@ -100,6 +101,23 @@ func main() {
 				log.Error("consumer ledger-ingester dừng", "err", err.Error())
 			}
 		}()
+		if cfg.ForwardEnabled {
+			fw, err := forward.New(cfg.KafkaBrokers, cfg.ForwardTopics, log, func(name string, n int64) {
+				if otelProvider != nil && n > 0 {
+					otelProvider.AddCounter(name, n)
+				}
+			})
+			if err != nil {
+				log.Error("không tạo được bộ chuyển tiếp ledger-forwarder", "err", err.Error())
+				os.Exit(1)
+			}
+			defer fw.Close()
+			go func() {
+				if err := fw.Run(ctx); err != nil {
+					log.Error("bộ chuyển tiếp ledger-forwarder dừng", "err", err.Error())
+				}
+			}()
+		}
 	} else {
 		log.Warn("chưa đặt KAFKA_BROKERS, ledger-ingester không chạy")
 	}

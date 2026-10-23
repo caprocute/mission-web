@@ -36,6 +36,9 @@ type Config struct {
 	Issuers      []string
 	Audience     string
 	VerifyWorker int
+	// ForwardEnabled bật bộ chuyển tiếp topic nghiệp vụ → sys.ledger.append.v1; ForwardTopics rỗng là cả danh mục.
+	ForwardEnabled bool
+	ForwardTopics  []string
 }
 
 // Load đọc cấu hình từ biến môi trường với giá trị mặc định an toàn.
@@ -116,6 +119,13 @@ func Load() (*Config, error) {
 		}
 	}
 
+	var fwdTopics []string
+	for _, p := range strings.Split(os.Getenv("FORWARD_TOPICS"), ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			fwdTopics = append(fwdTopics, p)
+		}
+	}
+
 	return &Config{
 		ServiceName:           "ledger",
 		CellCode:              cellCode,
@@ -141,6 +151,8 @@ func Load() (*Config, error) {
 		Issuers:               issuers,
 		Audience:              strings.TrimSpace(os.Getenv("OIDC_AUDIENCE")),
 		VerifyWorker:          workers,
+		ForwardEnabled:        envOrDefault("FORWARD_ENABLED", "true") == "true",
+		ForwardTopics:         fwdTopics,
 	}, nil
 }
 

@@ -19,7 +19,9 @@ func TestMetricsPrometheus(t *testing.T) {
 		Stats:     func() map[string]float64 { return map[string]float64{"ledger.ingest.chain.07.entries_per_second": 1.5} },
 		Lag:       func() ([]uint64, float64, uint64) { return []uint64{1, 3}, 4.5, 4 },
 		LagBounds: []float64{1, 30},
-		Gauges:    func() map[string]float64 { return map[string]float64{"ledger.verify.last_finished_seconds": 1700000000} },
+		Gauges: func() map[string]float64 {
+			return map[string]float64{"ledger.verify.last_finished_seconds": 1700000000}
+		},
 	})
 	rec := httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, httptest.NewRequest("GET", "/metrics", nil))

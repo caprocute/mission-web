@@ -111,6 +111,8 @@ var counterNames = []string{
 	"ledger.ingest.duplicates_total",
 	"ledger.ingest.rejected_c2_total",
 	"ledger.ingest.incidents_total",
+	"ledger.forward.records_total",
+	"ledger.forward.dead_total",
 	"ledger.seal.cell_seals_total",
 	"ledger.seal.tsa_failures_total",
 	"ledger.seal.tsa_overdue_total",
