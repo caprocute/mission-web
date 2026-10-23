@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 # Dựng và bật profile `backend` của hạ tầng dev (INF-22): APISIX dev cổng 35000 cùng mission-core và các
-# service đã có khung, cổng 351xx (bảng ở infra/dev/README.md).
+# service đã có khung, cổng 351xx (bảng ở infra/dev/README.md), và web (SVC-17) phục vụ sau APISIX.
 #
 # Chạy trên máy có Docker và bản checkout đầy đủ của repo (cần backend/, services-go/, contracts/), ví dụ máy
 # chủ dev có bản clone repo, hoặc máy trạm khi thử cục bộ. Dựng jar Java cần JDK 21 và Node (gộp hợp đồng
@@ -9,8 +9,8 @@
 #
 # Các bước: (1) `mvnw package` các mô-đun Java; (2) `docker compose build`; (3) kiểm hạ tầng core, security,
 # events đang chạy (không bật hay dựng lại); (4) migration bằng tài khoản mig_<schema>; (5) `docker compose up -d` các service
-# backend; (6) chờ healthcheck; (7) nạp kỳ đánh giá hiện hành khi có mission-core (seed-ky-hien-hanh.sh, bỏ bằng
-# SKIP_SEED=1) rồi gọi health.sh. Chỉ thao tác project compose `mission-dev`: không dùng
+# backend; (6) chờ healthcheck; (7) seed khi có mission-core (lược đồ Avro, tổ chức và org-republish, kỳ hiện
+# hành, phân vùng theo kỳ, nhiệm vụ mẫu; bỏ bằng SKIP_SEED=1) rồi gọi health.sh. Chỉ thao tác project compose `mission-dev`: không dùng
 # --remove-orphans, không prune, không đụng container khác trên máy.
 #
 # Cách dùng:
@@ -18,6 +18,7 @@
 #   infra/dev/scripts/deploy-backend.sh mission-core apisix   # chỉ vài service
 #   SKIP_JARS=1 SKIP_MIGRATE=1 SKIP_SEED=1 infra/dev/scripts/deploy-backend.sh
 #   HA_TANG_KHONG_BAT_BUOC=apicurio infra/dev/scripts/deploy-backend.sh mission-core   # apicurio lỗi chỉ cảnh báo
+#   SKIP_JARS=1 SKIP_BUILD=1 infra/dev/scripts/deploy-backend.sh   # dùng lại ảnh đã dựng, chỉ migration và bật service
 # Mật khẩu đọc từ infra/dev/.env (không commit); script không in giá trị bí mật.
 # =============================================================================
 set -euo pipefail
@@ -110,7 +111,7 @@ build=()
 for s in ${SERVICES[@]+"${SERVICES[@]}"}; do
   [[ "${s}" != "apisix" ]] && build+=("${s}")
 done
-if [[ ${#build[@]} -gt 0 ]]; then
+if [[ ${#build[@]} -gt 0 && "${SKIP_BUILD:-0}" != "1" ]]; then
   echo "==> Dựng ảnh: ${build[*]-}"
   # Nhãn commit trên ảnh để kiem-tuyen.py và docker inspect biết container chạy mã nào
   revision="$(git -C "${SCRIPT_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
@@ -142,9 +143,7 @@ done
 declare -A RUNNER_SCHEMAS=(
   [mission-core]="keyring,modulith,config,policy,okr,task,product,appraisal,dossier,oversight,org_replica"
   [scoring-service]=scoring
-  [document-service]=docgen
   [evidence-service]=evidence
-  [esign-service]=esign
   [integration-gateway]=integ
 )
 run_migration_runner() {
@@ -191,7 +190,9 @@ if [[ "${SKIP_MIGRATE:-0}" != "1" ]]; then
     compose run --rm --no-deps -T -e SPRING_PROFILES_ACTIVE=migrate \
       -e ORG_DB_URL="jdbc:postgresql://postgres:5432/${POSTGRES_DB:-mission}?currentSchema=org" org-service
   fi
-  # workflow-service tự chạy Flyway schema flowable bằng mig_flowable lúc khởi động (docker-compose.yml).
+  # workflow-service (flowable), document-service (docgen) và esign-service (esign) tự chạy Flyway lúc khởi động
+  # bằng mig_<schema> (docker-compose.yml): migration của hai schema sau tự tạo outbox, inbox, idempotency nên
+  # không chạy chung với phần V0_x của MigrationRunner (trùng bảng outbox_event).
   selected tenant-registry && run_go_migration "${POSTGRES_DB:-mission}" \
     "${REPO_ROOT}/services-go/tenant-registry/db/migration/registry" registry.tenant
   selected ledger-service && run_go_migration ledger \
@@ -202,7 +203,11 @@ fi
 
 # --- (5) bật service -------------------------------------------------------------
 echo "==> Bật service: ${SERVICES[*]-}"
-compose up -d --no-deps ${SERVICES[@]+"${SERVICES[@]}"}
+compose up -d --no-deps --no-build ${SERVICES[@]+"${SERVICES[@]}"}
+
+# Client mission-web của Keycloak phải nhận gốc web (WEB_ORIGIN) làm redirect URI; realm đã nhập từ trước thì
+# không tự cập nhật, nên thêm bằng kcadm (chạy lại không trùng).
+selected web && "${SCRIPT_DIR}/cap-nhat-goc-web.sh"
 
 # --- (6) chờ healthcheck ----------------------------------------------------------
 echo "==> Chờ healthcheck (tối đa 5 phút)"
@@ -222,9 +227,20 @@ done
 # --- (7) dữ liệu nền qua API ---------------------------------------------------------
 # Tenant thử cần một kỳ đang mở bao trùm hôm nay, nếu không cây mục tiêu trả 404 (CORE-01-04). Đi qua APISIX
 # bằng tài khoản quản trị đơn vị thử; lỗi ở bước này chỉ cảnh báo, không làm hỏng lần triển khai.
+# Thứ tự: lược đồ Avro vào Apicurio trước mọi thao tác ghi có sự kiện; tổ chức sang org_replica trước khi giao
+# việc; phân vùng theo kỳ trước khi ghi dữ liệu của kỳ (README mục 3.2). Mỗi bước chạy lại an toàn.
+canh_bao() { echo "  Cảnh báo: $1 chưa xong; chạy lại $2 khi APISIX, Keycloak và Apicurio sẵn sàng" >&2; }
 if selected mission-core && [[ "${SKIP_SEED:-0}" != "1" ]]; then
-  "${SCRIPT_DIR}/seed-ky-hien-hanh.sh" ||
-    echo "  Cảnh báo: chưa nạp được kỳ hiện hành; chạy lại infra/dev/scripts/seed-ky-hien-hanh.sh khi APISIX và Keycloak sẵn sàng" >&2
+  python3 -I "${SCRIPT_DIR}/dang-ky-luoc-do.py" >/dev/null || canh_bao "đăng ký lược đồ sự kiện" "dang-ky-luoc-do.py"
+  "${SCRIPT_DIR}/seed-org.sh" || canh_bao "seed tổ chức" "seed-org.sh"
+  if selected org-service || docker ps -q --filter name=mission-dev-org-service | grep -q .; then
+    "${SCRIPT_DIR}/dong-bo-to-chuc.sh" || canh_bao "đồng bộ tổ chức sang mission-core" "dong-bo-to-chuc.sh"
+  fi
+  "${SCRIPT_DIR}/seed-ky-hien-hanh.sh" || canh_bao "nạp kỳ hiện hành" "seed-ky-hien-hanh.sh"
+  "${SCRIPT_DIR}/tao-phan-vung-ky.sh" || canh_bao "tạo phân vùng theo kỳ" "tao-phan-vung-ky.sh"
+  # Keycloak từ chối mã OTP đã dùng trong 30 giây của cùng tài khoản; bước sau đăng nhập lại quantri.
+  sleep 31
+  python3 -I "${SCRIPT_DIR}/seed-ky-nhiem-vu.py" || canh_bao "nhiệm vụ mẫu" "seed-ky-nhiem-vu.py"
 fi
 
 echo "==> Container sau khi áp: $(docker ps -q | wc -l) đang chạy, $(docker ps -q --filter "label=com.docker.compose.project=${PROJECT}" | wc -l) thuộc ${PROJECT}"

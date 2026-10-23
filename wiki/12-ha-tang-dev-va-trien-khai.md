@@ -550,6 +550,18 @@ Bẫy và quyết định đã gặp:
 
   Kiểm thử INF-13 riêng: `python3 -m unittest discover -s deploy/openbao/tests` (7 ca, PostgreSQL 16 tạm).
 
+## Dựng trọn stack dev có web: các bẫy đã gặp
+
+Lần dựng trọn stack `infra/dev` trên máy sạch (hạ tầng, mười bốn service, web và seed) lộ ra một loạt chỗ hở mà kiểm thử từng service không thấy, vì mỗi kiểm thử dựng hạ tầng riêng bằng Testcontainers. Thứ tự lệnh đã chạy thử nằm ở `infra/dev/README.md` mục 3.2; các bẫy đáng nhớ như sau.
+
+- **Lược đồ sự kiện phải đăng ký đúng dạng lớp sinh.** Serde outbox (`ApicurioPayloadSerializer`) và lệnh `org-republish` chạy với `AUTO_REGISTER_ARTIFACT=false`, tra phiên bản theo nội dung đã chuẩn hoá. Lớp Avro sinh với `stringType=String` in thêm `"avro.java.string": "String"` và gộp kiểu có tên tham chiếu, còn chuẩn hoá của Apicurio giữ thuộc tính phụ, nên artifact chỉ chứa tệp `.avsc` thì serde không tìm thấy và mọi thao tác ghi có sự kiện lỗi 500 (suy luận từ kết quả chạy thử với Apicurio 3.3.3). `infra/dev/scripts/dang-ky-luoc-do.py` đăng ký cả hai dạng. Môi trường khác (CI, cell thật) cần cùng cách đăng ký; đây là điểm cần chốt ở NEN-011.
+- **Phân vùng theo kỳ chưa có ai tạo.** Bảng theo kỳ không có phân vùng mặc định (NEN-033), còn tác vụ mở kỳ (CORE-08-02) mới phát `PeriodOpenedEvent` mà chưa có bên nhận tạo phân vùng, nên tạo nhiệm vụ trong kỳ mới lỗi "no partition of relation". Dev tạm dùng `tao-phan-vung-ky.sh`.
+- **Bản sao tổ chức chỉ đầy khi có sự kiện.** `seed-org.sh` ghi thẳng schema `org`, nên `org_replica` của mission-core trống tới khi chạy `org-republish` (`dong-bo-to-chuc.sh`); thiếu bước này mọi API cần đơn vị công tác trả 403.
+- **Tắt OPA không được làm mất người gọi.** Dev chạy `OPA_ENABLED=false`; bộ trích chủ thể JWT (`AuthzSubjectResolver`) nay có cấu hình tự động riêng nên vẫn có mặt khi tắt OPA, trước đây thiếu bean khiến mọi API cần biết người gọi trả 401.
+- **Keycloak dev chạy HTTP.** Thư viện OIDC của web mặc định chỉ nhận issuer HTTP cho `localhost`; web nay tự miễn cho mọi địa chỉ vòng lặp (`127.0.0.1` qua hầm SSH), còn mở thẳng server dev bằng địa chỉ IP thì đặt `WEB_AUTH_ALLOW_HTTP=true` (sinh `auth.allowHttp` trong `config.json`). Production không đặt cờ này.
+- **Ảnh dựng sau proxy chặn TLS.** Đặt `BUILD_CA_BUNDLE` trỏ tệp PEM trong `infra/dev` để `npm ci`, `go mod download`, `apk add` và tải plugin OpenSearch tin CA của proxy qua build secret.
+- **Ảnh phụ thuộc đã đổi.** `minio/minio`, `minio/mc` đã bị gỡ khỏi Docker Hub (dùng ảnh Chainguard ghim digest); OpenSearch cần plugin `analysis-icu` cho `icu_tokenizer` của search (ảnh dựng ở `infra/dev/opensearch`); Apicurio nâng 3.3.3 cho khớp serde và maven plugin.
+
 ## Lộ trình theo TL-04
 
 TL-04 chia lộ trình thành các đợt. Đợt 0a kéo dài 2 tuần, xử lý ngay các lỗ hổng S01 đến S05, S07, S08 và S11 của hệ cũ: gitleaks, xoay vòng bí mật, OpenBao tối thiểu, sửa CORS và cookie, bỏ token khỏi URL và log, rồi kiểm tra lại. Đợt 0b kéo dài 6 tuần: chart `vt-service`, đặt APISIX trước hệ cũ để sinh `traceparent`, dựng OTel, Tempo, Prometheus, Fluent Bit và cụm quản trị Argo CD, Harbor, Grafana, với mục tiêu có trace xuyên bốn tầng. Đợt 0c kéo dài 6 tuần: Resilience4j, cổng chất lượng Jenkins, Kyverno chế độ Enforce, Flyway và thử tải 500 người dùng đồng thời với p95 dưới 3 giây.

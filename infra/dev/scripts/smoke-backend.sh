@@ -4,7 +4,7 @@
 #   1. Sức khoẻ: APISIX trả lời; container backend của project mission-dev healthy (khi có docker CLI).
 #   2. Xác thực: gọi /api/v1/* không token bị 401.
 #   3. Lời gọi có JWT thử: đăng nhập tài khoản thử (mặc định canbo) qua client mission-web bằng PKCE và OTP
-#      (lay-token-thu.py), gọi GET /api/v1/tasks/mine và GET /api/v1/periods, đòi 200 kèm header ETag.
+#      (lay-token-thu.py), gọi GET /api/v1/tasks/mine và GET /api/v1/periods, đòi 200 (danh sách không mang ETag theo hợp đồng).
 #   4. (Tuỳ chọn) Sự kiện sau thao tác ghi: khi đặt SMOKE_WRITE_PATH và SMOKE_EVENT_TOPIC, gửi lệnh ghi
 #      (SMOKE_WRITE_METHOD, mặc định POST, thân SMOKE_WRITE_BODY, kèm Idempotency-Key) rồi đòi số bản ghi của
 #      topic tăng (đọc offset trong container mission-dev-kafka). Không đặt thì báo "bỏ qua".
@@ -72,10 +72,9 @@ else
     code="$(printf '%s' "${headers}" | awk 'NR==1 {print $2}')"
     if [[ "${code}" != "200" ]]; then
       fail "GET ${path}" "mã ${code:-không có}"
-    elif ! printf '%s' "${headers}" | grep -qi '^etag:'; then
-      fail "GET ${path}" "200 nhưng thiếu ETag"
     else
-      pass "GET ${path} → 200, có ETag"
+      # Hợp đồng của listMyTasks, listPeriods không khai ETag (ETag chỉ có ở tài nguyên đơn lẻ để gửi If-Match).
+      pass "GET ${path} → 200"
     fi
   done
 fi

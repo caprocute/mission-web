@@ -14,7 +14,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
@@ -65,7 +65,8 @@ const commands = {
   /** Bố cục giống deploy/web: shell ở gốc, remote ở remotes/<project>, manifest trỏ cùng nguồn. */
   assemble(outDir, tsvPath) {
     if (!outDir) throw new Error('Thiếu thư mục đích');
-    const out = join(process.cwd(), outDir);
+    // resolve (không phải join) để đường dẫn tuyệt đối như /out/html của deploy/web/Dockerfile giữ nguyên.
+    const out = resolve(outDir);
     rmSync(out, { recursive: true, force: true });
     cpSync(join(ROOT, 'dist/fe-shell/browser'), out, { recursive: true });
     const manifest = {};
@@ -84,8 +85,8 @@ const commands = {
     }
     writeFileSync(join(out, 'federation.manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
     if (tsvPath) {
-      mkdirSync(dirname(join(process.cwd(), tsvPath)), { recursive: true });
-      writeFileSync(join(process.cwd(), tsvPath), tsv.join('\n') + '\n');
+      mkdirSync(dirname(resolve(tsvPath)), { recursive: true });
+      writeFileSync(resolve(tsvPath), tsv.join('\n') + '\n');
     }
     console.log(
       `[assemble] ${relative(process.cwd(), out) || out}: fe-shell + ${tsv.length} remote`,

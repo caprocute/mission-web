@@ -144,7 +144,7 @@ Máy chủ dev chạy CentOS 7 với bash 4.2, còn máy Mac mặc định có b
 
 ```bash
 cd infra/dev
-cp .env.example .env   # điền mật khẩu thật vào .env (không commit)
+./scripts/gen-env.sh   # sinh .env từ .env.example: mật khẩu ngẫu nhiên cho mọi ô __GENERATE__ hoặc <FILL_IN> (không commit)
 
 # 1. Chỉ bật nền tảng cốt lõi (Postgres + PgBouncer, Valkey, Keycloak)
 docker compose up -d
@@ -184,7 +184,34 @@ infra/dev/scripts/smoke-backend.sh                     # sức khoẻ, 401 khi k
 
 Token của Keycloak mang `iss` theo địa chỉ dùng để đăng nhập, nên `KEYCLOAK_PUBLIC_URL` (mặc định `http://127.0.0.1:35080`) phải trùng địa chỉ mà trình duyệt và kiểm thử khói dùng; service trong container kiểm `iss` theo giá trị này và lấy JWKS qua đường nội bộ `keycloak:8080`. Kiểm thử khói đăng nhập tài khoản thử (mặc định `canbo`, đổi bằng `SMOKE_USER`) qua client `mission-web` đúng như trình duyệt (Authorization Code + PKCE, mã OTP sinh từ `KC_TEST_OTP_SECRET`, `scripts/lay-token-thu.py`), nên không cần bật direct grant cho client nào. Kiểm sự kiện sau thao tác ghi là tuỳ chọn: đặt `SMOKE_WRITE_PATH`, `SMOKE_EVENT_TOPIC` (và `SMOKE_WRITE_METHOD`, `SMOKE_WRITE_BODY`).
 
-### 3.1. Chẩn đoán tuyến API (`kiem-tuyen.py`)
+Phân hệ web (SVC-17) cũng thuộc profile `backend` và được `deploy-backend.sh` dựng cùng các service khác. Ảnh web chứa bản build shell và các remote, tệp `config.json` sinh lúc khởi động từ biến môi trường: đăng nhập Keycloak bật sẵn với issuer `${KEYCLOAK_PUBLIC_URL}/realms/mission`, API đi qua `/api` cùng nguồn, API giả lập tắt (bật lại từng module chưa có máy chủ bằng `WEB_MOCK_API_MODULES`, hoặc toàn bộ bằng `WEB_USE_MOCK_API=true`). Người dùng mở `WEB_ORIGIN` (mặc định `http://127.0.0.1:35000`, tức cổng APISIX); vì realm chỉ nạp `redirectUris` từ `WEB_ORIGIN` ở lần nhập đầu, `deploy-backend.sh` gọi `scripts/cap-nhat-goc-web.sh` để thêm nguồn này vào client `mission-web` một cách bất biến (chạy lại không sao) trước khi bật web.
+
+Khi máy dựng ảnh nằm sau proxy chặn TLS (máy cloud của agent, hoặc mạng công ty), đặt `BUILD_CA_BUNDLE` trỏ tới tệp PEM của CA proxy **nằm trong** `infra/dev` (ví dụ `./data/build-ca.pem`, thư mục `data/` không commit). Compose truyền tệp này vào bước `npm ci`, `go mod download` và `apk add` dưới dạng build secret, nên CA không nằm lại trong ảnh. Để trống khi không cần.
+
+### 3.2. Dựng trọn stack có web và seed (thứ tự đã chạy thử trên máy sạch)
+
+Các bước dưới đây đưa một máy có Docker từ trạng thái trống tới lúc đăng nhập được web bằng tài khoản thử và trang chủ có dữ liệu. Thứ tự quan trọng vì mỗi bước dựa vào bước trước: lược đồ sự kiện phải có trong Apicurio trước khi service phát sự kiện, dữ liệu tổ chức phải sang được bản sao của mission-core trước khi giao việc, và phân vùng theo kỳ phải có trước khi ghi dữ liệu của kỳ.
+
+```bash
+cd infra/dev
+./scripts/gen-env.sh                                   # máy mới; máy đã có .env thì ./scripts/gen-env.sh --bo-sung
+docker compose --profile core --profile security --profile events --profile search up -d
+./scripts/create-topics.sh
+cd ../..
+infra/dev/scripts/deploy-backend.sh                    # jar, ảnh (kể cả web), migration, gốc web trong Keycloak, bật service, seed
+# UI Pack mặc định (bố cục trang chủ); quantri gửi, quantri2 phát hành (bốn mắt)
+set -a; source infra/dev/.env; set +a
+(cd data/seed/ui-pack && MISSION_API=http://127.0.0.1:35000/api/v1 \
+  MISSION_TOKEN="$(SMOKE_USER=quantri python3 -I ../../../infra/dev/scripts/lay-token-thu.py)" \
+  MISSION_TOKEN_DUYET="$(SMOKE_USER=quantri2 python3 -I ../../../infra/dev/scripts/lay-token-thu.py)" python3 -I nap_ui_pack.py)
+infra/dev/scripts/smoke-backend.sh
+```
+
+Bước seed của `deploy-backend.sh` (bỏ bằng `SKIP_SEED=1`) chạy lần lượt: `dang-ky-luoc-do.py` đăng ký lược đồ Avro của `contracts/events` vào Apicurio cả ở dạng tệp `.avsc` lẫn dạng lớp sinh mà serde gửi lên; `seed-org.sh` nạp đơn vị, cán bộ, phân công và tenant thử cùng cell DEV trong tenant-registry; `dong-bo-to-chuc.sh` chạy `org-republish` để dữ liệu tổ chức sang `org_replica` của mission-core; `seed-ky-hien-hanh.sh` tạo kỳ hiện hành; `tao-phan-vung-ky.sh` tạo phân vùng theo kỳ cho mọi bảng theo kỳ; `seed-ky-nhiem-vu.py` giao một nhiệm vụ mẫu cho `canbo`. Mỗi bước chạy lại an toàn và lỗi chỉ in cảnh báo kèm lệnh chạy lại.
+
+`lay-token-thu.py` đọc `KC_TEST_USER_PASSWORD`, `KC_TEST_OTP_SECRET` từ môi trường, nên trước các lệnh có token cần `set -a; source infra/dev/.env; set +a`. Keycloak từ chối dùng lại một mã OTP trong cùng khung 30 giây cho cùng tài khoản, nên hai lần lấy token liên tiếp của một người dùng phải cách nhau quá 30 giây. Sau khi xong, mở `WEB_ORIGIN` và đăng nhập `canbo`; trang chủ hiện nhiệm vụ mẫu trong "Việc của tôi hôm nay". `analytics-api` chỉ lên khi bật thêm profile `analytics` (ClickHouse, Superset).
+
+### 3.3. Chẩn đoán tuyến API (`kiem-tuyen.py`)
 
 Khi màn hình hiện trống hay API trả 404, chạy một lệnh trên máy chủ dev (cần Python 3.10 trở lên và PyYAML; thiếu thì cài bằng `python3 -m pip install --user pyyaml`):
 

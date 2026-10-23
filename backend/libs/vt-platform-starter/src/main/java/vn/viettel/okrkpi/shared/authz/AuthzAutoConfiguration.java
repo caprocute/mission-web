@@ -66,12 +66,6 @@ public class AuthzAutoConfiguration {
 
   @Bean
   @ConditionalOnMissingBean
-  public AuthzSubjectResolver authzSubjectResolver() {
-    return new AuthzSubjectResolver();
-  }
-
-  @Bean
-  @ConditionalOnMissingBean
   public OpaSqlFilter opaSqlFilter(
       OpaClient opaClient, OpaProperties properties, ObjectProvider<Clock> clockProvider) {
     return new OpaSqlFilter(opaClient, properties, clockProvider.getIfAvailable(Clock::systemUTC));

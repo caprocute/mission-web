@@ -190,8 +190,9 @@ export class SessionService {
       showDebugInformation: false,
       clearHashAfterLogin: true,
       // Thư viện chỉ miễn HTTPS cho `http://localhost` ('remoteOnly'); Keycloak dev qua hầm SSH là
-      // `http://127.0.0.1:35080` (KEYCLOAK_PUBLIC_URL) nên miễn cho mọi địa chỉ vòng lặp, còn lại bắt HTTPS.
-      requireHttps: !isLoopbackHttp(this.cfg.auth.issuer),
+      // `http://127.0.0.1:35080` (KEYCLOAK_PUBLIC_URL) nên miễn cho mọi địa chỉ vòng lặp, còn lại bắt HTTPS trừ khi
+      // config.json đặt `auth.allowHttp` (server dev nội bộ truy cập bằng địa chỉ IP, chưa có TLS).
+      requireHttps: !(this.cfg.auth.allowHttp || isLoopbackHttp(this.cfg.auth.issuer)),
       // state + nonce + PKCE S256 do thư viện sinh và kiểm (SEC-17)
     });
     this.oauth.events.subscribe((e) => {

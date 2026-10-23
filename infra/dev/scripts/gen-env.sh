@@ -35,7 +35,7 @@ gen_b32() { LC_ALL=C tr -dc 'A-Z2-7' </dev/urandom | head -c 32 || true; }
 is_secret() {
   case "$1" in
     ESIGN_MYSIGN_* | ESIGN_S3_* | ESIGN_HSM_LIBRARY | ESIGN_VIETTEL_CA_* | ESIGN_GOV_CA_* | SMTP_* | SMS_* | PUSH_*) return 1 ;;
-    *PASSWORD* | *SECRET* | *_PIN | *TOKEN) return 0 ;;
+    *PASSWORD* | *SECRET* | *_PIN | *TOKEN | *_C2_KEY) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -54,6 +54,9 @@ value_for() {
   elif [[ "${sample}" == "<FILL_IN>" || "${sample}" == "__GENERATE__" ]]; then
     if [[ "${key}" == *OTP_SECRET ]]; then
       gen_b32
+    elif [[ "${key}" == *_C2_KEY ]]; then
+      # Khoá mã hoá dạng base64 của đúng 32 byte (REGISTRY_C2_KEY, REGISTRY_ROUTING_COOKIE_C2_KEY của tenant-registry)
+      head -c 32 /dev/urandom | base64
     elif is_secret "${key}"; then
       gen
     fi
