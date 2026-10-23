@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **308 / 408 task (75.5%)** — Khối lượng quy đổi đã gộp: **357 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **308 / 408 task (75.5%)** (gồm **308** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **311 / 408 task (76.2%)** (gồm **308** đã gộp `main` + **3** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **5 task** (1 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **95 task**.
+- **Chưa bắt đầu**: **92 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -24,15 +24,15 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **68** | 0 | 2 | 2 | **94.4%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **103** | 0 | 2 | 12 | **88.0%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **70** | 0 | 1 | 33 | **67.3%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **103** | 1 | 2 | 11 | **88.0%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **70** | 2 | 1 | 31 | **67.3%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **12** | 0 | 0 | 1 | **92.3%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **308** | **0** | **5** | **95** | **75.5%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **308** | **3** | **5** | **92** | **75.5%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -41,8 +41,8 @@
 | **M0 – Nền móng phát triển & CSDL** | 60 | **60** | 0 | 0 | 0 | **100.0%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **34** | 0 | 0 | 6 | **85.0%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **86** | 0 | 3 | 31 | **71.7%** |
-| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **61** | 0 | 1 | 10 | **84.7%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **86** | 2 | 3 | 29 | **71.7%** |
+| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **61** | 1 | 1 | 9 | **84.7%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **16** | 0 | 1 | 25 | **38.1%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **3** | 0 | 0 | 20 | **13.0%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **1** | 0 | 0 | 3 | **25.0%** |
@@ -297,7 +297,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-03-07](docs/tasks/CORE-03-07-nghiem-thu-nam-muc.md) | Nghiệm thu năm mức: AAL2, tách vai trò, nhận xét C2, EVT-08 | L | B3 | 19 | CORE-03-06, NEN-014, NEN-015 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [CORE-03-08](docs/tasks/CORE-03-08-nhac-qua-han-nghiem-thu.md) | Nhắc quá hạn nghiệm thu và nghiệm thu thay theo uỷ quyền | S | B3 | 20 | CORE-03-07, CORE-08-04, CORE-08-16 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 
-### CORE-04 · MOD-04 appraisal: đánh giá, xếp loại (12/13 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### CORE-04 · MOD-04 appraisal: đánh giá, xếp loại (12/13 đã gộp `main`, 1 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -312,7 +312,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-04-09](docs/tasks/CORE-04-09-vet-tinh-diem.md) | Tra cứu vết tính điểm, điểm theo luồng, xuất XLSX | S | B4 | 16 | CORE-04-02, DV-07-03 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 | [CORE-04-10](docs/tasks/CORE-04-10-xep-loai-nam.md) | Xếp loại năm: lập từ bốn quý, xử lý thiếu quý, chặn khi còn khiếu nại, tính lại | L | B4 | 20 | CORE-04-08, DV-07-07 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 | [CORE-04-11](docs/tasks/CORE-04-11-co-bo-tri-lai.md) | Cờ "không hoàn thành hai năm liền" và đề xuất bố trí lại sang MOD-02 | S | B4 | 21 | CORE-04-10 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
-| [CORE-04-12](docs/tasks/CORE-04-12-phan-nhom-trien-vong.md) | Phân nhóm triển vọng: lưu nháp, BR-10-07..09, trình tập thể, ký danh sách | M | B4 | 21 | CORE-04-10 | **Chưa bắt đầu** |  |
+| [CORE-04-12](docs/tasks/CORE-04-12-phan-nhom-trien-vong.md) | Phân nhóm triển vọng: lưu nháp, BR-10-07..09, trình tập thể, ký danh sách | M | B4 | 21 | CORE-04-10 | **Xong, chờ gộp** | Nhánh claude/project-thread-uusb7v: đã qua build & test; migration appraisal V6__appraisal_danh_sach_phan_nhom.sql |
 | [CORE-04-13](docs/tasks/CORE-04-13-dau-vao-diem-cong-viec-su-viec.md) | Đầu vào `workItems` và `responsibilityScope` trong `inputs`, bảng `appraisal.incident`, bắt buộc lý do khi mức của `rating_proposal` khác mức gợi ý | L | B4 | 18 | NEN-044, CORE-04-06, CORE-02-27, CORE-02-28, CORE-01-14 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 
 ### CORE-06 · MOD-06 dossier: kiểm điểm, hồ sơ số (5/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
@@ -409,16 +409,16 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-06-11](docs/tasks/DV-06-11-chieu-lich-su-g2.md) | Chiếu lịch sử tiến trình sang kho phân tích và chỉ số giám sát G2 | M | B6 | 11 | DV-06-02, DV-15-01 | **Chưa bắt đầu** |  |
 | [DV-06-12](docs/tasks/DV-06-12-mau-duyet-kep-chi-huy.md) | Mẫu BPMN duyệt kép chỉ huy và cấp uỷ (`duyet-kep-chi-huy-cap-uy`) | M | B6 | 13 | DV-06-04 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
 
-### DV-07 · SVC-07 scoring-service (6/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-07 · SVC-07 scoring-service (6/8 đã gộp `main`, 2 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-07-01](docs/tasks/DV-07-01-khung-scoring.md) | Khung service và migration schema `scoring` | M | B4 | 9 | NEN-019, NEN-033 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DV-07-02](docs/tasks/DV-07-02-nap-policy-pack.md) | Nạp Policy Pack, biên dịch sẵn CEL và DMN, đệm theo phiên bản | M | B4 | 14 | DV-07-01, NEN-041, CORE-05-03 | **Đã gộp main** | Đã gộp main (ad623eff) |
 | [DV-07-03](docs/tasks/DV-07-03-chuoi-tinh-diem.md) | Chuỗi tính A, B, C, KPI nhóm, điểm và `score_trace` | L | B4 | 15 | DV-07-02 | **Đã gộp main** | Đã gộp main (fcfdd4ab) |
-| [DV-07-04](docs/tasks/DV-07-04-tinh-dan-su-kien.md) | Tính dần theo sự kiện EVT-06, EVT-08, EVT-13, EVT-22, phát EVT-10 | M | B4 | 16 | DV-07-03, NEN-012 | **Chưa bắt đầu** |  |
+| [DV-07-04](docs/tasks/DV-07-04-tinh-dan-su-kien.md) | Tính dần theo sự kiện EVT-06, EVT-08, EVT-13, EVT-22, phát EVT-10 | M | B4 | 16 | DV-07-03, NEN-012 | **Xong, chờ gộp** | Nhánh claude/project-thread-uusb7v: đã qua build & test (verify scoring-service 197 unit + 20 IT, helm lint); chưa đo tải (YC-PT-19) |
 | [DV-07-05](docs/tasks/DV-07-05-dmn-xep-loai.md) | DMN xếp loại, câu giải thích, snapshot có `input_hash`; luồng Đảng và Nhà nước song song | L | B4 | 16 | DV-07-03 | **Đã gộp main** | Đã gộp main (fcfdd4ab) |
-| [DV-07-06](docs/tasks/DV-07-06-tinh-lai-hang-loat.md) | Tính lại hàng loạt cuối kỳ: chia lô, worker co giãn, đọc `inputs`, hàng đợi lỗi (NFR-06) | L | B4 | 18 | DV-07-05, CORE-04-06 | **Chưa bắt đầu** |  |
+| [DV-07-06](docs/tasks/DV-07-06-tinh-lai-hang-loat.md) | Tính lại hàng loạt cuối kỳ: chia lô, worker co giãn, đọc `inputs`, hàng đợi lỗi (NFR-06) | L | B4 | 18 | DV-07-05, CORE-04-06 | **Xong, chờ gộp** | Nhánh claude/project-thread-uusb7v: đã qua build & test (verify scoring-service 197 unit + 20 IT, helm lint); chưa đo tải (YC-PT-19) |
 | [DV-07-07](docs/tasks/DV-07-07-snapshot-nam.md) | Snapshot năm (băm của các băm quý) và DMN năm | M | B4 | 17 | DV-07-05 | **Đã gộp main** | Đã gộp main (fcfdd4ab) |
 | [DV-07-08](docs/tasks/DV-07-08-mo-phong-xem-truoc.md) | API mô phỏng và xem trước với phiên bản Policy Pack gốc | M | B4 | 17 | DV-07-05 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 
@@ -985,4 +985,7 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 00:50 | Điều phối | `CORE-05-11` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (fcfdd4ab) |
 | 23/10/2026 00:50 | Điều phối | `WEB-070` | Chuyển trạng thái sang **Làm một phần** — Công tắc giả lập và kịch bản e2e đã gộp main (fcfdd4ab); chạy với máy chủ thật chờ QA-03 |
 | 23/10/2026 02:34 | Điều phối | `CORE-05-10`, `DV-06-08`, `CORE-05-12`, `CORE-04-13`, `DV-11-04`, `CORE-02-17`, `DV-13-01`, `DV-13-03`, `DV-08-05`, `CORE-04-09`, `CORE-04-10`, `CORE-04-11`, `DV-07-08`, `CORE-07-03`, `CORE-07-06`, `CORE-02-24` | Chuyển trạng thái sang **Đã gộp main** — Đợt 8–9, main ff7be5b8 |
+| 23/10/2026 02:40 | B4 | `CORE-04-12` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: đã qua build & test; migration appraisal V6__appraisal_danh_sach_phan_nhom.sql |
+| 23/10/2026 02:40 | B4 | `DV-07-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: đã qua build & test (verify scoring-service 197 unit + 20 IT, helm lint); chưa đo tải (YC-PT-19) |
+| 23/10/2026 02:40 | B4 | `DV-07-06` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: đã qua build & test (verify scoring-service 197 unit + 20 IT, helm lint); chưa đo tải (YC-PT-19) |
 <!-- PROGRESS_LOG_END -->
