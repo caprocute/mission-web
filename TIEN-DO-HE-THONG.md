@@ -12,40 +12,40 @@
 
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
-- **Tổng tiến độ đã gộp `main`**: **277 / 408 task (67.9%)** — Khối lượng quy đổi đã gộp: **317 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **278 / 408 task (68.1%)** (gồm **277** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **6 task** (1 đang làm, 5 làm một phần).
-- **Chưa bắt đầu**: **124 task**.
+- **Tổng tiến độ đã gộp `main`**: **280 / 408 task (68.6%)** — Khối lượng quy đổi đã gộp: **321 / 492.5 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **280 / 408 task (68.6%)** (gồm **280** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **7 task** (1 đang làm, 6 làm một phần).
+- **Chưa bắt đầu**: **121 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **18 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-10`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
 
 | Mã nhóm | Phân hệ / Phạm vi | Tổng task | Khối lượng | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tỷ lệ gộp `main` |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **67** | 1 | 3 | 1 | **93.1%** |
+| **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **67** | 0 | 4 | 1 | **93.1%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **85** | 0 | 2 | 30 | **72.6%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **59** | 0 | 1 | 44 | **56.7%** |
-| **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **11** | 0 | 0 | 2 | **84.6%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **86** | 0 | 2 | 29 | **73.5%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **60** | 0 | 1 | 43 | **57.7%** |
+| **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **12** | 0 | 0 | 1 | **92.3%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **277** | **1** | **6** | **124** | **67.9%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **280** | **0** | **7** | **121** | **68.6%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
 | Mốc triển khai | Tổng task | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tiến độ gộp `main` |
 |---|---:|---:|---:|---:|---:|---:|
-| **M0 – Nền móng phát triển & CSDL** | 60 | **59** | 1 | 0 | 0 | **98.3%** |
+| **M0 – Nền móng phát triển & CSDL** | 60 | **59** | 0 | 1 | 0 | **98.3%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **44** | 0 | 0 | 3 | **93.6%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **72** | 0 | 3 | 45 | **60.0%** |
-| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **50** | 0 | 2 | 20 | **69.4%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **73** | 0 | 3 | 44 | **60.8%** |
+| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **51** | 0 | 2 | 19 | **70.8%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **16** | 0 | 1 | 25 | **38.1%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **3** | 0 | 0 | 20 | **13.0%** |
-| **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **0** | 0 | 0 | 4 | **0.0%** |
+| **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **1** | 0 | 0 | 3 | **25.0%** |
 
 ### 1.3. Trạng thái 23 task trên Đường găng
 
@@ -74,7 +74,7 @@ Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 
 Mọi thay đổi trạng thái task đều được cập nhật trực tiếp vào bảng dưới đây. Các giá trị cột **Trạng thái** hợp lệ: `Đã gộp main`, `Xong, chờ gộp`, `Đang làm`, `Làm một phần`, `Chưa bắt đầu`.
 
-### WEB-001..065 · Phân hệ giao diện Web (Kế hoạch Web GĐ0–GĐ4) (63/65 đã gộp `main`, 1 chờ gộp, 1 đang làm)
+### WEB-001..065 · Phân hệ giao diện Web (Kế hoạch Web GĐ0–GĐ4) (63/65 đã gộp `main`, 0 chờ gộp, 2 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -87,7 +87,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [WEB-007](docs/tasks/WEB-007-api-client-openapi.md) | `@vt/api-client`: sinh client từ OpenAPI, xử lý lỗi, 409, job 202 | M | W-Nền tảng | – | WEB-001 | **Đã gộp main** | Đã gộp `main` (`@vt/api-client`, xử lý lỗi RFC 9457, 409, JobTracker 202) |
 | [WEB-008](docs/tasks/WEB-008-mock-api.md) | Tách dữ liệu giả lập thành interceptor và fixture theo module | S | W-Nền tảng | – | WEB-007 | **Đã gộp main** | Đã gộp `main` (interceptor và fixture dữ liệu giả lập theo module) |
 | [WEB-009](docs/tasks/WEB-009-sdui-chu-ky.md) | SDUI: kiểm chữ ký UI Pack, kiểm phiên bản registry, telemetry | M | W-Nền tảng | – | WEB-004 | **Đã gộp main** | Đã gộp main (f74d95f1) |
-| [WEB-010](docs/tasks/WEB-010-form-engine.md) | Form engine: widget, test CEL dùng chung, benchmark | M | W-Nền tảng | – | WEB-001 | **Xong, chờ gộp** | Nhánh claude/b8-ha-tang-g7g48k: dựng dần theo nhóm, lượt vẽ đầu 13-20 ms, không tác vụ dài trên 50 ms (wiki/09) |
+| [WEB-010](docs/tasks/WEB-010-form-engine.md) | Form engine: widget, test CEL dùng chung, benchmark | M | W-Nền tảng | – | WEB-001 | **Làm một phần** | Đã gộp phần khung trên `main`; ngân sách dựng 50 trường ≤ 50 ms đang ở mức ~95 ms |
 | [WEB-011](docs/tasks/WEB-011-telemetry-faro.md) | Telemetry: Grafana Faro + OpenTelemetry web | S | W-Nền tảng | – | WEB-001 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [WEB-012](docs/tasks/WEB-012-shell-hoan-thien.md) | Shell: thông báo thời gian thực, tìm kiếm, xử lý lỗi toàn cục | M | W-Nền tảng | – | WEB-006, WEB-007 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [WEB-013](docs/tasks/WEB-013-web-component-nhung.md) | Chế độ nhúng `<vt-okr-app>` cho cổng văn phòng số | M | W-Nền tảng | – | WEB-006 | **Đã gộp main** | Đã gộp main (f74d95f1) |
@@ -251,7 +251,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-01-13](docs/tasks/CORE-01-13-tro-ly-ai-okr.md) | Trợ lý AI cho OKR qua ai-gateway: soát KR, ghi `ai.suggestion_log`, cờ `content_source` | M | B2 | 18 | CORE-01-04, DV-14-04 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [CORE-01-14](docs/tasks/CORE-01-14-kieu-do-moc.md) | Kiểu đo `MOC` với bảng `okr.kr_milestone`, chiều `TOI_DA`, nhãn tử số và mẫu số cho KR tỷ lệ; ghi ngày đạt và số ngày làm việc chậm | M | B2 | 13 | NEN-044, CORE-01-01, CORE-08-04 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 
-### CORE-02 · MOD-02 task: danh mục, kế hoạch, nhiệm vụ (20/28 đã gộp `main`, 0 chờ gộp, 1 đang làm)
+### CORE-02 · MOD-02 task: danh mục, kế hoạch, nhiệm vụ (21/28 đã gộp `main`, 0 chờ gộp, 1 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -282,7 +282,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-02-25](docs/tasks/CORE-02-25-nhac-viec-giao-lai.md) | Nhắc việc, giao lại (`remindTask`, `reassignTask`) và đổi người chủ trì khi điều động | M | B3 | 17 | CORE-02-14, CORE-00-03 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [CORE-02-26](docs/tasks/CORE-02-26-cong-ghi-delay-risk.md) | Cột `delay_risk` và cổng ghi nội bộ cho dự báo nguy cơ trễ | S | B3 | 13 | CORE-02-02 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [CORE-02-27](docs/tasks/CORE-02-27-danh-muc-pham-vi-khoi-tinh-he-so.md) | Danh mục bốn cấp kế thừa (thêm `KHOI`, `TINH`), khoảng chỉnh điểm chuẩn so với dòng cha, `coefficient_levels` và `axis_code` trên mục danh mục, kế hoạch, nhiệm vụ | M | B3 | 17 | NEN-044, CORE-02-03, CORE-05-12 | **Chưa bắt đầu** | Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng |
-| [CORE-02-28](docs/tasks/CORE-02-28-cay-kpi-che-do-phan-cong.md) | Cây nhiệm vụ nhiều bậc (`node_kind`), điểm thành phần của công việc con, chế độ phân công `MOT_NGUOI_MOT_VIEC` theo tham số hồ sơ | M | B3 | 16 | NEN-044, CORE-02-13, CORE-05-12 | **Chưa bắt đầu** | Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng |
+| [CORE-02-28](docs/tasks/CORE-02-28-cay-kpi-che-do-phan-cong.md) | Cây nhiệm vụ nhiều bậc (`node_kind`), điểm thành phần của công việc con, chế độ phân công `MOT_NGUOI_MOT_VIEC` theo tham số hồ sơ | M | B3 | 16 | NEN-044, CORE-02-13, CORE-05-12 | **Đã gộp main** | Đã gộp main (6afcdf05) |
 
 ### CORE-03 · MOD-03 product: sản phẩm, minh chứng, nghiệm thu (6/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -501,7 +501,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-14-06](docs/tasks/DV-14-06-nhat-ky-goi-y-tom-tat.md) | Nhật ký gợi ý (chấp nhận, bỏ qua, nguồn) và tóm tắt tuần cho lãnh đạo | M | B7 | 8 | DV-14-04 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DV-14-07](docs/tasks/DV-14-07-chuyen-giong-noi-van-ban.md) | Chuyển giọng nói thành văn bản (`transcribeSpeech`) | M | B7 | 6 | DV-14-01 | **Đã gộp main** | Gộp main 2026-10-22 |
 
-### DV-15 · SVC-15 analytics (9/11 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-15 · SVC-15 analytics (10/11 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -510,7 +510,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-15-03](docs/tasks/DV-15-03-cube-chi-so-chuan.md) | Cube: chỉ số chuẩn của bảng điều hành, chiều đơn vị, kỳ, khối, luồng, bộ lọc an ninh | L | B7 | 5 | DV-15-01 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [DV-15-04](docs/tasks/DV-15-04-analytics-api.md) | analytics-api: proxy Cube theo token, đệm 60 giây, API định nghĩa dashboard | M | B7 | 13 | DV-15-03, CORE-08-17 | **Đã gộp main** | Đã gộp main (984a7ba1) |
 | [DV-15-05](docs/tasks/DV-15-05-superset-nhung.md) | Superset nhúng với guest token theo phạm vi | M | B7 | 14 | DV-15-03, DV-15-04 | **Đã gộp main** | Đã gộp main (984a7ba1) |
-| [DV-15-06](docs/tasks/DV-15-06-chuoi-truy-vet.md) | Đi xuống tới minh chứng: chuỗi truy vết, xuất bằng chứng và báo cáo 202, nhắc và giao lại | M | B7 | 14 | DV-15-04 | **Chưa bắt đầu** |  |
+| [DV-15-06](docs/tasks/DV-15-06-chuoi-truy-vet.md) | Đi xuống tới minh chứng: chuỗi truy vết, xuất bằng chứng và báo cáo 202, nhắc và giao lại | M | B7 | 14 | DV-15-04 | **Đã gộp main** | Đã gộp main (6afcdf05) |
 | [DV-15-07](docs/tasks/DV-15-07-khung-job-bat-thuong.md) | Khung job phát hiện bất thường hằng đêm và dấu hiệu 1, 2, phát EVT-20 | M | B7 | 5 | DV-15-01 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [DV-15-08](docs/tasks/DV-15-08-dau-hieu-3-5-7.md) | Dấu hiệu bất thường 3, 5, 7 | M | B7 | 6 | DV-15-07 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [DV-15-09](docs/tasks/DV-15-09-dau-hieu-6-8.md) | Dấu hiệu bất thường 6, 8 và tự đóng khi hết dấu hiệu; dấu hiệu tỷ lệ chấp nhận khách quan | M | B7 | 6 | DV-15-07 | **Đã gộp main** | Đã gộp main (f74d95f1) |
@@ -524,7 +524,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-16-01](docs/tasks/DV-16-01-chi-muc-opensearch.md) | Chỉ mục OpenSearch, alias lọc theo tenant, indexer consumer EVT-04, EVT-24 | M | B7 | 8 | INF-11, NEN-012 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DV-16-02](docs/tasks/DV-16-02-api-tim-kiem.md) | API tìm kiếm toàn cục, kiểm quyền lại ở lõi trước khi trả chi tiết | M | B7 | 11 | DV-16-01, CORE-00-02, NEN-013, NEN-014 | **Đã gộp main** | Gộp main 2026-10-22 |
 
-### DL · Dữ liệu, nội dung nghiệp vụ và chuyển đổi (11/13 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DL · Dữ liệu, nội dung nghiệp vụ và chuyển đổi (12/13 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -540,7 +540,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DL-13](docs/tasks/DL-13-luu-giu-xoa-mat-ma.md) | Lưu giữ, lưu trữ lạnh, giữ pháp lý, xoá bằng mật mã theo bảy lớp lưu giữ | M | B11 | 13 | NEN-015, INF-18, CORE-08-07 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DL-14](docs/tasks/DL-14-xoay-vong-dek-kek.md) | Xoay vòng DEK định kỳ và bọc lại khoá theo KEK mới | M | B11 | 7 | NEN-015, INF-13 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DL-15](docs/tasks/DL-15-an-danh-hoa-phi-san-xuat.md) | Tác vụ ẩn danh hoá dữ liệu cho môi trường phi sản xuất (`anonymize`) | M | B11 | 14 | NEN-015, DL-08, NEN-005, NEN-006 | **Đã gộp main** | Gộp main 2026-10-22 |
-| [DL-16](docs/tasks/DL-16-ho-so-twd.md) | Hồ sơ TWĐ (giả lập theo UEB): Policy Pack điểm công việc, bảng hệ số, chuỗi xếp loại, ca vàng UEB, danh mục dự thảo số 25, chín quy tắc điểm nghẽn, tham số thẩm quyền và hạn | L | B11 | 19 | CORE-05-12, CORE-02-27, CORE-02-28, CORE-01-14, CORE-04-13, DV-07-03, DV-07-05 | **Chưa bắt đầu** | Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng |
+| [DL-16](docs/tasks/DL-16-ho-so-twd.md) | Hồ sơ TWĐ (giả lập theo UEB): Policy Pack điểm công việc, bảng hệ số, chuỗi xếp loại, ca vàng UEB, danh mục dự thảo số 25, chín quy tắc điểm nghẽn, tham số thẩm quyền và hạn | L | B11 | 19 | CORE-05-12, CORE-02-27, CORE-02-28, CORE-01-14, CORE-04-13, DV-07-03, DV-07-05 | **Đã gộp main** | Đã gộp main (6afcdf05) |
 
 ### INF · Hạ tầng, CI/CD, bảo mật nền, quan sát, dự phòng (16/28 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -966,9 +966,14 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 22:57 | Điều phối | `CORE-02-15` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (74591707) |
 | 22/10/2026 22:57 | Điều phối | `CORE-04-07` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (74591707) |
 | 22/10/2026 22:57 | Điều phối | `CORE-04-08` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (74591707) |
+| 22/10/2026 23:31 | Điều phối | `CORE-02-28` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (6afcdf05) |
+| 22/10/2026 23:31 | Điều phối | `DV-15-06` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (6afcdf05) |
+| 22/10/2026 23:31 | Điều phối | `DL-16` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (6afcdf05) |
 | 22/10/2026 22:53 | Luồng B8 hạ tầng | `WEB-070` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b8-ha-tang-g7g48k: công tắc giả lập theo module |
 | 22/10/2026 23:06 | Luồng B8 hạ tầng | `WEB-010` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b8-ha-tang-g7g48k: dựng dần theo nhóm, lượt vẽ đầu 13-20 ms, không tác vụ dài trên 50 ms (wiki/09) |
 | 22/10/2026 23:29 | Luồng B8 hạ tầng | `WEB-070` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b8-ha-tang-g7g48k: công tắc giả lập theo module (MOCK_API_MODULES) và 3 kịch bản luồng chính xanh ở chế độ giả lập; chờ QA-03 để chạy với máy chủ thật |
 | 22/10/2026 23:29 | Luồng B8 hạ tầng | `WEB-071` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b8-ha-tang-g7g48k: đối chiếu hợp đồng với máy chủ, nối đánh giá, hồ sơ số, giám sát |
 | 23/10/2026 00:09 | Luồng B8 hạ tầng | `WEB-071` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b8-ha-tang-g7g48k: 4 lời gọi khớp hợp đồng, 3 lỗi màn hình đã sửa, kịch bản đánh giá quý, gói hồ sơ, khiếu nại xanh ở giả lập (938/938 e2e); máy chủ mới có 40/105 thao tác, chờ CORE-06, CORE-07 và QA-03 |
+| 23/10/2026 00:10 | Luồng B8 hạ tầng | `WEB-070` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b8-ha-tang-g7g48k: công tắc giả lập theo module (MOCK_API_MODULES) và 3 kịch bản luồng chính xanh ở chế độ giả lập; chờ QA-03 để chạy với máy chủ thật |
+| 23/10/2026 00:10 | Luồng B8 hạ tầng | `WEB-071` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b8-ha-tang-g7g48k: 4 lời gọi khớp hợp đồng, 3 lỗi màn hình đã sửa, kịch bản đánh giá quý, gói hồ sơ, khiếu nại xanh ở giả lập (938/938 e2e); máy chủ mới có 40/105 thao tác, chờ CORE-06, CORE-07 và QA-03 |
 <!-- PROGRESS_LOG_END -->

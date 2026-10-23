@@ -20,12 +20,50 @@ public record CatalogItem(
     UUID positionId,
     Integer standardDays,
     String status,
-    int rowVersion) {
+    int rowVersion,
+    ItemScoring scoring) {
 
   public CatalogItem {
     Objects.requireNonNull(id, "id");
     Objects.requireNonNull(catalogId, "catalogId");
     Objects.requireNonNull(code, "code");
+    scoring = scoring == null ? ItemScoring.NONE : scoring;
+  }
+
+  /** Mục không có dữ liệu chấm điểm mở (BS-03 DC-01). */
+  public CatalogItem(
+      UUID id,
+      UUID catalogId,
+      String code,
+      String name,
+      String productName,
+      String unit,
+      int difficulty,
+      BigDecimal baseScore,
+      String qualityCriteria,
+      String evidenceRequired,
+      String group,
+      UUID positionId,
+      Integer standardDays,
+      String status,
+      int rowVersion) {
+    this(
+        id,
+        catalogId,
+        code,
+        name,
+        productName,
+        unit,
+        difficulty,
+        baseScore,
+        qualityCriteria,
+        evidenceRequired,
+        group,
+        positionId,
+        standardDays,
+        status,
+        rowVersion,
+        ItemScoring.NONE);
   }
 
   /** Mục mới từ dữ liệu đã kiểm, mã đã chốt. */
@@ -45,7 +83,8 @@ public record CatalogItem(
         d.positionId(),
         d.standardDays(),
         d.status(),
-        0);
+        0,
+        d.scoring());
   }
 
   /** Nội dung mới của mục, giữ định danh và phiên bản dòng. */
@@ -65,6 +104,7 @@ public record CatalogItem(
         d.positionId(),
         d.standardDays(),
         d.status(),
-        rowVersion);
+        rowVersion,
+        d.scoring());
   }
 }
