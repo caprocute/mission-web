@@ -220,6 +220,11 @@ apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
   {{- include "vt-service.metadata" . | nindent 2 }}
+    {{- /* INF-25: tác vụ nền không gấp; bộ điều khiển suy giảm tạm dừng co giãn khi mức đạt ngưỡng này. */}}
+    {{- with $k.degradePauseFrom }}
+    {{- if not (has (int .) (list 1 2 3)) }}{{ fail (printf "vt-service[%s]: autoscaling.keda.degradePauseFrom phải là 1, 2 hoặc 3" $.v.name) }}{{ end }}
+    vt.io/degrade-pause-from: {{ . | int | quote }}
+    {{- end }}
 spec:
   scaleTargetRef:
     apiVersion: {{ ternary "argoproj.io/v1alpha1" "apps/v1" (eq .v.workload.kind "Rollout") }}

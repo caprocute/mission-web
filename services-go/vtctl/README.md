@@ -53,6 +53,8 @@ VTCTL_KAFKA_IT=1 go test ./internal/dlq/   # Kafka thật qua Testcontainers (c�
 
 Kiểm thử dùng Keycloak, registry, cổng API cell và bộ điều khiển suy giảm giả lập bằng `httptest`, `kubectl` và `helm` giả, và Kafka qua cụm `kfake` trong tiến trình (mặc định) hoặc Kafka thật qua Testcontainers khi đặt `VTCTL_KAFKA_IT=1`.
 
+Pipeline: `Jenkinsfile` gọi `vtGoPipeline` của thư viện `ci/vt-pipeline` (gitleaks, Semgrep, Trivy fs, cổng Dockerfile, govulncheck, `go vet`, `go test -race` kèm độ phủ, ảnh, SBOM; trên `main` ký, chứng thực và cập nhật GitOps). `Dockerfile` dựng ảnh không root (UID 10001) từ ngữ cảnh là thư mục này, ảnh nền ghim digest, dùng cho Job chạy theo runbook và trạm PAM.
+
 ## Giới hạn hiện tại
 
 - `suspendConfigTenant` (`DANG_VAN_HANH` → `TAM_NGUNG`) và `terminateConfigTenant` (`TAM_NGUNG` → `DA_CHAM_DUT`) đã có trong hợp đồng và tenant-registry; ma trận phân quyền `docs/phan-quyen/ma-tran.json` chưa có dòng cho hai thao tác này (chờ duyệt).

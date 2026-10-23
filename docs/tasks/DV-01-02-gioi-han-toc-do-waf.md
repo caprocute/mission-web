@@ -35,6 +35,7 @@ Bảo vệ cell khỏi quá tải và tấn công tầng ứng dụng ngay tại
 - Tạo tầng thứ ba theo tuyến: tuyến tốn kém (xuất Excel, gói hồ sơ, AI, tìm kiếm toàn văn) có hạn mức thấp hơn; tuyến tải lên `/files/uploads/*` đặt `client-control.max_body_size` theo giới hạn phần tải lên.
 - Gắn lớp ưu tiên 1/2/3 cho mọi route của DV-01-01 bằng nhãn và cấu hình `limit-conn` theo lớp với ngưỡng giảm dần để lớp 3 bị từ chối trước.
 - Hiện thực bộ điều khiển suy giảm ba mức bằng nhãn `vt.io/degrade-level` trên `ApisixPluginConfig` (mức 1 tắt AI và rút gọn tìm kiếm; mức 2 giới hạn tenant giảm 30%; mức 3 chỉ nhận ghi ưu tiên, còn lại 503 + `Retry-After: 60`), kèm webhook nhận từ Alertmanager.
+  - Phân định với INF-25 (ghi thêm ngày 23/10/2026): DV-01-02 giữ bộ plugin từng mức (ConfigMap `apisix-degrade-levels` của chart `api-gateway`) và bộ điều khiển Python chạy ở chế độ standalone; INF-25 giữ bộ điều khiển Go `services-go/degrade-controller`, luật kích hoạt ba mức, đường Alertmanager trong cell và tác động ngoài cổng (tạm dừng tác vụ nền).
 - Bật Coraza (coraza-proxy-wasm) với OWASP CRS 4, chạy chế độ phát hiện ở dev và chế độ chặn ở staging trở lên; ghi danh sách loại trừ tối thiểu cho payload JSON hợp lệ của hợp đồng.
 - Điểm lệch cần lưu ý: TL-01 ghi giới hạn người dùng 20 request/giây (đột biến 40) và "60 ghi/phút/người", TL-04 ghi `limit-count` 600/60 s theo tenant + người dùng và `limit-req` 400/burst 200 theo tenant; chọn số của TL-04 (tài liệu triển khai mới hơn) làm mặc định, để mọi ngưỡng là giá trị Helm và ghi lựa chọn vào wiki trang 14.
 

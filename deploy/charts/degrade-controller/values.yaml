@@ -37,6 +37,14 @@ levelsConfigMap: apisix-degrade-levels
 webhookToken:
   secretName: apisix-degrade-webhook
   key: token
+  # Tạo Secret bằng ExternalSecret từ OpenBao. Alertmanager của cell (observability-cell, suyGiam.token) đọc cùng
+  # khoá nên hai bên luôn cùng token. Rỗng: kv/cell-<cell>/edge/degrade-webhook (suy luận).
+  externalSecret:
+    enabled: true
+    path: ""
+    property: token
+    secretStore: { kind: ClusterSecretStore, name: openbao-cell }
+    refreshInterval: 1h
 
 # Kênh trực: URL nhận thông báo JSON (notification-service hoặc cầu nối chat); rỗng thì chỉ ghi nhật ký.
 notify:
