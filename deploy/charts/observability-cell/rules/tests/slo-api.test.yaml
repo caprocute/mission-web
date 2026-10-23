@@ -9,9 +9,10 @@ tests:
       - { series: 'apisix_http_status{code="200", route="mission-core"}', values: '0+950x120' }
       - { series: 'apisix_http_status{code="500", route="mission-core"}', values: '0+50x120' }
     promql_expr_test:
-      - expr: slo:api_availability_errors:ratio_rate5m
+      # Tỷ lệ là phép chia số thực, chữ số cuối khác nhau giữa các bản promtool: so sánh sau khi làm tròn 1e-6
+      - expr: round(slo:api_availability_errors:ratio_rate5m, 0.000001)
         eval_time: 70m
-        exp_samples: [{ labels: 'slo:api_availability_errors:ratio_rate5m', value: 4.9999999999999996E-02 }]
+        exp_samples: [{ labels: '{}', value: 0.05 }]
     alert_rule_test:
       - eval_time: 70m
         alertname: SLOAvailabilityFastBurn
@@ -101,6 +102,6 @@ tests:
       - expr: slo:api_availability_errors:ratio_rate5m
         eval_time: 15m
         exp_samples: [{ labels: 'slo:api_availability_errors:ratio_rate5m', value: 0 }]
-      - expr: slo:api_read_fast:ratio_rate5m
+      - expr: round(slo:api_read_fast:ratio_rate5m, 0.000001)
         eval_time: 15m
-        exp_samples: [{ labels: 'slo:api_read_fast:ratio_rate5m', value: 9.899999999999999E-01 }]
+        exp_samples: [{ labels: '{}', value: 0.99 }]
