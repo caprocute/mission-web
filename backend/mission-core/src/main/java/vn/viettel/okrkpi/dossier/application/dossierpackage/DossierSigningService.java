@@ -74,6 +74,7 @@ public class DossierSigningService {
   private final PackageEvents events;
   private final Supplier<TenantSettingApi> settings;
   private final TransactionOperations tx;
+  private final TransactionOperations committed;
   private final Clock clock;
 
   public DossierSigningService(
@@ -84,6 +85,7 @@ public class DossierSigningService {
       PackageEvents events,
       Supplier<TenantSettingApi> settings,
       TransactionOperations tx,
+      TransactionOperations committed,
       Clock clock) {
     this.packages = Objects.requireNonNull(packages, "packages");
     this.profiles = Objects.requireNonNull(profiles, "profiles");
@@ -92,6 +94,7 @@ public class DossierSigningService {
     this.events = Objects.requireNonNull(events, "events");
     this.settings = Objects.requireNonNull(settings, "settings");
     this.tx = Objects.requireNonNull(tx, "tx");
+    this.committed = Objects.requireNonNull(committed, "committed");
     this.clock = Objects.requireNonNull(clock, "clock");
   }
 
@@ -287,9 +290,12 @@ public class DossierSigningService {
     }
     PackageManifest.Built manifest =
         PackageManifest.of(packages.formsIn(tenant, pkg.periodBucket(), pkg.id(), RENDERED));
+    // Chốt trước, gọi sau (wiki trang 14): manifest commit trong giao dịch riêng trước khi gọi
+    // SVC-10, vì SVC-10 đọc lại nguồn ký bằng kết nối khác ngay trong lời gọi tạo yêu cầu, còn
+    // giao dịch idempotency của API vẫn mở tới khi trả phản hồi.
     long version =
-        inTx(
-            () ->
+        committed.execute(
+            st ->
                 packages.saveManifest(
                     tenant,
                     pkg,
@@ -303,7 +309,7 @@ public class DossierSigningService {
     }
     String key = idempotencyKey == null ? "goi-ho-so-ky:" + id + ":" + version : idempotencyKey;
     UUID request = s.request(tenant, id, provider, key, authorization);
-    inTx(() -> packages.attachSignRequest(tenant, pkg.periodBucket(), id, request));
+    committed.execute(st -> packages.attachSignRequest(tenant, pkg.periodBucket(), id, request));
     return new SignStarted(request, packages.find(tenant, id).orElse(pkg));
   }
 
