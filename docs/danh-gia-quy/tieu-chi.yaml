@@ -1,0 +1,1456 @@
+# Danh mục 110 tiêu chí của bản đánh giá kiến trúc, dùng cho bộ chấm quý (VH-09).
+# Sinh lần đầu từ TL-01, TL-04 và bản đánh giá; sửa tay khi TL đổi. Không đổi mã tiêu chí.
+# co_so: kết quả của bản đánh giá 10/2026 (hệ thống cũ). Mức cơ sở trục H nằm ở co-so-2026-10.yaml.
+phien_ban: 1
+nguon:
+- Bản đánh giá kiến trúc công nghệ 10/2026 (checklist 110 tiêu chí, thang chấm, trọng số trục)
+- TL-01 chương 'Ma trận truy vết 110 tiêu chí' (tên tiêu chí, giải pháp, mục TL-01)
+- TL-04 chương 13 'Ma trận truy vết' (biện pháp và bằng chứng nghiệm thu trục B, C, D, E, F, G, J)
+- docs/tasks/danh-muc-he-thong.tsv (task đáp ứng, đối chiếu thủ công)
+thang:
+  Đạt: 1.0
+  Một phần: 0.5
+  Chưa đạt: 0.0
+thang_truc_h: Trục H chấm mức 0–4, quy về 0–1 bằng mức chia 4 (xem quy-trinh.md mục 3)
+moc:
+- dot: 0c
+  diem: 40
+- dot: '2'
+  diem: 60
+- dot: '3'
+  diem: 75
+truc:
+- ma: A
+  ten: Kiến trúc phần mềm
+  trong_so: 12
+- ma: L
+  ten: Khả năng tương hợp và tích hợp
+  trong_so: 10
+- ma: B
+  ten: Khả năng quan sát
+  trong_so: 8
+- ma: C
+  ten: Đóng gói và điều phối container
+  trong_so: 10
+- ma: D
+  ten: An toàn hệ thống thông tin theo cấp độ
+  trong_so: 14
+- ma: E
+  ten: Hiệu năng và khả năng mở rộng
+  trong_so: 10
+- ma: F
+  ten: Độ tin cậy, chịu lỗi, chất lượng mã
+  trong_so: 10
+- ma: G
+  ten: Quản lý log tập trung
+  trong_so: 6
+- ma: H
+  ten: Phạm vi chức năng nền tảng
+  trong_so: 12
+- ma: I
+  ten: Toàn vẹn và chống chối bỏ
+  trong_so: 10
+- ma: J
+  ten: Kiểm thử và CI/CD
+  trong_so: 8
+- ma: K
+  ten: Đa khách thuê và khả chuyển
+  trong_so: 10
+tieu_chi:
+- ma: A1
+  ten: Phong cách kiến trúc phù hợp quy mô quốc gia
+  giai_phap: Kết hợp cell theo vùng, lõi Modular Monolith và service tách theo năm tiêu chí định lượng.
+  tl01: Chương 3, 4
+  tai_lieu_khac: TL-04 (cell)
+  bang_chung_nghiem_thu: ADR chốt kiến trúc; không thành phần nào vừa tách tiến trình vừa dùng chung CSDL (kiểm danh mục DataSource và tài khoản CSDL)
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - CORE-00-01
+  - CORE-00-02
+  - INF-20
+  - DV-01-04
+  co_so: Chưa đạt
+- ma: A2
+  ten: Mỗi service sở hữu dữ liệu riêng
+  giai_phap: Mỗi service và mỗi module có schema riêng với tài khoản CSDL riêng, không đọc chéo.
+  tl01: 5.1, 5.2 đến 5.18
+  tai_lieu_khac: TL-03
+  bang_chung_nghiem_thu: Mỗi module, service có schema và tài khoản `svc_<schema>` riêng; kiểm thử quyền chéo schema bị từ chối
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - NEN-030
+  - NEN-031
+  - CORE-00-01
+  co_so: Chưa đạt
+- ma: A3
+  ten: Ranh giới module rõ, không phụ thuộc vòng
+  giai_phap: Spring Modulith và ArchUnit kiểm phụ thuộc chỉ qua gói `api`, chặn vòng trong CI.
+  tl01: '5.1'
+  bang_chung_nghiem_thu: Kiểm thử ArchUnit và Spring Modulith (không vòng, chỉ qua gói `api`) chạy trong pipeline
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - CORE-00-02
+  - INF-05
+  co_so: Chưa đạt
+- ma: A4
+  ten: Tích hợp bất đồng bộ, đảm bảo giao nhận
+  giai_phap: Outbox, Debezium, Kafka và inbox idempotent cho giao nhận ít nhất một lần, xử lý đúng một lần.
+  tl01: '6.1'
+  tai_lieu_khac: TL-03 (outbox)
+  bang_chung_nghiem_thu: 'Kiểm thử tích hợp outbox, Debezium, Kafka, inbox: không mất, không trùng khi phát lại'
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - NEN-011
+  - NEN-012
+  - NEN-022
+  - INF-10
+  co_so: Chưa đạt
+- ma: A5
+  ten: Tách mô hình ghi và mô hình đọc
+  giai_phap: CQRS với CDC sang ClickHouse cho phân tích và bản sao đọc cho truy vấn danh sách.
+  tl01: 5.15, 13.4
+  tai_lieu_khac: TL-03
+  bang_chung_nghiem_thu: Bảng điều hành đọc qua Cube và ClickHouse nạp bằng CDC; truy vấn danh sách đi bản sao đọc
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - DV-15-01
+  - DV-15-02
+  - DV-15-04
+  co_so: Một phần
+- ma: A6
+  ten: Lưu vết bất biến cho dữ liệu pháp lý
+  giai_phap: Sổ cái chỉ chèn với chuỗi băm phân vùng, niêm phong Merkle và dấu thời gian RFC 3161.
+  tl01: 11.2, 11.4
+  tai_lieu_khac: TL-03 (ledger)
+  bang_chung_nghiem_thu: Sổ cái chỉ chèn, công cụ kiểm chứng độc lập báo hợp lệ; dấu thời gian RFC 3161 trên niêm phong
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - DV-09-01
+  - DV-09-02
+  - DV-09-03
+  co_so: Chưa đạt
+- ma: A7
+  ten: Hợp đồng API thống nhất, máy đọc được
+  giai_phap: OpenAPI 3.1 cho REST và AsyncAPI 3.0 cho sự kiện, kiểm tương thích trong CI.
+  tl01: 6.2, 6.3, Phụ lục C
+  bang_chung_nghiem_thu: Lint OpenAPI 3.1 và AsyncAPI 3.0 cùng kiểm tương thích ngược chạy trong pipeline; 0 API dạng form-urlencoded
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - NEN-006
+  - NEN-008
+  - NEN-042
+  - NEN-043
+  - WEB-063
+  co_so: Một phần
+- ma: A8
+  ten: Frontend chia module theo miền
+  giai_phap: Shell Angular và các remote Native Federation theo miền, triển khai độc lập.
+  tl01: 5.17, chương 7
+  bang_chung_nghiem_thu: Mỗi miền là remote Native Federation build và triển khai riêng, dùng chung `@vt/design-system`
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - WEB-012
+  - WEB-015
+  co_so: Một phần
+- ma: L1
+  ten: Nhúng giao diện vào cổng văn phòng số
+  giai_phap: Chế độ web component `<vt-okr-app>` với SSO OIDC và CSP `frame-ancestors` theo tenant.
+  tl01: 5.17, 7.3
+  tai_lieu_khac: TL-02
+  bang_chung_nghiem_thu: Web component nhúng được trong trang chủ khác nguồn với SSO; CSP `frame-ancestors` theo tenant
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - WEB-013
+  - WEB-014
+  co_so: Một phần
+- ma: L2
+  ten: Liên kết định danh theo chuẩn mở
+  giai_phap: Keycloak hỗ trợ OIDC, SAML và liên kết IdP riêng của từng tổ chức.
+  tl01: 5.3, 16.2
+  tai_lieu_khac: TL-04
+  bang_chung_nghiem_thu: Đăng nhập thử thành công qua IdP OIDC và SAML của một tổ chức thật
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: he-thong-ngoai
+  task:
+  - DV-02-01
+  - DV-03-06
+  co_so: Một phần
+- ma: L3
+  ten: Định danh điện tử VNeID
+  giai_phap: Liên kết VNeID qua Keycloak với PKCE, `state`, `nonce` và kiểm đủ ID token.
+  tl01: '16.3'
+  tai_lieu_khac: TL-04
+  bang_chung_nghiem_thu: Đăng nhập thử qua VNeID thật (môi trường kiểm thử của Bộ Công an) có kiểm `state`, `nonce`, PKCE
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: he-thong-ngoai
+  task:
+  - DV-02-04
+  co_so: Một phần
+- ma: L4
+  ten: Đồng bộ tổ chức, người dùng từ nguồn chuẩn
+  giai_phap: Connector CSDL CBCCVC và HRM cấp dữ liệu cho org-service qua sự kiện, lưu hai trục thời gian.
+  tl01: 5.5, 6.5
+  tai_lieu_khac: TL-02, TL-03
+  bang_chung_nghiem_thu: Đồng bộ thật từ CSDL CBCCVC hoặc HRM của tenant thí điểm, đối soát không lệch
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: he-thong-ngoai
+  task:
+  - DV-04-06
+  - DV-04-07
+  - DV-13-06
+  - DV-13-08
+  co_so: Chưa đạt
+- ma: L5
+  ten: Nhận nhiệm vụ, minh chứng từ văn bản
+  giai_phap: Connector vOffice, iOffice nhận văn bản chỉ đạo, AI gợi ý trích nhiệm vụ, người xác nhận.
+  tl01: 6.4, 6.5, 17.3
+  tai_lieu_khac: TL-02
+  bang_chung_nghiem_thu: Nhận văn bản chỉ đạo thật từ vOffice, iOffice và tạo nhiệm vụ có người xác nhận
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: he-thong-ngoai
+  task:
+  - DV-13-03
+  - DV-13-04
+  - CORE-02-16
+  co_so: Một phần
+- ma: L6
+  ten: Liên thông văn bản giữa cơ quan
+  giai_phap: Connector Trục liên thông văn bản quốc gia theo EdXML qua X-Road.
+  tl01: '6.5'
+  tai_lieu_khac: TL-04
+  bang_chung_nghiem_thu: Gửi, nhận gói EdXML qua Trục liên thông văn bản quốc gia (môi trường thử)
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: he-thong-ngoai
+  task:
+  - DV-13-05
+  - CORE-06-08
+  co_so: Một phần
+- ma: L7
+  ten: Kết nối nền tảng tích hợp cấp bộ, tỉnh, quốc gia
+  giai_phap: Connector LGSP và NDXP qua integration-gateway với bulkhead và circuit breaker riêng.
+  tl01: '6.5'
+  tai_lieu_khac: TL-04
+  bang_chung_nghiem_thu: Gọi thật LGSP, NDXP qua integration-gateway; ngắt mạch hoạt động khi đối tác lỗi
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: he-thong-ngoai
+  task:
+  - DV-13-01
+  - DV-13-06
+  co_so: Chưa đạt
+- ma: L8
+  ten: Kết nối CSDL quốc gia CBCCVC, CSDL đảng viên
+  giai_phap: Connector riêng cho từng CSDL, đồng bộ theo con trỏ và đối soát định kỳ.
+  tl01: '6.5'
+  tai_lieu_khac: TL-02
+  bang_chung_nghiem_thu: Đồng bộ theo con trỏ và đối soát định kỳ với CSDL quốc gia CBCCVC và CSDL đảng viên
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: he-thong-ngoai
+  task:
+  - DV-13-06
+  - DV-13-07
+  co_so: Chưa đạt
+- ma: L9
+  ten: Tích hợp dịch vụ ký số qua giao diện thay thế được
+  giai_phap: Giao diện `SignatureProvider` với hiện thực MySign, chứng thư chuyên dùng và mật mã cơ yếu.
+  tl01: 5.10, 11.6
+  tai_lieu_khac: TL-04
+  bang_chung_nghiem_thu: Giao diện `SignatureProvider` có ít nhất hai hiện thực thay được bằng cấu hình, có kiểm thử
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - DV-10-01
+  - DV-10-02
+  - DV-10-03
+  - DV-10-04
+  - DV-10-05
+  co_so: Chưa đạt
+- ma: L10
+  ten: Hợp đồng tích hợp công bố cho bên thứ ba
+  giai_phap: OpenAPI và AsyncAPI công bố qua cổng nhà phát triển, có chính sách phiên bản và ngừng hỗ trợ.
+  tl01: 6.2, 6.3
+  bang_chung_nghiem_thu: Hợp đồng công bố qua cổng nhà phát triển, có chính sách phiên bản và ngừng hỗ trợ
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: cum-van-hanh
+  task:
+  - NEN-008
+  - DV-13-02
+  co_so: Chưa đạt
+- ma: L11
+  ten: Mô hình dữ liệu chuẩn dùng chung
+  giai_phap: Mô hình dữ liệu chuẩn tám nhóm theo PL 4 với URN định danh.
+  tl01: '6.7'
+  tai_lieu_khac: TL-03
+  bang_chung_nghiem_thu: Mô hình dữ liệu chuẩn tám nhóm có URN, dùng ở lớp chống ô nhiễm của mọi connector
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - DV-13-01
+  co_so: Chưa đạt
+- ma: L12
+  ten: Bộ kết nối cho văn phòng số hãng khác
+  giai_phap: Mẫu connector Camel và bộ kiểm thử hợp đồng Pact cho từng hãng.
+  tl01: 6.4, 6.5
+  bang_chung_nghiem_thu: Mỗi hãng văn phòng số có connector theo mẫu Camel và bộ kiểm thử hợp đồng Pact xanh
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: he-thong-ngoai
+  task:
+  - DV-13-01
+  - DV-13-11
+  - QA-02
+  co_so: Chưa đạt
+- ma: B1
+  ten: Tracing phân tán end-to-end
+  giai_phap: OpenTelemetry từ trình duyệt qua cổng, service, Kafka tới CSDL, lưu ở Tempo.
+  tl01: '15.2'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: OTel agent, Collector, Tempo (mục 10.2)
+  bang_chung_nghiem_thu: Trace liền mạch trong PERF-01
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - NEN-016
+  - INF-14
+  - WEB-074
+  co_so: Chưa đạt
+- ma: B2
+  ten: Lan truyền ngữ cảnh trace giữa service
+  giai_phap: W3C Trace Context qua HTTP, qua header outbox và Kafka, qua comment SQL.
+  tl01: 15.2, 6.1
+  bien_phap_tl04: W3C Trace Context, header Kafka, outbox
+  bang_chung_nghiem_thu: '`trace_completeness_ratio` ≥ 0,99'
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - NEN-016
+  - NEN-011
+  - WEB-074
+  co_so: Chưa đạt
+- ma: B3
+  ten: Endpoint metrics hoạt động
+  giai_phap: Actuator và Micrometer xuất `/actuator/prometheus` trên cổng quản trị.
+  tl01: '15.3'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Micrometer, ServiceMonitor (mục 10.4)
+  bang_chung_nghiem_thu: Target up 100%
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - NEN-019
+  - INF-14
+  co_so: Một phần
+- ma: B4
+  ten: Chỉ số SLI/SLO cho dịch vụ
+  giai_phap: Bảng SLO theo dịch vụ, cảnh báo theo tốc độ tiêu ngân sách lỗi.
+  tl01: '15.3'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Mục 7.1, 10.4, 10.5
+  bang_chung_nghiem_thu: Dashboard SLO; cảnh báo burn rate
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - INF-15
+  co_so: Chưa đạt
+- ma: B5
+  ten: Giám sát hiệu năng ứng dụng
+  giai_phap: Bốn tín hiệu vàng và span nghiệp vụ trên Grafana, Tempo.
+  tl01: '15.3'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Tempo, exemplar, dashboard (mục 10.6)
+  bang_chung_nghiem_thu: Từ cảnh báo tới trace ≤ 3 thao tác
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - INF-15
+  co_so: Một phần
+- ma: B6
+  ten: Health check cho bộ điều phối
+  giai_phap: Probe liveness, readiness, startup qua nhóm sức khoẻ của Actuator.
+  tl01: '5.1'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Probe cổng 8081, Kyverno
+  bang_chung_nghiem_thu: Kyverno 0 vi phạm
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - NEN-019
+  - INF-01
+  co_so: Một phần
+- ma: B7
+  ten: Giám sát truy vấn chậm
+  giai_phap: '`pg_stat_statements`, `auto_explain` 500 ms và comment SQL gắn trace, tenant.'
+  tl01: '15.3'
+  tai_lieu_khac: TL-03, TL-04
+  bien_phap_tl04: '`pg_stat_statements`, `auto_explain` (mục 10.4)'
+  bang_chung_nghiem_thu: Dashboard truy vấn chậm
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - INF-11
+  - INF-15
+  co_so: Một phần
+- ma: B8
+  ten: Giám sát phía người dùng
+  giai_phap: Grafana Faro thu Core Web Vitals, lỗi và thời gian tải remote.
+  tl01: '15.7'
+  bien_phap_tl04: Grafana Faro, OTel Dart (mục 10.6)
+  bang_chung_nghiem_thu: SLO-PAGE, SLO-LCP
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: nghiep-vu
+  task:
+  - WEB-011
+  co_so: Chưa đạt
+- ma: C1
+  ten: Image container an toàn, tối giản
+  giai_phap: Ảnh nền distroless chạy không root, quét Trivy, ký Cosign.
+  tl01: '18.2'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Mục 5.1; SEC-49, SEC-55; Trivy ảnh (SEC-23)
+  bang_chung_nghiem_thu: Kyverno báo 0 vi phạm `readonly-rootfs-nonroot`; báo cáo Trivy 0 High, Critical chưa xử lý
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - INF-05
+  - INF-07
+  co_so: Một phần
+- ma: C2
+  ten: Manifest riêng cho từng service
+  giai_phap: Helm chart chung tham số hoá, values riêng cho từng service, môi trường và cell.
+  tl01: '18.2'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Chart thư viện `vt-service` (mục 5.1, 5.5); OPS-01
+  bang_chung_nghiem_thu: Kho GitOps có chart riêng mỗi service; Argo CD đồng bộ theo service
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - INF-01
+  - INF-02
+  co_so: Chưa đạt
+- ma: C3
+  ten: Probe liveness/readiness/startup
+  giai_phap: Ba loại probe bắt buộc, Kyverno từ chối manifest thiếu probe.
+  tl01: 5.1, 18.2
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Mục 5.1, 5.5; SEC-28 `require-resources-and-probes`
+  bang_chung_nghiem_thu: Kyverno 0 vi phạm; PERF-07 không lỗi khi xếp lại pod
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - INF-01
+  - INF-07
+  co_so: Chưa đạt
+- ma: C4
+  ten: Requests/limits và heap hợp lý
+  giai_phap: Requests, limits theo định cỡ và `MaxRAMPercentage=70`.
+  tl01: 5.1, 13.8
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Mục 5.1 (heap 70%), 5.2
+  bang_chung_nghiem_thu: Không OOMKill trong PERF-05 (72 giờ)
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - INF-01
+  - INF-03
+  co_so: Chưa đạt
+- ma: C5
+  ten: Tự động co giãn theo tải
+  giai_phap: HPA theo CPU và độ trễ, KEDA theo hàng đợi Kafka và job Flowable.
+  tl01: 5.1, 8.8
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Chương 6; HPA, KEDA, Cluster Autoscaler
+  bang_chung_nghiem_thu: 'PERF-04: p95 phục hồi ≤ 3 phút sau đột biến; lịch tăng trước sinh từ `config.period`'
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - INF-16
+  co_so: Chưa đạt
+- ma: C6
+  ten: Tiến trình không trạng thái
+  giai_phap: Phiên trong token, bộ đệm ở Valkey, tệp ở Ceph, không trạng thái cục bộ cần giữ.
+  tl01: 4.5, 13.2
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Mục 5.1; Valkey cho phiên, Ceph cho tệp; không `sessionAffinity`
+  bang_chung_nghiem_thu: PERF-07; kiểm tra manifest không có `sessionAffinity`, `hostPath`
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - INF-01
+  - NEN-019
+  co_so: Chưa đạt
+- ma: C7
+  ten: Sẵn sàng cao khi gián đoạn node
+  giai_phap: PodDisruptionBudget, phân bố theo vùng, tối thiểu ba replica.
+  tl01: '19.2'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Mục 3.4 (`topologySpreadConstraints`), PDB, SEC-28 `vt-require-ha`
+  bang_chung_nghiem_thu: PERF-07, PERF-10; DR-02, DR-03
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - INF-01
+  - INF-08
+  co_so: Chưa đạt
+- ma: C8
+  ten: Lưu trữ tệp tách khỏi node
+  giai_phap: Minh chứng và tệp sinh ra trên Ceph RGW, không dùng ổ cục bộ.
+  tl01: '5.8'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Mục 3.8 (Ceph RGW, RBD); evidence-service ghi S3
+  bang_chung_nghiem_thu: Kyverno chặn `hostPath`; PERF-18
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - DV-08-01
+  - INF-12
+  co_so: Chưa đạt
+- ma: C9
+  ten: Cấu hình tách khỏi bản build; GitOps
+  giai_phap: Cấu hình qua biến môi trường, `/config.json`, Argo CD đồng bộ từ Git.
+  tl01: 5.17, 18.2
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: OPS-01; ba tệp values (mục 2.1); ESO
+  bang_chung_nghiem_thu: Cùng một digest chạy ở staging và sản xuất; Argo CD không có ứng dụng lệch trạng thái
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - INF-04
+  - WEB-012
+  co_so: Chưa đạt
+- ma: C10
+  ten: Chuỗi cung ứng phần mềm có kiểm soát
+  giai_phap: SBOM, ký image, chứng thực nguồn gốc SLSA, Kyverno kiểm khi chạy.
+  tl01: '18.2'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Mục 9.6; SEC-37, SEC-38, SEC-23
+  bang_chung_nghiem_thu: Provenance SLSA, chữ ký cosign của mọi ảnh đang chạy; nhật ký từ chối của Kyverno
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - INF-05
+  - INF-06
+  - INF-07
+  co_so: Chưa đạt
+- ma: D1
+  ten: Không có thông tin xác thực trong mã nguồn
+  giai_phap: Bí mật trong OpenBao, nạp qua External Secrets, quét gitleaks chặn trong CI.
+  tl01: '16.6'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: SEC-01, SEC-09, SEC-10, SEC-12
+  bang_chung_nghiem_thu: gitleaks 0 phát hiện trên toàn lịch sử; mọi Secret có nguồn ESO hoặc OpenBao động
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: ma-nguon
+  task:
+  - INF-13
+  - INF-05
+  co_so: Chưa đạt
+- ma: D2
+  ten: Xác thực đa yếu tố, chống dò mật khẩu
+  giai_phap: MFA AAL2 cho vai trò nhạy cảm, khoá tạm sau 5 lần sai, nâng bậc khi ký.
+  tl01: '16.2'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: SEC-13, SEC-14, SEC-54
+  bang_chung_nghiem_thu: Cấu hình Keycloak trong Git; tỷ lệ người dùng có MFA 100%; phép thử dò mật khẩu bị khoá sau 5 lần
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - DV-02-03
+  - DV-02-08
+  co_so: Chưa đạt
+- ma: D3
+  ten: Không có chức năng ẩn, không bỏ qua xác thực
+  giai_phap: Mặc định từ chối, danh sách công khai tường minh, kiểm thử mọi route trả 401 khi thiếu token.
+  tl01: '16.6'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: SEC-02, SEC-03, SEC-28
+  bang_chung_nghiem_thu: Retest xâm nhập; ZAP thử biến thể đường dẫn; rà soát `ApisixRoute` công khai
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - DV-01-01
+  - DV-01-03
+  co_so: Chưa đạt
+- ma: D4
+  ten: Lưu mật khẩu bằng hàm băm có salt
+  giai_phap: Keycloak băm Argon2id, ứng dụng không nhận mật khẩu.
+  tl01: '16.2'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: SEC-04, SEC-15
+  bang_chung_nghiem_thu: Thuật toán băm trong Keycloak là Argon2id; không có mật khẩu ở client
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: ma-nguon
+  task:
+  - DV-02-01
+  co_so: Chưa đạt
+- ma: D5
+  ten: Quản lý phiên an toàn
+  giai_phap: Access token 15 phút, refresh token xoay vòng một lần dùng, phát hiện dùng lại.
+  tl01: '16.2'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: SEC-08, SEC-16, SEC-17
+  bang_chung_nghiem_thu: Access 5 phút, refresh 8 giờ; thu hồi có hiệu lực ≤ 5 s qua `iam.auth.event.v1`
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - DV-02-01
+  - DV-02-05
+  - WEB-006
+  co_so: Chưa đạt
+- ma: D6
+  ten: Kiểm soát truy cập tập trung
+  giai_phap: OPA với chính sách Rego, đánh giá từng phần cho danh sách, RLS theo tenant.
+  tl01: 16.4, 12.2
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: SEC-18, SEC-29, SEC-42, SEC-58
+  bang_chung_nghiem_thu: '`opa test` 100%; nhật ký từ chối; báo cáo phiên PAM'
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: ma-nguon
+  task:
+  - NEN-014
+  - NEN-040
+  - NEN-033
+  co_so: Một phần
+- ma: D7
+  ten: Chống injection, XSS, CSRF, CORS sai
+  giai_phap: Truy vấn tham số, danh sách trắng sắp xếp, mã hoá đầu ra, CORS theo danh sách, token trong header.
+  tl01: 16.5, 16.6
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: SEC-05, SEC-06, SEC-19, SEC-34, SEC-39, SEC-40, SEC-47, SEC-48
+  bang_chung_nghiem_thu: Semgrep 0 phát hiện; ZAP 0 High; sqlmap 0
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - DV-01-01
+  - WEB-014
+  - QA-13
+  co_so: Chưa đạt
+- ma: D8
+  ten: Mật mã và kiểm tra chứng thư đúng chuẩn
+  giai_phap: AES-256-GCM, TLS 1.2 trở lên, kho tin cậy chuẩn, cấm chấp nhận mọi chứng thư.
+  tl01: 9.4, 16.6
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: SEC-11, SEC-20, SEC-21, SEC-31, SEC-56, SEC-57, SEC-59, SEC-60
+  bang_chung_nghiem_thu: Semgrep quy tắc mật mã; kiểm tra TLS endpoint; kube-bench etcd
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - NEN-015
+  - INF-13
+  co_so: Chưa đạt
+- ma: D9
+  ten: Nhật ký an toàn, không chứa dữ liệu nhạy cảm
+  giai_phap: Ba lớp che log và nhật ký kiểm toán tách riêng có chống sửa.
+  tl01: 15.5, 15.6
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: SEC-07, SEC-22, SEC-30, SEC-43, SEC-50, SEC-53
+  bang_chung_nghiem_thu: 'Truy vấn Loki tìm mẫu JWT, CCCD: 0; SIEM nhận đủ luồng'
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - NEN-016
+  - INF-24
+  - CORE-07-12
+  co_so: Chưa đạt
+- ma: D10
+  ten: Thành phần không có lỗ hổng đã biết
+  giai_phap: SCA và quét image chặn CVSS từ 7,0, SBOM theo dõi liên tục.
+  tl01: '18.2'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: SEC-23, SEC-37, SEC-51, SEC-55; OPS-26
+  bang_chung_nghiem_thu: Dependency-Track 0 Critical quá hạn 7 ngày
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - INF-05
+  - INF-06
+  co_so: Chưa đạt
+- ma: D11
+  ten: Header bảo mật HTTP
+  giai_phap: APISIX thêm HSTS, CSP, nosniff, Referrer-Policy, Permissions-Policy, COOP.
+  tl01: '16.5'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: SEC-24, SEC-19 (CSP)
+  bang_chung_nghiem_thu: ZAP kiểm tra header; báo cáo CSP
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - DV-01-01
+  - WEB-014
+  co_so: Một phần
+- ma: D12
+  ten: Mã hoá đầu cuối dữ liệu mật
+  giai_phap: Mã hoá đầu cuối WebCrypto cho C3, khoá không trích xuất được, phục hồi Shamir 3 trên 5.
+  tl01: '9.5'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: SEC-25, SEC-11, SEC-52, SEC-58
+  bang_chung_nghiem_thu: PERF-15; phép thử bắt gói chỉ thấy bản mã
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - CORE-07-06
+  - CORE-02-24
+  co_so: Đạt
+- ma: E1
+  ten: Runtime, framework còn được hỗ trợ
+  giai_phap: Java 21 LTS, Spring Boot 3.5, Angular 21, PostgreSQL 17, có lịch nâng cấp.
+  tl01: Phụ lục B
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Kubernetes n-1 (mục 3.1, OPS-15); ảnh nền Java 21; OPS-26
+  bang_chung_nghiem_thu: Bảng phiên bản thành phần cập nhật hằng quý
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: ma-nguon
+  task:
+  - NEN-005
+  co_so: Một phần
+- ma: E2
+  ten: CSDL hợp đa khách thuê, cài cách ly
+  giai_phap: PostgreSQL với RLS cho pool, CSDL logic cho bridge, cụm riêng cho silo.
+  tl01: 12.1, 12.2
+  tai_lieu_khac: TL-03
+  bien_phap_tl04: PostgreSQL CNPG (mục 4.5); ba mô hình pool, bridge, silo; bản cách ly (mục 9.9)
+  bang_chung_nghiem_thu: Cùng chart chạy ở ba mô hình; onboarding OPS-07
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - NEN-033
+  - NEN-036
+  - INF-11
+  co_so: Chưa đạt
+- ma: E3
+  ten: Message broker cho đỉnh tải
+  giai_phap: Kafka với phân vùng theo khoá, KEDA co giãn consumer.
+  tl01: 6.1, 13.5
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Kafka Strimzi (mục 4.6); KEDA theo độ trễ consumer (mục 6.3)
+  bang_chung_nghiem_thu: 'PERF-04, PERF-19: tồn đọng được xử lý hết'
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - INF-10
+  - INF-16
+  co_so: Chưa đạt
+- ma: E4
+  ten: Kho đối tượng cho minh chứng
+  giai_phap: Ceph RGW với Object Lock chế độ compliance và mã xoá 4+2.
+  tl01: 5.8, 9.2
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Ceph RGW, Object Lock (mục 3.8, 8.4)
+  bang_chung_nghiem_thu: PERF-18; RGW từ chối ghi đè
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - INF-12
+  - DV-08-02
+  co_so: Chưa đạt
+- ma: E5
+  ten: Cache phân tán có thiết kế
+  giai_phap: Valkey cluster với quy ước khoá theo tenant, thời hạn và vô hiệu hoá theo sự kiện.
+  tl01: '13.2'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Valkey Cluster (mục 4.6), tiền tố khoá theo tenant, không C2 dạng rõ
+  bang_chung_nghiem_thu: Kiểm tra khoá mẫu trong Valkey
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - NEN-035
+  - INF-11
+  co_so: Một phần
+- ma: E6
+  ten: Thành phần không hết hỗ trợ, giấy phép phù hợp
+  giai_phap: Thay Redis bằng Valkey, Elasticsearch bằng OpenSearch, Vault bằng OpenBao, không dùng iText AGPL.
+  tl01: Phụ lục B
+  bien_phap_tl04: Danh sách chặn Trivy, Dependency-Track (mục 9.6); quy tắc AGPL (mục 10.1)
+  bang_chung_nghiem_thu: Báo cáo giấy phép từ SBOM
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: ma-nguon
+  task:
+  - NEN-005
+  - INF-05
+  co_so: Chưa đạt
+- ma: E7
+  ten: Năng lực đã kiểm chứng ≥ tải mục tiêu
+  giai_phap: Định cỡ theo định luật Little và thử tải k6 ở mức 70.000 phiên mỗi cell lớn.
+  tl01: 2.3, 13.8
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Chương 4 và 7; PERF-01 đến PERF-26
+  bang_chung_nghiem_thu: Báo cáo PERF-03, PERF-04, PERF-06
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - QA-08
+  - QA-12
+  - DL-08
+  co_so: Chưa đạt
+- ma: E8
+  ten: Thành phần AI, BI theo kiến trúc đích
+  giai_phap: ai-gateway chỉ đọc với vLLM tự lưu trữ, ClickHouse, Cube, Superset cho BI.
+  tl01: 5.14, 5.15, chương 17
+  bien_phap_tl04: vLLM, GPU (mục 4.9); ClickHouse, Cube (mục 4.6)
+  bang_chung_nghiem_thu: PERF-24, PERF-26
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - DV-14-01
+  - DV-15-01
+  - DV-15-03
+  co_so: Chưa đạt
+- ma: F1
+  ten: Ngắt mạch khi phụ thuộc lỗi
+  giai_phap: Circuit breaker Resilience4j theo phụ thuộc với cấu hình chuẩn.
+  tl01: '14.2'
+  bien_phap_tl04: Resilience4j qua `vt-platform-starter` (TL-01); dashboard (mục 10.6)
+  bang_chung_nghiem_thu: Chỉ số circuit breaker 100%; PERF-08
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - NEN-016
+  co_so: Chưa đạt
+- ma: F2
+  ten: Timeout cho mọi lời gọi ra ngoài
+  giai_phap: Bảng timeout mặc định cho mọi loại lời gọi, không có giá trị vô hạn.
+  tl01: '14.3'
+  bien_phap_tl04: Timeout chuẩn ở thư viện; `statement_timeout`, `lock_timeout` (OPS-09); APISIX upstream timeout
+  bang_chung_nghiem_thu: Kiểm thử tích hợp với phụ thuộc chậm
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: ma-nguon
+  task:
+  - NEN-016
+  co_so: Chưa đạt
+- ma: F3
+  ten: Retry có kiểm soát và idempotent
+  giai_phap: Tối đa 3 lần có lùi theo cấp số và ngẫu nhiên, chỉ cho thao tác idempotent.
+  tl01: 14.2, 14.4
+  bien_phap_tl04: '`Idempotency-Key`, consumer idempotent theo `eventId`; topic `.retry` (OPS-24)'
+  bang_chung_nghiem_thu: Script k6 (mục 7.7); PERF-17 không ký trùng
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - NEN-012
+  - NEN-013
+  co_so: Một phần
+- ma: F4
+  ten: Giới hạn tốc độ, cắt tải
+  giai_phap: Giới hạn theo người dùng, tenant, route ở APISIX, cắt tải theo lớp ưu tiên.
+  tl01: 14.5, 12.5
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: APISIX `limit-req`, `limit-count` (mục 6.8); mức suy giảm (mục 6.9)
+  bang_chung_nghiem_thu: 'PERF-06: 429, 503 có `Retry-After`, tự phục hồi'
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - DV-01-02
+  - INF-25
+  - WEB-073
+  co_so: Chưa đạt
+- ma: F5
+  ten: Cô lập tài nguyên theo phụ thuộc
+  giai_phap: Bulkhead semaphore theo phụ thuộc, cấm executor không giới hạn.
+  tl01: '14.6'
+  bien_phap_tl04: Bulkhead trong thư viện; node pool tách (mục 3.3); PgBouncer theo module
+  bang_chung_nghiem_thu: 'PERF-06: thành phần gãy đầu tiên không kéo theo thành phần khác'
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - NEN-016
+  co_so: Chưa đạt
+- ma: F6
+  ten: Giới hạn kích thước kết quả, upload
+  giai_phap: Request tối đa 1 MB, trang tối đa 200 dòng, tải lên theo phần với giới hạn.
+  tl01: 14.6, 5.8
+  bien_phap_tl04: '`limit` ≤ 200; SEC-48; xử lý dạng luồng'
+  bang_chung_nghiem_thu: 'PERF-18: bộ nhớ không tăng theo kích thước tệp'
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - NEN-013
+  - DV-08-02
+  co_so: Một phần
+- ma: F7
+  ten: Pool kết nối định cỡ theo tải
+  giai_phap: Định cỡ theo định luật Little, 20 kết nối mỗi pod, PgBouncer chế độ giao dịch.
+  tl01: '13.6'
+  tai_lieu_khac: TL-03
+  bien_phap_tl04: 'Mục 4.7: ngân sách kết nối'
+  bang_chung_nghiem_thu: Tổng kết nối phía máy chủ ≤ ngân sách ở PERF-03
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - NEN-033
+  - INF-11
+  co_so: Chưa đạt
+- ma: F8
+  ten: Xử lý nền cho tác vụ nặng
+  giai_phap: Hàng đợi và worker KEDA cho sinh biểu mẫu, ký số, tính điểm, OCR, API trả 202.
+  tl01: '13.5'
+  bien_phap_tl04: Kafka, KEDA, API 202 (mục 6.3, SLO-ASYNC)
+  bang_chung_nghiem_thu: PERF-19, PERF-20; SLO-ASYNC
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - DV-06-05
+  - NEN-013
+  co_so: Chưa đạt
+- ma: F9
+  ten: Kiểm soát ghi đồng thời
+  giai_phap: Khoá lạc quan `row_version`, ETag và `If-Match`, trả 412 khi xung đột.
+  tl01: '14.4'
+  tai_lieu_khac: TL-03
+  bien_phap_tl04: '`If-Match`, ETag (đã đạt; giữ nguyên)'
+  bang_chung_nghiem_thu: Script k6 đếm 409/412
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - NEN-013
+  co_so: Đạt
+- ma: F10
+  ten: Xử lý lỗi chuẩn hoá
+  giai_phap: RFC 9457 Problem Details với mã lỗi ổn định và `traceId`.
+  tl01: '14.7'
+  bien_phap_tl04: RFC 9457 (TL-01); cảnh báo theo tỷ lệ 5xx
+  bang_chung_nghiem_thu: ZAP không thấy stack trace
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - NEN-009
+  co_so: Chưa đạt
+- ma: F11
+  ten: Kích thước đơn vị mã hợp lý
+  giai_phap: Use case một phương thức, giới hạn độ phức tạp và kích thước lớp trong SonarQube.
+  tl01: 5.1, 18.2
+  bien_phap_tl04: Thuộc TL-01; TL-04 đóng góp Semgrep, ArchUnit trong pipeline
+  bang_chung_nghiem_thu: Báo cáo pipeline
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: pipeline
+  task:
+  - INF-05
+  co_so: Chưa đạt
+- ma: G1
+  ten: Thu gom log tập trung mọi service
+  giai_phap: Fluent Bit trên mỗi node gửi qua Collector tới Loki và OpenSearch.
+  tl01: '15.4'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Fluent Bit DaemonSet (mục 10.3)
+  bang_chung_nghiem_thu: 100% namespace có log trong Loki
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - INF-14
+  co_so: Một phần
+- ma: G2
+  ten: Log có cấu trúc
+  giai_phap: JSON theo ECS với Log4j2 `JsonTemplateLayout`.
+  tl01: '15.4'
+  bien_phap_tl04: JSON ECS
+  bang_chung_nghiem_thu: Truy vấn LogQL theo trường
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - NEN-016
+  co_so: Chưa đạt
+- ma: G3
+  ten: Liên kết log với trace
+  giai_phap: '`trace.id`, `span.id` tự đưa vào MDC bởi OpenTelemetry agent.'
+  tl01: '15.4'
+  bien_phap_tl04: '`trace.id` mọi dòng; structured metadata'
+  bang_chung_nghiem_thu: Từ trace mở được log
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - NEN-016
+  co_so: Một phần
+- ma: G4
+  ten: Không mất log khi tải cao
+  giai_phap: Ghi bất đồng bộ, chỉ bỏ log mức thấp khi đầy, đếm log bị bỏ thành metric.
+  tl01: '15.4'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: Bộ đệm đĩa, `Retry_Limit no_limits` (mục 10.3)
+  bang_chung_nghiem_thu: 'Phép thử chặn Loki 30 phút: sai lệch 0'
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - INF-14
+  co_so: Chưa đạt
+- ma: G5
+  ten: Lưu giữ và bảo vệ log
+  giai_phap: Log vận hành 30 ngày, kiểm toán 5 năm, chỉ đọc, sự kiện quan trọng vào sổ cái.
+  tl01: 15.4, 15.6
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: 90 ngày nóng, 1 năm lạnh, kiểm toán 10 năm Object Lock (NFR-09)
+  bang_chung_nghiem_thu: Cấu hình retention; Object Lock compliance
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - INF-24
+  - DL-13
+  co_so: Chưa đạt
+- ma: G6
+  ten: Tách audit log
+  giai_phap: Sự kiện kiểm toán qua topic riêng vào chỉ mục riêng với người đọc riêng.
+  tl01: '15.6'
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: '`sys.audit.v1`, `audit-archiver` (mục 8.3, 10.3)'
+  bang_chung_nghiem_thu: Kho kiểm toán độc lập
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - INF-24
+  co_so: Chưa đạt
+- ma: G7
+  ten: Không ghi dữ liệu nhạy cảm vào log
+  giai_phap: Che ở mã, ở Log4j2 và ở Collector, quét mẫu hằng tuần.
+  tl01: '15.5'
+  bien_phap_tl04: SEC-07, SEC-53
+  bang_chung_nghiem_thu: Truy vấn định kỳ 0 kết quả
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - NEN-016
+  co_so: Chưa đạt
+- ma: H1
+  ten: Mục tiêu và OKR
+  giai_phap: Module `okr` với phân rã mục tiêu theo cây tổ chức và check-in KR.
+  tl01: '5.1'
+  tai_lieu_khac: TL-02, TL-03
+  bang_chung_nghiem_thu: Đủ yêu cầu PL 1 cho OKR; chạy trọn trong một kỳ thật (UAT tenant thí điểm)
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: nghiep-vu
+  task:
+  - CORE-01-02
+  - CORE-01-03
+  - CORE-01-08
+  - WEB-021
+  - WEB-024
+  co_so: Chưa đạt
+- ma: H2
+  ten: Giao việc và KPI
+  giai_phap: Module `task` với máy trạng thái tham số hoá và KPI tính từ Policy Pack.
+  tl01: '5.1'
+  tai_lieu_khac: TL-02, TL-03
+  bang_chung_nghiem_thu: Đủ yêu cầu PL 1 Bảng 1–3 cho giao việc, KPI, kế hoạch quý; chạy trọn trong một kỳ thật
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: nghiep-vu
+  task:
+  - CORE-02-05
+  - CORE-02-14
+  - CORE-02-19
+  - WEB-026
+  - WEB-028
+  co_so: Một phần
+- ma: H3
+  ten: Sản phẩm, minh chứng
+  giai_phap: Module `product` và evidence-service với minh chứng chỉ ghi có băm.
+  tl01: 5.1, 5.8
+  tai_lieu_khac: TL-02, TL-03
+  bang_chung_nghiem_thu: Minh chứng có phiên bản, chất lượng 5 mức, cảnh báo trùng; chạy trọn trong một kỳ thật
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: nghiep-vu
+  task:
+  - CORE-03-03
+  - CORE-03-07
+  - DV-08-02
+  - WEB-032
+  - WEB-033
+  co_so: Một phần
+- ma: H4
+  ten: Đánh giá, xếp loại
+  giai_phap: Module `appraisal`, scoring-service và bảng quyết định DMN.
+  tl01: 5.7, chương 10
+  tai_lieu_khac: TL-02
+  bang_chung_nghiem_thu: Bộ máy KPI cấu hình được, lưu 4 mức, liên thông quý–năm; khớp bảng tính tay ở UAT
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: nghiep-vu
+  task:
+  - CORE-04-04
+  - CORE-04-05
+  - CORE-04-07
+  - DV-07-03
+  - DV-07-05
+  - WEB-035
+  - WEB-036
+  - WEB-038
+  co_so: Một phần
+- ma: H5
+  ten: Kiểm điểm, hồ sơ số
+  giai_phap: Module `dossier`, document-service sinh PDF/A, ký PAdES.
+  tl01: 5.11, 11.6
+  tai_lieu_khac: TL-02
+  bang_chung_nghiem_thu: Sinh Mẫu 1A–1D, 2, 3, ký số, 13 trường hợp đặc thù, đóng gói hồ sơ; dùng ở hội nghị thật
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: nghiep-vu
+  task:
+  - CORE-06-02
+  - CORE-06-06
+  - DV-11-02
+  - DV-11-04
+  - WEB-040
+  - WEB-041
+  co_so: Chưa đạt
+- ma: H6
+  ten: Giám sát, hậu kiểm
+  giai_phap: Module `oversight` với tám dấu hiệu bất thường và cờ hậu kiểm.
+  tl01: 17.4, 11.8
+  tai_lieu_khac: TL-02
+  bang_chung_nghiem_thu: Nhật ký không sửa được, khoá và mở kỳ có duyệt, khiếu nại, 8 dấu hiệu bất thường
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: nghiep-vu
+  task:
+  - CORE-07-02
+  - CORE-07-10
+  - DV-15-07
+  - WEB-042
+  - WEB-044
+  co_so: Một phần
+- ma: H7
+  ten: Phân tích, dashboard
+  giai_phap: analytics với ClickHouse, Cube và bảng điều hành.
+  tl01: '5.15'
+  tai_lieu_khac: TL-02
+  bang_chung_nghiem_thu: Bảng điều hành tự dựng trên lớp ngữ nghĩa, đi xuống tới minh chứng, so sánh nhiều kỳ
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: nghiep-vu
+  task:
+  - DV-15-03
+  - DV-15-05
+  - DV-15-06
+  - WEB-047
+  - WEB-048
+  co_so: Một phần
+- ma: H8
+  ten: Quản trị nền tảng
+  giai_phap: tenant-registry, Config Studio, UI Pack và Policy Pack.
+  tl01: 5.4, chương 7, 10
+  tai_lieu_khac: TL-02, TL-04
+  bang_chung_nghiem_thu: Đa khách thuê, cây tổ chức có lịch sử, Config Studio, Policy Pack có phiên bản và ca kiểm thử
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: nghiep-vu
+  task:
+  - DV-03-03
+  - CORE-08-08
+  - CORE-05-02
+  - WEB-016
+  - WEB-045
+  - WEB-050
+  co_so: Một phần
+- ma: H9
+  ten: Hai luồng Đảng / Nhà nước
+  giai_phap: Hai hồ sơ mỗi người mỗi kỳ, gói quy tắc và mẫu quy trình riêng cho từng luồng.
+  tl01: '10.8'
+  tai_lieu_khac: TL-02, TL-03
+  bang_chung_nghiem_thu: Một người một kỳ có hai hồ sơ tính theo hai bộ quy tắc từ cùng dữ liệu
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: nghiep-vu
+  task:
+  - DL-01
+  - DL-02
+  - CORE-04-02
+  co_so: Một phần
+- ma: I1
+  ten: Nhật ký thay đổi đầy đủ
+  giai_phap: Mọi chuyển trạng thái ghi log trạng thái và sự kiện, sự kiện pháp lý vào sổ cái.
+  tl01: 5.1, 11.2
+  tai_lieu_khac: TL-03
+  bang_chung_nghiem_thu: Mọi chuyển trạng thái có nhật ký trạng thái và sự kiện; sự kiện pháp lý có trong sổ cái
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - CORE-08-03
+  - DV-09-02
+  co_so: Chưa đạt
+- ma: I2
+  ten: Sổ cái chỉ-ghi, chuỗi băm, niêm phong
+  giai_phap: Bảng chỉ chèn có trigger chặn sửa, 64 chuỗi mỗi tenant, niêm phong Merkle hằng giờ.
+  tl01: 11.2, 11.4
+  tai_lieu_khac: TL-03
+  bang_chung_nghiem_thu: Trigger chặn sửa, 64 chuỗi mỗi tenant, niêm phong Merkle hằng giờ; công cụ kiểm chứng báo hợp lệ
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - DV-09-02
+  - DV-09-03
+  - DV-09-04
+  co_so: Chưa đạt
+- ma: I3
+  ten: Khoá kỳ, mở lại cần hai người duyệt
+  giai_phap: Saga khoá kỳ và mở lại bốn mắt có ký số, giới hạn phạm vi và thời hạn.
+  tl01: '11.8'
+  tai_lieu_khac: TL-02
+  bang_chung_nghiem_thu: Khoá kỳ qua saga; mở lại cần hai người duyệt khác nhau có step-up và ký số
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - CORE-08-05
+  - CORE-07-07
+  - CORE-07-08
+  co_so: Chưa đạt
+- ma: I4
+  ten: Ký số tại mốc pháp lý
+  giai_phap: Ký PAdES-LTA ở bốn mốc pháp lý và biên bản kiểm điểm, ký lô cho quyết định hàng loạt.
+  tl01: 9.2, 11.6
+  tai_lieu_khac: TL-02
+  bang_chung_nghiem_thu: Ký PAdES-LTA bằng chứng thư thật ở bốn mốc pháp lý; ký lô cho quyết định hàng loạt
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: he-thong-ngoai
+  task:
+  - DV-10-02
+  - DV-10-06
+  - CORE-04-08
+  co_so: Chưa đạt
+- ma: I5
+  ten: Minh chứng bất biến có mã băm
+  giai_phap: SHA-256 khi tải lên, Object Lock compliance, phiên bản mới không xoá bản cũ.
+  tl01: 5.8, 9.2
+  tai_lieu_khac: TL-03
+  bang_chung_nghiem_thu: SHA-256 khi tải lên, Object Lock compliance thật từ chối ghi đè, phiên bản mới không xoá bản cũ
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: cum-van-hanh
+  task:
+  - DV-08-02
+  - INF-12
+  co_so: Chưa đạt
+- ma: I6
+  ten: Snapshot kết quả gắn phiên bản quy tắc
+  giai_phap: Snapshot đầu vào, băm đầu vào, phiên bản và băm gói quy tắc cho mọi kết quả.
+  tl01: '10.7'
+  tai_lieu_khac: TL-03
+  bang_chung_nghiem_thu: Mọi kết quả tính điểm có snapshot đầu vào, `input_hash`, phiên bản và băm gói quy tắc
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - DV-07-05
+  - DV-07-07
+  co_so: Một phần
+- ma: I7
+  ten: Dữ liệu hai trục thời gian
+  giai_phap: Thời gian hiệu lực và thời gian ghi nhận cho tổ chức, phân công, quan hệ báo cáo.
+  tl01: '11.7'
+  tai_lieu_khac: TL-03
+  bang_chung_nghiem_thu: Truy vấn tổ chức, phân công theo `asOf` và `knownAt` cho kết quả đúng cả hai trục
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - DV-04-01
+  - DV-04-02
+  co_so: Chưa đạt
+- ma: I8
+  ten: Dấu thời gian tin cậy
+  giai_phap: Token RFC 3161 cho niêm phong và chữ ký, bản neo hằng ngày tới hai bên độc lập.
+  tl01: '11.4'
+  tai_lieu_khac: TL-04
+  bang_chung_nghiem_thu: Token RFC 3161 từ TSA thật; bản neo hằng ngày tới hai bên độc lập
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: he-thong-ngoai
+  task:
+  - DV-09-03
+  - DV-10-03
+  - DV-13-09
+  co_so: Chưa đạt
+- ma: J1
+  ten: Mật độ unit test
+  giai_phap: Kiểm thử đơn vị cho `domain` và `application`, kiểm thử đột biến cho lõi tính toán.
+  tl01: '18.1'
+  bien_phap_tl04: Pipeline chạy kiểm thử đơn vị, độ bao phủ tệp thay đổi ≥ 80% (mục 9.6)
+  bang_chung_nghiem_thu: Báo cáo JaCoCo
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: pipeline
+  task:
+  - INF-05
+  co_so: Một phần
+- ma: J2
+  ten: CI chặn khi test lỗi
+  giai_phap: Cổng chất lượng Jenkins và SonarQube chặn hợp nhất.
+  tl01: '18.2'
+  bien_phap_tl04: Jenkinsfile (mục 9.6)
+  bang_chung_nghiem_thu: Merge request lỗi bị chặn
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: pipeline
+  task:
+  - INF-05
+  - WEB-002
+  co_so: Chưa đạt
+- ma: J3
+  ten: Ngưỡng độ phủ
+  giai_phap: 80% dòng, 70% nhánh với mã mới, 70% đột biến cho tính điểm.
+  tl01: '18.1'
+  bien_phap_tl04: '`recordCoverage` với cổng chất lượng'
+  bang_chung_nghiem_thu: Báo cáo pipeline
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: pipeline
+  task:
+  - INF-05
+  co_so: Chưa đạt
+- ma: J4
+  ten: Test tích hợp tự động
+  giai_phap: Testcontainers cho CSDL, Kafka, Keycloak, OpenBao, kiểm RLS hai tenant.
+  tl01: 18.1, 12.2
+  bien_phap_tl04: Testcontainers PostgreSQL, Kafka; chạy qua PgBouncer thật
+  bang_chung_nghiem_thu: Báo cáo failsafe
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: pipeline
+  task:
+  - NEN-034
+  - NEN-035
+  co_so: Chưa đạt
+- ma: J5
+  ten: Test đầu-cuối
+  giai_phap: Playwright cho khoảng 40 hành trình chính trên môi trường tạm theo nhánh.
+  tl01: '18.1'
+  tai_lieu_khac: TL-02
+  bien_phap_tl04: Bộ kiểm thử khói trên staging, sau DR (DR-10 bước 9)
+  bang_chung_nghiem_thu: Báo cáo kiểm thử khói
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: cum-van-hanh
+  task:
+  - QA-03
+  - QA-04
+  - QA-05
+  - QA-06
+  - QA-07
+  co_so: Chưa đạt
+- ma: J6
+  ten: Bộ test vàng do nghiệp vụ ký
+  giai_phap: Bộ ca mẫu vàng ký số, yêu cầu đạt 100% để phát hành Policy Pack.
+  tl01: '10.4'
+  tai_lieu_khac: TL-02
+  bien_phap_tl04: OPS-10
+  bang_chung_nghiem_thu: Test vàng 100%
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: nghiep-vu
+  task:
+  - CORE-05-06
+  - DL-03
+  co_so: Một phần
+- ma: J7
+  ten: Thử tải định kỳ
+  giai_phap: k6 hằng tuần với kịch bản cuối kỳ và trước bản phát hành chính.
+  tl01: 18.1, 8.12
+  tai_lieu_khac: TL-04
+  bien_phap_tl04: 'Chương 7: lịch chạy mỗi phát hành và mỗi quý'
+  bang_chung_nghiem_thu: Báo cáo trong repo `perf-results`
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: thu-tai
+  task:
+  - QA-08
+  - QA-12
+  co_so: Một phần
+- ma: J8
+  ten: Phân tích tĩnh
+  giai_phap: SonarQube, Semgrep, gitleaks, SCA trong CI.
+  tl01: '18.2'
+  bien_phap_tl04: Semgrep, gitleaks, Trivy (SEC-39, SEC-09, SEC-23)
+  bang_chung_nghiem_thu: SARIF trong pipeline
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: pipeline
+  task:
+  - INF-05
+  - WEB-001
+  co_so: Một phần
+- ma: J9
+  ten: Tài liệu kiến trúc khớp mã
+  giai_phap: Quy tắc kiến trúc là kiểm thử ArchUnit và Modulith, sơ đồ module sinh từ mã.
+  tl01: 5.1, 18.1
+  bien_phap_tl04: Kho GitOps là nguồn sự thật của triển khai; tài liệu TL-04 dẫn chiếu mã
+  bang_chung_nghiem_thu: Rà soát hằng quý theo OPS-25
+  nguon_bang_chung: TL-04 chương 13
+  loai_bang_chung: ma-nguon
+  task:
+  - CORE-00-02
+  co_so: Một phần
+- ma: K1
+  ten: Schema riêng, migration có phiên bản
+  giai_phap: Schema riêng mỗi module, Flyway với tài khoản migration riêng.
+  tl01: '5.1'
+  tai_lieu_khac: TL-03
+  bang_chung_nghiem_thu: Flyway theo schema với tài khoản `mig_<schema>`; lint migration trong pipeline
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - NEN-030
+  co_so: Chưa đạt
+- ma: K2
+  ten: Định danh qua IdP chuẩn
+  giai_phap: Keycloak là IdP duy nhất, ứng dụng chỉ là resource server.
+  tl01: 5.3, 16.2
+  tai_lieu_khac: TL-04
+  bang_chung_nghiem_thu: Keycloak là IdP duy nhất; ứng dụng chỉ kiểm JWT, không nhận mật khẩu
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - DV-02-01
+  co_so: Chưa đạt
+- ma: K3
+  ten: Dữ liệu tổ chức qua API, không đọc bảng
+  giai_phap: org-service cung cấp API và sự kiện, lõi dùng bản sao `org_replica` từ sự kiện.
+  tl01: 5.5, 19.2
+  tai_lieu_khac: TL-03
+  bang_chung_nghiem_thu: Lõi đọc tổ chức qua `org_replica` cập nhật từ sự kiện, không đọc bảng của org-service
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - CORE-00-03
+  - DV-04-08
+  co_so: Chưa đạt
+- ma: K4
+  ten: Thông báo, SMS, liên thông qua sự kiện
+  giai_phap: notification-service nhận EVT-21, không ghi bảng của vOffice.
+  tl01: '5.12'
+  bang_chung_nghiem_thu: Thông báo đi qua notification-service bằng EVT-21; không ghi bảng hệ khác
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - DV-12-01
+  co_so: Chưa đạt
+- ma: K5
+  ten: Đa khách thuê trong một bản cài
+  giai_phap: Ba mô hình pool, bridge, silo, tiếp nhận tenant tự động không triển khai lại.
+  tl01: 12.1, 12.4
+  tai_lieu_khac: TL-04
+  bang_chung_nghiem_thu: Tiếp nhận tenant tự động ở ba mô hình pool, bridge, silo không triển khai lại (OPS-07, VH-04)
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: cum-van-hanh
+  task:
+  - DV-03-04
+  - DV-03-05
+  - NEN-036
+  - VH-04
+  co_so: Chưa đạt
+- ma: K6
+  ten: Một bản build cho mọi môi trường
+  giai_phap: Image build một lần, cấu hình nạp lúc chạy.
+  tl01: 5.17, 18.2
+  tai_lieu_khac: TL-04
+  bang_chung_nghiem_thu: Một digest ảnh chạy ở mọi môi trường; cấu hình nạp lúc chạy
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: cum-van-hanh
+  task:
+  - INF-05
+  - WEB-012
+  co_so: Một phần
+- ma: K7
+  ten: Chạy độc lập không cần hệ văn bản
+  giai_phap: Lõi không phụ thuộc vOffice; tích hợp văn bản là connector tuỳ chọn.
+  tl01: '6.4'
+  tai_lieu_khac: TL-02
+  bang_chung_nghiem_thu: Lõi chạy đủ chức năng khi tắt mọi connector văn bản
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - CORE-00-01
+  - DV-13-03
+  co_so: Một phần
+- ma: K8
+  ten: Không trùng lặp nghiệp vụ core/service
+  giai_phap: Bảng phần, kiểu, lý do của chương 3 và ranh giới module xác định một nơi sở hữu mỗi nghiệp vụ.
+  tl01: 3.3, 5.1
+  bang_chung_nghiem_thu: Mỗi nghiệp vụ có đúng một module sở hữu theo bảng của chương 3; kiểm bằng kiểm thử kiến trúc
+  nguon_bang_chung: suy luận từ giải pháp TL-01
+  loai_bang_chung: ma-nguon
+  task:
+  - CORE-00-02
+  co_so: Chưa đạt
