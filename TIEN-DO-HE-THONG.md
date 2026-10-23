@@ -1042,4 +1042,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 14:23 | B1 | `INF-28` | Chuyển trạng thái sang **Đã gộp main** — MM2, walArchive, chế độ chờ, siteRole toàn cục (948aa4cb); chưa chạy cụm thật |
 | 23/10/2026 14:24 | — | `MOB-06` | Chuyển trạng thái sang **Làm một phần** — Hoãn theo YC-PT-22; bản 18c1d58c giữ trên nhánh B6, chưa gộp |
 | 23/10/2026 14:25 | — | `QA-15` | Chuyển trạng thái sang **Làm một phần** — Kịch bản, sổ tay DR-10..16 gộp 95a4bffd; chạy thật hoãn (YC-PT-19) |
+| 23/10/2026 14:26 | B4 | `QA-05` | Chuyển trạng thái sang **Làm một phần** — Sửa phát hiện gộp fdc5c81a; giả lập 10/10; chế độ thật chờ env dev |
 <!-- PROGRESS_LOG_END -->
