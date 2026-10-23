@@ -27,6 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.contract.tasks.model.AssignCheckItem;
 import vn.viettel.okrkpi.contract.tasks.model.AssignCheckResult;
+import vn.viettel.okrkpi.contract.tasks.model.AssignRequest;
 import vn.viettel.okrkpi.contract.tasks.model.AssignResult;
 import vn.viettel.okrkpi.contract.tasks.model.AssigneeRef;
 import vn.viettel.okrkpi.contract.tasks.model.AssigneeRole;
@@ -42,6 +43,7 @@ import vn.viettel.okrkpi.contract.tasks.model.TaskDraft;
 import vn.viettel.okrkpi.contract.tasks.model.TaskDraftTemplate;
 import vn.viettel.okrkpi.contract.tasks.model.TaskGroup;
 import vn.viettel.okrkpi.contract.tasks.model.TaskMilestone;
+import vn.viettel.okrkpi.contract.tasks.model.TaskNodeKind;
 import vn.viettel.okrkpi.contract.tasks.model.TaskPriority;
 import vn.viettel.okrkpi.contract.tasks.model.TaskSource;
 import vn.viettel.okrkpi.contract.tasks.model.TaskStatus;
@@ -172,12 +174,15 @@ public class TaskAssignController {
 
   @PostMapping("/assign-check")
   @RequiresPermission(operationId = "checkTaskAssignment", module = "tasks", resourceType = "task")
-  public AssignCheckResult checkTaskAssignment(@RequestBody TaskDraft body) {
+  public AssignCheckResult checkTaskAssignment(
+      @RequestBody TaskDraft body,
+      @RequestHeader(value = "Authorization", required = false) String authorization) {
     TaskAssignService.CheckResult r =
-        assign.check(TenantContext.require(), spec(body), callers.current());
+        assign.check(TenantContext.require(), spec(body), callers.current(), authorization);
     AssignCheckResult dto =
         new AssignCheckResult(
-                r.items().stream().map(TaskAssignController::checkItem).toList(), List.of())
+                r.items().stream().map(TaskAssignController::checkItem).toList(),
+                r.similar().stream().map(TaskSimilarController::dto).toList())
             .workingDays(r.workingDays());
     LeadWorkloads.Result w = r.workload();
     if (w != null) {
@@ -200,11 +205,16 @@ public class TaskAssignController {
   @RequiresPermission(operationId = "assignTask", module = "tasks", resourceType = "task")
   public ResponseEntity<AssignResult> assignTask(
       @PathVariable("id") UUID id,
-      @RequestHeader(value = "If-Match", required = false) String ifMatch) {
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestHeader(value = "Authorization", required = false) String authorization,
+      @RequestBody(required = false) AssignRequest body) {
     long expected = ETags.expectedVersion(ifMatch, "TASK");
     TenantId tenant = TenantContext.require();
+    String reason = body == null ? null : body.getSimilarReason();
     TaskAssignService.Assigned done =
-        found(() -> assign.assignTask(tenant, id, expected, callers.current()));
+        found(
+            () ->
+                assign.assignTask(tenant, id, expected, reason, authorization, callers.current()));
     TaskRow t = done.task();
     return ETags.ok(
         new AssignResult(t.id(), t.code(), TaskStatus.fromValue(t.status().name()), ""),
@@ -381,7 +391,11 @@ public class TaskAssignController {
         d.getQualityCriteria(),
         doc == null ? null : doc.getNumber(),
         doc == null ? null : doc.getTitle(),
-        d.getBasis());
+        d.getBasis(),
+        new TaskDraftSpec.Node(
+            d.getNodeKind() == null ? null : d.getNodeKind().getValue(),
+            d.getParentTaskId(),
+            d.getComponentScore()));
   }
 
   static TaskDraft draft(DraftRow row) {
@@ -416,7 +430,10 @@ public class TaskAssignController {
             .leadPersonId(s.leadPersonId())
             .dueDate(s.dueDate())
             .acceptorId(s.acceptorId())
-            .basis(s.basis());
+            .basis(s.basis())
+            .nodeKind(TaskNodeKind.fromValue(s.node().kind()))
+            .parentTaskId(s.node().parentTaskId())
+            .componentScore(s.node().componentScore());
     if (row.id() != null) {
       dto.setRowVersion((int) row.rowVersion());
     }

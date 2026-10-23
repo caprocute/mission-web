@@ -10,6 +10,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestClient;
+import vn.viettel.okrkpi.analytics.application.CoreDetailPort;
 import vn.viettel.okrkpi.analytics.application.CubePort;
 import vn.viettel.okrkpi.analytics.application.DashboardService;
 import vn.viettel.okrkpi.analytics.application.DashboardStorePort;
@@ -21,6 +22,8 @@ import vn.viettel.okrkpi.analytics.application.ResultCache;
 import vn.viettel.okrkpi.analytics.application.ScopeService;
 import vn.viettel.okrkpi.analytics.application.SemanticModelService;
 import vn.viettel.okrkpi.analytics.application.ShareNotifier;
+import vn.viettel.okrkpi.analytics.application.TraceFactsPort;
+import vn.viettel.okrkpi.analytics.application.TraceService;
 import vn.viettel.okrkpi.shared.cache.TenantCache;
 import vn.viettel.okrkpi.shared.resilience.ResilientClientFactory;
 
@@ -62,8 +65,8 @@ public class AnalyticsConfiguration {
   }
 
   @Bean
-  OrgScopePort orgScopePort(AnalyticsProperties p, HttpClient http, ObjectMapper json) {
-    return new ClickHouseOrgScope(
+  ClickHouseHttp clickHouseHttp(AnalyticsProperties p, HttpClient http, ObjectMapper json) {
+    return new ClickHouseHttp(
         http,
         p.clickhouseUrl(),
         p.clickhouseDatabase(),
@@ -71,6 +74,33 @@ public class AnalyticsConfiguration {
         p.clickhousePassword(),
         json,
         Duration.ofSeconds(10));
+  }
+
+  @Bean
+  OrgScopePort orgScopePort(ClickHouseHttp ch) {
+    return new ClickHouseOrgScope(ch);
+  }
+
+  @Bean
+  TraceFactsPort traceFactsPort(ClickHouseHttp ch) {
+    return new ClickHouseTraceFacts(ch);
+  }
+
+  /** Gọi mission-core bằng token người xem: không gắn token dịch vụ. */
+  @Bean
+  CoreDetailPort coreDetailPort(
+      AnalyticsProperties p,
+      ResilientClientFactory clients,
+      ObjectProvider<RestClient.Builder> builders) {
+    RestClient.Builder builder = builders.getIfAvailable(RestClient::builder);
+    return new MissionCoreDetails(
+        clients.create("mission-core-detail", builder.clone().baseUrl(p.coreUrl()).build()));
+  }
+
+  @Bean
+  TraceService traceService(
+      ScopeService scopes, OrgScopePort org, TraceFactsPort facts, CoreDetailPort core) {
+    return new TraceService(scopes, org, facts, core);
   }
 
   @Bean

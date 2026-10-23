@@ -12,6 +12,9 @@ Khi cơ quan có thẩm quyền ban hành công thức chính thức, gói đư�
 |---|---|---|---|
 | Luồng Đảng `khoi-dang/quy-dinh-moi` | `data/policy-pack/khoi-dang/quy-dinh-moi/tests/bo-ca-mau-gia-lap.yaml` | 63 (35 ca quý, 15 ca năm, 13 ca trường hợp đặc thù) | 0 |
 | Luồng Nhà nước `khoi-chinh-quyen/nd335` | `data/policy-pack/khoi-chinh-quyen/nd335/tests/bo-ca-mau-gia-lap.yaml` | 7 | 0 |
+| Hồ sơ TWĐ `twd/diem-cong-viec` (DL-16) | `data/policy-pack/twd/diem-cong-viec/tests/bo-ca-mau-twd.yaml` | 1441 (việc, mục quản lý, 120 người hai chế độ, điểm năm, chuỗi xếp loại, ca lô, G và CT của UEB) | 0 |
+
+Bộ ca TWĐ sinh bằng `twd/sinh_ca_twd.py` từ Phụ lục 01, 01G của UEB; các ca kiểm luồng, chặn, thông báo của UEB không chạy được ở đây nên nằm ở `twd/ca-nghiem-thu.yaml`, gắn task lõi. Gói này dùng thêm các loại ca `VIEC`, `QUAN_LY`, `CA_NHAN`, `NAM_DIEM`, `XEP_LOAI_CHUOI` và `XEP_LOAI_LO` (chạy lại một nhóm ca với tham số hoặc dữ liệu ghi đè, đếm số người theo mức); chú thích đầu `chay_ca_mau.py` mô tả đầu vào của từng loại.
 
 ## Thư mục này chứa gì
 

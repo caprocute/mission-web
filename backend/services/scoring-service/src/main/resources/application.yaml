@@ -8,6 +8,8 @@
 #   trỏ tới 127.0.0.1 qua dải cổng SSH tunnel 35xxx của infra/dev để dễ dàng thay đổi động qua .env.
 
 spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:35092}
   application:
     name: ${SERVICE_NAME:scoring-service}
   threads:
@@ -66,6 +68,11 @@ management:
       application: ${spring.application.name}
 
 mission:
+  # DV-07-02: MOD-05 (mission-core) phân giải và cấp nội dung Policy Pack; đệm theo băm nội dung.
+  scoring:
+    policy:
+      base-url: ${MISSION_CORE_URL:http://127.0.0.1:8080}
+      cache-max-entries: ${POLICY_CACHE_MAX_ENTRIES:32}
   service:
     code: ${SERVICE_CODE:SVC-07}
     schema: ${DB_SCHEMA:scoring}
@@ -92,3 +99,8 @@ okrkpi:
       url: ${APICURIO_REGISTRY_URL:http://127.0.0.1:35081/apis/registry/v2}
   idempotency:
     schema: scoring
+  # DV-07-02: consumer EVT-13 qua inbox idempotent scoring.inbox_processed.
+  inbox:
+    schema: scoring
+    registry:
+      url: ${APICURIO_REGISTRY_URL:http://127.0.0.1:35081/apis/registry/v2}

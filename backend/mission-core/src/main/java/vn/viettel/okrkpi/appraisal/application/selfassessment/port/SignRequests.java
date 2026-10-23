@@ -36,6 +36,15 @@ public interface SignRequests {
   }
 
   /**
+   * Mở yêu cầu ký lô quyết định (mục đích {@code QUYET_DINH}, CORE-04-07): nguồn là lô {@code
+   * batch_decision}, mỗi hồ sơ một tài liệu; người ký là người quyết định đang đăng nhập.
+   */
+  default UUID requestDecision(
+      TenantId tenant, UUID batchId, String provider, String idempotencyKey, String authorization) {
+    throw new IllegalStateException("Chưa cấu hình địa chỉ dịch vụ ký số");
+  }
+
+  /**
    * Lỗi SVC-10 trả nguyên cho client (ví dụ 401 cần xác thực bổ sung): {@code getCause()} là ngoại
    * lệ cần ném lại.
    */

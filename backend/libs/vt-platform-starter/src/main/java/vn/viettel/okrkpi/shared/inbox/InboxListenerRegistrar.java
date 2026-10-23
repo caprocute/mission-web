@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Supplier;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.ObjectProvider;
@@ -26,7 +27,7 @@ import org.springframework.kafka.listener.ContainerProperties;
  */
 public class InboxListenerRegistrar implements BeanPostProcessor, SmartLifecycle {
 
-  private final InboxMessageProcessor processor;
+  private final Supplier<InboxMessageProcessor> processor;
   private final ObjectProvider<ConcurrentKafkaListenerContainerFactory<String, byte[]>>
       containerFactoryProvider;
   private final boolean autoStartup;
@@ -41,7 +42,25 @@ public class InboxListenerRegistrar implements BeanPostProcessor, SmartLifecycle
       ObjectProvider<ConcurrentKafkaListenerContainerFactory<String, byte[]>>
           containerFactoryProvider,
       boolean autoStartup) {
-    this.processor = Objects.requireNonNull(processor, "processor");
+    Objects.requireNonNull(processor, "processor");
+    this.processor = () -> processor;
+    this.containerFactoryProvider =
+        Objects.requireNonNull(containerFactoryProvider, "containerFactoryProvider");
+    this.autoStartup = autoStartup;
+  }
+
+  /**
+   * Bộ xử lý lấy muộn khi dựng container: bộ đăng ký là {@code BeanPostProcessor} nên phụ thuộc lấy
+   * sớm sẽ kéo theo {@code MeterRegistry} được tạo trước khi Spring Boot áp các tuỳ biến (thẻ chung
+   * {@code application} của chỉ số).
+   */
+  public InboxListenerRegistrar(
+      ObjectProvider<InboxMessageProcessor> processor,
+      ObjectProvider<ConcurrentKafkaListenerContainerFactory<String, byte[]>>
+          containerFactoryProvider,
+      boolean autoStartup) {
+    Objects.requireNonNull(processor, "processor");
+    this.processor = processor::getObject;
     this.containerFactoryProvider =
         Objects.requireNonNull(containerFactoryProvider, "containerFactoryProvider");
     this.autoStartup = autoStartup;
@@ -135,7 +154,7 @@ public class InboxListenerRegistrar implements BeanPostProcessor, SmartLifecycle
     props.setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
     props.setMessageListener(
         (AcknowledgingMessageListener<String, byte[]>)
-            (record, acknowledgment) -> processor.process(endpoint, record, acknowledgment));
+            (record, acknowledgment) -> processor.get().process(endpoint, record, acknowledgment));
     container.setBeanName("inboxListenerContainer-" + endpoint.consumer() + "-" + endpoint.topic());
     return container;
   }

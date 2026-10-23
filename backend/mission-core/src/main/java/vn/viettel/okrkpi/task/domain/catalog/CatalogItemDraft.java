@@ -20,4 +20,40 @@ public record CatalogItemDraft(
     String evidenceRequired,
     String group,
     Integer standardDays,
-    String status) {}
+    String status,
+    ItemScoring scoring) {
+
+  public CatalogItemDraft {
+    scoring = scoring == null ? ItemScoring.NONE : scoring;
+  }
+
+  /** Mục không có dữ liệu chấm điểm mở (BS-03 DC-01). */
+  public CatalogItemDraft(
+      String code,
+      UUID positionId,
+      String name,
+      String productName,
+      String unit,
+      Integer difficulty,
+      BigDecimal baseScore,
+      String qualityCriteria,
+      String evidenceRequired,
+      String group,
+      Integer standardDays,
+      String status) {
+    this(
+        code,
+        positionId,
+        name,
+        productName,
+        unit,
+        difficulty,
+        baseScore,
+        qualityCriteria,
+        evidenceRequired,
+        group,
+        standardDays,
+        status,
+        ItemScoring.NONE);
+  }
+}

@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
@@ -39,7 +40,79 @@ public interface TaskLifecycleRepository {
       boolean overdue,
       String delayRisk,
       String stateMachineVersion,
-      long rowVersion) {}
+      long rowVersion,
+      String nodeKind,
+      UUID parentTaskId,
+      BigDecimal componentScore,
+      Map<String, String> coefficientLevels,
+      String axisCode) {
+
+    public TaskRow {
+      coefficientLevels = coefficientLevels == null ? Map.of() : Map.copyOf(coefficientLevels);
+    }
+
+    /** Nhiệm vụ gốc {@code NHIEM_VU}, không có việc cha (BS-03 DC-04). */
+    public TaskRow(
+        UUID id,
+        UUID periodId,
+        int periodBucket,
+        String code,
+        String title,
+        String description,
+        String taskGroup,
+        String source,
+        UUID keyResultId,
+        UUID assignerId,
+        Instant assignedAt,
+        UUID acceptorId,
+        LocalDate dueDate,
+        LocalDate extendedDueDate,
+        LocalDate scoreDueDate,
+        BigDecimal plannedQuantity,
+        BigDecimal doneQuantity,
+        String unit,
+        Integer difficulty,
+        BigDecimal standardScore,
+        BigDecimal progressPct,
+        TaskStatus status,
+        boolean overdue,
+        String delayRisk,
+        String stateMachineVersion,
+        long rowVersion) {
+      this(
+          id,
+          periodId,
+          periodBucket,
+          code,
+          title,
+          description,
+          taskGroup,
+          source,
+          keyResultId,
+          assignerId,
+          assignedAt,
+          acceptorId,
+          dueDate,
+          extendedDueDate,
+          scoreDueDate,
+          plannedQuantity,
+          doneQuantity,
+          unit,
+          difficulty,
+          standardScore,
+          progressPct,
+          status,
+          overdue,
+          delayRisk,
+          stateMachineVersion,
+          rowVersion,
+          "NHIEM_VU",
+          null,
+          null,
+          Map.of(),
+          null);
+    }
+  }
 
   /** Một dòng {@code task.task_state_log}. */
   record StateLogRow(

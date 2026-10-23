@@ -35,6 +35,9 @@ import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.DraftR
 import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository.TaskRow;
 import vn.viettel.okrkpi.task.application.mine.LeadWorkloads;
+import vn.viettel.okrkpi.task.application.similar.SimilarTaskService;
+import vn.viettel.okrkpi.task.application.similar.port.SimilarTaskRows.Probe;
+import vn.viettel.okrkpi.task.application.tree.TaskTreeService;
 import vn.viettel.okrkpi.task.domain.assign.AssignmentRules;
 import vn.viettel.okrkpi.task.domain.assign.AssignmentRules.CheckItem;
 import vn.viettel.okrkpi.task.domain.assign.TaskDraftSpec;
@@ -50,8 +53,15 @@ import vn.viettel.okrkpi.task.domain.plan.PlanSchedule;
 public class TaskAssignService {
 
   static final String TX = "taskTransactionManager";
+  static final String MODE_RULE = "DC-06";
   static final String VALIDATION = "COMMON-422-VALIDATION";
   static final String RESTRICTED_TITLE = "Nhiệm vụ hạn chế";
+  static final String SIMILAR_NOTE = "GAN_GIONG";
+  static final String MSG_05_03 =
+      "Có nhiệm vụ gần giống trong đơn vị và kỳ. Vui lòng gộp vào nhiệm vụ đã có hoặc ghi lý do vẫn"
+          + " tạo mới.";
+  static final String SIMILAR_UNCHECKED =
+      "Chưa kiểm được nhiệm vụ gần giống, vẫn giao được; nên xem lại danh sách nhiệm vụ của đơn vị.";
 
   /** Trường của {@code TaskDraft} tương ứng với từng quy tắc, để giao diện tô đúng ô. */
   static final Map<String, String> FIELDS =
@@ -78,6 +88,7 @@ public class TaskAssignService {
   private final Executor executor;
   private final Clock clock;
   private final LeadWorkloads workloads;
+  private final SimilarTaskService similar;
 
   public TaskAssignService(
       TaskDraftService drafts,
@@ -95,6 +106,42 @@ public class TaskAssignService {
       Executor executor,
       Clock clock,
       LeadWorkloads workloads) {
+    this(
+        drafts,
+        repository,
+        transitions,
+        events,
+        jobs,
+        periods,
+        okr,
+        org,
+        calendar,
+        vagueWords,
+        publisher,
+        transactionManager,
+        executor,
+        clock,
+        workloads,
+        null);
+  }
+
+  public TaskAssignService(
+      TaskDraftService drafts,
+      TaskDraftRepository repository,
+      TaskTransitionService transitions,
+      TaskAssignedEvents events,
+      BulkAssignJobs jobs,
+      PeriodApi periods,
+      OkrApi okr,
+      OrgDirectoryApi org,
+      WorkingCalendarApi calendar,
+      Function<TenantId, List<String>> vagueWords,
+      ApplicationEventPublisher publisher,
+      PlatformTransactionManager transactionManager,
+      Executor executor,
+      Clock clock,
+      LeadWorkloads workloads,
+      SimilarTaskService similar) {
     this.drafts = Objects.requireNonNull(drafts, "drafts");
     this.repository = Objects.requireNonNull(repository, "repository");
     this.transitions = Objects.requireNonNull(transitions, "transitions");
@@ -111,11 +158,15 @@ public class TaskAssignService {
     this.executor = Objects.requireNonNull(executor, "executor");
     this.clock = Objects.requireNonNull(clock, "clock");
     this.workloads = workloads;
+    this.similar = similar;
   }
 
   /** Kết quả kiểm tra: danh sách quy tắc và số ngày làm việc tới hạn (nếu tính được). */
   public record CheckResult(
-      List<CheckItem> items, Integer workingDays, LeadWorkloads.Result workload) {}
+      List<CheckItem> items,
+      Integer workingDays,
+      LeadWorkloads.Result workload,
+      List<SimilarTaskService.Match> similar) {}
 
   /** Kết quả giao: nhiệm vụ sau khi giao và chủ trì. */
   public record Assigned(TaskRow task, UUID leadId) {}
@@ -123,6 +174,13 @@ public class TaskAssignService {
   /** Kiểm tra tức thì của bản đang soạn (QT-05 bước 5); không ghi dữ liệu. */
   @Transactional(value = TX, readOnly = true)
   public CheckResult check(TenantId tenant, TaskDraftSpec spec, TaskActor actor) {
+    return check(tenant, spec, actor, null);
+  }
+
+  /** Như trên; {@code authorization} của người gọi chuyển tiếp cho tìm kiếm gần giống. */
+  @Transactional(value = TX, readOnly = true)
+  public CheckResult check(
+      TenantId tenant, TaskDraftSpec spec, TaskActor actor, String authorization) {
     TaskDraftService.validate(spec);
     PeriodSnapshot period = drafts.period(tenant, spec.periodId());
     int bucket = PlanSchedule.bucketOf(period.startDate());
@@ -134,7 +192,33 @@ public class TaskAssignService {
           workloads.of(tenant, bucket, period.id().value(), spec.leadPersonId(), spec.dueDate());
       items.add(workload.check());
     }
-    return new CheckResult(List.copyOf(items), workingDays(tenant, spec.dueDate()), workload);
+    TaskTreeService tree = drafts.tree();
+    if (tree != null) {
+      // BS-03 DC-06 (CORE-02-28): chế độ phân công của hồ sơ; mặc định không thêm dòng nào.
+      boolean unit = spec.coAssignees().stream().anyMatch(a -> !a.person());
+      int people = (spec.leadPersonId() == null ? 0 : 1) + spec.coAssignees().size();
+      tree.violations(tenant, null, spec.periodId(), spec.node(), people, unit)
+          .forEach(m -> items.add(new CheckItem(MODE_RULE, AssignmentRules.Level.CHAN, false, m)));
+    }
+    List<SimilarTaskService.Match> matches = List.of();
+    if (similar != null) {
+      // BR-05-06 (CORE-02-15): cảnh báo khi soạn; khi giao thì bắt buộc lý do.
+      SimilarTaskService.Result found =
+          similar.find(
+              tenant,
+              new Probe(
+                  null,
+                  spec.periodId(),
+                  drafts.unitOf(tenant, actor.personId()),
+                  spec.title(),
+                  spec.productName(),
+                  TaskDraftService.fingerprint(spec, null)),
+              authorization);
+      matches = found.matches();
+      items.add(similarItem(found));
+    }
+    return new CheckResult(
+        List.copyOf(items), workingDays(tenant, spec.dueDate()), workload, matches);
   }
 
   /**
@@ -142,7 +226,13 @@ public class TaskAssignService {
    * cùng kỳ đã duyệt, chủ trì còn công tác; chạy ASSIGN rồi ghi EVT-04, EVT-21.
    */
   @Transactional(TX)
-  public Assigned assignTask(TenantId tenant, UUID taskId, long expected, TaskActor actor) {
+  public Assigned assignTask(
+      TenantId tenant,
+      UUID taskId,
+      long expected,
+      String similarReason,
+      String authorization,
+      TaskActor actor) {
     DraftRow draft = repository.findDraft(tenant, taskId).orElseThrow(NoSuchElementException::new);
     TaskDraftService.requireDraft(draft, expected);
     try {
@@ -170,11 +260,64 @@ public class TaskAssignService {
               draft.assignerId());
     }
     requirePassed(items);
+    requireMode(tenant, draft, assignees);
     requireKeyResult(tenant, draft.spec());
     if (leadUnit == null) {
       requireActive(tenant, draft.spec().leadPersonId());
     }
-    return doAssign(tenant, draft, assignees, leadUnit, expected, actor);
+    String reason = similarReason == null ? "" : similarReason.strip();
+    List<SimilarTaskService.Match> matches = similarOf(tenant, taskId, authorization);
+    if (!matches.isEmpty() && reason.isEmpty()) {
+      throw new BusinessException(
+          VALIDATION,
+          MSG_05_03,
+          List.of(new ProblemFieldError("similarReason", MSG_05_03, "BR-05-06")));
+    }
+    if (reason.length() > 1000) {
+      throw TaskDraftService.invalid("similarReason", "Lý do không quá 1000 ký tự");
+    }
+    Assigned done = doAssign(tenant, draft, assignees, leadUnit, expected, actor);
+    if (!matches.isEmpty()) {
+      // Lưu lựa chọn "vẫn tạo mới" để người duyệt và hậu kiểm xem lại (BR-05-06).
+      transitions.appendNote(
+          tenant,
+          done.task(),
+          SIMILAR_NOTE,
+          actor.personId(),
+          reason,
+          "{\"similar\":["
+              + String.join(",", matches.stream().map(m -> "\"" + m.row().code() + "\"").toList())
+              + "]}");
+    }
+    return done;
+  }
+
+  private void requireMode(TenantId tenant, DraftRow draft, List<AssigneeRow> assignees) {
+    TaskTreeService tree = drafts.tree();
+    if (tree != null) {
+      tree.requireMode(
+          tenant,
+          draft.id(),
+          draft.periodId(),
+          draft.spec().node(),
+          assignees.size(),
+          assignees.stream().anyMatch(a -> "UNIT".equals(a.kind())));
+    }
+  }
+
+  private List<SimilarTaskService.Match> similarOf(
+      TenantId tenant, UUID taskId, String authorization) {
+    if (similar == null) {
+      return List.of();
+    }
+    return similar.similarTo(tenant, taskId, authorization).matches();
+  }
+
+  static CheckItem similarItem(SimilarTaskService.Result found) {
+    if (!found.checked()) {
+      return new CheckItem("BR-05-06", AssignmentRules.Level.CANH_BAO, false, SIMILAR_UNCHECKED);
+    }
+    return new CheckItem("BR-05-06", AssignmentRules.Level.CANH_BAO, !found.found(), MSG_05_03);
   }
 
   private Assigned doAssign(
@@ -275,14 +418,10 @@ public class TaskAssignService {
     requirePassed(
         rules(
             tenant, draft.spec().withLead(unit), period, draft.periodBucket(), draft.assignerId()));
+    List<AssigneeRow> assignees = repository.assignees(tenant, draft.periodBucket(), draft.id());
+    requireMode(tenant, draft, assignees);
     requireKeyResult(tenant, draft.spec());
-    doAssign(
-        tenant,
-        draft,
-        repository.assignees(tenant, draft.periodBucket(), draft.id()),
-        unit,
-        draft.rowVersion(),
-        actor);
+    doAssign(tenant, draft, assignees, unit, draft.rowVersion(), actor);
   }
 
   private List<CheckItem> rules(

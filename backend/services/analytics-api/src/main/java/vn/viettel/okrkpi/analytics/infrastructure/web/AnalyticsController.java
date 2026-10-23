@@ -18,21 +18,32 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import vn.viettel.okrkpi.analytics.application.DashboardService;
 import vn.viettel.okrkpi.analytics.application.EmbedService;
+import vn.viettel.okrkpi.analytics.application.ExportJob;
+import vn.viettel.okrkpi.analytics.application.ExportService;
 import vn.viettel.okrkpi.analytics.application.QueryService;
 import vn.viettel.okrkpi.analytics.application.ScopeService;
 import vn.viettel.okrkpi.analytics.application.SemanticModelService;
+import vn.viettel.okrkpi.analytics.application.TraceService;
 import vn.viettel.okrkpi.analytics.domain.Dashboard;
 import vn.viettel.okrkpi.analytics.domain.EmbedToken;
 import vn.viettel.okrkpi.analytics.domain.QueryResult;
+import vn.viettel.okrkpi.analytics.domain.TraceChain;
+import vn.viettel.okrkpi.analytics.domain.TraceObjectType;
 import vn.viettel.okrkpi.analytics.domain.Viewer;
+import vn.viettel.okrkpi.analytics.infrastructure.export.ExportJobSource;
 import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.DashboardBody;
 import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.DashboardInputBody;
 import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.EmbedTokenRequestBody;
 import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.ModelBody;
 import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.PageBody;
 import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.QueryBody;
+import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.ReportBody;
 import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.ShareBody;
+import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.TraceChainBody;
+import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.TraceExportBody;
 import vn.viettel.okrkpi.shared.etag.ETags;
+import vn.viettel.okrkpi.shared.job.Job;
+import vn.viettel.okrkpi.shared.job.Jobs;
 
 /**
  * DV-15-04 · QT-16 → SCR-1601, SCR-1602 → {@code /api/v1/analytics/*} ({@code platform.yaml}) →
@@ -49,13 +60,19 @@ public class AnalyticsController {
   private final ScopeService scopes;
   private final DashboardService dashboards;
   private final EmbedService embeds;
+  private final TraceService traces;
+  private final ExportService exports;
 
   public AnalyticsController(
       QueryService queries,
       SemanticModelService models,
       ScopeService scopes,
       DashboardService dashboards,
-      EmbedService embeds) {
+      EmbedService embeds,
+      TraceService traces,
+      ExportService exports) {
+    this.traces = traces;
+    this.exports = exports;
     this.queries = queries;
     this.models = models;
     this.scopes = scopes;
@@ -172,5 +189,56 @@ public class AnalyticsController {
     return ResponseEntity.status(HttpStatus.CREATED)
         .header(HttpHeaders.CACHE_CONTROL, "no-store")
         .body(token);
+  }
+
+  /**
+   * DV-15-06 {@code getTraceChain} (SCR-1603): mắt xích từ nhiệm vụ trở xuống đọc từ mission-core
+   * bằng token của người xem; mắt xích bị từ chối trả {@code masked}.
+   */
+  @GetMapping("/trace/{objectType}/{id}")
+  public ResponseEntity<TraceChainBody> traceChain(
+      @PathVariable TraceObjectType objectType, @PathVariable UUID id) {
+    RoleGate.require("getTraceChain");
+    TraceChain chain =
+        traces
+            .chain(Viewers.current(), Viewers.bearer(), objectType, id)
+            .orElseThrow(
+                () -> new org.springframework.web.ErrorResponseException(HttpStatus.NOT_FOUND));
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CACHE_CONTROL, "no-store")
+        .body(TraceChainBody.of(chain));
+  }
+
+  /**
+   * DV-15-06 {@code exportTraceChain} (SCR-1603): dựng chuỗi ngay bằng quyền của người xuất (đối
+   * tượng không có trả 404, không có quyền trả 403), phần dựng tệp chạy nền.
+   */
+  @PostMapping("/trace/exports")
+  public ResponseEntity<Job> exportTraceChain(
+      @Valid @RequestBody TraceExportBody body,
+      @RequestHeader("Idempotency-Key") String idempotencyKey) {
+    RoleGate.require("exportTraceChain");
+    ExportJob job =
+        exports
+            .exportTrace(
+                Viewers.current(),
+                Viewers.bearer(),
+                body.objectType(),
+                body.id(),
+                body.formats(),
+                idempotencyKey)
+            .orElseThrow(
+                () -> new org.springframework.web.ErrorResponseException(HttpStatus.NOT_FOUND));
+    return Jobs.accepted(ExportJobSource.toJob(job));
+  }
+
+  /** DV-15-06 {@code exportAnalyticsReport} (SCR-1601, QT-16 bước 8). */
+  @PostMapping("/reports")
+  public ResponseEntity<Job> exportAnalyticsReport(
+      @Valid @RequestBody ReportBody body,
+      @RequestHeader("Idempotency-Key") String idempotencyKey) {
+    RoleGate.require("exportAnalyticsReport");
+    ExportJob job = exports.exportReport(Viewers.current(), body.toDomain(), idempotencyKey);
+    return Jobs.accepted(ExportJobSource.toJob(job));
   }
 }
