@@ -31,6 +31,7 @@ import {
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import {
+  JobTracker,
   LOCK_ORDER_STATUS_LABEL,
   LOCK_STEP_STATUS_LABEL,
   PERIOD_FLOW_LABEL,
@@ -38,6 +39,7 @@ import {
   PERIOD_STATUS_LABEL,
   Period,
   PeriodApi,
+  PeriodJobAccepted,
   PeriodLockDiagram,
   PeriodLockProgress,
   PeriodLockStep,
@@ -56,7 +58,7 @@ import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { TextareaModule } from 'primeng/textarea';
-import { Observable, catchError, interval, of } from 'rxjs';
+import { Observable, catchError, interval, last, of } from 'rxjs';
 import { ADMIN_CAN } from '../../admin-permissions';
 import { fmtDate, fmtDateTime, fmtInt } from '../../admin-ui';
 import { PeriodCreateDialog } from './period-create.dialog';
@@ -1033,6 +1035,8 @@ export class PeriodsPage {
   private readonly api = inject(PeriodApi);
   private readonly theme = inject(ThemeService);
   private readonly stepUp = inject(PERIOD_STEP_UP);
+  private readonly jobs = inject(JobTracker);
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly can = inject(ADMIN_CAN);
 
   protected readonly kindLabel = PERIOD_KIND_LABEL;
@@ -1120,7 +1124,7 @@ export class PeriodsPage {
     const pollMs = inject(PERIOD_POLL_MS);
     let lastStatus: SagaStatus | undefined;
     interval(pollMs)
-      .pipe(takeUntilDestroyed(inject(DestroyRef)))
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         const s = this.pr();
         if (!s || !this.active(s) || this.progress.isLoading()) return;
@@ -1327,6 +1331,26 @@ export class PeriodsPage {
     }
     this.notice.set(`Đã khởi chạy tiến trình khoá kỳ ${p.name}. Tiến độ được cập nhật tự động.`);
     this.periods.reload();
+    this.follow(res, 'Tiến trình khoá kỳ dừng do lỗi. Xem nhật ký để xử lý.');
+  }
+
+  /**
+   * Theo dõi job của thao tác trả 202 + `Location` bằng `JobTracker` (song song với thăm dò tiến
+   * trình): job kết thúc thì đọc lại kỳ và tiến trình, thất bại thì báo lỗi của job. Lỗi khi theo dõi
+   * không chặn màn hình vì tiến trình vẫn đọc qua `/periods/{id}/lock`.
+   */
+  private follow(res: PeriodJobAccepted, failText: string) {
+    this.jobs
+      .track(res.location)
+      .pipe(last(), takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (job) => {
+          if (job.status !== 'HOAN_TAT') this.actionError.set(job.problem?.detail ?? failText);
+          this.periods.reload();
+          if (this.lockId()) this.reloadSaga();
+        },
+        error: () => undefined,
+      });
   }
 
   protected async pause(p: Period, s: PeriodLockProgress) {
@@ -1350,6 +1374,7 @@ export class PeriodsPage {
     if (!res) return;
     this.notice.set('Đã tạo lô mới cho các hồ sơ lỗi.');
     this.reloadSaga();
+    this.follow(res, 'Chưa chạy lại được các hồ sơ lỗi.');
   }
 
   protected async requestCancel() {
@@ -1372,6 +1397,7 @@ export class PeriodsPage {
     if (!res) return;
     this.notice.set('Đã duyệt huỷ; hệ thống đang hoàn tác theo thứ tự ngược.');
     this.reloadSaga();
+    this.follow(res, 'Hoàn tác chưa xong do lỗi. Xem nhật ký để xử lý.');
   }
 
   private reloadSaga() {

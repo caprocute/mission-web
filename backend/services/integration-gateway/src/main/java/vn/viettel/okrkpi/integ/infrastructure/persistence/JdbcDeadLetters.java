@@ -79,6 +79,16 @@ public class JdbcDeadLetters implements DeadLetters {
   }
 
   @Override
+  public Optional<String> openErrorCode(TenantId tenant, UUID refMessageId) {
+    return jdbc.sql(
+            "SELECT error_code FROM integ.dead_letter WHERE tenant_id = ? AND ref_message_id = ?"
+                + " AND resolved_at IS NULL ORDER BY created_at DESC LIMIT 1")
+        .params(tenant.value(), refMessageId)
+        .query(String.class)
+        .optional();
+  }
+
+  @Override
   public boolean hasOpen(TenantId tenant, UUID refMessageId) {
     return jdbc.sql(
             "SELECT EXISTS (SELECT 1 FROM integ.dead_letter WHERE tenant_id = ?"

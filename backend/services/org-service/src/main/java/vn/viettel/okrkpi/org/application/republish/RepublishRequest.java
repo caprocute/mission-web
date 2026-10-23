@@ -17,9 +17,17 @@ import java.util.UUID;
  * @param asOf thời điểm ghi nhận của ảnh chụp; null là hiện tại
  * @param dryRun chỉ đếm và tính băm, không phát
  * @param operator người hoặc hệ thống chạy lệnh (ghi kiểm toán)
+ * @param hashesOnly chỉ phát hai thông điệp đánh dấu {@code BAT_DAU}, {@code KET_THUC} (số lượng, băm theo bucket)
+ *     cho job đối soát R1 hằng đêm (DL-12), không phát thực thể
  */
 public record RepublishRequest(
-    UUID tenant, Set<EntityKind> entities, Set<Integer> buckets, Instant asOf, boolean dryRun, String operator) {
+    UUID tenant, Set<EntityKind> entities, Set<Integer> buckets, Instant asOf, boolean dryRun, String operator,
+    boolean hashesOnly) {
+
+  public RepublishRequest(
+      UUID tenant, Set<EntityKind> entities, Set<Integer> buckets, Instant asOf, boolean dryRun, String operator) {
+    this(tenant, entities, buckets, asOf, dryRun, operator, false);
+  }
 
   public RepublishRequest {
     Objects.requireNonNull(tenant, "tenant");

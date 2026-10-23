@@ -1,8 +1,8 @@
 {
   "description": "Bảng chính sách thao tác trích từ mở rộng x-mission trong contracts/openapi/modules/*.yaml (NEN-014). Không sửa tay: chạy tools/extract-x-mission.mjs.",
   "source": "contracts/openapi/modules/*.yaml",
-  "count": 474,
-  "aal2Count": 80,
+  "count": 478,
+  "aal2Count": 82,
   "fourEyesCount": 19,
   "operations": [
     {
@@ -3703,6 +3703,29 @@
       "source": "TL-02b SCR-1102 bảng trường 3 (suy luận)"
     },
     {
+      "operationId": "getE2eeRecovery",
+      "file": "org.yaml",
+      "module": "org",
+      "errorModule": "ORG",
+      "method": "GET",
+      "path": "/org/e2ee/recoveries/{id}",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-05",
+        "QT-07"
+      ],
+      "scr": [
+        "SCR-0103"
+      ],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-01 \"Khôi phục khi mất khoá\" (mọi lần khôi phục ghi sổ cái)"
+    },
+    {
       "operationId": "getEffectiveFeatureFlags",
       "file": "config.yaml",
       "module": "ui",
@@ -4392,6 +4415,29 @@
       "source": "TL-02a SCR-0201 trường 1-6 (suy luận đường dẫn); ma trận SCR-0201.xem"
     },
     {
+      "operationId": "getOrgImportReport",
+      "file": "org.yaml",
+      "module": "org",
+      "errorModule": "ORG",
+      "method": "GET",
+      "path": "/org/imports/{id}/report",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [
+        "SCR-0103",
+        "SCR-0102"
+      ],
+      "roles": [
+        "tenant_admin"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-02a SCR-0103 \"Nhập từ Excel\" (bổ sung WEB-072, suy luận đường dẫn)"
+    },
+    {
       "operationId": "getOrgSubtree",
       "file": "org.yaml",
       "module": "org",
@@ -4794,7 +4840,8 @@
         "appraiser",
         "decider",
         "second_approver",
-        "inspector"
+        "inspector",
+        "service_client"
       ],
       "scope": "Tn",
       "aal": 1,
@@ -9172,6 +9219,50 @@
       "source": "TL-02b SCR-1202 \"Ký số và trả lời\"; TL-01 PL C (ánh xạ `/responses`)"
     },
     {
+      "operationId": "restoreEvidenceKeyWrap",
+      "file": "products.yaml",
+      "module": "evidences",
+      "errorModule": "PRODUCT",
+      "method": "POST",
+      "path": "/evidences/{id}/versions/{v}/recovery-wraps",
+      "owner": "MOD-03",
+      "qt": [
+        "QT-07"
+      ],
+      "scr": [
+        "SCR-0103"
+      ],
+      "roles": [
+        "tenant_admin"
+      ],
+      "scope": "Tn",
+      "aal": 2,
+      "fourEyes": false,
+      "source": "TL-01 \"Khôi phục khi mất khoá\"; TL-04 SEC-25; TL-03 product.e2ee_key_wrap"
+    },
+    {
+      "operationId": "restoreTaskSecretKeyWrap",
+      "file": "tasks.yaml",
+      "module": "tasks",
+      "errorModule": "TASK",
+      "method": "POST",
+      "path": "/tasks/{id}/secret-content/recovery-wraps",
+      "owner": "MOD-02",
+      "qt": [
+        "QT-05"
+      ],
+      "scr": [
+        "SCR-0103"
+      ],
+      "roles": [
+        "tenant_admin"
+      ],
+      "scope": "Tn",
+      "aal": 2,
+      "fourEyes": false,
+      "source": "TL-01 \"Khôi phục khi mất khoá\"; TL-04 SEC-25; TL-03 task.e2ee_key_wrap"
+    },
+    {
       "operationId": "resumePeriodLock",
       "file": "config.yaml",
       "module": "periods",
@@ -10213,18 +10304,21 @@
       "path": "/appraisals/profiles/{id}/simulate",
       "owner": "SVC-07",
       "qt": [
-        "QT-12"
+        "QT-12",
+        "QT-13"
       ],
       "scr": [
-        "SCR-1202"
+        "SCR-1202",
+        "SCR-1301"
       ],
       "roles": [
-        "appraiser"
+        "appraiser",
+        "inspector"
       ],
-      "scope": "Gn",
+      "scope": "Gn (appraiser), Tn (inspector)",
       "aal": 1,
       "fourEyes": false,
-      "source": "TL-02b SCR-1202 \"Tính thử\""
+      "source": "TL-02b SCR-1202 \"Tính thử\"; QT-13 bước 4 tính thử ảnh hưởng mở lại kỳ (CORE-07-07)"
     },
     {
       "operationId": "simulateReopenRequest",

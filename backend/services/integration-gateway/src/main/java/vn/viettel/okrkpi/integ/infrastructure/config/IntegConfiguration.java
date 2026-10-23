@@ -1,11 +1,19 @@
 package vn.viettel.okrkpi.integ.infrastructure.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.micrometer.core.instrument.MeterRegistry;
+import java.net.http.HttpClient;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.apache.camel.RoutesBuilder;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,43 +25,62 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.integ.application.DeadLetterService;
+import vn.viettel.okrkpi.integ.application.EdxmlTransferService;
 import vn.viettel.okrkpi.integ.application.InboundConnector;
 import vn.viettel.okrkpi.integ.application.InboundPipeline;
+import vn.viettel.okrkpi.integ.application.IndicatorSource;
 import vn.viettel.okrkpi.integ.application.IssuedDocumentSearch;
 import vn.viettel.okrkpi.integ.application.IssuedDocumentSource;
+import vn.viettel.okrkpi.integ.application.IssuedDocumentTransfer;
+import vn.viettel.okrkpi.integ.application.KrSourceValueService;
+import vn.viettel.okrkpi.integ.application.MappingCommands;
 import vn.viettel.okrkpi.integ.application.MappingXrefService;
 import vn.viettel.okrkpi.integ.application.OutboundBinding;
 import vn.viettel.okrkpi.integ.application.OutboundPipeline;
 import vn.viettel.okrkpi.integ.application.OutboundSender;
 import vn.viettel.okrkpi.integ.application.PullService;
 import vn.viettel.okrkpi.integ.application.SyncCursorService;
+import vn.viettel.okrkpi.integ.application.SyncRunService;
 import vn.viettel.okrkpi.integ.application.Translators;
 import vn.viettel.okrkpi.integ.application.port.CanonicalEventSink;
 import vn.viettel.okrkpi.integ.application.port.ConnectorSecrets;
 import vn.viettel.okrkpi.integ.application.port.Connectors;
 import vn.viettel.okrkpi.integ.application.port.DeadLetters;
+import vn.viettel.okrkpi.integ.application.port.EvidenceObjects;
 import vn.viettel.okrkpi.integ.application.port.InboxMessages;
+import vn.viettel.okrkpi.integ.application.port.KtxhValues;
 import vn.viettel.okrkpi.integ.application.port.MappingXrefs;
 import vn.viettel.okrkpi.integ.application.port.OutboundMessages;
 import vn.viettel.okrkpi.integ.application.port.PayloadCipher;
+import vn.viettel.okrkpi.integ.application.port.PersonnelSink;
 import vn.viettel.okrkpi.integ.application.port.SyncCursors;
+import vn.viettel.okrkpi.integ.application.port.SyncRuns;
 import vn.viettel.okrkpi.integ.domain.RetrySchedule;
 import vn.viettel.okrkpi.integ.infrastructure.camel.CompositeRoutes;
 import vn.viettel.okrkpi.integ.infrastructure.camel.DeadLetterRoute;
 import vn.viettel.okrkpi.integ.infrastructure.camel.InboxIdempotentRepository;
+import vn.viettel.okrkpi.integ.infrastructure.camel.MicrometerRunMetrics;
 import vn.viettel.okrkpi.integ.infrastructure.camel.OutboundDispatchRoute;
 import vn.viettel.okrkpi.integ.infrastructure.camel.OutboundEventRoute;
 import vn.viettel.okrkpi.integ.infrastructure.camel.PollingConnectorRoute;
 import vn.viettel.okrkpi.integ.infrastructure.camel.RouteSettings;
+import vn.viettel.okrkpi.integ.infrastructure.camel.SyncRunRoute;
 import vn.viettel.okrkpi.integ.infrastructure.crypto.FieldEncryptorPayloadCipher;
 import vn.viettel.okrkpi.integ.infrastructure.events.OutboxCanonicalEventSink;
+import vn.viettel.okrkpi.integ.infrastructure.evidence.HttpEvidenceObjects;
+import vn.viettel.okrkpi.integ.infrastructure.hrm.HrmConfiguration.HrmBeans;
+import vn.viettel.okrkpi.integ.infrastructure.lgsp.LgspConfiguration.LgspBeans;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcConnectors;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcDeadLetters;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcInboxMessages;
+import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcKtxhValues;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcMappingXrefs;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcOutboundMessages;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcSyncCursors;
+import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcSyncRuns;
 import vn.viettel.okrkpi.integ.infrastructure.secrets.FileConnectorSecrets;
+import vn.viettel.okrkpi.integ.infrastructure.truc.TrucConfiguration.TrucBeans;
+import vn.viettel.okrkpi.integ.infrastructure.truc.TrucEdxmlComposer;
 import vn.viettel.okrkpi.integ.infrastructure.voffice.VOfficeConfiguration.VOfficeBeans;
 import vn.viettel.okrkpi.shared.crypto.FieldEncryptor;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
@@ -96,6 +123,16 @@ public class IntegConfiguration {
   @Bean
   OutboundMessages integOutboundMessages(JdbcClient jdbc) {
     return new JdbcOutboundMessages(jdbc);
+  }
+
+  @Bean
+  SyncRuns integSyncRuns(JdbcClient jdbc) {
+    return new JdbcSyncRuns(jdbc);
+  }
+
+  @Bean
+  KtxhValues integKtxhValues(JdbcClient jdbc) {
+    return new JdbcKtxhValues(jdbc);
   }
 
   /** Bộ mã hoá NEN-015 lấy lúc dùng, để cấu hình tắt mã hoá (kiểm thử) vẫn khởi động được. */
@@ -148,16 +185,92 @@ public class IntegConfiguration {
 
   @Bean
   Translators integTranslators(
-      ObjectProvider<InboundConnector> connectors, ObjectProvider<VOfficeBeans> voffice) {
-    return new Translators(inboundConnectors(connectors, voffice), Map.of());
+      ObjectProvider<InboundConnector> connectors,
+      ObjectProvider<VOfficeBeans> voffice,
+      ObjectProvider<HrmBeans> hrm,
+      ObjectProvider<TrucBeans> truc,
+      ObjectProvider<LgspBeans> lgsp) {
+    List<InboundConnector> all =
+        new ArrayList<>(inboundConnectors(connectors, voffice, hrm, truc, lgsp));
+    all.addAll(runSources(hrm));
+    return new Translators(all, Map.of());
   }
 
-  /** Bộ kết nối vào khai báo thẳng là bean cộng với các bộ kiểu vOffice dựng theo danh sách mã. */
+  /** Bộ kéo chỉ chạy trong lần đồng bộ (DV-13-06), không có route kéo theo chu kỳ. */
+  static List<InboundConnector> runSources(ObjectProvider<HrmBeans> hrm) {
+    HrmBeans h = hrm.getIfAvailable();
+    return h == null ? List.of() : h.runSources();
+  }
+
+  /**
+   * Bộ kết nối vào khai báo thẳng là bean cộng với các bộ kiểu vOffice dựng theo danh sách mã và
+   * các bộ HRM dựng theo hồ sơ (DV-13-08), các bộ Trục liên thông (DV-13-05) và LGSP (DV-13-06).
+   */
   static List<InboundConnector> inboundConnectors(
-      ObjectProvider<InboundConnector> connectors, ObjectProvider<VOfficeBeans> voffice) {
+      ObjectProvider<InboundConnector> connectors,
+      ObjectProvider<VOfficeBeans> voffice,
+      ObjectProvider<HrmBeans> hrm,
+      ObjectProvider<TrucBeans> truc,
+      ObjectProvider<LgspBeans> lgsp) {
     List<InboundConnector> all = new ArrayList<>(connectors.orderedStream().toList());
     voffice.ifAvailable(v -> all.addAll(v.connectors()));
+    hrm.ifAvailable(h -> all.addAll(h.connectors()));
+    truc.ifAvailable(t -> all.addAll(t.connectors()));
+    lgsp.ifAvailable(l -> all.addAll(l.connectors()));
     return all;
+  }
+
+  /** Luồng ảo cho lời gọi nguồn số liệu, để bộ giới hạn thời gian ngắt được lời gọi chậm. */
+  @Bean(destroyMethod = "shutdownNow")
+  ExecutorService integSourceExecutor() {
+    return Executors.newVirtualThreadPerTaskExecutor();
+  }
+
+  /** Số liệu nguồn của KR (DV-13-08): cắt ở thời hạn, ngắt mạch theo tenant và kết nối. */
+  @Bean
+  KrSourceValueService integKrSourceValueService(
+      Connectors connectors,
+      MappingXrefs xrefs,
+      ObjectProvider<IndicatorSource> sources,
+      ObjectProvider<HrmBeans> hrm,
+      ObjectProvider<LgspBeans> lgsp,
+      TransactionTemplate integTransactions,
+      ObjectProvider<Clock> clock,
+      ExecutorService integSourceExecutor,
+      @Value("${okrkpi.integ.kr-source.timeout:PT2.5S}") Duration timeout,
+      @Value("${okrkpi.integ.kr-source.breaker-open:PT30S}") Duration open) {
+    List<IndicatorSource> all = new ArrayList<>(sources.orderedStream().toList());
+    hrm.ifAvailable(h -> all.addAll(h.indicators()));
+    lgsp.ifAvailable(l -> all.addAll(l.indicators()));
+    CircuitBreakerRegistry breakers =
+        CircuitBreakerRegistry.of(
+            CircuitBreakerConfig.custom()
+                .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
+                .slidingWindowSize(10)
+                .minimumNumberOfCalls(5)
+                .failureRateThreshold(50)
+                .waitDurationInOpenState(open)
+                .permittedNumberOfCallsInHalfOpenState(1)
+                .build());
+    return new KrSourceValueService(
+        connectors,
+        xrefs,
+        all,
+        integTransactions,
+        clock.getIfAvailable(Clock::systemUTC),
+        timeout,
+        breakers,
+        integSourceExecutor);
+  }
+
+  @Bean
+  MappingCommands integMappingCommands(
+      Connectors connectors,
+      MappingXrefService mappings,
+      TransactionTemplate integTransactions,
+      ObjectProvider<Clock> clock) {
+    return new MappingCommands(
+        connectors, mappings, integTransactions, clock.getIfAvailable(Clock::systemUTC));
   }
 
   @Bean
@@ -177,6 +290,32 @@ public class IntegConfiguration {
     voffice.ifAvailable(v -> all.addAll(v.sources()));
     return new IssuedDocumentSearch(
         connectors, mappings, all, integTransactions, clock.getIfAvailable(Clock::systemUTC));
+  }
+
+  /**
+   * CORE-03-04: chuyển tệp gốc văn bản đã ban hành sang SVC-08. Để trống {@code
+   * okrkpi.integ.evidence.base-url} thì lệnh chuyển trả 502 để mission-core báo thử lại.
+   */
+  @Bean
+  IssuedDocumentTransfer integIssuedDocumentTransfer(
+      IssuedDocumentSearch integIssuedDocumentSearch,
+      ObjectProvider<EvidenceObjects> override,
+      ObjectProvider<ObjectMapper> mapper,
+      @Value("${okrkpi.integ.evidence.base-url:}") String baseUrl,
+      @Value("${okrkpi.integ.evidence.timeout:PT30S}") Duration timeout) {
+    EvidenceObjects port = override.getIfAvailable();
+    if (port == null && !baseUrl.isBlank()) {
+      port =
+          new HttpEvidenceObjects(
+              HttpClient.newBuilder()
+                  .connectTimeout(Duration.ofSeconds(2))
+                  .followRedirects(HttpClient.Redirect.NEVER)
+                  .build(),
+              mapper.getIfAvailable(ObjectMapper::new),
+              baseUrl,
+              timeout);
+    }
+    return new IssuedDocumentTransfer(integIssuedDocumentSearch, port);
   }
 
   @Bean
@@ -212,6 +351,7 @@ public class IntegConfiguration {
       DeadLetters deadLetters,
       PayloadCipher cipher,
       ObjectProvider<OutboundSender> senders,
+      ObjectProvider<TrucBeans> truc,
       RouteSettings settings,
       TransactionTemplate integTransactions,
       ObjectProvider<Clock> clock,
@@ -222,13 +362,15 @@ public class IntegConfiguration {
             settings.backOffMultiplier().intValue(),
             Duration.ofHours(1),
             settings.maxRedeliveries());
+    List<OutboundSender> all = new ArrayList<>(senders.orderedStream().toList());
+    truc.ifAvailable(t -> all.addAll(t.senders()));
     return new OutboundPipeline(
         connectors,
         messages,
         inbox,
         deadLetters,
         cipher,
-        senders.orderedStream().toList(),
+        all,
         schedule,
         ackTimeout,
         integTransactions,
@@ -252,6 +394,54 @@ public class IntegConfiguration {
     return new PullService(connectors, cursors, integTransactions);
   }
 
+  /** Lần đồng bộ kéo hết trang cho org-service (DV-13-06); lô cuối đóng lần chạy ở SVC-04. */
+  @Bean
+  SyncRunService integSyncRunService(
+      Connectors connectors,
+      SyncRuns runs,
+      DeadLetterService deadLetters,
+      PullService pulls,
+      InboundPipeline pipeline,
+      ObjectProvider<HrmBeans> hrm,
+      ObjectProvider<PersonnelSink> sink,
+      ObjectProvider<MeterRegistry> meters,
+      TransactionTemplate integTransactions,
+      ObjectProvider<Clock> clock,
+      @Value("${okrkpi.integ.sync-run.max-pages:5000}") int maxPages,
+      @Value("${okrkpi.integ.sync-run.fetch-attempts:3}") int fetchAttempts,
+      @Value("${okrkpi.integ.sync-run.fetch-backoff:PT2S}") Duration fetchBackoff,
+      @Value("${okrkpi.integ.sync-run.process-attempts:3}") int processAttempts,
+      @Value("${okrkpi.integ.sync-run.lease-seconds:300}") int leaseSeconds) {
+    MeterRegistry registry = meters.getIfAvailable();
+    return new SyncRunService(
+        connectors,
+        runs,
+        deadLetters,
+        pulls,
+        pipeline,
+        runSources(hrm),
+        (tenant, code, runId, status, dead, reason) ->
+            sink.ifAvailable(s -> s.close(tenant, code, runId, dead, reason)),
+        registry == null ? null : new MicrometerRunMetrics(registry),
+        integTransactions,
+        clock.getIfAvailable(Clock::systemUTC),
+        new SyncRunService.Settings(
+            maxPages, fetchAttempts, fetchBackoff, processAttempts, leaseSeconds));
+  }
+
+  @Bean
+  @ConditionalOnProperty(
+      prefix = "okrkpi.integ.sync-run",
+      name = "enabled",
+      havingValue = "true",
+      matchIfMissing = true)
+  RoutesBuilder integSyncRunRoute(
+      SyncRunService runs,
+      @Value("${okrkpi.integ.sync-run.period:PT10S}") Duration period,
+      @Value("${okrkpi.integ.sync-run.batch:4}") int batch) {
+    return new SyncRunRoute(runs, period, batch);
+  }
+
   @Bean
   InboxIdempotentRepository integIdempotentRepository(InboundPipeline pipeline) {
     return new InboxIdempotentRepository(pipeline);
@@ -273,11 +463,14 @@ public class IntegConfiguration {
       RouteSettings settings,
       ObjectProvider<InboundConnector> connectors,
       ObjectProvider<VOfficeBeans> voffice,
+      ObjectProvider<HrmBeans> hrm,
+      ObjectProvider<TrucBeans> truc,
+      ObjectProvider<LgspBeans> lgsp,
       PullService pulls,
       InboundPipeline pipeline,
       InboxIdempotentRepository idempotent) {
     return new CompositeRoutes(
-        inboundConnectors(connectors, voffice).stream()
+        inboundConnectors(connectors, voffice, hrm, truc, lgsp).stream()
             .map(source -> new PollingConnectorRoute(settings, source, pulls, pipeline, idempotent))
             .toList());
   }
@@ -291,8 +484,46 @@ public class IntegConfiguration {
   RoutesBuilder integOutboundDispatchRoute(
       OutboundPipeline pipeline,
       @Value("${okrkpi.integ.outbound.dispatch.period:PT5S}") Duration period,
-      @Value("${okrkpi.integ.outbound.dispatch.batch:100}") int batch) {
-    return new OutboundDispatchRoute(pipeline, period, batch);
+      @Value("${okrkpi.integ.outbound.dispatch.batch:100}") int batch,
+      @Value("${okrkpi.integ.outbound.dispatch.include-codes:}") Set<String> include,
+      @Value("${okrkpi.integ.outbound.dispatch.exclude-codes:}") Set<String> exclude) {
+    Set<String> in = nonBlank(include);
+    return in.isEmpty()
+        ? new OutboundDispatchRoute(pipeline, period, batch, nonBlank(exclude), false)
+        : new OutboundDispatchRoute(pipeline, period, batch, in, true);
+  }
+
+  private static Set<String> nonBlank(Set<String> codes) {
+    return codes == null
+        ? Set.of()
+        : codes.stream()
+            .map(String::trim)
+            .filter(c -> !c.isEmpty())
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+  }
+
+  /**
+   * Gửi văn bản EdXML ra Trục liên thông cho MOD-06 (DV-13-05, hợp đồng thống nhất với CORE-06-08).
+   */
+  @Bean
+  EdxmlTransferService integEdxmlTransferService(
+      Connectors connectors,
+      OutboundPipeline pipeline,
+      OutboundMessages messages,
+      DeadLetters deadLetters,
+      ObjectProvider<Clock> clock,
+      TransactionTemplate integTransactions,
+      @Value("${okrkpi.integ.truc.outbound-codes:BTC_TW,VPTW}") Set<String> destinations,
+      @Value("${okrkpi.integ.truc.transfer-max-bytes:20971520}") long maxBytes) {
+    return new EdxmlTransferService(
+        connectors,
+        pipeline,
+        messages,
+        deadLetters,
+        new TrucEdxmlComposer(clock.getIfAvailable(Clock::systemUTC)),
+        nonBlank(destinations),
+        maxBytes,
+        integTransactions);
   }
 
   /** Một consumer Kafka cho mỗi {@link OutboundBinding}. */

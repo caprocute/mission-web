@@ -1,19 +1,18 @@
-import { Job } from '../../lib/models/job';
 import {
-  OrgChangeInput,
-  OrgHistoryEntry,
+  OrgChangeOrder,
+  OrgChangeRequest,
+  OrgTree,
   OrgTreeNode,
+  OrgUnitAssignment,
   OrgUnitDetail,
-  OrgUnitMatch,
-  OrgUnitRef,
-  OrgUnitUpdate,
-  UnitAssignment,
+  OrgUnitInput,
+  OrgUnitSearchHit,
+  OrgUnitVersion,
 } from '../../lib/models/org-tree';
+import { startMockJob } from '../mock-jobs';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 import {
   AssignmentRow,
-  HistoryRow,
-  LOCKED_PERIOD,
   SUBJECT_GROUPS,
   UnitVersion,
   generatedAssignments,
@@ -21,26 +20,23 @@ import {
 } from './org-tree.fixture';
 
 /**
- * Giả lập cây tổ chức có lịch sử SCR-0103 (SVC-04 org-service, `/api/v1/org/units/*`): đọc theo
- * hai trục thời gian (`asOf`, `recordedAsOf`), nạp lười theo nhánh, tìm đơn vị, chi tiết, lịch sử,
- * phân công; sửa tạo phiên bản mới (BR-01-06), thay đổi tổ chức (BR-01-07, MSG-01-09, MSG-01-10,
- * MSG-01-11), nhập Excel 202 + job (tên tệp chứa `loi` cho báo cáo có dòng lỗi). Giả lập không đọc
- * nội dung tệp Excel; máy chủ thật kiểm từng dòng và phát EVT-14.
+ * Giả lập cây tổ chức có lịch sử SCR-0103 (SVC-04 org-service, `/api/v1/org/units/*`) theo hợp đồng
+ * `contracts/openapi/modules/org.yaml`: cây theo hai trục thời gian (`asOf`, `recordedAsOf`) có độ
+ * sâu `depth`, cây con `/subtree`, tìm đơn vị kèm tổ tiên, chi tiết, lịch sử phiên bản, phân công;
+ * sửa tạo phiên bản mới kèm `If-Match` (BR-01-06), thay đổi tổ chức theo quyết định (BR-01-07,
+ * MSG-01-09), nhập Excel 202 + `Location: /api/v1/jobs/{id}` (tên tệp chứa `loi` cho job thất bại có
+ * lỗi từng dòng ở `problem.errors`). Giả lập không đọc nội dung tệp Excel.
  */
 
 let units: UnitVersion[] = [];
 let assignments: AssignmentRow[] = [];
-let history: HistoryRow[] = [];
 let rowVersions = new Map<string, number>();
-let imports = new Map<string, { job: Job; polls: number; errors: string[][] }>();
 
 function reset() {
   const s = seedOrgTree();
   units = s.units;
   assignments = s.assignments;
-  history = s.history;
   rowVersions = new Map();
-  imports = new Map();
 }
 reset();
 
@@ -49,44 +45,45 @@ const nowIso = () => new Date().toISOString();
 
 interface View {
   asOf: string | null;
+  /** Thời điểm cắt trên trục ghi nhận (ms). */
   cut: number;
+  recorded: string | null;
 }
+
+/** `recordedAsOf` là `date-time`; vẫn nhận ngày trơn (cuối ngày giờ Việt Nam) cho lời gọi cũ. */
+const parseRecorded = (rec: string) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(rec) ? Date.parse(`${rec}T23:59:59.999+07:00`) : Date.parse(rec);
 
 function view(r: MockRequest): View | MockResponse {
   const asOf = r.params.get('asOf');
   const rec = r.params.get('recordedAsOf');
-  if ((asOf && asOf > today()) || (rec && rec > today())) {
+  const recMs = rec ? parseRecorded(rec) : null;
+  const futureAsOf = !!asOf && asOf > today();
+  const futureRec = recMs !== null && (Number.isNaN(recMs) || recMs > Date.now() + 86_400_000);
+  if (futureAsOf || futureRec) {
     return problem(422, 'Ngày xem không được sau hôm nay.', {
+      code: 'ORG-422-VALIDATION',
       errors: [
         {
-          field: asOf && asOf > today() ? 'asOf' : 'recordedAsOf',
+          field: futureAsOf ? 'asOf' : 'recordedAsOf',
           message: 'Ngày xem không được sau hôm nay.',
         },
       ],
-    } as never);
+    });
   }
-  return { asOf, cut: rec ? Date.parse(`${rec}T23:59:59.999+07:00`) : Date.now() };
+  return { asOf, cut: recMs ?? Date.now(), recorded: rec };
 }
 const isResponse = (x: View | MockResponse): x is MockResponse => 'status' in x;
+const day = (v: View) => v.asOf ?? today();
 
 const recordedAt = (u: { recordedFrom: string; recordedTo?: string | null }, cut: number) =>
   Date.parse(u.recordedFrom) <= cut && (!u.recordedTo || Date.parse(u.recordedTo) > cut);
-const validAt = (u: { validFrom: string; validTo: string | null }, d: string) =>
+const validAt = (u: { validFrom: string; validTo?: string | null }, d: string) =>
   u.validFrom <= d && (!u.validTo || d < u.validTo);
 
-/**
- * Phiên bản hiển thị của đơn vị. Có `asOf`: phiên bản hiệu lực tại ngày đó. "Hiện tại": phiên bản
- * hiệu lực hôm nay, không có thì phiên bản cuối đã kết thúc (hiện mờ) hoặc phiên bản tương lai.
- */
+/** Phiên bản có hiệu lực tại `asOf` (mặc định hôm nay), đã ghi nhận tại thời điểm cắt. */
 function pick(id: string, v: View): UnitVersion | undefined {
-  const known = units.filter((u) => u.id === id && recordedAt(u, v.cut));
-  if (v.asOf) return known.find((u) => validAt(u, v.asOf!));
-  const d = today();
-  return (
-    known.find((u) => validAt(u, d)) ??
-    known.filter((u) => u.validFrom <= d).sort((a, b) => (a.validFrom < b.validFrom ? 1 : -1))[0] ??
-    known.sort((a, b) => (a.validFrom < b.validFrom ? -1 : 1))[0]
-  );
+  return units.find((u) => u.id === id && recordedAt(u, v.cut) && validAt(u, day(v)));
 }
 
 function visible(v: View): UnitVersion[] {
@@ -96,8 +93,8 @@ function visible(v: View): UnitVersion[] {
 
 function activeAssignments(unitId: string, v: View): AssignmentRow[] {
   const unit = pick(unitId, v);
-  const d = v.asOf ?? today();
-  if (!unit || !validAt(unit, d)) return [];
+  const d = day(v);
+  if (!unit) return [];
   const rows = [
     ...generatedAssignments(
       unitId,
@@ -110,43 +107,46 @@ function activeAssignments(unitId: string, v: View): AssignmentRow[] {
   return rows.filter((a) => !a.validTo || a.validTo > d);
 }
 
-function node(u: UnitVersion, all: UnitVersion[], v: View): OrgTreeNode {
+/** Nút cây kèm `levels` tầng con; hết tầng thì `children` rỗng và client nạp lười bằng `/subtree`. */
+function node(u: UnitVersion, all: UnitVersion[], levels: number): OrgTreeNode {
+  const kids = all.filter((c) => c.parentId === u.id);
   return {
     id: u.id,
     code: u.code,
     name: u.name,
-    parentId: u.parentId,
     unitType: u.unitType,
-    childCount: all.filter((c) => c.parentId === u.id).length,
-    assignmentCount: activeAssignments(u.id, v).filter((a) => a.validFrom <= (v.asOf ?? today()))
-      .length,
-    validFrom: u.validFrom,
-    validTo: u.validTo,
-    mergedOn: u.mergedOn,
+    hasChildren: kids.length > 0,
+    children: levels > 0 ? kids.map((c) => node(c, all, levels - 1)) : [],
   };
 }
 
-/** Đơn vị còn hiệu lực xếp trước, đơn vị đã kết thúc xếp sau (giữ thứ tự fixture trong mỗi nhóm). */
-const endedLast = (a: UnitVersion, b: UnitVersion) => Number(!!a.validTo) - Number(!!b.validTo);
+function depthOf(r: MockRequest, fallback: number): number {
+  const d = Number(r.params.get('depth') ?? fallback);
+  return Number.isInteger(d) && d >= 1 && d <= 6 ? d : fallback;
+}
+
+const treeBody = (v: View, roots: OrgTreeNode[]): OrgTree => ({
+  asOf: day(v),
+  recordedAsOf: v.recorded ? new Date(v.cut).toISOString() : nowIso(),
+  readOnly: !!v.asOf || !!v.recorded,
+  roots,
+});
 
 function tree(r: MockRequest): MockResponse {
   const v = view(r);
   if (isResponse(v)) return v;
   const all = visible(v);
-  const parent = r.params.get('parent');
-  const items = all
-    .filter((u) => u.parentId === (parent || null))
-    .sort(endedLast)
-    .map((u) => node(u, all, v));
-  const active = all.filter((u) => validAt(u, v.asOf ?? today()));
-  return ok({
-    items,
-    stats: {
-      unitCount: active.length,
-      subjectGroupCount: new Set(active.map((u) => u.subjectGroupId)).size,
-      positionCount: Math.round(active.length * 1.25),
-    },
-  });
+  const depth = depthOf(r, 3);
+  const roots = all.filter((u) => !u.parentId).map((u) => node(u, all, depth - 1));
+  return ok(treeBody(v, roots));
+}
+
+function subtree(r: MockRequest): MockResponse {
+  const v = view(r);
+  if (isResponse(v)) return v;
+  const root = pick(r.pathParams['id'], v);
+  if (!root) return problem(404, 'Không tìm thấy đơn vị tại thời điểm hỏi.');
+  return ok(treeBody(v, [node(root, visible(v), depthOf(r, 2))]));
 }
 
 const fold = (s: string) =>
@@ -156,55 +156,67 @@ function search(r: MockRequest): MockResponse {
   const v = view(r);
   if (isResponse(v)) return v;
   const q = fold(r.params.get('q') ?? '').trim();
-  if (!q) return ok({ items: [] });
+  if (q.length < 2) {
+    return problem(400, 'Nhập ít nhất 2 ký tự để tìm đơn vị.', {
+      errors: [{ field: 'q', message: 'Nhập ít nhất 2 ký tự để tìm đơn vị.' }],
+    });
+  }
   const all = visible(v);
   const byId = new Map(all.map((u) => [u.id, u]));
-  const items: OrgUnitMatch[] = all
+  const items: OrgUnitSearchHit[] = all
     .filter((u) => fold(u.name).includes(q) || fold(u.code).includes(q))
-    .sort(endedLast)
-    .slice(0, Number(r.params.get('limit') ?? 50))
+    .slice(0, Math.min(Number(r.params.get('limit') ?? 20), 200))
     .map((u) => {
       const ancestors: UnitVersion[] = [];
       for (let p = u.parentId; p && byId.get(p); p = byId.get(p)!.parentId) {
         ancestors.unshift(byId.get(p)!);
       }
       return {
-        ...node(u, all, v),
-        ancestorIds: ancestors.map((a) => a.id),
-        path: ancestors.map((a) => a.name).join(' / '),
+        id: u.id,
+        code: u.code,
+        name: u.name,
+        unitType: u.unitType,
+        ancestors: ancestors.map((a) => ({ id: a.id, code: a.code, name: a.name })),
       };
     });
   return ok({ items });
 }
 
-function ref(id: string, v: View): OrgUnitRef | null {
-  const u = pick(id, v) ?? units.filter((x) => x.id === id).at(-1);
-  return u ? { id: u.id, code: u.code, name: u.name } : null;
+const groupName = (id: string) => SUBJECT_GROUPS.find((g) => g.id === id)?.name;
+
+/** Tên đơn vị cha tại ngày `d`, dùng cho `parentName`. */
+function parentName(parentId: string | null, d: string, cut: number): string | undefined {
+  if (!parentId) return undefined;
+  const p =
+    units.find((u) => u.id === parentId && recordedAt(u, cut) && validAt(u, d)) ??
+    units.filter((u) => u.id === parentId).at(-1);
+  return p?.name;
 }
 
 function detail(id: string, v: View): OrgUnitDetail | null {
   const u = pick(id, v);
   if (!u) return null;
-  const group = SUBJECT_GROUPS.find((g) => g.id === u.subjectGroupId)!;
   return {
     id: u.id,
     versionId: u.versionId,
     code: u.code,
-    externalCode: u.externalCode,
+    nationalCode: u.nationalCode,
     name: u.name,
     shortName: u.shortName,
     level: u.level,
     unitType: u.unitType,
     subjectGroupId: u.subjectGroupId,
-    subjectGroup: group,
+    subjectGroupName: groupName(u.subjectGroupId),
     flows: u.flows,
+    ...(u.parentId
+      ? { parentId: u.parentId, parentName: parentName(u.parentId, day(v), v.cut) }
+      : {}),
     validFrom: u.validFrom,
     validTo: u.validTo,
+    predecessorIds: u.predecessorIds,
     recordedFrom: u.recordedFrom,
-    recordedBy: u.recordedBy,
-    parent: u.parentId ? ref(u.parentId, v) : null,
-    predecessors: u.predecessorIds.map((p) => ref(p, v)).filter((x): x is OrgUnitRef => !!x),
-    syncedFrom: u.syncedFrom,
+    recordedByName: u.recordedBy,
+    assignmentCount: activeAssignments(u.id, v).filter((a) => a.validFrom <= day(v)).length,
     rowVersion: rowVersions.get(u.id) ?? 0,
   };
 }
@@ -213,79 +225,111 @@ function unit(r: MockRequest): MockResponse {
   const v = view(r);
   if (isResponse(v)) return v;
   const d = detail(r.pathParams['id'], v);
-  return d ? ok(d) : problem(404, 'Đơn vị không tồn tại tại thời điểm đang xem.');
+  return d
+    ? { status: 200, body: d, headers: { ETag: `"${d.rowVersion}"` } }
+    : problem(404, 'Không tìm thấy đơn vị tại thời điểm hỏi.');
+}
+
+/** Trang theo con trỏ đơn giản của giả lập: con trỏ là vị trí bắt đầu. */
+function paged<T>(r: MockRequest, rows: T[]): MockResponse {
+  const limit = Math.min(Math.max(Number(r.params.get('limit') ?? 20), 1), 200);
+  const start = Number(r.params.get('cursor') ?? 0) || 0;
+  const items = rows.slice(start, start + limit);
+  const next = start + limit < rows.length ? String(start + limit) : null;
+  return ok({ items, nextCursor: next });
 }
 
 function unitHistory(r: MockRequest): MockResponse {
   const v = view(r);
   if (isResponse(v)) return v;
-  const items: OrgHistoryEntry[] = history
-    .filter((h) => h.unitId === r.pathParams['id'] && Date.parse(h.recordedAt) <= v.cut)
-    .sort((a, b) => (a.effectiveOn < b.effectiveOn ? -1 : 1))
-    .map(({ unitId: _u, ...h }) => {
-      void _u;
-      return h;
-    });
-  return ok({ items });
+  const id = r.pathParams['id'];
+  if (!units.some((u) => u.id === id)) return problem(404, 'Không tìm thấy đơn vị.');
+  const rows: OrgUnitVersion[] = units
+    .filter((u) => u.id === id && recordedAt(u, v.cut))
+    .sort((a, b) => (a.validFrom < b.validFrom ? 1 : -1))
+    .map((u) => ({
+      versionId: u.versionId,
+      code: u.code,
+      name: u.name,
+      parentName: parentName(u.parentId, u.validFrom, v.cut),
+      subjectGroupName: groupName(u.subjectGroupId),
+      validFrom: u.validFrom,
+      validTo: u.validTo,
+      recordedFrom: u.recordedFirst ?? u.recordedFrom,
+      recordedTo: null,
+      recordedByName: u.recordedBy,
+      changeType: u.changeType,
+      changeOrder: u.changeOrder,
+      changedFields: u.changedFields,
+    }));
+  return paged(r, rows);
 }
 
 function unitAssignments(r: MockRequest): MockResponse {
   const v = view(r);
   if (isResponse(v)) return v;
+  if (!pick(r.pathParams['id'], v)) {
+    return problem(404, 'Không tìm thấy đơn vị tại thời điểm hỏi.');
+  }
   // phân công đặc biệt trước, phân công sinh tự động sau
-  const rows = activeAssignments(r.pathParams['id'], v).sort(
-    (a, b) => Number(a.id.includes('-as-')) - Number(b.id.includes('-as-')),
-  );
-  const items: UnitAssignment[] = rows
-    .slice(0, Number(r.params.get('limit') ?? 200))
-    .map(({ unitId: _u, recordedFrom: _r, ...a }) => {
-      void _u;
-      void _r;
-      return a;
-    });
-  return ok({ items });
+  const rows: OrgUnitAssignment[] = activeAssignments(r.pathParams['id'], v)
+    .sort((a, b) => Number(a.id.includes('-as-')) - Number(b.id.includes('-as-')))
+    .map((a) => ({
+      id: a.id,
+      personId: a.personId,
+      personName: a.personName,
+      jobTitleName: a.jobTitleName,
+      kind: a.kind,
+      branch: a.branch,
+      validFrom: a.validFrom,
+      validTo: a.validTo,
+    }));
+  return paged(r, rows);
 }
 
-const fieldError = (title: string, field: string) =>
-  problem(422, title, { errors: [{ field, message: title }] } as never);
+const fieldError = (title: string, field: string, code = 'ORG-422-VALIDATION') =>
+  problem(422, title, { code, errors: [{ field, message: title }] });
 
 const MSG_01_09 = 'Sáp nhập cần khai báo ít nhất một đơn vị tiền thân.';
-const MSG_01_10 = (period: string) =>
-  `Thay đổi có hiệu lực trước ngày khoá của kỳ ${period}. Kết quả kỳ đã khoá sẽ không tự tính lại; nếu cần, đề nghị mở lại kỳ.`;
-const MSG_01_11 = (n: number, order: string) =>
-  `Đã chuyển ${n} phân công sang đơn vị mới theo quyết định ${order}.`;
-
-const lockedWarning = (eff: string) =>
-  eff <= LOCKED_PERIOD.lockedThrough ? MSG_01_10(LOCKED_PERIOD.name) : undefined;
 
 /** Phiên bản đang ghi nhận (recorded_to = vô cực) hiệu lực tại ngày `d`. */
 const currentAt = (id: string, d: string) =>
   units.find((u) => u.id === id && !u.recordedTo && validAt(u, d));
 
+const ACTOR = 'Hoàng Đức Dũng';
+
 /**
  * Ghi thay đổi theo hai trục thời gian, không ghi đè (BR-01-06): đóng trục ghi nhận của phiên bản
  * cũ, ghi lại đoạn trước `eff` và đoạn mới từ `eff` (`patch = 'END'` là kết thúc hiệu lực).
  */
-function split(id: string, eff: string, patch: Partial<UnitVersion> | 'END', by: string) {
+function split(id: string, eff: string, patch: Partial<UnitVersion> | 'END') {
   const cur = currentAt(id, eff);
   if (!cur) return false;
   const now = nowIso();
   cur.recordedTo = now;
-  const base = { ...cur, recordedFrom: now, recordedTo: null, recordedBy: by };
+  const base = { ...cur, recordedFrom: now, recordedTo: null, recordedBy: ACTOR };
   if (cur.validFrom < eff) {
-    units.push({ ...base, versionId: crypto.randomUUID(), validTo: eff });
+    units.push({
+      ...base,
+      versionId: crypto.randomUUID(),
+      validTo: eff,
+      recordedFirst: cur.recordedFirst ?? cur.recordedFrom,
+    });
   }
   if (patch !== 'END') {
-    units.push({ ...base, ...patch, versionId: crypto.randomUUID(), validFrom: eff });
+    units.push({
+      ...base,
+      changeType: undefined,
+      changeOrder: undefined,
+      changedFields: undefined,
+      recordedFirst: undefined,
+      ...patch,
+      versionId: crypto.randomUUID(),
+      validFrom: eff,
+    });
   }
   rowVersions.set(id, (rowVersions.get(id) ?? 0) + 1);
   return true;
-}
-
-const ACTOR = 'Hoàng Đức Dũng';
-
-function addHistory(unitId: string, h: Omit<HistoryRow, 'id' | 'unitId' | 'recordedAt'>) {
-  history.push({ ...h, id: crypto.randomUUID(), unitId, recordedAt: nowIso() });
 }
 
 const activeChildren = (id: string, d: string) => [
@@ -294,283 +338,307 @@ const activeChildren = (id: string, d: string) => [
   ),
 ];
 
-function moveAssignments(fromId: string, toId: string, eff: string): number {
-  const cut: View = { asOf: eff, cut: Date.now() };
-  const rows = activeAssignments(fromId, cut);
-  for (const a of rows) {
-    assignments.push({
-      ...a,
-      id: crypto.randomUUID(),
-      unitId: toId,
-      validFrom: eff,
-      recordedFrom: nowIso(),
-    });
+function moveAssignments(fromIds: string[], toId: string, eff: string): number {
+  const cut: View = { asOf: eff, cut: Date.now(), recorded: null };
+  let n = 0;
+  for (const fromId of fromIds) {
+    for (const a of activeAssignments(fromId, cut)) {
+      assignments.push({
+        ...a,
+        id: crypto.randomUUID(),
+        unitId: toId,
+        validFrom: eff,
+        recordedFrom: nowIso(),
+      });
+      n++;
+    }
   }
-  return rows.length;
+  return n;
 }
+
+/** Kiểm thân `OrgUnitInput` (trường bắt buộc của hợp đồng, BR-01-05). */
+function checkInput(body: Partial<OrgUnitInput>, prefix = ''): MockResponse | null {
+  const f = (name: string) => `${prefix}${name}`;
+  if (!body.code?.trim()) return fieldError('Nhập mã đơn vị.', f('code'));
+  if (body.code.length > 30) return fieldError('Mã đơn vị tối đa 30 ký tự.', f('code'));
+  if (!body.name?.trim()) return fieldError('Tên đơn vị không được trống.', f('name'));
+  if (body.name.length > 255) return fieldError('Tên đơn vị tối đa 255 ký tự.', f('name'));
+  if (!body.level) return fieldError('Chọn cấp đơn vị.', f('level'));
+  if (!body.unitType) return fieldError('Chọn loại đơn vị.', f('unitType'));
+  if (!SUBJECT_GROUPS.some((g) => g.id === body.subjectGroupId)) {
+    return fieldError(
+      'Đơn vị phải thuộc đúng một khối đối tượng theo Phụ lục 2A.',
+      f('subjectGroupId'),
+      'ORG-422-SUBJECT-GROUP',
+    );
+  }
+  if (!body.flows?.length) return fieldError('Chọn ít nhất một luồng đánh giá.', f('flows'));
+  if (!body.validFrom) return fieldError('Nhập ngày hiệu lực.', f('validFrom'));
+  return null;
+}
+
+const CONTENT_FIELDS = [
+  'code',
+  'nationalCode',
+  'name',
+  'shortName',
+  'level',
+  'unitType',
+  'subjectGroupId',
+  'flows',
+] as const;
 
 function update(r: MockRequest): MockResponse {
   const id = r.pathParams['id'];
-  const body = r.body as OrgUnitUpdate;
-  const cur = currentAt(id, body.validFrom ?? today()) ?? currentAt(id, today());
-  if (!cur) return problem(404, 'Đơn vị không còn hiệu lực.');
-  if (r.headers.get('If-Match')?.replace(/"/g, '') !== String(rowVersions.get(id) ?? 0)) {
-    return problem(409, 'Đơn vị đã được người khác thay đổi. Vui lòng tải lại.', {
-      code: 'ORG-409-CONFLICT',
+  const body = (r.body ?? {}) as Partial<OrgUnitInput>;
+  const ifMatch = r.headers.get('If-Match');
+  if (!ifMatch) {
+    return problem(428, 'Yêu cầu cập nhật phải kèm If-Match.', {
+      code: 'COMMON-428-PRECONDITION-REQUIRED',
     });
+  }
+  if (!units.some((u) => u.id === id && !u.recordedTo)) {
+    return problem(404, 'Không tìm thấy đơn vị.');
+  }
+  if (ifMatch.replace(/^W\//, '').replace(/"/g, '') !== String(rowVersions.get(id) ?? 0)) {
+    return problem(409, 'Đơn vị đã được người khác thay đổi. Vui lòng tải lại.', {
+      code: 'ORG-409-VERSION-CONFLICT',
+    });
+  }
+  const invalid = checkInput(body);
+  if (invalid) return invalid;
+  const input = body as OrgUnitInput;
+  const cur = currentAt(id, input.validFrom);
+  if (!cur) {
+    return fieldError('Đơn vị chưa có hiệu lực tại ngày bắt đầu của thay đổi.', 'validFrom');
   }
   if (cur.syncedFrom) {
     return problem(
       409,
       'Đơn vị được đồng bộ từ CSDL CBCCVC; đồng chí sửa tại nguồn rồi đồng bộ lại.',
-      {
-        code: 'ORG-409-SYNCED',
-      },
+      { code: 'ORG-409-SYNCED' },
     );
   }
-  if (!body.name?.trim()) return fieldError('Tên đơn vị không được trống.', 'name');
-  if (body.name.length > 255) return fieldError('Tên đơn vị tối đa 255 ký tự.', 'name');
-  if (!SUBJECT_GROUPS.some((g) => g.id === body.subjectGroupId)) {
-    return fieldError(
-      // BR-01-05
-      'Đơn vị phải thuộc đúng một khối đối tượng theo Phụ lục 2A.',
-      'subjectGroupId',
-    );
+  if (units.some((u) => u.id !== id && !u.recordedTo && u.code === input.code.trim())) {
+    return fieldError('Mã đơn vị đã được dùng cho đơn vị khác.', 'code', 'ORG-409-DUPLICATE');
   }
-  if (!body.flows?.length) return fieldError('Chọn ít nhất một luồng đánh giá.', 'flows');
-  if (!body.validFrom || body.validFrom < cur.validFrom) {
-    return fieldError(
-      'Ngày hiệu lực không được trước hiệu lực của phiên bản hiện có.',
-      'validFrom',
-    );
-  }
-  const { validFrom, ...fields } = body;
-  split(id, validFrom, { ...fields, name: fields.name.trim() }, ACTOR);
-  addHistory(id, {
-    kind: 'SUA',
-    effectiveOn: validFrom,
-    title: 'Sửa thông tin',
-    detail: `Cập nhật thông tin: ${body.name.trim()}`,
-  });
-  const d = detail(id, { asOf: null, cut: Date.now() })!;
-  return ok({ ...d, warning: lockedWarning(validFrom) });
+  const next: Partial<UnitVersion> = {
+    code: input.code.trim(),
+    nationalCode: input.nationalCode?.trim() || undefined,
+    name: input.name.trim(),
+    shortName: input.shortName?.trim() || undefined,
+    level: input.level as UnitVersion['level'],
+    unitType: input.unitType,
+    subjectGroupId: input.subjectGroupId,
+    flows: [...input.flows],
+    ...(input.parentId ? { parentId: input.parentId } : {}),
+  };
+  const changed = [...CONTENT_FIELDS, 'parentId' as const].filter(
+    (k) => k in next && JSON.stringify(next[k]) !== JSON.stringify(cur[k]),
+  );
+  split(id, input.validFrom, { ...next, changedFields: changed });
+  const d = detail(id, { asOf: input.validFrom, cut: Date.now(), recorded: null })!;
+  return { status: 200, body: d, headers: { ETag: `"${d.rowVersion}"` } };
 }
 
 function change(r: MockRequest): MockResponse {
   const id = r.pathParams['id'];
-  const body = r.body as OrgChangeInput;
+  const body = (r.body ?? {}) as Partial<OrgChangeRequest>;
+  const type = body.changeType;
   const eff = body.effectiveOn;
+  if (!type) return fieldError('Chọn loại thay đổi.', 'changeType');
   if (!eff) return fieldError('Nhập ngày hiệu lực.', 'effectiveOn');
-  if (!body.orderNo?.trim()) return fieldError('Nhập văn bản căn cứ.', 'orderNo');
+  if (!body.orderNo?.trim()) return fieldError('Nhập số quyết định.', 'orderNo');
+  if (!body.orderDate) return fieldError('Nhập ngày ban hành quyết định.', 'orderDate');
+  if (body.orderDate > today()) {
+    return fieldError('Ngày ban hành không được sau hôm nay.', 'orderDate');
+  }
+  const related = body.relatedUnitIds ?? [];
+  const newUnits = body.newUnits ?? [];
+  if (related.includes(id)) {
+    return fieldError('Đơn vị liên quan không được trùng đơn vị đang thay đổi.', 'relatedUnitIds');
+  }
+  if ((type === 'SAP_NHAP' || type === 'HOP_NHAT') && !related.length) {
+    return fieldError(MSG_01_09, 'relatedUnitIds', 'ORG-422-PREDECESSOR-REQUIRED');
+  }
+  if (type === 'THANH_LAP' && newUnits.length < 1) {
+    return fieldError('Thành lập cần ít nhất một đơn vị mới.', 'newUnits');
+  }
+  if (type === 'HOP_NHAT' && newUnits.length !== 1) {
+    return fieldError('Hợp nhất tạo đúng một đơn vị mới.', 'newUnits');
+  }
+  if (type === 'CHIA_TACH' && newUnits.length + related.length < 1) {
+    return fieldError('Chia tách cần ít nhất một đơn vị kế thừa.', 'newUnits');
+  }
+  if (type === 'DOI_TEN' && !body.newName?.trim()) {
+    return fieldError('Đổi tên cần nhập tên mới.', 'newName');
+  }
+  if ((type === 'SAP_NHAP' || type === 'GIAI_THE') && newUnits.length) {
+    return fieldError('Loại thay đổi này không tạo đơn vị mới.', 'newUnits');
+  }
   const cur = currentAt(id, eff);
-  if (!cur) return fieldError('Đơn vị không còn hiệu lực tại ngày này.', 'effectiveOn');
-  const names = (body.names ?? []).map((n) => n.trim()).filter(Boolean);
-  const preds = (body.predecessorIds ?? []).filter((p) => p !== id);
-  const order = body.orderNo.trim();
-  const newUnit = (name: string, parentId: string | null, predecessorIds: string[]) => {
-    const nid = `u-${crypto.randomUUID().slice(0, 8)}`;
+  if (!cur) {
+    return fieldError('Đơn vị chưa có hiệu lực tại ngày hiệu lực của quyết định.', 'effectiveOn');
+  }
+  for (const rel of related) {
+    if (!currentAt(rel, eff)) {
+      return fieldError(
+        'Đơn vị liên quan chưa có hiệu lực tại ngày hiệu lực của quyết định.',
+        'relatedUnitIds',
+      );
+    }
+  }
+  const codes = new Set(units.filter((u) => !u.recordedTo).map((u) => u.code));
+  for (const [i, nu] of newUnits.entries()) {
+    const invalid = checkInput({ ...nu, validFrom: nu.validFrom ?? eff }, `newUnits.${i}.`);
+    if (invalid) return invalid;
+    if (codes.has(nu.code.trim())) {
+      return fieldError('Mã đơn vị đã được dùng cho đơn vị khác.', `newUnits.${i}.code`);
+    }
+    codes.add(nu.code.trim());
+  }
+  if (type === 'DOI_TEN' && eff <= cur.validFrom) {
+    return fieldError('Ngày đổi tên phải sau hiệu lực hiện có.', 'effectiveOn');
+  }
+  if (type === 'GIAI_THE' && activeChildren(id, eff).length) {
+    return fieldError(
+      'Không thể giải thể đơn vị còn đơn vị cấp dưới đang hiệu lực.',
+      'id',
+      'ORG-422-HAS-ACTIVE-CHILDREN',
+    );
+  }
+
+  const orderId = crypto.randomUUID();
+  const order = { id: orderId, orderNo: body.orderNo.trim(), orderDate: body.orderDate };
+  const stamp = { changeType: type, changeOrder: order };
+  const created = newUnits.map((nu) => {
+    const nid = crypto.randomUUID();
+    const parentId = nu.parentId ?? (type === 'THANH_LAP' ? id : null);
     units.push({
-      ...cur,
       versionId: crypto.randomUUID(),
       id: nid,
-      code: `${cur.code}-${nid.slice(2, 6).toUpperCase()}`,
-      externalCode: undefined,
-      syncedFrom: undefined,
-      name,
-      shortName: undefined,
+      code: nu.code.trim(),
+      nationalCode: nu.nationalCode?.trim() || undefined,
+      name: nu.name.trim(),
+      shortName: nu.shortName?.trim() || undefined,
+      level: nu.level as UnitVersion['level'],
+      unitType: nu.unitType,
+      subjectGroupId: nu.subjectGroupId,
+      flows: [...nu.flows],
       parentId,
-      predecessorIds,
-      mergedOn: predecessorIds.length ? eff : undefined,
-      validFrom: eff,
-      validTo: null,
+      predecessorIds: type === 'HOP_NHAT' ? [id, ...related] : type === 'CHIA_TACH' ? [id] : [],
+      validFrom: nu.validFrom && nu.validFrom > eff ? nu.validFrom : eff,
+      validTo: nu.validTo ?? null,
       recordedFrom: nowIso(),
       recordedTo: null,
       recordedBy: ACTOR,
+      ...stamp,
     });
     return nid;
+  });
+  const affected = new Set<string>(created);
+  const end = (ids: string[], heir: string | undefined) => {
+    for (const p of ids) {
+      if (heir) for (const c of activeChildren(p, eff)) split(c, eff, { parentId: heir });
+      split(p, eff, 'END');
+      affected.add(p);
+    }
   };
-  let target = id;
-  let moved = 0;
-  switch (body.kind) {
-    case 'DOI_TEN':
-      if (!names[0]) return fieldError('Nhập tên mới.', 'names');
-      if (eff <= cur.validFrom)
-        return fieldError('Ngày đổi tên phải sau hiệu lực hiện có.', 'effectiveOn');
-      split(id, eff, { name: names[0] }, ACTOR);
-      addHistory(id, {
-        kind: 'DOI_TEN',
-        effectiveOn: eff,
-        title: 'Đổi tên',
-        detail: `"${cur.name}" → "${names[0]}"`,
-        orderNo: order,
-      });
-      break;
+  switch (type) {
     case 'THANH_LAP':
-      if (!names[0]) return fieldError('Nhập tên đơn vị thành lập.', 'names');
-      target = newUnit(names[0], id, []);
-      addHistory(target, {
-        kind: 'THANH_LAP',
-        effectiveOn: eff,
-        title: 'Thành lập',
-        detail: `Thành lập ${names[0]} trực thuộc ${cur.name}`,
-        orderNo: order,
-      });
-      addHistory(id, {
-        kind: 'THANH_LAP',
-        effectiveOn: eff,
-        title: 'Thành lập đơn vị trực thuộc',
-        detail: names[0],
-        orderNo: order,
-      });
+      break;
+    case 'DOI_TEN':
+      split(id, eff, { name: body.newName!.trim(), ...stamp, changedFields: ['name'] });
+      affected.add(id);
       break;
     case 'SAP_NHAP':
-    case 'HOP_NHAT': {
-      if (!preds.length) return fieldError(MSG_01_09, 'predecessorIds');
-      if (body.kind === 'HOP_NHAT' && !names[0])
-        return fieldError('Nhập tên đơn vị hợp nhất.', 'names');
-      const sources = body.kind === 'SAP_NHAP' ? preds : [id, ...preds];
-      for (const p of sources) {
-        if (!currentAt(p, eff))
-          return fieldError('Đơn vị tiền thân không còn hiệu lực tại ngày này.', 'predecessorIds');
-      }
-      if (body.kind === 'SAP_NHAP') {
-        split(id, eff, { predecessorIds: [...cur.predecessorIds, ...preds], mergedOn: eff }, ACTOR);
-      } else {
-        target = newUnit(names[0], cur.parentId, sources);
-      }
-      for (const p of sources) {
-        moved += moveAssignments(p, target, eff);
-        for (const c of activeChildren(p, eff)) split(c, eff, { parentId: target }, ACTOR);
-        split(p, eff, 'END', ACTOR);
-        addHistory(p, {
-          kind: body.kind,
-          effectiveOn: eff,
-          title: 'Kết thúc do ' + (body.kind === 'SAP_NHAP' ? 'sáp nhập' : 'hợp nhất'),
-          detail: `Chuyển vào ${body.kind === 'SAP_NHAP' ? cur.name : names[0]}`,
-          orderNo: order,
-        });
-      }
-      addHistory(target, {
-        kind: body.kind,
-        effectiveOn: eff,
-        title: body.kind === 'SAP_NHAP' ? 'Sáp nhập' : 'Hợp nhất',
-        detail: `${sources.map((p) => ref(p, { asOf: null, cut: Date.now() })?.name).join(', ')}; ${moved} phân công được chuyển theo`,
-        orderNo: order,
+      split(id, eff, {
+        predecessorIds: [...cur.predecessorIds, ...related],
+        ...stamp,
+        changedFields: ['predecessorIds'],
       });
+      affected.add(id);
+      end(related, id);
       break;
-    }
-    case 'CHIA_TACH': {
-      if (names.length < 2)
-        return fieldError('Chia tách cần ít nhất hai tên đơn vị mới, mỗi dòng một tên.', 'names');
-      const created = names.map((n) => newUnit(n, cur.parentId, [id]));
-      target = created[0];
-      moved = moveAssignments(id, target, eff);
-      for (const c of activeChildren(id, eff)) split(c, eff, { parentId: target }, ACTOR);
-      split(id, eff, 'END', ACTOR);
-      addHistory(id, {
-        kind: 'CHIA_TACH',
-        effectiveOn: eff,
-        title: 'Chia tách',
-        detail: `Thành ${names.join(', ')}`,
-        orderNo: order,
-      });
-      for (const c of created)
-        addHistory(c, {
-          kind: 'CHIA_TACH',
-          effectiveOn: eff,
-          title: 'Thành lập do chia tách',
-          detail: `Từ ${cur.name}`,
-          orderNo: order,
-        });
+    case 'HOP_NHAT':
+      end([id, ...related], created[0]);
       break;
-    }
+    case 'CHIA_TACH':
+      end([id], created[0] ?? related[0]);
+      related.forEach((x) => affected.add(x));
+      break;
     case 'GIAI_THE':
-      if (activeChildren(id, eff).length) {
-        return problem(
-          409,
-          'Đơn vị còn đơn vị trực thuộc. Chuyển hoặc giải thể các đơn vị đó trước.',
-          { code: 'ORG-409-HAS-CHILDREN' },
-        );
-      }
-      split(id, eff, 'END', ACTOR);
-      addHistory(id, {
-        kind: 'GIAI_THE',
-        effectiveOn: eff,
-        title: 'Giải thể',
-        detail: cur.name,
-        orderNo: order,
-      });
+      end([id], undefined);
       break;
     default:
       return problem(400, 'Loại thay đổi không hợp lệ.');
   }
-  return {
-    status: 201,
-    body: {
-      unitId: target,
-      movedAssignments: moved,
-      message: moved ? MSG_01_11(moved, order) : undefined,
-      warning: lockedWarning(eff),
-    },
+  if (body.moveAssignmentsTo) {
+    const dest =
+      type === 'HOP_NHAT' && body.moveAssignmentsTo === id && created.length
+        ? created[0]
+        : body.moveAssignmentsTo;
+    const sources =
+      type === 'SAP_NHAP'
+        ? related
+        : type === 'HOP_NHAT'
+          ? [id, ...related]
+          : [id, ...related].filter((u) => u !== dest);
+    moveAssignments(sources, dest, eff);
+  }
+  // Hợp đồng: thay đổi có hiệu lực tương lai giữ ở `NHAP` tới ngày hiệu lực.
+  const applied = eff <= today();
+  const res: OrgChangeOrder = {
+    id: orderId,
+    changeType: type,
+    orderNo: order.orderNo,
+    effectiveOn: eff,
+    status: applied ? 'DA_AP_DUNG' : 'NHAP',
+    ...(applied ? { appliedAt: nowIso() } : {}),
+    affectedUnitIds: [...affected],
   };
+  return { status: 201, body: res };
 }
+
+/** Lỗi từng dòng của tệp tên chứa `loi` (BR-01-05, BR-01-07), cùng dạng `problem.errors` máy chủ. */
+const IMPORT_ERRORS = [
+  {
+    field: 'rows.12.subjectGroup',
+    message: 'Dòng 12, cột Khối đối tượng: Thiếu khối đối tượng theo Phụ lục 2A.',
+    rule: 'BR-01-05',
+  },
+  {
+    field: 'rows.27.parentCode',
+    message: 'Dòng 27, cột Đơn vị cấp trên: Sáp nhập thiếu đơn vị tiền thân.',
+    rule: 'BR-01-07',
+  },
+];
 
 function startImport(r: MockRequest): MockResponse {
   const file = r.body instanceof FormData ? (r.body.get('file') as File | null) : null;
   if (!file) return fieldError('Chọn tệp Excel theo mẫu.', 'file');
   if (!/\.xlsx$/i.test(file.name)) return fieldError('Tệp phải là Excel .xlsx theo mẫu.', 'file');
-  const id = crypto.randomUUID();
-  const errors = /loi/i.test(file.name)
-    ? [
-        // BR-01-05, BR-01-07
-        ['12', 'TN-X-200', 'Thiếu khối đối tượng theo Phụ lục 2A'],
-        ['27', 'TN-X-215', 'Sáp nhập thiếu đơn vị tiền thân'],
-      ]
-    : [];
-  imports.set(id, {
-    job: { id, type: 'ORG_IMPORT', status: 'CHO', progress: 0 },
-    polls: 0,
-    errors,
-  });
-  return { status: 202, body: null, headers: { Location: `/api/v1/org/imports/${id}` } };
-}
-
-function importJob(r: MockRequest): MockResponse {
-  const e = imports.get(r.pathParams['id']);
-  if (!e) return problem(404, 'Không tìm thấy yêu cầu nhập tệp.');
-  e.polls++;
-  const id = e.job.id;
-  e.job =
-    e.polls >= 2
-      ? {
-          id,
-          type: 'ORG_IMPORT',
-          status: 'HOAN_TAT',
-          progress: 100,
-          message: e.errors.length
-            ? `Đã nhập 37 đơn vị; ${e.errors.length} dòng lỗi chưa nhập, xem báo cáo lỗi.`
-            : 'Đã nhập 37 đơn vị, không có dòng lỗi.',
-          resultLocation: e.errors.length ? `/api/v1/org/imports/${id}/report` : undefined,
-        }
-      : {
-          id,
-          type: 'ORG_IMPORT',
-          status: 'DANG_CHAY',
-          progress: 40,
-          message: 'Đang kiểm tra từng dòng dữ liệu…',
-        };
-  return ok(e.job);
-}
-
-function importReport(r: MockRequest): MockResponse {
-  const e = imports.get(r.pathParams['id']);
-  if (!e?.errors.length) return problem(404, 'Không có báo cáo lỗi.');
-  const csv = [['Dòng', 'Mã đơn vị', 'Lỗi'], ...e.errors].map((l) => l.join(',')).join('\r\n');
-  return {
-    status: 200,
-    body: new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }),
-    headers: { 'Content-Type': 'text/csv; charset=utf-8' },
-  };
+  const bad = /loi/i.test(file.name);
+  return startMockJob(
+    'IMPORT',
+    () =>
+      bad
+        ? {
+            status: 'THAT_BAI',
+            message: `Tệp có ${IMPORT_ERRORS.length} dòng lỗi, chưa nhập đơn vị nào.`,
+            problem: {
+              type: 'https://okrkpi.vn/problems/import-invalid',
+              title: 'Tệp nhập chưa hợp lệ',
+              status: 422,
+              code: 'ORG-422-IMPORT-INVALID',
+              detail: `Tệp có ${IMPORT_ERRORS.length} dòng lỗi, chưa nhập đơn vị nào.`,
+              errors: IMPORT_ERRORS,
+            },
+          }
+        : { message: 'Đã nhập 37 đơn vị.', resultLocation: '/api/v1/org/units/tree' },
+    2,
+    { message: 'Đang kiểm tra dữ liệu…', updatedAt: nowIso() },
+  );
 }
 
 export const ORG_TREE_MOCK: MockModule = {
@@ -585,10 +653,9 @@ export const ORG_TREE_MOCK: MockModule = {
       handle: () => ok({ items: SUBJECT_GROUPS }),
     },
     { method: 'POST', pattern: '/api/v1/org/imports', handle: startImport },
-    { method: 'GET', pattern: '/api/v1/org/imports/:id', handle: importJob },
-    { method: 'GET', pattern: '/api/v1/org/imports/:id/report', handle: importReport },
     { method: 'GET', pattern: '/api/v1/org/units/:id', handle: unit },
     { method: 'PUT', pattern: '/api/v1/org/units/:id', handle: update },
+    { method: 'GET', pattern: '/api/v1/org/units/:id/subtree', handle: subtree },
     { method: 'GET', pattern: '/api/v1/org/units/:id/history', handle: unitHistory },
     { method: 'GET', pattern: '/api/v1/org/units/:id/assignments', handle: unitAssignments },
     { method: 'POST', pattern: '/api/v1/org/units/:id/changes', handle: change },

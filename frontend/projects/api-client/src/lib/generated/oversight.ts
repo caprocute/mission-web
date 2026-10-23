@@ -1245,6 +1245,8 @@ export interface components {
         [key: string]: unknown;
       };
       entryHash: components['schemas']['LedgerHashHex'];
+      /** @description Băm tải trọng sự kiện (`payload_hash`). Danh sách trả kèm để đối soát R2 của mission-core so với băm tính lại từ outbox mà không phải gọi chi tiết từng bản ghi (DL-12, wiki trang 14 mục DL-12e). */
+      payloadHash?: components['schemas']['LedgerHashHex'];
     };
     /** @description Niêm phong Merkle mức tenant (`ledger.merkle_seal`) và niêm phong cell chứa nó. */
     LedgerSeal: {
@@ -1356,6 +1358,16 @@ export interface components {
       /** @description Token RFC 3161. */
       tsaToken?: string;
       anchors?: components['schemas']['LedgerAnchorReceipt'][];
+      /** @description Các mắt chuỗi băm từ bản ghi tới mắt cuối của chuỗi trong cửa sổ niêm phong. Lá Merkle là `entry_hash` của mắt cuối, nên người kiểm tra tính lại từng `entry_hash` theo công thức TL-03 để nối bản ghi lên lá. Rỗng khi bản ghi chính là mắt cuối. */
+      chainLinks?: components['schemas']['LedgerProofLink'][];
+    };
+    /** @description Một mắt chuỗi trong bằng chứng bao hàm, đủ để tính lại `entry_hash` theo TL-03. */
+    LedgerProofLink: {
+      /** Format: int64 */
+      seqNo: number;
+      payloadHash: components['schemas']['LedgerHashHex'];
+      metadataHash: components['schemas']['LedgerHashHex'];
+      entryHash: components['schemas']['LedgerHashHex'];
     };
     /** @description Khiếu nại trước đó nghi trùng nội dung để đối chiếu theo BR-12-11. */
     ComplaintDuplicateCandidate: {

@@ -7,10 +7,13 @@ import {
   linkedSignal,
   signal,
 } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
+import { last } from 'rxjs';
 import {
+  JobAccepted,
+  JobTracker,
   WF_ROLLOUT_STATUS_LABEL,
   WF_TEMPLATE_STATUS_LABEL,
   WfLintIssue,
@@ -22,7 +25,7 @@ import {
 } from '@vt/api-client';
 import { STUDIO_ACCESS } from '../../studio-permissions';
 import { STUDIO_STEP_UP } from '../../studio-step-up';
-import { errorText, fmtDate, problemCode } from '../../studio-ui';
+import { errorText, fmtDate, jobErrorText, problemCode } from '../../studio-ui';
 import { WfDiagram } from './wf-diagram';
 import { WfFlowEditor } from './wf-flow-editor';
 import {
@@ -47,8 +50,6 @@ import {
  * Quyền: SCR-1505.thu-vien, soan, chay-test, de-nghi-phat-hanh, phe-duyet, trien-khai-cell (wiki/15a).
  * BS-01 chưa cấp BR, MSG riêng cho màn hình này (wiki/15a ràng buộc 31 "Chưa có MSG").
  */
-
-const POLL_MS = 1500;
 
 /** Tên mẫu cho người dùng (hợp đồng chưa có trường tên, suy luận, wiki/14). */
 export const WF_TITLE: Record<string, string> = {
@@ -580,7 +581,8 @@ export class WfTemplatesPage {
   private readonly router = inject(Router);
   private readonly access = inject(STUDIO_ACCESS);
   private readonly stepUp = inject(STUDIO_STEP_UP);
-  private timer: ReturnType<typeof setTimeout> | null = null;
+  private readonly jobs = inject(JobTracker);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly statusLabel = WF_TEMPLATE_STATUS_LABEL;
   protected readonly rolloutLabel = WF_ROLLOUT_STATUS_LABEL;
@@ -651,10 +653,6 @@ export class WfTemplatesPage {
     );
   });
 
-  constructor() {
-    inject(DestroyRef).onDestroy(() => this.timer && clearTimeout(this.timer));
-  }
-
   protected can(key: Parameters<typeof this.access.can>[0]) {
     return this.access.can(key);
   }
@@ -719,26 +717,42 @@ export class WfTemplatesPage {
     else this.tpl.reload();
   }
 
-  /** Đọc lại mẫu cho tới khi bước nền (kiểm thử, phát hành) xong. */
-  private poll(
+  /**
+   * Theo dõi bước nền (kiểm thử, phát hành; 202 + `Location`) bằng `JobTracker` tới khi kết thúc, rồi
+   * đọc lại mẫu một lần: đạt thì `then`, chưa đạt thì báo `notDone`; job thất bại thì báo lỗi của job.
+   */
+  private follow(
+    accepted: JobAccepted,
     id: string,
     done: (t: WorkflowTemplate) => boolean,
     then: (t: WorkflowTemplate) => void,
+    texts: { notDone: string; failed: string },
   ) {
-    const tick = () =>
-      this.api.get(id).subscribe({
-        next: (t) => {
-          if (!done(t)) {
-            this.timer = setTimeout(tick, POLL_MS);
+    this.jobs
+      .track(accepted.location)
+      .pipe(last(), takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (job) => {
+          if (job.status !== 'HOAN_TAT') {
+            this.busy.set(false);
+            this.notice.set(null);
+            this.error.set(jobErrorText(job, texts.failed));
+            this.refresh();
             return;
           }
-          this.busy.set(false);
-          this.refresh(t);
-          then(t);
+          this.api.get(id).subscribe({
+            next: (t) => {
+              this.busy.set(false);
+              this.refresh(t);
+              if (done(t)) return then(t);
+              this.notice.set(null);
+              this.error.set(texts.notDone);
+            },
+            error: (e) => this.fail(e, 'Không đọc được trạng thái mẫu.'),
+          });
         },
-        error: (e) => this.fail(e, 'Không đọc được trạng thái mẫu.'),
+        error: (e) => this.fail(e, 'Không theo dõi được tiến trình xử lý.'),
       });
-    this.timer = setTimeout(tick, POLL_MS);
   }
 
   protected save() {
@@ -770,14 +784,19 @@ export class WfTemplatesPage {
     this.start();
     this.notice.set('Đang chạy các kịch bản test trên máy kiểm thử riêng…');
     this.api.runTests(t.id).subscribe({
-      next: () =>
-        this.poll(
+      next: (accepted) =>
+        this.follow(
+          accepted,
           t.id,
           (x) => x.status === 'DAT_KIEM_THU',
           (x) =>
             this.notice.set(
               `Đạt ${x.testCount ?? 0} kịch bản test với tham số của mọi đơn vị đang dùng mẫu, trong ngân sách 20 câu lệnh truy vấn mỗi lần hoàn thành bước.`,
             ),
+          {
+            notDone: 'Mẫu chưa đạt bộ kịch bản kiểm thử. Vui lòng sửa sơ đồ rồi chạy kiểm thử lại.',
+            failed: 'Không chạy được kiểm thử.',
+          },
         ),
       error: (e) => this.fail(e, 'Không chạy được kiểm thử.'),
     });
@@ -807,14 +826,20 @@ export class WfTemplatesPage {
       return;
     }
     this.api.approve(t.id, t.rowVersion).subscribe({
-      next: () =>
-        this.poll(
+      next: (accepted) =>
+        this.follow(
+          accepted,
           t.id,
           (x) => x.status === 'HIEU_LUC',
           (x) =>
             this.notice.set(
               `Mẫu ${titleOf(x.templateCode)} bản ${x.versionNo} đã phát hành và đang triển khai lần lượt lên các cụm.`,
             ),
+          {
+            notDone:
+              'Đã ghi nhận phê duyệt nhưng mẫu chưa có hiệu lực. Vui lòng tải lại sau ít phút.',
+            failed: 'Không phát hành được mẫu quy trình.',
+          },
         ),
       error: (e) =>
         this.fail(

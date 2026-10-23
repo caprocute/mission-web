@@ -16,13 +16,15 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import vn.viettel.okrkpi.integ.infrastructure.web.InternalIssuedDocumentController;
+import vn.viettel.okrkpi.integ.infrastructure.web.InternalSyncRunController;
 import vn.viettel.okrkpi.integ.infrastructure.web.JwksController;
 
 /**
  * Bảo vệ cổng nội bộ {@code /internal/**} bằng token dịch vụ Keycloak có vai trò realm {@code
- * svc_mission_core} (zero trust, TL-04 SEC); ngoài ra chỉ có probe, chỉ số của actuator và JWKS
- * công khai của khoá ký thông điệp ra (DV-13-02). {@code okrkpi.integ.auth-enabled=false} chỉ dùng
- * cho kiểm thử và môi trường giả lập.
+ * svc_mission_core} (zero trust, TL-04 SEC), riêng lần đồng bộ và ánh xạ mã ngoài nhận thêm vai trò
+ * {@code svc_org_service} của org-service (DV-13-06); ngoài ra chỉ có probe, chỉ số của actuator và
+ * JWKS công khai của khoá ký thông điệp ra (DV-13-02). {@code okrkpi.integ.auth-enabled=false} chỉ
+ * dùng cho kiểm thử và môi trường giả lập.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnWebApplication
@@ -37,6 +39,15 @@ public class IntegSecurityConfiguration {
         .authorizeHttpRequests(
             a -> {
               if (authEnabled) {
+                // org-service (DV-04-07) chỉ gọi lần đồng bộ và ghi ánh xạ mã ngoài; mọi cổng
+                // còn lại chỉ cho mission-core.
+                a.requestMatchers(
+                        "/internal/v1/integ/sync-runs",
+                        "/internal/v1/integ/sync-runs/**",
+                        "/internal/v1/integ/mapping-xref")
+                    .hasAnyRole(
+                        InternalSyncRunController.SERVICE_ROLE,
+                        InternalIssuedDocumentController.SERVICE_ROLE);
                 a.anyRequest().hasRole(InternalIssuedDocumentController.SERVICE_ROLE);
               } else {
                 a.anyRequest().permitAll();

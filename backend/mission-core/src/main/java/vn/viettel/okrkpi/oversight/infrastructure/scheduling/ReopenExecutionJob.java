@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.scheduling.annotation.Scheduled;
 import vn.viettel.okrkpi.oversight.application.reopen.ReopenApprovalService;
+import vn.viettel.okrkpi.oversight.application.reopen.ReopenFollowUpService;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.routing.TenantCellRoute;
 import vn.viettel.okrkpi.shared.routing.TenantDirectory;
@@ -14,20 +15,35 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
 
 /**
  * Chuyển yêu cầu {@code DA_DUYET} sang {@code DA_THUC_HIEN} khi kỳ đã ở {@code MO_LAI_HAU_KIEM}
- * (MOD-08 không phát sự kiện xác nhận, CORE-07-08). Đi lần lượt từng tenant của cell; chạy lại
- * nhiều lần vẫn an toàn vì cập nhật theo {@code row_version}.
+ * (MOD-08 không phát sự kiện xác nhận, CORE-07-08), rồi lập danh sách hồ sơ theo dõi hậu kiểm
+ * (CORE-07-09). Đi lần lượt từng tenant của cell; chạy lại nhiều lần vẫn an toàn vì cập nhật theo
+ * {@code row_version}.
  */
 public class ReopenExecutionJob {
 
   private static final Logger log = LoggerFactory.getLogger(ReopenExecutionJob.class);
 
   private final ReopenApprovalService approvals;
+  private final ReopenFollowUpService followUp;
   private final ObjectProvider<TenantDirectory> directory;
   private final String cell;
 
   public ReopenExecutionJob(
       ReopenApprovalService approvals, ObjectProvider<TenantDirectory> directory, String cell) {
+    this(approvals, null, directory, cell);
+  }
+
+  /**
+   * @param followUp lập danh sách hồ sơ theo dõi ngay sau khi xác nhận (CORE-07-09), có thể {@code
+   *     null}
+   */
+  public ReopenExecutionJob(
+      ReopenApprovalService approvals,
+      ReopenFollowUpService followUp,
+      ObjectProvider<TenantDirectory> directory,
+      String cell) {
     this.approvals = Objects.requireNonNull(approvals, "approvals");
+    this.followUp = followUp;
     this.directory = Objects.requireNonNull(directory, "directory");
     this.cell = cell == null ? "" : cell;
   }
@@ -52,7 +68,14 @@ public class ReopenExecutionJob {
     int[] total = {0};
     for (TenantId tenant : tenants) {
       try {
-        TenantContext.run(tenant, () -> total[0] += approvals.confirmExecuted(tenant));
+        TenantContext.run(
+            tenant,
+            () -> {
+              total[0] += approvals.confirmExecuted(tenant);
+              if (followUp != null) {
+                followUp.seedExecuted(tenant);
+              }
+            });
       } catch (RuntimeException e) {
         log.warn("Xác nhận mở lại kỳ lỗi ở tenant {}", tenant, e);
       }

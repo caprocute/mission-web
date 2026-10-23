@@ -24,6 +24,8 @@
     <pitest.targetClasses>vn.viettel.okrkpi.integ.*</pitest.targetClasses>
     <!-- Microservice API dùng Generational ZGC theo TL-04 WI-20. -->
     <jib.jvm.gc>-XX:+UseZGC</jib.jvm.gc>
+    <!-- DV-13-08: đọc tệp lô Excel của HRM, cùng bản với mission-core (YC-PT-18). -->
+    <fastexcel.version>0.18.4</fastexcel.version>
   </properties>
 
   <dependencyManagement>
@@ -63,6 +65,19 @@
     <dependency>
       <groupId>org.apache.camel.springboot</groupId>
       <artifactId>camel-ftp-starter</artifactId>
+    </dependency>
+    <!-- DV-13-08: tệp lô Excel (.xlsx) của HRM; JSch cho SFTP đi cùng camel-ftp (com.github.mwiede:jsch). -->
+    <dependency>
+      <groupId>org.dhatim</groupId>
+      <artifactId>fastexcel-reader</artifactId>
+      <version>${fastexcel.version}</version>
+      <!-- commons-compress lấy bản mới hơn qua avro (hội tụ phụ thuộc), như mission-core. -->
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-compress</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>vn.viettel.okrkpi</groupId>
@@ -176,6 +191,12 @@
       <groupId>org.wiremock</groupId>
       <artifactId>wiremock-standalone</artifactId>
       <version>3.13.1</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.dhatim</groupId>
+      <artifactId>fastexcel</artifactId>
+      <version>${fastexcel.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>

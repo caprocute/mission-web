@@ -203,4 +203,33 @@ public interface PlanRepository {
    * đã duyệt, ngược lại người cập nhật cuối (người gắn yêu cầu ký).
    */
   Optional<UUID> signRequestInitiator(TenantId tenant, UUID signRequestId);
+
+  /** Dòng của phiên bản trước bị bỏ ở phiên bản điều chỉnh, kèm lý do (SCR-0403 trường 3). */
+  record RemovedItem(UUID originItemId, String changeReason) {}
+
+  /**
+   * Thêm phiên bản điều chỉnh {@code NHAP} số {@code versionNo} kèm lý do chung và các dòng sao
+   * chép, trỏ {@code task.plan.current_version_id} sang phiên bản mới (CORE-02-10).
+   */
+  default void insertAdjustment(
+      TenantId tenant,
+      PlanRow plan,
+      UUID versionId,
+      int versionNo,
+      String changeReason,
+      List<ItemRow> items,
+      UUID actor) {
+    throw new UnsupportedOperationException("insertAdjustment");
+  }
+
+  /** Dòng bị bỏ đã ghi của một phiên bản điều chỉnh. */
+  default List<RemovedItem> removedItems(TenantId tenant, int periodBucket, UUID versionId) {
+    return List.of();
+  }
+
+  /** Ghi đè dòng bị bỏ của phiên bản, không tăng {@code row_version}. */
+  default void replaceRemovedItems(
+      TenantId tenant, PlanRow plan, VersionRow version, List<RemovedItem> removed) {
+    throw new UnsupportedOperationException("replaceRemovedItems");
+  }
 }

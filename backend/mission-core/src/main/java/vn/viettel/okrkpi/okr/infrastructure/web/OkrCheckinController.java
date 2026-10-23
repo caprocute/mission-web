@@ -39,6 +39,7 @@ import vn.viettel.okrkpi.contract.okr.model.OkrKrMilestoneAchieve;
 import vn.viettel.okrkpi.contract.okr.model.OkrKrMilestoneList;
 import vn.viettel.okrkpi.contract.okr.model.OkrKrMilestoneReplace;
 import vn.viettel.okrkpi.contract.okr.model.OkrRiskFlag;
+import vn.viettel.okrkpi.contract.okr.model.OkrSourceValue;
 import vn.viettel.okrkpi.contract.okr.model.Ref;
 import vn.viettel.okrkpi.okr.application.OkrCheckinDelegateService;
 import vn.viettel.okrkpi.okr.application.OkrCheckinService;
@@ -50,6 +51,8 @@ import vn.viettel.okrkpi.okr.application.OkrMilestoneService.Achieved;
 import vn.viettel.okrkpi.okr.application.OkrMilestoneService.MilestoneView;
 import vn.viettel.okrkpi.okr.application.OkrMilestoneService.Milestones;
 import vn.viettel.okrkpi.okr.application.OkrReadService;
+import vn.viettel.okrkpi.okr.application.OkrSourceValueService;
+import vn.viettel.okrkpi.okr.application.port.KrSourceValuePort.SourceValue;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinRepository.CheckinRow;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinRepository.CheckinTarget;
 import vn.viettel.okrkpi.okr.application.port.OkrMilestoneRepository.MilestoneDraft;
@@ -87,6 +90,7 @@ public class OkrCheckinController {
   private final OkrCheckinDelegateService delegates;
   private final OkrReadService reads;
   private final OkrMilestoneService milestones;
+  private final OkrSourceValueService sources;
 
   public OkrCheckinController(
       OkrCheckinService checkins,
@@ -96,7 +100,9 @@ public class OkrCheckinController {
       ObjectProvider<OkrCaller> callers,
       OkrCheckinDelegateService delegates,
       OkrReadService reads,
-      OkrMilestoneService milestones) {
+      OkrMilestoneService milestones,
+      OkrSourceValueService sources) {
+    this.sources = Objects.requireNonNull(sources, "sources");
     this.milestones = Objects.requireNonNull(milestones, "milestones");
     this.delegates = Objects.requireNonNull(delegates, "delegates");
     this.reads = Objects.requireNonNull(reads, "reads");
@@ -128,6 +134,8 @@ public class OkrCheckinController {
             body.getBlockerNote(),
             body.getChannel() == null ? null : body.getChannel().getValue(),
             Boolean.TRUE.equals(body.getConfirmLargeChange()));
+    // Giá trị nguồn máy chủ tin cậy, lấy ngoài giao dịch ghi (CORE-01-10, BR-03-04).
+    CheckinCommand verified = mapped(() -> sources.verify(tenant, actor, id, cmd));
     return mapped(
         () ->
             idempotency.runWithTimeout(
@@ -142,7 +150,21 @@ public class OkrCheckinController {
                 null,
                 () ->
                     ResponseEntity.status(HttpStatus.CREATED)
-                        .body(result(checkins.record(tenant, actor, id, idempotencyKey, cmd)))));
+                        .body(
+                            result(checkins.record(tenant, actor, id, idempotencyKey, verified)))));
+  }
+
+  /**
+   * Lấy lại số liệu nguồn của KR qua SVC-13 (CORE-01-10, SCR-0301): KR không gắn nguồn là không tìm
+   * thấy; nguồn lỗi trả 502 {@code OKR-502-SOURCE-UNAVAILABLE} (MSG-03-03).
+   */
+  @GetMapping("/key-results/{id}/source-value")
+  @RequiresPermission(operationId = "getOkrKeyResultSourceValue", module = "okr")
+  public OkrSourceValue getOkrKeyResultSourceValue(@PathVariable("id") UUID id) {
+    TenantId tenant = TenantContext.require();
+    UUID actor = actor();
+    SourceValue v = mapped(() -> sources.fetch(tenant, actor, id));
+    return new OkrSourceValue(v.value(), time(v.fetchedAt())).dataSource(v.dataSource());
   }
 
   @GetMapping("/key-results/{id}/checkins")

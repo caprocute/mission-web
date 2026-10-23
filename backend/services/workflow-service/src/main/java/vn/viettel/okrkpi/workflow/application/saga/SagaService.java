@@ -20,6 +20,7 @@ import vn.viettel.okrkpi.workflow.domain.saga.SagaRepository;
 import vn.viettel.okrkpi.workflow.domain.saga.SagaRuleViolation;
 import vn.viettel.okrkpi.workflow.domain.saga.SagaStatus;
 import vn.viettel.okrkpi.workflow.domain.saga.SagaStep;
+import vn.viettel.okrkpi.workflow.domain.saga.SagaStepStatus;
 import vn.viettel.okrkpi.workflow.domain.saga.SagaType;
 
 /**
@@ -215,32 +216,81 @@ public class SagaService {
       LOG.info("Bỏ qua trả lời {} cho bước {} của saga {}", replyEventId, stepNo, sagaId);
       return false;
     }
+    wakeUnlessBackingOff(saga, applyReply(saga, stepNo, replyEventId, success, error));
+    return true;
+  }
+
+  /** Ghi trả lời; trả quyết định khi trả lời là lỗi, {@code null} khi bước xong. */
+  private FailureDecision applyReply(
+      SagaInstance saga, int stepNo, UUID replyEventId, boolean success, String error) {
     SagaDefinition definition = catalog.definition(saga.type());
     Instant now = now();
+    FailureDecision decision = null;
     if (success) {
       saga.completeStep(stepNo, replyEventId, definition, now);
       journal.record(saga, Action.NHAN_TRA_LOI, stepNo, true);
     } else {
-      FailureDecision decision = saga.recordFailure(stepNo, error, definition, now);
+      decision = saga.recordFailure(stepNo, error, definition, now);
       journal.record(saga, Action.NHAN_TRA_LOI, stepNo, false);
       applyDecision(saga, decision, stepNo);
     }
     finishIfTerminal(saga);
     sagas.update(saga);
-    engine.wake(sagaId);
-    return true;
+    return decision;
   }
 
   /**
-   * Đối chiếu một saga mà engine báo đang ở nút chờ: đánh thức khi saga đã có việc (trả lời tới
-   * trước khi tiến trình vào nút chờ, lệnh tiếp tục), hoặc tính quá hạn khi chờ trả lời quá thời
-   * hạn của bước.
+   * Trả lời lỗi được thử lại sau thời gian lùi của bước: không đánh thức ngay mà để lượt đối chiếu
+   * đánh thức khi tới hạn ({@link #retryDue}), nên chính sách lùi dần áp dụng cả cho lệnh chờ trả
+   * lời (ký số lô lùi dần tới 4 giờ, DV-06-06).
+   */
+  private void wakeUnlessBackingOff(SagaInstance saga, FailureDecision decision) {
+    if (decision instanceof FailureDecision.Retry retry && retry.backoff().isPositive()) {
+      return;
+    }
+    engine.wake(saga.id());
+  }
+
+  private static boolean retryDue(SagaInstance saga, SagaDefinition definition, Instant now) {
+    int stepNo = saga.currentStepNo();
+    if (saga.status() != SagaStatus.DANG_CHAY
+        || saga.compensating()
+        || stepNo < 1
+        || stepNo > saga.steps().size()) {
+      return true;
+    }
+    SagaStep step = saga.step(stepNo);
+    if (step.status() != SagaStepStatus.LOI || step.finishedAt() == null) {
+      return true;
+    }
+    Instant due =
+        step.finishedAt().plus(definition.step(stepNo).retry().backoffAfter(step.attempts()));
+    return !now.isBefore(due);
+  }
+
+  /**
+   * Đối chiếu một saga mà engine báo đang ở nút chờ: thăm dò kết quả lệnh của bước đang chờ khi bộ
+   * xử lý hỗ trợ, đánh thức khi saga đã có việc (trả lời tới trước khi tiến trình vào nút chờ, lệnh
+   * tiếp tục), hoặc tính quá hạn khi chờ trả lời quá thời hạn của bước.
    */
   @Transactional
   public void reconcileWaiting(UUID sagaId) {
     SagaInstance saga = require(sagaId);
     SagaDefinition definition = catalog.definition(saga.type());
     Instant now = now();
+    Optional<SagaStepHandler.StepReply> polled = poll(saga);
+    if (polled.isPresent()) {
+      SagaStep step = saga.step(saga.currentStepNo());
+      wakeUnlessBackingOff(
+          saga,
+          applyReply(
+              saga,
+              step.stepNo(),
+              step.commandEventId(),
+              polled.get().success(),
+              polled.get().error()));
+      return;
+    }
     if (saga.isReplyOverdue(definition, now)) {
       int stepNo = saga.currentStepNo();
       FailureDecision decision =
@@ -249,7 +299,8 @@ public class SagaService {
       applyDecision(saga, decision, stepNo);
       sagas.update(saga);
     }
-    if (nextFor(saga) != SagaEngine.Next.CHO || saga.status().isTerminal()) {
+    if ((nextFor(saga) != SagaEngine.Next.CHO || saga.status().isTerminal())
+        && retryDue(saga, definition, now)) {
       engine.wake(sagaId);
     }
   }
@@ -306,9 +357,28 @@ public class SagaService {
       }
       case StepResult.AwaitingReply awaiting -> {
         saga.awaitReply(stepNo, awaiting.commandEventId());
+        if (definition.step(stepNo).pointOfNoReturn()) {
+          saga.passPointOfNoReturn();
+        }
         journal.record(saga, Action.CHO_TRA_LOI, stepNo, true);
       }
+      case StepResult.Rejected rejected -> {
+        FailureDecision decision = saga.rejectStep(stepNo, rejected.error(), now);
+        journal.record(saga, Action.BUOC_LOI, stepNo, false);
+        applyDecision(saga, decision, stepNo);
+      }
     }
+  }
+
+  private Optional<SagaStepHandler.StepReply> poll(SagaInstance saga) {
+    int stepNo = saga.currentStepNo();
+    if (saga.status() != SagaStatus.CHO_SU_KIEN || !saga.acceptsReplyFor(stepNo)) {
+      return Optional.empty();
+    }
+    SagaStep step = saga.step(stepNo);
+    return catalog
+        .handler(saga.type(), step.stepCode())
+        .poll(invocation(saga, step, false), step.commandEventId(), step.startedAt());
   }
 
   private void compensate(SagaInstance saga, int stepNo, Instant now) {

@@ -1,11 +1,14 @@
 import { Component, DestroyRef, computed, inject, linkedSignal, signal } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { TextareaModule } from 'primeng/textarea';
+import { last } from 'rxjs';
 import {
+  JobAccepted,
+  JobTracker,
   UI_PACK_STATUS_LABEL,
   UiPackApi,
   UiPackRef,
@@ -16,7 +19,7 @@ import {
 } from '@vt/api-client';
 import { STUDIO_ACCESS } from '../../studio-permissions';
 import { STUDIO_STEP_UP } from '../../studio-step-up';
-import { errorText, fmtDate, problemCode } from '../../studio-ui';
+import { errorText, fmtDate, jobErrorText, problemCode } from '../../studio-ui';
 import { UiPackPreview } from './ui-pack-preview';
 import {
   FONT_OPTIONS,
@@ -158,11 +161,12 @@ const draftOf = (v: UiPackVersion | undefined): Draft | null =>
     }
 
     @if (pack(); as p) {
-      @if (!ver()) {
+      <!-- chờ danh sách phiên bản về rồi mới mời tạo bản nháp, tránh bấm lúc chưa biết có bản đang soạn -->
+      @if (!ver() && versions.hasValue() && !versions.isLoading()) {
         <section class="card" data-testid="no-draft">
           <p>
-            Đơn vị đang dùng giao diện bản {{ vlabel(p.currentVersion) }}. Tạo bản nháp mới để chỉnh
-            màu sắc, chữ hoặc bố cục trang chủ.
+            Đơn vị đang dùng giao diện bản {{ vlabel(currentVersion() ?? p.currentVersion) }}. Tạo
+            bản nháp mới để chỉnh màu sắc, chữ hoặc bố cục trang chủ.
           </p>
           @if (can('SCR-1801.soan')) {
             <p-button
@@ -972,6 +976,7 @@ export class UiPackPage {
   private readonly access = inject(STUDIO_ACCESS);
   private readonly stepUp = inject(STUDIO_STEP_UP);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly jobs = inject(JobTracker);
 
   protected readonly tabs = TABS;
   protected readonly tokenFields = TOKEN_FIELDS;
@@ -1016,6 +1021,11 @@ export class UiPackPage {
   protected readonly published = computed(() =>
     (this.versions.value()?.items ?? []).find((v) => v.status === 'DA_PHAT_HANH'),
   );
+  /**
+   * Bản đang dùng lấy từ danh sách phiên bản (đọc lại sau mỗi bước), vì `currentVersion` của gói chỉ
+   * đúng ở lần mở màn hình; sau phát hành hay quay lui, số bản nháp mới phải tính từ bản mới.
+   */
+  protected readonly currentVersion = computed(() => this.published()?.version ?? null);
   /** Bản đã thay thế gần nhất, đích của nút "Quay lui" trên đầu trang. */
   protected readonly rollbackTarget = computed(() =>
     (this.versions.value()?.items ?? []).find((v) => v.status === 'THAY_THE'),
@@ -1163,7 +1173,31 @@ export class UiPackPage {
     this.versions.reload();
   }
 
-  /** Đọc lại phiên bản cho tới khi bước nền (kiểm tra, phát hành) xong. */
+  /**
+   * Theo dõi tác vụ nền (202 + `Location`) bằng `JobTracker` tới khi kết thúc; xong thì đọc trạng thái
+   * phiên bản, thất bại hoặc bị huỷ thì báo lỗi của job.
+   */
+  private follow(
+    accepted: JobAccepted,
+    version: string,
+    done: (v: UiPackVersion) => boolean,
+    then: (v: UiPackVersion) => void,
+    failText: string,
+  ) {
+    this.jobs
+      .track(accepted.location)
+      .pipe(last(), takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (job) => {
+          if (job.status === 'HOAN_TAT') return this.poll(version, done, then);
+          this.busy.set(false);
+          this.error.set(jobErrorText(job, failText));
+          this.reloadVersions();
+        },
+        error: (e) => this.fail(e, 'Không theo dõi được tiến trình xử lý.'),
+      });
+  }
+
   private poll(
     version: string,
     done: (v: UiPackVersion) => boolean,
@@ -1205,7 +1239,7 @@ export class UiPackPage {
   protected createDraft() {
     const p = this.pack();
     if (!p) return;
-    const cur = p.currentVersion ?? '1.0.0';
+    const cur = this.currentVersion() ?? p.currentVersion ?? '1.0.0';
     const [a, b] = cur.split('.').map(Number);
     this.start();
     this.api.createVersion(p.id, { version: `${a}.${b + 1}.0`, cloneFromVersion: cur }).subscribe({
@@ -1249,10 +1283,11 @@ export class UiPackPage {
     if (!r || !v) return;
     this.start();
     this.api.submit(r, v.rowVersion).subscribe({
-      next: () => {
+      next: (accepted) => {
         this.busy.set(true);
         this.reloadVersions();
-        this.poll(
+        this.follow(
+          accepted,
           v.version,
           (x) => x.status !== 'DANG_KIEM_TRA',
           (x) =>
@@ -1263,6 +1298,7 @@ export class UiPackPage {
               : this.error.set(
                   `Bản ${uiVersionLabel(x.version)} chưa đạt kiểm tra tự động nên đã trở về bản nháp. Xem mục Kiểm tra tự động để sửa.`,
                 ),
+          'Không chạy được kiểm tra tự động.',
         );
       },
       error: (e) => this.fail(e, 'Không gửi duyệt được.'),
@@ -1280,14 +1316,16 @@ export class UiPackPage {
       return;
     }
     this.api.publish(r, v.rowVersion).subscribe({
-      next: () =>
-        this.poll(
+      next: (accepted) =>
+        this.follow(
+          accepted,
           v.version,
           (x) => x.status === 'DA_PHAT_HANH',
           (x) =>
             this.notice.set(
               `Giao diện bản ${uiVersionLabel(x.version)} đã phát hành. Người dùng sẽ nhận giao diện mới ở lần tải trang kế tiếp.`,
             ),
+          'Không phát hành được giao diện.',
         ),
       error: (e) => {
         this.busy.set(false);

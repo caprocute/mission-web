@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.viettel.okrkpi.org.application.port.AssignmentStore;
 import vn.viettel.okrkpi.org.application.port.ChangeOrderStore;
 import vn.viettel.okrkpi.org.application.port.IdempotencyPort;
+import vn.viettel.okrkpi.org.application.port.IntegrationGatewayPort;
 import vn.viettel.okrkpi.org.application.port.OrgUnitStore;
 import vn.viettel.okrkpi.org.application.port.PeriodLockPort;
 import vn.viettel.okrkpi.org.application.port.PolicyPort;
@@ -41,6 +42,9 @@ import vn.viettel.okrkpi.org.domain.VersionPlan;
 @Service
 public class OrgUnitCommandService {
 
+  /** Bộ kết nối CSDL quốc gia về CBCCVC ({@code integ.connector.code}). */
+  static final String NATIONAL_SOURCE = "CBCCVC";
+
   private final OrgUnitStore units;
   private final RelationStore relations;
   private final ChangeOrderStore orders;
@@ -49,11 +53,12 @@ public class OrgUnitCommandService {
   private final IdempotencyPort idempotency;
   private final PolicyPort policy;
   private final UnitSupport support;
+  private final IntegrationGatewayPort gateway;
   private final Clock clock;
 
   public OrgUnitCommandService(OrgUnitStore units, RelationStore relations, ChangeOrderStore orders,
       AssignmentStore assignments, PeriodLockPort periodLocks, IdempotencyPort idempotency,
-      PolicyPort policy, UnitSupport support, Clock clock) {
+      PolicyPort policy, UnitSupport support, IntegrationGatewayPort gateway, Clock clock) {
     this.units = units;
     this.relations = relations;
     this.orders = orders;
@@ -62,6 +67,7 @@ public class OrgUnitCommandService {
     this.idempotency = idempotency;
     this.policy = policy;
     this.support = support;
+    this.gateway = gateway;
     this.clock = clock;
   }
 
@@ -100,6 +106,10 @@ public class OrgUnitCommandService {
           actor);
     }
     support.emitUnitChanged(id, null, actor);
+    if (cmd.nationalCode() != null && !cmd.nationalCode().isBlank()) {
+      // Mã CSDL CBCCVC do integration-gateway giữ (integ.mapping_xref); lỗi gateway huỷ cả lần sửa.
+      gateway.mapUnitXref(actor.tenantId(), NATIONAL_SOURCE, cmd.nationalCode().strip(), id);
+    }
     TemporalQuery after = new TemporalQuery(from, null);
     OrgUnitView view = support.view(units.findAt(id, after).orElseThrow(), after);
     idempotency.complete(actor, idem, 200, view, id.toString());

@@ -559,7 +559,8 @@ paths:
       description: >-
         Gọi SVC-07 ở chế độ mô phỏng với các điều chỉnh cấu phần do người xử lý khiếu nại đề nghị,
         dùng Policy Pack của kỳ; không ghi ảnh chụp, không đổi trạng thái (BR-09-16). Kết quả chỉ để
-        hiển thị trên SCR-1202.
+        hiển thị trên SCR-1202. Cán bộ kiểm tra gọi gián tiếp qua `simulateReopenRequest` của MOD-07
+        để xem ảnh hưởng dự kiến của yêu cầu mở lại kỳ (QT-13 bước 4, BR-13-06).
       parameters:
         - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
       requestBody:
@@ -595,13 +596,13 @@ paths:
         '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
         default: { $ref: '../common/common.yaml#/components/responses/Problem' }
       x-mission:
-        qt: [QT-12]
-        scr: [SCR-1202]
+        qt: [QT-12, QT-13]
+        scr: [SCR-1202, SCR-1301]
         owner: SVC-07
-        roles: [appraiser]
-        scope: Gn
-        rules: [BR-09-16]
-        source: TL-02b SCR-1202 "Tính thử"
+        roles: [appraiser, inspector]
+        scope: 'Gn (appraiser), Tn (inspector)'
+        rules: [BR-09-16, BR-13-06]
+        source: TL-02b SCR-1202 "Tính thử"; QT-13 bước 4 tính thử ảnh hưởng mở lại kỳ (CORE-07-07)
 
   /appraisals/profiles/{id}/recompute:
     parameters:

@@ -49,6 +49,7 @@ import vn.viettel.okrkpi.org.infrastructure.web.model.WorkContext;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgChangeRequest;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgTree;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgTreeKind;
+import vn.viettel.okrkpi.org.infrastructure.web.model.OrgImportReport;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgUnit;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgUnitInput;
 import vn.viettel.okrkpi.org.infrastructure.web.model.SearchOrgUnits200Response;
@@ -282,6 +283,11 @@ public class OrgController implements OrgApi {
         .body(JobWebMapper.toDto(job));
   }
 
+  @Override
+  public ResponseEntity<OrgImportReport> getOrgImportReport(UUID id) {
+    return ResponseEntity.ok(JobWebMapper.toReport(imports.report(actor(), id)));
+  }
+
   private static byte[] sha256(byte[] content) {
     try {
       return MessageDigest.getInstance("SHA-256").digest(content);
@@ -444,6 +450,11 @@ public class OrgController implements OrgApi {
     body.setItems(page.items().stream().map(E2eeWebMapper::toDto).toList());
     body.setNextCursor(page.nextCursor());
     return ResponseEntity.ok(body);
+  }
+
+  @Override
+  public ResponseEntity<RecoveryRecord> getE2eeRecovery(UUID id) {
+    return ResponseEntity.ok(E2eeWebMapper.toDto(recovery.recovery(actor(), id)));
   }
 
   private Actor actor() {

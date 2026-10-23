@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import vn.viettel.okrkpi.cel.application.CelEngine;
 import vn.viettel.okrkpi.config.api.HolidayCalendarChangedEvent;
@@ -26,6 +27,8 @@ import vn.viettel.okrkpi.shared.routing.TenantDirectory;
 import vn.viettel.okrkpi.task.application.catalog.CatalogPolicy;
 import vn.viettel.okrkpi.task.application.fromplan.ConfirmedLinePlanChecker;
 import vn.viettel.okrkpi.task.application.fromplan.LeadConfirmationService;
+import vn.viettel.okrkpi.task.application.lifecycle.port.TaskDeliverables;
+import vn.viettel.okrkpi.task.application.plan.PlanAdjustmentService;
 import vn.viettel.okrkpi.task.application.plan.PlanChecker;
 import vn.viettel.okrkpi.task.application.plan.PlanDeadlineReminders;
 import vn.viettel.okrkpi.task.application.plan.PlanDeadlines;
@@ -58,15 +61,18 @@ public class PlanConfiguration {
         () -> vn.viettel.okrkpi.shared.tenant.TenantContext.current().orElse(null));
   }
 
+  /** CORE-02-10: BR-04-11, BR-04-12 đọc nhiệm vụ gắn dòng và minh chứng. */
   @Bean
   PlanService planService(
+      @Qualifier("taskDataSource") DataSource dataSource,
       JdbcPlanRepository planRepository,
       PeriodApi periods,
       OkrApi okr,
       ObjectProvider<OrgDirectoryApi> org,
       PlanChecker planChecker,
       ObjectProvider<PolicyQueryApi> policies,
-      ObjectProvider<CatalogPolicy> catalogPolicy) {
+      ObjectProvider<CatalogPolicy> catalogPolicy,
+      ObjectProvider<TaskDeliverables> deliverables) {
     return new PlanService(
         planRepository,
         periods,
@@ -75,7 +81,16 @@ public class PlanConfiguration {
         planChecker,
         policies.getIfAvailable(),
         catalogPolicy.getIfAvailable(),
+        new PlanTaskLineFacts(
+            new JdbcPlanTasks(JdbcClient.create(dataSource)), deliverables.getIfAvailable()),
         Clock.systemDefaultZone());
+  }
+
+  /** CORE-02-10: tạo điều chỉnh kế hoạch và so sánh phiên bản. */
+  @Bean
+  PlanAdjustmentService planAdjustmentService(
+      JdbcPlanRepository planRepository, PlanService planService, PeriodApi periods) {
+    return new PlanAdjustmentService(planRepository, planService, periods, Clock.systemUTC());
   }
 
   /** CORE-02-07: hạn duyệt BR-04-01 theo Policy Pack và lịch ngày làm việc của tenant. */

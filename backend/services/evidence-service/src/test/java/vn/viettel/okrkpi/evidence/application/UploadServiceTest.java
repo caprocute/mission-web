@@ -368,6 +368,49 @@ class UploadServiceTest {
   }
 
   @Test
+  void banMaC3ChiCapUrlChoNguoiConGiuBanBoc() throws Exception {
+    byte[] cipher = new byte[700];
+    UploadSession s = open(cipher, "application/octet-stream", "C3", true);
+    stubAssembled(cipher);
+    StoredFile f = service.complete(s.id(), List.of(new Part(1, 0, "e1")), USER).file();
+    when(storage.presignGet(any(), any(), any(), any(), any()))
+        .thenReturn(URI.create("http://rgw/c3"));
+    UUID other = UUID.randomUUID();
+    // Không có cổng MOD-03: chỉ người tải lên.
+    assertThat(service.downloadUrl(f.objectId(), null, false, USER).url()).isNotNull();
+    assertThat(code(() -> service.downloadUrl(f.objectId(), null, false, other)))
+        .isEqualTo("COMMON-403-OUT-OF-SCOPE");
+
+    java.util.Map<UUID, E2eeFileAccess.Decision> decisions = new java.util.HashMap<>();
+    UploadService withAccess =
+        new UploadService(
+            sessions,
+            files,
+            events::add,
+            (tenant, id, name) -> new FileNameCipher.Sealed(new byte[] {1}, UUID.randomUUID()),
+            storage,
+            new TenantBucketService(storage, "dev", 1),
+            guard,
+            TransactionOperations.withoutTransaction(),
+            new UploadService.Settings("dev", 50L * 1024 * 1024, PART, Duration.ofHours(24), 1),
+            Clock.fixed(NOW, ZoneOffset.UTC),
+            (tenant, object, person) -> decisions.get(person));
+    decisions.put(USER, new E2eeFileAccess.Decision(false, false));
+    decisions.put(other, new E2eeFileAccess.Decision(false, false));
+    assertThat(withAccess.downloadUrl(f.objectId(), null, false, USER).url()).isNotNull();
+    assertThat(code(() -> withAccess.downloadUrl(f.objectId(), null, false, other)))
+        .isEqualTo("COMMON-403-OUT-OF-SCOPE");
+    // Đã có bản bọc: người nhận còn hiệu lực được, người tải lên đã bị thu hồi thì không.
+    decisions.put(USER, new E2eeFileAccess.Decision(true, false));
+    decisions.put(other, new E2eeFileAccess.Decision(true, true));
+    assertThat(withAccess.downloadUrl(f.objectId(), null, false, other).url()).isNotNull();
+    assertThat(code(() -> withAccess.downloadUrl(f.objectId(), null, false, USER)))
+        .isEqualTo("COMMON-403-OUT-OF-SCOPE");
+    assertThat(code(() -> withAccess.downloadUrl(f.objectId(), null, false, null)))
+        .isEqualTo("COMMON-403-OUT-OF-SCOPE");
+  }
+
+  @Test
   void multipartDaMatThi409() throws Exception {
     byte[] content = pdf(1000);
     UploadSession s = open(content, "application/pdf", "C1", false);
@@ -385,7 +428,7 @@ class UploadServiceTest {
     UploadSession s = open(content, "application/pdf", "C1", false);
     stubAssembled(content);
     StoredFile f = service.complete(s.id(), List.of(new Part(1, 0, "e1")), USER).file();
-    assertThat(code(() -> service.downloadUrl(f.objectId(), null, false)))
+    assertThat(code(() -> service.downloadUrl(f.objectId(), null, false, USER)))
         .isEqualTo("FILE-409-NOT-CLEAN");
     StoredFile clean =
         new StoredFile(
@@ -409,10 +452,10 @@ class UploadServiceTest {
     fileRows.put(f.objectId(), clean);
     when(storage.presignGet(any(), eq("v1"), eq(Duration.ofMinutes(5)), any(), eq("attachment")))
         .thenReturn(URI.create("http://rgw/x"));
-    UploadService.DownloadLink link = service.downloadUrl(f.objectId(), null, true);
+    UploadService.DownloadLink link = service.downloadUrl(f.objectId(), null, true, USER);
     assertThat(link.expiresAt()).isEqualTo(NOW.plus(Duration.ofMinutes(5)));
     verify(guard, org.mockito.Mockito.times(2)).checkDownload(any());
-    assertThatThrownBy(() -> service.downloadUrl(UUID.randomUUID(), null, false))
+    assertThatThrownBy(() -> service.downloadUrl(UUID.randomUUID(), null, false, USER))
         .isInstanceOf(UploadService.FileNotFound.class);
     assertThat(new FileAccessGuard.FileAccess(clean).toAuthzResource().type()).isEqualTo("file");
   }

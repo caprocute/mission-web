@@ -1167,6 +1167,48 @@ paths:
         scope: B; Gn
         source: 'ADR-06; TL-01 chương 9; TL-03 task.e2ee_key_wrap'
 
+  /tasks/{id}/secret-content/recovery-wraps:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Nhiệm vụ]
+      operationId: restoreTaskSecretKeyWrap
+      summary: Nạp khoá bọc C3 cho thiết bị mới sau khi khôi phục bằng khoá phục hồi tổ chức
+      description: >-
+        Sau buổi khôi phục khi người nhận mất khoá thiết bị (TL-01 "Khôi phục khi mất khoá"), quản trị tenant
+        đã ghi biên bản bằng `recordE2eeRecovery` của SVC-04 và bọc lại khoá nội dung cho khoá thiết bị mới
+        của người đó ở phía client. Máy chủ đối chiếu biên bản `recoveryId` qua SVC-04: `objectType` là
+        `TASK_CONTENT`, `objectId` là nhiệm vụ, `newRecipientId` và `newKeyFingerprint` khớp bản bọc, biên bản
+        ghi trong 24 giờ; sai trả 422. Người nhận phải là người tham gia nhiệm vụ. Không đổi phiên bản nội dung;
+        ghi lại cùng biên bản là thao tác lặp, không tạo bản bọc thứ hai.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskSecretRecoveryWrapRequest' }
+      responses:
+        '200':
+          description: Siêu dữ liệu bản mã C3 sau khi nạp khoá bọc khôi phục.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskSecretContentMeta' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '503': { $ref: '../common/common.yaml#/components/responses/ServiceUnavailable' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0103]
+        owner: MOD-02
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        source: 'TL-01 "Khôi phục khi mất khoá"; TL-04 SEC-25; TL-03 task.e2ee_key_wrap'
+
   /tasks/{id}/secret-content/shares/{personId}:
     parameters:
       - $ref: '../common/common.yaml#/components/parameters/IdPath'
@@ -3835,6 +3877,13 @@ components:
           type: array
           minItems: 1
           items: { $ref: '#/components/schemas/TaskKeyWrap' }
+    TaskSecretRecoveryWrapRequest:
+      type: object
+      required: [recoveryId, keyWrap]
+      properties:
+        recoveryId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+        keyWrap: { $ref: '#/components/schemas/TaskKeyWrap' }
     PlanItemScoreRequest:
       type: object
       required: [difficulty, standardScore]
