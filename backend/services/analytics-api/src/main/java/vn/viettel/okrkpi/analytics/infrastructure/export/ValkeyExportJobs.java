@@ -14,6 +14,7 @@ import vn.viettel.okrkpi.analytics.application.ExportJob;
 import vn.viettel.okrkpi.analytics.application.ExportPorts;
 import vn.viettel.okrkpi.shared.cache.TenantCache;
 import vn.viettel.okrkpi.shared.cache.TenantCacheKey;
+import vn.viettel.okrkpi.shared.job.JobIds;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 
 /**
@@ -44,12 +45,12 @@ final class ValkeyExportJobs implements ExportPorts.Jobs {
 
   @Override
   public Optional<ExportJob> find(UUID tenant, String jobId) {
-    try {
-      UUID.fromString(jobId);
-    } catch (IllegalArgumentException e) {
+    // Khoá đệm theo mã ana-<uuid>; mã UUID trần (trước khi có tiền tố) quy về cùng khoá.
+    Optional<UUID> id = JobIds.parse(ExportJob.JOB_PREFIX, jobId);
+    if (id.isEmpty()) {
       return Optional.empty();
     }
-    Optional<String> v = cache.get(jobKey(tenant, jobId));
+    Optional<String> v = cache.get(jobKey(tenant, JobIds.format(ExportJob.JOB_PREFIX, id.get())));
     if (v.isEmpty()) {
       return Optional.empty();
     }
