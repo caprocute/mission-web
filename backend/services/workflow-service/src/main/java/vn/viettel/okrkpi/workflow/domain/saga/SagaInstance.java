@@ -171,6 +171,15 @@ public final class SagaInstance {
     status = SagaStatus.CHO_SU_KIEN;
   }
 
+  /**
+   * Lệnh của bước điểm không quay lại đã phát: từ đây không bù trừ được nữa dù bước chưa xong (ví
+   * dụ kỳ đã sang {@code DA_KHOA} nhưng niêm phong chưa trả lời), chỉ thử lại hoặc chờ người vận
+   * hành.
+   */
+  public void passPointOfNoReturn() {
+    pointOfNoReturnPassed = true;
+  }
+
   /** Bước xong; trả {@code true} khi đây là bước cuối và saga hoàn tất. */
   public boolean completeStep(
       int stepNo, UUID replyEventId, SagaDefinition definition, Instant now) {
@@ -212,6 +221,21 @@ public final class SagaInstance {
       return new FailureDecision.Retry(retry.backoffAfter(step.attempts()));
     }
     if (!pointOfNoReturnPassed && definition.compensateOnExhaustion()) {
+      beginCompensation(stepNo - 1);
+      return new FailureDecision.StartCompensation();
+    }
+    status = SagaStatus.LOI_CAN_XU_LY;
+    return new FailureDecision.NeedsOperator();
+  }
+
+  /**
+   * Bước hiện tại bị từ chối theo nghiệp vụ: không thử lại. Trước điểm không quay lại thì bù trừ
+   * các bước đã xong (dù saga không bật bù trừ khi hết lần thử), sau đó thì chờ người vận hành.
+   */
+  public FailureDecision rejectStep(int stepNo, String error, Instant now) {
+    requireCurrent(stepNo);
+    step(stepNo).fail(error, now);
+    if (!pointOfNoReturnPassed) {
       beginCompensation(stepNo - 1);
       return new FailureDecision.StartCompensation();
     }

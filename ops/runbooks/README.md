@@ -28,6 +28,7 @@ Mỗi cảnh báo trong `deploy/charts/observability-cell/rules/` và `deploy/ch
 | `degradation` | SaturationLevel2 | Cell vào mức suy giảm 2 (TL-04 mục 6.9) |
 | `capacity` | NodeCapacityHeadroomLow | Năng lực dự phòng node pool dưới 15% |
 | `release-freeze` | ErrorBudgetHalfSpent | Dừng phát hành khi tiêu quá nửa ngân sách lỗi trước ngày 15 (OPS-19) |
+| `saga-chot-ky` | MSG-08-04 (nhật ký, `okrkpi_saga_period_close_over_budget_total`) | Theo dõi và xử lý saga chốt kỳ `CHOT_KY` (DV-06-06) |
 | `nang-bac` | NG01..NG14 | Ngưỡng nâng bậc của TL-05 và quy trình nâng bậc |
 
 Sổ tay đã có: `phat-lai-outbox.md` (phát lại sự kiện từ outbox, NEN-022).
