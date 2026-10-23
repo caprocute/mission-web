@@ -147,6 +147,50 @@ public interface TaskApi {
    */
   TransitionOutcome requestTransition(TenantId tenant, TransitionRequest request);
 
+  /**
+   * Lập và giao ngay một việc do mô-đun khác phát sinh (đề xuất bố trí lại công việc của MOD-04, QĐ
+   * khoản 15.6, CORE-04-11): nhiệm vụ đột xuất có căn cứ, qua đủ quy tắc giao của QT-05 và phát
+   * EVT-04 như giao việc thường.
+   *
+   * @return mã nhiệm vụ đã giao
+   * @throws vn.viettel.okrkpi.shared.error.BusinessException khi quy tắc giao chặn hoặc kỳ đã khoá
+   */
+  default UUID openDirectedTask(TenantId tenant, DirectedTask task) {
+    throw new UnsupportedOperationException("MOD-02 chưa hỗ trợ lập việc từ mô-đun khác");
+  }
+
+  /**
+   * Việc do mô-đun khác phát sinh.
+   *
+   * @param periodId kỳ chứa hạn của việc
+   * @param basis căn cứ (BR-05-09)
+   * @param leadPersonId người chủ trì
+   * @param acceptorId người nghiệm thu, khác người chủ trì (BR-05-02)
+   * @param actorId người giao (người gọi thao tác ở mô-đun nguồn)
+   */
+  record DirectedTask(
+      UUID periodId,
+      String title,
+      String basis,
+      String productName,
+      String qualityCriteria,
+      String evidenceRequired,
+      java.time.LocalDate dueDate,
+      UUID leadPersonId,
+      UUID acceptorId,
+      UUID actorId,
+      Set<String> actorRoles) {
+
+    public DirectedTask {
+      java.util.Objects.requireNonNull(periodId, "periodId");
+      java.util.Objects.requireNonNull(title, "title");
+      java.util.Objects.requireNonNull(dueDate, "dueDate");
+      java.util.Objects.requireNonNull(leadPersonId, "leadPersonId");
+      java.util.Objects.requireNonNull(actorId, "actorId");
+      actorRoles = Set.copyOf(actorRoles == null ? Set.of() : actorRoles);
+    }
+  }
+
   /** Lệnh mà MOD-03 được yêu cầu (mã của bảng {@code task_lifecycle}). */
   enum Command {
     /** Đủ sản phẩm đã nộp: {@code DANG_THUC_HIEN → CHO_NGHIEM_THU}. */

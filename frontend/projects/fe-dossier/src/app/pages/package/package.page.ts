@@ -208,8 +208,9 @@ export class PackagePage {
   protected async exportPackage() {
     const p = this.p();
     if (!p) return;
-    this.notice.set('Đang đóng gói tệp, đồng chí vui lòng chờ…');
     const res = await this.run(async () => {
+      // run() xoá thông báo cũ, nên nhãn chờ đặt bên trong để người dùng thấy trong lúc đóng gói
+      this.notice.set('Đang đóng gói tệp, đồng chí vui lòng chờ…');
       const job = await this.finish((await firstValueFrom(this.api.exportPackage(p.id))).location);
       if (job?.status !== 'HOAN_TAT' || !job.resultLocation) return null;
       return firstValueFrom(this.api.download(job.resultLocation));

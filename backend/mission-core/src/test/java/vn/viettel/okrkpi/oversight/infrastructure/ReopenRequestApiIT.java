@@ -231,7 +231,7 @@ class ReopenRequestApiIT extends ContractConformanceTest {
     MvcResult got = perform(get(BASE + "/" + id));
     assertThat(status(got)).as(text(got)).isEqualTo(200);
     assertResponseConforms(got, "/oversight/reopen-requests/{id}", PathItem.HttpMethod.GET);
-    MvcResult page = perform(get(BASE + "?periodId=" + locked + "&status=CHO_DUYET_1,CHO_DUYET_2"));
+    MvcResult page = perform(get(BASE + "?period=" + locked + "&status=CHO_DUYET_1,CHO_DUYET_2"));
     assertThat(status(page)).as(text(page)).isEqualTo(200);
     assertResponseConforms(page, "/oversight/reopen-requests", PathItem.HttpMethod.GET);
     assertThat(body(page).get("items")).hasSize(1);

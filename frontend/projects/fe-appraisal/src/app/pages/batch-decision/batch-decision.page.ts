@@ -178,7 +178,15 @@ export class BatchDecisionPage {
       this.visible()
         .map((r) => r.id)
         .join(','),
-    computation: () => new Set(this.visible().map((r) => r.id)),
+    // Lần đầu chọn tất cả; khi danh sách nạp lại hay đổi bộ lọc thì giữ lựa chọn của người dùng
+    // (bỏ hồ sơ không còn hiện), hồ sơ mới xuất hiện chỉ được chọn sẵn nếu trước đó đang chọn tất cả.
+    computation: (ids, prev) => {
+      const now = ids ? ids.split(',') : [];
+      if (!prev) return new Set(now);
+      const before = prev.source ? prev.source.split(',') : [];
+      const wasAll = before.every((id) => prev.value.has(id));
+      return new Set(now.filter((id) => prev.value.has(id) || (wasAll && !before.includes(id))));
+    },
   });
   protected readonly items = computed(() =>
     this.visible().filter((r) => this.selected().has(r.id)),

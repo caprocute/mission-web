@@ -529,6 +529,151 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/org/persons/me/public-keys': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Đăng ký khoá công khai của thiết bị hoặc chứng thư số vào danh bạ khoá
+     * @description Thiết bị sinh cặp khoá ECDH P-256 không trích xuất được và đăng ký khoá công khai khi người dùng đăng nhập có MFA lần đầu trên thiết bị (ADR-27). Máy chủ kiểm dạng SubjectPublicKeyInfo đúng thuật toán, tính vân tay SHA-256 của SPKI, ký bản ghi bằng khoá danh bạ của tenant qua OpenBao Transit (không giữ khoá trong mã) và ghi sổ cái `sys.audit.v1` trong cùng giao dịch. Vân tay đã có trong tenant trả 409 (`ORG-409-PUBLIC-KEY-EXISTS`).
+     */
+    post: operations['registerMyPublicKey'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/org/persons/{id}/public-keys': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Khoá công khai của một cán bộ trong danh bạ khoá
+     * @description Trình duyệt người gửi lấy khoá công khai của từng người nhận để bọc khoá nội dung C3 (TL-01 "Mô hình mã hoá" bước 1). Mặc định chỉ trả khoá còn hiệu lực; khoá quá `validTo` trả trạng thái `HET_HAN`. Mỗi khoá kèm chữ ký của danh bạ để thiết bị kiểm trước khi dùng.
+     */
+    get: operations['listPersonPublicKeys'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/org/public-keys/{id}/revoke': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Thu hồi khoá công khai (mất thiết bị, đổi chứng thư)
+     * @description Chủ khoá hoặc quản trị tenant thu hồi khoá; khoá chuyển `THU_HOI`, không dùng để bọc khoá nội dung mới. Thu hồi được ghi sổ cái. Thu hồi lại khoá đã thu hồi trả 200 với bản ghi hiện tại.
+     */
+    post: operations['revokePublicKey'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/org/e2ee/directory-keys': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Khoá công khai của danh bạ khoá tenant để kiểm chữ ký
+     * @description Các phiên bản khoá ký ECDSA P-256 của danh bạ khoá tenant (OpenBao Transit). Thiết bị dùng để kiểm chữ ký `signature` của khoá người nhận và khoá phục hồi trước khi bọc khoá nội dung.
+     */
+    get: operations['listE2eeDirectoryKeys'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/org/e2ee/recovery-key': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Khoá phục hồi của tổ chức đang hiệu lực
+     * @description Mỗi khoá nội dung C3 luôn được bọc thêm cho khoá phục hồi của tenant (ADR-27). Người gửi lấy khoá công khai phục hồi ở đây; `id` là mã người nhận đại diện dùng trong bản bọc. Chưa khai báo trả 404.
+     */
+    get: operations['getRecoveryKey'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/org/e2ee/recovery-keys': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Khai báo hoặc thay khoá phục hồi của tổ chức
+     * @description Quản trị tenant ghi khoá công khai phục hồi sinh ở máy trạm cách ly; khoá riêng chia Shamir 3 trên 5 cho năm cán bộ giữ mảnh theo biên bản, không đi qua máy chủ. Khoá mới có hiệu lực ngay, khoá cũ chuyển `THU_HOI` nhưng vẫn mở được bản bọc đã có ở máy trạm. Ghi sổ cái.
+     */
+    post: operations['rotateRecoveryKey'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/org/e2ee/recoveries': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Nhật ký các lần phục hồi tổ chức */
+    get: operations['listE2eeRecoveries'];
+    put?: never;
+    /**
+     * Ghi một lần phục hồi tổ chức
+     * @description Ghi lần phục hồi đã làm ở máy trạm cách ly: ít nhất ba người giữ mảnh của khoá phục hồi cùng có mặt, khoá nội dung của đối tượng được bọc lại cho khoá thiết bị mới của người nhận. Máy chủ chỉ lưu nhật ký (không nhận mảnh khoá hay khoá riêng), ký bản ghi và ghi sổ cái.
+     */
+    post: operations['recordE2eeRecovery'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -887,6 +1032,114 @@ export interface components {
       signedDocRef: string;
       correctedOrder: components['schemas']['OrgChangeRequest'];
     };
+    /**
+     * @description Thuật toán khoá công khai (`org.person_public_key.key_alg`).
+     * @enum {string}
+     */
+    PublicKeyAlg: 'ECDH-P256' | 'RSA-OAEP-3072' | 'BCY';
+    /** @description Chữ ký của danh bạ khoá tenant (ECDSA P-256, SHA-256, chữ ký DER mã base64) trên chuỗi chuẩn `v1|<tenantId>|<loại>|<id>|<chủ khoá>|<keyAlg>|<fingerprint>|<validFrom>|<validTo>` với thời điểm dạng ISO 8601 UTC; `<loại>` là `PERSON_KEY` hoặc `RECOVERY_KEY`, `<validTo>` rỗng khi không giới hạn. */
+    DirectorySignature: {
+      /** @description Phiên bản khoá ký trong `listE2eeDirectoryKeys` */
+      keyVersion: number;
+      /** @description Chữ ký DER dạng base64 */
+      value: string;
+      signedAt: components['schemas']['DateTime'];
+    };
+    DirectoryKey: {
+      keyVersion: number;
+      /** @description Khoá công khai ECDSA P-256 dạng PEM */
+      publicKeyPem: string;
+    };
+    PublicKeyRegistration: {
+      keyAlg: components['schemas']['PublicKeyAlg'];
+      /** @description SubjectPublicKeyInfo DER dạng base64 */
+      publicKeySpki: string;
+      /** @enum {string} */
+      source: 'THIET_BI' | 'CHUNG_THU';
+      /**
+       * Format: date-time
+       * @description Hết hiệu lực (theo chứng thư); bỏ trống là ba năm kể từ khi đăng ký.
+       */
+      validTo?: string | null;
+    };
+    /** @description Khoá công khai trong danh bạ (`org.person_public_key`). */
+    PersonPublicKey: {
+      id: components['schemas']['Uuid'];
+      personId: components['schemas']['Uuid'];
+      keyAlg: components['schemas']['PublicKeyAlg'];
+      /** @description SubjectPublicKeyInfo DER dạng base64 */
+      publicKeySpki: string;
+      /** @description SHA-256 của SPKI dạng hex, là `deviceId` của bản bọc */
+      fingerprint: string;
+      /** @enum {string} */
+      source: 'THIET_BI' | 'CHUNG_THU';
+      /** @enum {string} */
+      status: 'HIEU_LUC' | 'THU_HOI' | 'HET_HAN';
+      validFrom: components['schemas']['DateTime'];
+      validTo: components['schemas']['DateTime'];
+      signature: components['schemas']['DirectorySignature'];
+    };
+    PublicKeyRevocation: {
+      reason: string;
+    };
+    RecoveryKeyInput: {
+      /** @enum {string} */
+      keyAlg: 'ECDH-P256' | 'RSA-OAEP-3072';
+      /** @description SubjectPublicKeyInfo DER dạng base64 */
+      publicKeySpki: string;
+      /** @description Năm cán bộ giữ mảnh khoá (Shamir 3 trên 5). */
+      custodianIds: components['schemas']['Uuid'][];
+      /** @description Số biên bản tạo và giao mảnh khoá */
+      ceremonyRef: string;
+    };
+    /** @description Khoá phục hồi của tổ chức. */
+    RecoveryKey: {
+      id: components['schemas']['Uuid'];
+      /** @enum {string} */
+      keyAlg: 'ECDH-P256' | 'RSA-OAEP-3072';
+      publicKeySpki: string;
+      fingerprint: string;
+      /** @description Số mảnh tối thiểu để phục hồi */
+      threshold: number;
+      custodianIds: components['schemas']['Uuid'][];
+      ceremonyRef: string;
+      /** @enum {string} */
+      status: 'HIEU_LUC' | 'THU_HOI';
+      validFrom: components['schemas']['DateTime'];
+      /** Format: date-time */
+      validTo?: string | null;
+      signature: components['schemas']['DirectorySignature'];
+    };
+    /** @enum {string} */
+    RecoveryObjectType: 'TASK_CONTENT' | 'EVIDENCE_FILE';
+    RecoveryRecordInput: {
+      recoveryKeyId: components['schemas']['Uuid'];
+      objectType: components['schemas']['RecoveryObjectType'];
+      objectId: components['schemas']['Uuid'];
+      newRecipientId: components['schemas']['Uuid'];
+      /** @description Vân tay khoá thiết bị mới đã có trong danh bạ */
+      newKeyFingerprint: string;
+      /** @description Những người giữ mảnh có mặt (ít nhất ngưỡng của khoá phục hồi). */
+      custodianIds: components['schemas']['Uuid'][];
+      reason: string;
+      /** @description Số biên bản phục hồi */
+      ceremonyRef: string;
+      performedAt: components['schemas']['DateTime'];
+    };
+    RecoveryRecord: {
+      id: components['schemas']['Uuid'];
+      recoveryKeyId: components['schemas']['Uuid'];
+      objectType: components['schemas']['RecoveryObjectType'];
+      objectId: components['schemas']['Uuid'];
+      newRecipientId: components['schemas']['Uuid'];
+      newKeyFingerprint: string;
+      custodianIds: components['schemas']['Uuid'][];
+      reason: string;
+      ceremonyRef: string;
+      performedAt: components['schemas']['DateTime'];
+      recordedBy: components['schemas']['Uuid'];
+      recordedAt: components['schemas']['DateTime'];
+    };
     FieldError: {
       /** @description Tên trường theo JSON của thân yêu cầu, dạng đường dẫn chấm */
       field: string;
@@ -1057,6 +1310,16 @@ export interface components {
       };
       content: {
         'application/json': components['schemas']['Job'];
+      };
+    };
+    /** @description Cắt tải khi cell gần bão hoà; thử lại có giãn cách. */
+    ServiceUnavailable: {
+      headers: {
+        'Retry-After': components['headers']['RetryAfter'];
+        [name: string]: unknown;
+      };
+      content: {
+        'application/problem+json': components['schemas']['ProblemDetails'];
       };
     };
   };
@@ -2053,6 +2316,275 @@ export interface operations {
         };
       };
       403: components['responses']['Forbidden'];
+      default: components['responses']['Problem'];
+    };
+  };
+  registerMyPublicKey: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PublicKeyRegistration'];
+      };
+    };
+    responses: {
+      /** @description Khoá công khai đã đăng ký và ký. */
+      201: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          Location: components['headers']['Location'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PersonPublicKey'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      /** @description Vân tay khoá đã có trong danh bạ của tenant (`ORG-409-PUBLIC-KEY-EXISTS`). */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      422: components['responses']['UnprocessableEntity'];
+      503: components['responses']['ServiceUnavailable'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listPersonPublicKeys: {
+    parameters: {
+      query?: {
+        /** @description Trả cả khoá đã thu hồi hoặc hết hạn (đối chiếu lịch sử). */
+        includeInactive?: boolean;
+      };
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Danh sách khoá công khai. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: components['schemas']['PersonPublicKey'][];
+          };
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      default: components['responses']['Problem'];
+    };
+  };
+  revokePublicKey: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PublicKeyRevocation'];
+      };
+    };
+    responses: {
+      /** @description Khoá sau khi thu hồi. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PersonPublicKey'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listE2eeDirectoryKeys: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Các phiên bản khoá ký. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: components['schemas']['DirectoryKey'][];
+          };
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      503: components['responses']['ServiceUnavailable'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getRecoveryKey: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Khoá phục hồi đang hiệu lực. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecoveryKey'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  rotateRecoveryKey: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RecoveryKeyInput'];
+      };
+    };
+    responses: {
+      /** @description Khoá phục hồi mới. */
+      201: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecoveryKey'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      /** @description Vân tay khoá đã có trong danh bạ của tenant (`ORG-409-PUBLIC-KEY-EXISTS`). */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      422: components['responses']['UnprocessableEntity'];
+      503: components['responses']['ServiceUnavailable'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listE2eeRecoveries: {
+    parameters: {
+      query?: {
+        objectId?: components['schemas']['Uuid'];
+        /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
+        limit?: components['parameters']['Limit'];
+        /** @description Con trỏ mờ lấy từ `nextCursor` của trang trước. Không tự dựng giá trị. */
+        cursor?: components['parameters']['Cursor'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Một trang nhật ký, mới nhất trước. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: components['schemas']['RecoveryRecord'][];
+            nextCursor: components['schemas']['NextCursor'];
+          };
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      default: components['responses']['Problem'];
+    };
+  };
+  recordE2eeRecovery: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RecoveryRecordInput'];
+      };
+    };
+    responses: {
+      /** @description Nhật ký lần phục hồi. */
+      201: {
+        headers: {
+          Location: components['headers']['Location'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecoveryRecord'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      422: components['responses']['UnprocessableEntity'];
+      503: components['responses']['ServiceUnavailable'];
       default: components['responses']['Problem'];
     };
   };

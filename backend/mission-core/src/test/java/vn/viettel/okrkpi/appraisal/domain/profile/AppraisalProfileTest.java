@@ -215,6 +215,20 @@ class AppraisalProfileTest {
 
   // ---------------------------------------------------------------- dựng sẵn
 
+  /** CORE-04-10: hồ sơ năm đã ký về bước quyết định, mức cũ không còn hiện hành. */
+  @Test
+  void duaVeBuocQuyetDinhSauHauKiem() {
+    AppraisalProfile p = signed();
+    assertThatThrownBy(() -> p.reopenDecision(SYSTEM, " ")).satisfies(code(Code.REASON_REQUIRED));
+    StepCompleted step = p.reopenDecision(SYSTEM, "Thi hành kết luận hậu kiểm");
+    assertThat(step.to()).isEqualTo(AppraisalStatus.CHO_QUYET_DINH);
+    assertThat(p.finalRating()).isEmpty();
+    assertThat(p.currentRating(LevelKind.QUYET_DINH)).isEmpty();
+    p.recordRating(id(), LevelKind.QUYET_DINH, RatingLevel.HTNV, DECIDER, "decider", false);
+    assertThatThrownBy(() -> appraised().reopenDecision(SYSTEM, "lý do"))
+        .satisfies(code(Code.TRANSITION_NOT_ALLOWED));
+  }
+
   private static AppraisalProfile opened() {
     AppraisalProfile p = AppraisalProfile.open(UUID.randomUUID(), PERSON);
     p.openSelfAssessment(UUID.randomUUID(), RatingLevel.HTTNV, SYSTEM);

@@ -1,0 +1,31 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/api/v2/directives",
+    "queryParameters": {
+      "updatedSince": { "equalTo": "1970-01-01T00:00:00Z" },
+      "limit": { "equalTo": "200" }
+    },
+    "headers": { "Authorization": { "equalTo": "Bearer ma-gia-lap" } }
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "items": [
+        {
+          "id": "VB-2026-0001",
+          "version": 1,
+          "docNumber": "12/CT-UBND",
+          "issuedDate": "2026-10-19",
+          "issuer": "Uỷ ban nhân dân tỉnh",
+          "summary": "Chỉ đạo triển khai nhiệm vụ trọng tâm quý IV năm 2026",
+          "recipientUnitId": "DV-01",
+          "updatedAt": "2026-10-20T01:00:00Z",
+          "attachments": [{ "id": "F-0001", "name": "12-CT-UBND.pdf" }]
+        }
+      ],
+      "nextUpdatedSince": "2026-10-20T01:00:00Z"
+    }
+  }
+}

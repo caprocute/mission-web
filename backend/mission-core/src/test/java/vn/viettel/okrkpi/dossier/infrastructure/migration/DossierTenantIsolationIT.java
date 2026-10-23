@@ -129,7 +129,7 @@ class DossierTenantIsolationIT extends TenantIsolationCatalogTest {
                           "NULL",
                           "'DANG_LAP'")))
           .hasMessageContaining("duplicate key")
-          // V2 (CORE-06-07): ràng buộc mã gồm version_no, tên chỉ mục phân vùng thành
+          // V3 (CORE-06-07): ràng buộc mã gồm version_no, tên chỉ mục phân vùng thành
           // ..._code_ver_key.
           .hasMessageContaining("code_ver");
       // Gói con diện TW theo người cùng đơn vị, kỳ, loại được phép, mỗi người một gói.

@@ -147,6 +147,30 @@ class TaskTenantIsolationIT extends TenantIsolationCatalogTest {
           r.put("state_machine_version", "task-v1");
           return r;
         });
+    f.put(
+        "task.task_secret_content",
+        (tenant, seed) -> {
+          Map<String, Object> r = satellite(tenant, "task_secret_content");
+          r.put("ciphertext", new byte[] {1, 2, 3, (byte) seed});
+          r.put("nonce", new byte[12]);
+          r.put("aad_hash", new byte[32]);
+          r.put("content_sha256", new byte[32]);
+          r.put("sender_key_fingerprint", new byte[32]);
+          return r;
+        });
+    f.put(
+        "task.e2ee_key_wrap",
+        (tenant, seed) -> {
+          Map<String, Object> r = common(tenant, "e2ee_key_wrap");
+          r.remove("period_bucket");
+          r.put("object_id", id(tenant, "task"));
+          r.put("recipient_person_id", id(tenant, "user"));
+          r.put("recipient_key_fingerprint", new byte[32]);
+          r.put("wrap_alg", "RSA-OAEP-256");
+          r.put("wrapped_cek", new byte[] {4, 5, (byte) seed});
+          r.put("granted_by", id(tenant, "user"));
+          return r;
+        });
     return f;
   }
 

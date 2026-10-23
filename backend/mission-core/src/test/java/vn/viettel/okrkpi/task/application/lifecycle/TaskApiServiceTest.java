@@ -21,6 +21,11 @@ import vn.viettel.okrkpi.task.api.TaskApi.Outcome;
 import vn.viettel.okrkpi.task.api.TaskApi.TransitionRequest;
 import vn.viettel.okrkpi.task.api.events.TrangThaiNhiemVuDoi;
 import vn.viettel.okrkpi.task.application.TaskApiService;
+import vn.viettel.okrkpi.task.application.assign.TaskAssignService;
+import vn.viettel.okrkpi.task.application.assign.TaskDraftService;
+import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.DraftRow;
+import vn.viettel.okrkpi.task.domain.assign.TaskDraftSpec;
+import vn.viettel.okrkpi.task.domain.lifecycle.TaskActor;
 import vn.viettel.okrkpi.task.domain.lifecycle.TaskStatus;
 import vn.viettel.okrkpi.task.domain.lifecycle.TransitionTables;
 
@@ -152,6 +157,28 @@ class TaskApiServiceTest {
   }
 
   @Test
+  void yeuCauLamLaiVoiSanPhamThieuMaVaTrangThaiKhongQuaGuard() {
+    UUID id = put(TaskStatus.CHO_NGHIEM_THU);
+    // Sản phẩm thiếu mã và trạng thái vẫn được đưa vào ngữ cảnh guard dưới dạng chuỗi rỗng.
+    assertThatThrownBy(
+            () ->
+                api.requestTransition(
+                    TENANT,
+                    new TransitionRequest(
+                        id,
+                        TaskApi.Command.REWORK,
+                        UUID.randomUUID(),
+                        Set.of("manager"),
+                        "Bổ sung số liệu",
+                        List.of(new DeliverableState(null, null)),
+                        null)))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e -> assertThat(e.errorCode().code()).isEqualTo(TaskTransitionService.GUARD_FAILED));
+    assertThat(repo.rows.get(id).status()).isEqualTo(TaskStatus.CHO_NGHIEM_THU);
+  }
+
+  @Test
   void lietKeTheoNguoiGioiHan200() {
     for (int i = 0; i < 3; i++) {
       put(TaskStatus.DA_GIAO);
@@ -258,5 +285,49 @@ class TaskApiServiceTest {
     assertThat(service.listWorkItems(TENANT, p, List.of(), 10)).isEmpty();
     service.listResponsibleItems(TENANT, p, person);
     org.mockito.Mockito.verify(reads).responsibleItems(TENANT, period, person);
+  }
+
+  @Test
+  void lapViecTheoQuyDinhSoanRoiGiaoDuoiVaiTroNguoiGiao() {
+    assertThatThrownBy(() -> api.openDirectedTask(TENANT, directed()))
+        .isInstanceOf(UnsupportedOperationException.class);
+    TaskDraftService drafts = org.mockito.Mockito.mock(TaskDraftService.class);
+    TaskAssignService assigns = org.mockito.Mockito.mock(TaskAssignService.class);
+    UUID id = UUID.randomUUID();
+    var spec = org.mockito.ArgumentCaptor.forClass(TaskDraftSpec.class);
+    var actor = org.mockito.ArgumentCaptor.forClass(TaskActor.class);
+    org.mockito.Mockito.when(
+            drafts.createDraft(
+                org.mockito.ArgumentMatchers.eq(TENANT), spec.capture(), actor.capture()))
+        .thenReturn(new DraftRow(id, "NV-1", "NHAP", period, 1, null, null, false, null, 2));
+    TaskApi full = new TaskApiService(repo, transitions, () -> drafts, () -> assigns);
+
+    assertThat(full.openDirectedTask(TENANT, directed())).isEqualTo(id);
+    assertThat(spec.getValue().source()).isEqualTo("DOT_XUAT");
+    assertThat(spec.getValue().basis()).isEqualTo("Căn cứ");
+    assertThat(actor.getValue().roles()).contains("manager", "appraiser");
+    org.mockito.Mockito.verify(assigns)
+        .assignTask(
+            org.mockito.ArgumentMatchers.eq(TENANT),
+            org.mockito.ArgumentMatchers.eq(id),
+            org.mockito.ArgumentMatchers.eq(2L),
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.isNull(),
+            org.mockito.ArgumentMatchers.eq(actor.getValue()));
+  }
+
+  private TaskApi.DirectedTask directed() {
+    return new TaskApi.DirectedTask(
+        period,
+        "Việc",
+        "Căn cứ",
+        "Văn bản",
+        "Tiêu chí",
+        "Bằng chứng",
+        java.time.LocalDate.parse("2027-04-10"),
+        UUID.randomUUID(),
+        UUID.randomUUID(),
+        UUID.randomUUID(),
+        Set.of("appraiser"));
   }
 }

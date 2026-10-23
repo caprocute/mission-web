@@ -4,10 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
+import org.aopalliance.intercept.MethodInterceptor;
 import org.springframework.aop.Advisor;
 import org.springframework.aop.support.DefaultPointcutAdvisor;
 import org.springframework.aop.support.annotation.AnnotationMatchingPointcut;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -15,6 +17,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Role;
 import org.springframework.core.Ordered;
 import vn.viettel.okrkpi.shared.audit.AuditLogger;
 import vn.viettel.okrkpi.shared.error.ErrorCatalog;
@@ -94,12 +97,22 @@ public class AuthzAutoConfiguration {
         clockProvider.getIfAvailable(Clock::systemUTC));
   }
 
+  /**
+   * Advisor của {@code @RequiresPermission}. Bean mang vai trò hạ tầng để mọi auto-proxy creator áp
+   * được, kể cả {@code InfrastructureAdvisorAutoProxyCreator} ở service không có AspectJ (khi đó
+   * bean thường bị bỏ qua và kiểm quyền OPA không chạy). Phương thức tĩnh và lấy {@link
+   * PermissionInterceptor} lười để advisor không kéo {@code OpaClient}, {@code MeterRegistry} khởi
+   * tạo sớm trong pha BeanPostProcessor.
+   */
   @Bean
+  @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
   @ConditionalOnMissingBean(name = "requiresPermissionAdvisor")
-  public Advisor requiresPermissionAdvisor(PermissionInterceptor interceptor) {
+  public static Advisor requiresPermissionAdvisor(
+      ObjectProvider<PermissionInterceptor> interceptor) {
+    MethodInterceptor lazy = invocation -> interceptor.getObject().invoke(invocation);
     AnnotationMatchingPointcut pointcut =
         new AnnotationMatchingPointcut(null, RequiresPermission.class, true);
-    DefaultPointcutAdvisor advisor = new DefaultPointcutAdvisor(pointcut, interceptor);
+    DefaultPointcutAdvisor advisor = new DefaultPointcutAdvisor(pointcut, lazy);
     advisor.setOrder(Ordered.HIGHEST_PRECEDENCE + 20);
     return advisor;
   }

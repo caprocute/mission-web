@@ -1,5 +1,6 @@
 package vn.viettel.okrkpi.config.api;
 
+import java.time.LocalDate;
 import java.util.Optional;
 import vn.viettel.okrkpi.shared.kernel.PeriodId;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
@@ -48,6 +49,16 @@ public interface PeriodApi {
    */
   default PeriodSnapshot current(TenantId tenantId, String cadence) {
     return findCurrent(tenantId, cadence).orElseThrow();
+  }
+
+  /**
+   * Kỳ loại {@code kind} chứa ngày {@code day} (kỳ bắt đầu muộn nhất khi có nhiều kỳ, ví dụ theo
+   * luồng). MOD-04 dùng để tìm kỳ năm của quý IV khi lập hồ sơ năm (CORE-04-10).
+   *
+   * @return rỗng khi không có kỳ hoặc cài đặt không hỗ trợ
+   */
+  default Optional<PeriodSnapshot> findCovering(TenantId tenantId, String kind, LocalDate day) {
+    return Optional.empty();
   }
 
   /**

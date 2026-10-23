@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import vn.viettel.okrkpi.shared.error.ProblemFactory;
 import vn.viettel.okrkpi.shared.error.ProblemFieldError;
 import vn.viettel.okrkpi.workflow.application.WorkflowNotFoundException;
+import vn.viettel.okrkpi.workflow.infrastructure.web.binding.InternalBindingController;
 import vn.viettel.okrkpi.workflow.infrastructure.web.model.WorkflowBatchCompletion;
 
 /**
@@ -27,7 +28,7 @@ import vn.viettel.okrkpi.workflow.infrastructure.web.model.WorkflowBatchCompleti
  *   <li>hàng đợi lô đầy → 503 kèm {@code Retry-After}.
  * </ul>
  */
-@RestControllerAdvice(assignableTypes = WorkflowController.class)
+@RestControllerAdvice(assignableTypes = {WorkflowController.class, InternalBindingController.class})
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class WorkflowProblemAdvice {
 

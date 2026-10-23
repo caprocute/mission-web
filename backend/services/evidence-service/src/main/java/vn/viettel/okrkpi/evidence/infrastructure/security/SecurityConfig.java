@@ -44,6 +44,25 @@ public class SecurityConfig {
     return http.build();
   }
 
+  /**
+   * DV-08-05: cổng nội bộ {@code /internal/**} cho ai-gateway đọc tệp cần OCR. ai-gateway gọi không
+   * kèm token nên xác thực dịch vụ dựa vào mTLS của lưới: AuthorizationPolicy của chart chỉ cho
+   * danh tính ai-gateway; ứng dụng chỉ nhận GET và tự kiểm tệp sạch, không C3.
+   */
+  @Bean
+  SecurityFilterChain internal(HttpSecurity http) throws Exception {
+    http.securityMatcher("/internal/**")
+        .authorizeHttpRequests(
+            a ->
+                a.requestMatchers(
+                        org.springframework.http.HttpMethod.GET, "/internal/v1/ocr-objects/**")
+                    .permitAll()
+                    .anyRequest()
+                    .denyAll())
+        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+    return http.build();
+  }
+
   static JwtAuthenticationConverter realmRoles() {
     JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
     converter.setJwtGrantedAuthoritiesConverter(
