@@ -252,7 +252,7 @@ public class JdbcReviewRepository implements ReviewRepository {
         signed == null ? null : signed.toInstant());
   }
 
-  private static String escapeLike(String s) {
+  static String escapeLike(String s) {
     return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
   }
 }

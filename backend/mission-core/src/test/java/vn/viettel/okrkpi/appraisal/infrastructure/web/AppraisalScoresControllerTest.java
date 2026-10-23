@@ -1,14 +1,11 @@
 package vn.viettel.okrkpi.appraisal.infrastructure.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
-import vn.viettel.okrkpi.appraisal.application.score.ScoreViewService;
 import vn.viettel.okrkpi.appraisal.application.score.ScoreViewService.ScoreView;
 import vn.viettel.okrkpi.appraisal.application.score.port.ScoreSnapshotReader.Snapshot;
 import vn.viettel.okrkpi.appraisal.application.selfassessment.port.SelfAssessmentRepository.ProfileSummary;
@@ -19,14 +16,6 @@ import vn.viettel.okrkpi.contract.appraisals.model.RatingLevel;
 import vn.viettel.okrkpi.contract.appraisals.model.ScoreSnapshotKind;
 
 class AppraisalScoresControllerTest {
-
-  @SuppressWarnings("unchecked")
-  private final AppraisalScoresController controller =
-      new AppraisalScoresController(
-          mock(ScoreViewService.class),
-          mock(ObjectProvider.class),
-          mock(ObjectProvider.class),
-          mock(ObjectProvider.class));
 
   @Test
   void anhChupThanhPhanHoiHopDong() {
@@ -58,7 +47,7 @@ class AppraisalScoresControllerTest {
             "{\"giai_thich\":\"Điểm 72,5 thuộc mức Hoàn thành nhiệm vụ.\"}",
             Instant.parse("2027-04-05T00:00:00Z"),
             null);
-    AppraisalScoreView out = controller.body(new ScoreView(profile(profileId), s));
+    AppraisalScoreView out = AppraisalScoresController.body(new ScoreView(profile(profileId), s));
 
     assertThat(out.getProfileId()).isEqualTo(profileId);
     assertThat(out.getFlow()).isEqualTo(Flow.DANG);

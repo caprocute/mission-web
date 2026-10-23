@@ -57,23 +57,21 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
 @RequestMapping("/api/v1/appraisals/profiles")
 public class AppraisalScoresController {
 
+  /** Đọc các cột {@code jsonb} của ảnh chụp; khoá lạ bị bỏ qua. */
+  private static final ObjectMapper JSON =
+      new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
   private final ScoreViewService service;
   private final ObjectProvider<AuthzSubjectResolver> subjects;
   private final ObjectProvider<AppraisalReviewGuard> guards;
-  private final ObjectMapper json;
 
   public AppraisalScoresController(
       ScoreViewService service,
       ObjectProvider<AuthzSubjectResolver> subjects,
-      ObjectProvider<AppraisalReviewGuard> guards,
-      ObjectProvider<ObjectMapper> json) {
+      ObjectProvider<AppraisalReviewGuard> guards) {
     this.service = Objects.requireNonNull(service, "service");
     this.subjects = Objects.requireNonNull(subjects, "subjects");
     this.guards = Objects.requireNonNull(guards, "guards");
-    ObjectMapper mapper = json.getIfAvailable();
-    this.json =
-        (mapper == null ? new ObjectMapper() : mapper.copy())
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
   }
 
   @GetMapping("/{id}/scores")
@@ -109,10 +107,10 @@ public class AppraisalScoresController {
     return ResponseEntity.ok().eTag(etag).cacheControl(cache).body(body(view));
   }
 
-  AppraisalScoreView body(ScoreView view) {
+  static AppraisalScoreView body(ScoreView view) {
     Snapshot s = view.snapshot();
     HexFormat hex = HexFormat.of();
-    List<AppraisalRuleCheck> checks = list(s.ruleChecks(), new TypeReference<>() {});
+    List<AppraisalRuleCheck> checks = ruleChecks(s.ruleChecks());
     List<AppraisalDowngradeReason> reasons = list(s.downgradeReasons(), new TypeReference<>() {});
     AppraisalScoreSnapshot snapshot =
         new AppraisalScoreSnapshot(
@@ -163,30 +161,35 @@ public class AppraisalScoresController {
     return out;
   }
 
+  /** Điều kiện xếp loại của ảnh chụp ({@code rule_checks}); JSON hỏng thì rỗng. */
+  static List<AppraisalRuleCheck> ruleChecks(String value) {
+    return list(value, new TypeReference<>() {});
+  }
+
   /** Câu giải thích của SVC-07 trong {@code detail_json.giai_thich} (DV-07-05), nếu có. */
-  private String detailText(String detail) {
+  private static String detailText(String detail) {
     if (detail == null) {
       return null;
     }
     try {
-      JsonNode node = json.readTree(detail).get("giai_thich");
+      JsonNode node = JSON.readTree(detail).get("giai_thich");
       return node == null || !node.isTextual() ? null : node.asText();
     } catch (JsonProcessingException e) {
       return null;
     }
   }
 
-  private List<AppraisalScoreGroup> groups(String value) {
+  private static List<AppraisalScoreGroup> groups(String value) {
     if (value == null) {
       return List.of();
     }
     try {
-      JsonNode node = json.readTree(value);
+      JsonNode node = JSON.readTree(value);
       if (node.isArray()) {
-        return json.convertValue(node, new TypeReference<>() {});
+        return JSON.convertValue(node, new TypeReference<>() {});
       }
       if (node.get("groups") != null && node.get("groups").isArray()) {
-        return json.convertValue(node.get("groups"), new TypeReference<>() {});
+        return JSON.convertValue(node.get("groups"), new TypeReference<>() {});
       }
       return List.of();
     } catch (JsonProcessingException | IllegalArgumentException e) {
@@ -194,12 +197,12 @@ public class AppraisalScoresController {
     }
   }
 
-  private <T> List<T> list(String value, TypeReference<List<T>> type) {
+  private static <T> List<T> list(String value, TypeReference<List<T>> type) {
     if (value == null) {
       return List.of();
     }
     try {
-      List<T> out = json.readValue(value, type);
+      List<T> out = JSON.readValue(value, type);
       return out == null ? List.of() : out;
     } catch (JsonProcessingException e) {
       return List.of();

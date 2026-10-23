@@ -4,8 +4,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import vn.viettel.okrkpi.appraisal.application.setup.port.SetupNotices;
+import vn.viettel.okrkpi.appraisal.domain.profile.RatingLevel;
 import vn.viettel.okrkpi.events.EventTopics;
 import vn.viettel.okrkpi.shared.kernel.Classification;
+import vn.viettel.okrkpi.shared.kernel.Jcs;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.outbox.EventEnvelope;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
@@ -18,6 +20,9 @@ import vn.vtokr.notify.v1.YeuCauThongBao;
 public class OutboxSetupNotices implements SetupNotices {
 
   static final String TEMPLATE = "HO_SO_DANH_GIA_MO_TU_DANH_GIA";
+
+  /** MSG-10-04: kết quả năm thay đổi sau hậu kiểm (mã mẫu suy luận, CORE-04-10). */
+  static final String ANNUAL_CHANGED = "XEP_LOAI_NAM_THAY_DOI";
 
   private final OutboxWriter outbox;
 
@@ -34,6 +39,37 @@ public class OutboxSetupNotices implements SetupNotices {
             .setParams("{}")
             .setDeepLink(OutboxSelfAssessmentNotices.DEEP_LINK + profileId)
             .setPriority("BINH_THUONG")
+            .setAggregateVersion((int) version)
+            .build();
+    outbox.append(
+        EventEnvelope.of(
+            EventTopics.EVT_21_YEU_CAU_THONG_BAO,
+            tenant,
+            OutboxAppraisalStepEvents.AGGREGATE,
+            profileId,
+            version,
+            payload,
+            Classification.C1));
+  }
+
+  @Override
+  public void annualRatingChanged(
+      TenantId tenant,
+      UUID profileId,
+      List<UUID> recipients,
+      RatingLevel before,
+      RatingLevel after,
+      long version) {
+    YeuCauThongBao payload =
+        YeuCauThongBao.newBuilder()
+            .setRecipientIds(recipients)
+            .setTemplateCode(ANNUAL_CHANGED)
+            .setParams(
+                Jcs.write(
+                    java.util.Map.of(
+                        "muc_cu", before == null ? "" : before.name(), "muc_moi", after.name())))
+            .setDeepLink(OutboxSelfAssessmentNotices.DEEP_LINK + profileId)
+            .setPriority("CAO")
             .setAggregateVersion((int) version)
             .build();
     outbox.append(
