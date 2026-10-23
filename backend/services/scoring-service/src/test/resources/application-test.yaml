@@ -11,7 +11,5 @@ management:
     port: 8080
 
 okrkpi:
-  scoring:
-    cel-evaluation-timeout: 2s
   inbox:
     listener-auto-startup: false
