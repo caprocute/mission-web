@@ -14,8 +14,8 @@
 
 - **Tổng tiến độ đã gộp `main`**: **360 / 408 task (88.2%)** — Khối lượng quy đổi đã gộp: **426.5 / 492.5 đơn vị**.
 - **Tổng tiến độ tính cả các task đã xong chờ gộp**: **360 / 408 task (88.2%)** (gồm **360** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **12 task** (5 đang làm, 7 làm một phần).
-- **Chưa bắt đầu**: **36 task**.
+- **Đang thực hiện / Làm một phần**: **13 task** (5 đang làm, 8 làm một phần).
+- **Chưa bắt đầu**: **35 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -29,10 +29,10 @@
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **13** | 0 | 0 | 0 | **100.0%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 6 | 6 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **1** | 0 | 3 | 12 | **6.2%** |
-| **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
+| **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 1 | 9 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 1 | 8 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **360** | **0** | **12** | **36** | **88.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **360** | **0** | **13** | **35** | **88.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -44,7 +44,7 @@
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **119** | 0 | 1 | 0 | **99.2%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **17** | 0 | 10 | 15 | **40.5%** |
-| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **4** | 0 | 1 | 18 | **17.4%** |
+| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **4** | 0 | 2 | 17 | **17.4%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **1** | 0 | 0 | 3 | **25.0%** |
 
 ### 1.3. Trạng thái 23 task trên Đường găng
@@ -596,12 +596,12 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [QA-15](docs/tasks/QA-15-dr-chuyen-vung.md) | Diễn tập khôi phục DR-10..DR-16, chuyển vùng giữa hai trung tâm dữ liệu | L | B9 | 16 | QA-14, INF-18, INF-20 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần TTDL thứ hai |
 | [QA-16](docs/tasks/QA-16-uat-tenant-thi-diem.md) | Kiểm thử chấp nhận nghiệp vụ: tenant thí điểm chạy trọn một kỳ đánh giá | L | B9 | 24 | QA-07 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần tenant và người dùng thật |
 
-### MOB · SVC-18 mobile-app (Flutter) (0/10 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### MOB · SVC-18 mobile-app (Flutter) (0/10 đã gộp `main`, 0 chờ gộp, 1 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [MOB-01](docs/tasks/MOB-01-khung-flutter.md) | Khung Flutter: token thiết kế sang ThemeData, đăng nhập OIDC PKCE, client API sinh từ hợp đồng | M | B10 | 4 | NEN-006, DV-02-01 | **Chưa bắt đầu** |  |
-| [MOB-02](docs/tasks/MOB-02-ngoai-tuyen-sqlcipher.md) | Lưu trữ ngoại tuyến SQLCipher, khoá trong Keystore/Keychain, hàng đợi đồng bộ có Idempotency-Key | M | B10 | 5 | MOB-01 | **Chưa bắt đầu** |  |
+| [MOB-02](docs/tasks/MOB-02-ngoai-tuyen-sqlcipher.md) | Lưu trữ ngoại tuyến SQLCipher, khoá trong Keystore/Keychain, hàng đợi đồng bộ có Idempotency-Key | M | B10 | 5 | MOB-01 | **Làm một phần** | Nhánh claude/project-thread-x87cen: package mobile/packages/ngoai_tuyen (SQLCipher, hàng đợi Idempotency-Key UUIDv7), dart test 19/19 kể cả máy chủ giả lập; chưa có Flutter SDK, chưa cắm vào app MOB-01 |
 | [MOB-03](docs/tasks/MOB-03-viec-cua-toi-di-dong.md) | SCR-0504 Việc của tôi và cập nhật tiến độ trên di động | M | B10 | 18 | MOB-02, CORE-02-19, CORE-02-18 | **Chưa bắt đầu** |  |
 | [MOB-04](docs/tasks/MOB-04-check-in-kr-di-dong.md) | SCR-0302 Check-in KR trên di động | M | B10 | 14 | MOB-02, CORE-01-08 | **Chưa bắt đầu** |  |
 | [MOB-05](docs/tasks/MOB-05-nop-minh-chung-ocr.md) | SCR-0702 Nộp minh chứng trên di động có OCR, tải theo khối | M | B10 | 19 | MOB-02, DV-08-02, CORE-03-05 | **Chưa bắt đầu** |  |
@@ -1017,4 +1017,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 13:05 | B7 | `VH-06` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-x87cen: tài liệu quản trị và cài đặt ba mô hình |
 | 23/10/2026 13:22 | B7 | `VH-06` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/project-thread-x87cen: docs/quan-tri-cai-dat (8 trang, 3 mẫu); render private compact 873/873 kubeconform, Argo tại chỗ 24 ApplicationSet, markdownlint 0 lỗi; chưa cài thử k3d (thiếu đĩa, chưa có gói INF-23 thật); phát hiện 3 lệch chart ghi wiki 14 |
 | 23/10/2026 13:42 | B7 | `VH-06` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/project-thread-x87cen: tài liệu 8 trang + sửa 3 lệch chart (nhãn node TL-04, compact hoi-tu/du-lieu, global.doiKhoAnh + Kyverno vt-doi-kho-anh); 3 mô hình kubeconform hợp lệ, compact 874/874; chưa cài thử trên cụm |
+| 23/10/2026 13:49 | B7 | `MOB-02` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-x87cen: package Dart mobile/packages/ngoai_tuyen (SQLCipher, hàng đợi Idempotency-Key), phối hợp B2 MOB-01 |
+| 23/10/2026 13:55 | B7 | `MOB-02` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/project-thread-x87cen: package mobile/packages/ngoai_tuyen (SQLCipher, hàng đợi Idempotency-Key UUIDv7), dart test 19/19 kể cả máy chủ giả lập; chưa có Flutter SDK, chưa cắm vào app MOB-01 |
 <!-- PROGRESS_LOG_END -->
