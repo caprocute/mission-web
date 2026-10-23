@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 import vn.viettel.okrkpi.appraisal.api.ComplaintProfilesApi;
 import vn.viettel.okrkpi.config.api.PeriodStatus;
 import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
@@ -104,6 +105,7 @@ public class ComplaintResolutionService {
   private final ComplaintReopener reopener;
   private final ComplaintEvents events;
   private final OversightAuditLog audit;
+  private final TransactionOperations committed;
   private final Clock clock;
 
   public ComplaintResolutionService(
@@ -119,6 +121,7 @@ public class ComplaintResolutionService {
       ComplaintReopener reopener,
       ComplaintEvents events,
       OversightAuditLog audit,
+      TransactionOperations committed,
       Clock clock) {
     this.complaints = Objects.requireNonNull(complaints, "complaints");
     this.process = Objects.requireNonNull(process, "process");
@@ -132,6 +135,7 @@ public class ComplaintResolutionService {
     this.reopener = reopener;
     this.events = Objects.requireNonNull(events, "events");
     this.audit = Objects.requireNonNull(audit, "audit");
+    this.committed = Objects.requireNonNull(committed, "committed");
     this.clock = Objects.requireNonNull(clock, "clock");
   }
 
@@ -491,9 +495,13 @@ public class ComplaintResolutionService {
    * {@code respondComplaint}: người có thẩm quyền ({@code decider}, bước lên AAL2, không tham gia
    * hồ sơ) mở yêu cầu ký văn bản trả lời ở SVC-10 và ghi bản ghi {@code KET_LUAN}.
    *
+   * <p>Mẫu "chốt trước, gọi sau" (wiki trang 14): ghi người ký đang mở yêu cầu ({@code
+   * response_signer_id}) và commit trong giao dịch riêng, vì SVC-10 hỏi lại tài liệu cần ký ({@link
+   * #responseSource}) bằng kết nối khác ngay trong lời gọi; gọi SVC-10 ngoài mọi giao dịch ghi; rồi
+   * ghi bản ghi {@code KET_LUAN} kèm mã yêu cầu ký. SVC-10 lỗi thì gỡ người ký đang mở.
+   *
    * @return mã yêu cầu ký
    */
-  @Transactional(TX)
   public UUID respond(
       TenantId tenant,
       Actor actor,
@@ -503,6 +511,28 @@ public class ComplaintResolutionService {
       String authorization,
       String comment) {
     requireStepUp(actor);
+    ResponseReserved reserved =
+        committed.execute(st -> reserveResponse(tenant, actor, id, ifMatch, comment));
+    if (reserved.signRequestId() != null) {
+      return reserved.signRequestId();
+    }
+    UUID sign;
+    try {
+      sign = signer.request(tenant, id, idempotencyKey, authorization);
+    } catch (RuntimeException e) {
+      committed.executeWithoutResult(
+          st -> complaints.markResponseSigner(tenant, reserved.complaint(), null));
+      throw e;
+    }
+    committed.executeWithoutResult(st -> attachResponse(tenant, actor, reserved.complaint(), sign));
+    return sign;
+  }
+
+  /** Kết quả bước chốt: khiếu nại vừa chốt, hoặc mã yêu cầu ký đã mở từ trước. */
+  private record ResponseReserved(Complaint complaint, UUID signRequestId) {}
+
+  private ResponseReserved reserveResponse(
+      TenantId tenant, Actor actor, UUID id, String ifMatch, String comment) {
     Complaint c = lockFiled(tenant, id);
     ETags.requireMatch(ifMatch, c.rowVersion(), "OVERSIGHT");
     if (!actor.roles().contains(ROLE_DECIDER) || !staffInScope(tenant, actor, c)) {
@@ -520,22 +550,30 @@ public class ComplaintResolutionService {
     if (comment != null && comment.length() > ComplaintRules.NOTE_MAX) {
       throw invalid("comment", "Ý kiến người ký tối đa 2.000 ký tự.");
     }
-    ComplaintConclusion k =
-        process
-            .conclusion(tenant, c)
-            .orElseThrow(
-                () ->
-                    new BusinessException(
-                        CONCLUSION_MISSING, "Chưa có kết luận hoặc văn bản trả lời để ký."));
+    ComplaintConclusion k = conclusionToSign(tenant, c);
     if (k.signing()) {
-      return k.signRequestId();
+      return new ResponseReserved(c, k.signRequestId());
     }
     if (signer == null) {
       throw new ComplaintService.SigningUnavailableException();
     }
     Complaint next = bump(c);
     save(tenant, next, c.rowVersion(), actor.userId());
-    UUID sign = signer.request(tenant, c.id(), idempotencyKey, authorization);
+    if (!complaints.markResponseSigner(tenant, next, actor.userId())) {
+      throw versionConflict();
+    }
+    return new ResponseReserved(next, null);
+  }
+
+  private void attachResponse(TenantId tenant, Actor actor, Complaint reserved, UUID sign) {
+    Complaint c = lockFiled(tenant, reserved.id());
+    ComplaintConclusion k = conclusionToSign(tenant, c);
+    if (c.rowVersion() != reserved.rowVersion()
+        || c.status() != ComplaintStatus.CHO_KET_LUAN
+        || k.signing()) {
+      throw versionConflict();
+    }
+    complaints.markResponseSigner(tenant, c, null);
     String text = open(tenant, COLUMN_CONCLUSION, c.id(), k.textEnc());
     UUID rid = Ids.newUuidV7();
     ComplaintSealer.Sealed sealed = seal(tenant, COLUMN_RESPONSE, rid, text);
@@ -560,16 +598,29 @@ public class ComplaintResolutionService {
             k.adjustments(),
             clock.instant()),
         actor.userId());
-    process.saveConclusion(tenant, next, k.withSignRequest(sign));
+    process.saveConclusion(tenant, c, k.withSignRequest(sign));
     audit.record(
         tenant,
         actor.userId(),
         ACTION_RESPOND,
         ComplaintService.OBJECT_TYPE,
-        id.toString(),
+        reserved.id().toString(),
         null,
         ROLE_DECIDER);
-    return sign;
+  }
+
+  private ComplaintConclusion conclusionToSign(TenantId tenant, Complaint c) {
+    return process
+        .conclusion(tenant, c)
+        .orElseThrow(
+            () ->
+                new BusinessException(
+                    CONCLUSION_MISSING, "Chưa có kết luận hoặc văn bản trả lời để ký."));
+  }
+
+  private static BusinessException versionConflict() {
+    return new BusinessException(
+        ComplaintService.VERSION_CONFLICT, "Khiếu nại đã được cập nhật ở nơi khác.");
   }
 
   /**
@@ -632,11 +683,15 @@ public class ComplaintResolutionService {
             c ->
                 process
                     .conclusion(tenant, c)
-                    .filter(k -> k.signing() && k.respondedAt() == null)
+                    .filter(k -> k.respondedAt() == null)
                     .flatMap(
                         k ->
-                            signedRecord(tenant, c, k.signRequestId())
-                                .map(r -> source(c, r.responderId(), k))));
+                            k.signing()
+                                ? signedRecord(tenant, c, k.signRequestId())
+                                    .map(r -> source(c, r.responderId(), k))
+                                : complaints
+                                    .responseSigner(tenant, id)
+                                    .map(signer -> source(c, signer, k))));
   }
 
   // ---------------------------------------------------------------- bảo lưu, đóng, trùng

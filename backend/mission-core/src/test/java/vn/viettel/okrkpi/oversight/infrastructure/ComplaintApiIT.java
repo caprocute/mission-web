@@ -177,8 +177,25 @@ class ComplaintApiIT extends ContractConformanceTest {
     }
 
     @Bean
-    ComplaintResponseSigner complaintTestResponseSigner() {
+    ComplaintResponseSigner complaintTestResponseSigner(
+        ObjectProvider<ComplaintResolutionService> resolutions) {
       return (tenant, id, key, authorization) -> {
+        // Như SVC-10 thật: hỏi tài liệu cần ký trên luồng và kết nối khác ngay trong lời gọi.
+        try {
+          CompletableFuture.supplyAsync(
+                  () -> {
+                    try {
+                      return TenantContext.call(
+                          tenant,
+                          () -> resolutions.getObject().responseSource(tenant, id).orElseThrow());
+                    } catch (Exception e) {
+                      throw new IllegalStateException(e);
+                    }
+                  })
+              .get(30, TimeUnit.SECONDS);
+        } catch (Exception e) {
+          throw new IllegalStateException("Văn bản trả lời cần ký chưa sẵn sàng", e);
+        }
         UUID sign = UUID.randomUUID();
         SIGNED.add(sign);
         return sign;

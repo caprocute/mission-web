@@ -68,6 +68,15 @@ public interface ComplaintRepository {
   /** Nháp đang mở yêu cầu ký (đã đánh dấu, chưa gắn mã yêu cầu ký). */
   boolean signPending(TenantId tenant, UUID id);
 
+  /**
+   * Ghi người có thẩm quyền đang mở yêu cầu ký văn bản trả lời ({@code signer}), hoặc gỡ khi rỗng;
+   * chỉ khi phiên bản dòng vẫn là {@code c.rowVersion()}.
+   */
+  boolean markResponseSigner(TenantId tenant, Complaint c, UUID signer);
+
+  /** Người đang mở yêu cầu ký văn bản trả lời (đã ghi, chưa gắn mã yêu cầu ký). */
+  Optional<UUID> responseSigner(TenantId tenant, UUID id);
+
   /** Mã khiếu nại theo yêu cầu ký ở SVC-10. */
   Optional<Complaint> bySignRequest(TenantId tenant, UUID signRequestId);
 
