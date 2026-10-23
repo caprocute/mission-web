@@ -44,6 +44,15 @@ public interface OkrApi {
   }
 
   /**
+   * KR cán bộ là người sở hữu thuộc các mục tiêu {@code DA_DUYET} trong kỳ, sắp theo mã, cho phạm
+   * vi phụ trách của MOD-04 (CORE-04-13, BS-03 DC-03).
+   */
+  default List<KeyResultSnapshot> listResponsibleKeyResults(
+      TenantId tenantId, PeriodId periodId, UUID personId) {
+    return List.of();
+  }
+
+  /**
    * Mốc của KR kiểu đo {@code MOC} (CORE-01-14, BS-03 DC-04), sắp theo thứ tự, để {@code inputs}
    * của MOD-04 đọc ngày đạt và số ngày làm việc chậm; KR không đo theo mốc trả rỗng.
    */

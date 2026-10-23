@@ -24,6 +24,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import vn.viettel.okrkpi.appraisal.application.decision.DecisionSigningService;
 import vn.viettel.okrkpi.appraisal.application.profile.AppraisalProfileService;
 import vn.viettel.okrkpi.appraisal.application.profile.port.AppraisalProfileRepository.SealedText;
+import vn.viettel.okrkpi.appraisal.application.prospect.ProspectBoardService;
 import vn.viettel.okrkpi.appraisal.application.review.ReviewService;
 import vn.viettel.okrkpi.appraisal.application.selfassessment.SelfAssessmentService;
 import vn.viettel.okrkpi.appraisal.application.selfassessment.SelfAssessmentSubmission;
@@ -170,9 +171,13 @@ public class SelfAssessmentConfiguration {
     SelfAssessmentSignedListener selfAssessmentSignedListener(
         SelfAssessmentService selfAssessmentService,
         ObjectProvider<ReviewService> reviews,
-        ObjectProvider<DecisionSigningService> decisions) {
+        ObjectProvider<DecisionSigningService> decisions,
+        ObjectProvider<ProspectBoardService> prospects) {
       return new SelfAssessmentSignedListener(
-          selfAssessmentService, reviews.getIfAvailable(), decisions.getIfAvailable());
+          selfAssessmentService,
+          reviews.getIfAvailable(),
+          decisions.getIfAvailable(),
+          prospects.getIfAvailable());
     }
 
     @Bean

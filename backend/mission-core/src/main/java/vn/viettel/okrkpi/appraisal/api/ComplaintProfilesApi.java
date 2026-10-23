@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 
@@ -57,4 +58,27 @@ public interface ComplaintProfilesApi {
    * @return {@code true} khi vừa chuyển
    */
   boolean fileComplaint(TenantId tenant, UUID profileId, UUID actorId);
+
+  /**
+   * Người đã đề xuất, thẩm định, quyết định hồ sơ ({@code appraisal.rating_proposal} mức {@code
+   * DE_XUAT}, {@code THAM_DINH}, {@code QUYET_DINH}), để MOD-07 loại khỏi người xử lý khiếu nại
+   * (BR-12-04, CORE-07-03).
+   */
+  record Participants(Set<UUID> proposers, Set<UUID> appraisers, Set<UUID> deciders) {
+    public Participants {
+      proposers = Set.copyOf(proposers);
+      appraisers = Set.copyOf(appraisers);
+      deciders = Set.copyOf(deciders);
+    }
+  }
+
+  Participants participants(TenantId tenant, UUID profileId);
+
+  /**
+   * Khiếu nại được rút hoặc không thụ lý: hồ sơ {@code KHIEU_NAI} trở lại {@code DA_KY_SO} (QT-12
+   * "Ngoại lệ và xử lý"). Lặp lại an toàn: hồ sơ không ở {@code KHIEU_NAI} thì không làm gì.
+   *
+   * @return {@code true} khi vừa chuyển
+   */
+  boolean returnToSigned(TenantId tenant, UUID profileId, UUID actorId, String reason);
 }

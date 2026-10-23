@@ -19,6 +19,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import javax.sql.DataSource;
 import org.apache.avro.specific.SpecificRecord;
@@ -53,6 +54,7 @@ import vn.viettel.okrkpi.events.EventTopics;
 import vn.viettel.okrkpi.product.api.EvidenceQueryApi;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceActor;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceLifecycleService;
+import vn.viettel.okrkpi.product.application.evidence.port.AiSuggestionDecisions;
 import vn.viettel.okrkpi.product.application.evidence.port.CommentSealer;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceEvents;
 import vn.viettel.okrkpi.product.infrastructure.listener.EvidenceObjectListener;
@@ -74,6 +76,7 @@ import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.outbox.OutboxHeaders;
 import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer.SerializedPayload;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
+import vn.viettel.okrkpi.shared.resilience.DependencyUnavailableException;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 import vn.vtokr.evidence.v1.ObjectScanned;
 import vn.vtokr.sys.v1.EvidenceObjectStored;
@@ -110,8 +113,28 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
 
   static final byte[] KEY = new byte[32];
 
+  /** Lời gọi {@code decideAiSuggestion} tới SVC-14 giả: mã gợi ý, quyết định, bản ghi đích. */
+  static final List<String> AI_CALLS = new CopyOnWriteArrayList<>();
+
+  /** SVC-14 giả quá thời hạn (CORE-03-05). */
+  static volatile boolean aiDown;
+
   /** Người gọi và outbox giả (không cần registry) chỉ của ngữ cảnh này. */
   static class Beans {
+
+    @Bean
+    AiSuggestionDecisions fakeAiSuggestionDecisions() {
+      return (tenant, suggestionId, decision, targetRef, authorization, idempotencyKey) -> {
+        AI_CALLS.add(suggestionId + " " + decision + " " + targetRef);
+        if (aiDown) {
+          throw new DependencyUnavailableException(
+              "ai-gateway",
+              DependencyUnavailableException.Reason.TIMEOUT,
+              java.time.Duration.ofSeconds(5),
+              null);
+        }
+      };
+    }
 
     @Bean
     EvidenceCaller evidenceCaller() {
@@ -609,6 +632,95 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
     assertThat(outbox(EventTopics.EVT_21_YEU_CAU_THONG_BAO)).isEqualTo(notices + 1);
   }
 
+  /**
+   * CORE-03-05 · BR-07-09: ô do AI điền chặn nộp tới khi người nộp xác nhận; SVC-14 quá thời hạn
+   * thì trả lỗi thử lại được và phiên bản vẫn ở nháp; xác nhận ghi sổ cái ô giữ, ô sửa; tệp C3
+   * không mang được ô AI và không bao giờ tạo lời gọi tới SVC-14.
+   */
+  @Test
+  void oDoAiDienCanXacNhanVaKhongGuiTepC3() throws Exception {
+    caller = ACTOR;
+    UUID task = task(ACTOR);
+    UUID obj = UUID.randomUUID();
+    assertThat(stored(UUID.randomUUID(), obj, 1, sha(71))).isEqualTo(InboxOutcome.PROCESSED);
+    assertThat(scanned(obj, 1, "CLEAN")).isEqualTo(InboxOutcome.PROCESSED);
+    String evidence = evidence(deliverable(task));
+    UUID suggestion = UUID.randomUUID();
+    MvcResult created =
+        perform(
+            post("/api/v1/evidences/" + evidence + "/versions")
+                .header("Idempotency-Key", UUID.randomUUID().toString()),
+            aiDraftBody(obj, suggestion, "[\"docSummary\"]"));
+    assertThat(created.getResponse().getStatus()).isEqualTo(201);
+    assertResponseConforms(created, "/evidences/{id}/versions", PathItem.HttpMethod.POST);
+    assertThat(body(created).get("aiPrefill").asBoolean()).isTrue();
+    assertThat(body(created).get("aiSuggestionId").asText()).isEqualTo(suggestion.toString());
+    String etag = created.getResponse().getHeader("ETag");
+    String versionId = body(created).get("id").asText();
+    AI_CALLS.clear();
+
+    MvcResult unconfirmed = submit(evidence, 1, etag, UUID.randomUUID().toString());
+    assertThat(unconfirmed.getResponse().getStatus()).isEqualTo(422);
+    assertThat(body(unconfirmed).get("code").asText()).isEqualTo("PRODUCT-422-AI-NOT-CONFIRMED");
+    assertThat(AI_CALLS).isEmpty();
+
+    long audits = outbox(EventTopics.SYS_AUDIT_V1);
+    aiDown = true;
+    try {
+      MvcResult down = confirmedSubmit(evidence, etag);
+      assertThat(down.getResponse().getStatus()).isEqualTo(503);
+      assertThat(down.getResponse().getHeader("Retry-After")).isNotNull();
+    } finally {
+      aiDown = false;
+    }
+    MvcResult still = perform(get("/api/v1/evidences/" + evidence + "/versions/1"));
+    assertThat(body(still).get("status").asText()).isEqualTo("NHAP");
+    assertThat(outbox(EventTopics.SYS_AUDIT_V1)).isEqualTo(audits);
+
+    MvcResult ok = confirmedSubmit(evidence, etag);
+    assertThat(ok.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(ok, "/evidences/{id}/versions/{v}/submit", PathItem.HttpMethod.POST);
+    assertThat(body(ok).get("version").get("userConfirmedAt").isNull()).isFalse();
+    String expectedCall = suggestion + " SUA product.evidence_version:" + versionId;
+    assertThat(AI_CALLS).containsExactly(expectedCall, expectedCall);
+    assertThat(outbox(EventTopics.SYS_AUDIT_V1)).isEqualTo(audits + 1);
+
+    // Tệp C3: không mang được ô AI, nộp có xác nhận cũng không gọi SVC-14.
+    AI_CALLS.clear();
+    UUID c3 = UUID.randomUUID();
+    assertThat(stored(UUID.randomUUID(), c3, 1, sha(72), true)).isEqualTo(InboxOutcome.PROCESSED);
+    assertThat(scanned(c3, 1, "CLEAN")).isEqualTo(InboxOutcome.PROCESSED);
+    String secret = evidence(deliverable(task(ACTOR)));
+    MvcResult refused =
+        perform(
+            post("/api/v1/evidences/" + secret + "/versions")
+                .header("Idempotency-Key", UUID.randomUUID().toString()),
+            aiDraftBody(c3, UUID.randomUUID(), "[]"));
+    assertThat(refused.getResponse().getStatus()).isEqualTo(422);
+    assertThat(body(refused).get("errors").get(0).get("field").asText()).isEqualTo("aiPrefill");
+    String c3Etag = draft(secret, List.of(c3), null);
+    MvcResult c3Submit = confirmedSubmit(secret, c3Etag);
+    assertThat(c3Submit.getResponse().getStatus()).isEqualTo(200);
+    assertThat(AI_CALLS).isEmpty();
+  }
+
+  private MvcResult confirmedSubmit(String evidence, String ifMatch) throws Exception {
+    return perform(
+        post("/api/v1/evidences/" + evidence + "/versions/1/submit")
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .header("If-Match", ifMatch),
+        "{\"attested\":true,\"aiFieldsConfirmed\":true}");
+  }
+
+  private static String aiDraftBody(UUID file, UUID suggestion, String edited) {
+    return """
+        {"source":"OCR_DI_DONG","files":[{"objectId":"%s"}],"aiPrefill":true,
+         "aiSuggestionId":"%s","aiFieldsEdited":%s,"docNumber":"47-BC/BTCĐUK",
+         "docDate":"2027-01-16","docSummary":"Báo cáo sơ kết công tác quý"}
+        """
+        .formatted(file, suggestion, edited);
+  }
+
   /** Người nộp (ACTOR) tạo minh chứng một tệp sạch mới và nộp; trả mã minh chứng và ETag. */
   private String[] submitted(UUID task, int shaByte) throws Exception {
     UUID previous = caller;
@@ -758,6 +870,10 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
   // ---------------------------------------------------------------- inbox
 
   private InboxOutcome stored(UUID eventId, UUID objectId, int version, byte[] sha) {
+    return stored(eventId, objectId, version, sha, false);
+  }
+
+  private InboxOutcome stored(UUID eventId, UUID objectId, int version, byte[] sha, boolean e2ee) {
     EvidenceObjectStored event =
         EvidenceObjectStored.newBuilder()
             .setObjectId(objectId)
@@ -766,7 +882,7 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
             .setSizeBytes(2048)
             .setContentType("application/pdf")
             .setBucketRef("evidence/ab/cd")
-            .setE2ee(false)
+            .setE2ee(e2ee)
             .setUploadedBy(ACTOR)
             .setOwnerRef("product:")
             .setStoredAt(Instant.now())

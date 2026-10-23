@@ -34,7 +34,7 @@ Các bảng giữa cặp dấu `BEGIN GEN` và `END GEN` được sinh tự đ�
 | `Tn` | Toàn tenant | Mọi đơn vị trong tenant, vẫn chịu RLS theo `tenant_id`. |
 | `N` | Nền tảng | Vùng điều phối toàn cục, nhiều tenant (chỉ AC-01). |
 
-Dữ liệu hiện có 175 chức năng trên 53 màn hình, trong đó 171 chức năng thuộc 49 màn hình web; 64 ô được đánh dấu suy luận (`*`).
+Dữ liệu hiện có 179 chức năng trên 53 màn hình, trong đó 175 chức năng thuộc 49 màn hình web; 87 ô được đánh dấu suy luận (`*`).
 <!-- END GEN:chu-giai -->
 
 ## Ma trận chính: chức năng theo màn hình
@@ -51,6 +51,7 @@ Dòng tiêu đề cột: AC-01 `platform_admin`, AC-02 `tenant_admin`, AC-03 `po
 | SCR-0001 | Đăng nhập bằng tài khoản cơ quan, VNeID hoặc chứng thư số, xác thực MFA `dang-nhap` | T/B | T/B | T/B | T/B | T/B | T/B | T/B | T/B | T/B | T/B | H | - | BR-00-01, BR-00-05, BR-00-06; SEC-13, SEC-14, SEC-17 |
 | SCR-0001 | Chọn phân công (đơn vị, vai trò) sau đăng nhập `chon-phan-cong` | T/B | T/B | T/B | T/B | T/B | T/B | T/B | T/B | T/B | T/B | - | - | BR-00-01 (vai trò AAL2 không chọn được ở phiên AAL1) |
 | SCR-0001 | Báo cáo truy cập bất thường (thu hồi phiên, đổi mật khẩu) `bao-bat-thuong` | T/B | T/B | T/B | T/B | T/B | T/B | T/B | T/B | T/B | T/B | - | - | BR-00-06; SEC-54 |
+| SCR-0001 | Đăng ký, thu hồi khoá mã hoá đầu cuối của thiết bị hoặc chứng thư số `khoa-thiet-bi` | T/B* | T/B* | T/B* | T/B* | T/B* | T/B* | T/B* | T/B* | T/B* | T/B* | - | - | MFA (AAL2); ADR-27; SEC-25 |
 | SCR-0002 | Xem trang chủ "Việc của tôi hôm nay" (bố cục theo vai trò) `xem` | R/B* | R/B* | R/B* | R/B | R/B | R/B | R/B | R/B* | R/B* | R/B* | - | - |  |
 | SCR-0002 | Đổi phân công (ngữ cảnh) trên thanh trên `doi-phan-cong` | T/B | T/B | T/B | T/B | T/B | T/B | T/B | T/B | T/B | T/B | - | - | Ngữ cảnh mới yêu cầu AAL cao hơn thì step-up trước (TL-02 Ngữ cảnh làm việc) |
 | SCR-0002 | Cập nhật nhanh tiến độ, mở check-in, nộp sản phẩm từ trang chủ `cap-nhat-nhanh` | - | - | - | - | T/B | T/B | - | - | - | - | - | - |  |
@@ -69,6 +70,18 @@ Dòng tiêu đề cột: AC-01 `platform_admin`, AC-02 `tenant_admin`, AC-03 `po
 | SCR-0103 | Xem cây tổ chức hiện tại và tại một ngày trong quá khứ `xem` | - | R/Tn | - | - | - | - | R/Cd* | - | - | R/Tn* | - | - |  |
 | SCR-0103 | Nhập cây tổ chức từ Excel `nhap-excel` | - | X/Tn | - | - | - | - | - | - | - | - | - | - |  |
 | SCR-0103 | Thay đổi tổ chức (thành lập, sáp nhập, chia tách, giải thể) và sửa đơn vị `thay-doi` | - | X/Tn | - | - | - | - | - | - | - | - | - | - | BR-01-06 (không ghi đè lịch sử) |
+| SCR-0103 | Thay khoá phục hồi của tổ chức, ghi biên bản khôi phục và nạp khoá bọc cho thiết bị mới khi mất khoá `khoa-phuc-hoi` | - | X/Tn* | - | - | - | - | - | - | - | - | - | - | MFA (AAL2); Shamir 3 trên 5, mảnh khoá giao trực tiếp theo biên bản (SEC-25) |
+
+#### QT-12. Khiếu nại, giải trình
+
+| SCR | Chức năng (khoá) | AC-01 | AC-02 | AC-03 | AC-04 | AC-05 | AC-06 | AC-07 | AC-08 | AC-09 | AC-10 | AC-11 | AC-12 | Ràng buộc |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| SCR-0103 | Xem nhật ký khôi phục khoá mã hoá đầu cuối `nhat-ky-phuc-hoi` | - | R/Tn* | - | - | - | - | - | - | - | R/Tn* | - | - | MFA (AAL2) |
+
+#### QT-01. Khởi tạo tenant, cây tổ chức và đồng bộ nhân sự
+
+| SCR | Chức năng (khoá) | AC-01 | AC-02 | AC-03 | AC-04 | AC-05 | AC-06 | AC-07 | AC-08 | AC-09 | AC-10 | AC-11 | AC-12 | Ràng buộc |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | SCR-0104 | Xem lần đồng bộ và danh sách lệch nhân sự `xem` | - | R/Tn | - | - | - | - | - | - | - | R/Tn* | H | - |  |
 | SCR-0104 | Đồng bộ ngay, lịch đồng bộ, chạy lại thông điệp lỗi `dong-bo` | - | X/Tn | - | - | - | - | - | - | - | - | - | - |  |
 | SCR-0104 | Xử lý lệch: lấy theo nguồn, giữ nội bộ, ánh xạ thủ công `xu-ly-lech` | - | X/Tn | - | - | - | - | - | - | - | - | - | - | Phiên AAL2 khi áp dụng hàng loạt |
@@ -130,6 +143,7 @@ Dòng tiêu đề cột: AC-01 `platform_admin`, AC-02 `tenant_admin`, AC-03 `po
 | SCR-0501 | Giao việc (chủ trì, phối hợp, người nghiệm thu) `giao` | - | - | - | - | T/Đv | - | - | - | - | - | - | - | BR-05-02 (người nghiệm thu khác chủ trì, phối hợp), MSG-05-02 |
 | SCR-0501 | Giao đồng loạt cho nhiều đơn vị `giao-dong-loat` | - | - | - | - | T/Cd* | - | - | - | - | - | - | - |  |
 | SCR-0501 | Xem nhiệm vụ gần giống `trung` | - | - | - | - | R/Đv | - | - | - | - | - | - | - |  |
+| SCR-0501 | Tra khoá công khai người nhận, khoá ký danh bạ và khoá phục hồi để mã hoá nội dung mật `khoa-nguoi-nhan` | R/Tn* | R/Tn* | R/Tn* | R/Tn* | R/Tn* | R/Tn* | R/Tn* | R/Tn* | R/Tn* | R/Tn* | - | - | ADR-27; chỉ khoá công khai, không có dữ liệu C3 |
 | SCR-0502 | Nhận văn bản chỉ đạo từ hệ thống văn phòng điện tử `nhan-van-ban` | - | - | - | - | R/Đv | - | - | - | - | - | H | - |  |
 | SCR-0502 | Trích nhiệm vụ từ văn bản bằng AI `ai-trich` | - | - | - | - | - | - | - | - | - | - | - | A | BR-02-11 tương tự: chỉ ghi khi người giao xác nhận |
 | SCR-0502 | Sửa, bỏ, gộp, xác nhận nhiệm vụ trích; bỏ qua văn bản `xac-nhan` | - | - | - | - | T/Đv | - | - | - | - | - | - | - |  |
@@ -321,9 +335,12 @@ Dòng tiêu đề cột: AC-01 `platform_admin`, AC-02 `tenant_admin`, AC-03 `po
 | Khoá | Ghi chú về ô suy luận hoặc điểm lệch |
 |---|---|
 | `SCR-0001.dang-nhap` | AC-11 là VNeID, IdP cơ quan qua môi giới danh tính. |
+| `SCR-0001.khoa-thiet-bi` | Bổ sung ngoài TL-02 cùng CORE-07-06: thiết bị tự đăng ký khoá sau lần đăng nhập có MFA đầu tiên, không có nút riêng; chỉ thu hồi khoá của chính mình. |
 | `SCR-0002.xem` | Vai trò khác AC-04..AC-07 suy luận từ "vai trò bất kỳ". |
 | `SCR-0102.buoc-4-5` | AC-01 xem tiến độ bước 4, 5 là suy luận. |
 | `SCR-0103.xem` | Phạm vi Cd của AC-07 và Tn của AC-10 là suy luận từ phạm vi mặc định của vai trò. |
+| `SCR-0103.khoa-phuc-hoi` | Bổ sung cùng CORE-07-06; TL-02 chưa có màn hình riêng, tạm gắn SCR-0103 như hợp đồng. |
+| `SCR-0103.nhat-ky-phuc-hoi` | Bổ sung cùng CORE-07-06: cơ quan kiểm tra đối chiếu mọi lần khôi phục. |
 | `SCR-0104.xem` | AC-10 đọc nhật ký đồng bộ theo bảng tác nhân TL-02 nhưng SCR-0104 chỉ ghi AC-02; AC-11 là CSDL CBCCVC. |
 | `SCR-0104.giao-xu-ly` | Người nhận "cán bộ tổ chức đơn vị" ánh xạ sang AC-07 là suy luận. |
 | `SCR-0105.xem` | Quyền xem của AC-04, AC-10 là suy luận từ phạm vi mặc định của vai trò. |
@@ -337,6 +354,7 @@ Dòng tiêu đề cột: AC-01 `platform_admin`, AC-02 `tenant_admin`, AC-03 `po
 | `SCR-0302.check-in-dd` | Màn hình ứng dụng Flutter (SVC-18). |
 | `SCR-0401.sua` | Phạm vi Tn của AC-03 là suy luận; AC-05 chỉ khi được giao quản lý danh mục (Gn). TL-01 ghi `org_officer` thay cho `policy_author`. |
 | `SCR-0501.giao-dong-loat` | Phạm vi Cd (đơn vị cấp dưới) là suy luận; cần OPA quyết định danh sách đơn vị được giao. |
+| `SCR-0501.khoa-nguoi-nhan` | Bổ sung cùng CORE-07-06: mọi người dùng soạn hoặc chia sẻ nội dung mật cần đọc khoá công khai của người nhận trong tenant (suy luận). |
 | `SCR-0503.dang-ky` | Bước người quản lý duyệt đăng ký chưa có chức năng riêng trên SCR (nhiệm vụ `NHAP` có cờ đăng ký, xử lý ở SCR-0501). |
 | `SCR-0601.xem` | Phạm vi của AC-07, AC-10 là suy luận. |
 | `SCR-0601.duyet-de-nghi` | AC-04 duyệt khi đề nghị vượt ngưỡng chuyển cấp trên (MSG-06-07) là suy luận. |

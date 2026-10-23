@@ -73,6 +73,29 @@ public class JdbcPolicyPublishRepository implements PolicyPublishRepository {
   }
 
   @Override
+  public Optional<PolicyPublishRequest> findById(TenantId tenant, UUID requestId) {
+    return jdbc.sql(
+            "SELECT " + COLUMNS + " FROM policy.publish_request WHERE tenant_id = ? AND id = ?")
+        .param(tenant.value())
+        .param(requestId)
+        .query(this::request)
+        .optional();
+  }
+
+  @Override
+  public Optional<PolicyPublishRequest> findApproved(TenantId tenant, UUID versionId) {
+    return jdbc.sql(
+            "SELECT "
+                + COLUMNS
+                + " FROM policy.publish_request WHERE tenant_id = ? AND policy_pack_version_id = ?"
+                + " AND status = 'DA_DUYET' ORDER BY decided_at DESC LIMIT 1")
+        .param(tenant.value())
+        .param(versionId)
+        .query(this::request)
+        .optional();
+  }
+
+  @Override
   public boolean storeDecision(TenantId tenant, PolicyPublishRequest r, long expected) {
     return jdbc.sql(
                 """

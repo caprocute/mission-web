@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.models.PathItem;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
@@ -30,6 +32,7 @@ import vn.viettel.okrkpi.MissionCoreTestDatabase;
 import vn.viettel.okrkpi.config.api.FeatureFlagApi;
 import vn.viettel.okrkpi.config.api.TenantSettingApi;
 import vn.viettel.okrkpi.config.application.port.ConfigAudit;
+import vn.viettel.okrkpi.config.infrastructure.web.PeriodCaller;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
@@ -47,9 +50,15 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
     properties = "mission.outbox.relay.enabled=false")
 @AutoConfigureMockMvc(addFilters = false)
 @DirtiesContext
+@Import(FeatureFlagApiIT.CallerConfig.class)
 class FeatureFlagApiIT extends ContractConformanceTest {
 
   static final List<String> AUDITS = new CopyOnWriteArrayList<>();
+
+  /** Người gọi và đơn vị của ngữ cảnh phân công đang chọn. */
+  static volatile UUID caller = UUID.randomUUID();
+
+  static volatile String callerUnit;
 
   @TestConfiguration
   static class AuditConfig {
@@ -59,6 +68,30 @@ class FeatureFlagApiIT extends ContractConformanceTest {
     ConfigAudit testConfigAudit() {
       return (tenant, actor, action, type, objectId, aggregateId, version) ->
           AUDITS.add(action + ":" + objectId + ":" + version);
+    }
+  }
+
+  /**
+   * Người gọi riêng của lớp này. Không gắn {@code @TestConfiguration} và không đặt trong {@link
+   * AuditConfig}: quét thành phần nhặt lớp lồng mang chú thích đó vào mọi IT khác, còn một số IT
+   * nạp {@link AuditConfig}; cả hai đường đều làm bean {@code @Primary} này đè người gọi của IT đó.
+   */
+  static class CallerConfig {
+
+    @Bean
+    @Primary
+    PeriodCaller featureFlagCaller() {
+      return new PeriodCaller() {
+        @Override
+        public Optional<UUID> currentUserId() {
+          return Optional.of(caller);
+        }
+
+        @Override
+        public Optional<String> unitId() {
+          return Optional.ofNullable(callerUnit);
+        }
+      };
     }
   }
 
@@ -157,6 +190,49 @@ class FeatureFlagApiIT extends ContractConformanceTest {
                 mvc.perform(get("/api/v1/config/feature-flags").param("limit", "200")).andReturn());
     assertThat(body(otherList).get("items"))
         .allSatisfy(f -> assertThat(f.get("rowVersion").asInt()).isZero());
+  }
+
+  @Test
+  void effectiveFlagsForCurrentUserFollowUnitTargeting() throws Exception {
+    UUID unit = UUID.randomUUID();
+    String on =
+        """
+        {"enabled":true,"rollout":{"unitIds":["%s"],"percent":100}}
+        """
+            .formatted(unit);
+    String path = "/api/v1/config/feature-flags/okr.aiSuggest";
+    MvcResult current = perform(get("/api/v1/config/feature-flags").param("limit", "200"));
+    String version = "0";
+    for (JsonNode f : body(current).get("items")) {
+      if (f.get("flagKey").asText().equals("okr.aiSuggest")) {
+        version = f.get("rowVersion").asText();
+      }
+    }
+    assertThat(perform(putJson(path, "\"" + version + "\"", on)).getResponse().getStatus())
+        .isEqualTo(200);
+
+    JsonNode inUnit = effectiveAs(unit);
+    assertThat(inUnit.get("flags").get("okr.aiSuggest").asBoolean()).as(inUnit.toString()).isTrue();
+    assertThat(inUnit.get("flags").get("okr.alignmentGraph").asBoolean()).isTrue();
+    assertThat(inUnit.hasNonNull("evaluatedAt")).isTrue();
+    JsonNode outside = effectiveAs(UUID.randomUUID());
+    assertThat(outside.get("flags").get("okr.aiSuggest").asBoolean()).isFalse();
+  }
+
+  /** Gọi {@code GET /ui/feature-flags} với người dùng chọn ngữ cảnh phân công ở {@code unit}. */
+  private JsonNode effectiveAs(UUID unit) throws Exception {
+    callerUnit = unit.toString();
+    caller = UUID.randomUUID();
+    try {
+      MvcResult r = perform(get("/api/v1/ui/feature-flags"));
+      assertThat(r.getResponse().getStatus())
+          .as(r.getResponse().getContentAsString())
+          .isEqualTo(200);
+      assertResponseConforms(r, "/ui/feature-flags", PathItem.HttpMethod.GET);
+      return body(r);
+    } finally {
+      callerUnit = null;
+    }
   }
 
   @Test

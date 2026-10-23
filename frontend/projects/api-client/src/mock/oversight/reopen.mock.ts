@@ -91,7 +91,7 @@ function nextCode(): string {
 }
 
 function list(req: MockRequest): MockResponse {
-  const periodId = req.params.get('periodId');
+  const periodId = req.params.get('period');
   const status = req.params.get('status')?.split(',').filter(Boolean) as
     ReopenRequestStatus[] | undefined;
   const mine = req.params.get('awaitingMyApproval') === 'true';

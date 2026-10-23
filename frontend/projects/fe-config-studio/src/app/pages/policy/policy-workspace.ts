@@ -1,6 +1,9 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
+  Job,
+  JobAccepted,
+  JobTracker,
   PackVersionRef,
   PolicyApi,
   PolicyPackVersion,
@@ -8,8 +11,8 @@ import {
   PolicyTestRunSummary,
   isPolicyVersionEditable,
 } from '@vt/api-client';
-import { map, switchMap, takeWhile, tap, timer } from 'rxjs';
-import { errorText } from '../../studio-ui';
+import { last, map, switchMap, tap } from 'rxjs';
+import { errorText, jobErrorText } from '../../studio-ui';
 
 /** Tên hiển thị của quy tắc không có nhãn trong `manifest.labels`. */
 export const RULE_TITLE: Record<string, string> = {
@@ -20,17 +23,16 @@ export const RULE_TITLE: Record<string, string> = {
   nguoi_dung_dau: 'Quy tắc người đứng đầu',
 };
 
-const POLL_MS = 1500;
-
 /**
  * Phiên bản Policy Pack đang mở trong Config Studio (SCR-1501 … SCR-1504): gói, phiên bản kèm ETag,
- * lần chạy kiểm thử gần nhất và thao tác chạy bộ test case vàng (202, theo dõi qua danh sách lần
- * chạy). Cung cấp ở khung gói, các tab dùng chung.
+ * lần chạy kiểm thử gần nhất và thao tác chạy bộ test case vàng (202 + `Location`, theo dõi job bằng
+ * `JobTracker` rồi đọc lại lần chạy). Cung cấp ở khung gói, các tab dùng chung.
  */
 @Injectable()
 export class PolicyWorkspace {
   private readonly api = inject(PolicyApi);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly jobs = inject(JobTracker);
 
   readonly ref = signal<PackVersionRef | null>(null);
   readonly pack = rxResource({
@@ -81,30 +83,39 @@ export class PolicyWorkspace {
   readonly publishing = signal(false);
 
   /**
-   * Theo dõi phiên bản sau khi ký phê duyệt tới khi rời `CHO_PHE_DUYET` (EVT-13; dự phòng cho SSE).
-   * Gọi `done` với phiên bản mới.
+   * Theo dõi saga phát hành sau khi ký phê duyệt (202 + `Location`, EVT-13) bằng `JobTracker`; job
+   * xong thì đọc lại phiên bản và gọi `done` khi đã phát hành, job lỗi thì báo lỗi của job.
    */
-  waitPublished(done: (v: PolicyPackVersion) => void) {
+  waitPublished(accepted: JobAccepted, done: (v: PolicyPackVersion) => void) {
     const ref = this.ref();
     if (!ref) return;
     this.publishing.set(true);
-    timer(POLL_MS, POLL_MS)
+    this.jobs
+      .track(accepted.location)
       .pipe(
-        switchMap(() => this.api.version(ref)),
-        takeWhile((v) => v.value.status === 'CHO_PHE_DUYET', true),
+        last(),
+        switchMap((job) => {
+          if (job.status !== 'HOAN_TAT') throw job;
+          return this.api.version(ref);
+        }),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
         next: (v) => {
-          if (v.value.status === 'CHO_PHE_DUYET') return;
           this.version.set(v);
           this.pack.reload();
           this.publishing.set(false);
-          done(v.value);
+          if (v.value.status === 'DA_PHAT_HANH') done(v.value);
+          else this.runError.set('Phiên bản chưa được phát hành. Vui lòng tải lại sau ít phút.');
         },
         error: (e) => {
           this.publishing.set(false);
-          this.runError.set(errorText(e, 'Không theo dõi được tiến trình phát hành.'));
+          this.version.reload();
+          this.runError.set(
+            isJob(e)
+              ? jobErrorText(e, 'Không phát hành được phiên bản.')
+              : errorText(e, 'Không theo dõi được tiến trình phát hành.'),
+          );
         },
       });
   }
@@ -133,25 +144,41 @@ export class PolicyWorkspace {
         ...(base ? { compareWithVersion: base } : {}),
       })
       .pipe(
-        tap(() => this.version.reload()),
-        switchMap(() => timer(0, POLL_MS)),
-        switchMap(() => this.api.testRuns(ref, 1)),
+        tap(() => {
+          this.version.reload();
+          this.lastRun.reload();
+        }),
+        switchMap((accepted) => this.jobs.track(accepted.location)),
+        last(),
+        switchMap((job) => {
+          if (job.status !== 'HOAN_TAT') throw job;
+          return this.api.testRuns(ref, 1);
+        }),
         map((l) => l.items[0] ?? null),
-        tap((run) => this.lastRun.set(run)),
-        takeWhile((run) => run?.result === 'DANG_CHAY', true),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
-        complete: () => {
-          this.starting.set(false);
-          this.runsChanged.update((n) => n + 1);
-          this.version.reload();
-          this.pack.reload();
-        },
+        next: (run) => this.lastRun.set(run),
+        complete: () => this.finishRun(),
         error: (e) => {
-          this.starting.set(false);
-          this.runError.set(errorText(e, 'Không chạy được kiểm thử.'));
+          this.finishRun();
+          this.runError.set(
+            isJob(e)
+              ? jobErrorText(e, 'Không chạy được kiểm thử.')
+              : errorText(e, 'Không chạy được kiểm thử.'),
+          );
         },
       });
   }
+
+  private finishRun() {
+    this.starting.set(false);
+    this.runsChanged.update((n) => n + 1);
+    this.version.reload();
+    this.pack.reload();
+  }
 }
+
+/** Job kết thúc không thành công được ném vào nhánh lỗi để tách khỏi lỗi HTTP. */
+const isJob = (e: unknown): e is Job =>
+  !!e && typeof e === 'object' && 'status' in e && 'type' in e && 'id' in e;

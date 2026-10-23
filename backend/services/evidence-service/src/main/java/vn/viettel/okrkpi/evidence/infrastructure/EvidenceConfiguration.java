@@ -1,11 +1,13 @@
 package vn.viettel.okrkpi.evidence.infrastructure;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,11 +16,16 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.RestClient;
+import vn.viettel.okrkpi.evidence.application.E2eeFileAccess;
 import vn.viettel.okrkpi.evidence.application.FileAccessGuard;
 import vn.viettel.okrkpi.evidence.application.FileEvents;
 import vn.viettel.okrkpi.evidence.application.FileNameCipher;
 import vn.viettel.okrkpi.evidence.application.MalwareScanner;
 import vn.viettel.okrkpi.evidence.application.ObjectStorage;
+import vn.viettel.okrkpi.evidence.application.OcrContentService;
+import vn.viettel.okrkpi.evidence.application.OcrQueue;
+import vn.viettel.okrkpi.evidence.application.OcrService;
+import vn.viettel.okrkpi.evidence.application.OcrTextCipher;
 import vn.viettel.okrkpi.evidence.application.PreviewQueryService;
 import vn.viettel.okrkpi.evidence.application.PreviewQueue;
 import vn.viettel.okrkpi.evidence.application.PreviewService;
@@ -30,8 +37,12 @@ import vn.viettel.okrkpi.evidence.application.TenantBucketService;
 import vn.viettel.okrkpi.evidence.application.UploadService;
 import vn.viettel.okrkpi.evidence.application.UploadSessions;
 import vn.viettel.okrkpi.evidence.infrastructure.crypto.FieldEncryptorFileNameCipher;
+import vn.viettel.okrkpi.evidence.infrastructure.crypto.FieldEncryptorOcrTextCipher;
+import vn.viettel.okrkpi.evidence.infrastructure.e2ee.MissionCoreE2eeFileAccess;
 import vn.viettel.okrkpi.evidence.infrastructure.events.OutboxFileEvents;
 import vn.viettel.okrkpi.evidence.infrastructure.events.OutboxScanEvents;
+import vn.viettel.okrkpi.evidence.infrastructure.ocr.HttpOcrGateway;
+import vn.viettel.okrkpi.evidence.infrastructure.persistence.JdbcOcrQueue;
 import vn.viettel.okrkpi.evidence.infrastructure.persistence.JdbcPreviewQueue;
 import vn.viettel.okrkpi.evidence.infrastructure.persistence.JdbcScanQueue;
 import vn.viettel.okrkpi.evidence.infrastructure.persistence.JdbcStoredFiles;
@@ -70,6 +81,12 @@ public class EvidenceConfiguration {
   }
 
   @Bean
+  OcrTextCipher ocrTextCipher(ObjectProvider<FieldEncryptor> encryptor) {
+    return (tenant, version, text) ->
+        new FieldEncryptorOcrTextCipher(encryptor.getObject()).seal(tenant, version, text);
+  }
+
+  @Bean
   FileAccessGuard fileAccessGuard() {
     return new FileAccessGuard();
   }
@@ -85,6 +102,7 @@ public class EvidenceConfiguration {
       FileAccessGuard guard,
       PlatformTransactionManager transactions,
       ObjectProvider<Clock> clock,
+      ObjectProvider<E2eeFileAccess> e2eeAccess,
       @Value("${okrkpi.evidence.storage.cell}") String cell,
       @Value("${okrkpi.evidence.upload.max-file-bytes:52428800}") long maxFileBytes,
       @Value("${okrkpi.evidence.upload.part-size:8388608}") int partSize,
@@ -100,7 +118,30 @@ public class EvidenceConfiguration {
         guard,
         new TransactionTemplate(transactions),
         new UploadService.Settings(cell, maxFileBytes, partSize, sessionTtl, lockDays),
-        clock.getIfAvailable(Clock::systemUTC));
+        clock.getIfAvailable(Clock::systemUTC),
+        e2eeAccess.getIfAvailable());
+  }
+
+  /**
+   * CORE-07-06: hỏi MOD-03 người gọi còn giữ bản bọc của tệp C3 trước khi cấp URL tải bản mã. Không
+   * khai {@code okrkpi.evidence.e2ee-access.base-url} thì chỉ người tải lên mở được bản mã.
+   */
+  @Bean
+  @ConditionalOnProperty(prefix = "okrkpi.evidence.e2ee-access", name = "base-url")
+  E2eeFileAccess e2eeFileAccess(
+      ObjectProvider<Clock> clock,
+      @Value("${okrkpi.evidence.e2ee-access.base-url}") String baseUrl,
+      @Value("${okrkpi.evidence.e2ee-access.token-url}") String tokenUrl,
+      @Value("${okrkpi.evidence.e2ee-access.client-id:evidence-service}") String clientId,
+      @Value("${okrkpi.evidence.e2ee-access.client-secret:}") String clientSecret) {
+    return new MissionCoreE2eeFileAccess(
+        RestClient.builder().baseUrl(baseUrl).build(),
+        new MissionCoreE2eeFileAccess.Token(
+            RestClient.create(),
+            tokenUrl,
+            clientId,
+            clientSecret,
+            clock.getIfAvailable(Clock::systemUTC)));
   }
 
   @Bean
@@ -111,6 +152,18 @@ public class EvidenceConfiguration {
   @Bean
   PreviewQueue previewQueue(JdbcClient jdbc, StoredFiles files) {
     return new JdbcPreviewQueue(jdbc, files);
+  }
+
+  @Bean
+  OcrQueue ocrQueue(JdbcClient jdbc, StoredFiles files) {
+    return new JdbcOcrQueue(jdbc, files);
+  }
+
+  /** DV-08-05: cấp nội dung tệp cho ai-gateway đọc chữ qua cổng nội bộ. */
+  @Bean
+  OcrContentService ocrContentService(
+      StoredFiles files, ObjectStorage storage, PlatformTransactionManager transactions) {
+    return new OcrContentService(files, storage, new TransactionTemplate(transactions));
   }
 
   @Bean
@@ -200,9 +253,47 @@ public class EvidenceConfiguration {
           clock.getIfAvailable(Clock::systemUTC));
     }
 
+    /**
+     * DV-08-05: đọc chữ qua ai-gateway, bật khi đặt {@code okrkpi.evidence.ocr.ai-gateway-url};
+     * token dịch vụ lấy bằng client credentials (bí mật từ OpenBao qua ExternalSecret).
+     */
     @Bean
-    MalwareScanWorker malwareScanWorker(ScanService scans, PreviewService previews) {
-      return new MalwareScanWorker(scans, previews);
+    @ConditionalOnExpression("!'${okrkpi.evidence.ocr.ai-gateway-url:}'.isBlank()")
+    OcrService ocrService(
+        OcrQueue queue,
+        OcrTextCipher cipher,
+        ObjectProvider<ObjectMapper> mapper,
+        PlatformTransactionManager transactions,
+        ObjectProvider<Clock> clock,
+        @Value("${okrkpi.evidence.ocr.ai-gateway-url}") String baseUrl,
+        @Value("${okrkpi.evidence.ocr.token-url:}") String tokenUrl,
+        @Value("${okrkpi.evidence.ocr.client-id:evidence-service}") String clientId,
+        @Value("${okrkpi.evidence.ocr.client-secret:}") String clientSecret,
+        @Value("${okrkpi.evidence.ocr.timeout:PT120S}") Duration timeout,
+        @Value("${okrkpi.evidence.ocr.lease:PT10M}") Duration lease,
+        @Value("${okrkpi.evidence.ocr.retry-base:PT30S}") Duration retryBase,
+        @Value("${okrkpi.evidence.ocr.max-attempts:3}") int maxAttempts) {
+      Clock c = clock.getIfAvailable(Clock::systemUTC);
+      return new OcrService(
+          queue,
+          HttpOcrGateway.create(
+              mapper.getIfAvailable(ObjectMapper::new),
+              baseUrl,
+              tokenUrl,
+              clientId,
+              clientSecret,
+              timeout,
+              c),
+          cipher,
+          new TransactionTemplate(transactions),
+          new OcrService.Settings(lease, retryBase, maxAttempts),
+          c);
+    }
+
+    @Bean
+    MalwareScanWorker malwareScanWorker(
+        ScanService scans, PreviewService previews, ObjectProvider<OcrService> ocr) {
+      return new MalwareScanWorker(scans, previews, ocr.getIfAvailable());
     }
   }
 

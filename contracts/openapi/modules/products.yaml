@@ -1011,6 +1011,48 @@ paths:
         scope: B; Gn
         source: 'ADR-06; TL-01 chương 9; TL-03 product.e2ee_key_wrap (suy luận đường dẫn)'
 
+  /evidences/{id}/versions/{v}/recovery-wraps:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - $ref: '#/components/parameters/VersionNo'
+    post:
+      tags: [Minh chứng]
+      operationId: restoreEvidenceKeyWrap
+      summary: Nạp khoá bọc E2EE của người nhận sau khi khôi phục bằng khoá phục hồi tổ chức
+      description: >-
+        Sau buổi khôi phục khi người nhận mất khoá thiết bị (TL-01 "Khôi phục khi mất khoá"), quản trị tenant
+        đã ghi biên bản bằng `recordE2eeRecovery` của SVC-04 và bọc lại khoá của tệp C3 cho khoá mới của người đó.
+        Máy chủ đối chiếu biên bản `recoveryId` qua SVC-04: `objectType` là `EVIDENCE_FILE`, `objectId` là mã
+        phiên bản minh chứng, `newRecipientId` khớp `keyWrap.recipientId`, biên bản ghi trong 24 giờ; sai trả 422.
+        Bản bọc mới thay bản bọc cũ của người đó trên phiên bản; người nhận phải đang có hoặc từng có bản bọc.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EvidenceRecoveryWrapRequest' }
+      responses:
+        '200':
+          description: Phiên bản minh chứng sau khi nạp khoá bọc khôi phục.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EvidenceVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '503': { $ref: '../common/common.yaml#/components/responses/ServiceUnavailable' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0103]
+        owner: MOD-03
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        source: 'TL-01 "Khôi phục khi mất khoá"; TL-04 SEC-25; TL-03 product.e2ee_key_wrap'
+
   /files/uploads:
     post:
       tags: [Tệp]
@@ -2222,6 +2264,13 @@ components:
         engine: { type: string }
         engineVersion: { type: string }
         scannedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+    EvidenceRecoveryWrapRequest:
+      type: object
+      required: [recoveryId, keyWrap]
+      properties:
+        recoveryId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+        keyWrap: { $ref: '#/components/schemas/EvidenceKeyWrap' }
     EvidenceKeyWrapBatchInput:
       type: object
       required: [keyWraps]

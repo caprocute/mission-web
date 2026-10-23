@@ -37,5 +37,22 @@
     "nhiemVuId": 50,
     "nguyenNhan": 24
   },
-  "songSongToiDa": {}
+  "songSongToiDa": {},
+  "thamSo": {
+    "ten": "Duyệt đề nghị gia hạn, điều chỉnh nhiệm vụ",
+    "soCapToiThieu": 2,
+    "soCapToiDa": 4,
+    "kySoBatBuoc": [],
+    "boQuaDuoc": [],
+    "capMacDinh": [
+      {
+        "vai_tro": "manager",
+        "pham_vi": "DON_VI_TRUC_TIEP"
+      },
+      {
+        "vai_tro": "leader",
+        "pham_vi": "QUAN_LY_TRUC_TIEP"
+      }
+    ]
+  }
 }

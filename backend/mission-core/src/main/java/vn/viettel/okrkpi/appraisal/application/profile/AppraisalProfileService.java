@@ -16,7 +16,6 @@ import vn.viettel.okrkpi.appraisal.domain.profile.AppraisalProfile;
 import vn.viettel.okrkpi.appraisal.domain.profile.AppraisalRuleViolation;
 import vn.viettel.okrkpi.appraisal.domain.profile.CurrentRating;
 import vn.viettel.okrkpi.appraisal.domain.profile.LevelKind;
-import vn.viettel.okrkpi.appraisal.domain.profile.ProfileCommand;
 import vn.viettel.okrkpi.appraisal.domain.profile.RatingLevel;
 import vn.viettel.okrkpi.appraisal.domain.profile.RatingRecorded;
 import vn.viettel.okrkpi.appraisal.domain.profile.StepCompleted;
@@ -78,9 +77,15 @@ public class AppraisalProfileService {
     AppraisalProfile profile = row.toAggregate();
     StepCompleted step = run(() -> command.apply(profile, row));
     Instant now = clock.instant();
-    if (step.command() == ProfileCommand.SKIP_PROPOSAL) {
+    LevelKind superseded =
+        switch (step.command()) {
+          case SKIP_PROPOSAL -> LevelKind.DE_XUAT;
+          case REOPEN_DECISION -> LevelKind.QUYET_DINH;
+          default -> null;
+        };
+    if (superseded != null) {
       row.currentRatings().stream()
-          .filter(r -> r.levelKind() == LevelKind.DE_XUAT)
+          .filter(r -> r.levelKind() == superseded)
           .forEach(
               r ->
                   profiles.supersedeRating(

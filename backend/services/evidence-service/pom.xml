@@ -48,6 +48,11 @@
     </dependency>
     <dependency>
       <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-reconcile</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
       <artifactId>vt-db-migration</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -168,6 +173,12 @@
       <groupId>vn.viettel.okrkpi</groupId>
       <artifactId>vt-contract-test</artifactId>
       <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.wiremock</groupId>
+      <artifactId>wiremock-standalone</artifactId>
+      <version>3.13.1</version>
       <scope>test</scope>
     </dependency>
     <dependency>

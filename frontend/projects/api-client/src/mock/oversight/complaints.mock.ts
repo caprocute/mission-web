@@ -148,7 +148,7 @@ function listEligible(): MockResponse {
 }
 
 function list(req: MockRequest): MockResponse {
-  const periodId = req.params.get('periodId');
+  const periodId = req.params.get('period');
   const status = req.params.get('status')?.split(',').filter(Boolean);
   const kind = req.params.get('kind');
   const mine = req.params.get('assignedToMe') === 'true';

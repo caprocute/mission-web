@@ -119,7 +119,9 @@ public class FilesController implements FilesApi {
   @Override
   public ResponseEntity<FileDownloadUrl> getFileDownloadUrl(
       UUID objectId, Integer version, String disposition) {
-    DownloadLink link = uploads.downloadUrl(objectId, version, "attachment".equals(disposition));
+    DownloadLink link =
+        uploads.downloadUrl(
+            objectId, version, "attachment".equals(disposition), CurrentCaller.actor());
     StoredFile f = link.file();
     return ResponseEntity.ok()
         .cacheControl(CacheControl.noStore())

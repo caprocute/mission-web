@@ -45,7 +45,8 @@ class AppraisalTenantIsolationIT extends TenantIsolationCatalogTest {
   void openYearPartitionAndProfiles() throws SQLException {
     try (Connection c = admin();
         Statement st = c.createStatement()) {
-      for (String table : List.of("appraisal_profile", "annual_rating", "prospect_group")) {
+      for (String table :
+          List.of("appraisal_profile", "annual_rating", "prospect_group", "prospect_board")) {
         st.execute(
             "SELECT appraisal.fn_create_period_partitions('appraisal." + table + "', 20270)");
       }
@@ -149,6 +150,28 @@ class AppraisalTenantIsolationIT extends TenantIsolationCatalogTest {
           Map<String, Object> r = periodRow(tenant, "prospect_group", YEAR_BUCKET);
           r.put("person_id", id(tenant, "person"));
           r.put("group_code", "NHOM_1");
+          return r;
+        });
+    // Danh sách phân nhóm của đơn vị (CORE-04-12), chỉ ở phân vùng năm.
+    f.put(
+        "appraisal.prospect_board",
+        (tenant, seed) -> {
+          Map<String, Object> r = periodRow(tenant, "prospect_board", YEAR_BUCKET);
+          r.put("org_unit_id", id(tenant, "org"));
+          return r;
+        });
+    f.put(
+        "appraisal.incident",
+        (tenant, seed) -> {
+          Map<String, Object> r = new LinkedHashMap<>();
+          r.put("id", id(tenant, "incident"));
+          r.put("created_by", id(tenant, "user"));
+          r.put("updated_by", id(tenant, "user"));
+          r.put("person_id", id(tenant, "person"));
+          r.put("org_unit_id", id(tenant, "org"));
+          r.put("incident_type", "KY_LUAT");
+          r.put("concluded_on", LocalDate.parse("2027-02-10"));
+          r.put("document_no", "12-QĐ/" + seed);
           return r;
         });
     return f;

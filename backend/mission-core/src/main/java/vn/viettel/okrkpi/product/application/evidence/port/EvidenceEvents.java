@@ -24,6 +24,21 @@ public interface EvidenceEvents {
   /** EVT-07: phiên bản minh chứng đã nộp. */
   void submitted(Submitted event);
 
+  /**
+   * Người nộp xác nhận các ô do AI điền (CORE-03-05, BR-07-09): ghi sổ cái qua {@code sys.audit.v1}
+   * kèm ô giữ nguyên và ô đã sửa.
+   */
+  record AiFieldsConfirmed(
+      TenantId tenantId,
+      UUID versionId,
+      UUID aiSuggestionId,
+      List<String> kept,
+      List<String> edited,
+      UUID actorId,
+      long aggregateVersion) {}
+
+  void aiFieldsConfirmed(AiFieldsConfirmed event);
+
   /** EVT-21: nhắc người nghiệm thu có minh chứng chờ xem xét. */
   void reviewRequested(
       TenantId tenantId,

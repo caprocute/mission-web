@@ -64,7 +64,10 @@ public interface ProfileSetupRepository {
 
   record SnapshotHead(UUID id, UUID scoreResultId, Instant computedAt) {}
 
-  /** Ảnh chụp mới; {@code snapshotHash} là SHA-256 dạng JCS của các trường điểm. */
+  /**
+   * Ảnh chụp mới; {@code snapshotHash} là SHA-256 dạng JCS của các trường điểm, {@code detailJson}
+   * ghi vào {@code detail_json} (ảnh chụp năm: các quý tham chiếu, BR-10-06), có thể {@code null}.
+   */
   record NewSnapshot(
       UUID id,
       UUID periodId,
@@ -80,5 +83,6 @@ public interface ProfileSetupRepository {
       BigDecimal totalScore,
       String autoRatingCode,
       Instant computedAt,
-      byte[] snapshotHash) {}
+      byte[] snapshotHash,
+      String detailJson) {}
 }

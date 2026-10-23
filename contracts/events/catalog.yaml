@@ -245,9 +245,9 @@ events:
     key: tenant:subjectId
     outbox: null
     classification: C1
-    producer: SVC-15
+    producer: [SVC-15, SVC-09]
     consumers: [MOD-07, SVC-12]
-    note: Producer ClickHouse job đọc bảng anomaly_out (không có outbox PostgreSQL); event_id tất định theo alertKey
+    note: Producer ClickHouse job đọc bảng anomaly_out (không có outbox PostgreSQL); event_id tất định theo alertKey. SVC-09 (ledger-service) phát qua outbox ledger khi kiểm tra toàn vẹn phát hiện phá chuỗi (DV-09-04, bằng chứng ledger_chain:)
     schema: avro/analytics/DauHieuBatThuong.avsc
     artifactId: analytics.anomaly.detected.v1-value
 

@@ -75,7 +75,14 @@ public interface ReviewRepository {
   }
 
   /** Một dòng hàng đợi: tóm tắt hồ sơ, họ tên và tên đơn vị từ bản sao tổ chức. */
-  record QueueRow(ProfileSummary profile, String personName, String unitName) {}
+  record QueueRow(
+      ProfileSummary profile, String personName, String unitName, BigDecimal totalScore) {
+
+    /** Dòng chưa có điểm. */
+    public QueueRow(ProfileSummary profile, String personName, String unitName) {
+      this(profile, personName, unitName, null);
+    }
+  }
 
   /** Dòng mức thẩm định có ký: văn bản C2 ở dạng mã hoá. */
   record AppraisalSign(

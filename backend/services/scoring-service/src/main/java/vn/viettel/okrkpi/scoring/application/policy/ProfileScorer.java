@@ -48,6 +48,85 @@ public final class ProfileScorer {
     return result(resultId, policy, calc, input.flow(), input.personId(), input.profileId(), null);
   }
 
+  /**
+   * Tính lại hồ sơ từ {@code input_doc} đã lưu (tính thử DV-07-08, BR-09-16): biến đầu vào đọc lại
+   * theo kiểu của gói ({@link #variablesOf}), {@code fixed} là giá trị cố định cho quy tắc nhiệm
+   * vụ. Không ghi gì; kết quả chỉ để so sánh trước và sau.
+   *
+   * @throws IllegalArgumentException gói thuộc luồng khác luồng của hồ sơ
+   */
+  public ComputedScore rescore(
+      UUID resultId,
+      CompiledPolicy policy,
+      UUID profileId,
+      UUID personId,
+      String flow,
+      Map<String, Object> variables,
+      Map<String, Map<String, Object>> fixed) {
+    checkFlow(policy, flow);
+    Map<String, Object> doc = new LinkedHashMap<>();
+    doc.put("profile_id", profileId.toString());
+    doc.put("person_id", personId.toString());
+    doc.put("flow", flow);
+    doc.putAll(variables);
+    ScoreCalculator.Calculation calc =
+        calculator.calculate(policy, CanonicalDoc.of(doc), variables, Map.of(), fixed);
+    return result(resultId, policy, calc, flow, personId, profileId, null);
+  }
+
+  /** A, B, C, KPI dự kiến của một phần tử nhiệm vụ (xem trước khi nghiệm thu, DV-07-08). */
+  public Map<String, Object> previewTask(CompiledPolicy policy, Map<String, Object> nv) {
+    return calculator.taskScope(policy, nv);
+  }
+
+  /** Khoá định danh của {@code input_doc}, không phải biến CEL. */
+  static final java.util.Set<String> DOC_IDENTITY =
+      java.util.Set.of("profile_id", "person_id", "flow");
+
+  /**
+   * Biến CEL từ {@code input_doc} đã lưu: JSON chuẩn hoá RFC 8785 bỏ phần thập phân {@code .0} nên
+   * số được đưa về kiểu khai báo ở {@code inputs} và {@code types.NhiemVu} của gói ({@code int} →
+   * {@code long}, {@code double} → {@code double}) để biểu thức CEL chạy như lần tính gốc.
+   */
+  public static Map<String, Object> variablesOf(CompiledPolicy policy, Map<String, Object> doc) {
+    Map<String, Object> inputs = RatingClassifier.map(policy.manifest().get("inputs"));
+    Map<String, Object> taskTypes =
+        RatingClassifier.map(RatingClassifier.map(policy.manifest().get("types")).get("NhiemVu"));
+    Map<String, Object> vars = new LinkedHashMap<>();
+    doc.forEach(
+        (key, value) -> {
+          if (DOC_IDENTITY.contains(key)) {
+            return;
+          }
+          if (ScoringInput.TASKS.equals(key) && value instanceof List<?> list) {
+            List<Map<String, Object>> tasks = new ArrayList<>();
+            for (Object o : list) {
+              Map<String, Object> nv = new LinkedHashMap<>();
+              RatingClassifier.map(o).forEach((f, v) -> nv.put(f, coerce(taskTypes.get(f), v)));
+              tasks.add(nv);
+            }
+            vars.put(key, tasks);
+          } else {
+            vars.put(key, coerce(inputs.get(key), value));
+          }
+        });
+    return vars;
+  }
+
+  private static Object coerce(Object declaration, Object value) {
+    if (!(value instanceof Number n)) {
+      return value;
+    }
+    Object type = RatingClassifier.map(declaration).get("type");
+    if ("int".equals(type)) {
+      return n.longValue();
+    }
+    if ("double".equals(type)) {
+      return n.doubleValue();
+    }
+    return value;
+  }
+
   /** Kết quả năm lần trước của hồ sơ, để MOD-04 báo thay đổi (MSG-10-04). */
   public record Previous(BigDecimal score, String rating) {}
 

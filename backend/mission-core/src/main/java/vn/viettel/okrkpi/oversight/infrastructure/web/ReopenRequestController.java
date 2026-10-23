@@ -109,7 +109,7 @@ public class ReopenRequestController {
   @GetMapping
   @RequiresPermission(operationId = "listReopenRequests", module = "oversight")
   public ListReopenRequests200Response listReopenRequests(
-      @RequestParam(value = "periodId", required = false) UUID periodId,
+      @RequestParam(value = "period", required = false) UUID periodId,
       @RequestParam(value = "status", required = false) String status,
       @RequestParam(value = "awaitingMyApproval", required = false, defaultValue = "false")
           boolean awaitingMyApproval,
@@ -188,13 +188,15 @@ public class ReopenRequestController {
   public ReopenImpact simulateReopenRequest(
       @PathVariable("id") UUID id,
       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "Authorization", required = false) String authorization,
       @RequestBody(required = false) JsonNode body) {
     // Tính thử không ghi gì (kể cả oversight.idempotency_key): gửi lại cùng khoá cho cùng kết quả.
     TenantId tenant = TenantContext.require();
     List<Adjustment> adjustments = adjustments(body);
     ReopenImpactSimulator.Impact impact;
     try {
-      impact = notFoundAs404(() -> service().simulate(tenant, actor(), id, adjustments));
+      impact =
+          notFoundAs404(() -> service().simulate(tenant, actor(), id, adjustments, authorization));
     } catch (ReopenRequestService.SimulationUnavailableException e) {
       throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
     }

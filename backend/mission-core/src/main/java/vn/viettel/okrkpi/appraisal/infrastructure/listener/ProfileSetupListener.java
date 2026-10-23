@@ -2,6 +2,7 @@ package vn.viettel.okrkpi.appraisal.infrastructure.listener;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
+import vn.viettel.okrkpi.appraisal.application.annual.AnnualSetupService;
 import vn.viettel.okrkpi.appraisal.application.setup.ProfileSetupService;
 import vn.viettel.okrkpi.appraisal.application.setup.ProfileSetupService.ScoreComputed;
 import vn.viettel.okrkpi.shared.inbox.InboxEnvelope;
@@ -22,14 +23,28 @@ public class ProfileSetupListener {
   public static final String SCORED_CONSUMER = "appraisal.score-computed";
 
   private final ProfileSetupService service;
+  private final AnnualSetupService annual;
 
   public ProfileSetupListener(ProfileSetupService service) {
-    this.service = Objects.requireNonNull(service, "service");
+    this(service, null);
   }
 
+  /**
+   * @param annual lập hồ sơ năm khi quý IV khoá (CORE-04-10), có thể {@code null}
+   */
+  public ProfileSetupListener(ProfileSetupService service, AnnualSetupService annual) {
+    this.service = Objects.requireNonNull(service, "service");
+    this.annual = annual;
+  }
+
+  /** Hồ sơ quý trước, hồ sơ năm sau trong cùng giao dịch inbox (quý IV là đầu vào của năm). */
   public void onLocked(KyDaKhoa event, InboxEnvelope<?> envelope) {
     service.onPeriodLocked(
         envelope.tenantId(), event.getPeriodId(), event.getPeriodBucket(), event.getLockedAt());
+    if (annual != null) {
+      annual.onQuarterLocked(
+          envelope.tenantId(), event.getPeriodId(), event.getPeriodBucket(), event.getLockedAt());
+    }
   }
 
   public void onScored(DiemDaTinh event, InboxEnvelope<?> envelope) {

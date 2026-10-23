@@ -47,6 +47,12 @@
       <artifactId>vt-db-migration</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <!-- CEL kiểm kiểu điều kiện bỏ qua cấp của tham số luồng (DV-06-08, ADR-10). -->
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-cel</artifactId>
+      <version>${project.version}</version>
+    </dependency>
 
     <!-- Flowable 7.x: chỉ bật BPMN process engine và DMN engine; tắt IDM và Event Registry (ADR-02, TL-01 chương 8). -->
     <dependency>
@@ -174,7 +180,8 @@
     <dependency>
       <groupId>com.h2database</groupId>
       <artifactId>h2</artifactId>
-      <scope>test</scope>
+      <!-- Engine Flowable thử của mô phỏng tham số luồng chạy trên H2 trong bộ nhớ (DV-06-08). -->
+      <scope>runtime</scope>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>

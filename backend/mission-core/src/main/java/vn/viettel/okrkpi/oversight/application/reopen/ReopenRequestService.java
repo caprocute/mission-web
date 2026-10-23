@@ -214,6 +214,13 @@ public class ReopenRequestService {
   @Transactional(value = TX, readOnly = true)
   public ReopenImpactSimulator.Impact simulate(
       TenantId tenant, Actor actor, UUID id, List<Adjustment> adjustments) {
+    return simulate(tenant, actor, id, adjustments, null);
+  }
+
+  /** Như trên, kèm header {@code Authorization} của người gọi để chuyển tiếp tới SVC-07. */
+  @Transactional(value = TX, readOnly = true)
+  public ReopenImpactSimulator.Impact simulate(
+      TenantId tenant, Actor actor, UUID id, List<Adjustment> adjustments, String authorization) {
     ReopenRequest r = visible(tenant, actor, id);
     List<Adjustment> used = adjustments;
     if ((used == null || used.isEmpty())
@@ -237,7 +244,12 @@ public class ReopenRequestService {
     return simulator.simulate(
         tenant,
         new ReopenImpactSimulator.Request(
-            r.periodId(), r.scope(), r.scopeIds(), profiles, used == null ? List.of() : used));
+            r.periodId(),
+            r.scope(),
+            r.scopeIds(),
+            profiles,
+            used == null ? List.of() : used,
+            authorization));
   }
 
   /** Người lập huỷ yêu cầu trước khi đủ hai phê duyệt (SCR-1301 "Huỷ yêu cầu"). */

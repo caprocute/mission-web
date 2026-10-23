@@ -30,6 +30,7 @@ import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRep
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRepository.StoredObject;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRepository.VersionSummary;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRepository.VersionView;
+import vn.viettel.okrkpi.product.domain.evidence.AiPrefillRules;
 import vn.viettel.okrkpi.product.domain.evidence.EvidenceFile;
 import vn.viettel.okrkpi.product.domain.evidence.EvidenceRuleViolation;
 import vn.viettel.okrkpi.product.domain.evidence.EvidenceStatus;
@@ -110,7 +111,14 @@ public class EvidenceSubmissionService {
       String docNumber,
       LocalDate docDate,
       String docSummary,
-      String note) {}
+      String note,
+      List<String> aiFieldsEdited) {}
+
+  /**
+   * Việc cần làm với SVC-14 trước khi nộp (CORE-03-05): ghi quyết định của người nộp cho gợi ý
+   * {@code aiSuggestionId}; {@code edited} rỗng là giữ nguyên mọi ô.
+   */
+  public record AiDecisionPlan(UUID versionId, UUID aiSuggestionId, List<String> edited) {}
 
   /** Minh chứng kèm lịch sử phiên bản. */
   public record EvidenceDetail(
@@ -333,6 +341,18 @@ public class EvidenceSubmissionService {
         lifecycle.submitVersion(tenant, v.id(), expectedRowVersion, actor, aiFieldsConfirmed);
 
     EvidenceVersion submitted = result.version();
+    if (v.aiPrefill() && v.userConfirmedAt() == null && submitted.userConfirmedAt() != null) {
+      List<String> edited = repository.aiFieldsEdited(tenant, v.periodBucket(), v.id());
+      events.aiFieldsConfirmed(
+          new EvidenceEvents.AiFieldsConfirmed(
+              tenant,
+              v.id(),
+              v.aiSuggestionId(),
+              AiPrefillRules.kept(edited),
+              edited,
+              actor.personId(),
+              result.rowVersion()));
+    }
     events.submitted(
         new EvidenceEvents.Submitted(
             tenant,
@@ -365,6 +385,30 @@ public class EvidenceSubmissionService {
     VersionView after =
         repository.findVersion(tenant, e.periodBucket(), evidenceId, versionNo).orElseThrow();
     return new SubmitOutcome(versionDetail(tenant, after), reviewer, taskStatus);
+  }
+
+  /**
+   * Gợi ý AI cần ghi quyết định khi nộp với xác nhận: chỉ khi phiên bản {@code NHAP} có ô AI chưa
+   * xác nhận, có mã gợi ý và không có tệp C3 (tệp C3 không bao giờ tạo lời gọi tới SVC-14).
+   */
+  @Transactional(value = TX, readOnly = true)
+  public Optional<AiDecisionPlan> aiDecisionPlan(
+      TenantId tenant, UUID evidenceId, int versionNo, boolean aiFieldsConfirmed) {
+    if (!aiFieldsConfirmed) {
+      return Optional.empty();
+    }
+    return repository
+        .findEvidence(tenant, evidenceId)
+        .flatMap(e -> repository.findVersion(tenant, e.periodBucket(), evidenceId, versionNo))
+        .filter(v -> EvidenceStatus.NHAP.name().equals(v.status()))
+        .filter(v -> v.aiPrefill() && v.userConfirmedAt() == null)
+        .filter(v -> !v.hasE2ee() && v.aiSuggestionId() != null)
+        .map(
+            v ->
+                new AiDecisionPlan(
+                    v.id(),
+                    v.aiSuggestionId(),
+                    repository.aiFieldsEdited(tenant, v.periodBucket(), v.id())));
   }
 
   // ---------------------------------------------------------------- nội bộ
@@ -425,6 +469,15 @@ public class EvidenceSubmissionService {
               duplicateOf,
               blankToNull(f.reuseJustification())));
     }
+    boolean hasE2ee = rows.stream().anyMatch(r -> objects.get(r.objectId()).hasE2ee());
+    List<String> aiEdited;
+    try {
+      aiEdited =
+          AiPrefillRules.check(
+              input.aiPrefill(), input.aiSuggestionId() != null, input.aiFieldsEdited(), hasE2ee);
+    } catch (AiPrefillRules.Violation ex) {
+      throw invalid(ex.field(), ex.getMessage());
+    }
     String scan = SubmissionRules.aggregateScan(rows.stream().map(FileRow::scanStatus).toList());
     StoredObject first = rows.isEmpty() ? null : objects.get(rows.get(0).objectId());
     FileRow firstDuplicate =
@@ -449,7 +502,7 @@ public class EvidenceSubmissionService {
         new DraftDetails(
             input.source() == null ? version.source() : input.source(),
             blankToNull(input.sourceDocRef()),
-            input.aiSuggestionId(),
+            input.aiPrefill() ? input.aiSuggestionId() : null,
             blankToNull(input.docNumber()),
             input.docDate(),
             blankToNull(input.docSummary()),
@@ -458,10 +511,11 @@ public class EvidenceSubmissionService {
                 .reduce(Long::sum)
                 .orElse(null),
             first == null ? null : first.mediaType(),
-            rows.stream().anyMatch(r -> objects.get(r.objectId()).hasE2ee()),
+            hasE2ee,
             firstDuplicate != null,
             firstDuplicate == null ? null : firstDuplicate.duplicateOfVersionId(),
-            firstDuplicate == null ? null : firstDuplicate.reuseJustification()));
+            firstDuplicate == null ? null : firstDuplicate.reuseJustification(),
+            aiEdited));
     VersionView saved =
         repository
             .findVersion(tenant, version.periodBucket(), version.evidenceId(), version.versionNo())

@@ -19,6 +19,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
+import vn.viettel.okrkpi.config.api.RecoveryKeySettingApi;
 import vn.viettel.okrkpi.config.api.TenantSettingApi;
 import vn.viettel.okrkpi.config.application.port.ConfigAudit;
 import vn.viettel.okrkpi.config.application.port.TenantSettingRepository;
@@ -186,6 +187,99 @@ public class TenantSettingService implements TenantSettingApi {
     } catch (IllegalArgumentException | DateTimeParseException e) {
       return false;
     }
+  }
+
+  /** Tài khoản hệ thống ghi đồng bộ khoá phục hồi (không có người thao tác). */
+  static final UUID SYSTEM_ACTOR = new UUID(0L, 0L);
+
+  static final String RECOVERY_SYNC_ACTION = "DONG_BO_KHOA_PHUC_HOI";
+
+  /** Số vân tay khoá phục hồi giữ lại, gồm khoá hiện hành và các khoá đã thay gần nhất. */
+  static final int RECOVERY_FINGERPRINTS_KEPT = 5;
+
+  /**
+   * CORE-07-06: ghi khoá phục hồi đang hiệu lực của SVC-04 vào {@value RecoveryKeySettingApi#KEY}.
+   * Khoá hiện hành đứng đầu {@code fingerprints}, vân tay cũ giữ phía sau (tối đa {@value
+   * #RECOVERY_FINGERPRINTS_KEPT}) để bản bọc cho khoá đã thay vẫn được tính là bản phục hồi khi
+   * chia sẻ, thu hồi; bản bọc mới phải ghi {@code recipientId} của khoá hiện hành.
+   *
+   * @return {@code false} khi giá trị đã khớp hoặc một bản sao khác vừa ghi trước
+   */
+  @Transactional(TX)
+  public boolean syncRecoveryKey(TenantId tenantId, UUID recipientId, String fingerprint) {
+    Objects.requireNonNull(recipientId, "recipientId");
+    Objects.requireNonNull(fingerprint, "fingerprint");
+    Optional<Setting> row = settings.find(tenantId, RecoveryKeySettingApi.KEY, null);
+    List<String> fingerprints = new ArrayList<>();
+    fingerprints.add(fingerprint);
+    JsonNode old = row.map(Setting::value).orElse(null);
+    if (old != null && old.path("fingerprints").isArray()) {
+      for (JsonNode f : old.path("fingerprints")) {
+        if (f.isTextual()
+            && !fingerprints.contains(f.asText())
+            && fingerprints.size() < RECOVERY_FINGERPRINTS_KEPT) {
+          fingerprints.add(f.asText());
+        }
+      }
+    }
+    if (old != null
+        && recipientId.toString().equals(old.path("recipientId").asText())
+        && fingerprint.equals(old.path("fingerprints").path(0).asText())) {
+      return false;
+    }
+    ObjectNode value = json.createObjectNode();
+    ArrayNode list = value.putArray("fingerprints");
+    fingerprints.forEach(list::add);
+    value.put("recipientId", recipientId.toString());
+    Instant now = clock.instant();
+    UUID id;
+    int version;
+    if (row.isEmpty()) {
+      id = Ids.newUuidV7();
+      version = 0;
+      if (!settings.insert(
+          tenantId,
+          new Setting(
+              id,
+              RecoveryKeySettingApi.KEY,
+              null,
+              value,
+              "json.object",
+              "Khoá phục hồi tổ chức, đồng bộ từ SVC-04",
+              version,
+              now),
+          SYSTEM_ACTOR)) {
+        return false;
+      }
+    } else {
+      Setting s = row.get();
+      id = s.id();
+      version = s.rowVersion() + 1;
+      if (!settings.update(
+          tenantId,
+          new Setting(
+              id,
+              RecoveryKeySettingApi.KEY,
+              null,
+              value,
+              "json.object",
+              s.description(),
+              s.rowVersion(),
+              now),
+          s.rowVersion(),
+          SYSTEM_ACTOR)) {
+        return false;
+      }
+    }
+    audit.changed(
+        tenantId,
+        SYSTEM_ACTOR,
+        RECOVERY_SYNC_ACTION,
+        OBJECT_TYPE,
+        RecoveryKeySettingApi.KEY,
+        id,
+        version);
+    return true;
   }
 
   /** Ngưỡng và phiên bản dòng ({@code ETag}). */
