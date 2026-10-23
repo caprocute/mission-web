@@ -300,8 +300,9 @@ spec:
       config:
         {{- toYaml $conf | nindent 8 }}
     {{- end }}
+{{- $routes := include "api-gateway.routes" . | fromJsonArray }}
 {{- $nss := list }}
-{{- range $v.routes }}{{ $nss = append $nss .namespace }}{{ end }}
+{{- range $routes }}{{ $nss = append $nss .namespace }}{{ end }}
 {{- range $ns := uniq $nss }}
 ---
 # protected-api đặt cạnh ApisixRoute của cùng namespace (plugin_config_name chỉ tra trong namespace của tuyến).
@@ -319,7 +320,7 @@ spec:
         {{- toYaml $conf | nindent 8 }}
     {{- end }}
 {{- end }}
-{{- range $v.routes }}
+{{- range $routes }}
 ---
 apiVersion: apisix.apache.org/v2
 kind: ApisixRoute
@@ -329,9 +330,19 @@ metadata:
 spec:
   http:
     - name: {{ .name }}
+      priority: {{ .priority | int }}
       match:
         hosts: {{ toJson .hosts }}
         paths: {{ toJson .paths }}
+        {{- with .methods }}
+        methods: {{ toJson . }}
+        {{- end }}
+        {{- with .uriRegex }}
+        exprs:
+          - subject: { scope: Path }
+            op: RegexMatch
+            value: {{ . | quote }}
+        {{- end }}
       backends:
         {{- if .canary }}
         # Argo Rollouts chỉnh trọng số hai backend này khi phát hành canary (OPS-03, INF-04).
@@ -345,12 +356,21 @@ spec:
       {{- with .pluginConfig }}
       plugin_config_name: {{ . }}
       {{- end }}
-      {{- with .rewrite }}
+      {{- if or .rewrite .deny }}
       plugins:
+        {{- with .rewrite }}
         - name: proxy-rewrite
           enable: true
           config:
             regex_uri: [{{ index . 0 | quote }}, {{ index . 1 | replace "{realm}" $v.oidc.realm | quote }}]
+        {{- end }}
+        {{- if .deny }}
+        - name: fault-injection
+          enable: true
+          config:
+            abort:
+              {{- include "api-gateway.denyAbort" $ | nindent 14 }}
+        {{- end }}
       {{- end }}
       timeout:
         connect: {{ .timeout.connect }}s

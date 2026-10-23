@@ -1,0 +1,8 @@
+# Tuyến không cần token người dùng nhưng không nằm trong OpenAPI (quy ước chuẩn, không phải API nghiệp vụ), DV-01-03.
+# Đây là nguồn viết tay duy nhất ngoài hợp đồng; scripts/sinh-tuyen-cong-khai.py gộp nó với thao tác security: []
+# của contracts/openapi thành public-routes.yaml. Thêm dòng mới phải ghi lý do và người duyệt bảo mật (wiki 07).
+- path: /.well-known/jwks.json
+  method: GET
+  service: integration-gateway
+  reason: "Khoá công khai ký CloudEvents gửi đối tác (quy ước JOSE, wiki 14 mục DV-13-02 ý 7)"
+  approvedBy: "Quyết định DV-13-02 (SVC-13 integration-gateway), wiki 14"

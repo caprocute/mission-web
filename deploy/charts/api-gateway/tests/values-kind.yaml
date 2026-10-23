@@ -14,6 +14,8 @@ apisix:
   service: { type: ClusterIP }
 oidc:
   baseUrl: http://keycloak.identity.svc:8080
+  # Keycloak giả lập trên kind (tests/gia-lap-keycloak.sh) ký RS256; vt-claims kiểm được cả RS256.
+  signingAlg: RS256
 rateLimit:
   policy: redis
   redisHost: valkey.data-kafka.svc.cluster.local

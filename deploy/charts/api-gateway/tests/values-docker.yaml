@@ -1,0 +1,14 @@
+# Chạy APISIX thật ở chế độ standalone trong Docker (tests/kiem-thu-docker.sh, DV-01-01): đủ bảng tuyến của values.yaml,
+# Keycloak giả lập ký ES256 và upstream phản hồi lại header, cùng mạng Docker với bí danh *.svc.cluster.local.
+cell: dn1
+mode: standalone
+apisix:
+  workerProcesses: 1
+oidc:
+  baseUrl: http://keycloak.identity.svc.cluster.local:8080
+rateLimit:
+  policy: local
+coraza:
+  enabled: false
+opentelemetry:
+  enabled: false
