@@ -14,7 +14,7 @@
 
 - **Tổng tiến độ đã gộp `main`**: **360 / 408 task (88.2%)** — Khối lượng quy đổi đã gộp: **426.5 / 492.5 đơn vị**.
 - **Tổng tiến độ tính cả các task đã xong chờ gộp**: **360 / 408 task (88.2%)** (gồm **360** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **9 task** (6 đang làm, 3 làm một phần).
+- **Đang thực hiện / Làm một phần**: **9 task** (5 đang làm, 4 làm một phần).
 - **Chưa bắt đầu**: **39 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
@@ -570,7 +570,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [INF-22](docs/tasks/INF-22-backend-tren-server-dev.md) | Triển khai backend lên server dev bằng Docker Compose (profile backend, cổng 35xxx) để kiểm thử tích hợp thật | M | B8 | 10 | CORE-00-01, NEN-020 | **Đang làm** | Giao sau bản phát hành 64952ef6 |
 | [INF-23](docs/tasks/INF-23-goi-cai-cach-ly.md) | Gói cài cách ly LTS: đóng gói Helm ngoại tuyến, Harbor nội bộ, kiểm chữ ký | L | B8 | 5 | INF-02, INF-07 | **Chưa bắt đầu** |  |
 | [INF-24](docs/tasks/INF-24-audit-archiver.md) | Dịch vụ `audit-archiver`: chuyển nhật ký kiểm toán sang kho lưu trữ bất biến theo thời hạn lưu giữ | M | B8 | 4 | INF-12, INF-19 | **Đang làm** | Giao sau bản phát hành 64952ef6 |
-| [INF-25](docs/tasks/INF-25-bo-dieu-khien-suy-giam.md) | Bộ điều khiển suy giảm ba mức khi quá tải (tắt tính năng phụ, cắt tải theo ưu tiên) | M | B8 | 4 | DV-01-02, INF-15 | **Đang làm** | Giao B7 |
+| [INF-25](docs/tasks/INF-25-bo-dieu-khien-suy-giam.md) | Bộ điều khiển suy giảm ba mức khi quá tải (tắt tính năng phụ, cắt tải theo ưu tiên) | M | B8 | 4 | DV-01-02, INF-15 | **Làm một phần** | Nhánh claude/project-thread-x87cen: degrade-controller Go, chart, ignoreDifferences, vtctl degrade pin; test chức năng xanh; chưa chạy kind với APISIX |
 | [INF-26](docs/tasks/INF-26-cong-cu-vtctl.md) | Công cụ vận hành `vtctl` cho các thao tác trong runbook (tenant, cell, khoá kỳ, phát lại sự kiện) | L | B8 | 9 | INF-04, DV-03-03 | **Làm một phần** | Nhánh claude/project-thread-x87cen: vtctl đủ 4 nhóm lệnh; outbox-replay đã nối PG/Kafka thật; còn chạy kind, API tạm ngừng tenant, degrade pin (INF-25) |
 | [INF-27](docs/tasks/INF-27-quan-ly-truy-cap-dac-quyen.md) | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | B8 | 3 | INF-13 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần giải pháp PAM |
 | [INF-28](docs/tasks/INF-28-cum-cho-am-ttdl-hai.md) | Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite | L | B8 | 9 | INF-11, INF-18, INF-20, INF-04, INF-08, INF-09, INF-17 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần TTDL thứ hai |
@@ -1008,4 +1008,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 11:03 | Điều phối (main) | `QA-02` | Chuyển trạng thái sang **Đang làm** — Giao B9; Pact bằng tệp, không dùng Broker (quyết định main) |
 | 23/10/2026 11:22 | Điều phối (main) | `INF-25` | Chuyển trạng thái sang **Đang làm** — Giao B7 |
 | 23/10/2026 11:30 | B7 | `INF-26` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/project-thread-x87cen: vtctl đủ 4 nhóm lệnh; outbox-replay đã nối PG/Kafka thật; còn chạy kind, API tạm ngừng tenant, degrade pin (INF-25) |
+| 23/10/2026 11:41 | B7 | `INF-25` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/project-thread-x87cen: degrade-controller Go, chart, ignoreDifferences, vtctl degrade pin; test chức năng xanh; chưa chạy kind với APISIX |
 <!-- PROGRESS_LOG_END -->

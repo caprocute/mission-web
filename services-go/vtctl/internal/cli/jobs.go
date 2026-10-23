@@ -350,7 +350,7 @@ func degradeCmd(a *App) *cobra.Command {
 		},
 	}
 	var reason string
-	setLevel := func(name, use, short string, level func(args []string) (*int, error)) *cobra.Command {
+	setLevel := func(name, use, short string, ttl *time.Duration, level func(args []string) (*int, error)) *cobra.Command {
 		c := &cobra.Command{
 			Use:   use,
 			Short: short,
@@ -369,6 +369,12 @@ func degradeCmd(a *App) *cobra.Command {
 				what := "Bỏ mức đặt tay, trở về mức theo cảnh báo và mức nền"
 				if lv != nil {
 					what = fmt.Sprintf("Đặt tay mức suy giảm %d", *lv)
+				}
+				if ttl != nil {
+					if *ttl <= 0 || *ttl > 24*time.Hour {
+						return usagef("--for phải trong khoảng (0, 24h]")
+					}
+					what = fmt.Sprintf("Ghim mức suy giảm %d trong %s (hết hạn thì trở về mức tự động)", *lv, ttl.String())
 				}
 				return a.write(cmd.Context(), t, Write{
 					Command: "degrade " + name, Args: flagArgs(cmd, args...),
@@ -394,6 +400,9 @@ func degradeCmd(a *App) *cobra.Command {
 							return nil, err
 						}
 						body := map[string]any{"level": lv, "reason": "OPS-14 " + op + ": " + reason}
+						if ttl != nil {
+							body["ttl"] = ttl.String()
+						}
 						return a.degradeCall(ctx, http.MethodPost, base, tok, body)
 					},
 				})
@@ -402,7 +411,7 @@ func degradeCmd(a *App) *cobra.Command {
 		c.Flags().StringVar(&reason, "reason", "", "lý do (ghi nhật ký bộ điều khiển và kiểm toán vtctl)")
 		return c
 	}
-	set := setLevel("set", "set <0..3>", "Đặt tay mức suy giảm 0..3", func(args []string) (*int, error) {
+	oneLevel := func(args []string) (*int, error) {
 		if len(args) != 1 {
 			return nil, usagef("cần đúng một mức 0..3")
 		}
@@ -411,8 +420,12 @@ func degradeCmd(a *App) *cobra.Command {
 			return nil, usagef("mức phải là 0, 1, 2 hoặc 3")
 		}
 		return &n, nil
-	})
-	clear := setLevel("clear", "clear", "Bỏ mức đặt tay", func(args []string) (*int, error) {
+	}
+	set := setLevel("set", "set <0..3>", "Đặt tay mức suy giảm 0..3 (bộ điều khiển INF-25 tự gỡ sau thời hạn mặc định)", nil, oneLevel)
+	pinFor := time.Hour
+	pin := setLevel("pin", "pin <0..3>", "Ghim mức suy giảm có thời hạn, ưu tiên hơn cảnh báo (INF-25)", &pinFor, oneLevel)
+	pin.Flags().DurationVar(&pinFor, "for", time.Hour, "thời hạn ghim, tối đa 24h")
+	clear := setLevel("clear", "clear", "Bỏ mức đặt tay", nil, func(args []string) (*int, error) {
 		if len(args) != 0 {
 			return nil, usagef("clear không nhận tham số")
 		}
@@ -420,7 +433,7 @@ func degradeCmd(a *App) *cobra.Command {
 	})
 	cmd.PersistentFlags().StringVar(&ns, "namespace", "edge", "namespace của bộ điều khiển")
 	cmd.PersistentFlags().StringVar(&secret, "secret", "apisix-degrade-webhook", "Secret chứa token webhook")
-	cmd.AddCommand(status, set, clear)
+	cmd.AddCommand(status, set, pin, clear)
 	return cmd
 }
 

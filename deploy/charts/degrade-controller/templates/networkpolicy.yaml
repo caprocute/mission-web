@@ -1,0 +1,34 @@
+{{- $v := .Values }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: degrade-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "degrade-controller.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: degrade-controller }
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    # Alertmanager gọi webhook, Prometheus đọc /metrics; người trực gọi qua kubectl port-forward (runbook).
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $v.alertmanagerNamespace }} } }
+      ports: [{ protocol: TCP, port: {{ $v.port | int }} }]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
+    {{- with $v.apiServerCIDRs }}
+    - to:
+        {{- range . }}
+        - ipBlock: { cidr: {{ . }} }
+        {{- end }}
+      ports: [{ protocol: TCP, port: 6443 }, { protocol: TCP, port: 443 }]
+    {{- end }}
+    {{- if and $v.notify.url $v.notify.namespace }}
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $v.notify.namespace }} } }
+      ports: [{ protocol: TCP, port: {{ $v.notify.port | int }} }]
+    {{- end }}

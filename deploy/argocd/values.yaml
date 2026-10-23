@@ -43,6 +43,17 @@ syncPolicy:
   syncOptions: ["ServerSideApply=true", "PruneLast=true"]
   retry: { limit: 3, backoff: { duration: 30s, factor: 2, maxDuration: 5m } }
 
+# INF-25 · Ngoại lệ có kiểm soát của GitOps (wiki 12): bộ điều khiển suy giảm ghi lúc chạy nhãn mức và bộ plugin
+# trên ApisixPluginConfig, chú thích tạm dừng trên ScaledObject của tác vụ nền không gấp. Argo CD bỏ qua đúng các
+# trường này khi so lệch và khi đồng bộ (RespectIgnoreDifferences), nên đồng bộ lại không xoá mức đang áp dụng.
+ignoreDifferences:
+  - group: apisix.apache.org
+    kind: ApisixPluginConfig
+    jqPathExpressions: ['.metadata.labels["vt.io/degrade-level"]', '.spec.plugins']
+  - group: keda.sh
+    kind: ScaledObject
+    jqPathExpressions: ['.metadata.annotations["autoscaling.keda.sh/paused"]', '.metadata.annotations["vt.io/degrade-paused-by"]']
+
 # Nguồn chart: chart cha vt-platform (INF-02) bật đúng một service mỗi Application, để giữ nguyên thứ tự chồng
 # values mô hình → hồ sơ → cell → digest mà CI của INF-02 đã kiểm. Tệp chưa có (hồ sơ định cỡ của INF-03, values
 # riêng của cell) được bỏ qua.

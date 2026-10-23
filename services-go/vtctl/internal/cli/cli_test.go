@@ -561,8 +561,17 @@ func TestMucSuyGiam(t *testing.T) {
 	if got[len(got)-1].Body["level"] != nil {
 		t.Fatalf("clear phải gửi level null: %+v", got[len(got)-1])
 	}
+	if code, _, _ := e.vtctl("--cell", "hn", "degrade", "pin", "2", "--for", "25h", "--reason", "quá hạn", "--confirm"); code != 2 {
+		t.Fatal("ghim quá 24h phải bị từ chối")
+	}
+	if code, _, errs := e.vtctl("--cell", "hn", "degrade", "pin", "2", "--for", "45m", "--reason", "chốt kỳ đêm nay", "--confirm"); code != 0 {
+		t.Fatalf("pin: %s", errs)
+	}
+	if p := got[len(got)-1]; p.Body["level"] != float64(2) || p.Body["ttl"] != "45m0s" {
+		t.Fatalf("pin phải gửi level và ttl: %+v", p)
+	}
 	rs := e.audits()
-	if len(rs) != 2 || rs[0].Command != "degrade set" || rs[1].Command != "degrade clear" {
+	if len(rs) != 3 || rs[0].Command != "degrade set" || rs[1].Command != "degrade clear" || rs[2].Command != "degrade pin" {
 		t.Fatalf("kiểm toán: %+v", rs)
 	}
 }
