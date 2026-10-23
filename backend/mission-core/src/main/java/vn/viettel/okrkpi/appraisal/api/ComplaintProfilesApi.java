@@ -57,14 +57,4 @@ public interface ComplaintProfilesApi {
    * @return {@code true} khi vừa chuyển
    */
   boolean fileComplaint(TenantId tenant, UUID profileId, UUID actorId);
-
-  /**
-   * Kết luận khiếu nại ở MOD-04: giữ nguyên hoặc rút đưa hồ sơ {@code KHIEU_NAI} về {@code
-   * DA_KY_SO}, có điều chỉnh thì khoá {@code DA_KHOA} để thi hành qua QT-13. Lặp lại an toàn: hồ sơ
-   * không còn ở {@code KHIEU_NAI} thì không làm gì.
-   *
-   * @return {@code true} khi vừa chuyển
-   */
-  boolean concludeComplaint(
-      TenantId tenant, UUID profileId, UUID actorId, boolean adjusted, String reason);
 }

@@ -125,26 +125,6 @@ public class JdbcComplaintProfiles implements ComplaintProfilesApi {
         });
   }
 
-  @Override
-  public boolean concludeComplaint(
-      TenantId tenant, UUID profileId, UUID actorId, boolean adjusted, String reason) {
-    return call(
-        tenant,
-        () -> {
-          String status = find(tenant, profileId).orElseThrow(NoSuchElementException::new).status();
-          if (!AppraisalStatus.KHIEU_NAI.name().equals(status)) {
-            return false;
-          }
-          profiles.transition(
-              tenant,
-              profileId,
-              null,
-              actorId,
-              (p, r) -> p.concludeComplaint(actorId, adjusted, reason));
-          return true;
-        });
-  }
-
   // ---------------------------------------------------------------- đọc
 
   /** Dòng hồ sơ chưa có cấu phần và thời hạn; {@link #load} bổ sung. */

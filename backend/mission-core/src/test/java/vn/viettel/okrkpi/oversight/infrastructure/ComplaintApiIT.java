@@ -48,7 +48,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.MissionCoreApplication;
 import vn.viettel.okrkpi.MissionCoreTestDatabase;
 import vn.viettel.okrkpi.appraisal.application.profile.port.AppraisalStepEvents;
-import vn.viettel.okrkpi.config.api.RoleHolderApi;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
 import vn.viettel.okrkpi.oversight.application.complaint.ComplaintService;
@@ -73,9 +72,7 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
  * {@code _enc} không chứa bản rõ; gửi thiếu AAL2 401; gửi thiếu cấu phần 422 {@code
  * OVERSIGHT-422-NO-TARGET}; gửi 202 chỉ mở yêu cầu ký, hồ sơ vẫn {@code DA_KY_SO}; cổng tài liệu
  * ký; hai EVT-18 đồng thời chỉ một lần chuyển hồ sơ {@code KHIEU_NAI} và đúng một EVT-25; gửi lại
- * 409. CORE-07-03: người đã thẩm định hồ sơ tiếp nhận 403 tách vai trò; người xử lý hợp lệ tiếp
- * nhận, danh sách theo phạm vi; không thụ lý thiếu lý do 422, không thụ lý đóng và đưa hồ sơ về
- * {@code DA_KY_SO}; rút sau tiếp nhận.
+ * 409.
  */
 @SpringBootTest(
     classes = MissionCoreApplication.class,
@@ -100,9 +97,6 @@ class ComplaintApiIT extends ContractConformanceTest {
   static class Beans {
     static volatile UUID user = UUID.randomUUID();
     static volatile String acr = "aal2";
-    static volatile List<String> roles = List.of("member");
-    static volatile UUID unit;
-    static volatile List<UUID> appraisers = List.of();
     static final List<UUID> SIGNED = new CopyOnWriteArrayList<>();
 
     @Bean
@@ -115,12 +109,7 @@ class ComplaintApiIT extends ContractConformanceTest {
 
         @Override
         public List<String> roles() {
-          return roles;
-        }
-
-        @Override
-        public Optional<UUID> unitId() {
-          return Optional.ofNullable(unit);
+          return List.of("member");
         }
 
         @Override
@@ -133,15 +122,6 @@ class ComplaintApiIT extends ContractConformanceTest {
           return Optional.of(Instant.now().getEpochSecond() - 30);
         }
       };
-    }
-
-    @Bean
-    @Primary
-    RoleHolderApi complaintTestRoleHolders() {
-      return (tenant, role, orgUnit, at) ->
-          "appraiser".equals(role) && orgUnit.equals(unit)
-              ? appraisers.stream().map(p -> new RoleHolderApi.Holder(p, false)).toList()
-              : List.of();
     }
 
     @Bean
@@ -233,8 +213,6 @@ class ComplaintApiIT extends ContractConformanceTest {
     seed();
     Beans.user = person;
     Beans.acr = "aal2";
-    Beans.roles = List.of("member");
-    Beans.unit = null;
 
     // Kết quả còn khiếu nại được: hồ sơ quá hạn chỉ còn bảo lưu ý kiến.
     MvcResult eligible = perform(get(BASE + "/eligible-profiles"));
@@ -337,113 +315,6 @@ class ComplaintApiIT extends ContractConformanceTest {
     // Người khác không thấy khiếu nại.
     Beans.user = UUID.randomUUID();
     assertThat(status(perform(get(BASE + "/" + id)))).isEqualTo(404);
-
-    handle(id);
-  }
-
-  /** CORE-07-03 trên khiếu nại {@code MOI} (row_version 3) của hồ sơ {@code fresh}. */
-  private void handle(String id) throws Exception {
-    UUID judged = UUID.randomUUID();
-    UUID handler = UUID.randomUUID();
-    rated(fresh, judged);
-    Beans.unit = unit;
-    Beans.appraisers = List.of(judged, handler);
-    Beans.roles = List.of("member", "appraiser");
-
-    // Người đã thẩm định hồ sơ: chỉ thấy thông tin chung, tiếp nhận 403 tách vai trò.
-    Beans.user = judged;
-    MvcResult seen = perform(get(BASE + "/" + id));
-    assertThat(status(seen)).as(text(seen)).isEqualTo(200);
-    assertThat(body(seen).get("content").isNull()).isTrue();
-    MvcResult sod = perform(write(post(BASE + "/" + id + "/accept"), "{}", "\"3\""));
-    assertThat(status(sod)).as(text(sod)).isEqualTo(403);
-    assertThat(body(sod).get("code").asText()).isEqualTo("OVERSIGHT-403-SEPARATION-OF-DUTIES");
-    assertResponseConforms(sod, "/oversight/complaints/{id}/accept", PathItem.HttpMethod.POST);
-
-    // Danh sách trong phạm vi của người xử lý, sắp theo hạn trả lời.
-    Beans.user = handler;
-    MvcResult scoped = perform(get(BASE));
-    assertThat(status(scoped)).as(text(scoped)).isEqualTo(200);
-    assertResponseConforms(scoped, "/oversight/complaints", PathItem.HttpMethod.GET);
-    assertThat(body(scoped).get("items")).hasSize(1);
-    assertThat(body(perform(get(BASE + "?assignedToMe=true"))).get("items")).isEmpty();
-
-    // Không thụ lý thiếu lý do: 422; tiếp nhận hợp lệ: DA_TIEP_NHAN.
-    MvcResult noReason =
-        perform(
-            write(
-                post(BASE + "/" + id + "/reject"),
-                "{\"reasonCode\":\"QUA_HAN\",\"reason\":\"Quá hạn\"}",
-                "\"3\""));
-    assertThat(status(noReason)).as(text(noReason)).isEqualTo(422);
-    assertResponseConforms(noReason, "/oversight/complaints/{id}/reject", PathItem.HttpMethod.POST);
-    MvcResult accepted =
-        perform(write(post(BASE + "/" + id + "/accept"), "{\"note\":\"Đủ hồ sơ\"}", "\"3\""));
-    assertThat(status(accepted)).as(text(accepted)).isEqualTo(200);
-    assertResponseConforms(accepted, "/oversight/complaints/{id}/accept", PathItem.HttpMethod.POST);
-    JsonNode a = body(accepted);
-    assertThat(a.get("status").asText()).isEqualTo("DA_TIEP_NHAN");
-    assertThat(a.at("/handler/id").asText()).isEqualTo(handler.toString());
-    assertThat(a.get("content").asText()).isEqualTo(CONTENT);
-    assertThat(accepted.getResponse().getHeader("ETag")).isEqualTo("\"4\"");
-    assertThat(body(perform(get(BASE + "?assignedToMe=true&status=DA_TIEP_NHAN"))).get("items"))
-        .hasSize(1);
-    assertThat(outbox("notify.message.requested.v1")).isEqualTo(2);
-
-    // Người khiếu nại rút sau khi đã tiếp nhận: RUT rồi DONG, hồ sơ về DA_KY_SO.
-    Beans.user = person;
-    Beans.roles = List.of("member");
-    MvcResult withdrawn =
-        perform(
-            write(
-                post(BASE + "/" + id + "/withdraw"),
-                "{\"reason\":\"Đã trao đổi và thống nhất kết quả.\"}",
-                "\"4\""));
-    assertThat(status(withdrawn)).as(text(withdrawn)).isEqualTo(200);
-    assertResponseConforms(
-        withdrawn, "/oversight/complaints/{id}/withdraw", PathItem.HttpMethod.POST);
-    assertThat(body(withdrawn).get("status").asText()).isEqualTo("DONG");
-    assertThat(profileStatus(fresh)).isEqualTo("DA_KY_SO");
-    MvcResult late =
-        perform(
-            write(
-                post(BASE + "/" + id + "/withdraw"),
-                "{\"reason\":\"Đã trao đổi và thống nhất kết quả.\"}",
-                "\"6\""));
-    assertThat(status(late)).as(text(late)).isEqualTo(409);
-    String reason =
-        in(
-            oversightDataSource,
-            oversightTm,
-            jdbc ->
-                jdbc.sql("SELECT close_reason_code FROM oversight.complaint WHERE id = ?::uuid")
-                    .params(id)
-                    .query(String.class)
-                    .single());
-    assertThat(reason).isEqualTo("RUT");
-  }
-
-  /** Một đề xuất cấp thẩm định của {@code actor} trên hồ sơ. */
-  private void rated(UUID profile, UUID actor) throws Exception {
-    in(
-        appraisalDataSource,
-        appraisalTm,
-        jdbc -> {
-          UUID snapshot =
-              jdbc.sql("SELECT current_snapshot_id FROM appraisal.appraisal_profile WHERE id = ?")
-                  .params(profile)
-                  .query(UUID.class)
-                  .single();
-          jdbc.sql(
-                  "INSERT INTO appraisal.rating_proposal (id, created_by, updated_by, period_id,"
-                      + " period_bucket, profile_id, level_kind, rating_code, score_snapshot_id,"
-                      + " actor_id, actor_role, proposed_at)"
-                      + " VALUES (gen_random_uuid(), ?, ?, ?, ?, ?, 'THAM_DINH', 'HTTNV', ?, ?,"
-                      + " 'appraiser', now())")
-              .params(actor, actor, period, BUCKET, profile, snapshot, actor)
-              .update();
-          return null;
-        });
   }
 
   private boolean signed(UUID id, UUID signRequest) throws Exception {

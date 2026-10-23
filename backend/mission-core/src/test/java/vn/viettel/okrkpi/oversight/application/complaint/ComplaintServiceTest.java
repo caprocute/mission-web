@@ -604,17 +604,6 @@ class ComplaintServiceTest {
       status(profileId, "KHIEU_NAI");
       return true;
     }
-
-    @Override
-    public boolean concludeComplaint(
-        TenantId tenant, UUID profileId, UUID actorId, boolean adjusted, String reason) {
-      Profile p = rows.get(profileId);
-      if (p == null || !"KHIEU_NAI".equals(p.status())) {
-        return false;
-      }
-      status(profileId, adjusted ? "DA_KHOA" : "DA_KY_SO");
-      return true;
-    }
   }
 
   /** Mã hoá giả: đảo byte, tiền tố 16 byte là mã DEK; có thể xoay DEK sau n lần. */
