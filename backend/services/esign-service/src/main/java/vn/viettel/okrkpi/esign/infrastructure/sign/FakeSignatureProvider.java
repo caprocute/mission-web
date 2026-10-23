@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,6 +17,7 @@ import vn.viettel.okrkpi.esign.spi.SignSession;
 import vn.viettel.okrkpi.esign.spi.SignStatus;
 import vn.viettel.okrkpi.esign.spi.SignatureFormat;
 import vn.viettel.okrkpi.esign.spi.SignatureProvider;
+import vn.viettel.okrkpi.esign.spi.SignatureProviderException;
 import vn.viettel.okrkpi.esign.spi.SignedItem;
 
 /**
@@ -68,6 +70,36 @@ public class FakeSignatureProvider implements SignatureProvider {
     return new SignSession(id, request.expiresAt());
   }
 
+  /**
+   * Ký lô giả lập như HSM của tổ chức (DV-10-06): lần step-up của người quyết định khi tạo yêu cầu
+   * là xác nhận cho cả lô, nên phiên được ủy quyền ngay.
+   */
+  @Override
+  public Optional<BatchMode> batchMode() {
+    return Optional.of(BatchMode.STEP_UP);
+  }
+
+  @Override
+  public SignSession beginBatch(SignRequest request) {
+    String id = "fake-lo-" + UUID.randomUUID();
+    sessions.put(id, new Session(request, clock.instant().minus(confirmAfter), Outcome.SIGN));
+    return new SignSession(id, request.expiresAt());
+  }
+
+  @Override
+  public SignedItem signItem(String sessionId, SignRequest.Document document) {
+    if (!sessions.containsKey(sessionId)) {
+      throw new SignatureProviderException("Không có phiên ký lô " + sessionId, true);
+    }
+    Instant now = clock.instant();
+    return new SignedItem(
+        document.sha256(),
+        Hashes.sha256(concat("FAKE-SIG:".getBytes(StandardCharsets.UTF_8), document.sha256())),
+        null,
+        certificate(now),
+        now);
+  }
+
   @Override
   public SignStatus poll(String sessionId) {
     Session session = sessions.get(sessionId);
@@ -95,16 +127,7 @@ public class FakeSignatureProvider implements SignatureProvider {
       return List.of();
     }
     Instant now = clock.instant();
-    SignedItem.Certificate certificate =
-        new SignedItem.Certificate(
-            CERT_DER,
-            "CN=Người ký thử nghiệm",
-            "CN=Nhà cung cấp giả lập",
-            "FAKE-0001",
-            now.minus(Duration.ofDays(1)),
-            now.plus(Duration.ofDays(365)),
-            "GOOD",
-            now);
+    SignedItem.Certificate certificate = certificate(now);
     return session.request().documents().stream()
         .map(
             d ->
@@ -115,6 +138,18 @@ public class FakeSignatureProvider implements SignatureProvider {
                     certificate,
                     now))
         .toList();
+  }
+
+  private static SignedItem.Certificate certificate(Instant now) {
+    return new SignedItem.Certificate(
+        CERT_DER,
+        "CN=Người ký thử nghiệm",
+        "CN=Nhà cung cấp giả lập",
+        "FAKE-0001",
+        now.minus(Duration.ofDays(1)),
+        now.plus(Duration.ofDays(365)),
+        "GOOD",
+        now);
   }
 
   private static byte[] concat(byte[] a, byte[] b) {

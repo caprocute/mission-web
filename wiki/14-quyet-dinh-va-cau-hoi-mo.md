@@ -1150,6 +1150,32 @@ Các điểm còn lệch hoặc là suy luận:
 - Chế độ `gov-ca.mode=PKCS11` (ký bằng thẻ hoặc HSM chuyên dùng) là suy luận và chưa chạy được: cần bộ ký PKCS#11 của DV-10-03, bật chế độ này hiện dừng khởi động với thông báo rõ.
 - Khi yêu cầu bị chặn vì chứng thư bị thu hồi, giao dịch của API được hoàn tác (bộ chặn idempotency bao cả lời gọi), nên trạng thái `REVOKED` chỉ được lưu ở lần liệt kê chứng thư hoặc lần ký kế tiếp.
 - Định danh người ký gửi CA vẫn là mã người dùng Mission như DV-10-02; ánh xạ sang định danh tài khoản ở từng CA cần chốt khi có tài khoản thử.
+
+### Ghi chú và quyết định từ ký lô quyết định (DV-10-06, 23/10/2026)
+
+Ký lô theo hợp đồng (API-first, ADR-32): người quyết định xác nhận một lần cho cả lô, nhưng mỗi phiếu vẫn có một chữ ký PAdES riêng. ADR-31 lại mô tả một chữ ký cho cấu trúc chứa danh sách băm, khi đó muốn kiểm chứng một phiếu phải có danh sách băm của cả lô. Đây là điểm lệch giữa ADR-31 với `createAppraisalBatchDecision` ("mỗi hồ sơ một chữ ký PAdES") và PERF-17 (kiểm "100% chữ ký hợp lệ" theo từng phiếu); task chọn theo hợp đồng.
+
+Yêu cầu lô vẫn đi qua `createEsignRequest`. Danh sách tài liệu và băm lấy từ cổng nội bộ của MOD-04 (`/internal/v1/esign-sources/appraisal/{mã lô}?purpose=QUYET_DINH`), không nhận từ client, và mỗi lô tối đa 1.000 tài liệu; lô lớn hơn trả 422 `COMMON-422-VALIDATION`. Hiện cổng chưa gửi cờ `batch`, nên esign nhận ra lô qua mục đích `QUYET_DINH` của nguồn `appraisal` có nhiều tài liệu (suy luận). Khi cổng gửi `batch: true` thì cờ này được dùng trước. Hai cách xác nhận một lần được ghi ở cột bổ sung `esign.sign_request.batch_authorization`, cùng thời điểm xác nhận ở `batch_authorized_at`:
+
+- `SAD`: với MySign, Viettel-CA và CA Chính phủ, worker thăm dò mở phiên `credentials/authorize` với `numSignatures` bằng số tài liệu, rồi chờ `credentials/authorizeCheck` trả SAD sau khi người ký xác nhận trên ứng dụng. Đường dẫn của hai thao tác này là suy luận theo CSC API v2 và nằm trong cấu hình.
+- `STEP_UP`: với HSM của tổ chức, lần xác thực nâng cao (AAL2) của người quyết định khi tạo yêu cầu là xác nhận cho cả lô. Hiện chỉ nhà cung cấp giả lập dùng cách này; HSM thật chờ bộ ký PKCS#11 của DV-10-03.
+
+Khi lô đã được xác nhận, hạn xác nhận không còn áp dụng. Worker ký lô `esign-batch-worker` chạy ở bản triển khai riêng (`okrkpi.esign.batch-worker.enabled=true`) và làm như sau:
+
+- Đọc tài liệu chờ ký qua hàm `esign.fn_muc_ky_lo_cho`, ký song song có giới hạn (`parallelism`), mỗi tài liệu trong một giao dịch có khoá dòng `SKIP LOCKED`.
+- Ghi chữ ký cùng EVT-18 của chính tài liệu đó qua outbox trong cùng giao dịch.
+- Lỗi tạm thời được thử lại với thời gian chờ nhân đôi. Lỗi vĩnh viễn hoặc hết lượt thử thì tài liệu chuyển `LOI` (cột bổ sung `esign.sign_item.item_status`, `attempts`, `next_attempt_at`, `last_error`) mà không làm hỏng cả lô.
+- Khi không còn tài liệu chờ, lô chuyển `DA_KY` và các tài liệu lỗi được liệt kê trong `problem.errors`; nếu không tài liệu nào ký được thì lô chuyển `LOI` (suy luận).
+
+Khoá idempotent là chỉ mục duy nhất `uq_sign_item__request_sha256` trên (`sign_request_id`, `document_sha256`). Ngoài ra, trước khi dựng CMS, chữ ký thô đã nhận được lưu tạm ở kho đối tượng, nên khi thử lại sau lỗi dấu thời gian hoặc lỗi ghi kho, esign dùng lại chữ ký đó thay vì ký lần hai.
+
+Metric phục vụ KEDA và theo dõi gồm `esign_batch_queue_items`, `esign_batch_items_total{outcome}`, `esign_batch_sign_seconds` và `esign_batch_signer_utilization`; ngưỡng co giãn đặt ở values của INF-16.
+
+Các điểm còn lệch hoặc là suy luận:
+
+- EVT-18 của từng tài liệu dùng thực thể gốc `SIGN_ITEM` (mã tài liệu, phiên bản 1). Như vậy inbox kiểm thứ tự theo thực thể không bỏ sự kiện của các tài liệu ký song song, còn `signRequestId` và `sourceRefId` vẫn là mã yêu cầu và mã lô. Consumer CORE-04-08 (`DecisionSigningService.onSigned`) hiện đóng lô ở `LOI_MOT_PHAN` ngay khi nhận sự kiện đầu tiên còn thiếu phiếu và bỏ các sự kiện sau, nên cần nhận tiếp sự kiện của cùng yêu cầu ký khi lô ở `LOI_MOT_PHAN`. Việc sửa thuộc mission-core, ngoài phạm vi DV-10-06.
+- Thời gian chờ đọc mặc định của nền tảng (3 giây) ngắn hơn thời hạn 10 giây của instance `esign-*`, nên một lần ký chậm 3 giây bị cắt sau khi nhà cung cấp đã ký và lần thử lại ký thêm chữ ký. Lời gọi CSC vì vậy dùng `okrkpi.esign.csc.read-timeout` (mặc định 10 giây).
+- SAD và trạng thái từng tài liệu nằm dưới tiền tố `tam/` của kho đối tượng. Vùng này cần mã hoá phía máy chủ và xoá theo vòng đời (suy luận). SAD hết hạn giữa chừng thì các tài liệu còn lại chuyển `LOI` và phải ký lại bằng một lô mới.
 Lựa chọn khi lưu nháp: tệp phải đã có sự kiện lưu ở bản chiếu, nếu chưa thì trả `PRODUCT-422-NO-OBJECT` để giao diện thử lại sau ít giây, vì phản hồi `EvidenceVersionFile` bắt buộc có mã băm, kích thước và kiểu nội dung. Mã băm và phiên bản đối tượng được ghi vào tệp lúc gắn; khi nộp, mã băm hoặc phiên bản đối tượng ở bản chiếu khác giá trị đã ghi thì trả `PRODUCT-422-HASH-MISMATCH` (BR-07-02). Tệp trùng mã băm với phiên bản đã nộp của nhiệm vụ khác được đánh dấu `is_duplicate_suspect` và `duplicate_of_id` ngay lúc lưu nháp, và chỉ nộp được khi có giải trình 20 đến 1.000 ký tự (BR-07-03). Thứ tự kiểm khi nộp là cam kết, có tệp, mã băm, quét sạch, giải trình, rồi ô AI. Tên tệp gốc là dữ liệu C2 ở SVC-08 và không có trong sự kiện lưu, nên `files[].fileName` trả chuỗi rỗng; tên người trong `Ref` cũng rỗng như các API khác của mission-core. Người nghiệm thu nhận EVT-21 (mẫu `MINH_CHUNG_CHO_NGHIEM_THU`) là người nghiệm thu được chỉ định của nhiệm vụ, nếu chưa có thì là người giao (suy luận). Bộ lọc `reviewer=me` của `listEvidences` đã được CORE-03-06 hiện thực (xem mục dưới).
 
 ### Ghi chú và quyết định từ mở nghiệm thu và kiểm toàn vẹn tệp (CORE-03-06, 22/10/2026)

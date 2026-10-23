@@ -59,11 +59,17 @@ public class HttpSourceDocumentClient implements SourceDocumentPort {
                 .toList();
     return Optional.of(
         new SourceDocuments(
-            body.ready(), body.signers() == null ? Set.of() : body.signers(), documents));
+            body.ready(),
+            body.signers() == null ? Set.of() : body.signers(),
+            documents,
+            Boolean.TRUE.equals(body.batch())));
   }
 
-  /** Thân phản hồi của cổng nội bộ (suy luận). */
-  record Response(boolean ready, Set<UUID> signers, List<Doc> documents) {}
+  /**
+   * Thân phản hồi của cổng nội bộ (suy luận); {@code batch} đúng với quyết định hàng loạt của
+   * MOD-04 (DV-10-06).
+   */
+  record Response(boolean ready, Set<UUID> signers, List<Doc> documents, Boolean batch) {}
 
   /** Một tài liệu: băm hex chữ thường như {@code DossierSha256}. */
   record Doc(String kind, String ref, String sha256, String format) {}

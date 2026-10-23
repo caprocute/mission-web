@@ -2,12 +2,16 @@ package vn.viettel.okrkpi.esign.infrastructure.provider.mysign;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
+import java.time.Duration;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.client.RestClient;
 import software.amazon.awssdk.services.s3.S3Client;
+import vn.viettel.okrkpi.esign.infrastructure.provider.csc.CscHttp;
 import vn.viettel.okrkpi.shared.resilience.ResilientClientFactory;
 
 /**
@@ -34,10 +38,12 @@ public class MySignConfiguration {
       ResilientClientFactory factory,
       S3Client s3,
       ObjectProvider<ObjectMapper> json,
+      ObjectProvider<RestClient.Builder> builders,
+      @Value("${okrkpi.esign.csc.read-timeout:10s}") Duration readTimeout,
       Clock clock) {
     CscClient csc =
         new CscClient(
-            factory.create(INSTANCE, properties.baseUrl()),
+            CscHttp.client(factory, builders, INSTANCE, properties.baseUrl(), readTimeout),
             factory.create(INSTANCE, properties.tokenUrl()),
             properties,
             clock);

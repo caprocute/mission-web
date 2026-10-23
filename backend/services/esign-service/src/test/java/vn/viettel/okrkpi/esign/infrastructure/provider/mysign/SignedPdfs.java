@@ -52,6 +52,14 @@ public final class SignedPdfs {
   public static void assertValid(
       byte[] original, byte[] signed, X509Certificate signer, X509Certificate tsa)
       throws Exception {
+    assertCms(original, signed, signer, tsa);
+    pdfsig(signed);
+  }
+
+  /** Như {@link #assertValid} nhưng không gọi {@code pdfsig}, để kiểm nhanh cả lô (DV-10-06). */
+  public static void assertCms(
+      byte[] original, byte[] signed, X509Certificate signer, X509Certificate tsa)
+      throws Exception {
     assertThat(Arrays.copyOf(signed, original.length)).isEqualTo(original);
     try (PDDocument doc = Loader.loadPDF(signed)) {
       PDSignature sig = doc.getLastSignatureDictionary();
@@ -77,7 +85,6 @@ public final class SignedPdfs {
             .isEqualTo(Hashes.sha256(info.getSignature()));
       }
     }
-    pdfsig(signed);
   }
 
   /** {@code pdfsig -nocert}: công cụ độc lập xác nhận chữ ký toàn vẹn (bỏ qua nếu máy không có). */

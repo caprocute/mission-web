@@ -62,6 +62,7 @@ public class CscRemoteProvider implements SignatureProvider {
 
   private static final Logger LOG = LoggerFactory.getLogger(CscRemoteProvider.class);
   private static final String PDF = "application/pdf";
+  private static final String BATCH_MARK = "-lo-";
 
   private final CscClient csc;
   private final ObjectStorage storage;
@@ -175,13 +176,165 @@ public class CscRemoteProvider implements SignatureProvider {
     return new SignSession(sessionId, request.expiresAt());
   }
 
+  /** Ký lô bằng phiên ủy quyền ký nhiều băm (SAD) sau một lần xác nhận trên ứng dụng (DV-10-06). */
+  @Override
+  public Optional<BatchMode> batchMode() {
+    return Optional.of(BatchMode.SAD);
+  }
+
+  /**
+   * Mở phiên ủy quyền cho cả lô ({@code credentials/authorize} với {@code numSignatures} bằng số
+   * tài liệu); chưa ký tài liệu nào. Chứng thư được chọn và kiểm thu hồi một lần cho cả lô.
+   */
+  @Override
+  public SignSession beginBatch(SignRequest request) {
+    Instant now = clock.instant();
+    Credential credential = chooseCredential(request, now);
+    String sessionId = settings.id() + BATCH_MARK + request.requestId();
+    String responseId = csc.authorize(credential.id(), request.documents().size());
+    BatchState state =
+        new BatchState(
+            request.requestId().toString(),
+            responseId,
+            credential.id(),
+            credential.chain().stream().map(CscRemoteProvider::derB64).toList(),
+            credential.status(),
+            null,
+            null);
+    storage.put(stateKey(sessionId), write(state), "application/json");
+    return new SignSession(sessionId, request.expiresAt());
+  }
+
+  /**
+   * Ký một tài liệu của lô bằng SAD đã cấp: chừa vùng ký trên PDF, ký đồng bộ băm thuộc tính ký,
+   * dựng CMS kèm dấu thời gian và nhúng vào tệp. Khoá tệp đã ký theo băm tài liệu nên thử lại ghi
+   * đè cùng một tệp.
+   */
+  @Override
+  public SignedItem signItem(String sessionId, SignRequest.Document document) {
+    BatchState state = readBatch(sessionId);
+    if (state.sad() == null) {
+      throw new SignatureProviderException("Lô chưa được người ký xác nhận", false);
+    }
+    if (state.sadExpiresAt() != null
+        && !clock.instant().isBefore(Instant.parse(state.sadExpiresAt()))) {
+      throw new SignatureProviderException("Phiên ủy quyền ký lô đã hết hạn", true);
+    }
+    List<X509Certificate> chain = state.chain().stream().map(this::parse).toList();
+    X509Certificate signer = chain.get(0);
+    Instant now = clock.instant();
+    String sha = HexFormat.of().formatHex(document.sha256());
+    String preparedKey = "tam/" + sessionId + "/" + sha + ".pdf";
+    String itemKey = "tam/" + sessionId + "/" + sha + ".json";
+    // Thử lại sau khi nhà cung cấp đã ký (lỗi dấu thời gian, ghi kho...) dùng lại chữ ký đã nhận,
+    // không ký lần hai (DV-10-06).
+    ItemState item = storage.get(itemKey).map(this::readItem).orElse(null);
+    if (item == null) {
+      item = prepareItem(document, signer, now, preparedKey);
+      storage.put(itemKey, write(item), "application/json");
+    }
+    byte[] signedAttributes = Base64.getDecoder().decode(item.signedAttributes());
+    byte[] signature;
+    if (item.signature() != null) {
+      signature = Base64.getDecoder().decode(item.signature());
+    } else {
+      signature =
+          csc.signHashWithSad(
+                  state.credentialId(),
+                  state.sad(),
+                  List.of(Hashes.sha256(signedAttributes)),
+                  Cms.signAlgo(signer))
+              .get(0);
+      storage.put(
+          itemKey,
+          write(item.signed(Base64.getEncoder().encodeToString(signature))),
+          "application/json");
+    }
+    byte[] token = tsa == null ? null : tsa.timestamp(signature);
+    byte[] cms = Cms.signedData(signedAttributes, signature, chain, token);
+    String signedKey = null;
+    if (item.prepared()) {
+      byte[] prepared =
+          storage
+              .get(preparedKey)
+              .orElseThrow(() -> new SignatureProviderException("Mất tệp chuẩn bị ký", false));
+      signedKey = settings.signedPrefix() + "/" + state.requestId() + "/" + sha + ".pdf";
+      storage.put(signedKey, PdfSignatures.embed(prepared, cms), PDF);
+    }
+    return new SignedItem(
+        document.sha256(), cms, signedKey, certificate(signer, state.certStatus()), now);
+  }
+
+  /** Chừa vùng ký (PAdES) hoặc lấy băm tài liệu (CAdES) và dựng thuộc tính ký của một tài liệu. */
+  private ItemState prepareItem(
+      SignRequest.Document document, X509Certificate signer, Instant now, String preparedKey) {
+    Calendar signDate = new GregorianCalendar(TimeZone.getTimeZone("UTC"), Locale.ROOT);
+    signDate.setTime(Date.from(now));
+    byte[] contentDigest;
+    boolean prepared = false;
+    if (document.format() == SignatureFormat.PADES_B_LTA) {
+      byte[] pdf =
+          storage
+              .get(document.documentRef())
+              .orElseThrow(
+                  () -> new SignatureProviderException("Không có tệp cần ký trong kho", true));
+      if (!Arrays.equals(Hashes.sha256(pdf), document.sha256())) {
+        throw new SignatureProviderException("Tệp trong kho không khớp băm của hồ sơ", true);
+      }
+      PdfSignatures.Prepared p = PdfSignatures.prepare(pdf, signDate, settings.signatureSize());
+      storage.put(preparedKey, p.pdf(), PDF);
+      contentDigest = p.contentDigest();
+      prepared = true;
+    } else if (document.format() == SignatureFormat.CADES_B_T) {
+      contentDigest = document.sha256();
+    } else {
+      throw new SignatureProviderException(
+          settings.label() + " chưa hỗ trợ định dạng " + document.format(), true);
+    }
+    return new ItemState(
+        Base64.getEncoder().encodeToString(Cms.signedAttributes(contentDigest, signer)),
+        prepared,
+        null);
+  }
+
+  private ItemState readItem(byte[] raw) {
+    try {
+      return json.readValue(raw, ItemState.class);
+    } catch (java.io.IOException e) {
+      throw new SignatureProviderException("Trạng thái ký tài liệu hỏng", false, e);
+    }
+  }
+
   @Override
   public SignStatus poll(String sessionId) {
+    if (sessionId.contains(BATCH_MARK)) {
+      return pollBatch(sessionId);
+    }
     return switch (csc.poll(read(sessionId).responseId()).state()) {
       case PENDING -> SignStatus.PENDING;
       case SIGNED -> SignStatus.SIGNED;
       case REJECTED -> SignStatus.REJECTED;
       case EXPIRED -> SignStatus.EXPIRED;
+    };
+  }
+
+  private SignStatus pollBatch(String sessionId) {
+    BatchState state = readBatch(sessionId);
+    if (state.sad() != null) {
+      return SignStatus.SIGNED;
+    }
+    CscClient.Authorization auth = csc.authorizeCheck(state.responseId());
+    return switch (auth.state()) {
+      case PENDING -> SignStatus.PENDING;
+      case REJECTED -> SignStatus.REJECTED;
+      case EXPIRED -> SignStatus.EXPIRED;
+      case SIGNED -> {
+        storage.put(
+            stateKey(sessionId),
+            write(state.authorized(auth.sad(), auth.expiresAt())),
+            "application/json");
+        yield SignStatus.SIGNED;
+      }
     };
   }
 
@@ -351,6 +504,19 @@ public class CscRemoteProvider implements SignatureProvider {
     return "tam/" + sessionId + "/state.json";
   }
 
+  private BatchState readBatch(String sessionId) {
+    byte[] raw =
+        storage
+            .get(stateKey(sessionId))
+            .orElseThrow(
+                () -> new SignatureProviderException("Không có phiên ký lô " + sessionId, true));
+    try {
+      return json.readValue(raw, BatchState.class);
+    } catch (java.io.IOException e) {
+      throw new SignatureProviderException("Phiên ký lô hỏng: " + sessionId, true, e);
+    }
+  }
+
   private SessionState read(String sessionId) {
     byte[] raw =
         storage
@@ -364,7 +530,7 @@ public class CscRemoteProvider implements SignatureProvider {
     }
   }
 
-  private byte[] write(SessionState state) {
+  private byte[] write(Object state) {
     try {
       return json.writeValueAsString(state).getBytes(StandardCharsets.UTF_8);
     } catch (JsonProcessingException e) {
@@ -408,6 +574,41 @@ public class CscRemoteProvider implements SignatureProvider {
       List<String> chain,
       String certStatus,
       List<DocState> docs) {}
+
+  /**
+   * Trạng thái phiên ký lô: phiên ủy quyền, credential, chuỗi chứng thư và SAD sau khi người ký xác
+   * nhận. SAD chỉ dùng được cho credential này và tới {@code sadExpiresAt}; vùng {@code tam/} của
+   * kho đối tượng phải mã hoá phía máy chủ và xoá theo vòng đời (suy luận).
+   */
+  record BatchState(
+      String requestId,
+      String responseId,
+      String credentialId,
+      List<String> chain,
+      String certStatus,
+      String sad,
+      String sadExpiresAt) {
+    BatchState authorized(String value, Instant until) {
+      return new BatchState(
+          requestId,
+          responseId,
+          credentialId,
+          chain,
+          certStatus,
+          value,
+          until == null ? null : until.toString());
+    }
+  }
+
+  /**
+   * Một tài liệu của lô giữa các lần thử: thuộc tính ký (base64), đã chừa vùng ký trên PDF chưa, và
+   * chữ ký thô đã nhận (base64) nếu có.
+   */
+  record ItemState(String signedAttributes, boolean prepared, String signature) {
+    ItemState signed(String value) {
+      return new ItemState(signedAttributes, prepared, value);
+    }
+  }
 
   /** Một tài liệu của phiên: thuộc tính ký DER (base64) và khoá tệp PDF đã chừa vùng ký. */
   record DocState(

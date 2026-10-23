@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import vn.viettel.okrkpi.esign.domain.sign.BatchAuthorization;
 import vn.viettel.okrkpi.esign.domain.sign.ProviderCode;
 import vn.viettel.okrkpi.esign.domain.sign.SignItem;
 import vn.viettel.okrkpi.esign.domain.sign.SignPurpose;
@@ -94,8 +95,8 @@ public class JdbcSignRequestRepository implements SignRequestRepository {
               INSERT INTO esign.sign_request
                 (id, tenant_id, signer_person_id, purpose, source_module, source_ref_id, provider,
                  is_batch, provider_txn_id, status, expires_at, completed_at, created_at, created_by,
-                 updated_at, updated_by, row_version)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                 updated_at, updated_by, row_version, batch_authorization, batch_authorized_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
               """)
           .param(r.id())
           .param(r.tenantId())
@@ -113,6 +114,8 @@ public class JdbcSignRequestRepository implements SignRequestRepository {
           .param(actor)
           .param(ts(r.createdAt()))
           .param(actor)
+          .param(r.batchAuthorization() == null ? null : r.batchAuthorization().name())
+          .param(ts(r.batchAuthorizedAt()))
           .update();
     } catch (DuplicateKeyException e) {
       throw new BusinessException(REQUEST_PENDING, "Hồ sơ này đang có yêu cầu ký chờ xác nhận.");
@@ -143,6 +146,7 @@ public class JdbcSignRequestRepository implements SignRequestRepository {
                 """
                 UPDATE esign.sign_request
                    SET provider_txn_id = ?, status = ?, expires_at = ?, completed_at = ?,
+                       batch_authorized_at = ?,
                        updated_at = now(), updated_by = ?, row_version = row_version + 1
                  WHERE id = ? AND row_version = ?
                 """)
@@ -150,6 +154,7 @@ public class JdbcSignRequestRepository implements SignRequestRepository {
             .param(r.status().name())
             .param(ts(r.expiresAt()))
             .param(ts(r.completedAt()))
+            .param(ts(r.batchAuthorizedAt()))
             .param(actor)
             .param(r.id())
             .param(r.rowVersion())
@@ -189,22 +194,116 @@ public class JdbcSignRequestRepository implements SignRequestRepository {
             .filter(c -> c != null)
             .findFirst()
             .orElse(null);
-    return new SignRequest(
-        id,
-        rs.getObject("tenant_id", UUID.class),
-        rs.getObject("signer_person_id", UUID.class),
-        SignPurpose.valueOf(rs.getString("purpose")),
-        rs.getString("source_module"),
-        rs.getObject("source_ref_id", UUID.class),
-        ProviderCode.valueOf(rs.getString("provider")),
-        items,
-        rs.getString("provider_txn_id"),
-        SignRequestStatus.valueOf(rs.getString("status")),
-        instant(rs, "expires_at"),
-        instant(rs, "completed_at"),
-        certificate,
-        instant(rs, "created_at"),
-        rs.getLong("row_version"));
+    SignRequest request =
+        new SignRequest(
+            id,
+            rs.getObject("tenant_id", UUID.class),
+            rs.getObject("signer_person_id", UUID.class),
+            SignPurpose.valueOf(rs.getString("purpose")),
+            rs.getString("source_module"),
+            rs.getObject("source_ref_id", UUID.class),
+            ProviderCode.valueOf(rs.getString("provider")),
+            items,
+            rs.getString("provider_txn_id"),
+            SignRequestStatus.valueOf(rs.getString("status")),
+            instant(rs, "expires_at"),
+            instant(rs, "completed_at"),
+            certificate,
+            instant(rs, "created_at"),
+            rs.getLong("row_version"));
+    String batch = rs.getString("batch_authorization");
+    return batch == null
+        ? request
+        : request.asBatch(BatchAuthorization.valueOf(batch), instant(rs, "batch_authorized_at"));
+  }
+
+  @Override
+  public Optional<PendingItem> lockPendingItem(UUID itemId) {
+    return jdbc.sql(
+            "SELECT * FROM esign.sign_item WHERE id = ? AND item_status = 'TAO'"
+                + " FOR UPDATE SKIP LOCKED")
+        .param(itemId)
+        .query((rs, i) -> new PendingItem(rs.getObject("sign_request_id", UUID.class), item(rs)))
+        .optional();
+  }
+
+  @Override
+  public boolean itemSigned(
+      UUID itemId, byte[] signature, String objectKey, UUID certificateId, Instant at) {
+    return jdbc.sql(
+                """
+                UPDATE esign.sign_item
+                   SET signature_value = ?, signed_object_key = ?, certificate_ref_id = ?,
+                       signed_at = ?, item_status = 'DA_KY', attempts = attempts + 1,
+                       next_attempt_at = NULL, last_error = NULL
+                 WHERE id = ? AND signature_value IS NULL
+                """)
+            .param(signature)
+            .param(objectKey)
+            .param(certificateId)
+            .param(ts(at))
+            .param(itemId)
+            .update()
+        == 1;
+  }
+
+  @Override
+  public void itemRetry(UUID itemId, int attempts, Instant nextAttemptAt, String error) {
+    jdbc.sql(
+            "UPDATE esign.sign_item SET attempts = ?, next_attempt_at = ?, last_error = ?"
+                + " WHERE id = ? AND item_status = 'TAO'")
+        .param(attempts)
+        .param(ts(nextAttemptAt))
+        .param(truncate(error))
+        .param(itemId)
+        .update();
+  }
+
+  @Override
+  public void itemFailed(UUID itemId, int attempts, String error) {
+    jdbc.sql(
+            "UPDATE esign.sign_item SET item_status = 'LOI', attempts = ?, next_attempt_at = NULL,"
+                + " last_error = ? WHERE id = ? AND item_status = 'TAO'")
+        .param(attempts)
+        .param(truncate(error))
+        .param(itemId)
+        .update();
+  }
+
+  @Override
+  public Optional<BatchHeader> batchHeader(UUID requestId) {
+    return jdbc.sql("SELECT * FROM esign.sign_request WHERE id = ?")
+        .param(requestId)
+        .query(
+            (rs, i) ->
+                new BatchHeader(
+                    rs.getObject("id", UUID.class),
+                    rs.getObject("tenant_id", UUID.class),
+                    rs.getObject("signer_person_id", UUID.class),
+                    SignPurpose.valueOf(rs.getString("purpose")),
+                    rs.getString("source_module"),
+                    rs.getObject("source_ref_id", UUID.class),
+                    ProviderCode.valueOf(rs.getString("provider")),
+                    rs.getString("provider_txn_id"),
+                    SignRequestStatus.valueOf(rs.getString("status")),
+                    instant(rs, "batch_authorized_at")))
+        .optional();
+  }
+
+  @Override
+  public int pendingItems(UUID requestId) {
+    return jdbc.sql(
+            "SELECT count(*) FROM esign.sign_item WHERE sign_request_id = ? AND item_status = 'TAO'")
+        .param(requestId)
+        .query(Integer.class)
+        .single();
+  }
+
+  private static String truncate(String error) {
+    if (error == null) {
+      return null;
+    }
+    return error.length() <= 512 ? error : error.substring(0, 512);
   }
 
   private static SignItem item(ResultSet rs) throws SQLException {
@@ -217,7 +316,10 @@ public class JdbcSignRequestRepository implements SignRequestRepository {
         rs.getBytes("signature_value"),
         rs.getString("signed_object_key"),
         rs.getObject("certificate_ref_id", UUID.class),
-        instant(rs, "signed_at"));
+        instant(rs, "signed_at"),
+        SignItem.Status.valueOf(rs.getString("item_status")),
+        rs.getInt("attempts"),
+        rs.getString("last_error"));
   }
 
   static OffsetDateTime ts(Instant instant) {

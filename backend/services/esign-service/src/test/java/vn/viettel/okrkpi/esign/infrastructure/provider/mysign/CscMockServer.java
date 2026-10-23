@@ -83,6 +83,13 @@ public final class CscMockServer implements AutoCloseable {
   private volatile Duration delay = Duration.ZERO;
   private volatile boolean signerRevoked;
   private volatile boolean certificatePerUser;
+  private volatile Duration signDelayMin = Duration.ZERO;
+  private volatile Duration signDelayMax = Duration.ZERO;
+  private volatile double failRate;
+  private final Map<String, Authorize> authorizations = new ConcurrentHashMap<>();
+  private final Map<String, String> sads = new ConcurrentHashMap<>();
+  private final AtomicInteger sadSignatures = new AtomicInteger();
+  private final java.util.Random random = new java.util.Random(42);
   private final Map<String, X509Certificate> userCerts = new ConcurrentHashMap<>();
 
   public final KeyPair caKey;
@@ -233,8 +240,19 @@ public final class CscMockServer implements AutoCloseable {
                 "cert",
                 Map.of("status", "valid", "certificates", certificates)));
       }
+      case "credentials/authorize" -> {
+        String user = ((String) req.get("credentialID")).substring("cred-".length());
+        String id = UUID.randomUUID().toString();
+        authorizations.put(id, new Authorize(user, Instant.now()));
+        send(ex, 200, Map.of("responseID", id));
+      }
+      case "credentials/authorizeCheck" -> authorizeCheck(ex, (String) req.get("responseID"));
       case "signatures/signHash" -> {
         String user = ((String) req.get("credentialID")).substring("cred-".length());
+        if (req.get("SAD") != null) {
+          signWithSad(ex, user, (String) req.get("SAD"), (List<String>) req.get("hashes"));
+          return;
+        }
         if (!"A".equals(req.get("operationMode"))) {
           send(ex, 400, Map.of("error", "invalid_request"));
           return;
@@ -278,6 +296,65 @@ public final class CscMockServer implements AutoCloseable {
     }
   }
 
+  private void authorizeCheck(HttpExchange ex, String responseId) throws IOException {
+    Authorize a = responseId == null ? null : authorizations.get(responseId);
+    if (a == null) {
+      send(ex, 400, Map.of("error", "invalid_request"));
+      return;
+    }
+    if (Instant.now().isBefore(a.startedAt().plus(confirmAfter))) {
+      send(ex, 400, Map.of("error", "authorization_pending"));
+      return;
+    }
+    switch (scenarios.getOrDefault(a.user(), Scenario.SIGN)) {
+      case REJECT -> send(ex, 400, Map.of("error", "access_denied"));
+      case EXPIRE -> send(ex, 400, Map.of("error", "expired_token"));
+      case ERROR -> send(ex, 400, Map.of("error", "invalid_request"));
+      case FAIL_5XX -> send(ex, 503, Map.of("error", "temporarily_unavailable"));
+      default -> {
+        String sad =
+            sads.entrySet().stream()
+                .filter(e -> e.getValue().equals(a.user()))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElseGet(
+                    () -> {
+                      String v = "sad-" + UUID.randomUUID();
+                      sads.put(v, a.user());
+                      return v;
+                    });
+        send(ex, 200, Map.of("SAD", sad, "expiresIn", 3600));
+      }
+    }
+  }
+
+  private void signWithSad(HttpExchange ex, String user, String sad, List<String> hashes)
+      throws IOException {
+    if (!user.equals(sads.get(sad))) {
+      send(ex, 400, Map.of("error", "invalid_request"));
+      return;
+    }
+    long min = signDelayMin.toMillis();
+    long max = Math.max(min, signDelayMax.toMillis());
+    double roll;
+    long wait;
+    synchronized (random) {
+      wait = min + (max > min ? (long) (random.nextDouble() * (max - min)) : 0);
+      roll = random.nextDouble();
+    }
+    sleep(Duration.ofMillis(wait));
+    if (roll < failRate) {
+      send(ex, 503, Map.of("error", "temporarily_unavailable"));
+      return;
+    }
+    List<String> signatures = new ArrayList<>();
+    for (String h : hashes) {
+      signatures.add(b64(sign(signerKey.getPrivate(), Base64.getDecoder().decode(h))));
+    }
+    sadSignatures.addAndGet(signatures.size());
+    send(ex, 200, Map.of("signatures", signatures));
+  }
+
   private boolean fails(String user) {
     return scenarios.getOrDefault(user, Scenario.SIGN) == Scenario.FAIL_5XX;
   }
@@ -313,6 +390,21 @@ public final class CscMockServer implements AutoCloseable {
    * Mỗi người ký có chứng thư riêng (cùng khoá {@link #signerKey}, số hiệu khác nhau) như ở CA
    * thật, để {@code esign.certificate_ref} không gộp chứng thư của nhiều người (DV-10-04).
    */
+  /**
+   * Ký lô (DV-10-06): mỗi lần ký đồng bộ bằng SAD chờ ngẫu nhiên trong [{@code min}, {@code max}]
+   * và trả 503 với xác suất {@code failRate}.
+   */
+  public void batchSigning(Duration min, Duration max, double failRate) {
+    this.signDelayMin = min;
+    this.signDelayMax = max;
+    this.failRate = failRate;
+  }
+
+  /** Số chữ ký đã trả bằng SAD (mọi lần gọi thành công). */
+  public int sadSignatures() {
+    return sadSignatures.get();
+  }
+
   public void certificatePerUser(boolean value) {
     certificatePerUser = value;
   }
@@ -514,4 +606,6 @@ public final class CscMockServer implements AutoCloseable {
   }
 
   private record Session(String user, List<byte[]> hashes, Instant startedAt) {}
+
+  private record Authorize(String user, Instant startedAt) {}
 }

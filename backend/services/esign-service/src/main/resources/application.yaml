@@ -166,6 +166,22 @@ okrkpi:
       enabled: ${ESIGN_WORKER_ENABLED:true}
       poll-interval: ${ESIGN_WORKER_POLL:2s}
       batch-size: ${ESIGN_WORKER_BATCH:100}
+    # DV-10-06: ký lô một lần xác nhận. Worker ký lô chạy ở bản triển khai riêng (esign-batch-worker)
+    # bật ESIGN_BATCH_WORKER_ENABLED; KEDA co giãn theo metric esign_batch_queue_items (ngưỡng ở values,
+    # INF-16). parallelism giới hạn số chữ ký đồng thời mỗi bản sao để HSM dùng không quá 50% năng lực.
+    # Thời gian chờ đọc của lời gọi CSC, bằng thời hạn 10 giây của instance esign-* (TL-01).
+    csc:
+      read-timeout: ${ESIGN_CSC_READ_TIMEOUT:10s}
+    batch:
+      max-items: ${ESIGN_BATCH_MAX_ITEMS:1000}
+      max-attempts: ${ESIGN_BATCH_MAX_ATTEMPTS:5}
+      backoff: ${ESIGN_BATCH_BACKOFF:2s}
+      max-backoff: ${ESIGN_BATCH_MAX_BACKOFF:5m}
+    batch-worker:
+      enabled: ${ESIGN_BATCH_WORKER_ENABLED:false}
+      poll-interval: ${ESIGN_BATCH_WORKER_POLL:1s}
+      scan-size: ${ESIGN_BATCH_WORKER_SCAN:200}
+      parallelism: ${ESIGN_BATCH_WORKER_PARALLELISM:16}
     # Cổng nội bộ của module nguồn trả tài liệu cần ký (suy luận, wiki trang 14).
     sources:
       task: ${ESIGN_SOURCE_CORE_URL:http://127.0.0.1:8080}

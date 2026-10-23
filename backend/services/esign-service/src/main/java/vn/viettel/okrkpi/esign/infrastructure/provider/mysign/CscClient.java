@@ -154,6 +154,72 @@ public class CscClient {
     }
   }
 
+  /**
+   * Mở phiên ủy quyền ký lô ({@code credentials/authorize}, bất đồng bộ): người ký xác nhận một lần
+   * trên ứng dụng cho {@code numSignatures} chữ ký; trả {@code responseID} (DV-10-06, suy luận theo
+   * CSC API v2).
+   */
+  public String authorize(String credentialId, int numSignatures) {
+    SignHashResponse body =
+        call(
+            properties.paths().authorize(),
+            Map.of(
+                "credentialID", credentialId, "numSignatures", numSignatures, "operationMode", "A"),
+            SignHashResponse.class);
+    if (body == null || body.responseID() == null || body.responseID().isBlank()) {
+      throw new SignatureProviderException("MySign không trả mã phiên ủy quyền ký lô", true);
+    }
+    return body.responseID();
+  }
+
+  /** Kết quả phiên ủy quyền ký lô: khi đã xác nhận thì có SAD và hạn dùng. */
+  public Authorization authorizeCheck(String responseId) {
+    try {
+      AuthorizeResponse body =
+          call(
+              properties.paths().authorizeCheck(),
+              Map.of("responseID", responseId),
+              AuthorizeResponse.class);
+      if (body == null || body.sad() == null || body.sad().isBlank()) {
+        return new Authorization(Poll.State.PENDING, null, null);
+      }
+      Instant until =
+          body.expiresIn() == null ? null : clock.instant().plusSeconds(body.expiresIn());
+      return new Authorization(Poll.State.SIGNED, body.sad(), until);
+    } catch (CscError e) {
+      return switch (e.code) {
+        case PENDING -> new Authorization(Poll.State.PENDING, null, null);
+        case DENIED -> new Authorization(Poll.State.REJECTED, null, null);
+        case EXPIRED -> new Authorization(Poll.State.EXPIRED, null, null);
+        default -> throw e;
+      };
+    }
+  }
+
+  /** Ký đồng bộ các băm bằng SAD của phiên ủy quyền ký lô; trả chữ ký theo thứ tự băm. */
+  public List<byte[]> signHashWithSad(
+      String credentialId, String sad, List<byte[]> hashes, String signAlgo) {
+    Map<String, Object> request =
+        Map.of(
+            "credentialID",
+            credentialId,
+            "SAD",
+            sad,
+            "hashes",
+            hashes.stream().map(h -> Base64.getEncoder().encodeToString(h)).toList(),
+            "hashAlgorithmOID",
+            Cms.SHA256_OID,
+            "signAlgo",
+            signAlgo,
+            "operationMode",
+            "S");
+    SignHashResponse body = call(properties.paths().signHash(), request, SignHashResponse.class);
+    if (body == null || body.signatures() == null || body.signatures().size() != hashes.size()) {
+      throw new SignatureProviderException("MySign trả thiếu chữ ký cho lô", false);
+    }
+    return body.signatures().stream().map(s -> Base64.getDecoder().decode(s)).toList();
+  }
+
   private <T> T call(String path, Object body, Class<T> type) {
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_JSON);
@@ -237,6 +303,12 @@ public class CscClient {
   record CredentialList(List<String> credentialIDs) {}
 
   record SignHashResponse(List<String> signatures, String responseID) {}
+
+  record AuthorizeResponse(
+      @com.fasterxml.jackson.annotation.JsonProperty("SAD") String sad, Long expiresIn) {}
+
+  /** Phiên ủy quyền ký lô: trạng thái, SAD khi đã xác nhận, hạn dùng SAD. */
+  public record Authorization(Poll.State state, String sad, Instant expiresAt) {}
 
   /** Thân {@code credentials/info}: khoá và chứng thư (chuỗi base64 DER, phần tử đầu là lá). */
   public record CredentialInfo(Key key, Cert cert) {

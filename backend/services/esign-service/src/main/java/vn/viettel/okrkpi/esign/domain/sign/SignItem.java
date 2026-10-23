@@ -17,6 +17,19 @@ public final class SignItem {
   private String signedObjectKey;
   private UUID certificateRefId;
   private Instant signedAt;
+  private Status status;
+  private int attempts;
+  private String lastError;
+
+  /**
+   * Trạng thái ký của tài liệu trong lô ({@code item_status}, DV-10-06): chờ ký, đã ký, lỗi vĩnh
+   * viễn hoặc hết lượt thử. Yêu cầu không ký lô chỉ dùng {@code TAO} và {@code DA_KY}.
+   */
+  public enum Status {
+    TAO,
+    DA_KY,
+    LOI
+  }
 
   public SignItem(
       UUID id,
@@ -41,6 +54,36 @@ public final class SignItem {
     this.signedObjectKey = signedObjectKey;
     this.certificateRefId = certificateRefId;
     this.signedAt = signedAt;
+    this.status = signatureValue != null ? Status.DA_KY : Status.TAO;
+  }
+
+  /** Tài liệu đọc từ CSDL kèm tiến độ ký lô. */
+  public SignItem(
+      UUID id,
+      String documentKind,
+      String documentRef,
+      byte[] documentSha256,
+      SignatureFormat format,
+      byte[] signatureValue,
+      String signedObjectKey,
+      UUID certificateRefId,
+      Instant signedAt,
+      Status status,
+      int attempts,
+      String lastError) {
+    this(
+        id,
+        documentKind,
+        documentRef,
+        documentSha256,
+        format,
+        signatureValue,
+        signedObjectKey,
+        certificateRefId,
+        signedAt);
+    this.status = signatureValue != null ? Status.DA_KY : Objects.requireNonNull(status, "status");
+    this.attempts = attempts;
+    this.lastError = lastError;
   }
 
   /** Tài liệu mới chờ ký. */
@@ -55,6 +98,7 @@ public final class SignItem {
     this.signedObjectKey = objectKey;
     this.certificateRefId = certificateId;
     this.signedAt = at;
+    this.status = Status.DA_KY;
   }
 
   public boolean signed() {
@@ -63,6 +107,23 @@ public final class SignItem {
 
   public boolean matches(byte[] sha256) {
     return Arrays.equals(documentSha256, sha256);
+  }
+
+  /** Tài liệu của lô bị lỗi vĩnh viễn hoặc đã hết lượt thử. */
+  public boolean failed() {
+    return status == Status.LOI;
+  }
+
+  public Status status() {
+    return status;
+  }
+
+  public int attempts() {
+    return attempts;
+  }
+
+  public String lastError() {
+    return lastError;
   }
 
   public UUID id() {

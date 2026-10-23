@@ -109,9 +109,49 @@ public class EsignConfiguration {
       ProviderRegistry providers,
       SignatureEvents events,
       Clock clock,
-      EsignProperties properties) {
+      EsignProperties properties,
+      @Value("${okrkpi.esign.batch.max-items:1000}") int maxItems,
+      @Value("${okrkpi.esign.batch.max-attempts:5}") int maxAttempts,
+      @Value("${okrkpi.esign.batch.backoff:2s}") Duration backoff,
+      @Value("${okrkpi.esign.batch.max-backoff:5m}") Duration maxBackoff) {
     return new EsignService(
-        requests, certificates, sources, providers, events, clock, properties.confirmWindow());
+        requests,
+        certificates,
+        sources,
+        providers,
+        events,
+        clock,
+        properties.confirmWindow(),
+        new EsignService.BatchSettings(maxItems, maxAttempts, backoff, maxBackoff));
+  }
+
+  /**
+   * Worker ký lô {@code esign-batch-worker} (DV-10-06): chạy ở bản triển khai riêng bật {@code
+   * okrkpi.esign.batch-worker.enabled}, để KEDA co giãn số bản sao theo hàng đợi mà không đụng tới
+   * pod phục vụ API (suy luận).
+   */
+  @Configuration(proxyBeanMethods = false)
+  @EnableScheduling
+  @ConditionalOnProperty(
+      prefix = "okrkpi.esign.batch-worker",
+      name = "enabled",
+      havingValue = "true")
+  static class BatchWorkerConfiguration {
+
+    @Bean
+    BatchItemScanner batchItemScanner(JdbcClient jdbc) {
+      return new BatchItemScanner(jdbc);
+    }
+
+    @Bean
+    SignBatchWorker signBatchWorker(
+        BatchItemScanner scanner,
+        EsignService service,
+        io.micrometer.core.instrument.MeterRegistry meters,
+        @Value("${okrkpi.esign.batch-worker.scan-size:200}") int scanSize,
+        @Value("${okrkpi.esign.batch-worker.parallelism:16}") int parallelism) {
+      return new SignBatchWorker(scanner, service, scanSize, parallelism, meters);
+    }
   }
 
   /** Nhà cung cấp giả lập chỉ cho dev/test; từ chối khởi động nếu hồ sơ là production. */

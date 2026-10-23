@@ -29,6 +29,8 @@ import vn.viettel.okrkpi.esign.infrastructure.web.model.EsignRequestCreate;
 import vn.viettel.okrkpi.esign.infrastructure.web.model.EsignRequestPage;
 import vn.viettel.okrkpi.esign.infrastructure.web.model.EsignRequestStatus;
 import vn.viettel.okrkpi.esign.infrastructure.web.model.EsignSignatureFormat;
+import vn.viettel.okrkpi.esign.infrastructure.web.model.ListDossierMeetings401Response;
+import vn.viettel.okrkpi.esign.infrastructure.web.model.ListDossierMeetings401ResponseErrorsInner;
 import vn.viettel.okrkpi.esign.infrastructure.web.model.ListMyEsignCertificates200Response;
 import vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver;
 import vn.viettel.okrkpi.shared.authz.StepUpValidator;
@@ -141,7 +143,27 @@ public class EsignController implements EsignApi {
         .certificate(r.certificateRefId())
         .map(EsignController::toDto)
         .ifPresent(dto::setCertificate);
+    if (r.batchMode() && r.failedCount() > 0 && r.status().isTerminal()) {
+      dto.setProblem(batchProblem(r));
+    }
     return dto;
+  }
+
+  /** Danh sách tài liệu của lô không ký được (DV-10-06); {@code field} là khoá tài liệu. */
+  private static ListDossierMeetings401Response batchProblem(SignRequest r) {
+    ListDossierMeetings401Response problem =
+        new ListDossierMeetings401Response(
+            "about:blank", "Một số tài liệu của lô chưa ký được", 422);
+    problem.setDetail(
+        r.failedCount() + " trong " + r.items().size() + " tài liệu chưa ký được, cần ký lại.");
+    for (var item : r.items()) {
+      if (item.failed()) {
+        problem.addErrorsItem(
+            new ListDossierMeetings401ResponseErrorsInner(
+                item.documentRef(), "Tài liệu chưa ký được."));
+      }
+    }
+    return problem;
   }
 
   private static EsignCertificate toDto(CertificateRef c) {

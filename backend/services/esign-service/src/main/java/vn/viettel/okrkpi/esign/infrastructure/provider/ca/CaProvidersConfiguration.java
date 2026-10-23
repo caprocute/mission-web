@@ -2,13 +2,17 @@ package vn.viettel.okrkpi.esign.infrastructure.provider.ca;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
+import java.time.Duration;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.web.client.RestClient;
 import software.amazon.awssdk.services.s3.S3Client;
+import vn.viettel.okrkpi.esign.infrastructure.provider.csc.CscHttp;
 import vn.viettel.okrkpi.esign.infrastructure.provider.csc.CscRemoteProvider;
 import vn.viettel.okrkpi.esign.infrastructure.provider.mysign.CscClient;
 import vn.viettel.okrkpi.esign.infrastructure.provider.mysign.S3ObjectStorage;
@@ -36,8 +40,22 @@ public class CaProvidersConfiguration {
       Environment environment,
       ResilientClientFactory factory,
       ObjectProvider<ObjectMapper> json,
+      ObjectProvider<RestClient.Builder> builders,
+      @Value("${okrkpi.esign.csc.read-timeout:10s}") Duration readTimeout,
       Clock clock) {
-    return remote(VIETTEL_CA, "Viettel-CA", bind(environment, VIETTEL_CA), factory, json, clock);
+    return remote(
+        VIETTEL_CA,
+        "Viettel-CA",
+        bind(environment, VIETTEL_CA),
+        factory,
+        CscHttp.client(
+            factory,
+            builders,
+            "esign-" + VIETTEL_CA,
+            bind(environment, VIETTEL_CA).baseUrl(),
+            readTimeout),
+        json,
+        clock);
   }
 
   @Bean(destroyMethod = "close")
@@ -46,6 +64,8 @@ public class CaProvidersConfiguration {
       Environment environment,
       ResilientClientFactory factory,
       ObjectProvider<ObjectMapper> json,
+      ObjectProvider<RestClient.Builder> builders,
+      @Value("${okrkpi.esign.csc.read-timeout:10s}") Duration readTimeout,
       Clock clock) {
     CaProviderProperties properties = bind(environment, GOV_CA);
     if (properties.mode() == CaProviderProperties.Mode.PKCS11) {
@@ -53,7 +73,14 @@ public class CaProvidersConfiguration {
       throw new IllegalStateException(
           "okrkpi.esign.gov-ca.mode=PKCS11 cần bộ ký PKCS#11 (DV-10-03), chưa được lắp");
     }
-    return remote(GOV_CA, "CA chuyên dùng Chính phủ", properties, factory, json, clock);
+    return remote(
+        GOV_CA,
+        "CA chuyên dùng Chính phủ",
+        properties,
+        factory,
+        CscHttp.client(factory, builders, "esign-" + GOV_CA, properties.baseUrl(), readTimeout),
+        json,
+        clock);
   }
 
   static CaProviderProperties bind(Environment environment, String id) {
@@ -67,12 +94,13 @@ public class CaProvidersConfiguration {
       String label,
       CaProviderProperties p,
       ResilientClientFactory factory,
+      vn.viettel.okrkpi.shared.resilience.ResilientClient api,
       ObjectProvider<ObjectMapper> json,
       Clock clock) {
     String instance = "esign-" + id;
     CscClient csc =
         new CscClient(
-            factory.create(instance, p.baseUrl()),
+            api,
             factory.create(instance, p.tokenUrl()),
             new CscClient.Connection(
                 p.clientId(), p.clientSecret(), p.scope(), p.paths(), p.tokenSkew()),
