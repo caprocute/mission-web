@@ -83,8 +83,17 @@ public class TaskProgressService {
   /** Một dòng của cập nhật hàng loạt. */
   public record BatchItem(UUID taskId, Long rowVersion, Integer percent, String note) {}
 
-  /** Kết quả một dòng: {@code task} khi thành công, {@code error} khi lỗi. */
-  public record BatchResult(UUID taskId, int status, TaskRow task, BusinessException error) {}
+  /**
+   * Kết quả một dòng: {@code task} khi thành công, {@code error} khi lỗi; {@code callerRole} là vai
+   * trò của người gọi trên nhiệm vụ ({@code CHU_TRI}, {@code PHOI_HOP}) khi thành công.
+   */
+  public record BatchResult(
+      UUID taskId, int status, TaskRow task, BusinessException error, String callerRole) {
+
+    public BatchResult(UUID taskId, int status, TaskRow task, BusinessException error) {
+      this(taskId, status, task, error, null);
+    }
+  }
 
   /**
    * Cập nhật tiến độ một nhiệm vụ; {@code idempotencyKey} được ghi vào dòng tiến độ, gửi lại cùng
@@ -226,7 +235,9 @@ public class TaskProgressService {
                         new ProgressInput(item.percent(), item.note(), null, "WEB"),
                         actor,
                         key));
-        results.add(new BatchResult(item.taskId(), 200, row, null));
+        results.add(
+            new BatchResult(
+                item.taskId(), 200, row, null, role(tenant, row, actor.personId()).name()));
       } catch (BusinessException e) {
         results.add(
             new BatchResult(item == null ? null : item.taskId(), e.errorCode().status(), null, e));
