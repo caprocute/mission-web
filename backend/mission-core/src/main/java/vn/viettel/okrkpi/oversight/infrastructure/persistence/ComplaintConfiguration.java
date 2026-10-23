@@ -40,6 +40,7 @@ import vn.viettel.okrkpi.oversight.infrastructure.client.ModuleComplaintHandlerD
 import vn.viettel.okrkpi.oversight.infrastructure.client.ModuleComplaintPartyDirectory;
 import vn.viettel.okrkpi.oversight.infrastructure.client.ReopenComplaintReopener;
 import vn.viettel.okrkpi.oversight.infrastructure.listener.ComplaintSignedListener;
+import vn.viettel.okrkpi.oversight.infrastructure.scheduling.ComplaintClosingJob;
 import vn.viettel.okrkpi.oversight.infrastructure.scheduling.ComplaintExplanationJob;
 import vn.viettel.okrkpi.oversight.infrastructure.web.ComplaintAdjustmentJson;
 import vn.viettel.okrkpi.oversight.infrastructure.web.ComplaintResponseSignJobs;
@@ -216,6 +217,25 @@ public class ComplaintConfiguration {
         ObjectProvider<TenantDirectory> directory,
         @Value("${mission.config.period-opening.cell:${CELL_ID:}}") String cell) {
       return new ComplaintExplanationJob(service, directory, cell);
+    }
+  }
+
+  /** Tự đóng khiếu nại; tắt bằng {@code mission.oversight.complaint-closing.enabled=false}. */
+  @Configuration(proxyBeanMethods = false)
+  @EnableScheduling
+  @ConditionalOnProperty(
+      prefix = "mission.oversight.complaint-closing",
+      name = "enabled",
+      havingValue = "true",
+      matchIfMissing = true)
+  static class ClosingJob {
+
+    @Bean
+    ComplaintClosingJob complaintClosingJob(
+        ComplaintResolutionService service,
+        ObjectProvider<TenantDirectory> directory,
+        @Value("${mission.config.period-opening.cell:${CELL_ID:}}") String cell) {
+      return new ComplaintClosingJob(service, directory, cell);
     }
   }
 

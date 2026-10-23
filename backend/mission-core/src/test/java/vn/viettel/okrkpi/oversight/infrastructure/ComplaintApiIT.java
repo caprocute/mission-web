@@ -565,6 +565,36 @@ class ComplaintApiIT extends ContractConformanceTest {
     assertThat(body(ownerRecords).at("/items/0/content").asText())
         .isEqualTo("Chấp nhận một phần nội dung khiếu nại.");
     assertThat(plaintextStored(UUID.fromString(id))).isFalse();
+
+    // CORE-07-05: đang thi hành thì không bảo lưu; gợi ý trùng theo hợp đồng.
+    MvcResult reserved =
+        perform(
+            write(
+                post(BASE + "/" + id + "/reserve"),
+                json.writeValueAsString(Map.of("opinion", "Tôi bảo lưu ý kiến.")),
+                etag(id)));
+    assertThat(status(reserved)).as(text(reserved)).isEqualTo(409);
+    as(handler, "appraiser");
+    MvcResult dup = perform(get(BASE + "/" + id + "/duplicate-candidates"));
+    assertThat(status(dup)).as(text(dup)).isEqualTo(200);
+    assertResponseConforms(
+        dup, "/oversight/complaints/{id}/duplicate-candidates", PathItem.HttpMethod.GET);
+
+    // Mở lại kỳ đã thực hiện và khoá lại: tác vụ đóng khiếu nại, chạy lại không đóng lần hai.
+    in(
+        oversightDataSource,
+        oversightTm,
+        jdbc ->
+            jdbc.sql(
+                    "UPDATE oversight.reopen_request SET status = 'DA_THUC_HIEN', executed_at = now(),"
+                        + " relocked_at ="
+                        + " now() WHERE id = ?")
+                .params(UUID.fromString(k.get("reopenRequestId").asText()))
+                .update());
+    assertThat(TenantContext.call(tenant, () -> resolution.closeDue(tenant, 50))).isEqualTo(1);
+    assertThat(TenantContext.call(tenant, () -> resolution.closeDue(tenant, 50))).isZero();
+    assertThat(statusOf(id)).isEqualTo("DONG");
+    assertThat(profileStatus(fresh)).isEqualTo("DA_KY_SO");
   }
 
   private boolean responseSigned(UUID signRequest) throws Exception {
