@@ -1,0 +1,28 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/api/v2/documents",
+    "queryParameters": {
+      "unitId": { "equalTo": "DV-01" },
+      "limit": { "matches": "[0-9]{1,3}" }
+    },
+    "headers": { "Authorization": { "equalTo": "Bearer ma-gia-lap" } }
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "items": [
+        {
+          "id": "47-BC/BTCĐUK",
+          "docNumber": "47-BC/BTCĐUK",
+          "issuedDate": "2026-10-19",
+          "summary": "Báo cáo chuyên đề công tác kiểm tra quý III năm 2026",
+          "signerName": "Trần Thị Bình",
+          "signatureValid": true
+        }
+      ],
+      "nextCursor": null
+    }
+  }
+}

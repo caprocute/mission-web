@@ -37,6 +37,7 @@ class ScanServiceTest {
   final List<ScanRecord> results = new ArrayList<>();
   final List<String> events = new ArrayList<>();
   final List<UUID> previewsScheduled = new ArrayList<>();
+  final List<UUID> ocrScheduled = new ArrayList<>();
   final Map<UUID, byte[]> content = new HashMap<>();
   MalwareScanner.Finding finding = new MalwareScanner.Finding(false, null);
   boolean scannerDown;
@@ -81,6 +82,11 @@ class ScanServiceTest {
         @Override
         public void schedulePreview(UUID versionId) {
           previewsScheduled.add(versionId);
+        }
+
+        @Override
+        public void scheduleOcr(UUID versionId) {
+          ocrScheduled.add(versionId);
         }
 
         @Override
@@ -303,6 +309,8 @@ class ScanServiceTest {
     assertThat(files.get(c3.versionId()).scanStatus()).isEqualTo("SACH");
     assertThat(meters.timer("evidence.scan.latency").count()).isEqualTo(3);
     assertThat(previewsScheduled).containsExactly(clean.versionId());
+    // DV-08-05: chỉ tệp sạch không phải C3 mới được xếp việc đọc chữ.
+    assertThat(ocrScheduled).containsExactly(clean.versionId());
     assertThat(meters.get("evidence.scan.pending").gauge().value()).isZero();
   }
 

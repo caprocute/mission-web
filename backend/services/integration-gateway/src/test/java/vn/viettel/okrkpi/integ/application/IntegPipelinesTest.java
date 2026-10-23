@@ -99,6 +99,7 @@ class IntegPipelinesTest {
       new InboundPipeline(
           connectors,
           inbox,
+          letters,
           cipher,
           sink,
           mappings,
@@ -206,6 +207,7 @@ class IntegPipelinesTest {
                 new InboundPipeline(
                     connectors,
                     inbox,
+                    letters,
                     cipher,
                     sink,
                     mappings,
@@ -599,5 +601,79 @@ class IntegPipelinesTest {
     assertThatThrownBy(() -> new Translators(List.of(c), Map.of(CODE, translator)))
         .isInstanceOf(IllegalStateException.class);
     assertThat(event().classification()).isNotNull();
+  }
+
+  @Test
+  void luongVaoTuChoiKhongThuLaiVaKhongGhiTrungThuChet() {
+    when(inbox.store(any(), any(), any(), any(), any(), any(), any(), any()))
+        .thenAnswer(i -> new Stored(i.getArgument(1), TODAY, InboxStatus.MOI, true));
+    when(translator.translate(any(), any()))
+        .thenThrow(new TranslationRejectedException("DON_VI_CHUA_ANH_XA", "Đơn vị DV-9"));
+    var r = inbound.receive(TENANT, CODE, message("VB-R"));
+    assertThat(r.result()).isEqualTo(InboundPipeline.Result.REJECTED);
+    verify(letters)
+        .insert(
+            eq(TENANT),
+            any(),
+            eq(MAU.id()),
+            eq(DeadLetterService.INBOUND),
+            eq(r.inboxId()),
+            eq("DON_VI_CHUA_ANH_XA"),
+            eq("Đơn vị DV-9"));
+    when(letters.hasOpen(eq(TENANT), any())).thenReturn(true);
+    inbound.receive(TENANT, CODE, message("VB-S"));
+    verify(letters, org.mockito.Mockito.times(1))
+        .insert(any(), any(), any(), any(), any(), eq("DON_VI_CHUA_ANH_XA"), any());
+
+    UUID inboxId = UUID.randomUUID();
+    when(inbox.find(TENANT, inboxId))
+        .thenReturn(
+            Optional.of(
+                new Raw(
+                    inboxId, TODAY, MAU.id(), "VB-R", "VAN_BAN", new byte[] {1}, InboxStatus.LOI)));
+    assertThatThrownBy(() -> inbound.reprocess(TENANT, inboxId))
+        .isInstanceOf(TranslationRejectedException.class);
+  }
+
+  @Test
+  void traCuuVanBanDaBanHanh() throws IOException {
+    IssuedDocumentSource source = mock(IssuedDocumentSource.class);
+    when(source.connectorCode()).thenReturn(CODE);
+    IssuedDocumentSearch search =
+        new IssuedDocumentSearch(connectors, mappings, List.of(source), tx, clock);
+    UUID unit = UUID.randomUUID();
+    when(xrefs.byInternal(TENANT, MAU.id(), EntityType.DON_VI, unit, TODAY))
+        .thenReturn(Optional.of(new Mapping(UUID.randomUUID(), "DV-1", unit, TODAY)));
+    var page =
+        new IssuedDocumentSource.Result(
+            List.of(
+                new IssuedDocumentSource.IssuedDocument(
+                    "R1", "47-BC", TODAY, "Báo cáo", "Người ký", true)),
+            "c2");
+    when(source.search(MAU, "DV-1", "bc", 20, null)).thenReturn(page);
+    assertThat(search.search(TENANT, CODE, unit, "bc", 20, null)).isEqualTo(page);
+    assertThat(search.search(TENANT, CODE, UUID.randomUUID(), null, 20, null).items()).isEmpty();
+    assertThat(new IssuedDocumentSource.Result(null, null).items()).isEmpty();
+
+    when(source.search(MAU, "DV-1", null, 5, "c2")).thenThrow(new IOException("mạng"));
+    assertThatThrownBy(() -> search.search(TENANT, CODE, unit, null, 5, "c2"))
+        .isInstanceOf(java.io.UncheckedIOException.class);
+    assertThatThrownBy(() -> search.search(TENANT, CODE, unit, null, 0, null))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> search.search(TENANT, CODE, unit, "x".repeat(201), 5, null))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> search.search(TENANT, "KHAC", unit, null, 5, null))
+        .isInstanceOf(NoSuchElementException.class);
+    IssuedDocumentSource other = mock(IssuedDocumentSource.class);
+    when(other.connectorCode()).thenReturn("TAT");
+    when(connectors.findByCode(TENANT, "TAT")).thenReturn(Optional.empty());
+    IssuedDocumentSearch two =
+        new IssuedDocumentSearch(connectors, mappings, List.of(source, other), tx, clock);
+    assertThatThrownBy(() -> two.search(TENANT, "TAT", unit, null, 5, null))
+        .isInstanceOf(NoSuchElementException.class);
+    assertThatThrownBy(
+            () ->
+                new IssuedDocumentSearch(connectors, mappings, List.of(source, source), tx, clock))
+        .isInstanceOf(IllegalStateException.class);
   }
 }

@@ -1,10 +1,13 @@
 package vn.viettel.okrkpi.integ.infrastructure.camel;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.model.ProcessorDefinition;
 import org.apache.camel.model.RouteDefinition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import vn.viettel.okrkpi.integ.application.InboundConnector;
 import vn.viettel.okrkpi.integ.application.InboundConnector.Page;
 import vn.viettel.okrkpi.integ.application.InboundPipeline;
@@ -20,9 +23,17 @@ import vn.viettel.okrkpi.integ.domain.InboundMessage;
  */
 public class PollingConnectorRoute extends IntegRouteBuilder {
 
+  private static final Logger LOG = LoggerFactory.getLogger(PollingConnectorRoute.class);
+
   static final String PULL = "integPull";
   static final String PAGE = "integPage";
   static final String KEY = "integKey";
+
+  /**
+   * Cờ dùng chung giữa các bản sao exchange của một trang: thông điệp lỗi trước khi lưu {@code
+   * inbox_message} (không vào được thư chết) thì không tiến con trỏ, để lượt sau kéo lại.
+   */
+  static final String STORE_FAILED = "integStoreFailed";
 
   private final InboundConnector source;
   private final PullService pulls;
@@ -94,6 +105,7 @@ public class PollingConnectorRoute extends IntegRouteBuilder {
               Fetched f = e.getMessage().getBody(Fetched.class);
               e.setProperty(PULL, f.pull());
               e.setProperty(PAGE, f.page());
+              e.setProperty(STORE_FAILED, new AtomicBoolean());
             })
         .process(e -> e.getMessage().setBody(page(e).items()))
         .split(body())
@@ -104,12 +116,21 @@ public class PollingConnectorRoute extends IntegRouteBuilder {
         .process(this::receive)
         .end()
         .end()
-        .process(e -> pulls.advance(source, pull(e), page(e)))
+        .process(this::advance)
         .end();
   }
 
   /** Kết quả gọi adapter trong breaker. */
   record Fetched(Pull pull, Page page) {}
+
+  private void advance(Exchange e) {
+    AtomicBoolean failed = e.getProperty(STORE_FAILED, AtomicBoolean.class);
+    if (failed != null && failed.get()) {
+      LOG.warn("Bộ kết nối {} có thông điệp chưa lưu được, giữ con trỏ để kéo lại", source.code());
+      return;
+    }
+    pulls.advance(source, pull(e), page(e));
+  }
 
   private void key(Exchange e) {
     Pull p = pull(e);

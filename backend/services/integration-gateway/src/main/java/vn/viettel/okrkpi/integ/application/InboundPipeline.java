@@ -10,6 +10,7 @@ import java.util.UUID;
 import org.springframework.transaction.support.TransactionOperations;
 import vn.viettel.okrkpi.integ.application.port.CanonicalEventSink;
 import vn.viettel.okrkpi.integ.application.port.Connectors;
+import vn.viettel.okrkpi.integ.application.port.DeadLetters;
 import vn.viettel.okrkpi.integ.application.port.InboxMessages;
 import vn.viettel.okrkpi.integ.application.port.InboxMessages.Raw;
 import vn.viettel.okrkpi.integ.application.port.InboxMessages.Stored;
@@ -25,7 +26,9 @@ import vn.viettel.okrkpi.shared.kernel.TenantId;
  * inbox_message} ở giao dịch riêng trước khi xử lý, rồi Translator dịch sang mô hình chuẩn và
  * Publisher ghi outbox cùng giao dịch với trạng thái {@code DA_PHAT}. Thông điệp đã xử lý (cùng mã
  * ngoài trong cửa sổ chống trùng) bị bỏ qua; lỗi chuyển đổi để dòng ở {@code LOI} và ném {@link
- * InboundProcessingException} cho route thử lại rồi chuyển thư chết.
+ * InboundProcessingException} cho route thử lại rồi chuyển thư chết. Translator từ chối ({@link
+ * TranslationRejectedException}) thì không thử lại: dòng ở {@code LOI} và ghi thẳng một thư chết
+ * mang mã lý do cho quản trị tenant xử lý (DV-13-03).
  */
 public class InboundPipeline {
 
@@ -37,7 +40,9 @@ public class InboundPipeline {
     /** Đã chuyển đổi, không có sự kiện cần phát. */
     TRANSLATED,
     /** Thông điệp đã xử lý trước đó. */
-    DUPLICATE
+    DUPLICATE,
+    /** Translator từ chối, đã ghi thư chết có mã lý do. */
+    REJECTED
   }
 
   public record Receipt(Result result, UUID inboxId, List<UUID> eventIds) {
@@ -48,6 +53,7 @@ public class InboundPipeline {
 
   private final Connectors connectors;
   private final InboxMessages inbox;
+  private final DeadLetters deadLetters;
   private final PayloadCipher cipher;
   private final CanonicalEventSink sink;
   private final MappingXrefService mappings;
@@ -59,6 +65,7 @@ public class InboundPipeline {
   public InboundPipeline(
       Connectors connectors,
       InboxMessages inbox,
+      DeadLetters deadLetters,
       PayloadCipher cipher,
       CanonicalEventSink sink,
       MappingXrefService mappings,
@@ -68,6 +75,7 @@ public class InboundPipeline {
       int dedupeWindowDays) {
     this.connectors = Objects.requireNonNull(connectors, "connectors");
     this.inbox = Objects.requireNonNull(inbox, "inbox");
+    this.deadLetters = Objects.requireNonNull(deadLetters, "deadLetters");
     this.cipher = Objects.requireNonNull(cipher, "cipher");
     this.sink = Objects.requireNonNull(sink, "sink");
     this.mappings = Objects.requireNonNull(mappings, "mappings");
@@ -112,7 +120,8 @@ public class InboundPipeline {
           if (done(stored.status())) {
             return new Receipt(Result.DUPLICATE, stored.id(), List.of());
           }
-          return process(tenant, connector, translator, stored.id(), stored.receivedDay(), message);
+          return process(
+              tenant, connector, translator, stored.id(), stored.receivedDay(), message, true);
         });
   }
 
@@ -172,7 +181,8 @@ public class InboundPipeline {
               translators.require(connector.code()),
               inboxId,
               raw.receivedDay(),
-              message);
+              message,
+              false);
         });
   }
 
@@ -182,7 +192,8 @@ public class InboundPipeline {
       Translator translator,
       UUID inboxId,
       LocalDate day,
-      InboundMessage message) {
+      InboundMessage message,
+      boolean recordRejection) {
     try {
       return tx.execute(
           s -> {
@@ -196,6 +207,26 @@ public class InboundPipeline {
             inbox.mark(tenant, day, inboxId, status, ids.isEmpty() ? null : ids.get(0));
             return new Receipt(ids.isEmpty() ? Result.TRANSLATED : Result.PUBLISHED, inboxId, ids);
           });
+    } catch (TranslationRejectedException e) {
+      // Phát lại thư chết mà vẫn bị từ chối thì để thư cũ mở, không ghi thư mới.
+      if (!recordRejection) {
+        throw e;
+      }
+      tx.executeWithoutResult(
+          s -> {
+            inbox.mark(tenant, day, inboxId, InboxStatus.LOI, null);
+            if (!deadLetters.hasOpen(tenant, inboxId)) {
+              deadLetters.insert(
+                  tenant,
+                  Ids.newUuidV7(),
+                  connector.id(),
+                  DeadLetterService.INBOUND,
+                  inboxId,
+                  e.reasonCode(),
+                  e.getMessage());
+            }
+          });
+      return new Receipt(Result.REJECTED, inboxId, List.of());
     } catch (RuntimeException e) {
       tx.executeWithoutResult(s -> inbox.mark(tenant, day, inboxId, InboxStatus.LOI, null));
       throw new InboundProcessingException(tenant, connector.id(), inboxId, e);

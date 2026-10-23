@@ -41,6 +41,12 @@ public class DeadLetterRoute extends RouteBuilder {
         return;
       }
     }
+    java.util.concurrent.atomic.AtomicBoolean failed =
+        exchange.getProperty(
+            PollingConnectorRoute.STORE_FAILED, java.util.concurrent.atomic.AtomicBoolean.class);
+    if (failed != null) {
+      failed.set(true);
+    }
     LOG.warn(
         "Thông điệp lỗi trước khi lưu, không vào thư chết (route {}): {}",
         exchange.getFromRouteId(),
