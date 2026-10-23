@@ -1,0 +1,53 @@
+{{- /*
+VH-06: đổi kho ảnh cho mô hình đám mây riêng (TL-04 mục 2.3). Mỗi tiền tố trong global.doiKhoAnh sinh một luật mutate
+cho container, initContainer và ephemeralContainer của Pod lúc tạo; tiền tố dài xét trước để "harbor.vt.local/okr/"
+thắng "harbor.vt.local/". Kyverno chạy luật mutate trước verifyImages, nên vt-require-signed-images phải được đổi
+imageReferences sang Harbor nội bộ cùng lúc (infra/airgap/goi/tools/doi-khoa-kyverno.py --chi-registry).
+*/ -}}
+{{- $bang := (.Values.global | default dict).doiKhoAnh | default dict }}
+{{- if $bang }}
+{{- $khoa := keys $bang | sortAlpha }}
+{{- $thuTu := list }}
+{{- range $do := untilStep 512 0 -1 }}{{- range $k := $khoa }}{{- if eq (len $k) $do }}{{- $thuTu = append $thuTu $k }}{{- end }}{{- end }}{{- end }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: vt-doi-kho-anh
+  labels:
+    app.kubernetes.io/part-of: {{ .Values.global.partOf | default "vt-platform" }}
+    vt.io/cell: {{ .Values.cell | quote }}
+  annotations:
+    policies.kyverno.io/title: Đổi kho ảnh sang Harbor nội bộ
+    policies.kyverno.io/description: "Đổi tiền tố ảnh của mọi pod sang Harbor nội bộ của khách hàng, giữ nguyên đường dẫn và digest (VH-06)."
+spec:
+  background: false
+  rules:
+    {{- range $i, $goc := $thuTu }}
+    {{- $dich := index $bang $goc }}
+    {{- range $loai := list "containers" "initContainers" "ephemeralContainers" }}
+    - name: {{ printf "doi-%d-%s" $i ($loai | lower) | trunc 63 }}
+      match:
+        any:
+          - resources:
+              kinds: ["Pod"]
+              operations: ["CREATE"]
+      exclude:
+        any:
+          - resources:
+              namespaces: ["kube-system", "kyverno"]
+      mutate:
+        foreach:
+          - list: "request.object.spec.{{ $loai }} || `[]`"
+            preconditions:
+              all:
+                - key: "{{ "{{" }} element.image {{ "}}" }}"
+                  operator: Equals
+                  value: {{ printf "%s*" $goc | quote }}
+            patchStrategicMerge:
+              spec:
+                {{ $loai }}:
+                  - name: "{{ "{{" }} element.name {{ "}}" }}"
+                    image: {{ printf "{{ replace(element.image, '%s', '%s', `1`) }}" $goc $dich | quote }}
+    {{- end }}
+    {{- end }}
+{{- end }}

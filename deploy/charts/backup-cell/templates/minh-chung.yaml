@@ -1,0 +1,74 @@
+{{- /* Sao lưu ngày và kiểm mẫu minh chứng, biểu mẫu ký (INF-18, TL-04 mục 8.4, bảng lịch sao lưu). */}}
+{{- $v := .Values }}
+{{- $m := $v.minhChung }}
+{{- if $m.enabled }}
+{{- $ma := include "bk.ma" . }}
+{{- $ns := $v.saoLuu.namespace }}
+{{- $data := dict "chung.sh" (.Files.Get "files/chung.sh") "sao-luu-minh-chung.sh" (.Files.Get "files/sao-luu-minh-chung.sh") "kiem-mau-minh-chung.sh" (.Files.Get "files/kiem-mau-minh-chung.sh") "kiem-mau-minh-chung.sql" (.Files.Get "files/kiem-mau-minh-chung.sql") }}
+{{- $cfg := printf "minh-chung-%s" (toJson $data | sha256sum | trunc 10) }}
+{{- $bucket := include "bk.bucket" (dict "root" . "bucket" $m.bucket "loai" "ev") }}
+{{- $nguon := list }}
+{{- range $m.nguon.buckets }}{{ $nguon = append $nguon (replace "{cell}" $ma .) }}{{ end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $cfg }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+data:
+  {{- range $k := keys $data | sortAlpha }}
+  {{ $k }}: {{ index $data $k | quote }}
+  {{- end }}
+{{- if $v.externalSecrets.enabled }}
+---
+{{ include "bk.externalSecret" (dict "root" . "ten" $m.credentials.secretName "ns" $ns "khoa" (include "bk.khoa" (dict "root" . "path" $m.credentials.path "loai" "ev"))) }}
+---
+{{ include "bk.externalSecretMot" (dict "root" . "ten" $m.kiemMau.db.password.secretName "ns" $ns "khoa" $m.kiemMau.db.password.path) }}
+{{- end }}
+---
+{{- $env := list
+  (dict "name" "BUCKETS" "value" (join " " $nguon))
+  (dict "name" "BUCKET_DICH" "value" $bucket)
+  (dict "name" "NGUON_ENDPOINT" "value" ($m.nguon.endpoint | default (printf "https://s3.cell-%s.hl.vt.local" $ma)))
+  (dict "name" "NGUON_REGION" "value" ($m.nguon.region | default (printf "cell-%s-zg" $ma)))
+  (dict "name" "RCLONE_THAM_SO" "value" $m.saoLuu.thamSo)
+  (dict "name" "NGUON_ACCESS_KEY_ID" "valueFrom" (dict "secretKeyRef" (dict "name" $m.nguon.secretName "key" "access-key")))
+  (dict "name" "NGUON_SECRET_ACCESS_KEY" "valueFrom" (dict "secretKeyRef" (dict "name" $m.nguon.secretName "key" "secret-key")))
+  (dict "name" "AWS_ACCESS_KEY_ID" "valueFrom" (dict "secretKeyRef" (dict "name" $m.credentials.secretName "key" "ACCESS_KEY_ID")))
+  (dict "name" "AWS_SECRET_ACCESS_KEY" "valueFrom" (dict "secretKeyRef" (dict "name" $m.credentials.secretName "key" "ACCESS_SECRET_KEY"))) }}
+{{- $mounts := list }}{{ $vols := list }}
+{{- with $m.nguon.caBundle }}
+{{- $env = append $env (dict "name" "NGUON_CA_BUNDLE" "value" (printf "/ca-nguon/%s" .key)) }}
+{{- $mounts = append $mounts (dict "name" "ca-nguon" "mountPath" "/ca-nguon" "readOnly" true) }}
+{{- $vols = append $vols (dict "name" "ca-nguon" "secret" (dict "secretName" .secret)) }}
+{{- end }}
+{{ include "bk.cronJobSaoLuu" (dict "root" . "ten" "sao-luu-minh-chung" "cfg" $cfg "schedule" $m.saoLuu.schedule "deadline" $m.saoLuu.activeDeadlineSeconds "script" "sao-luu-minh-chung.sh" "env" $env "mounts" $mounts "volumes" $vols) }}
+---
+{{ include "bk.mangJob" (dict "root" . "ten" "sao-luu-minh-chung" "dich" (list (dict "to" $m.nguon.egressTo "ports" (list $m.nguon.egressPort)))) }}
+{{- $db := $m.kiemMau.db }}
+{{- /* Chưa khai tenant thì chưa có job kiểm mẫu; cảnh báo EvidenceBackupSampleStale báo vì thiếu chỉ số. */}}
+{{- if $m.kiemMau.tenants }}
+---
+{{- $env2 := list
+  (dict "name" "TENANTS" "value" (join "," $m.kiemMau.tenants))
+  (dict "name" "SO_MAU" "value" (toString $m.kiemMau.soMau))
+  (dict "name" "BUCKET_DICH" "value" $bucket)
+  (dict "name" "TAM" "value" "/tam")
+  (dict "name" "PGHOST" "value" $db.host)
+  (dict "name" "PGPORT" "value" (toString $db.port))
+  (dict "name" "PGDATABASE" "value" $db.dbname)
+  (dict "name" "PGUSER" "value" $db.user)
+  (dict "name" "PGSSLMODE" "value" $db.sslmode)
+  (dict "name" "PGSSLROOTCERT" "value" (printf "/ca-db/%s" $db.caSecret.key))
+  (dict "name" "PGAPPNAME" "value" "kiem-mau-minh-chung")
+  (dict "name" "PG_PASSWORD_FILE" "value" "/db/password")
+  (dict "name" "AWS_ACCESS_KEY_ID" "valueFrom" (dict "secretKeyRef" (dict "name" $m.credentials.secretName "key" "ACCESS_KEY_ID")))
+  (dict "name" "AWS_SECRET_ACCESS_KEY" "valueFrom" (dict "secretKeyRef" (dict "name" $m.credentials.secretName "key" "ACCESS_SECRET_KEY"))) }}
+{{- $mounts2 := list (dict "name" "tam" "mountPath" "/tam") (dict "name" "db" "mountPath" "/db" "readOnly" true) (dict "name" "ca-db" "mountPath" "/ca-db" "readOnly" true) }}
+{{- $vols2 := list (dict "name" "tam" "emptyDir" (dict "sizeLimit" $m.kiemMau.tamGioiHan)) (dict "name" "db" "secret" (dict "secretName" $db.password.secretName)) (dict "name" "ca-db" "secret" (dict "secretName" $db.caSecret.name)) }}
+{{ include "bk.cronJobSaoLuu" (dict "root" . "ten" "kiem-mau-minh-chung" "cfg" $cfg "schedule" $m.kiemMau.schedule "deadline" $m.kiemMau.activeDeadlineSeconds "script" "kiem-mau-minh-chung.sh" "env" $env2 "mounts" $mounts2 "volumes" $vols2) }}
+---
+{{ include "bk.mangJob" (dict "root" . "ten" "kiem-mau-minh-chung" "dich" (list (dict "to" $db.egressTo "ports" (list $db.port)))) }}
+{{- end }}
+{{- end }}

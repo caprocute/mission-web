@@ -305,4 +305,31 @@ class EvidenceReviewServiceTest {
             eq(TENANT), to.capture(), eq("NV-1"), eq(evidenceId), eq(1), eq(acceptor), eq(4L));
     assertThat(to.getValue()).containsExactly(acceptor, ASSIGNER);
   }
+
+  @Test
+  void permittedOnFollowsVersionStatusAndRoles() {
+    version("NHAP", false);
+    VersionView draft = repo.findVersion(TENANT, 20271, evidenceId, 1).orElseThrow();
+    assertThat(service.permittedOn(TENANT, draft, LEAD))
+        .containsExactly(EvidenceReviewService.SOAN, EvidenceReviewService.NOP);
+    assertThat(service.permittedOn(TENANT, draft, ASSIGNER)).isEmpty();
+    assertThat(service.permittedOn(TENANT, draft, null)).isEmpty();
+
+    version("DA_NOP", false);
+    VersionView submitted = repo.findVersion(TENANT, 20271, evidenceId, 1).orElseThrow();
+    assertThat(service.permittedOn(TENANT, submitted, ASSIGNER))
+        .containsExactly(EvidenceReviewService.MO);
+    assertThat(service.permittedOn(TENANT, submitted, LEAD)).isEmpty();
+
+    version("DANG_NGHIEM_THU", false);
+    VersionView reviewing = repo.findVersion(TENANT, 20271, evidenceId, 1).orElseThrow();
+    assertThat(service.permittedOn(TENANT, reviewing, ASSIGNER))
+        .containsExactly(
+            EvidenceReviewService.MO,
+            EvidenceReviewService.XAC_NHAN,
+            EvidenceReviewService.BO_SUNG_TU_CHOI);
+
+    when(tasks.find(TENANT, taskId)).thenReturn(Optional.empty());
+    assertThat(service.permittedOn(TENANT, reviewing, ASSIGNER)).isEmpty();
+  }
 }

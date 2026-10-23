@@ -1,0 +1,150 @@
+{{- if .Values.kured.enabled }}
+{{- $v := .Values }}
+{{- $k := $v.kured }}
+{{- $ns := $v.privilegedNamespace }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kured
+  namespace: {{ $ns }}
+  labels:
+    {{- include "sec.labels" . | nindent 4 }}
+---
+# Quyền tối thiểu của kured (theo manifest chính thức): cordon và rút pod qua Eviction API (tôn trọng PDB), đọc
+# DaemonSet của chính nó để giữ khoá "một node một lúc".
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: vt-kured
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "patch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list", "get", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/eviction"]
+    verbs: ["create"]
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vt-kured
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: vt-kured }
+subjects:
+  - { kind: ServiceAccount, name: kured, namespace: {{ $ns }} }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kured
+  namespace: {{ $ns }}
+rules:
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    resourceNames: ["kured"]
+    verbs: ["update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kured
+  namespace: {{ $ns }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: kured }
+subjects:
+  - { kind: ServiceAccount, name: kured, namespace: {{ $ns }} }
+---
+# kured (TL-04 mục 9.3, SEC-51): chỉ dùng cho bản vá nhân khẩn; vá thường kỳ là thay ảnh node qua Cluster API.
+# Khởi động lại từng node (concurrency 1) trong khung {{ $k.startTime }}–{{ $k.endTime }} giờ Việt Nam, rút pod bằng
+# Eviction API nên PDB được tôn trọng. Khi Prometheus có cảnh báo VtCuaSoDongBang (cửa sổ đóng băng OPS-06) đang
+# kích hoạt, kured không khởi động lại; boQuaDongBang chỉ bật qua merge request cho lỗ hổng CVSS ≥ 9.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kured
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: kured
+    {{- include "sec.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels: { app.kubernetes.io/name: kured }
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kured
+        {{- include "sec.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: kured
+      hostPID: true
+      priorityClassName: system-node-critical
+      tolerations:
+        - { key: node-role.kubernetes.io/control-plane, operator: Exists, effect: NoSchedule }
+        - { key: CriticalAddonsOnly, operator: Exists }
+        - { key: vt.io/pool, operator: Exists }
+        - { key: vt.io/zone, operator: Exists }
+      containers:
+        - name: kured
+          image: {{ include "sec.image" (dict "root" . "name" "kured") }}
+          imagePullPolicy: IfNotPresent
+          command: ["/usr/bin/kured"]
+          args:
+            - --ds-name=kured
+            - --ds-namespace={{ $ns }}
+            - --period={{ $k.period }}
+            - --concurrency=1
+            - --start-time={{ $k.startTime }}
+            - --end-time={{ $k.endTime }}
+            - --time-zone={{ $k.timeZone }}
+            - --reboot-days={{ join "," $k.rebootDays }}
+            - --drain-timeout={{ $k.drainTimeout }}
+            # Không ép rút pod khi PDB chặn: hết drain-timeout thì bỏ lượt, node giữ nguyên và thử lại lần sau.
+            - --force-reboot=false
+            - --lock-ttl=2h
+            - --reboot-sentinel=/sentinel/reboot-required
+            - --reboot-method=command
+            - --annotate-nodes=true
+            {{- if not $k.boQuaDongBang }}
+            - --prometheus-url={{ $k.prometheusUrl }}
+            - --alert-filter-regexp={{ $k.blockingAlerts }}
+            - --alert-filter-match-only=true
+            - --alert-firing-only=true
+            {{- end }}
+          env:
+            - name: KURED_NODE_ID
+              valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+          resources:
+            {{- toYaml $k.resources | nindent 12 }}
+          # nsenter vào tiến trình 1 của node để gọi systemctl reboot (như manifest chính thức).
+          securityContext:
+            privileged: true
+            readOnlyRootFilesystem: true
+          livenessProbe:
+            httpGet: { path: /metrics, port: 8080 }
+          readinessProbe:
+            httpGet: { path: /metrics, port: 8080 }
+          ports:
+            - { name: metrics, containerPort: 8080 }
+          volumeMounts:
+            - { name: sentinel, mountPath: /sentinel, readOnly: true }
+      volumes:
+        - name: sentinel
+          hostPath: { path: /var/run, type: Directory }
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: kured
+  namespace: {{ $ns }}
+spec:
+  selector:
+    matchLabels: { app.kubernetes.io/name: kured }
+  podMetricsEndpoints:
+    - { port: metrics, interval: 60s }
+{{- end }}

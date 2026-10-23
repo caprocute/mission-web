@@ -60,6 +60,7 @@ vai_tro mission-core mission-core "$APP_NS" mission-core
 vai_tro external-secrets external-secrets external-secrets external-secrets
 vai_tro cert-manager openbao-issuer cert-manager cert-manager
 vai_tro xoay-khoa xoay-khoa secure-data xoay-khoa
+vai_tro sao-luu-raft sao-luu-raft secure-data sao-luu-raft
 
 buoc "Secret engine database"
 co_mount database || bao secrets enable database

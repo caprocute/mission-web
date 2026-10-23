@@ -1,0 +1,10 @@
+apiVersion: v2
+name: backup-cell
+description: >-
+  Sao lưu phần 1 của một cell (INF-17, TL-04 chương 8, nguyên tắc 3-2-1-1-0, OPS-18): tác vụ restore-check khôi phục
+  thử hằng ngày một cụm PostgreSQL luân phiên từ kho sao lưu bất biến, job giữ bản nền cuối tháng 12 tháng và cuối năm
+  10 năm, chụp etcd mã hoá age mỗi 6 giờ, vị trí lưu và lịch Velero, luật cảnh báo BackupMissing, RestoreCheckStale.
+  ObjectStore và ScheduledBackup của từng cụm nằm ở chart data-pg; bucket kho sao lưu ở rgw-cell values-kho-sao-luu.yaml.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

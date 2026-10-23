@@ -29,6 +29,18 @@ spec:
             - { port: {{ . | quote }}, protocol: TCP }
             {{- end }}
     {{- end }}
+    {{- with .Values.soc }}
+    {{- if .fqdn }}
+    # soc (SEC-43, INF-19)
+    - toFQDNs:
+        - matchName: {{ .fqdn | quote }}
+      toPorts:
+        - ports:
+            {{- range .ports }}
+            - { port: {{ . | quote }}, protocol: TCP }
+            {{- end }}
+    {{- end }}
+    {{- end }}
 ---
 # Người gọi trong vùng ứng dụng và bảo mật tới egress gateway (cổng ứng dụng, và HBONE khi không qua waypoint).
 apiVersion: networking.k8s.io/v1

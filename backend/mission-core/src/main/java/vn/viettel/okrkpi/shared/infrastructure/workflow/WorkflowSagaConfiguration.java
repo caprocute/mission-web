@@ -27,6 +27,14 @@ public class WorkflowSagaConfiguration {
         builder.getIfAvailable(RestClient::builder), baseUrl, () -> serviceToken(keycloak));
   }
 
+  /** CORE-02-08: hộp việc của người dùng (token của người dùng, không dùng token dịch vụ). */
+  @Bean
+  WorkflowInboxClient workflowInboxClient(
+      ObjectProvider<RestClient.Builder> builder,
+      @Value("${mission.config.workflow.base-url}") String baseUrl) {
+    return new WorkflowInboxClient(builder.getIfAvailable(RestClient::builder), baseUrl);
+  }
+
   @Bean
   WorkflowSagaClient workflowSagaClient(
       ObjectProvider<RestClient.Builder> builder,

@@ -1,0 +1,37 @@
+{{- $v := .Values }}
+{{- if or (ne $v.vaiTroCsdl.dbaOps "dba_ops") (ne $v.vaiTroCsdl.phaKinh "dba_pha_kinh_doc") }}
+{{- fail "pam-integration: tên vai trò CSDL phải giữ đúng dba_ops và dba_pha_kinh_doc (TL-04 SEC-58; files/sql/vai-tro-dba.sql)" }}
+{{- end }}
+{{- $nss := list }}
+{{- range $v.quetCsdl.clusters }}{{ $nss = append $nss .namespace }}{{ end }}
+{{- range $ns := uniq $nss }}
+---
+# Khối SQL tạo dba_ops, dba_pha_kinh_doc, pam_quet (SEC-58). Đặt trong namespace của cụm để postInitSQLRefs của CNPG
+# (data-pg, INF-11) tham chiếu, hoặc DBA chạy qua phiên PAM: ops/runbooks/pam-pha-kinh.md mục chuẩn bị.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pam-vai-tro-dba
+  namespace: {{ $ns }}
+  labels:
+    {{- include "pam.labels" $ | nindent 4 }}
+data:
+  vai-tro-dba.sql: |
+    {{- $.Files.Get "files/sql/vai-tro-dba.sql" | nindent 4 }}
+{{- end }}
+{{- if $v.openbao.configMap }}
+---
+# Cấu hình OpenBao cho PAM dạng mã (chạy bằng token quản trị khoá lấy qua PAM, sau deploy/openbao/cau-hinh.sh).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pam-openbao
+  namespace: secure-data
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+data:
+  cau-hinh-pam.sh: |
+    {{- .Files.Get "files/openbao/cau-hinh-pam.sh" | nindent 4 }}
+  quan-tri-khoa.hcl: |
+    {{- .Files.Get "files/openbao/chinh-sach/quan-tri-khoa.hcl" | nindent 4 }}
+{{- end }}

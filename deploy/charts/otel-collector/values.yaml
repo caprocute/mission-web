@@ -46,3 +46,55 @@ faro:
   lokiOtlpEndpoint: http://loki-gateway.observability.svc/otlp
 
 podMonitor: true
+
+# Luồng SIEM (INF-19; TL-04 mục 9.7 "SOC và SIEM", SEC-43, SEC-22): otel-siem đọc các luồng an ninh, chuẩn hoá theo
+# ECS và ghi Kafka sys.siem.v1 (mTLS). Nguồn: nhật ký kiểm toán API Kubernetes, quyết định từ chối của OPA, WAF và
+# sự kiện kiểm toán JSON của ứng dụng (cùng đi trong sys.audit.v1 qua Fluent Bit), sự kiện Keycloak
+# iam.auth.event.v1, cảnh báo Falco (Falcosidekick → OTLP mTLS → sys.security.runtime.v1), nhật ký OpenBao (thiết bị
+# kiểm toán socket) và phiên PAM (syslog TLS). Chặng ra SOC chạy riêng trong namespace egress (một chiều ra ngoài).
+siem:
+  enabled: true
+  replicas: 2
+  resources:
+    requests: { cpu: 200m, memory: 512Mi }
+    limits: { cpu: "1", memory: 512Mi }
+  kafka:
+    brokers: [kafka-kafka-bootstrap.data-kafka.svc:9093]
+    # Consumer group và KafkaUser siem-forwarder có trong danh mục Kafka (vt-platform/ha-tang/kafka); Secret ca.crt,
+    # user.crt, user.key do Strimzi sinh, ESO chép sang observability.
+    groupId: siem-forwarder
+    tlsSecret: siem-forwarder-kafka
+  topics:
+    audit: sys.audit.v1
+    iam: iam.auth.event.v1
+    runtime: sys.security.runtime.v1
+    siem: sys.siem.v1
+  # Sự kiện Avro (iam.auth.event.v1, sự kiện kiểm toán Avro của ứng dụng trong sys.audit.v1) cần phần mở rộng
+  # avro_log_encoding, không có trong bản phát hành contrib; chỉ bật khi image (ở đầu tệp) trỏ tới ảnh collector tự
+  # dựng bằng OCB có phần mở rộng đó. Khi tắt, pipeline iam không chạy và bản ghi không phải JSON trong sys.audit.v1 bị bỏ khỏi luồng SIEM (vẫn còn
+  # trong kho kiểm toán bất biến của audit-archiver).
+  avro:
+    enabled: false
+  # Falcosidekick đẩy OTLP/HTTP mTLS; chứng thư máy chủ do cert-manager cấp từ PKI nội bộ (INF-13).
+  otlp:
+    port: 4318
+    tlsSecret: otel-siem-tls
+    issuerRef: { kind: ClusterIssuer, name: openbao-pki-cell }
+    clientNamespaces: [platform-privileged]
+  # OpenBao: thiết bị kiểm toán socket (TCP, JSON từng dòng, giá trị nhạy cảm đã HMAC) gửi tới cổng này.
+  openbao:
+    enabled: true
+    port: 54525
+  # PAM: syslog RFC 5424 qua TLS, máy PAM nằm ngoài cụm (dải địa chỉ khai theo cell).
+  pam:
+    enabled: true
+    port: 6514
+    sourceCIDRs: []
+  # Chặng ra SOC (namespace egress): đọc sys.siem.v1 và ghi sang Kafka của SOC bằng mTLS; chỉ cell đi ra, SOC không
+  # kết nối vào. Địa chỉ Kafka của SOC là giá trị của môi trường, để trống thì không dựng.
+  soc:
+    brokers: []
+    topic: sys.siem.v1
+    tlsSecret: siem-soc-kafka
+    # Dải địa chỉ Kafka của SOC (CiliumNetworkPolicy toCIDR của namespace egress).
+    cidrs: []

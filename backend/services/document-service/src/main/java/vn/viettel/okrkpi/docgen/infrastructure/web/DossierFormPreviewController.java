@@ -119,7 +119,8 @@ public class DossierFormPreviewController {
     return ResponseEntity.ok()
         .contentType(MediaType.APPLICATION_PDF)
         .cacheControl(CacheControl.noStore())
-        // ASVS 14.4.2: trình duyệt không hiển thị trực tiếp phản hồi API; web đọc thân qua api-client.
+        // ASVS 14.4.2: trình duyệt không hiển thị trực tiếp phản hồi API; web đọc thân qua
+        // api-client.
         .header(
             HttpHeaders.CONTENT_DISPOSITION,
             ContentDisposition.attachment().filename("xem-truoc.pdf").build().toString())

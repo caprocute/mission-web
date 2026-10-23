@@ -84,6 +84,19 @@ data:
       }
     }
     {{- end }}
+    {{- with $v.audit.socket }}
+    {{- if .enabled }}
+    # SIEM của cell (SEC-43, INF-19): otel-siem nhận tcplog trên cổng này.
+    audit "socket" "siem" {
+      path = "siem/"
+      options {
+        address       = "{{ .address }}"
+        socket_type   = "tcp"
+        write_timeout = "{{ .writeTimeout }}"
+      }
+    }
+    {{- end }}
+    {{- end }}
 
     telemetry {
       prometheus_retention_time = "24h"

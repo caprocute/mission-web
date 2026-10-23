@@ -1,0 +1,53 @@
+{
+  "$comment": "Dữ liệu đầu vào của các hành trình QT-04..QT-07 (QA-05). Chỉ là dữ liệu thử, không có thông tin cá nhân thật. {MA} được thay bằng tiền tố của lần chạy (E2E_RUN_ID). Ở chế độ giả lập, hành trình dùng dữ liệu giả lập sẵn có của @vt/api-client và chỉ lấy các giá trị nhập liệu ở đây.",
+  "keHoach": {
+    "$comment": "HT-11, HT-12: dòng ngoài danh mục thêm vào kế hoạch quý, dòng sửa lại sau khi bị trả lại, lý do điều chỉnh.",
+    "noiDung": "{MA} Xuất bản bản tin tuyên truyền nghị quyết",
+    "sanPham": "Bản tin",
+    "soLuong": 4,
+    "donViTinh": "bản tin",
+    "noiDungSua": "{MA} Xuất bản bản tin tuyên truyền nghị quyết quý (đã bổ sung số lượng)",
+    "soLuongSua": 6,
+    "yKienTraLai": "Đề nghị bổ sung số lượng bản tin theo kế hoạch tuyên truyền của khối.",
+    "yKienDuyet": "Đồng ý kế hoạch.",
+    "lyDoDieuChinh": "Bổ sung việc phát sinh theo chỉ đạo của cấp trên trong quý."
+  },
+  "giaoViec": {
+    "$comment": "HT-13, HT-15: nhiệm vụ giao từ dòng kế hoạch đã duyệt và nhiệm vụ cán bộ tự đăng ký.",
+    "ten": "{MA} Tổng hợp báo cáo chuyên đề",
+    "sanPham": "Báo cáo kết quả",
+    "soLuong": 1,
+    "donViTinh": "báo cáo",
+    "minhChung": "Báo cáo đã ký",
+    "tieuChuan": "Đúng thể thức, đủ số liệu",
+    "nguoiNgoaiDonVi": "kiemtra"
+  },
+  "vanBan": {
+    "$comment": "HT-14: văn bản chỉ đạo đến dùng để tạo nhiệm vụ. Trên hệ thống thật là văn bản thử nạp sẵn (EVT-24 giả lập qua dữ liệu khởi tạo của integration-gateway); tìm theo trích yếu.",
+    "trichYeu": "văn bản thử kiểm thử đầu cuối",
+    "tenNhiemVu": "{MA} Triển khai văn bản chỉ đạo"
+  },
+  "tienDo": {
+    "$comment": "HT-17..HT-19.",
+    "ghiChu": "Đã hoàn thành dự thảo, đang xin ý kiến",
+    "diemNghen": "Chưa nhận được số liệu của đơn vị phối hợp nên chưa tổng hợp được báo cáo.",
+    "xuLyDiemNghen": "Đã đôn đốc đơn vị phối hợp gửi số liệu trước thứ Sáu.",
+    "lyDoGiaHan": "Đơn vị phối hợp chậm gửi số liệu, cần thêm thời gian để tổng hợp và đối chiếu.",
+    "giaHanThemNgay": 7,
+    "ngayGiaHanVuotNguong": 30
+  },
+  "minhChung": {
+    "$comment": "HT-20, HT-21.",
+    "tenTep": "{MA}-bao-cao.pdf",
+    "yKienBoSung": "Đề nghị bổ sung phụ lục số liệu kèm báo cáo.",
+    "nhanXet": "Sản phẩm đạt yêu cầu."
+  },
+  "eicar": {
+    "$comment": "Chuỗi kiểm thử chuẩn EICAR (tệp thử chống mã độc theo eicar.org, không phải mã độc), tách ba phần và ghép lúc chạy để kho mã không chứa nguyên chuỗi; dùng cho ca tệp nhiễm của HT-20.",
+    "phan": [
+      "X5O!P%@AP[4\\PZX54(P^",
+      ")7CC)7}$EICAR-STANDA",
+      "RD-ANTIVIRUS-TEST-FILE!$H+H*"
+    ]
+  }
+}

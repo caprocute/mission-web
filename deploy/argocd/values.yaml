@@ -85,7 +85,8 @@ projects:
   okr-nen-tang:
     description: Hạ tầng của cell (cell-base, quan sát, dữ liệu, OpenBao, cổng API)
     signatureKeys: [4AEE18F83AFDEB23]
-    namespaces: [edge, egress, core, identity, platform, workers, secure, secure-data, analytics, data-pg, data-kafka, data-search, observability, cert-manager, kube-system, default]
+    # platform-privileged: Falco, Falcosidekick, kube-bench, kured của security-cell (SEC-26, INF-19).
+    namespaces: [edge, egress, core, identity, platform, workers, secure, secure-data, analytics, data-pg, data-kafka, data-search, observability, cert-manager, kube-system, default, platform-privileged]
     clusterResourceWhitelist:
       - { group: "", kind: Namespace }
       - { group: rbac.authorization.k8s.io, kind: ClusterRole }
@@ -116,9 +117,19 @@ releaseManagers:
 # Cửa sổ đóng băng OPS-06 (TL-04 "Đóng băng thay đổi"): chặn đồng bộ tự động, vẫn cho release-manager sync tay
 # khi CAB khẩn duyệt. syncWindowsBoSung do deploy/argocd/lich-dong-bang/sinh_lich.py sinh từ kỳ đánh giá của
 # tenant (config.period, GET /api/v1/periods) qua merge request, người trực duyệt rồi mới gộp.
+# Cửa sổ cuối quý tách theo độ dài tháng để luôn hết lúc 00:00 ngày 11 (đủ "tới hết ngày 10" của TL-04): tháng
+# 3 và 12 có 31 ngày nên cần 18 ngày (432h), tháng 6 và 9 có 30 ngày nên 17 ngày (408h). Một lịch chung 408h cho
+# cả bốn quý làm cửa sổ quý I, IV hết lúc 00:00 ngày 10 (VH-03, diễn tập DT-SEV1-04). sinh_lich.py dựng cùng các
+# cửa sổ này (cua_so_co_dinh_argocd) và kiểm thử đối chiếu với khoá dưới đây.
 syncWindows:
   - kind: deny
-    schedule: "0 0 24 3,6,9,12 *"
+    schedule: "0 0 24 3,12 *"
+    duration: 432h
+    applications: ["*"]
+    manualSync: true
+    timeZone: Asia/Ho_Chi_Minh
+  - kind: deny
+    schedule: "0 0 24 6,9 *"
     duration: 408h
     applications: ["*"]
     manualSync: true
@@ -137,6 +148,8 @@ syncWindowsBoSung: []
 #   namespace: namespace đích mặc định của Application (chart tự đặt namespace cho từng tài nguyên).
 #   image:     khoá values nhận repository và digest từ digests.yaml; bỏ trống với chart ghim ảnh trong values.
 #   imageFormat: định dạng giá trị digest (org-service nhận tag nên ghép "gitops@<digest>").
+#   chart:     chart riêng ngoài vt-platform (đường dẫn dưới gitops.root); Application dùng thẳng chart này với values
+#              riêng của cell (cells/<cell>/<name>.yaml, <name>-<site>.yaml), không bật tắt trong vt-platform.
 services:
   - { name: api-gateway, project: okr-nen-tang, namespace: edge }
   - { name: iam, project: okr-apps, namespace: identity }
@@ -163,6 +176,9 @@ services:
   - { name: opensearch, project: okr-nen-tang, namespace: data-search }
   - { name: clickhouse, project: okr-nen-tang, namespace: data-search }
   - { name: openbao, project: okr-nen-tang, namespace: secure-data }
+  # Bảo mật nền của cell (INF-19, SEC-26/43/50/52): chart riêng vì chạy DaemonSet đặc quyền và RBAC cấp cụm, không
+  # thuộc mô hình phân phối của vt-platform. Cùng nhãn đợt (wave) theo cell như mọi Application của cell.
+  - { name: security-cell, project: okr-nen-tang, namespace: platform-privileged, chart: charts/security-cell }
 
 # Service không triển khai ở môi trường này: không sinh ApplicationSet, và vẫn đặt enabled: false trong Application
 # của service khác. Production để trống; staging liệt kê tầng dữ liệu chạy trên máy ảo (values-staging.yaml).

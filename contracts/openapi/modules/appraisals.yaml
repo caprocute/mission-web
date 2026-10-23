@@ -1553,6 +1553,13 @@ components:
           type: array
           items: { $ref: '#/components/schemas/AppraisalAnomalyHint' }
         rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+        permittedActions:
+          $ref: '../common/common.yaml#/components/schemas/PermittedActions'
+          description: >-
+            Thao tác của người gọi trên hồ sơ: `SCR-0901.luu`, `SCR-0901.ky-nop` khi hồ sơ ở bước tự
+            đánh giá và người gọi là người được đánh giá; `SCR-0902.tra-lai`, `SCR-0902.ky` khi chờ
+            thẩm định và người gọi đủ điều kiện tách vai (BR-09-14); `SCR-0903.de-xuat` khi đã thẩm
+            định và người gọi khác người được đánh giá, người thẩm định, người quyết định.
     AppraisalProfilePage:
       type: object
       required: [items, nextCursor]
@@ -1780,6 +1787,13 @@ components:
           type: array
           items: { $ref: '#/components/schemas/AppraisalAnomalyHint' }
         rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+        permittedActions:
+          $ref: '../common/common.yaml#/components/schemas/PermittedActions'
+          description: >-
+            Thao tác của người gọi trên hồ sơ: `SCR-0901.luu`, `SCR-0901.ky-nop` khi hồ sơ ở bước tự
+            đánh giá và người gọi là người được đánh giá; `SCR-0902.tra-lai`, `SCR-0902.ky` khi chờ
+            thẩm định và người gọi đủ điều kiện tách vai (BR-09-14); `SCR-0903.de-xuat` khi đã thẩm
+            định và người gọi khác người được đánh giá, người thẩm định, người quyết định.
 
     AppraisalSelfAssessmentInput:
       description: Nội dung lưu nháp phiếu tự đánh giá; mọi trường tuỳ chọn khi lưu nháp.

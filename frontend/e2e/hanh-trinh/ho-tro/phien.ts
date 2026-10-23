@@ -37,6 +37,16 @@ export const TAI_KHOAN = {
   thamdinh: ['member', 'appraiser'],
   /** member: AC-06 "Việc của tôi", cập nhật tiến độ (SCR-0503, SCR-0601). */
   canbo: ['member'],
+  /** member + inspector: AC-10 cảnh báo, sổ cái, yêu cầu mở lại kỳ (SCR-1301, SCR-1302, SCR-1401). */
+  kiemtra: ['member', 'inspector'],
+  /** decider: AC-08 ký gói hồ sơ, ký trả lời khiếu nại, duyệt lượt một, phát hành Policy Pack. */
+  quyetdinh: ['decider'],
+  /** second_approver: AC-09 duyệt lượt hai mở lại kỳ (SCR-1301). */
+  duyet2: ['second_approver'],
+  /** policy_author: AC-03 soạn Policy Pack, ca vàng, luồng duyệt (SCR-1501..SCR-1504). */
+  chinhsach: ['policy_author'],
+  /** tenant_admin thứ hai: duyệt phát hành UI Pack do `quantri` soạn (SCR-1801, bốn mắt). */
+  quantri2: ['tenant_admin'],
 } as const;
 export type TenTaiKhoan = keyof typeof TAI_KHOAN;
 

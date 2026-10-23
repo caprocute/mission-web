@@ -423,6 +423,7 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
     MvcResult infected = perform(get("/api/v1/evidences/" + evidence + "/versions/1"));
     assertResponseConforms(infected, "/evidences/{id}/versions/{v}", PathItem.HttpMethod.GET);
     assertThat(body(infected).get("scanStatus").asText()).isEqualTo("NHIEM");
+    assertThat(body(infected).get("permittedActions").isArray()).isTrue();
     assertThat(body(infected).get("files").get(0).get("scanStatus").asText()).isEqualTo("NHIEM");
 
     // Tệp chưa lưu xong: 422.

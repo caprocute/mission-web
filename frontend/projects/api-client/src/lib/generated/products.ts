@@ -749,6 +749,8 @@ export interface components {
       /** @description Quyết định nghiệm thu của phiên bản này, nếu đã có. */
       acceptance?: components['schemas']['EvidenceAcceptance'] | null;
       rowVersion: components['schemas']['RowVersion'];
+      /** @description Thao tác của người gọi trên phiên bản này: `SCR-0701.soan`, `SCR-0701.nop` khi người gọi chủ trì nhiệm vụ và phiên bản còn nháp; `SCR-0703.mo` khi đủ tư cách nghiệm thu (BR-07-06) và phiên bản đã nộp; thêm `SCR-0703.xac-nhan`, `SCR-0703.bo-sung-tu-choi` khi đang nghiệm thu. */
+      permittedActions?: components['schemas']['PermittedActions'];
     };
     /** @description Một tệp của phiên bản minh chứng (một dòng ở vùng 2 SCR-0701). TL-03 chưa có bảng này; đề xuất bảng con `product.evidence_version_file` mang các cột tệp hiện đặt trên `product.evidence_version` (suy luận). */
     EvidenceVersionFile: {
@@ -1101,6 +1103,14 @@ export interface components {
       | 'NOI_DUNG_CO_BAN'
       | 'SAI_SOT_NGHIEM_TRONG'
       | 'SAI_CHU_TRUONG';
+    /**
+     * @description Thao tác người gọi được làm trên chính đối tượng này, dạng khoá chức năng của ma trận phân quyền `SCR-qqnn.<khoá>` (docs/phan-quyen/ma-tran.json). Máy chủ tính bằng OPA với cùng đầu vào như khi thực hiện thao tác (vai trò, phạm vi đơn vị, người tham gia, trạng thái, tách vai trò), để giao diện ẩn nút trước thay vì để người dùng bấm rồi nhận 403 (YC-PT-21). Chỉ là gợi ý hiển thị: thao tác vẫn được kiểm lại khi gọi. Không gửi trường này nghĩa là giao diện chỉ xét vai trò.
+     * @example [
+     *       "SCR-1601.nhac",
+     *       "SCR-1601.giao-lai"
+     *     ]
+     */
+    PermittedActions: string[];
     /**
      * @description Phân loại dữ liệu theo ADR-06.
      * @enum {string}

@@ -1,0 +1,94 @@
+# Quy tắc Falco riêng của Mission (TL-04 mục 9.3 "Phát hiện bất thường lúc chạy", SEC-50), nạp sau bộ quy tắc mặc
+# định của Falco. Các danh sách vt_namespace_*, vt_mang_noi_bo, vt_duong_dan_* sinh từ values (templates/falco.yaml).
+# Mức CRITICAL được Falcosidekick gửi thêm kênh trực SOC; mọi mức từ NOTICE trở lên vào sys.security.runtime.v1.
+# Falco 0.45 bỏ sự kiện vào (enter) của lời gọi hệ thống nên quy tắc không dùng điều kiện evt.dir.
+
+- required_engine_version: 0.31.0
+
+- macro: vt_container
+  condition: (container.id != host and container.id != "")
+
+- macro: vt_spawned_process
+  condition: (evt.type in (execve, execveat))
+
+# Tiến trình được đưa vào container từ ngoài (kubectl exec, crictl exec): cha là runtime chứ không phải tiến trình
+# trong container. Theo macro container_entrypoint của bộ quy tắc mặc định.
+- macro: vt_exec_tu_ngoai
+  condition: >
+    (not proc.pname exists or proc.pname in (runc:[0:PARENT], runc:[1:CHILD], runc, exe, containerd-shim,
+    containerd-shim-runc-v2, crio, conmon, systemd))
+
+- list: vt_shell_binaries
+  items: [sh, bash, ash, dash, zsh, ksh, mksh, csh, tcsh, fish]
+
+- macro: vt_mo_ghi
+  condition: (evt.type in (open, openat, openat2, creat) and evt.is_open_write = true)
+
+- macro: vt_mo_doc
+  condition: (evt.type in (open, openat, openat2) and evt.is_open_read = true)
+
+- macro: vt_ket_noi_ip
+  condition: (evt.type = connect and (fd.typechar = 4 or fd.typechar = 6))
+
+- rule: VT shell trong container vùng ứng dụng hoặc dữ liệu
+  desc: >
+    Shell được mở trong container của namespace ứng dụng, dữ liệu hoặc bảo mật (kubectl exec, có tty, hoặc tiến trình
+    ngoài đưa vào). Tiến trình chính của container (vpid 1) không tính. Đối chiếu với phiên PAM debug-app.
+  condition: >
+    vt_spawned_process and vt_container
+    and proc.name in (vt_shell_binaries)
+    and proc.vpid != 1
+    and (proc.tty != 0 or vt_exec_tu_ngoai)
+    and k8s.ns.name in (vt_namespace_giam_sat)
+  output: >
+    Shell trong container (ns=%k8s.ns.name pod=%k8s.pod.name container=%container.name
+    image=%container.image.repository cmd=%proc.cmdline parent=%proc.pname uid=%user.uid tty=%proc.tty)
+  priority: CRITICAL
+  tags: [vt, SEC-50, shell-container, mitre_execution]
+
+- rule: VT ghi tệp ngoài /tmp trong container
+  desc: >
+    Tiến trình mở tệp để ghi ngoài thư mục được ghi (/tmp, emptyDir, tệp ảo của nhân) trong container vùng ứng dụng,
+    hoặc ngoài thư mục dữ liệu ở vùng dữ liệu. Container chạy hệ tệp gốc chỉ đọc (SEC-49), nên mọi lần thử, kể cả
+    thất bại EROFS, là dấu hiệu bất thường.
+  condition: >
+    vt_mo_ghi and vt_container
+    and k8s.ns.name in (vt_namespace_giam_sat)
+    and not vt_duong_dan_duoc_ghi
+    and not (k8s.ns.name in (vt_namespace_du_lieu) and vt_duong_dan_du_lieu)
+  output: >
+    Ghi tệp ngoài /tmp (ns=%k8s.ns.name pod=%k8s.pod.name container=%container.name file=%fd.name
+    proc=%proc.name cmd=%proc.cmdline res=%evt.res)
+  priority: ERROR
+  tags: [vt, SEC-50, SEC-49, ghi-ngoai-tmp, mitre_persistence]
+
+- rule: VT kết nối ra ngoài không qua cổng ra
+  desc: >
+    Pod ngoài namespace egress mở kết nối tới địa chỉ ngoài mạng nội bộ của cell. Cilium chặn ở lớp mạng (SEC-36);
+    quy tắc này ghi lại lần thử để SOC điều tra.
+  condition: >
+    vt_ket_noi_ip and vt_container
+    and k8s.ns.name in (vt_namespace_giam_sat) and k8s.ns.name != egress
+    and fd.sip != "0.0.0.0" and fd.sip != "::"
+    and not fd.snet in (vt_mang_noi_bo)
+  output: >
+    Kết nối ra ngoài không qua cổng ra (ns=%k8s.ns.name pod=%k8s.pod.name container=%container.name
+    dest=%fd.sip:%fd.sport proto=%fd.l4proto proc=%proc.name cmd=%proc.cmdline)
+  priority: ERROR
+  tags: [vt, SEC-50, SEC-36, ra-ngoai-khong-qua-egress, mitre_exfiltration]
+
+- rule: VT đọc /var/run/secrets bởi tiến trình phụ
+  desc: >
+    Tiến trình khác tiến trình chính của container (vpid khác 1) đọc tệp trong /var/run/secrets (token ServiceAccount,
+    token OpenBao, chứng thư). Tiến trình hợp lệ khai trong vt_doc_secret_hop_le.
+  condition: >
+    vt_mo_doc and vt_container
+    and (fd.name startswith /var/run/secrets/ or fd.name startswith /run/secrets/)
+    and proc.vpid != 1
+    and not proc.name in (vt_doc_secret_hop_le)
+    and k8s.ns.name in (vt_namespace_giam_sat)
+  output: >
+    Tiến trình phụ đọc bí mật gắn vào pod (ns=%k8s.ns.name pod=%k8s.pod.name container=%container.name
+    file=%fd.name proc=%proc.name vpid=%proc.vpid cmd=%proc.cmdline parent=%proc.pname)
+  priority: ERROR
+  tags: [vt, SEC-50, doc-secret, mitre_credential_access]

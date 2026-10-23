@@ -1,0 +1,54 @@
+{{- /* Vị trí lưu và lịch Velero (TL-04 mục 8.6). Namespace dữ liệu không được nằm trong lịch có sao lưu volume. */}}
+{{- $v := .Values }}
+{{- $x := $v.velero }}
+{{- if $x.enabled }}
+{{- if $v.externalSecrets.enabled }}
+{{ include "bk.externalSecret" (dict "root" . "ten" $x.credentials.secretName "ns" $x.namespace "khoa" (include "bk.khoa" (dict "root" . "path" $x.credentials.path "loai" "k8s")) "cloud" true) }}
+---
+{{- end }}
+apiVersion: velero.io/v1
+kind: BackupStorageLocation
+metadata:
+  name: {{ $x.storageLocation }}
+  namespace: {{ $x.namespace }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+spec:
+  provider: aws
+  default: true
+  objectStorage:
+    bucket: {{ include "bk.bucketK8s" (dict "root" . "bucket" $x.bucket) }}
+    prefix: {{ $x.prefix }}
+    {{- with $v.khoSaoLuu.caBundle }}
+    caCertRef: { name: {{ .secret }}, key: {{ .key }} }
+    {{- end }}
+  config:
+    region: {{ $v.khoSaoLuu.region | quote }}
+    s3Url: {{ $v.khoSaoLuu.endpoint | quote }}
+    s3ForcePathStyle: "true"
+    # RGW chưa hỗ trợ đủ checksum CRC32 mặc định của AWS SDK v2 (suy luận); tắt để PutObject không bị từ chối.
+    checksumAlgorithm: ""
+  credential: { name: {{ $x.credentials.secretName }}, key: cloud }
+{{- range $ten := keys $x.schedules | sortAlpha }}
+{{- $s := index $x.schedules $ten }}
+{{- $t := $s.template }}
+{{- if or $t.snapshotVolumes $t.snapshotMoveData $t.defaultVolumesToFsBackup }}
+{{- if has "*" ($t.includedNamespaces | default list) }}{{ fail (printf "backup-cell: lịch %s sao lưu volume không được chọn mọi namespace" $ten) }}{{ end }}
+{{- range $t.includedNamespaces }}{{ if has . $x.namespaceDuLieu }}{{ fail (printf "backup-cell: lịch %s không được sao lưu volume namespace dữ liệu %s" $ten .) }}{{ end }}{{ end }}
+{{- end }}
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: {{ $ten }}
+  namespace: {{ $x.namespace }}
+  labels:
+    {{- include "bk.labels" $ | nindent 4 }}
+spec:
+  schedule: {{ $s.schedule | quote }}
+  useOwnerReferencesInBackup: false
+  template:
+    {{- toYaml $t | nindent 4 }}
+    storageLocation: {{ $x.storageLocation }}
+{{- end }}
+{{- end }}

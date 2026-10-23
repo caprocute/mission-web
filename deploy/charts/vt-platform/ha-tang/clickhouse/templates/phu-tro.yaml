@@ -97,3 +97,45 @@ spec:
     - to:
         - podSelector: { matchLabels: { app.kubernetes.io/name: clickhouse-keeper } }
       ports: [{ port: 9234, protocol: TCP }, { port: 2181, protocol: TCP }]
+{{- with $v.saoLuu }}{{ if .enabled }}
+---
+# Khoá S3 của cell trên kho sao lưu (OpenBao kv/cell-<mã>/backup/ch, quyền đọc, ghi, liệt kê; không xoá).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ .credentials.secretName }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "clickhouse.labels" $ | nindent 4 }}
+spec:
+  refreshInterval: {{ $v.externalSecrets.refreshInterval }}
+  secretStoreRef:
+    kind: {{ $v.externalSecrets.secretStore.kind }}
+    name: {{ $v.externalSecrets.secretStore.name }}
+  target:
+    name: {{ .credentials.secretName }}
+    creationPolicy: Owner
+  data:
+    {{- range $k := list "ACCESS_KEY_ID" "ACCESS_SECRET_KEY" }}
+    - secretKey: {{ $k }}
+      remoteRef: { key: {{ $v.saoLuu.credentials.path | default (printf "kv/cell-%s/backup/ch" ($v.global.cell | lower)) }}, property: {{ $k }} }
+    {{- end }}
+{{- with .egressTo }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: clickhouse-ra-kho-sao-luu
+  namespace: {{ $ns }}
+  labels:
+    {{- include "clickhouse.labels" $ | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: clickhouse }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        {{- toYaml . | nindent 8 }}
+      ports: [{ port: {{ $v.saoLuu.egressPort }}, protocol: TCP }]
+{{- end }}
+{{- end }}{{ end }}

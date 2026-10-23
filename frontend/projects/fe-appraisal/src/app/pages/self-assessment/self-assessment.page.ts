@@ -47,6 +47,7 @@ import {
   UiFormApi,
   toProblem,
 } from '@vt/api-client';
+import { permittedOn } from '@vt/auth';
 import { ThemeService } from '@vt/design-system';
 import { firstValueFrom, map } from 'rxjs';
 import { APPRAISAL_CAN } from '../../appraisal-permissions';
@@ -222,12 +223,16 @@ export class SelfAssessmentPage {
       this.isMine() &&
       p.status === 'TU_DANH_GIA' &&
       this.can('SCR-0901.luu') &&
+      permittedOn(p, 'SCR-0901.luu') &&
       !this.signing()
     );
   });
+  /** Vai trò có quyền ký nộp và máy chủ cho phép trên hồ sơ này (YC-PT-21). */
+  protected readonly mayFileSign = computed(
+    () => this.can('SCR-0901.ky-nop') && permittedOn(this.profile(), 'SCR-0901.ky-nop'),
+  );
   protected readonly canSign = computed(
-    () =>
-      this.editable() && this.can('SCR-0901.ky-nop') && !!this.refRating() && this.form.hasValue(),
+    () => this.editable() && this.mayFileSign() && !!this.refRating() && this.form.hasValue(),
   );
 
   protected readonly trace = rxResource({

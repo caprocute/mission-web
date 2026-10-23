@@ -1,0 +1,3 @@
+# Cấu hình markdownlint cho tài liệu vận hành (VH-03): bỏ giới hạn độ dài dòng vì văn bản viết thành đoạn dài,
+# như các tài liệu khác trong repo.
+MD013: false

@@ -1,0 +1,641 @@
+# Bản chấm quý 2026-Q4: lần chấm đầu theo hiện trạng repo (VH-09). Sửa bản chấm rồi chạy
+#   python docs/danh-gia-quy/cham.py docs/danh-gia-quy/2026-Q4.yaml --ra docs/danh-gia-quy/bao-cao/2026-Q4.md
+ky: 2026-Q4
+loai: cham-quy
+he_thong: Nền tảng Mission mới, repo mission-web nhánh main tại 96d1f8c1 (chưa triển khai production)
+ngay_cham: '2026-10-23'
+nguoi_cham: B9 (luồng tác tử, chấm thử để kiểm bộ chấm)
+doc_lap: false
+giai_doan: phat-trien
+so_sanh_voi: co-so-2026-10.yaml
+ghi_chu: Lần chấm đầu theo hiện trạng repo, dùng để kiểm công cụ. Bằng chứng là đường dẫn trong repo và báo cáo của task đã gộp; lần chấm này không chạy lại toàn bộ kiểm thử (YC-GT-05). Người chấm chưa
+  độc lập với người làm, nên điểm chỉ có giá trị tham khảo tới khi người chấm độc lập xác nhận theo quy-trinh.md mục 2.
+ket_qua:
+  A1:
+    kq: Đạt
+    bang_chung:
+    - wiki/21-kien-truc-mission-core-va-microservice.md
+    - backend/mission-core
+    - backend/services
+    ghi_chu: Lõi Modular Monolith cùng các service tách có CSDL riêng; cell theo vùng mới ở mức mẫu cấu hình.
+  A2:
+    kq: Đạt
+    bang_chung:
+    - backend/mission-core/src/main/resources/db/migration
+    - backend/libs/vt-db-migration
+    ghi_chu: Tám schema module và schema riêng mỗi service, tài khoản svc/ro/mig/cdc theo schema (NEN-031).
+  A3:
+    kq: Đạt
+    bang_chung:
+    - backend/mission-core/src/test/java/vn/viettel/okrkpi/architecture/ArchitectureRulesTest.java
+    - backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/archrules/PlatformArchitectureRules.java
+    ghi_chu: Spring Modulith và ArchUnit kiểm không vòng, chỉ qua gói api.
+  A4:
+    kq: Đạt
+    bang_chung:
+    - backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/shared/outbox/OutboxDebeziumIT.java
+    - backend/libs/vt-db-migration/src/main/resources/db/common-business/V0_20__outbox_event.sql
+    ghi_chu: Outbox cùng giao dịch, Debezium, inbox idempotent có kiểm thử tích hợp.
+  A5:
+    kq: Một phần
+    bang_chung:
+    - analytics/clickhouse
+    - analytics/cdc
+    - analytics/cube
+    ghi_chu: CDC sang ClickHouse và Cube đã có; lần chấm này chưa chạy lại kiểm thử CDC đầu cuối nên chưa xác nhận bảng điều hành đọc hoàn toàn từ kho phân tích.
+  A6:
+    kq: Đạt
+    bang_chung:
+    - services-go/ledger/cmd/ledger-service/seal.go
+    - services-go/ledger/cmd/ledger-verify/main.go
+    ghi_chu: Sổ cái chỉ chèn, niêm phong Merkle, công cụ kiểm chứng độc lập; dấu thời gian lấy từ TSA giả lập.
+  A7:
+    kq: Đạt
+    bang_chung:
+    - contracts/openapi/common/common.yaml
+    - contracts/asyncapi/mission-events.asyncapi.yaml
+    - contracts/redocly.yaml
+    ghi_chu: OpenAPI 3.1 cho REST, AsyncAPI 3.0 cho sự kiện, lint trong pipeline.
+  A8:
+    kq: Đạt
+    bang_chung:
+    - frontend/projects/fe-shell/src/app/federation-remotes.ts
+    - frontend/projects/fe-okr/federation.config.js
+    - frontend/projects/fe-appraisal/federation.config.js
+    ghi_chu: Shell và chín remote theo miền dùng chung @vt/design-system.
+  L1:
+    kq: Đạt
+    bang_chung:
+    - frontend/projects/fe-embed/public/vt-okr-app.js
+    - deploy/web/csp-mac-dinh.conf
+    ghi_chu: Web component nhúng vt-okr-app, CSP frame-ancestors theo tenant.
+  L2:
+    kq: Một phần
+    bang_chung:
+    - deploy/charts/iam/files/realm/realm-cell.yaml
+    - backend/services/iam/realm-template
+    ghi_chu: Keycloak cấu hình OIDC, SAML, IdP theo tenant; chưa thử với IdP thật của tổ chức.
+  L3:
+    kq: Một phần
+    bang_chung:
+    - backend/services/iam/keycloak-events/src/main/java/vn/viettel/okrkpi/iam/vneid/PersonMatcher.java
+    ghi_chu: Môi giới VNeID chạy với bản giả lập (YC-PT-13).
+  L4:
+    kq: Một phần
+    bang_chung:
+    - backend/services/integration-gateway/src/main/java/vn/viettel/okrkpi/integ/infrastructure/cbccvc
+    - backend/services/org-service/src/main/resources/scim/service-provider-config.json
+    ghi_chu: Connector CBCCVC, HRM, SCIM đã có; nguồn dữ liệu là giả lập.
+  L5:
+    kq: Một phần
+    bang_chung:
+    - backend/services/integration-gateway/src/main/java/vn/viettel/okrkpi/integ/infrastructure/voffice/Directive.java
+    ghi_chu: Connector vOffice, iOffice với bản giả lập.
+  L6:
+    kq: Một phần
+    bang_chung:
+    - backend/services/integration-gateway/src/main/java/vn/viettel/okrkpi/integ/infrastructure/voffice/EdxmlParser.java
+    - backend/mission-core/src/main/java/vn/viettel/okrkpi/dossier/infrastructure/client/HttpEdxmlGateway.java
+    ghi_chu: EdXML qua X-Road giả lập.
+  L7:
+    kq: Một phần
+    bang_chung:
+    - backend/services/integration-gateway/src/main/java/vn/viettel/okrkpi/integ/infrastructure/lgsp/LgspIndicatorConnector.java
+    ghi_chu: LGSP, NDXP qua integration-gateway với bản giả lập.
+  L8:
+    kq: Một phần
+    bang_chung:
+    - backend/services/integration-gateway/src/test/java/vn/viettel/okrkpi/integ/infrastructure/sync/DangVienSyncIT.java
+    ghi_chu: Đồng bộ theo con trỏ và đối soát với CSDL giả lập.
+  L9:
+    kq: Đạt
+    bang_chung:
+    - backend/services/esign-service/src/main/java/vn/viettel/okrkpi/esign/spi/SignatureProvider.java
+    - backend/services/esign-service/src/main/java/vn/viettel/okrkpi/esign/infrastructure/provider/bcy/BcySignatureProvider.java
+    ghi_chu: Giao diện SignatureProvider với các hiện thực MySign, HSM, CA, Ban Cơ yếu thay được bằng cấu hình.
+  L10:
+    kq: Một phần
+    bang_chung:
+    - contracts/openapi/common/common.yaml
+    - contracts/asyncapi/mission-events.asyncapi.yaml
+    ghi_chu: Hợp đồng có phiên bản và khai báo ngừng hỗ trợ; chưa có cổng nhà phát triển công bố cho bên thứ ba.
+  L11:
+    kq: Một phần
+    bang_chung:
+    - backend/services/integration-gateway/src/main/java/vn/viettel/okrkpi/integ/application/CanonicalEvent.java
+    ghi_chu: Có lớp chống ô nhiễm và sự kiện chuẩn; chưa đối chiếu đủ tám nhóm dữ liệu PL 4 với URN.
+  L12:
+    kq: Một phần
+    bang_chung:
+    - backend/services/integration-gateway/src/main/java/vn/viettel/okrkpi/integ/infrastructure/camel/CompositeRoutes.java
+    - backend/mission-core/src/test/java/vn/viettel/okrkpi/contract/pact/MissionWebPactIT.java
+    ghi_chu: Có mẫu connector Camel và Pact; chưa có connector cho văn phòng số của hãng khác.
+  B1:
+    kq: Một phần
+    bang_chung:
+    - deploy/charts/otel-collector/Chart.yaml
+    - backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/observability/OtelTraceIdResolver.java
+  B2:
+    kq: Một phần
+    bang_chung:
+    - frontend/projects/api-client
+    - backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/observability/SqlCommenter.java
+    ghi_chu: W3C Trace Context từ trình duyệt, outbox và comment SQL đã có trong mã.
+  B3:
+    kq: Một phần
+    bang_chung:
+    - backend/libs/vt-platform-starter/src/main/resources/vn/viettel/okrkpi/shared/observability/observability-defaults.yml
+  B4:
+    kq: Một phần
+    bang_chung:
+    - deploy/charts/observability-cell/rules/canh-bao-toi-thieu.yaml
+    ghi_chu: Có luật SLO và cảnh báo; chưa có số đo SLI.
+  B5:
+    kq: Một phần
+    bang_chung:
+    - deploy/charts/observability-mgmt/dashboards/src/service.jsonnet
+  B6:
+    kq: Một phần
+    bang_chung:
+    - deploy/charts/vt-service/templates/_defaults.tpl
+    - deploy/policies/vt-pod-hardening.yaml
+  B7:
+    kq: Một phần
+    bang_chung:
+    - deploy/charts/vt-platform/ha-tang/data-pg/values.yaml
+    - backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/observability/SqlCommenter.java
+  B8:
+    kq: Một phần
+    bang_chung:
+    - frontend/projects/telemetry/src/lib/faro-init.ts
+    ghi_chu: Faro thu Core Web Vitals đã tích hợp; chưa có người dùng thật.
+  C1:
+    kq: Một phần
+    bang_chung:
+    - backend/services/document-service/Dockerfile
+    - deploy/policies/vt-require-signed-images.yaml
+    - deploy/.trivyignore.yaml
+    ghi_chu: Ảnh distroless không root, quét Trivy, chính sách chỉ chạy ảnh có ký.
+  C2:
+    kq: Một phần
+    bang_chung:
+    - deploy/charts/vt-service/Chart.yaml
+    - deploy/argocd/Chart.yaml
+    ghi_chu: Chart thư viện vt-service và chart riêng mỗi service.
+  C3:
+    kq: Một phần
+    bang_chung:
+    - deploy/charts/vt-service/templates/_defaults.tpl
+    - deploy/policies/vt-pod-hardening.yaml
+  C4:
+    kq: Một phần
+    bang_chung:
+    - deploy/capacity
+    - backend/services/document-service/Dockerfile
+    ghi_chu: Requests, limits theo định cỡ, MaxRAMPercentage=70.
+  C5:
+    kq: Một phần
+    bang_chung:
+    - deploy/charts/autoscaling-cell
+    - deploy/charts/vt-service/tests/vt-service-example/values-keda-kafka.yaml
+  C6:
+    kq: Một phần
+    bang_chung:
+    - backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/cache/ValkeyTenantCache.java
+    - deploy/charts/vt-service/templates/_defaults.tpl
+  C7:
+    kq: Một phần
+    bang_chung:
+    - deploy/policies/vt-require-ha.yaml
+    - deploy/charts/org-service/templates/pdb.yaml
+  C8:
+    kq: Một phần
+    bang_chung:
+    - deploy/charts/rgw-cell/Chart.yaml
+    - backend/services/evidence-service/src/test/java/vn/viettel/okrkpi/evidence/infrastructure/storage/S3ObjectLockIT.java
+  C9:
+    kq: Một phần
+    bang_chung:
+    - deploy/argocd/Chart.yaml
+    - deploy/environments
+  C10:
+    kq: Một phần
+    bang_chung:
+    - ci/vt-pipeline/resources/vn/vt/pipeline/vt-provenance.py
+    - deploy/policies/vt-require-signed-images.yaml
+    - Jenkinsfile
+    ghi_chu: SBOM, provenance SLSA, ký cosign, Kyverno kiểm khi chạy đã có ở pipeline và chính sách.
+  D1:
+    kq: Một phần
+    bang_chung:
+    - .gitleaks.toml
+    - Jenkinsfile
+    - deploy/openbao
+    ghi_chu: Bí mật qua OpenBao và External Secrets, gitleaks trong pipeline; lần chấm này không chạy được gitleaks toàn lịch sử (máy chấm không có gitleaks) nên chưa có bằng chứng '0 phát hiện'.
+  D2:
+    kq: Một phần
+    bang_chung:
+    - backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/authz/StepUpValidator.java
+    - deploy/charts/iam/files/realm/realm-cell.yaml
+    ghi_chu: MFA theo vai trò, khoá sau 5 lần sai, step-up khi ký.
+  D3:
+    kq: Một phần
+    bang_chung:
+    - deploy/charts/api-gateway/public-routes.yaml
+    - ci/vt-pipeline/vars/vtZapScan.groovy
+    ghi_chu: Danh sách tuyến công khai tường minh và kiểm thử CI; chưa có retest xâm nhập.
+  D4:
+    kq: Đạt
+    bang_chung:
+    - deploy/charts/iam/files/realm/realm-cell.yaml
+    - backend/services/iam/realm-template/src/test/java/vn/viettel/okrkpi/iam/realm/RealmTemplateStaticTest.java
+    ghi_chu: passwordPolicy hashAlgorithm(argon2); ứng dụng không nhận mật khẩu.
+  D5:
+    kq: Một phần
+    bang_chung:
+    - deploy/charts/iam/files/realm/realm-cell.yaml
+    - frontend/projects/fe-shell/public/silent-refresh.js
+  D6:
+    kq: Đạt
+    bang_chung:
+    - backend/opa/okrkpi/authz.rego
+    - backend/opa/okrkpi/authz_test.rego
+    - backend/libs/vt-db-migration/src/main/resources/db/common/V0_1__fn_enable_tenant_rls.sql
+    ghi_chu: OPA sinh từ ma trận phân quyền, opa test chạy trong NEN-040; RLS theo tenant. Bằng chứng opa test lấy từ báo cáo task đã gộp, lần chấm này không chạy lại.
+  D7:
+    kq: Một phần
+    bang_chung:
+    - .semgrep/vt-rules-go.yml
+    - deploy/charts/api-gateway/templates/apisix-config.yaml
+  D8:
+    kq: Một phần
+    bang_chung:
+    - backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/crypto/JcaAesGcmCryptoProvider.java
+  D9:
+    kq: Một phần
+    bang_chung:
+    - backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/observability/RedactingRewritePolicy.java
+    - services-go/audit-archiver
+  D10:
+    kq: Một phần
+    bang_chung:
+    - Jenkinsfile
+    - ci/vt-pipeline/src/vn/vt/pipeline/CauHinhLoai.groovy
+  D11:
+    kq: Một phần
+    bang_chung:
+    - deploy/web/security-headers.conf
+    - deploy/charts/api-gateway/values.yaml
+  D12:
+    kq: Một phần
+    bang_chung:
+    - backend/mission-core/src/main/java/vn/viettel/okrkpi/product/application/e2ee/EvidenceKeyWrapService.java
+    - backend/services/org-service/src/main/java/vn/viettel/okrkpi/org/application/e2ee/RecoveryKeyService.java
+    ghi_chu: Mã hoá đầu cuối WebCrypto, phục hồi Shamir đã có trong mã.
+  E1:
+    kq: Đạt
+    bang_chung:
+    - backend/pom.xml
+    - frontend/package.json
+    ghi_chu: Java 21, Spring Boot 3.5, Angular 21, PostgreSQL 17.
+  E2:
+    kq: Một phần
+    bang_chung:
+    - backend/libs/vt-db-migration/src/main/resources/db/common/V0_1__fn_enable_tenant_rls.sql
+    - deploy/charts/vt-platform
+  E3:
+    kq: Một phần
+    bang_chung:
+    - deploy/charts/vt-service/tests/vt-service-example/values-keda-kafka.yaml
+  E4:
+    kq: Một phần
+    bang_chung:
+    - backend/services/evidence-service/src/test/java/vn/viettel/okrkpi/evidence/infrastructure/storage/S3ObjectLockIT.java
+    - deploy/charts/rgw-cell/files/khoi-tao-bucket.sh
+  E5:
+    kq: Một phần
+    bang_chung:
+    - backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/cache/ValkeyTenantCache.java
+  E6:
+    kq: Một phần
+    bang_chung:
+    - backend/pom.xml
+    - deploy/.trivyignore.yaml
+    ghi_chu: Đã thay Redis bằng Valkey, Elasticsearch bằng OpenSearch, Vault bằng OpenBao, không dùng iText; chưa xuất báo cáo giấy phép từ SBOM trong lần chấm này.
+  E7:
+    kq: Chưa đạt
+    ghi_chu: Chưa chạy thử tải ở tải mục tiêu; giai đoạn phát triển không đo tải (YC-PT-19).
+  E8:
+    kq: Một phần
+    bang_chung:
+    - services-py/ai-gateway/app/llm/client.py
+    - analytics/superset
+    ghi_chu: ai-gateway chạy với LLM giả lập; ClickHouse, Cube, Superset đã có.
+  F1:
+    kq: Một phần
+    bang_chung:
+    - backend/libs/vt-platform-starter/src/main/resources/vn/viettel/okrkpi/shared/resilience/resilience4j-defaults.yml
+  F2:
+    kq: Một phần
+    bang_chung:
+    - backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/resilience/PlatformTimeouts.java
+    - backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/shared/platformtest/Resilience4jDefaultsTest.java
+    ghi_chu: Bảng timeout mặc định đã có; chưa xác nhận có kiểm thử tích hợp với phụ thuộc chậm cho mọi loại lời gọi.
+  F3:
+    kq: Một phần
+    bang_chung:
+    - backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyAutoConfiguration.java
+  F4:
+    kq: Một phần
+    bang_chung:
+    - deploy/charts/api-gateway/templates/_rate-limit.tpl
+    - services-go/degrade-controller
+  F5:
+    kq: Một phần
+    bang_chung:
+    - backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/archrules/PlatformArchitectureRules.java
+  F6:
+    kq: Một phần
+    bang_chung:
+    - contracts/openapi/common/common.yaml
+    - deploy/charts/api-gateway/tests/kiem-thu-gioi-han.sh
+  F7:
+    kq: Một phần
+    bang_chung:
+    - deploy/charts/vt-platform/ha-tang/data-pg/values.yaml
+  F8:
+    kq: Một phần
+    bang_chung:
+    - backend/services/workflow-service
+  F9:
+    kq: Một phần
+    bang_chung:
+    - backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/etag/ETags.java
+    ghi_chu: ETag, If-Match đã có; bằng chứng nghiệm thu là script k6 đếm 409/412.
+  F10:
+    kq: Một phần
+    bang_chung:
+    - backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/error/ProblemAutoConfiguration.java
+    ghi_chu: RFC 9457 có mã lỗi ổn định và traceId.
+  F11:
+    kq: Một phần
+    bang_chung:
+    - backend/pom.xml
+    - ci/vt-pipeline/README.md
+  G1:
+    kq: Một phần
+    bang_chung:
+    - deploy/charts/observability-cell/Chart.yaml
+  G2:
+    kq: Một phần
+    bang_chung:
+    - backend/libs/vt-platform-starter/src/main/resources/log4j2-spring.xml
+  G3:
+    kq: Một phần
+    bang_chung:
+    - backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/observability/OtelTraceIdResolver.java
+  G4:
+    kq: Một phần
+    bang_chung:
+    - backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/observability/CountingDiscardPolicy.java
+  G5:
+    kq: Một phần
+    bang_chung:
+    - deploy/charts/observability-mgmt/templates/loki-cold-copy.yaml
+    - backend/libs/retention
+  G6:
+    kq: Một phần
+    bang_chung:
+    - services-go/audit-archiver
+    - deploy/charts/audit-archiver
+  G7:
+    kq: Một phần
+    bang_chung:
+    - backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/shared/observability/RedactionTest.java
+  H1:
+    muc: 3
+    bang_chung:
+    - backend/mission-core/src/main/resources/db/migration/okr
+    - frontend/projects/fe-okr
+    ghi_chu: Đủ chức năng theo tiêu chí ở mã nguồn, có kiểm thử và giao diện; mức 4 cần chạy trọn một kỳ thật (QA-16).
+  H2:
+    muc: 3
+    bang_chung:
+    - backend/mission-core/src/main/resources/db/migration/task
+    - frontend/projects/fe-task
+    ghi_chu: Đủ chức năng theo tiêu chí ở mã nguồn, có kiểm thử và giao diện; mức 4 cần chạy trọn một kỳ thật (QA-16).
+  H3:
+    muc: 3
+    bang_chung:
+    - backend/mission-core/src/main/resources/db/migration/product
+    - frontend/projects/fe-evidence
+    ghi_chu: Đủ chức năng theo tiêu chí ở mã nguồn, có kiểm thử và giao diện; mức 4 cần chạy trọn một kỳ thật (QA-16).
+  H4:
+    muc: 3
+    bang_chung:
+    - backend/mission-core/src/main/resources/db/migration/appraisal
+    - backend/services/scoring-service
+    - frontend/projects/fe-appraisal
+    ghi_chu: Đủ chức năng theo tiêu chí ở mã nguồn, có kiểm thử và giao diện; mức 4 cần chạy trọn một kỳ thật (QA-16).
+  H5:
+    muc: 3
+    bang_chung:
+    - backend/mission-core/src/main/resources/db/migration/dossier
+    - backend/services/document-service
+    - frontend/projects/fe-dossier
+    ghi_chu: Đủ chức năng theo tiêu chí ở mã nguồn, có kiểm thử và giao diện; mức 4 cần chạy trọn một kỳ thật (QA-16).
+  H6:
+    muc: 3
+    bang_chung:
+    - backend/mission-core/src/main/resources/db/migration/oversight
+    - services-py/anomaly-job
+    - frontend/projects/fe-oversight
+    ghi_chu: Đủ chức năng theo tiêu chí ở mã nguồn, có kiểm thử và giao diện; mức 4 cần chạy trọn một kỳ thật (QA-16).
+  H7:
+    muc: 3
+    bang_chung:
+    - analytics/cube
+    - frontend/projects/fe-dashboard
+    ghi_chu: Đủ chức năng theo tiêu chí ở mã nguồn, có kiểm thử và giao diện; mức 4 cần chạy trọn một kỳ thật (QA-16).
+  H8:
+    muc: 3
+    bang_chung:
+    - services-go/tenant-registry
+    - frontend/projects/fe-config-studio
+    - frontend/projects/fe-admin
+    ghi_chu: Đủ chức năng theo tiêu chí ở mã nguồn, có kiểm thử và giao diện; mức 4 cần chạy trọn một kỳ thật (QA-16).
+  H9:
+    muc: 3
+    bang_chung:
+    - data/policy-pack/khoi-dang
+    - data/policy-pack/khoi-chinh-quyen
+    ghi_chu: Đủ chức năng theo tiêu chí ở mã nguồn, có kiểm thử và giao diện; mức 4 cần chạy trọn một kỳ thật (QA-16).
+  I1:
+    kq: Đạt
+    bang_chung:
+    - backend/libs/vt-db-migration/src/main/resources/db/common-business/V0_20__outbox_event.sql
+    - services-go/ledger/cmd/ledger-service/main.go
+    ghi_chu: Chuyển trạng thái ghi nhật ký và sự kiện; sự kiện pháp lý vào sổ cái.
+  I2:
+    kq: Đạt
+    bang_chung:
+    - services-go/ledger/cmd/ledger-service/seal.go
+    - services-go/ledger/cmd/ledger-verify/README.md
+  I3:
+    kq: Đạt
+    bang_chung:
+    - docs/tasks/CORE-08-05-lenh-khoa-ky.md
+    - docs/tasks/CORE-07-08-bon-mat-phe-duyet.md
+    - backend/mission-core/src/main/java/vn/viettel/okrkpi/oversight
+    ghi_chu: Saga khoá kỳ, mở lại bốn mắt có step-up và ký số.
+  I4:
+    kq: Một phần
+    bang_chung:
+    - backend/services/esign-service/src/main/java/vn/viettel/okrkpi/esign/spi/SignatureProvider.java
+    ghi_chu: Ký PAdES qua nhà cung cấp giả lập.
+  I5:
+    kq: Một phần
+    bang_chung:
+    - backend/services/evidence-service/src/test/java/vn/viettel/okrkpi/evidence/infrastructure/storage/S3ObjectLockIT.java
+  I6:
+    kq: Đạt
+    bang_chung:
+    - backend/services/scoring-service
+    - data/golden/xep-loai
+    ghi_chu: Snapshot có input_hash, phiên bản và băm Policy Pack.
+  I7:
+    kq: Đạt
+    bang_chung:
+    - backend/services/org-service/src/main/java/vn/viettel/okrkpi/org/infrastructure/persistence/BitemporalWriter.java
+    - backend/services/org-service/src/test/java/vn/viettel/okrkpi/org/schema/BitemporalConstraintsIT.java
+  I8:
+    kq: Một phần
+    bang_chung:
+    - backend/services/esign-service/src/main/java/vn/viettel/okrkpi/esign/application/seal/TimestampAuthority.java
+    - backend/services/integration-gateway/src/main/java/vn/viettel/okrkpi/integ/application/anchor/AnchorLedger.java
+    ghi_chu: RFC 3161 và bản neo gửi tới bên giả lập.
+  J1:
+    kq: Một phần
+    bang_chung:
+    - backend/pom.xml
+    ghi_chu: JaCoCo và kiểm thử đột biến cấu hình ở POM; chưa có báo cáo pipeline thật.
+  J2:
+    kq: Một phần
+    bang_chung:
+    - Jenkinsfile
+    - ci/vt-pipeline/vars/vtJavaPipeline.groovy
+  J3:
+    kq: Một phần
+    bang_chung:
+    - backend/pom.xml
+    ghi_chu: Ngưỡng độ phủ quality.coverage.line.minimum, quality.coverage.branch.minimum.
+  J4:
+    kq: Một phần
+    bang_chung:
+    - backend/libs/vt-testkit
+    - backend/libs/vt-tenant-test
+    ghi_chu: Testcontainers và kiểm thử rò rỉ hai tenant; chưa có báo cáo failsafe của pipeline thật.
+  J5:
+    kq: Một phần
+    bang_chung:
+    - frontend/e2e/hanh-trinh/danh-muc.json
+    ghi_chu: Hành trình Playwright chạy với API giả lập; chưa có kiểm thử khói trên staging.
+  J6:
+    kq: Một phần
+    bang_chung:
+    - data/golden/README.md
+    - data/golden/chay_ca_mau.py
+    ghi_chu: Bộ ca mẫu vàng có và chạy được; chưa được nghiệp vụ ký.
+  J7:
+    kq: Chưa đạt
+    ghi_chu: Chưa có lịch thử tải định kỳ và báo cáo perf-results (QA-08, QA-12 hoãn).
+  J8:
+    kq: Một phần
+    bang_chung:
+    - .semgrep/vt-rules-go.yml
+    - .gitleaks.toml
+    - Jenkinsfile
+  J9:
+    kq: Đạt
+    bang_chung:
+    - backend/mission-core/src/test/java/vn/viettel/okrkpi/architecture/ArchitectureRulesTest.java
+    ghi_chu: Quy tắc kiến trúc là kiểm thử ArchUnit và Modulith.
+  K1:
+    kq: Đạt
+    bang_chung:
+    - backend/mission-core/src/main/resources/db/migration/okr
+    - docs/tasks/NEN-030-quy-uoc-flyway-lint.md
+    ghi_chu: Flyway theo schema với tài khoản mig_<schema>.
+  K2:
+    kq: Đạt
+    bang_chung:
+    - deploy/charts/iam/files/realm/realm-cell.yaml
+    ghi_chu: Keycloak là IdP duy nhất; ứng dụng là resource server.
+  K3:
+    kq: Đạt
+    bang_chung:
+    - backend/mission-core/src/main/resources/db/migration/org_replica/V1__org_replica.sql
+  K4:
+    kq: Đạt
+    bang_chung:
+    - services-go/notification/cmd/notification-service/channels.go
+  K5:
+    kq: Một phần
+    bang_chung:
+    - services-go/tenant-registry/cmd/tenant-registry/main.go
+    - docs/tasks/DV-03-04-saga-cap-phat-1.md
+    ghi_chu: Saga cấp phát ba mô hình đã có; chưa diễn tập vòng đời tenant (VH-04).
+  K6:
+    kq: Một phần
+    bang_chung:
+    - deploy/environments
+    - frontend/projects/fe-shell
+    ghi_chu: Ảnh build một lần, cấu hình nạp lúc chạy (config.json); chưa đối chiếu digest giữa staging và production.
+  K7:
+    kq: Đạt
+    bang_chung:
+    - backend/mission-core
+    ghi_chu: Lõi không phụ thuộc vOffice; connector văn bản là tuỳ chọn.
+  K8:
+    kq: Đạt
+    bang_chung:
+    - backend/mission-core/src/test/java/vn/viettel/okrkpi/architecture/ArchitectureRulesTest.java
+chi_so:
+  van-de-nghiem-trong:
+    gia_tri: null
+    ghi_chu: chưa có hệ thống quản lý công việc gắn nhãn danh-gia/nghiem-trong cho nền tảng mới
+  secret-scanning:
+    gia_tri: null
+    ghi_chu: máy chấm không có gitleaks; chờ lượt quét hằng tuần của pipeline
+  circuit-breaker:
+    gia_tri: null
+    ghi_chu: cần Prometheus của cụm vận hành
+  trace-dau-cuoi:
+    gia_tri: null
+    ghi_chu: cần Prometheus của cụm vận hành
+  pipeline-quality-gate:
+    gia_tri: null
+    ghi_chu: Jenkinsfile và vt-pipeline đã có cổng; chưa có báo cáo của máy chủ Jenkins thật
+  phien-dat-slo:
+    gia_tri: null
+    ghi_chu: không thử tải trong giai đoạn phát triển (YC-PT-19)
+  node-toi-thieu:
+    gia_tri: null
+    ghi_chu: Kyverno vt-require-ha có trong deploy/policies; chưa có cụm vận hành
+  bang-moi-voffice:
+    gia_tri: 0
+    nguoi_do: B9
+    ghi_chu: nền tảng mới không dùng schema VOFFICE
+  lo-hong-nghiem-trong-cao:
+    gia_tri: null
+    ghi_chu: chưa có Dependency-Track; báo cáo QA-13 là kiểm thử mẫu
+  p95-ghi:
+    gia_tri: null
+    ghi_chu: không thử tải trong giai đoạn phát triển
+  thoi-gian-ap-dung-quy-dinh:
+    gia_tri: null
+    ghi_chu: chưa có thay đổi quy định thật đi qua quy trình OPS-10
+  ty-le-nguoi-dung-moi:
+    gia_tri: 0
+    nguoi_do: B9
+    ghi_chu: chưa có tenant thật

@@ -21,3 +21,8 @@ tempo:
   caSecret: ""
 faro:
   lokiOtlpEndpoint: http://loki.observability.svc:3100/otlp
+siem:
+  replicas: 1
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 256Mi }

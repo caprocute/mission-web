@@ -261,7 +261,16 @@ spec:
 {{- define "vt-service.scheduling" -}}
 {{- $v := .v -}}
 {{- $pool := $v.nodePool -}}
-{{- if ne $pool "none" }}
+{{- /* global.poolMap đổi pool logic sang pool node thật khi hồ sơ gộp pool (compact: app-general, worker, ingress,
+system lên pool hoi-tu, TL-05 mục 9.2); pool đã đổi luôn kèm toleration cùng tên, vô hại khi node không có taint. */ -}}
+{{- $thuc := "" -}}
+{{- if and (ne $pool "none") $v.global.poolMap }}{{ $thuc = index $v.global.poolMap $pool | default "" }}{{ end -}}
+{{- if $thuc }}
+nodeSelector:
+  vt.io/pool: {{ $thuc }}
+tolerations:
+  - { key: vt.io/pool, operator: Equal, value: {{ $thuc }}, effect: NoSchedule }
+{{- else if ne $pool "none" }}
 {{- if eq $pool "secure" }}
 nodeSelector:
   vt.io/zone: secure

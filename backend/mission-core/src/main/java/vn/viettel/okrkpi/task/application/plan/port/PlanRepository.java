@@ -174,6 +174,13 @@ public interface PlanRepository {
   List<ReviewRow> awaitingReview(
       TenantId tenant, java.util.Collection<UUID> unitIds, UUID afterPlanId, int limit);
 
+  /**
+   * Phiên bản {@code CHO_DUYET} của các kế hoạch có mã trong {@code planIds} (lấy từ hộp việc của
+   * SVC-06), theo mã kế hoạch tăng dần sau {@code afterPlanId}.
+   */
+  List<ReviewRow> awaitingReviewOfPlans(
+      TenantId tenant, java.util.Collection<UUID> planIds, UUID afterPlanId, int limit);
+
   /** Người lập và yêu cầu ký đang gắn của một phiên bản (CORE-02-09). */
   record ApprovalRow(UUID createdBy, UUID signRequestId, UUID approvedBy) {}
 

@@ -131,6 +131,8 @@ class MyTaskApiIT extends ContractConformanceTest {
     assertThat(counts.get("HOAN_THANH").asInt()).isEqualTo(1);
     assertThat(first.get("items").get(0).get("id").asText()).isEqualTo(late.toString());
     assertThat(first.get("items").get(0).get("workingDaysLeft").asInt()).isNegative();
+    assertThat(first.get("items").get(0).get("permittedActions").toString())
+        .isEqualTo("[\"SCR-0503.tien-do\"]");
 
     List<String> ids = new ArrayList<>();
     JsonNode page = first;
@@ -147,6 +149,14 @@ class MyTaskApiIT extends ContractConformanceTest {
 
     assertThat(ids(perform(mine().param("filter", "CHAM")))).containsExactly(late.toString());
     assertThat(ids(perform(mine().param("role", "PHOI_HOP")))).containsExactly(co.toString());
+    // Phối hợp, nhiệm vụ còn DA_GIAO: chưa nhận việc, chưa cập nhật tiến độ được (YC-PT-21).
+    assertThat(
+            body(perform(mine().param("role", "PHOI_HOP")))
+                .get("items")
+                .get(0)
+                .get("permittedActions")
+                .isEmpty())
+        .isTrue();
     assertThat(ids(perform(mine().param("view", "today"))))
         .containsExactly(late.toString(), soon.toString());
   }

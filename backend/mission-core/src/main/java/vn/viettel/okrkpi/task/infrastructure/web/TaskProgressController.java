@@ -34,6 +34,7 @@ import vn.viettel.okrkpi.shared.etag.ETags;
 import vn.viettel.okrkpi.shared.idempotency.Idempotent;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
+import vn.viettel.okrkpi.task.application.direct.TaskPermittedActions;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskDelayRiskService;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskProgressService;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
@@ -152,7 +153,11 @@ public class TaskProgressController {
   private static ProgressBatchResult result(TaskProgressService.BatchResult r) {
     ProgressBatchResult dto = new ProgressBatchResult(r.taskId(), r.status());
     if (r.task() != null) {
-      dto.task(summary(r.task()));
+      TaskSummary task = summary(r.task());
+      if ("CHU_TRI".equals(r.callerRole()) || "PHOI_HOP".equals(r.callerRole())) {
+        task.role(AssigneeRole.fromValue(r.callerRole()));
+      }
+      dto.task(task.permittedActions(TaskPermittedActions.mine(r.task().status(), r.callerRole())));
     }
     if (r.error() != null) {
       BusinessException e = r.error();

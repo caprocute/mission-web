@@ -14,12 +14,17 @@ vt.io/cell: {{ . | quote }}
 {{- define "rgw.endpoint" -}}{{ .Values.endpoint | default (printf "https://s3.cell-%s.hl.vt.local" (include "rgw.ma" .)) }}{{- end -}}
 {{- define "rgw.region" -}}{{ .Values.region | default (printf "cell-%s-zg" (include "rgw.ma" .)) }}{{- end -}}
 {{- define "rgw.quanTri" -}}{{ .Values.quanTri.uid | default (printf "kho-quan-tri-cell-%s" (include "rgw.ma" .)) }}{{- end -}}
-{{/* Tên bucket đầy đủ: <ma>-cell-<mã cell> (TL-04 mục 8.4: ev-cell-hcm). Đầu vào: dict root, b. */}}
+{{/* Tên bucket đầy đủ: <ma>-cell-<mã cell> (TL-04 mục 8.4: ev-cell-hcm), hoặc ten với {cell} thay bằng mã cell (kho sao
+lưu, TL-04 mục 8.2: bk-cell-hcm-pg). Đầu vào: dict root, b. */}}
 {{- define "rgw.tenBucket" -}}
 {{- $b := index .root.Values.buckets .b -}}
 {{- if not $b }}{{ fail (printf "rgw-cell: bucket %q không có trong buckets" .b) }}{{ end -}}
-{{ $b.ma }}-cell-{{ include "rgw.ma" .root }}
+{{- if $b.ten -}}{{ replace "{cell}" (include "rgw.ma" .root) $b.ten }}{{- else -}}{{ $b.ma }}-cell-{{ include "rgw.ma" .root }}{{- end -}}
 {{- end -}}
+{{/* uid RGW của người dùng: uid (có {cell}) hoặc khoá của nguoiDung. Đầu vào: dict root, k (khoá), u. */}}
+{{- define "rgw.uid" -}}{{ replace "{cell}" (include "rgw.ma" .root) (.u.uid | default .k) }}{{- end -}}
+{{/* Số ngày giữ mặc định của Object Lock (years tính 365 ngày). Đầu vào: khoa. */}}
+{{- define "rgw.ngayKhoa" -}}{{ if .years }}{{ mul (int .years) 365 }}{{ else }}{{ int .days }}{{ end }}{{- end -}}
 {{/* Chính sách bucket: mỗi người dùng có quyền trên bucket nhận thao tác theo nhóm quyền, giới hạn theo tiền tố tenant khi
 bucket theoTenant. Không cấp DeleteObject (trừ xoa-tam ở bucket không khoá), đổi Object Lock, vòng đời hay chính sách:
 những thao tác này chỉ chủ bucket (tài khoản quản trị kho) làm được. Đầu vào: dict root, b. */}}
@@ -33,16 +38,21 @@ những thao tác này chỉ chủ bucket (tài khoản quản trị kho) làm �
 {{- $q := . -}}
 {{- $tienTo := ternary (printf "t/%s/" ($u.tenant | default "")) "t/" (not (empty $u.tenant)) -}}
 {{- if not $b.theoTenant }}{{ $tienTo = "" }}{{ end -}}
-{{- $nguoi := dict "AWS" (list (printf "arn:aws:iam:::user/%s" $uid)) -}}
+{{- $nguoi := dict "AWS" (list (printf "arn:aws:iam:::user/%s" (include "rgw.uid" (dict "root" $root "k" $uid "u" $u)))) -}}
 {{- $doiTuong := list -}}
 {{- range $q -}}
 {{- if eq . "doc" }}{{ $doiTuong = concat $doiTuong (list "s3:GetObject" "s3:GetObjectVersion" "s3:GetObjectRetention" "s3:GetObjectLegalHold") }}
 {{- else if eq . "ghi" }}{{ $doiTuong = concat $doiTuong (list "s3:PutObject" "s3:AbortMultipartUpload" "s3:ListMultipartUploadParts") }}
 {{- if $b.khoa }}{{ $doiTuong = concat $doiTuong (list "s3:PutObjectRetention" "s3:PutObjectLegalHold") }}{{ end }}
+{{- else if eq . "xoa-danh-dau" }}
+{{- /* Chỉ DeleteObject không kèm mã phiên bản: bucket có versioning nhận delete marker, phiên bản đã khoá vẫn còn tới khi
+vòng đời donPhienBanCuSauNgay dọn sau hạn khoá (kho snapshot OpenSearch tự xoá bản cũ, INF-18). */}}
+{{- if not $b.versioning }}{{ fail (printf "rgw-cell: quyền xoa-danh-dau cần versioning trên bucket %s" $.b) }}{{ end }}
+{{- $doiTuong = concat $doiTuong (list "s3:DeleteObject") }}
 {{- else if eq . "xoa-tam" }}
 {{- if $b.khoa }}{{ fail (printf "rgw-cell: quyền xoa-tam không dùng được trên bucket có Object Lock %s" $.b) }}{{ end }}
 {{- $doiTuong = concat $doiTuong (list "s3:DeleteObject") }}
-{{- else if ne . "liet-ke" }}{{ fail (printf "rgw-cell: quyền %q không hợp lệ (doc, ghi, liet-ke, xoa-tam)" .) }}
+{{- else if ne . "liet-ke" }}{{ fail (printf "rgw-cell: quyền %q không hợp lệ (doc, ghi, liet-ke, xoa-tam, xoa-danh-dau)" .) }}
 {{- end -}}
 {{- end -}}
 {{- if $doiTuong -}}
@@ -67,5 +77,20 @@ những thao tác này chỉ chủ bucket (tài khoản quản trị kho) làm �
 {{- if $b.khoa }}{{ fail (printf "rgw-cell: bucket %s có Object Lock không đặt hetHanSauNgay" $.b) }}{{ end -}}
 {{- $luat = append $luat (dict "ID" "het-han" "Status" "Enabled" "Filter" (dict "Prefix" "") "Expiration" (dict "Days" .)) }}{{ end -}}
 {{- with $v.chuyenHddSauNgay }}{{ $luat = append $luat (dict "ID" "chuyen-hdd" "Status" "Enabled" "Filter" (dict "Prefix" "") "Transitions" (list (dict "Days" . "StorageClass" $.root.Values.lopLuuTruHdd))) }}{{ end -}}
+{{- /* don: dọn bản sao lưu theo tiền tố (kho sao lưu, TL-04 mục 8.2, SEC-44): phiên bản hiện tại nhận delete marker sau
+sauNgay, phiên bản cũ bị xoá sau 1 ngày khi Object Lock đã hết hạn; marker mồ côi được dọn. Chạy dưới tài khoản quản trị
+kho (chủ bucket), không ai khác có quyền xoá. sauNgay phải lớn hơn hạn khoá mặc định. */ -}}
+{{- range $i, $d := $v.don | default list -}}
+{{- if and $b.khoa (le (int $d.sauNgay) (int (include "rgw.ngayKhoa" $b.khoa))) }}{{ fail (printf "rgw-cell: bucket %s dọn sau %v ngày không dài hơn hạn khoá" $.b $d.sauNgay) }}{{ end -}}
+{{- $luat = append $luat (dict "ID" (printf "don-%d" $i) "Status" "Enabled" "Filter" (dict "Prefix" ($d.tienTo | default "")) "Expiration" (dict "Days" (int $d.sauNgay)) "NoncurrentVersionExpiration" (dict "NoncurrentDays" 1)) -}}
+{{- end -}}
+{{- /* donPhienBanCuSauNgay: chỉ dọn phiên bản cũ (sau khi bị ghi đè hoặc nhận delete marker) khi Object Lock đã hết, không
+bao giờ hết hạn phiên bản hiện tại: snapshot gia tăng dùng lại tệp của bản trước nên tuổi tệp không nói lên tệp còn
+cần hay không (INF-18). */ -}}
+{{- with $v.donPhienBanCuSauNgay }}
+{{- if and $b.khoa (le (int .) (int (include "rgw.ngayKhoa" $b.khoa))) }}{{ fail (printf "rgw-cell: bucket %s dọn phiên bản cũ sau %v ngày không dài hơn hạn khoá" $.b .) }}{{ end -}}
+{{- $luat = append $luat (dict "ID" "don-phien-ban-cu" "Status" "Enabled" "Filter" (dict "Prefix" "") "NoncurrentVersionExpiration" (dict "NoncurrentDays" (int .))) -}}
+{{- end -}}
+{{- if or $v.don $v.donPhienBanCuSauNgay }}{{ $luat = append $luat (dict "ID" "don-marker" "Status" "Enabled" "Filter" (dict "Prefix" "") "Expiration" (dict "ExpiredObjectDeleteMarker" true)) }}{{ end -}}
 {{- if $luat }}{{ dict "Rules" $luat | toJson }}{{ end -}}
 {{- end -}}

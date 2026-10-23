@@ -34,6 +34,9 @@ Mỗi lần kết thúc tăng `mission_reconcile_runs_total{reconcile="R1_BAN_SA
 4. Lần phát lại thật cũng kết thúc bằng `KET_THUC`, nên mission-core tự đối soát lại các bucket đó sau thời gian lắng. Kết quả mong đợi là một dòng `DA_SUA`.
 5. Nếu cùng bucket lệch lặp lại sau khi phát lại, lỗi nằm ở phía ghi bản sao (ví dụ dòng có `source_version` lớn hơn nguồn do sửa trực tiếp CSDL). Báo luồng phụ trách mission-core kèm mã lần chạy; không xoá dòng bản sao bằng tay.
 
+<!-- markdownlint-disable-next-line MD033 -->
+<a id="workflow-service"></a>
+
 ## 3. Bản sao của workflow-service
 
 workflow-service (SVC-06) giữ bản sao `org_replica` riêng trong CSDL `flowable` để phân giải cấp duyệt (DV-06-10). Bản sao này được đối soát bằng cùng bộ so `OrgReplicaReconciler` của `vt-reconcile`, cùng mã job `R1_BAN_SAO_TO_CHUC`, cùng thông điệp `KET_THUC` của CronJob org-service; workflow-service nhận qua nhóm consumer riêng `workflow.org-replica.reconcile` nên mỗi dịch vụ đều nhận đủ thông điệp. Kết quả ghi `org_replica.reconcile_run` của CSDL `flowable`, không lẫn với bảng của mission-core.

@@ -141,5 +141,39 @@ class KiemThuSinhLich(unittest.TestCase):
         self.assertFalse(any("merge" in " ".join(c) for c in lenh))
 
 
+def _khoang_argocd(w: dict, nam: int) -> list[tuple[dt.datetime, dt.datetime]]:
+    """Mô phỏng một syncWindow dạng "0 0 <ngày> <tháng,...> *" trong năm `nam`: [bắt đầu, kết thúc) theo giờ."""
+    phut, gio, ngay, thang, _ = w["schedule"].split()
+    assert (phut, gio) == ("0", "0"), w
+    gio_dai = int(w["duration"].removesuffix("h"))
+    return [(bd, bd + dt.timedelta(hours=gio_dai))
+            for bd in (dt.datetime(nam, int(t), int(ngay)) for t in thang.split(","))]
+
+
+class KiemThuCuaSoCoDinh(unittest.TestCase):
+    """Cửa sổ cố định của values.yaml phủ đúng "24 tháng cuối quý tới hết ngày 10" và "20/1 tới hết 04/2" (OPS-06)."""
+
+    def setUp(self):
+        with open(os.path.join(GOC, "deploy", "argocd", "values.yaml"), encoding="utf-8") as f:
+            self.values = yaml.safe_load(f)["syncWindows"]
+
+    def test_values_khop_cua_so_dung_tu_ngay_cuoi(self):
+        self.assertEqual(self.values, sinh_lich.cua_so_co_dinh_argocd())
+
+    def test_moi_cua_so_het_dung_ngay_cuoi(self):
+        for nam in range(2026, 2034):  # gồm năm nhuận 2028, 2032
+            thuc = sorted(k for w in self.values for k in _khoang_argocd(w, nam))
+            mong = sorted((dt.datetime.combine(bd, dt.time()), dt.datetime.combine(kt + dt.timedelta(days=1), dt.time()))
+                          for bd, kt in sinh_lich.cua_so_co_dinh(nam) if bd.year == nam)
+            self.assertEqual(thuc, mong, nam)
+
+    def test_cuoi_quy_i_va_iv_phu_ca_ngay_10(self):
+        ds = [k for w in self.values for k in _khoang_argocd(w, 2026)]
+        for ngay10 in (dt.datetime(2026, 4, 10, 23, 59), dt.datetime(2027, 1, 10, 23, 59)):
+            self.assertTrue(any(bd <= ngay10 < kt for bd, kt in ds), ngay10)
+        for ngay11 in (dt.datetime(2026, 4, 11), dt.datetime(2026, 7, 11), dt.datetime(2027, 1, 11)):
+            self.assertFalse(any(bd <= ngay11 < kt for bd, kt in ds), ngay11)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,114 @@
+{{- if .Values.admission.enabled }}
+{{- $v := .Values }}
+{{- $hd := $v.hopDong }}
+{{- $k := $hd.chuThich }}
+{{- $users := list }}{{ $groups := list }}
+{{- range $v.pam.broker.subjects }}
+{{- if eq .kind "User" }}{{ $users = append $users .name }}{{ else if eq .kind "Group" }}{{ $groups = append $groups .name }}{{ end }}
+{{- end }}
+{{- $ann := "object.metadata.annotations" }}
+{{- $coAnn := printf "has(%s)" $ann }}
+# Chính sách nhập cho binding đặc quyền (INF-27; TL-04 mục 9.3 SEC-29, SEC-42). ValidatingAdmissionPolicy là API gốc
+# của Kubernetes (GA từ 1.30), chạy trong API server, không cần webhook ngoài. Mọi lần tạo hay sửa RoleBinding,
+# ClusterRoleBinding tới {{ join ", " $v.admission.vaiTroBaoVe }} chỉ hợp lệ khi do broker PAM gửi và đủ hợp đồng: tên pam-…,
+# nhãn vt.io/cap-phat=pam, mã yêu cầu, người yêu cầu, người duyệt (platform-admin hai người khác nhau, không tự
+# duyệt), thời hạn ≤ {{ $hd.thoiHanToiDa }} tính từ vt.io/cap-luc, đúng một người dùng OIDC, đúng vùng namespace. Áp cả với
+# system:masters nên chặn luôn binding tạo tay bằng admin.conf. cluster-admin không nằm trong vai trò PAM nên mọi
+# binding mới tới cluster-admin đều bị từ chối. Kubernetes không có hàm "bây giờ" trong CEL, nên hết hạn thật do
+# PAM thu hồi và CronJob pam-quet-rbac kiểm (thu hồi dự phòng, cảnh báo PamBindingQuaHan).
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: vt-pam-binding-co-thoi-han
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+  annotations: { vt.io/sec: "SEC-29, SEC-42" }
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["rbac.authorization.k8s.io"]
+        apiVersions: ["*"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["rolebindings", "clusterrolebindings"]
+  matchConditions:
+    - name: vai-tro-bao-ve
+      expression: >-
+        object.roleRef.kind == 'ClusterRole' && object.roleRef.name in {{ toJson $v.admission.vaiTroBaoVe }}
+    - name: bo-qua-he-thong
+      expression: >-
+        !(request.userInfo.username in {{ toJson $v.admission.boQuaNguoiDung }})
+  variables:
+    - name: duyet
+      expression: >-
+        ({{ $coAnn }} && '{{ $k.nguoiDuyet }}' in {{ $ann }} ? {{ $ann }}['{{ $k.nguoiDuyet }}'] : '').split(',').map(x, x.trim()).filter(x, x != '')
+    - name: nguoiYeuCau
+      expression: >-
+        {{ $coAnn }} && '{{ $k.nguoiYeuCau }}' in {{ $ann }} ? {{ $ann }}['{{ $k.nguoiYeuCau }}'] : ''
+    - name: canDuyet
+      expression: >-
+        {{- $nhanh := list }}
+        {{- range $r, $n := $hd.soNguoiDuyet }}{{ $nhanh = append $nhanh (printf "object.roleRef.name == '%s' ? %d : " $r (int $n)) }}{{ end }}
+        {{ join "" $nhanh }}1
+  validations:
+    - expression: >-
+        request.userInfo.username in {{ toJson $users }}{{ if $groups }} || request.userInfo.groups.exists(g, g in {{ toJson $groups }}){{ end }}
+      message: "Chỉ hệ thống PAM được cấp quyền đặc quyền; mở yêu cầu trên PAM (ops/runbooks/pam-cap-quyen.md)"
+      reason: Forbidden
+    - expression: >-
+        object.roleRef.name in {{ toJson $hd.vaiTroPam }}
+      message: "Vai trò này không được cấp qua PAM (cluster-admin không cấp cho người; dùng platform-admin)"
+      reason: Forbidden
+    - expression: >-
+        object.metadata.name.startsWith('{{ $hd.tienToTen }}')
+      message: "Tên binding cấp qua PAM phải bắt đầu bằng {{ $hd.tienToTen }}"
+    {{- range $nk, $nv := $hd.nhan }}
+    - expression: >-
+        has(object.metadata.labels) && '{{ $nk }}' in object.metadata.labels && object.metadata.labels['{{ $nk }}'] == '{{ $nv }}'
+      message: "Binding cấp qua PAM phải có nhãn {{ $nk }}={{ $nv }}"
+    {{- end }}
+    - expression: >-
+        {{ $coAnn }} && {{ toJson (list $k.yeuCau $k.nguoiYeuCau $k.nguoiDuyet $k.capLuc $k.hetHan) }}.all(c, c in {{ $ann }} && {{ $ann }}[c] != '')
+      message: "Thiếu chú thích hợp đồng PAM ({{ $k.yeuCau }}, {{ $k.nguoiYeuCau }}, {{ $k.nguoiDuyet }}, {{ $k.capLuc }}, {{ $k.hetHan }})"
+    - expression: >-
+        !({{ $coAnn }} && '{{ $k.capLuc }}' in {{ $ann }} && '{{ $k.hetHan }}' in {{ $ann }}) ||
+        (timestamp({{ $ann }}['{{ $k.hetHan }}']) > timestamp({{ $ann }}['{{ $k.capLuc }}']) &&
+         timestamp({{ $ann }}['{{ $k.hetHan }}']) - timestamp({{ $ann }}['{{ $k.capLuc }}']) <= duration('{{ $hd.thoiHanToiDa }}'))
+      message: "Thời hạn binding PAM phải dương và không quá {{ $hd.thoiHanToiDa }} ({{ $k.hetHan }} − {{ $k.capLuc }}, RFC 3339)"
+    - expression: >-
+        request.operation != 'UPDATE' || ({{ $coAnn }} && has(oldObject.metadata.annotations) &&
+        '{{ $k.capLuc }}' in oldObject.metadata.annotations && '{{ $k.capLuc }}' in {{ $ann }} &&
+        oldObject.metadata.annotations['{{ $k.capLuc }}'] == {{ $ann }}['{{ $k.capLuc }}'])
+      message: "Không được đổi {{ $k.capLuc }} của binding PAM (gia hạn phải mở yêu cầu mới)"
+    - expression: >-
+        has(object.subjects) && size(object.subjects) == 1 && object.subjects[0].kind == 'User' &&
+        object.subjects[0].name.startsWith('oidc:')
+      message: "Binding PAM phải gán cho đúng một người dùng OIDC (oidc:<tên>), không cho nhóm hay ServiceAccount"
+    - expression: >-
+        size(variables.duyet) >= variables.canDuyet && variables.duyet.all(a, variables.duyet.filter(b, b == a).size() == 1)
+      message: "Không đủ người duyệt khác nhau (platform-admin cần {{ index $hd.soNguoiDuyet "platform-admin" }})"
+    - expression: >-
+        variables.nguoiYeuCau == '' || !(variables.nguoiYeuCau in variables.duyet)
+      message: "Người yêu cầu không được tự duyệt"
+    - expression: >-
+        request.kind.kind != 'ClusterRoleBinding' || object.roleRef.name in {{ toJson $hd.vaiTroToanCum }}
+      message: "Chỉ {{ join ", " $hd.vaiTroToanCum }} được gán toàn cụm; vai trò khác dùng RoleBinding theo namespace"
+    - expression: >-
+        request.kind.kind != 'RoleBinding' || !(object.roleRef.name in {{ toJson $hd.vaiTroToanCum }})
+      message: "{{ join ", " $hd.vaiTroToanCum }} phải gán bằng ClusterRoleBinding"
+    {{- range $r, $nss := $hd.vungNamespace }}
+    - expression: >-
+        request.kind.kind != 'RoleBinding' || object.roleRef.name != '{{ $r }}' || object.metadata.namespace in {{ toJson $nss }}
+      message: "{{ $r }} chỉ được gán trong {{ join ", " $nss }}"
+    {{- end }}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: vt-pam-binding-co-thoi-han
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+spec:
+  policyName: vt-pam-binding-co-thoi-han
+  validationActions: {{ toJson $v.admission.validationActions }}
+{{- end }}
