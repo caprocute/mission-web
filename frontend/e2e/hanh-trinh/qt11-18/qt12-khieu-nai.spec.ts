@@ -1,16 +1,8 @@
 import { Page, expect, test } from '@playwright/test';
-import { batCaoTuoi, chiHeThong, chon, xacThucBuocLen } from '../ho-tro/kiem-tra';
+import { batCaoTuoi, chiHeThong, chon, xacThucBuocLen, kiemAxeOnDinh } from '../ho-tro/kiem-tra';
 import { HE_THONG, cho } from '../ho-tro/moi-truong';
 import { Phien, main } from '../ho-tro/phien';
-import {
-  kiemAxeOnDinh,
-  SEED,
-  api,
-  kiemMoiTruong,
-  kiemSuKien,
-  maTuDuongDan,
-  timHoacCho,
-} from './chung';
+import { SEED, api, kiemMoiTruong, kiemSuKien, maTuDuongDan, timHoacCho } from './chung';
 
 /**
  * QT-12 Khiếu nại và giải trình: SCR-1201 (người khiếu nại), SCR-1202 (người xử lý, bên giải trình,

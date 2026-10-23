@@ -228,7 +228,7 @@ const time = (iso: string | null | undefined) => {
         @if (detailRes.error()) {
           <p class="err" role="alert">Không tải được kết quả lần chạy. Vui lòng thử lại.</p>
         } @else if (cases().length) {
-          <div class="scroll">
+          <div class="scroll" tabindex="0" role="region" aria-label="Bảng kết quả các ca kiểm thử">
             <table data-testid="cases">
               <thead>
                 <tr>
