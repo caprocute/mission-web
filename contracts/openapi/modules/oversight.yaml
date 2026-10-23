@@ -2573,6 +2573,11 @@ components:
           description: Siêu dữ liệu rút gọn (trước, sau, mã yêu cầu mở lại); không chứa C2, trường nhạy cảm đã che.
           additionalProperties: true
         entryHash: { $ref: '#/components/schemas/LedgerHashHex' }
+        payloadHash:
+          allOf: [{ $ref: '#/components/schemas/LedgerHashHex' }]
+          description: >-
+            Băm tải trọng sự kiện (`payload_hash`). Danh sách trả kèm để đối soát R2 của mission-core so với băm
+            tính lại từ outbox mà không phải gọi chi tiết từng bản ghi (DL-12, wiki trang 14 mục DL-12e).
     LedgerSeal:
       description: Niêm phong Merkle mức tenant (`ledger.merkle_seal`) và niêm phong cell chứa nó.
       type: object

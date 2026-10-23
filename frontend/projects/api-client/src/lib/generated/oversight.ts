@@ -1245,6 +1245,8 @@ export interface components {
         [key: string]: unknown;
       };
       entryHash: components['schemas']['LedgerHashHex'];
+      /** @description Băm tải trọng sự kiện (`payload_hash`). Danh sách trả kèm để đối soát R2 của mission-core so với băm tính lại từ outbox mà không phải gọi chi tiết từng bản ghi (DL-12, wiki trang 14 mục DL-12e). */
+      payloadHash?: components['schemas']['LedgerHashHex'];
     };
     /** @description Niêm phong Merkle mức tenant (`ledger.merkle_seal`) và niêm phong cell chứa nó. */
     LedgerSeal: {

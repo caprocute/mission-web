@@ -136,7 +136,7 @@ func TestTraCuuKhopHopDong(t *testing.T) {
 	defer keys.Close()
 	srv := httptest.NewServer(server.New(server.Deps{Pool: pool, Lookup: svc, Auditor: ing,
 		Auth: auth.NewJWKSVerifier(auth.JWKSConfig{JWKSURL: keys.JWKSURL(), Issuers: []string{authtest.Issuer}}),
-		Log:  slog.New(slog.NewTextHandler(io.Discard, nil))}).Handler())
+		Log:  slog.New(slog.NewTextHandler(io.Discard, nil)), DelegatingClients: []string{"mission-core"}}).Handler())
 	defer srv.Close()
 	inspector := keys.Inspector(uuid.NewString(), tn.String())
 	appraiser := keys.Token(authtest.Claims{Subject: uuid.NewString(), Tenant: tn.String(), Roles: []string{"appraiser"}})
@@ -243,10 +243,58 @@ func TestTraCuuKhopHopDong(t *testing.T) {
 	r, b = get("/api/v1/oversight/ledger/proofs?event="+uuid.NewString(), inspector)
 	check("/oversight/ledger/proofs", r, b, 404)
 
+	// Tài khoản dịch vụ của client được phép (đối soát R2) chỉ đọc danh sách, tenant đích trong X-Tenant-Id.
+	svcTok := keys.Token(authtest.Claims{Subject: uuid.NewString(), AZP: "mission-core", Username: "service-account-mission-core"})
+	getAs := func(path, token, tenant string) (*http.Response, []byte) {
+		t.Helper()
+		req, _ := http.NewRequest("GET", srv.URL+path, nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		if tenant != "" {
+			req.Header.Set("X-Tenant-Id", tenant)
+		}
+		r, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, _ := io.ReadAll(r.Body)
+		r.Body.Close()
+		return r, b
+	}
+	byAgg := "/api/v1/ledger/entries?aggregateId=" + sealed[0].AggregateID.String()
+	r, b = getAs(byAgg, svcTok, tn.String())
+	check("/ledger/entries", r, b, 200)
+	if err := json.Unmarshal(b, &one); err != nil || !hasEvent(one.Items, sealed[0].EventID.String()) {
+		t.Fatalf("tài khoản dịch vụ đọc theo đối tượng: %s", b)
+	}
+	r, b = getAs(byAgg, svcTok, uuid.NewString())
+	if check("/ledger/entries", r, b, 200); json.Unmarshal(b, &one) != nil || hasEvent(one.Items, sealed[0].EventID.String()) {
+		t.Fatalf("tenant khác phải rỗng: %s", b)
+	}
+	r, b = getAs(byAgg, svcTok, "")
+	check("/ledger/entries", r, b, 403)
+	r, b = getAs("/api/v1/ledger/entries/"+entryID, svcTok, tn.String())
+	check("/ledger/entries/{id}", r, b, 403)
+	other := keys.Token(authtest.Claims{Subject: uuid.NewString(), AZP: "ai-gateway", Username: "service-account-ai-gateway"})
+	r, b = getAs(byAgg, other, tn.String())
+	check("/ledger/entries", r, b, 403)
+	viaClient := keys.Token(authtest.Claims{Subject: uuid.NewString(), AZP: "mission-core", Username: "nguoi-dung"})
+	r, b = getAs(byAgg, viaClient, tn.String())
+	check("/ledger/entries", r, b, 403)
+
 	// Mọi lần tra cứu, xem được ghi vào sổ cái.
 	var audits int
 	if err := admin.QueryRow(ctx, `SELECT count(*) FROM ledger.ledger_entry WHERE tenant_id = $1 AND event_type = 'sys.audit.v1'`,
 		tn).Scan(&audits); err != nil || audits < 8 {
 		t.Fatalf("sự kiện kiểm toán = %d (%v)", audits, err)
 	}
+}
+
+// hasEvent cho biết trang có bản ghi của sự kiện (kèm payloadHash) hay không; bỏ qua bản ghi kiểm toán.
+func hasEvent(items []map[string]any, event string) bool {
+	for _, it := range items {
+		if it["eventId"] == event && it["payloadHash"] != nil {
+			return true
+		}
+	}
+	return false
 }

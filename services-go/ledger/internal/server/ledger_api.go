@@ -24,7 +24,7 @@ func (s *Server) registerLedgerRoutes() {
 		return
 	}
 	read := []string{auth.RoleInspector, auth.RoleAppraiser}
-	s.mux.HandleFunc("GET /api/v1/ledger/entries", s.authed(read, s.listLedgerEntries))
+	s.mux.HandleFunc("GET /api/v1/ledger/entries", s.authedOrService(read, s.listLedgerEntries))
 	s.mux.HandleFunc("GET /api/v1/ledger/entries/{id}", s.authed(read, s.getLedgerEntry))
 	s.mux.HandleFunc("GET /api/v1/oversight/ledger/proofs", s.authed([]string{auth.RoleInspector}, s.getLedgerProof))
 }
@@ -102,6 +102,9 @@ func (s *Server) listLedgerEntries(w http.ResponseWriter, r *http.Request, c cal
 	}
 	if f.EventType != "" {
 		detail["eventType"] = f.EventType
+	}
+	if c.actor == nil && c.p != nil && c.p.ServiceAccount() {
+		detail["serviceClient"] = c.p.ClientID
 	}
 	s.audit(r, c, "listLedgerEntries", subject, detail)
 	out := make([]map[string]any, len(items))
@@ -194,7 +197,8 @@ func entryView(e lookup.Entry) map[string]any {
 		"eventType": e.EventType, "aggregateType": e.AggregateType, "aggregateId": e.AggregateID.String(),
 		"actorKind": e.ActorKind, "occurredAt": e.OccurredAt.UTC().Format(time.RFC3339Nano),
 		"recordedAt": e.RecordedAt.UTC().Format(time.RFC3339Nano), "entryHash": hex.EncodeToString(e.EntryHash),
-		"metadata": metadataView(e.Metadata),
+		"payloadHash": hex.EncodeToString(e.PayloadHash),
+		"metadata":    metadataView(e.Metadata),
 	}
 	if e.ActorID != nil {
 		// Sổ cái không giữ tên người; giao diện tra tên theo mã ở danh bạ (suy luận).

@@ -150,17 +150,18 @@ func main() {
 	go verifySched.Run(ctx)
 
 	deps := server.Deps{
-		Pool:         pool,
-		ReadOnlyPool: roPool,
-		Log:          log,
-		OTel:         otelProvider,
-		Stats:        ing.Stats,
-		Verify:       verifier,
-		Lookup:       &lookup.Service{Pool: roPool, Certs: sealCerts},
-		Export:       exporter,
-		Auditor:      ing,
-		Lag:          ing.LagHistogram,
-		LagBounds:    ingest.LagBounds,
+		Pool:              pool,
+		ReadOnlyPool:      roPool,
+		Log:               log,
+		OTel:              otelProvider,
+		Stats:             ing.Stats,
+		Verify:            verifier,
+		Lookup:            &lookup.Service{Pool: roPool, Certs: sealCerts},
+		Export:            exporter,
+		Auditor:           ing,
+		DelegatingClients: cfg.DelegatingClients,
+		Lag:               ing.LagHistogram,
+		LagBounds:         ingest.LagBounds,
 		Gauges: func() map[string]float64 {
 			g := map[string]float64{"ledger.verify.last_finished_seconds": float64(verifier.LastFinished())}
 			if lastSeal != nil {

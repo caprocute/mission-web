@@ -43,6 +43,13 @@ type Principal struct {
 	ACR      string
 	AuthTime time.Time
 	ClientID string
+	Username string // claim preferred_username
+}
+
+// ServiceAccount cho biết token là của tài khoản dịch vụ thuộc chính client (preferred_username là
+// service-account-<azp>), không phải người dùng đăng nhập qua client đó (wiki trang 14 mục 42).
+func (p *Principal) ServiceAccount() bool {
+	return p != nil && p.ClientID != "" && p.Username == "service-account-"+p.ClientID
 }
 
 // HasRole kiểm vai trò realm.
@@ -159,6 +166,7 @@ type claims struct {
 	ACR         string `json:"acr"`
 	AuthTime    int64  `json:"auth_time"`
 	AZP         string `json:"azp"`
+	Username    string `json:"preferred_username"`
 	RealmAccess struct {
 		Roles []string `json:"roles"`
 	} `json:"realm_access"`
@@ -201,6 +209,7 @@ func (v *JWKSVerifier) Verify(ctx context.Context, raw string) (*Principal, erro
 		Roles:    c.RealmAccess.Roles,
 		ACR:      c.ACR,
 		ClientID: c.AZP,
+		Username: c.Username,
 	}
 	if c.AuthTime > 0 {
 		p.AuthTime = time.Unix(c.AuthTime, 0)
