@@ -6,5 +6,5 @@ okrkpi:
     enabled: ${OPA_ENABLED:true}
     base-url: ${OPA_BASE_URL:http://127.0.0.1:35181}
     # Qua đường hầm, 50/100 ms của TL-01 làm lời gọi quá hạn và bị từ chối (fail closed, 403).
-    connect-timeout: ${OPA_CONNECT_TIMEOUT:2s}
-    read-timeout: ${OPA_READ_TIMEOUT:2s}
+    connect-timeout: ${OPA_CONNECT_TIMEOUT:5s}
+    read-timeout: ${OPA_READ_TIMEOUT:5s}

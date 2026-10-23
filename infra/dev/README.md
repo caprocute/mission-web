@@ -125,7 +125,7 @@ Jar Java dựng trên máy trạm khi có JDK 21 và Node (`JAR_BUILD=may-tram`,
 Các bước cho phiên trên máy Mac:
 
 1. Kéo `main`, kiểm `.env` ở gốc repo có `DEV_SERVER_HOST`, `DEV_SERVER_USER`, `DEV_SERVER_INFRA_DIR` (thư mục cũ) và, nếu khác mặc định, `DEV_SERVER_REPO_DIR`.
-2. Trong `.env` máy chủ (thư mục cũ), đặt `*_DATA` theo mục 2.1 và bổ sung `WEB_ORIGIN` (địa chỉ người dùng mở web qua APISIX, ví dụ `http://127.0.0.1:35000` khi dùng hầm SSH). Không sinh lại `.env`.
+2. Trong `.env` máy chủ (thư mục cũ), đặt `*_DATA` theo mục 2.1 và `WEB_ORIGIN` (địa chỉ người dùng mở web qua APISIX, ví dụ `http://127.0.0.1:35000` khi dùng hầm SSH). Các khoá còn thiếu khác không cần ghi tay: `apply` chạy `scripts/gen-env.sh --bo-sung` trên máy chủ, nối khoá của `.env.example` còn thiếu hoặc còn `<FILL_IN>`. Bí mật (ví dụ `ANALYTICS_CUBE_PASSWORD`, `CUBEJS_API_SECRET`, `CUBE_SQL_PASSWORD`, `ESIGN_HSM_PIN`, `ESIGN_HSM_SO_PIN`, `SUPERSET_*`) được sinh ngẫu nhiên; `POSTGRES_USER`, `POSTGRES_PASSWORD` lấy từ `PG_SUPERUSER`, `PG_SUPERUSER_PASSWORD` nếu có (compose cũng ánh xạ như vậy); thông tin hệ thống ngoài để trống; `OPA_*_TIMEOUT=2s` cũ được nâng lên 5s. Script không đè giá trị có sẵn và không in giá trị; `plan` in tên các khoá sẽ thêm. Không sinh lại `.env`.
 3. Ghi danh sách connector cũ: `curl -s http://127.0.0.1:35083/connectors` trên máy chủ.
 4. `infra/dev/scripts/trien-khai-lai.sh plan`: compose config hợp lệ với mọi profile, máy chủ đủ dung lượng, không còn `[DỪNG]`. Khi thiếu chỗ, dọn ảnh và cache dựng cũ của project `mission-dev` (không đụng container ngoài project).
 5. `infra/dev/scripts/trien-khai-lai.sh apply`. Chỉ khi bước 4 sạch: lần áp dựng lại minio, minio-init với ảnh mới (giữ `MINIO_DATA`), OPA, kafka-init, Keycloak có giao diện và danh sách mật khẩu cấm, xoá `connect` cũ, rồi bật mission-core, APISIX, web.
@@ -159,7 +159,7 @@ docker compose --profile all up -d
 
 Danh sách topic của dev là `kafka/topics.txt`, sinh từ danh mục topic của production (`deploy/charts/vt-platform/ha-tang/kafka/files/danh-muc.yaml`, cùng nguồn với KafkaTopic của Strimzi) bằng `python3 -I infra/dev/scripts/sinh-danh-sach-topic.py`; khi `contracts/events` đổi và danh mục được sinh lại, chạy lại lệnh này và commit tệp (`--kiem` báo lệch). Mọi topic ở dev có `KAFKA_PARTITIONS` phân vùng (mặc định 3), replication-factor 1. Muốn tạo lại bằng tay (ví dụ sau khi xoá dữ liệu Kafka): `docker compose --profile events run --rm kafka-init`, hoặc `./scripts/create-topics.sh` trên máy chủ.
 
-Service Java bật bộ uỷ quyền OPA (`OPA_ENABLED=true`, tắt thì API của mission-core trả 401) và gọi OPA với timeout `OPA_CONNECT_TIMEOUT`, `OPA_READ_TIMEOUT` (mặc định 2s ở dev, thay cho 50/100 ms của TL-01 vốn dành cho OPA cùng pod; qua đường hầm SSH, timeout ngắn làm lời gọi quá hạn và bị từ chối với mã 403). Chạy mission-core trên máy trạm bằng hồ sơ Spring `dev` (`application-dev.yml`) dùng cùng các biến, OPA ở `127.0.0.1:35181` qua hầm.
+Service Java bật bộ uỷ quyền OPA (`OPA_ENABLED=true`, tắt thì API của mission-core trả 401) và gọi OPA với timeout `OPA_CONNECT_TIMEOUT`, `OPA_READ_TIMEOUT` (mặc định 5s ở dev vì qua đường hầm đo được 1,8–2,5 s; `gen-env.sh --bo-sung` nâng giá trị cũ 2s trong `.env` máy chủ lên 5s; thay cho 50/100 ms của TL-01 vốn dành cho OPA cùng pod; qua đường hầm SSH, timeout ngắn làm lời gọi quá hạn và bị từ chối với mã 403). Chạy mission-core trên máy trạm bằng hồ sơ Spring `dev` (`application-dev.yml`) dùng cùng các biến, OPA ở `127.0.0.1:35181` qua hầm.
 
 ---
 

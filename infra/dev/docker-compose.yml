@@ -56,11 +56,11 @@ x-backend-java-env: &backend-java-env
   SPRING_DATA_REDIS_PASSWORD: ${VALKEY_PASSWORD:-}
   OPA_URL: http://opa:8181/v1/data/mission/authz
   # Bộ uỷ quyền okrkpi.opa (vt-platform-starter): bật mặc định ở dev; OPA nằm ở container opa, không cùng pod,
-  # nên timeout lấy từ .env (mặc định 2s) thay cho 50/100 ms của TL-01.
+  # nên timeout lấy từ .env (mặc định 5s; qua đường hầm đo được 1,8–2,5 s) thay cho 50/100 ms của TL-01.
   OPA_ENABLED: ${OPA_ENABLED:-true}
   OPA_BASE_URL: http://opa:8181
-  OPA_CONNECT_TIMEOUT: ${OPA_CONNECT_TIMEOUT:-2s}
-  OPA_READ_TIMEOUT: ${OPA_READ_TIMEOUT:-2s}
+  OPA_CONNECT_TIMEOUT: ${OPA_CONNECT_TIMEOUT:-5s}
+  OPA_READ_TIMEOUT: ${OPA_READ_TIMEOUT:-5s}
   OPENBAO_URL: http://openbao:8200
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
   TZ: Asia/Ho_Chi_Minh
@@ -117,10 +117,10 @@ services:
       - "-c"
       - "shared_buffers=512MB"
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-mission_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Chưa đặt POSTGRES_PASSWORD trong .env}
+      POSTGRES_USER: ${POSTGRES_USER:-${PG_SUPERUSER:-mission_admin}}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-${PG_SUPERUSER_PASSWORD:?Chưa đặt POSTGRES_PASSWORD hay PG_SUPERUSER_PASSWORD trong .env}}
       POSTGRES_DB: ${POSTGRES_DB:-mission}
-      DB_ROLE_PASSWORD_DEFAULT: ${DB_ROLE_PASSWORD_DEFAULT:-${POSTGRES_PASSWORD}}
+      DB_ROLE_PASSWORD_DEFAULT: ${DB_ROLE_PASSWORD_DEFAULT:-${POSTGRES_PASSWORD:-${PG_SUPERUSER_PASSWORD:-}}}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Chưa đặt KEYCLOAK_DB_PASSWORD trong .env}
       TZ: Asia/Ho_Chi_Minh
     ports:
@@ -130,7 +130,7 @@ services:
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
       - ./postgres/migrate-roles.sh:/usr/local/bin/migrate-roles.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mission_admin} -d ${POSTGRES_DB:-mission}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-${PG_SUPERUSER:-mission_admin}} -d ${POSTGRES_DB:-mission}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -146,10 +146,10 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-mission_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:-${PG_SUPERUSER:-mission_admin}}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-${PG_SUPERUSER_PASSWORD:-}}
       POSTGRES_DB: ${POSTGRES_DB:-mission}
-      DB_ROLE_PASSWORD_DEFAULT: ${DB_ROLE_PASSWORD_DEFAULT:-${POSTGRES_PASSWORD}}
+      DB_ROLE_PASSWORD_DEFAULT: ${DB_ROLE_PASSWORD_DEFAULT:-${POSTGRES_PASSWORD:-${PG_SUPERUSER_PASSWORD:-}}}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
     ports:
       - "${PGBOUNCER_PORT:-35433}:6432"
@@ -158,7 +158,7 @@ services:
       - ./postgres/pgbouncer/entrypoint.sh:/etc/pgbouncer/entrypoint.sh:ro
     entrypoint: ["/bin/sh", "/etc/pgbouncer/entrypoint.sh"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U ${POSTGRES_USER:-mission_admin} -d ${POSTGRES_DB:-mission}"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U ${POSTGRES_USER:-${PG_SUPERUSER:-mission_admin}} -d ${POSTGRES_DB:-mission}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -388,7 +388,7 @@ services:
       APICURIO_STORAGE_SQL_KIND: postgresql
       APICURIO_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-mission}?currentSchema=apicurio
       APICURIO_DATASOURCE_USERNAME: ${APICURIO_DB_USER:-apicurio}
-      APICURIO_DATASOURCE_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-${POSTGRES_PASSWORD}}
+      APICURIO_DATASOURCE_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-${POSTGRES_PASSWORD:-${PG_SUPERUSER_PASSWORD:-}}}
       QUARKUS_HTTP_CORS_ENABLED: "true"
       QUARKUS_HTTP_CORS_ORIGINS: "*"
     ports:

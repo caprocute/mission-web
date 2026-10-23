@@ -8,6 +8,8 @@
 #       vì profile `backend` dựng ảnh từ ../../backend, ../../frontend… nên máy chủ phải có bố cục repo;
 #   (3) sync-server.sh apply với thư mục hạ tầng <DEV_SERVER_REPO_DIR>/infra/dev: kiểm chỗ lưu dữ liệu và cổng,
 #       dựng lại hạ tầng (OPA, kafka-init, giao diện Keycloak, minio…) theo các profile, xoá dịch vụ cũ `connect`;
+#       Trước đó gen-env.sh --bo-sung nối vào .env máy chủ các khoá còn thiếu (bí mật sinh ngẫu nhiên, POSTGRES_*
+#       lấy từ PG_SUPERUSER*, OPA timeout 2s cũ nâng lên 5s), không đè giá trị có sẵn, không in giá trị;
 #   (4) create-topics.sh, them-client-provisioner.sh (bất biến, chạy lại được);
 #   (5) dựng jar trên máy trạm (mặc định khi có JDK 21 và Node) rồi chép jar lên, hoặc để máy chủ tự dựng;
 #   (6) deploy-backend.sh trên máy chủ cho các service chọn (mặc định APISIX, mission-core, web): dựng ảnh,
@@ -197,7 +199,13 @@ echo "  Trống ở ${root}: ${free_gb:-?} GB (cần >= ${min} GB cho cache dự
 [ -n "${free_gb}" ] && [ "${free_gb}" -lt "${min}" ] && echo "  CẢNH BÁO: thiếu dung lượng; dọn ảnh và cache dựng cũ của project trước (README mục 2.1)."
 exit 0
 REMOTE
-  echo "  Thư mục repo trên máy chủ: ${DEV_SERVER_REPO_DIR}; .env dùng để kiểm: $(server_env_source)"
+  local env_src
+  env_src="$(server_env_source)"
+  echo "  Thư mục repo trên máy chủ: ${DEV_SERVER_REPO_DIR}; .env dùng để kiểm: ${env_src}"
+  echo "==> Khoá .env máy chủ sẽ được gen-env.sh --bo-sung thêm khi apply (chỉ tên, không giá trị)"
+  # Chạy bản gen-env.sh và .env.example của máy trạm trong thư mục tạm trên máy chủ, chỉ đọc .env.
+  tar -C "${INFRA_DIR}" -cf - .env.example scripts/gen-env.sh |
+    remote "t=\$(mktemp -d) && tar -C \"\$t\" -xf - && GEN_ENV_FILE=$(printf '%q' "${env_src}") GEN_ENV_EXAMPLE=\"\$t/.env.example\" bash \"\$t/scripts/gen-env.sh\" --kiem; rc=\$?; rm -rf \"\$t\"; exit \$rc"
 }
 
 # --- các bước áp ------------------------------------------------------------------
@@ -247,6 +255,8 @@ cmd_apply() {
   check_server
   copy_source
   ensure_env
+  echo "==> Bổ sung khoá còn thiếu vào .env máy chủ (bí mật sinh ngẫu nhiên, không đè giá trị có sẵn, không in)"
+  remote_script "" gen-env.sh --bo-sung
   sync_server apply
   echo "==> Topic Kafka và client provisioner của Keycloak"
   remote_script "" create-topics.sh
