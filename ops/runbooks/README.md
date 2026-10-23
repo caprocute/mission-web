@@ -4,9 +4,6 @@ Mỗi cảnh báo trong `deploy/charts/observability-cell/rules/`, `deploy/chart
 
 Kiểm liên kết trước khi gộp (mọi `runbook_url` trỏ tới tệp và mục có thật, mọi liên kết tương đối giữa các sổ tay có tệp):
 
-<<<<<<< HEAD
-Sổ tay đã có: `phat-lai-outbox.md` (phát lại sự kiện từ outbox, NEN-022), `degradation.md` (bật, tắt mức suy giảm của cổng API, DV-01-02), `geodns.md` (GeoDNS, chuyển vùng cell và `pg-registry`, INF-20).
-=======
 ```bash
 python3 -I ops/runbooks/kiem-lien-ket.py              # mã thoát 1 khi có liên kết gãy
 python3 -I ops/runbooks/kiem-lien-ket.py --liet-ke    # bảng sổ tay → cảnh báo → tệp luật
@@ -85,4 +82,5 @@ Bảng theo TL-04 mục 11.1. Cột "Sổ tay chi tiết" là sổ tay thành ph
 | `nang-bac` | [canh-bao](canh-bao/nang-bac.md) | NG01..NG14 | Ngưỡng nâng bậc của TL-05 và quy trình nâng bậc |
 
 Sổ tay thành phần khác ở thư mục gốc: `phat-lai-outbox.md` (phát lại sự kiện từ outbox, NEN-022), `suy-giam-ba-muc.md` (bộ điều khiển suy giảm ba mức, INF-25), `org-republish.md`, `luu-tru-xoa-khoi-phuc.md`, `an-ninh-pam-rbac.md`, `an-ninh-soc-quy-tac.md`, `an-ninh-falco.md`, `openbao-hsm.md`.
->>>>>>> 07c879b3
+
+Sổ tay đã có: `phat-lai-outbox.md` (phát lại sự kiện từ outbox, NEN-022), `degradation.md` (bật, tắt mức suy giảm của cổng API, DV-01-02), `geodns.md` (GeoDNS, chuyển vùng cell và `pg-registry`, INF-20).
