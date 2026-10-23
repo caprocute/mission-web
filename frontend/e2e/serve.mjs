@@ -5,6 +5,9 @@
 // - Tương thích ngược với bộ kiểm thử Playwright khi truyền `E2E_MODE=gia-lap` hoặc `E2E_MODE=keycloak`;
 //   `E2E_MODE=that` (WEB-070, luồng chính với máy chủ thật QA-03) dựng cấu hình động như mặc định nhưng
 //   luôn bật đăng nhập và tắt giả lập toàn bộ (chỉ còn giả lập các module trong `MOCK_API_MODULES`).
+// - `E2E_MODE=he-thong` (QA-03, hành trình trên hệ thống thật): bật đăng nhập với Keycloak `E2E_KC_URL`,
+//   tắt giả lập hoàn toàn và chuyển mọi `/api/*` tới APISIX dev ở `E2E_APISIX_URL`, không rơi về giả
+//   lập khi máy chủ trả 404 hay 5xx để lỗi thật hiện ra trong kiểm thử.
 // - Chuyển tiếp (reverse-proxy) các yêu cầu `/api/v1/*` tới các dịch vụ backend tương ứng
 //   (`TENANT_REGISTRY_URL`, `ORG_SERVICE_URL`, `UI_PACK_SERVICE_URL`, `API_PROXY_TARGET`).
 import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
@@ -48,6 +51,8 @@ function getEnv(key, fallback) {
   return fallback;
 }
 
+/** QA-03: hệ thống thật qua APISIX, không có đường rơi về giả lập. */
+const HE_THONG = process.env.E2E_MODE === 'he-thong';
 const PORT = Number(getEnv('E2E_PORT', getEnv('WEB_PORT', '4200')));
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -76,6 +81,16 @@ function runtimeConfig() {
       ...base,
       auth: { ...base.auth, enabled: true, issuer: `${kc}/realms/mission` },
       useMockApi: true,
+    };
+  }
+  if (HE_THONG) {
+    const kc = (process.env.E2E_KC_URL ?? '').replace(/\/$/, '');
+    return {
+      ...base,
+      apiBaseUrl: '/api',
+      auth: { ...base.auth, enabled: true, issuer: `${kc}/realms/mission` },
+      useMockApi: false,
+      mockApiModules: [],
     };
   }
   if (process.env.E2E_MODE === 'gia-lap' || process.env.E2E_MODE === 'mock') {
@@ -138,6 +153,7 @@ function runtimeManifest() {
 }
 
 function resolveProxyTarget(pathname) {
+  if (HE_THONG) return pathname.startsWith('/api/') ? process.env.E2E_APISIX_URL || null : null;
   const tenantRegistry = getEnv('TENANT_REGISTRY_URL', 'http://127.0.0.1:8083');
   const orgService = getEnv('ORG_SERVICE_URL', 'http://127.0.0.1:8084');
   const uiPackService = getEnv('UI_PACK_SERVICE_URL', 'http://127.0.0.1:8090');
@@ -186,7 +202,7 @@ function proxyRequest(req, res, targetBaseUrl) {
       },
       (proxyRes) => {
         const status = proxyRes.statusCode ?? 502;
-        if (status === 404 || status >= 502) {
+        if (!HE_THONG && (status === 404 || status >= 502)) {
           proxyRes.resume();
           handleServerApiRequest(req, res, bodyBuffer).catch(() => {
             res.writeHead(status, proxyRes.headers);
@@ -199,6 +215,13 @@ function proxyRequest(req, res, targetBaseUrl) {
       },
     );
     proxyReq.on('error', (err) => {
+      if (HE_THONG) {
+        res.writeHead(502, { 'content-type': 'application/problem+json; charset=utf-8' });
+        res.end(
+          JSON.stringify({ title: 'APISIX chưa phản hồi', status: 502, detail: err.message }),
+        );
+        return;
+      }
       handleServerApiRequest(req, res, bodyBuffer).catch(() => {
         res.writeHead(502, { 'content-type': 'application/problem+json; charset=utf-8' });
         res.end(

@@ -36,13 +36,3 @@ ngoaiLe:
     trangThai: cho-duyet
     ngayDuyet: 2026-10-23
     ngayXemLai: 2027-01-23
-  - ruleId: 30001
-    ten: Buffer Overflow
-    keHoach: api
-    urlRegex: /api/v1/org/imports$
-    ruiRo: Medium
-    giaiTrinh: Không phải tràn bộ đệm (máy ảo Java); ZAP thấy 500 vì thân multipart hỏng chưa được ánh xạ sang 400 ở org-service. Lỗi đã ghi nhận ở QA-13 (ca todo trong kiem-thu-phu-dinh 04), phản hồi 500 không lộ chi tiết nội bộ. Gỡ mục này khi sửa xong.
-    nguoiDuyet: Phụ trách ATTT dự án
-    trangThai: cho-duyet
-    ngayDuyet: 2026-10-23
-    ngayXemLai: 2026-11-06

@@ -175,6 +175,8 @@ degrade:
   controller:
     # Chỉ ở chế độ controller (cụm thật); standalone dùng mức nền ở trên.
     enabled: true
+    # INF-25: true khi cài chart degrade-controller (bản Go); chart này chỉ dựng ConfigMap apisix-degrade-levels.
+    external: false
     image:
       repository: docker.io/library/python
       digest: sha256:1b668429b3511ab407d8e00648891631b0b1a4d7e15e3ca70f38ab5b91ad4ab4

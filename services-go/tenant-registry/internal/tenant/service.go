@@ -910,6 +910,32 @@ func (s *Service) Cancel(ctx context.Context, tx pgx.Tx, a Actor, id uuid.UUID, 
 	return s.Transition(ctx, tx, a, t, expected, DaChamDut, "Huỷ yêu cầu khởi tạo")
 }
 
+// Suspend: suspendConfigTenant, DANG_VAN_HANH → TAM_NGUNG (hết hạn hợp đồng, sự cố an ninh; TL-02a QT-01
+// "Trạng thái đối tượng"). Dữ liệu giữ nguyên; lý do bắt buộc vào nhật ký trạng thái; outbox
+// TENANT_STATUS_CHANGED làm mới bộ đệm phân giải để cổng và IAM thấy trạng thái mới.
+func (s *Service) Suspend(ctx context.Context, tx pgx.Tx, a Actor, id uuid.UUID, expected int, reason string) (*ConfigTenant, error) {
+	if !a.PlatformAdmin {
+		return nil, ErrForbidden
+	}
+	t, err := store.GetTenantForUpdate(ctx, tx, id)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if t.RowVersion != expected {
+		return nil, &VersionError{Sent: expected, Current: t.RowVersion}
+	}
+	if t.Status != DangVanHanh {
+		return nil, &StateError{Status: t.Status}
+	}
+	if err := s.Transition(ctx, tx, a, t, expected, TamNgung, "Tạm ngừng tenant: "+reason); err != nil {
+		return nil, err
+	}
+	return s.Get(ctx, tx, a, id)
+}
+
 // Get: getConfigTenant.
 func (s *Service) Get(ctx context.Context, q store.Querier, a Actor, id uuid.UUID) (*ConfigTenant, error) {
 	t, err := store.GetTenant(ctx, q, id)

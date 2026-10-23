@@ -120,6 +120,13 @@ spec:
         {{- if not $v.rollingSync.enabled }}
         automated: { prune: true, selfHeal: true }
         {{- end }}
+        {{- if $v.ignoreDifferences }}
+        syncOptions: {{ toJson (append $v.syncPolicy.syncOptions "RespectIgnoreDifferences=true") }}
+        {{- else }}
         syncOptions: {{ toJson $v.syncPolicy.syncOptions }}
+        {{- end }}
         retry: {{ toJson $v.syncPolicy.retry }}
+      {{- with $v.ignoreDifferences }}
+      ignoreDifferences: {{ toJson . }}
+      {{- end }}
 {{- end }}

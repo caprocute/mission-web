@@ -1,4 +1,4 @@
-> Nguồn: `deploy/charts/vt-service/` và `deploy/environments/kind/` (INF-01); `deploy/charts/cell-base/`, `deploy/charts/api-gateway/`, `deploy/clusters/` (INF-08); TL-04 "Cắt tải và giới hạn tốc độ ở APISIX", "Hành vi khi bão hoà", TL-01 mục 12.5, 14.5, `ops/runbooks/degradation.md` (DV-01-02); TL-04 mục 3.1 đến 3.7, 6.8, SEC-24, SEC-34; TL-04 mục 5.1, 5.5, 3.4, 6.1, 6.2; TL-05 Phụ lục A; `infra/dev/README.md`, `infra/dev/docker-compose.yml`, `infra/dev/apisix/apisix.yaml`; `deploy/web/Dockerfile`, `deploy/web/40-runtime-config.sh`, `deploy/web/nginx.conf`; `AGENTS.md` mục 7; TL-01 mục CI/CD và triển khai (Argo CD, Kyverno, canary, giấy phép); TL-04 mục OPS-01 (GitOps), mục lộ trình (đợt 0a đến 3), mục cell; Baseline mục 4 (ADR-13, ADR-16); TL-01 "Chuyển tenant giữa các cell", ADR-29; TL-03 "Kho đối tượng Ceph"; `services-go/tenant-registry/internal/move` (DV-03-07); `services-go/vtctl/`, `deploy/charts/vtctl-jobs/` (INF-26).
+> Nguồn: `deploy/charts/vt-service/` và `deploy/environments/kind/` (INF-01); `deploy/charts/cell-base/`, `deploy/charts/api-gateway/`, `deploy/clusters/` (INF-08); TL-04 "Cắt tải và giới hạn tốc độ ở APISIX", "Hành vi khi bão hoà", TL-01 mục 12.5, 14.5, `ops/runbooks/degradation.md` (DV-01-02); `services-go/degrade-controller/`, `deploy/charts/degrade-controller/`, `ops/runbooks/suy-giam-ba-muc.md` (INF-25); TL-04 mục 3.1 đến 3.7, 6.8, SEC-24, SEC-34; TL-04 mục 5.1, 5.5, 3.4, 6.1, 6.2; TL-05 Phụ lục A; `infra/dev/README.md`, `infra/dev/docker-compose.yml`, `infra/dev/apisix/apisix.yaml`; `deploy/web/Dockerfile`, `deploy/web/40-runtime-config.sh`, `deploy/web/nginx.conf`; `AGENTS.md` mục 7; TL-01 mục CI/CD và triển khai (Argo CD, Kyverno, canary, giấy phép); TL-04 mục OPS-01 (GitOps), mục lộ trình (đợt 0a đến 3), mục cell; Baseline mục 4 (ADR-13, ADR-16); TL-01 "Chuyển tenant giữa các cell", ADR-29; TL-03 "Kho đối tượng Ceph"; `services-go/tenant-registry/internal/move` (DV-03-07); `services-go/vtctl/`, `deploy/charts/vtctl-jobs/` (INF-26).
 
 # Hạ tầng dev và triển khai
 
@@ -362,7 +362,7 @@ Kiểm tra gồm `tests/chay-kiem-thu.sh` (lint, kubeconform, cú pháp Lua, cá
 
 ## Công cụ vận hành `vtctl` (INF-26)
 
-`services-go/vtctl` là CLI một tệp cho người trực, gom các thao tác runbook (TL-04 OPS-14, OPS-24) thành lệnh: `dlq list|inspect|replay|skip`, `consumer lag|restart`, `tenant status|activate`, `cell list` và `cell move request|approve|status|cancel`, `period-lock status|pause|resume|retry-failed`, `outbox replay`, `org republish`, `degrade status|set|clear`. Các quy ước đã chốt khi viết, người viết lệnh mới phải theo:
+`services-go/vtctl` là CLI một tệp cho người trực, gom các thao tác runbook (TL-04 OPS-14, OPS-24) thành lệnh: `dlq list|inspect|replay|skip`, `consumer lag|restart`, `tenant status|activate|suspend`, `cell list` và `cell move request|approve|status|cancel`, `period-lock status|pause|resume|retry-failed`, `outbox replay`, `org republish`, `degrade status|set|pin|clear`. Các quy ước đã chốt khi viết, người viết lệnh mới phải theo:
 
 1. **Chạy thử là mặc định.** Lệnh ghi chỉ thực hiện khi có `--confirm`; `--dry-run` gõ tường minh luôn thắng. Chạy thử được đọc hoặc kiểm phía máy chủ không lưu (`kubectl create --dry-run=server`), không được thay đổi gì.
 2. **Một lệnh ghi đã thực hiện, một bản ghi kiểm toán** JSON một dòng (người chạy lấy từ token Keycloak vận hành, tham số đã che, Idempotency-Key, kết quả), kể cả khi thất bại. Tệp nằm trên máy người chạy hoặc trong pod Job, Fluent Bit chuyển SIEM (suy luận, chốt theo INF-19).
@@ -372,6 +372,18 @@ Kiểm tra gồm `tests/chay-kiem-thu.sh` (lint, kubeconform, cú pháp Lua, cá
 6. **Cell lấy từ `deploy/cells`.** Tên cell trong cấu hình phải trùng thư mục có `cell.yaml`; địa chỉ cổng API của cell lấy từ `apiBaseUrl` trong registry theo `displayName` nếu cấu hình không ghi.
 
 Kiểm thử dùng máy chủ giả lập (`httptest`), `kubectl`/`helm` giả và cụm Kafka `kfake` trong tiến trình; đặt `VTCTL_KAFKA_IT=1` để chạy với Kafka thật qua Testcontainers. Chưa chạy được trên cụm kind trong đợt này; giới hạn còn lại ghi ở `services-go/vtctl/README.md`.
+
+## Bộ điều khiển suy giảm ba mức (INF-25)
+
+`services-go/degrade-controller` (chart `deploy/charts/degrade-controller`, namespace `edge`) thay bộ điều khiển Python của DV-01-02 và giữ nguyên API của bản đó. Phân định với DV-01-02: chart `api-gateway` vẫn giữ bộ plugin từng mức (ConfigMap `apisix-degrade-levels`, dựng cả khi `degrade.controller.external=true`), còn INF-25 giữ bộ điều khiển và tác động ngoài cổng. Các quyết định đã chốt khi viết:
+
+1. **Mức áp dụng** là mức ghim tay còn hạn, nếu không có thì là giá trị lớn nhất giữa mức nền và mức của các cảnh báo đang cháy (nhãn `degrade_level` của luật, hoặc bảng `alertLevels` theo tên cảnh báo). Tăng mức áp ngay; hạ mức chỉ khi điều kiện đã hết liên tục 10 phút (tham số `holdDown`, suy luận) và hạ thẳng về mức mong muốn.
+2. **Ghim tay luôn có thời hạn** (mặc định 1 giờ, tối đa 24 giờ), ưu tiên hơn tự động theo cả hai chiều (`vtctl degrade pin <mức> --for <thời hạn>`).
+3. **Tác động ngoài cổng:** ScaledObject gắn nhãn `vt.io/degrade-pause-from=<mức>` bị đặt `autoscaling.keda.sh/paused=true` khi đạt mức; chỉ gỡ chú thích do chính bộ điều khiển đặt (`vt.io/degrade-paused-by`). Tăng mức thì áp cổng trước, hạ mức thì gỡ theo thứ tự ngược. Tắt trợ lý AI ở mức 1 vẫn do plugin cổng của DV-01-02 làm (503 trên `aiPaths`, header `X-Vt-Degrade-Level` cho upstream), chưa dùng cờ tính năng riêng (suy luận, chờ CORE-08-07).
+4. **Ngoại lệ có kiểm soát của GitOps.** Bộ điều khiển ghi lúc chạy nhãn `vt.io/degrade-level` và `spec.plugins` trên ApisixPluginConfig, chú thích tạm dừng trên ScaledObject. Đây là trạng thái vận hành phải đổi trong vài giây khi quá tải, không chờ được một vòng commit và đồng bộ; vì vậy `deploy/argocd/values.yaml` khai `ignoreDifferences` cho đúng các trường đó cùng `RespectIgnoreDifferences=true`, để Argo CD đồng bộ lại không xoá mức đang áp dụng. Mọi trường khác của hai loại tài nguyên vẫn theo Git; mức nền vẫn khai trong Git (`baseLevel`).
+5. **Khởi động lại pod** đọc mức đang ghi trên cụm, nên không tụt mức ngay; cảnh báo không được gửi lại quá 1 giờ coi như đã hết. Mức từ 2 trở lên quá 15 phút gửi một thông báo nâng SEV-2 mỗi đợt (OPS-13).
+
+Kiểm thử chức năng chạy trên API server Kubernetes giả; chưa chạy trên kind với APISIX trong đợt này, không đo tải (YC-PT-19). Runbook: `ops/runbooks/suy-giam-ba-muc.md`.
 
 ## Lộ trình theo TL-04
 

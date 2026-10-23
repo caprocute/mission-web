@@ -223,6 +223,8 @@ services:
     volumes:
       - ./keycloak/realm-mission.json:/opt/keycloak/data/import/realm-mission.json:ro
       - ../keycloak-theme/mission:/opt/keycloak/themes/mission:ro
+      # ASVS 2.1.7: danh sách mật khẩu phổ biến cho passwordBlacklist của realm dev.
+      - ./keycloak/password-blacklists:/opt/keycloak/data/password-blacklists:ro
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '200 OK' <&3"]
       interval: 15s

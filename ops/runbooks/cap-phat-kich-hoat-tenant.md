@@ -84,7 +84,7 @@ Kiểm chứng sau kích hoạt: tenant `DANG_VAN_HANH`, nhật ký trạng thá
 ## 6. Quay lui
 
 - Cấp phát thành công nhưng cần huỷ trước khi kích hoạt: chưa có thao tác tự động (`DANG_CAU_HINH` không quay về `KHOI_TAO` theo máy trạng thái TL-02a); dọn tay theo cột "Bù trừ" ở mục 1, ghi biên bản và báo người phụ trách để xử lý trạng thái.
-- Kích hoạt nhầm: chuyển `DANG_VAN_HANH → TAM_NGUNG` theo quyết định của quản trị nền tảng (chặn đăng nhập người dùng, giữ dữ liệu).
+- Kích hoạt nhầm: chuyển `DANG_VAN_HANH → TAM_NGUNG` theo quyết định của quản trị nền tảng (chặn đăng nhập người dùng, giữ dữ liệu). Bằng vtctl: `vtctl -e <môi trường> tenant suspend <tenant-id> --reason "<số văn bản>" --confirm` (`suspendConfigTenant`, aal2); chiều ngược lại dùng `tenant activate`.
 
 ## 7. Bước CSDL và khoá (DV-03-04)
 

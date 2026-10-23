@@ -27,6 +27,7 @@ import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.MissionCoreTestDatabase;
+import vn.viettel.okrkpi.platform.reconcile.OrgReplicaReconciler;
 import vn.viettel.okrkpi.platform.reconcile.ReconcileMetrics;
 import vn.viettel.okrkpi.platform.reconcile.ReconcileRun;
 import vn.viettel.okrkpi.platform.reconcile.RunStatus;
@@ -85,6 +86,7 @@ class OrgReplicaReconcileIT {
     reconciler =
         new OrgReplicaReconciler(
             jdbc,
+            OrgReplicaReconciler.DEFAULT_SCHEMA,
             new ReconcileMetrics(meters, Clock.systemUTC()),
             new ObjectMapper(),
             Clock.systemUTC());

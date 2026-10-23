@@ -26,6 +26,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import vn.viettel.okrkpi.org.application.ForbiddenOperationException;
 import vn.viettel.okrkpi.org.application.IdempotencyMismatchException;
 import vn.viettel.okrkpi.org.application.StepUpRequiredException;
@@ -163,6 +165,20 @@ public class ProblemAdvice {
     return send(problem(HttpStatus.SERVICE_UNAVAILABLE, "unavailable", "Chưa kết nối được nguồn dữ liệu",
         "Không gửi được yêu cầu tới hệ thống tích hợp, vui lòng thử lại sau.", "ORG-503-INTEGRATION-UNAVAILABLE",
         req));
+  }
+
+  /**
+   * QA-13 (ASVS V13.1.5): thân multipart hỏng (thiếu boundary, phần bị cắt) là lỗi của yêu cầu, không phải lỗi máy
+   * chủ. Tệp vượt giới hạn {@code spring.servlet.multipart.max-file-size} giữ 413 như trước.
+   */
+  @ExceptionHandler(MultipartException.class)
+  ResponseEntity<ProblemDetail> multipart(MultipartException e, HttpServletRequest req) {
+    if (e instanceof MaxUploadSizeExceededException) {
+      return send(problem(HttpStatus.PAYLOAD_TOO_LARGE, "client-error", "Tệp tải lên quá lớn",
+          "Tệp vượt dung lượng cho phép.", "COMMON-413-PAYLOAD-TOO-LARGE", req));
+    }
+    return send(problem(HttpStatus.BAD_REQUEST, "bad-request", "Yêu cầu không hợp lệ",
+        "Nội dung tải lên không đúng định dạng.", "COMMON-400-BAD-REQUEST", req));
   }
 
   @ExceptionHandler(Exception.class)

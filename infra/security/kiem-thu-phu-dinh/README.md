@@ -41,7 +41,7 @@ Mọi lệnh sửa trong bộ đều bị từ chối trước khi ghi (thiếu 
 
 ## Ca ở trạng thái todo
 
-`node:test` chạy ca `todo` nhưng không làm đỏ bộ. Hiện có một ca: thân multipart hỏng ở `POST /org/imports` làm org-service trả 500 thay vì 400. Khi sửa xong, bỏ tuỳ chọn `todo` và gỡ mục 30001 trong `infra/security/zap/ngoai-le.yaml`.
+`node:test` chạy ca `todo` nhưng không làm đỏ bộ; phát hiện chưa sửa được ghi bằng ca `todo` kèm mục ngoại lệ ZAP có hạn xem lại ngắn. Hiện không còn ca `todo` nào: ca thân multipart hỏng ở `POST /org/imports` (trước trả 500) đã chuyển thành kiểm thử bắt buộc sau khi org-service trả 400.
 
 ## Lấy token cho công cụ khác
 
