@@ -208,6 +208,8 @@ okrkpi:
   opa:
     # OPA chạy cùng pod (ADR-21).
     base-url: ${OPA_BASE_URL:http://127.0.0.1:8181}
+    connect-timeout: ${OPA_CONNECT_TIMEOUT:50ms}
+    read-timeout: ${OPA_READ_TIMEOUT:100ms}
   paging:
     # Tệp khoá ký con trỏ do ESO/CSI gắn từ OpenBao; thiếu tệp thì sinh khoá tạm (chỉ đúng khi 1 bản sao).
     cursor-key-file: ${CURSOR_KEY_FILE:}

@@ -107,9 +107,9 @@ docker compose up -d
 # 2. Bật thêm bảo mật (OPA 1.x + OpenBao 2.x kèm khoá KEK mẫu)
 docker compose --profile core --profile security up -d
 
-# 3. Bật thêm luồng sự kiện (Kafka KRaft, Apicurio, Debezium) và tạo đầy đủ topic
+# 3. Bật thêm luồng sự kiện (Kafka KRaft, Apicurio, Debezium); dịch vụ một lần kafka-init tự tạo đủ topic
 docker compose --profile core --profile security --profile events up -d
-./scripts/create-topics.sh
+docker compose logs kafka-init   # "Hoàn tất: tạo mới …, đã có …"
 
 # 4. Bật toàn bộ hạ tầng
 docker compose --profile all up -d
@@ -117,6 +117,10 @@ docker compose --profile all up -d
 # 5. Kiểm tra sức khoẻ
 ./scripts/health.sh
 ```
+
+Danh sách topic của dev là `kafka/topics.txt`, sinh từ danh mục topic của production (`deploy/charts/vt-platform/ha-tang/kafka/files/danh-muc.yaml`, cùng nguồn với KafkaTopic của Strimzi) bằng `python3 -I infra/dev/scripts/sinh-danh-sach-topic.py`; khi `contracts/events` đổi và danh mục được sinh lại, chạy lại lệnh này và commit tệp (`--kiem` báo lệch). Mọi topic ở dev có `KAFKA_PARTITIONS` phân vùng (mặc định 3), replication-factor 1. Muốn tạo lại bằng tay (ví dụ sau khi xoá dữ liệu Kafka): `docker compose --profile events run --rm kafka-init`, hoặc `./scripts/create-topics.sh` trên máy chủ.
+
+Service Java bật bộ uỷ quyền OPA (`OPA_ENABLED=true`, tắt thì API của mission-core trả 401) và gọi OPA với timeout `OPA_CONNECT_TIMEOUT`, `OPA_READ_TIMEOUT` (mặc định 2s ở dev, thay cho 50/100 ms của TL-01 vốn dành cho OPA cùng pod; qua đường hầm SSH, timeout ngắn làm lời gọi quá hạn và bị từ chối với mã 403). Chạy mission-core trên máy trạm bằng hồ sơ Spring `dev` (`application-dev.yml`) dùng cùng các biến, OPA ở `127.0.0.1:35181` qua hầm.
 
 ---
 
