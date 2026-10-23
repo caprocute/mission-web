@@ -17,6 +17,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import vn.viettel.okrkpi.appraisal.application.decision.port.BatchDecisionRepository;
 import vn.viettel.okrkpi.appraisal.application.decision.port.BatchDecisionRepository.BatchRating;
@@ -144,7 +145,7 @@ public class BatchDecisionService {
    * Kiểm và ghi lô {@code NHAP}. {@code scope} là phạm vi {@code SCR-0904.ky-lo} của người gọi đã
    * dịch sang SQL.
    */
-  @Transactional(TX)
+  @Transactional(transactionManager = TX, propagation = Propagation.REQUIRES_NEW)
   public Prepared prepare(TenantId tenant, UUID actor, Command command, Scope scope) {
     validate(command);
     List<Item> items = command.items();
@@ -247,7 +248,7 @@ public class BatchDecisionService {
   }
 
   /** Gắn yêu cầu ký SVC-10 vừa mở, lô chuyển {@code CHO_KY}. */
-  @Transactional(TX)
+  @Transactional(transactionManager = TX, propagation = Propagation.REQUIRES_NEW)
   public void attachSignRequest(
       TenantId tenant, Prepared prepared, UUID signRequestId, UUID actor) {
     batches.attachSignRequest(

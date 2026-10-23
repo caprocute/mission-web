@@ -262,19 +262,21 @@ class AnchorAndRatingShareIT {
       respond(x, 404, new byte[0]);
       return;
     }
+    // Dạng AnchorDocument của services-go/ledger (seal.Anchorer.DailyAnchor): niêm phong đầu tiên
+    // có
+    // prevCellRoot rỗng, không có tsaGenTime.
     String body =
         """
-        {"cellSealId":"%s","cellCode":"cell-hcm","windowStart":"%s","windowEnd":"%s",
-         "cellRoot":"%s","prevCellRoot":"%s","signature":"c2lnbmF0dXJl",
-         "signerCertSha256":"ab12","tsaToken":"dHNhLXRva2Vu","tsaGenTime":"%s"}
+        {"day":"%s","cellCode":"cell-hcm","cellSealId":"%s","windowStart":"%s","windowEnd":"%s",
+         "cellRoot":"%s","prevCellRoot":"","signerKeyId":"cell-hcm-2026",
+         "signature":"c2lnbmF0dXJl","signerCertSha256":"ab12","tsaToken":"dHNhLXRva2Vu"}
         """
             .formatted(
+                MIDNIGHT.atZone(HCM).toLocalDate().minusDays(1),
                 CELL_SEAL,
-                MIDNIGHT.minus(Duration.ofDays(1)),
+                MIDNIGHT.minus(Duration.ofHours(1)),
                 MIDNIGHT,
-                "11".repeat(32),
-                "22".repeat(32),
-                MIDNIGHT.plusSeconds(5));
+                "11".repeat(32));
     respond(x, 200, body.getBytes(StandardCharsets.UTF_8));
   }
 

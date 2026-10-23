@@ -16,6 +16,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import vn.viettel.okrkpi.appraisal.application.profile.AppraisalProfileService;
 import vn.viettel.okrkpi.appraisal.application.profile.port.AppraisalProfileRepository;
@@ -219,7 +220,7 @@ public class SelfAssessmentService {
    *
    * @param clientHash băm client đã xem trước, lệch với máy chủ thì 409 (chống ký nội dung khác)
    */
-  @Transactional(TX)
+  @Transactional(transactionManager = TX, propagation = Propagation.REQUIRES_NEW)
   public Prepared prepareSubmit(
       TenantId tenant, UUID profileId, long expectedVersion, UUID actor, byte[] clientHash) {
     ProfileRow row = profiles.lock(tenant, profileId).orElseThrow(NoSuchElementException::new);
@@ -262,7 +263,7 @@ public class SelfAssessmentService {
   }
 
   /** Gắn yêu cầu ký SVC-10 vừa mở. */
-  @Transactional(TX)
+  @Transactional(transactionManager = TX, propagation = Propagation.REQUIRES_NEW)
   public void attachSignRequest(TenantId tenant, Prepared prepared, UUID signRequestId) {
     forms.attachSignRequest(
         tenant,
@@ -273,7 +274,7 @@ public class SelfAssessmentService {
   }
 
   /** Mở yêu cầu ký lỗi: bỏ trạng thái chờ ký, dữ liệu đã nhập giữ nguyên (MSG-09-05). */
-  @Transactional(TX)
+  @Transactional(transactionManager = TX, propagation = Propagation.REQUIRES_NEW)
   public void abortSubmit(TenantId tenant, Prepared prepared) {
     forms.clearPending(
         tenant, prepared.periodBucket(), prepared.selfAssessmentId(), clock.instant());

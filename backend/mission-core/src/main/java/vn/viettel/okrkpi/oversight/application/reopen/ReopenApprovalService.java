@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.config.api.PeriodStatus;
@@ -48,6 +49,11 @@ import vn.viettel.okrkpi.shared.kernel.TenantId;
  * định hồ sơ trong phạm vi, nâng lên đơn vị cấp trên khi đơn vị không có người; duyệt, từ chối qua
  * bước lên và ký số; đủ hai phê duyệt thì ghi EVT-22 cùng giao dịch. Mọi lệnh trên một yêu cầu tuần
  * tự hoá bằng {@code SELECT … FOR UPDATE}.
+ *
+ * <p>Quyết định chờ ký được chốt trong giao dịch riêng ({@code committed}, {@code REQUIRES_NEW})
+ * trước khi gọi SVC-10, vì SVC-10 hỏi lại tài liệu cần ký ({@link #signSource}) bằng kết nối khác
+ * ngay trong lời gọi tạo yêu cầu ký, trong khi API còn giữ giao dịch khoá lặp (wiki trang 14, mẫu
+ * "chốt trước, gọi sau").
  */
 public class ReopenApprovalService {
 
@@ -66,6 +72,7 @@ public class ReopenApprovalService {
   private final ReopenEvents events;
   private final OversightAuditLog audit;
   private final PeriodApi periods;
+  private final TransactionOperations committed;
   private final Clock clock;
 
   public ReopenApprovalService(
@@ -76,6 +83,7 @@ public class ReopenApprovalService {
       ReopenEvents events,
       OversightAuditLog audit,
       PeriodApi periods,
+      TransactionOperations committed,
       Clock clock) {
     this.requests = Objects.requireNonNull(requests, "requests");
     this.directory = Objects.requireNonNull(directory, "directory");
@@ -84,6 +92,7 @@ public class ReopenApprovalService {
     this.events = Objects.requireNonNull(events, "events");
     this.audit = Objects.requireNonNull(audit, "audit");
     this.periods = Objects.requireNonNull(periods, "periods");
+    this.committed = Objects.requireNonNull(committed, "committed");
     this.clock = Objects.requireNonNull(clock, "clock");
   }
 
@@ -112,8 +121,10 @@ public class ReopenApprovalService {
    * lượt, đúng người và bốn mắt, rồi mở yêu cầu ký số; {@code reopen_approval} chỉ được ghi khi
    * EVT-18 báo ký xong ({@link #onSigned}). Gửi lại khi quyết định của chính mình đang chờ ký thì
    * trả trạng thái hiện tại.
+   *
+   * <p>Ba bước: chốt quyết định chờ ký (chưa có mã yêu cầu ký) và commit; gọi SVC-10 ngoài mọi giao
+   * dịch ghi; gắn mã yêu cầu ký. SVC-10 lỗi thì gỡ quyết định vừa chốt để người duyệt gửi lại.
    */
-  @Transactional(TX)
   public View decide(
       TenantId tenant,
       Actor actor,
@@ -124,6 +135,26 @@ public class ReopenApprovalService {
       String idempotencyKey,
       String authorization) {
     requireStepUp(actor, approve ? OPERATION_APPROVE : OPERATION_REJECT);
+    Reserved reserved =
+        committed.execute(st -> reserve(tenant, actor, id, ifMatch, approve, comment));
+    if (reserved.current() != null) {
+      return reserved.current();
+    }
+    UUID signRequestId;
+    try {
+      signRequestId = signer.request(tenant, id, idempotencyKey, authorization);
+    } catch (RuntimeException e) {
+      committed.executeWithoutResult(st -> release(tenant, reserved.request()));
+      throw e;
+    }
+    return committed.execute(st -> attach(tenant, reserved.request(), signRequestId));
+  }
+
+  /** Kết quả bước chốt: quyết định vừa chốt, hoặc trạng thái hiện tại khi đã chờ ký từ trước. */
+  private record Reserved(ReopenRequest request, View current) {}
+
+  private Reserved reserve(
+      TenantId tenant, Actor actor, UUID id, String ifMatch, boolean approve, String comment) {
     ReopenRequest r = requests.lock(tenant, id).orElseThrow(NotFoundException::new);
     if (!involved(actor, r)) {
       throw new NotFoundException();
@@ -143,17 +174,20 @@ public class ReopenApprovalService {
     String role = ReopenWorkflow.roleOf(round);
     ReopenWorkflow.Pending pending = r.workflow().pending();
     if (pending != null) {
-      if (pending.approverId().equals(actor.userId()) && pending.round() == round) {
-        return view(tenant, r);
+      boolean mine = pending.approverId().equals(actor.userId()) && pending.round() == round;
+      if (!mine) {
+        throw new BusinessException(
+            "OVERSIGHT-409-INVALID-STATE", "Lượt duyệt này đang chờ hoàn tất chữ ký số.");
       }
-      throw new BusinessException(
-          "OVERSIGHT-409-INVALID-STATE", "Lượt duyệt này đang chờ hoàn tất chữ ký số.");
+      if (pending.signRequestId() != null) {
+        return new Reserved(r, view(tenant, r));
+      }
+      // Lần gửi trước dừng giữa chừng (chưa gắn mã yêu cầu ký): chốt lại theo quyết định mới.
     }
     ReopenWorkflow wf = requireEligible(tenant, actor, r, round, role);
     if (signer == null) {
       throw new SigningUnavailableException();
     }
-    UUID signRequestId = signer.request(tenant, r.id(), idempotencyKey, authorization);
     ReopenWorkflow.Pending p =
         new ReopenWorkflow.Pending(
             round,
@@ -162,12 +196,61 @@ public class ReopenApprovalService {
             approve ? DONG_Y : TU_CHOI,
             comment.strip(),
             AuthzSubjectResolver.normalizeAcr(actor.acr()),
-            signRequestId,
+            null,
             clock.instant());
     ReopenRequest changed =
         r.with(r.status(), r.executedAt(), r.cancelReason(), wf.withPending(p), r.rowVersion() + 1);
     save(tenant, changed, r.rowVersion(), actor.userId());
+    return new Reserved(changed, null);
+  }
+
+  private View attach(TenantId tenant, ReopenRequest reserved, UUID signRequestId) {
+    ReopenRequest r = requests.lock(tenant, reserved.id()).orElseThrow(NotFoundException::new);
+    ReopenWorkflow.Pending p = r.workflow().pending();
+    if (r.rowVersion() != reserved.rowVersion() || p == null || p.signRequestId() != null) {
+      throw new BusinessException(
+          "OVERSIGHT-409-VERSION-CONFLICT", "Yêu cầu đã được người khác cập nhật.");
+    }
+    ReopenWorkflow.Pending signed =
+        new ReopenWorkflow.Pending(
+            p.round(),
+            p.approverId(),
+            p.role(),
+            p.decision(),
+            p.comment(),
+            p.acr(),
+            signRequestId,
+            p.requestedAt());
+    ReopenRequest changed =
+        r.with(
+            r.status(),
+            r.executedAt(),
+            r.cancelReason(),
+            r.workflow().withPending(signed),
+            r.rowVersion() + 1);
+    save(tenant, changed, r.rowVersion(), p.approverId());
     return view(tenant, changed);
+  }
+
+  /** Gỡ quyết định vừa chốt khi SVC-10 không mở được yêu cầu ký; bỏ qua nếu đã đổi. */
+  private void release(TenantId tenant, ReopenRequest reserved) {
+    requests
+        .lock(tenant, reserved.id())
+        .filter(r -> r.rowVersion() == reserved.rowVersion())
+        .filter(r -> r.workflow().pending() != null)
+        .filter(r -> r.workflow().pending().signRequestId() == null)
+        .ifPresent(
+            r ->
+                save(
+                    tenant,
+                    r.with(
+                        r.status(),
+                        r.executedAt(),
+                        r.cancelReason(),
+                        r.workflow().withPending(null),
+                        r.rowVersion() + 1),
+                    r.rowVersion(),
+                    r.workflow().pending().approverId()));
   }
 
   /** Tài liệu cần ký cho SVC-10: quyết định đang chờ, người ký duy nhất là người duyệt. */

@@ -65,6 +65,7 @@ def params_from_env(env: Mapping[str, str]) -> dict[str, str]:
         "kafka_flush_ms": env.get("ANALYTICS_KAFKA_FLUSH_MS", "5000"),
         "topic_core": "cdc." + env.get("ANALYTICS_CORE_DB", "tenant_data"),
         "topic_org": "cdc." + env.get("ANALYTICS_ORG_DB", "org"),
+        "topic_workflow": "cdc." + env.get("ANALYTICS_WORKFLOW_DB", "flowable"),
         "cube_password": env.get("ANALYTICS_CUBE_PASSWORD", ""),
         "anomaly_password": env.get("ANALYTICS_ANOMALY_PASSWORD", ""),
         "dict_password": env.get("ANALYTICS_DICT_PASSWORD", ""),

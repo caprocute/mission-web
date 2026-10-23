@@ -443,7 +443,7 @@ class EsignServiceTest {
     }
   }
 
-  static final class MemoryRequests implements SignRequestRepository {
+  static class MemoryRequests implements SignRequestRepository {
     private final Map<UUID, SignRequest> rows = new HashMap<>();
 
     @Override

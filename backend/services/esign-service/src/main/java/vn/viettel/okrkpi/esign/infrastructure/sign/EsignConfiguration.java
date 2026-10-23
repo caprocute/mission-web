@@ -13,6 +13,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
@@ -48,12 +49,22 @@ public class EsignConfiguration {
       Duration confirmWindow,
       Map<String, String> sources,
       Map<String, ProviderRegistry.TenantProviders> tenants) {
+    @ConstructorBinding
     public EsignProperties {
       providerIds = providerIds == null ? Map.of() : providerIds;
       defaultProvider = defaultProvider == null ? ProviderCode.MYSIGN : defaultProvider;
       confirmWindow = confirmWindow == null ? Duration.ofSeconds(120) : confirmWindow;
       sources = sources == null ? Map.of() : sources;
       tenants = tenants == null ? Map.of() : tenants;
+    }
+
+    /** Không cấu hình nhà cung cấp theo tenant. */
+    public EsignProperties(
+        Map<ProviderCode, String> providerIds,
+        ProviderCode defaultProvider,
+        Duration confirmWindow,
+        Map<String, String> sources) {
+      this(providerIds, defaultProvider, confirmWindow, sources, null);
     }
   }
 

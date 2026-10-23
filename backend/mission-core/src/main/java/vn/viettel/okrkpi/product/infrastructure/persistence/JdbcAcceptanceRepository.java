@@ -47,8 +47,9 @@ public class JdbcAcceptanceRepository implements AcceptanceRepository {
             "INSERT INTO product.acceptance (id, tenant_id, created_by, updated_by, period_id,"
                 + " period_bucket, evidence_version_id, task_id, reviewer_id, decision,"
                 + " quality_level, revision_cause, is_objective_revision, revision_count,"
-                + " decided_at, criteria_results, comment_enc, dek_id) VALUES (?, ?, ?, ?, ?, ?,"
-                + " ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?)")
+                + " decided_at, criteria_results, comment_enc, dek_id, on_behalf_of,"
+                + " delegation_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb,"
+                + " ?, ?, ?, ?)")
         .params(
             a.id(),
             tenant.value(),
@@ -67,7 +68,9 @@ public class JdbcAcceptanceRepository implements AcceptanceRepository {
             Timestamp.from(a.decidedAt()),
             criteriaJson,
             a.comment() == null ? null : a.comment().cipher(),
-            a.comment() == null ? null : a.comment().dekId())
+            a.comment() == null ? null : a.comment().dekId(),
+            a.onBehalfOf(),
+            a.delegationId())
         .update();
   }
 

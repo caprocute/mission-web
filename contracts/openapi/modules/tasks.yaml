@@ -1438,7 +1438,7 @@ paths:
         qt: [QT-05]
         scr: [SCR-0502]
         owner: MOD-02
-        roles: [manager, leader]
+        roles: [manager, leader, ai_readonly]
         scope: Đv
         source: 'Mã frontend WEB-029 (suy luận)'
 
@@ -3503,8 +3503,8 @@ components:
           type: string
           maxLength: 500
           description: >-
-            Tên sản phẩm. Tên chọn theo TL-02 SCR-0402 trường 11 (`product_name`); TL-03 chưa có cột này
-            trong `task.plan_item` và cần bổ sung.
+            Tên sản phẩm theo TL-02 SCR-0402 trường 11, lưu ở `task.plan_item.product_name` (TL-03 bổ sung
+            23/10/2026). Dòng thuộc danh mục lấy tên sản phẩm của mục danh mục.
         quantity: { type: number, minimum: 0 }
         unit: { type: string, maxLength: 50 }
         dueDate:

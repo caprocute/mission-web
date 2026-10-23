@@ -199,7 +199,7 @@
         <artifactId>openapi-generator-maven-plugin</artifactId>
         <version>${openapi-generator.version}</version>
         <executions>
-          <!-- DV-10-01: bốn thao tác ký số của dossiers.yaml (API-first). -->
+          <!-- DV-10-01: bốn thao tác ký số của dossiers.yaml; DV-10-03: signLedgerSeal (API-first). -->
           <execution>
             <id>esign-api</id>
             <goals>
@@ -208,7 +208,7 @@
             <configuration>
               <inputSpec>${contract.dir}/modules/dossiers.yaml</inputSpec>
               <generatorName>spring</generatorName>
-              <openapiNormalizer>FILTER=operationId:createEsignRequest|getEsignRequest|listMyEsignRequests|listMyEsignCertificates</openapiNormalizer>
+              <openapiNormalizer>FILTER=operationId:createEsignRequest|getEsignRequest|listMyEsignRequests|listMyEsignCertificates|signLedgerSeal</openapiNormalizer>
               <apiPackage>vn.viettel.okrkpi.esign.infrastructure.web.api</apiPackage>
               <modelPackage>vn.viettel.okrkpi.esign.infrastructure.web.model</modelPackage>
               <generateSupportingFiles>false</generateSupportingFiles>
@@ -229,6 +229,25 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <!-- DV-10-03: SoftHSM2 đọc cấu hình token từ biến môi trường; kiểm thử ghi tệp này vào target. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <environmentVariables>
+            <SOFTHSM2_CONF>${project.build.directory}/softhsm/softhsm2.conf</SOFTHSM2_CONF>
+          </environmentVariables>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <environmentVariables>
+            <SOFTHSM2_CONF>${project.build.directory}/softhsm/softhsm2.conf</SOFTHSM2_CONF>
+          </environmentVariables>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>com.google.cloud.tools</groupId>

@@ -30,25 +30,37 @@ public interface SignRequestRepository {
    * Khoá một tài liệu chưa ký của lô (DV-10-06); bỏ qua khi worker khác đang giữ hoặc tài liệu đã
    * xong. Khoá giữ tới hết giao dịch, nên hai worker không ký cùng một tài liệu.
    */
-  Optional<PendingItem> lockPendingItem(UUID itemId);
+  default Optional<PendingItem> lockPendingItem(UUID itemId) {
+    throw new UnsupportedOperationException("Kho yêu cầu ký này không hỗ trợ ký lô (DV-10-06)");
+  }
 
   /** Ghi chữ ký của tài liệu trong lô; chỉ ghi khi tài liệu chưa có chữ ký. */
-  boolean itemSigned(
-      UUID itemId, byte[] signature, String objectKey, UUID certificateId, Instant at);
+  default boolean itemSigned(
+      UUID itemId, byte[] signature, String objectKey, UUID certificateId, Instant at) {
+    throw new UnsupportedOperationException("Kho yêu cầu ký này không hỗ trợ ký lô (DV-10-06)");
+  }
 
   /** Lỗi tạm thời: tăng lượt thử và hẹn thử lại. */
-  void itemRetry(UUID itemId, int attempts, Instant nextAttemptAt, String error);
+  default void itemRetry(UUID itemId, int attempts, Instant nextAttemptAt, String error) {
+    throw new UnsupportedOperationException("Kho yêu cầu ký này không hỗ trợ ký lô (DV-10-06)");
+  }
 
   /** Lỗi vĩnh viễn hoặc hết lượt thử: tài liệu {@code LOI}, không làm hỏng cả lô. */
-  void itemFailed(UUID itemId, int attempts, String error);
+  default void itemFailed(UUID itemId, int attempts, String error) {
+    throw new UnsupportedOperationException("Kho yêu cầu ký này không hỗ trợ ký lô (DV-10-06)");
+  }
 
   /** Số tài liệu của lô còn chờ ký. */
-  int pendingItems(UUID requestId);
+  default int pendingItems(UUID requestId) {
+    throw new UnsupportedOperationException("Kho yêu cầu ký này không hỗ trợ ký lô (DV-10-06)");
+  }
 
   /**
    * Phần đầu của yêu cầu ký lô, không nạp danh sách tài liệu (worker ký lô đọc cho mỗi tài liệu).
    */
-  Optional<BatchHeader> batchHeader(UUID requestId);
+  default Optional<BatchHeader> batchHeader(UUID requestId) {
+    throw new UnsupportedOperationException("Kho yêu cầu ký này không hỗ trợ ký lô (DV-10-06)");
+  }
 
   /** Phần đầu của yêu cầu ký lô. */
   record BatchHeader(

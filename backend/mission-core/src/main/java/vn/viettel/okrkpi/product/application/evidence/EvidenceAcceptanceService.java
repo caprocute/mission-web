@@ -118,7 +118,9 @@ public class EvidenceAcceptanceService {
       int revisionCount,
       String comment,
       UUID reviewerId,
-      Instant decidedAt) {}
+      Instant decidedAt,
+      UUID onBehalfOf,
+      UUID delegationId) {}
 
   /** Kết quả quyết định: bản ghi, trạng thái phiên bản, trạng thái nhiệm vụ mới (nếu đổi). */
   public record Decision(
@@ -339,7 +341,9 @@ public class EvidenceAcceptanceService {
             revisionCount,
             criteria,
             sealed,
-            at));
+            at,
+            c.acting().substitute() ? c.acting().onBehalfOf() : null,
+            c.acting().substitute() ? c.acting().delegationId() : null));
     audit.record(
         AuditEvent.builder(
                 AuditEventType.LEGAL_MILESTONE,
@@ -367,7 +371,9 @@ public class EvidenceAcceptanceService {
         revisionCount,
         comment == null || comment.isBlank() ? null : comment,
         actor.personId(),
-        at);
+        at,
+        c.acting().substitute() ? c.acting().onBehalfOf() : null,
+        c.acting().substitute() ? c.acting().delegationId() : null);
   }
 
   private static Decision decision(AcceptanceView view, EvidenceLifecycleService.Result result) {

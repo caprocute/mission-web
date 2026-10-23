@@ -2042,6 +2042,15 @@ components:
           description: Nhận xét nghiệm thu (`comment_enc`); chỉ trả cho người có quyền đọc C2.
           x-classification: C2
         reviewer: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        onBehalfOf:
+          $ref: '../common/common.yaml#/components/schemas/Ref'
+          description: >-
+            Người nghiệm thu được chỉ định khi `reviewer` nghiệm thu thay theo uỷ quyền
+            (`product.acceptance.on_behalf_of`, TL-03 bổ sung 23/10/2026); vắng khi nghiệm thu trực tiếp.
+            Màn hình hiện nhãn "nghiệm thu thay" (SCR-0703, CORE-03-08).
+        delegationId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: Uỷ quyền nghiệm thu thay đã dùng (`product.acceptance.delegation_id`); có khi và chỉ khi có `onBehalfOf`.
         decidedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
       examples:
         - id: 0192a1e5-7081-7ca3-9e4f-5a6b7c8d9e05
