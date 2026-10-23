@@ -101,4 +101,33 @@ class ManifestRuleImportTest {
     assertThat(rules.stream().filter(r -> r.ruleKey().equals("diem"))).hasSize(1);
     assertThat(rule(rules, "diem").expression()).isEqualTo("diem_ket_qua");
   }
+
+  @Test
+  void groupListGoesToFirstGroupRuleReadingMaxScore() {
+    List<Map<String, Object>> groups =
+        List.of(
+            Map.of("ma", "THUONG_XUYEN", "diem_toi_da", 30),
+            Map.of("ma", "THEN_CHOT", "diem_toi_da", 70));
+    Map<String, Object> manifest =
+        Map.of(
+            "params",
+            Map.of("nhom", Map.of("type", "list<Nhom>", "mac_dinh", groups)),
+            "definitions",
+            Map.of(
+                "nhom",
+                Map.of(
+                    "kpi_nhom",
+                    Map.of("expression", "sum(g.ds_kpi)", "result_type", "DECIMAL"),
+                    "diem_nhom",
+                    Map.of(
+                        "expression", "kpi_nhom * double(g.diem_toi_da)",
+                        "result_type", "DECIMAL"),
+                    "diem_nhom_2",
+                    Map.of(
+                        "expression", "double(g.diem_toi_da)",
+                        "result_type", "DECIMAL"))));
+    List<PolicyRule> rules = ManifestRuleImport.rules(version, manifest, json);
+    assertThat(rules.stream().filter(r -> r.paramsJson().contains("THEN_CHOT"))).hasSize(1);
+    assertThat(rule(rules, "kpi_nhom").paramsJson()).isEqualTo("{}");
+  }
 }

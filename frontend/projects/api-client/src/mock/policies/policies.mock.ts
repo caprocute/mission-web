@@ -129,7 +129,13 @@ function rulesFor(slowVar: string, dayKind: string): Omit<PolicyRule, 'id'>[] {
       resultType: 'DECIMAL',
       legalRef: 'PL A3',
       evalOrder: 20,
-      params: { diem_toi_da: { thuong_xuyen: 30, then_chot: 70 } },
+      // Cùng dạng `tham_so.nhom` của manifest: mã nhóm, điểm tối đa, nhóm nhiệm vụ thuộc nhóm.
+      params: {
+        nhom: [
+          { ma: 'thuong_xuyen', diem_toi_da: 30, nhom_nhiem_vu: ['thuong_xuyen'] },
+          { ma: 'then_chot', diem_toi_da: 70, nhom_nhiem_vu: ['then_chot'] },
+        ],
+      },
       overridable: true,
       rowVersion: 2,
     },
@@ -550,9 +556,13 @@ function saveRule(r: MockRequest): MockResponse {
       errors: [{ field: 'params.tru_tien_do', message: msg }],
     } as never);
   }
-  const groups = params['diem_toi_da'] as Record<string, number> | undefined;
+  const list = params['nhom'] as { diem_toi_da?: number }[] | undefined;
+  const groups = Array.isArray(list)
+    ? list.map((g) => Number(g.diem_toi_da || 0))
+    : (params['diem_toi_da'] as Record<string, number> | undefined) &&
+      Object.values(params['diem_toi_da'] as Record<string, number>);
   if (groups) {
-    const total = Object.values(groups).reduce((a, n) => a + Number(n || 0), 0);
+    const total = groups.reduce((a, n) => a + Number(n || 0), 0);
     const want = 100;
     if (total !== want) {
       const msg = `Tổng điểm tối đa các nhóm là ${total}, phải bằng ${want}.`;
@@ -560,7 +570,9 @@ function saveRule(r: MockRequest): MockResponse {
         code: 'POLICY-422-GROUP-SUM',
         msg: 'MSG-15-02',
         detail: msg,
-        errors: [{ field: 'params.diem_toi_da', message: msg }],
+        errors: [
+          { field: Array.isArray(list) ? 'params.nhom' : 'params.diem_toi_da', message: msg },
+        ],
       } as never);
     }
   }
@@ -718,10 +730,12 @@ function evaluate(r: MockRequest): MockResponse {
     } as never);
   }
   // điểm nhóm tính lại theo "Điểm tối đa" đang lưu để xem trước phản ánh tham số vừa sửa
-  const max = (s.rules.find((x) => x.ruleKey === 'nhom')?.params?.['diem_toi_da'] ?? {}) as Record<
-    string,
-    number
-  >;
+  const held = s.rules.find((x) => x.ruleKey === 'nhom')?.params ?? {};
+  const max: Record<string, number> = Array.isArray(held['nhom'])
+    ? Object.fromEntries(
+        (held['nhom'] as { ma: string; diem_toi_da: number }[]).map((g) => [g.ma, g.diem_toi_da]),
+      )
+    : ((held['diem_toi_da'] ?? {}) as Record<string, number>);
   const tasks = e['tasks'] as { kpi_nhiem_vu: number }[];
   const groups = (e['groups'] as { key: string; kpi: number }[]).map((g) => ({
     key: g.key,

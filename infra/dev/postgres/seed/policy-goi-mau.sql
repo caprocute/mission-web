@@ -83,7 +83,7 @@ WHERE v.id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM policy.policy_rule x WHERE 
 INSERT INTO policy.policy_rule (id, tenant_id, created_by, updated_by, policy_pack_version_id, rule_key, expression,
                                 result_type, rounding, legal_ref, eval_order, params_json, overridable)
 SELECT 'd0000000-0000-4000-8000-0000000c2008', 'd0000000-0000-4000-8000-000000000001', '00000000-0000-7000-8000-000000000000', '00000000-0000-7000-8000-000000000000', v.id, $s$diem_nhom$s$, $s$kpi_nhom * double(g.diem_toi_da)$s$,
-       $s$DECIMAL$s$, $s${}$s$::jsonb, $s$PL A3; Bảng chấm điểm; BR-09-03$s$, 80, $s${}$s$::jsonb, false
+       $s$DECIMAL$s$, $s${}$s$::jsonb, $s$PL A3; Bảng chấm điểm; BR-09-03$s$, 80, $s${"nhom": [{"ma": "THUONG_XUYEN", "diem_toi_da": 30, "nhom_nhiem_vu": ["THUONG_XUYEN"]}, {"ma": "THEN_CHOT", "diem_toi_da": 70, "nhom_nhiem_vu": ["THEN_CHOT"]}]}$s$::jsonb, false
 FROM (SELECT (SELECT id FROM policy.policy_pack_version WHERE policy_pack_id = (SELECT id FROM policy.policy_pack WHERE tenant_id = 'd0000000-0000-4000-8000-000000000001' AND code = $s$khoi-dang/quy-dinh-moi$s$) AND version = $s$2.1.0$s$) AS id) v
 WHERE v.id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM policy.policy_rule x WHERE x.policy_pack_version_id = v.id
                                        AND x.rule_key = $s$diem_nhom$s$)
