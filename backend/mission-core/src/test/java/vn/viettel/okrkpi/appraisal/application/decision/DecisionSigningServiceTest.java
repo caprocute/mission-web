@@ -130,6 +130,46 @@ class DecisionSigningServiceTest {
   }
 
   @Test
+  void suKienTungPhieuDenRoiRacThiLoTiepTucNhanToiKhiDuPhieu() {
+    // DV-10-06: SVC-10 phát EVT-18 cho từng phiếu của lô, không theo thứ tự.
+    assertThat(service.onSigned(TENANT, batch.id(), sign, Set.of(hash(r2)), NOW)).isEqualTo(1);
+    verify(batches)
+        .setStatus(eq(TENANT), eq(BUCKET), eq(batch.id()), eq("LOI_MOT_PHAN"), eq(decider), any());
+    verify(notices, never()).batchCompleted(any(), any(), any(), any(), anyInt(), any(Long.class));
+
+    BatchRow partial =
+        new BatchRow(
+            batch.id(),
+            batch.periodId(),
+            batch.periodBucket(),
+            batch.flow(),
+            batch.decisionNo(),
+            batch.decisionDate(),
+            batch.deciderId(),
+            batch.deciderName(),
+            batch.profileCount(),
+            batch.profilesHash(),
+            sign,
+            BatchDecisionService.LOI_MOT_PHAN,
+            3,
+            NOW);
+    when(batches.find(eq(TENANT), eq(batch.id()), any(Boolean.class)))
+        .thenReturn(Optional.of(partial));
+    when(batches.ratings(TENANT, BUCKET, batch.id()))
+        .thenReturn(List.of(r1, new BatchRating(r2.proposalId(), p2, r2.ratingCode(), NOW)));
+
+    // Sự kiện của yêu cầu ký khác khi lô đang LOI_MOT_PHAN bị bỏ qua.
+    assertThat(service.onSigned(TENANT, batch.id(), UUID.randomUUID(), Set.of(hash(r1)), NOW))
+        .isZero();
+    assertThat(service.onSigned(TENANT, batch.id(), sign, Set.of(hash(r1)), NOW)).isEqualTo(1);
+    verify(batches, times(2)).markSigned(eq(TENANT), eq(BUCKET), any(), eq(sign), eq(NOW), any());
+    verify(batches)
+        .setStatus(eq(TENANT), eq(BUCKET), eq(batch.id()), eq("DA_KY"), eq(decider), any());
+    verify(notices)
+        .batchCompleted(eq(TENANT), eq(batch.id()), eq(decider), eq("215-QĐ"), eq(2), eq(3L));
+  }
+
+  @Test
   void suKienLapHoacKhongThuocLoBiBoQua() {
     assertThat(service.onSigned(TENANT, UUID.randomUUID(), sign, Set.of(), NOW)).isZero();
     assertThat(service.onSigned(TENANT, batch.id(), UUID.randomUUID(), Set.of(), NOW)).isZero();

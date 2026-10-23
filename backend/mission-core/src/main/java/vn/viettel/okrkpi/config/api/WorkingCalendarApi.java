@@ -21,8 +21,8 @@ public interface WorkingCalendarApi {
   LocalDate addWorkingDays(TenantId tenantId, LocalDate from, int n);
 
   /**
-   * Số ngày làm việc trong nửa khoảng {@code (fromExclusive, toInclusive]}, bằng 0 khi {@code
-   * fromExclusive >= toInclusive} (khớp {@code ngay_lam_viec(tu_ngay, den_ngay)}).
+   * Số ngày làm việc trong khoảng từ sau {@code fromExclusive} đến hết {@code toInclusive}, bằng 0
+   * khi {@code fromExclusive >= toInclusive} (khớp {@code ngay_lam_viec(tu_ngay, den_ngay)}).
    */
   long countWorkingDays(TenantId tenantId, LocalDate fromExclusive, LocalDate toInclusive);
 

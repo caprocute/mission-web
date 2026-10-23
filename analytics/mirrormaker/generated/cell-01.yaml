@@ -1,0 +1,93 @@
+# Sinh bởi analytics/mirrormaker/sinh_mm2.py (DV-15-11). Không sửa tay; sửa values.yaml rồi chạy lại.
+# Luồng MirrorMaker 2 phân tích quốc gia của cell-01: chỉ họ topic agg.* rời cell, tách khỏi luồng DR (TL-04).
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: mm2-agg-quoc-gia
+  namespace: data-kafka
+  labels:
+    strimzi.io/cluster: kafka-cell
+    app.kubernetes.io/part-of: mission-analytics
+    app.kubernetes.io/component: mm2-phan-tich-quoc-gia
+    mission.vn/cell: cell-01
+spec:
+  authentication:
+    type: tls
+  authorization:
+    type: simple
+    acls:
+    - resource:
+        type: topic
+        name: agg.
+        patternType: prefix
+      operations:
+      - Read
+      - Describe
+      - DescribeConfigs
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaMirrorMaker2
+metadata:
+  name: mm2-agg-cell-01-quoc-gia
+  namespace: data-kafka
+  labels:
+    app.kubernetes.io/part-of: mission-analytics
+    app.kubernetes.io/component: mm2-phan-tich-quoc-gia
+    mission.vn/cell: cell-01
+spec:
+  version: 4.3.1
+  replicas: 1
+  target:
+    alias: quoc-gia
+    bootstrapServers: kafka-quoc-gia.analytics-national.vt.local:9093
+    groupId: mm2-agg-cell-01
+    configStorageTopic: mm2-agg-cell-01.configs
+    offsetStorageTopic: mm2-agg-cell-01.offsets
+    statusStorageTopic: mm2-agg-cell-01.status
+    tls:
+      trustedCertificates:
+      - secretName: kafka-quoc-gia-ca-cert
+        pattern: '*.crt'
+    authentication:
+      type: tls
+      certificateAndKey:
+        secretName: mm2-agg-quoc-gia-dich
+        certificate: user.crt
+        key: user.key
+    config:
+      config.storage.replication.factor: '3'
+      offset.storage.replication.factor: '3'
+      status.storage.replication.factor: '3'
+  mirrors:
+  - source:
+      alias: cell-01
+      bootstrapServers: kafka-cell-kafka-bootstrap.data-kafka.svc:9093
+      tls:
+        trustedCertificates:
+        - secretName: kafka-cell-cluster-ca-cert
+          pattern: '*.crt'
+      authentication:
+        type: tls
+        certificateAndKey:
+          secretName: mm2-agg-quoc-gia
+          certificate: user.crt
+          key: user.key
+    topicsPattern: agg\..*
+    topicsExcludePattern: .*\.(retry|dlq|replay)\..*
+    sourceConnector:
+      tasksMax: 2
+      config:
+        replication.policy.class: org.apache.kafka.connect.mirror.DefaultReplicationPolicy
+        replication.policy.separator: .
+        replication.factor: '3'
+        emit.offset-syncs.enabled: 'false'
+        sync.topic.acls.enabled: 'false'
+        sync.topic.configs.enabled: 'false'
+        refresh.topics.interval.seconds: '60'
+  resources:
+    requests:
+      cpu: 250m
+      memory: 1Gi
+    limits:
+      cpu: '1'
+      memory: 1Gi

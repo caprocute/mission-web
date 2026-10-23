@@ -79,8 +79,15 @@ public class EsignSourceController {
     return g != null && g.anyBlocked(profiles);
   }
 
-  /** Thân phản hồi theo {@code HttpSourceDocumentClient} của SVC-10. */
-  public record Source(boolean ready, Set<UUID> signers, List<Doc> documents) {}
+  /**
+   * Thân phản hồi theo {@code HttpSourceDocumentClient} của SVC-10. {@code batch}: quyết định hàng
+   * loạt, SVC-10 ký lô một lần xác nhận, mỗi phiếu một chữ ký (DV-10-06).
+   */
+  public record Source(boolean ready, Set<UUID> signers, List<Doc> documents, boolean batch) {
+    public Source(boolean ready, Set<UUID> signers, List<Doc> documents) {
+      this(ready, signers, documents, false);
+    }
+  }
 
   /** Một tài liệu, băm hex chữ thường. */
   public record Doc(String kind, String ref, String sha256, String format) {}
@@ -151,7 +158,7 @@ public class EsignSourceController {
     if (s.ready()
         && blocked(s.documents().stream().map(BatchDecisionService.SignDoc::profileId).toList())) {
       // Ký cả lô: một hồ sơ lệch điểm thì cả lô chờ xử lý (runbook doi-soat-diem-anh-chup.md).
-      return ResponseEntity.ok(new Source(false, Set.of(s.signer()), List.of()));
+      return ResponseEntity.ok(new Source(false, Set.of(s.signer()), List.of(), true));
     }
     List<Doc> documents = new ArrayList<>();
     for (BatchDecisionService.SignDoc d : s.documents()) {
@@ -162,6 +169,6 @@ public class EsignSourceController {
               HexFormat.of().formatHex(d.contentHash()),
               DECISION_FORMAT));
     }
-    return ResponseEntity.ok(new Source(s.ready(), Set.of(s.signer()), documents));
+    return ResponseEntity.ok(new Source(s.ready(), Set.of(s.signer()), documents, true));
   }
 }

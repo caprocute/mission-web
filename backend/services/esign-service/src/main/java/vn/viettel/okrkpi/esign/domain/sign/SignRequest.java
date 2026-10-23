@@ -28,6 +28,8 @@ public final class SignRequest {
   private Instant expiresAt;
   private Instant completedAt;
   private UUID certificateRefId;
+  private BatchAuthorization batchAuthorization;
+  private Instant batchAuthorizedAt;
 
   public SignRequest(
       UUID id,
@@ -97,6 +99,55 @@ public final class SignRequest {
   }
 
   /**
+   * Yêu cầu ký lô (DV-10-06): người ký xác nhận một lần theo {@code authorization}, sau đó worker
+   * ký lô ký từng tài liệu. Gọi khi tạo yêu cầu hoặc khi đọc lại từ CSDL.
+   */
+  public SignRequest asBatch(BatchAuthorization authorization, Instant authorizedAt) {
+    this.batchAuthorization = Objects.requireNonNull(authorization, "authorization");
+    this.batchAuthorizedAt = authorizedAt;
+    return this;
+  }
+
+  /** Ký lô một lần xác nhận, mỗi tài liệu một chữ ký do worker ký lô thực hiện. */
+  public boolean batchMode() {
+    return batchAuthorization != null;
+  }
+
+  /** Người ký đã xác nhận cả lô; từ đây worker ký lô ký từng tài liệu, không còn hạn xác nhận. */
+  public boolean batchAuthorized() {
+    return batchAuthorizedAt != null;
+  }
+
+  /** Nhà cung cấp báo người ký đã xác nhận lô. */
+  public void authorizeBatch(Instant now) {
+    require(SignRequestStatus.CHO_XAC_NHAN);
+    if (!batchMode() || providerTxnId == null) {
+      throw new IllegalStateException("Yêu cầu " + id + " không phải phiên ký lô đã mở");
+    }
+    if (batchAuthorizedAt == null) {
+      batchAuthorizedAt = now;
+    }
+  }
+
+  /**
+   * Mọi tài liệu của lô đã xong (đã ký hoặc lỗi): lô {@code DA_KY} khi có ít nhất một chữ ký, danh
+   * sách tài liệu lỗi trả trong {@code problem}; không tài liệu nào ký được thì {@code LOI} (suy
+   * luận).
+   */
+  public void completeBatch(Instant now) {
+    require(SignRequestStatus.CHO_XAC_NHAN);
+    if (!batchAuthorized()) {
+      throw new IllegalStateException("Lô " + id + " chưa được xác nhận");
+    }
+    finish(signedCount() > 0 ? SignRequestStatus.DA_KY : SignRequestStatus.LOI, now);
+  }
+
+  /** Số tài liệu của lô bị lỗi. */
+  public int failedCount() {
+    return (int) items.stream().filter(SignItem::failed).count();
+  }
+
+  /**
    * Yêu cầu đã ghi nhận, chờ worker mở phiên ở nhà cung cấp (DV-10-02): API trả {@code
    * CHO_XAC_NHAN} ngay mà không gọi đồng bộ nhà cung cấp.
    */
@@ -157,7 +208,9 @@ public final class SignRequest {
 
   /** Quá hạn xác nhận; trả {@code true} khi vừa chuyển sang {@code HET_HAN}. */
   public boolean expireIfDue(Instant now) {
-    if (status == SignRequestStatus.CHO_XAC_NHAN && !now.isBefore(expiresAt)) {
+    if (status == SignRequestStatus.CHO_XAC_NHAN
+        && !batchAuthorized()
+        && !now.isBefore(expiresAt)) {
       finish(SignRequestStatus.HET_HAN, now);
       return true;
     }
@@ -246,6 +299,14 @@ public final class SignRequest {
 
   public UUID certificateRefId() {
     return certificateRefId;
+  }
+
+  public BatchAuthorization batchAuthorization() {
+    return batchAuthorization;
+  }
+
+  public Instant batchAuthorizedAt() {
+    return batchAuthorizedAt;
   }
 
   public Instant createdAt() {

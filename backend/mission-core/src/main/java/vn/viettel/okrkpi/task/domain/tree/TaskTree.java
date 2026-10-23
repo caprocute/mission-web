@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * Quy tắc cây phân rã và chế độ phân công (BS-03 DC-04, DC-06). Khuôn phân rã và chế độ đọc từ tham
  * số của Policy Pack; không có tham số thì giữ hành vi cũ: bốn loại nút theo thứ tự chuẩn và chế độ
- * "một chủ trì, nhiều phối hợp".
+ * “một chủ trì, nhiều phối hợp”.
  */
 public final class TaskTree {
 

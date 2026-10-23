@@ -20,7 +20,9 @@ Thư mục này chứa lược đồ kho phân tích `analytics_<cell>` của SV
 | `migrations/V012__ket_qua_then_chot.sql` | Dựng lại nguồn `okr.key_result` với chỉ tiêu, giá trị xuất phát, chiều tốt và thêm `fact_okr_key_result` cho dấu hiệu 3 (DV-15-08) |
 | `migrations/V013__de_nghi_va_tu_dong.sql` | Nguồn `task.task_change_request` (`fact_task_change_request`) cho dấu hiệu 8, bảng lượt chạy `anomaly_run` và cột tự đóng của `anomaly_out` (DV-15-09) |
 | `migrations/V014__lich_su_tien_trinh.sql` | Lịch sử tiến trình Flowable `flowable.act_hi_procinst`, `act_hi_taskinst`, `act_hi_actinst` vào `fact_process_instance`, `fact_process_task`, `fact_process_activity`; bản ghi xoá do job dọn lịch sử không nạp (DV-06-11) |
+| `migrations/V015__tong_hop_quoc_gia.sql` | Job làm mới `agg_*` mỗi giờ về đơn vị cấp tỉnh, khung xuất `v_agg_xuat` che nhóm nhỏ k = 10, mốc `agg_xuat_moc`, vai trò `<db>_agg` của bộ xuất (DV-15-11) |
 | `migrate.py` | Bộ áp migration (chỉ thư viện chuẩn) |
+| `agg_export.py` | Bộ xuất DV-15-11: đọc `v_agg_xuat`, phát Avro `AggregateMetric` lên `agg.province.metric.v1` (MirrorMaker 2 ở `analytics/mirrormaker` đưa sang kho quốc gia) |
 | `phan-loai-ngoai-repo.json` | Phân loại cột của schema chưa có migration trong repo (`appraisal`), chép từ TL-03 |
 | `tests/` | Kiểm tra tĩnh phân loại cột, kiểm thử bộ áp, kiểm thử tích hợp ClickHouse + Kafka |
 
@@ -53,6 +55,17 @@ uv venv .venv && uv pip install --python .venv/bin/python pytest 'testcontainers
 ```
 
 Kiểm thử tích hợp dựng Kafka 3.9 và ClickHouse 25.8 với cấu hình `infra/dev/clickhouse`, áp toàn bộ migration, rồi kiểm tra tạo, sửa, xoá cho cả 21 nguồn (ba nguồn lịch sử tiến trình chỉ kiểm tra tạo và sửa, vì bản ghi xoá bị bỏ qua có chủ đích), việc gắn đơn vị qua từ điển, bản ghi lỗi, độ trễ p99 và phân quyền đọc. Ảnh có thể đổi bằng `CLICKHOUSE_IMAGE`, `KAFKA_IMAGE`.
+
+## Bộ xuất số liệu tổng hợp (DV-15-11)
+
+Bộ xuất chạy một lượt rồi thoát (CronJob, suy luận mỗi 10 phút) bằng tài khoản mang vai trò `<db>_agg`; tài khoản này chỉ đọc được khung xuất và ghi được bảng mốc. Kafka dùng mTLS với tài khoản `analytics` đã có quyền ghi `agg.province.metric.v1` (`deploy/charts/vt-platform/ha-tang/kafka`).
+
+```bash
+export CLICKHOUSE_URL=... ANALYTICS_CELL=dev ANALYTICS_AGG_USER=analytics_dev_agg ANALYTICS_AGG_PASSWORD=...
+export KAFKA_BOOTSTRAP_SERVERS=... KAFKA_SSL_CA_LOCATION=... KAFKA_SSL_CERTIFICATE_LOCATION=... KAFKA_SSL_KEY_LOCATION=...
+export APICURIO_REGISTRY_URL=http://.../apis/registry/v3
+python3 analytics/clickhouse/agg_export.py
+```
 
 ## Việc chờ hạ tầng (INF-11)
 

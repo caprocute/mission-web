@@ -51,6 +51,8 @@ Hướng phụ thuộc trong module là `infrastructure` → `application` → `
 
 Mỗi module khai báo phụ thuộc cho phép trong `package-info.java`, và gói `api` được đánh dấu là interface có tên. Spring Modulith dùng khai báo này để xác minh lúc kiểm thử và để sinh tài liệu kiến trúc.
 
+Bẫy khi viết Javadoc trong mission-core (23/10/2026): `spring-modulith-apt` (kéo theo `spring-modulith-starter-core`) gom Javadoc vào `target/generated-spring-modulith/javadoc.json` của thư mục nơi chạy Maven, và `Documenter` đọc tệp này bằng `BasicJsonParser` của Spring Boot. Bộ đọc đơn giản đó đọc sai, hoặc làm mất khoá, khi Javadoc có dấu ngoặc kép ASCII chứa dấu phẩy, dấu gạch ngược hay ngoặc lệch như khoảng nửa mở `[from, to)`; khi đó `ArchitectureRulesTest` báo `JsonParseException` hoặc `NullPointerException` ở bước sinh tài liệu. Trong Javadoc, dùng ngoặc kép “ ” và diễn đạt khoảng hay ký tự thoát bằng lời. Kiểm thử `javadocDocDuocBangBoDocCuaSpringModulith` so kết quả của bộ đọc đó với Jackson và nêu tên lớp cần viết lại; khi dựng từ gốc `backend` thì tệp không nằm trong `mission-core/target` nên kiểm thử này bỏ qua.
+
 ```java
 // vn/viettel/okrkpi/task/package-info.java
 @org.springframework.modulith.ApplicationModule(

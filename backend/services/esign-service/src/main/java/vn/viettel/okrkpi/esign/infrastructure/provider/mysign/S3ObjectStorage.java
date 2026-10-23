@@ -1,8 +1,13 @@
 package vn.viettel.okrkpi.esign.infrastructure.provider.mysign;
 
+import java.net.URI;
 import java.util.Optional;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import vn.viettel.okrkpi.esign.spi.SignatureProviderException;
@@ -16,6 +21,24 @@ public class S3ObjectStorage implements ObjectStorage {
   public S3ObjectStorage(S3Client s3, String bucket) {
     this.s3 = s3;
     this.bucket = bucket;
+  }
+
+  /** Client S3 (Ceph RGW) theo cấu hình kho của một nhà cung cấp; người gọi đóng client. */
+  public static S3Client client(MySignProperties.Storage storage) {
+    var builder =
+        S3Client.builder()
+            .region(Region.of(storage.region()))
+            .httpClient(UrlConnectionHttpClient.create())
+            .forcePathStyle(true);
+    if (storage.endpoint() != null && !storage.endpoint().isBlank()) {
+      builder.endpointOverride(URI.create(storage.endpoint()));
+    }
+    if (storage.accessKey() != null && !storage.accessKey().isBlank()) {
+      builder.credentialsProvider(
+          StaticCredentialsProvider.create(
+              AwsBasicCredentials.create(storage.accessKey(), storage.secretKey())));
+    }
+    return builder.build();
   }
 
   @Override

@@ -294,6 +294,38 @@ public class ArchitectureRulesTest {
               })
           .allowEmptyShould(true);
 
+  /**
+   * Spring Modulith đọc {@code javadoc.json} (do {@code spring-modulith-apt} sinh) bằng {@code
+   * BasicJsonParser} của Spring Boot. Bộ đọc đơn giản này đọc sai, hoặc bỏ mất khoá, khi Javadoc có
+   * ngoặc kép chứa dấu phẩy, dấu gạch ngược, hay ngoặc lệch như khoảng nửa mở; khi đó Documenter
+   * lỗi khó lần ở bước sinh tài liệu. Kiểm thử so kết quả của bộ đọc đó với Jackson và chỉ thẳng
+   * lớp có Javadoc cần viết lại (dùng ngoặc kép “ ” và diễn đạt khoảng bằng lời).
+   */
+  @Test
+  void javadocDocDuocBangBoDocCuaSpringModulith() throws IOException {
+    // Bộ xử lý chú thích ghi tệp vào thư mục build của nơi chạy Maven; dựng từ gốc backend thì tệp
+    // không nằm ở đây và Documenter cũng không đọc.
+    Path javadoc = Path.of("target/generated-spring-modulith/javadoc.json");
+    org.junit.jupiter.api.Assumptions.assumeTrue(Files.exists(javadoc), "chưa sinh javadoc.json");
+    var parser = new org.springframework.boot.json.BasicJsonParser();
+    var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+    java.util.List<String> broken = new java.util.ArrayList<>();
+    for (Object element : mapper.readValue(javadoc.toFile(), java.util.List.class)) {
+      Object read;
+      try {
+        read = parser.parseList("[" + mapper.writeValueAsString(element) + "]").get(0);
+      } catch (RuntimeException ex) {
+        read = null;
+      }
+      if (!element.equals(read)) {
+        broken.add(String.valueOf(((Map<?, ?>) element).get("name")));
+      }
+    }
+    assertThat(broken)
+        .as("Javadoc mà Spring Modulith đọc sai (ngoặc kép chứa dấu phẩy, gạch ngược, ngoặc lệch)")
+        .isEmpty();
+  }
+
   @Test
   void verifyModulithStructureAndGeneratePlantUmlDocs() {
     ApplicationModules modules = ApplicationModules.of(MissionCoreApplication.class).verify();

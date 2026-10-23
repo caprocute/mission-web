@@ -2,6 +2,7 @@ package vn.viettel.okrkpi.esign.infrastructure.tsa;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Calendar;
@@ -24,6 +25,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import vn.viettel.okrkpi.esign.application.sign.Hashes;
 import vn.viettel.okrkpi.esign.infrastructure.provider.mysign.ObjectStorage;
 import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer;
 
@@ -109,7 +111,16 @@ class ArchiveTimestampRenewalIT {
             "INSERT INTO esign.sign_item (id, tenant_id, sign_request_id, document_kind,"
                 + " document_ref, document_sha256, signature_format, signed_object_key, signed_at)"
                 + " VALUES (?, ?, ?, 'PDF_A', ?, ?, ?, ?, now())")
-        .params(id, tenant, request, key, new byte[32], format, key)
+        // Mỗi tài liệu một băm riêng: một yêu cầu không ký trùng tài liệu
+        // (uq_sign_item__request_sha256).
+        .params(
+            id,
+            tenant,
+            request,
+            key,
+            Hashes.sha256(key.getBytes(StandardCharsets.UTF_8)),
+            format,
+            key)
         .update();
     return id;
   }

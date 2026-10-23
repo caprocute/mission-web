@@ -19,11 +19,20 @@ public interface SourceDocumentPort {
   Optional<SourceDocuments> fetch(
       UUID tenantId, String sourceModule, UUID sourceRefId, SignPurpose purpose);
 
-  /** Bản ghi nguồn: đã sẵn sàng ký chưa, ai là chủ thể ký, các tài liệu kèm băm. */
-  record SourceDocuments(boolean ready, Set<UUID> signers, List<Document> documents) {
+  /**
+   * Bản ghi nguồn: đã sẵn sàng ký chưa, ai là chủ thể ký, các tài liệu kèm băm. {@code batch}: bản
+   * ghi là quyết định hàng loạt ({@code appraisal.batch_decision}, ADR-31), ký lô một lần xác nhận,
+   * mỗi tài liệu một chữ ký (DV-10-06).
+   */
+  record SourceDocuments(
+      boolean ready, Set<UUID> signers, List<Document> documents, boolean batch) {
     public SourceDocuments {
       signers = Set.copyOf(Objects.requireNonNull(signers, "signers"));
       documents = List.copyOf(Objects.requireNonNull(documents, "documents"));
+    }
+
+    public SourceDocuments(boolean ready, Set<UUID> signers, List<Document> documents) {
+      this(ready, signers, documents, false);
     }
   }
 

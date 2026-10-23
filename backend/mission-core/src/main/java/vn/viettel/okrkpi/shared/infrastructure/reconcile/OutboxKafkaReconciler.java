@@ -35,12 +35,12 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
  * <schema>.outbox_event} và ở Kafka, lệch thì phát lại từ outbox.
  *
  * <ul>
- *   <li>Phía outbox đếm theo (tenant, topic) trong cửa sổ {@code [from, to)} của {@code
- *       created_at}, lần lượt từng tenant vì bảng có RLS. Phía Kafka đếm theo topic trên toàn cell
- *       bằng dấu thời gian thông điệp, cửa sổ nới thêm {@code grace} vì Debezium ghi thông điệp sau
- *       khi giao dịch commit (suy luận). Kafka không tách được theo tenant nếu không đọc thông
- *       điệp, nên chỉ coi là lệch khi tổng Kafka của topic nhỏ hơn tổng outbox; Kafka lớn hơn (phát
- *       lại, đếm chồng cửa sổ) không phải lệch.
+ *   <li>Phía outbox đếm theo (tenant, topic) trong cửa sổ từ {@code from} đến trước {@code to} theo
+ *       {@code created_at}, lần lượt từng tenant vì bảng có RLS. Phía Kafka đếm theo topic trên
+ *       toàn cell bằng dấu thời gian thông điệp, cửa sổ nới thêm {@code grace} vì Debezium ghi
+ *       thông điệp sau khi giao dịch commit (suy luận). Kafka không tách được theo tenant nếu không
+ *       đọc thông điệp, nên chỉ coi là lệch khi tổng Kafka của topic nhỏ hơn tổng outbox; Kafka lớn
+ *       hơn (phát lại, đếm chồng cửa sổ) không phải lệch.
  *   <li>Mỗi tenant có sự kiện trong cửa sổ được một dòng {@code reconcile_run} ở schema nguồn, mã
  *       tất định theo (schema, tenant, cửa sổ) nên hai bản sao của job không ghi trùng.
  *   <li>Xử lý: chép lại các dòng outbox của topic lệch trong cửa sổ với {@code created_at} mới, giữ
@@ -104,7 +104,7 @@ public class OutboxKafkaReconciler {
         (JOB + "|" + schema + "|" + tenant + "|" + from).getBytes(StandardCharsets.UTF_8));
   }
 
-  /** Đối soát cửa sổ {@code [from, to)} cho mọi schema và tenant cho trước. */
+  /** Đối soát cửa sổ từ {@code from} đến trước {@code to} cho mọi schema và tenant cho trước. */
   public List<Outcome> run(Instant from, Instant to, List<TenantId> tenants) {
     List<Outcome> out = new ArrayList<>();
     for (OutboxSchema s : schemas) {

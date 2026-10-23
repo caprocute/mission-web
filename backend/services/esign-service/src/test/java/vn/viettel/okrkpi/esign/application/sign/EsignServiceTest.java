@@ -443,7 +443,7 @@ class EsignServiceTest {
     }
   }
 
-  static final class MemoryRequests implements SignRequestRepository {
+  static class MemoryRequests implements SignRequestRepository {
     private final Map<UUID, SignRequest> rows = new HashMap<>();
 
     @Override
@@ -487,6 +487,37 @@ class EsignServiceTest {
     @Override
     public void update(SignRequest request, UUID actor) {
       rows.put(request.id(), request);
+    }
+
+    @Override
+    public Optional<PendingItem> lockPendingItem(UUID itemId) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean itemSigned(
+        UUID itemId, byte[] signature, String objectKey, UUID certificateId, Instant at) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void itemRetry(UUID itemId, int attempts, Instant nextAttemptAt, String error) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void itemFailed(UUID itemId, int attempts, String error) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Optional<BatchHeader> batchHeader(UUID requestId) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int pendingItems(UUID requestId) {
+      throw new UnsupportedOperationException();
     }
   }
 
