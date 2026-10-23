@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"mission/services-go/ledger/internal/config"
+	"mission/services-go/ledger/internal/ingest"
 	"mission/services-go/ledger/internal/partition"
 	"mission/services-go/ledger/internal/server"
 	"vn.viettel.okrkpi/services-go/vtplatform/otel"
@@ -76,13 +77,35 @@ func main() {
 		}
 	}
 
+	ing := ingest.NewIngester(pool, otelProvider, log)
+	if len(os.Args) >= 2 && os.Args[1] == "admin" {
+		os.Exit(runAdmin(ctx, ing, os.Args[2:], log))
+	}
+
 	go partition.RunPeriodic(ctx, pool, cfg.PartitionSyncInterval, log)
+
+	if len(cfg.KafkaBrokers) > 0 {
+		consumer, err := ingest.NewConsumer(cfg.KafkaBrokers, cfg.KafkaTopic, cfg.KafkaGroupID, ing, log)
+		if err != nil {
+			log.Error("không tạo được consumer ledger-ingester", "err", err.Error())
+			os.Exit(1)
+		}
+		defer consumer.Close()
+		go func() {
+			if err := consumer.Run(ctx); err != nil {
+				log.Error("consumer ledger-ingester dừng", "err", err.Error())
+			}
+		}()
+	} else {
+		log.Warn("chưa đặt KAFKA_BROKERS, ledger-ingester không chạy")
+	}
 
 	srv := server.New(server.Deps{
 		Pool:         pool,
 		ReadOnlyPool: roPool,
 		Log:          log,
 		OTel:         otelProvider,
+		Stats:        ing.Stats,
 	})
 
 	httpSrv := &http.Server{

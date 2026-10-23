@@ -21,6 +21,8 @@ type Deps struct {
 	ReadOnlyPool *pgxpool.Pool
 	Log          *slog.Logger
 	OTel         *otel.Provider
+	// Stats là số liệu luồng ghi (độ trễ p99, bản ghi/giây theo chuỗi); tuỳ chọn.
+	Stats func() map[string]float64
 }
 
 // Server quản lý các tuyến HTTP của SVC-09.
@@ -86,7 +88,7 @@ func (s *Server) handleReadyz(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	metrics := map[string]int64{}
+	metrics := map[string]any{}
 	if s.deps.OTel != nil {
 		for _, name := range []string{
 			"http.server.requests",
@@ -97,6 +99,11 @@ func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 			"ledger.ingest.incidents_total",
 		} {
 			metrics[name] = s.deps.OTel.CounterValue(name)
+		}
+	}
+	if s.deps.Stats != nil {
+		for k, v := range s.deps.Stats() {
+			metrics[k] = v
 		}
 	}
 	_ = json.NewEncoder(w).Encode(metrics)
