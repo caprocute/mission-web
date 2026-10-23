@@ -3612,7 +3612,7 @@ Job niêm phong dựng cây, ký, lấy dấu thời gian TSA trước, rồi m�
 | `occurred_at`, `recorded_at` | `timestamptz` | Không | | C1 | Thời điểm xảy ra, thời điểm ghi |
 | `payload_hash` | `bytea` | Không | | C1 | Băm payload (payload đầy đủ không lưu ở đây, nằm ở module nguồn hoặc kho lưu trữ sự kiện) |
 | `metadata` | `jsonb` | Không | | C1 | Siêu dữ liệu rút gọn, không chứa C2 |
-| `metadata_hash`, `prev_hash`, `entry_hash` | `bytea` | Không | | C1 | Chuỗi băm |
+| `metadata_hash`, `prev_hash`, `entry_hash` | `bytea` | Không | | C1 | Chuỗi băm; `metadata_hash` gồm cả băm `metadata_sha256` của cột `metadata` |
 
 Không có cột nào được cập nhật sau khi chèn. Ước tính 720 triệu dòng mỗi năm ở CELL-HCM, khoảng 420 byte mỗi dòng kể cả chỉ mục, tức khoảng 300 GB mỗi năm trước khi lưu trữ.
 
@@ -4100,7 +4100,7 @@ Mỗi bản ghi tính:
 
 `entry_hash = SHA-256(prev_hash || payload_hash || metadata_hash)`
 
-trong đó `payload_hash` là SHA-256 của payload sự kiện ở dạng chuẩn hoá JCS (RFC 8785, mọi chuỗi chuẩn hoá Unicode NFC trước khi băm để chữ tiếng Việt dựng sẵn và tổ hợp cho cùng một băm), `metadata_hash` là SHA-256 của siêu dữ liệu chuẩn hoá (tenant, chuỗi, số thứ tự, loại sự kiện, mã đối tượng, chủ thể, thời điểm xảy ra, thời điểm ghi), và `prev_hash` là `entry_hash` của bản ghi liền trước trong cùng chuỗi. Đưa số thứ tự và thời điểm vào `metadata_hash` ngăn việc đổi chỗ hai bản ghi hoặc sửa thời điểm mà không phá chuỗi.
+trong đó `payload_hash` là SHA-256 của payload sự kiện ở dạng chuẩn hoá JCS (RFC 8785, mọi chuỗi chuẩn hoá Unicode NFC trước khi băm để chữ tiếng Việt dựng sẵn và tổ hợp cho cùng một băm), `metadata_hash` là SHA-256 của siêu dữ liệu chuẩn hoá (tenant, chuỗi, số thứ tự, loại sự kiện, mã đối tượng, chủ thể, thời điểm xảy ra, thời điểm ghi, và `metadata_sha256` là SHA-256 hex chữ thường của cột `metadata` chuẩn hoá theo cùng quy tắc JCS và NFC), và `prev_hash` là `entry_hash` của bản ghi liền trước trong cùng chuỗi. Đưa số thứ tự và thời điểm vào `metadata_hash` ngăn việc đổi chỗ hai bản ghi hoặc sửa thời điểm mà không phá chuỗi. Đưa băm của cột `metadata` vào `metadata_hash` làm cho việc sửa trạng thái trước, sau trong cột này cũng phá chuỗi; vì chỉ băm chứ không chép nguyên văn, gói bằng chứng xuất cho cơ quan kiểm tra vẫn tính lại được chuỗi của bản ghi ngoài phạm vi mà không phải mang metadata của chúng (bổ sung 23/10/2026, xem Phụ lục).
 
 Mỗi tenant có 64 chuỗi độc lập, chọn bằng `hash(aggregate_id) mod 64` (hàm băm là 64 bit thấp của SHA-256, cố định để tính lại được ở mọi ngôn ngữ). Chia chuỗi có ba lợi ích: ghi song song tới 64 luồng mỗi tenant; lịch sử của một đối tượng nằm gọn trong một chuỗi; và kiểm tra lại một chuỗi không cần đọc cả 63 chuỗi kia. Bản ghi đầu của một chuỗi mới có `prev_hash` là 32 byte 0. Khi tenant được chuyển sang cell khác, chuỗi ở cell đích không bắt đầu lại mà nối tiếp: `chain_head` ở cell đích được khởi tạo bằng `entry_hash` cuối của cell nguồn, và bản ghi đầu tiên ở cell đích có loại `TENANT_MOVED_IN` mang mã niêm phong cuối cùng của cell nguồn (thống nhất với TL-01).
 
@@ -4738,6 +4738,7 @@ Bảng dưới liệt kê những gì đã được thêm. Cột "Lý do" giải
 | `notify` | `push_device`, `channel_pref_meta`, `bulk_job` | Thông báo đẩy, gửi hàng loạt | Đã chốt |
 | `flowable` | `wf_task_batch`, `wf_holiday_calendar`, schema `org_replica` trong CSDL của workflow-service | Duyệt hàng loạt, phân giải cấp duyệt | Theo mã; consumer đổ dữ liệu chưa có |
 | `ledger` | `chain_head.is_locked`, `locked_reason` | Khoá chuỗi khi chuyển cell | Theo mã |
+| `ledger` | Trường `metadata_sha256` trong siêu dữ liệu chuẩn hoá của `metadata_hash` (không thêm cột): SHA-256 hex chữ thường của cột `metadata` chuẩn hoá JCS và NFC | Bản 1.0 không băm cột `metadata`, nên sửa trạng thái trước, sau không bị kiểm tra toàn vẹn hay `ledger-verify` phát hiện; gói bằng chứng mang `metadataSha256` cho mọi bản ghi | Đã chốt 23/10/2026 (người phụ trách chọn), đã hiện thực ở ledger-service; chuỗi ghi theo công thức cũ phải ghi lại |
 | `esign` | Mở rộng `sign_request.purpose` với `KHIEU_NAI` | Ký quyết định giải quyết khiếu nại | Đã chốt |
 
 ## Đồng bộ dữ liệu và kho phân tích {-}
