@@ -1,11 +1,15 @@
 package vn.viettel.okrkpi.integ.infrastructure.config;
 
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.apache.camel.RoutesBuilder;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,8 +23,11 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.integ.application.DeadLetterService;
 import vn.viettel.okrkpi.integ.application.InboundConnector;
 import vn.viettel.okrkpi.integ.application.InboundPipeline;
+import vn.viettel.okrkpi.integ.application.IndicatorSource;
 import vn.viettel.okrkpi.integ.application.IssuedDocumentSearch;
 import vn.viettel.okrkpi.integ.application.IssuedDocumentSource;
+import vn.viettel.okrkpi.integ.application.KrSourceValueService;
+import vn.viettel.okrkpi.integ.application.MappingCommands;
 import vn.viettel.okrkpi.integ.application.MappingXrefService;
 import vn.viettel.okrkpi.integ.application.OutboundBinding;
 import vn.viettel.okrkpi.integ.application.OutboundPipeline;
@@ -47,6 +54,7 @@ import vn.viettel.okrkpi.integ.infrastructure.camel.PollingConnectorRoute;
 import vn.viettel.okrkpi.integ.infrastructure.camel.RouteSettings;
 import vn.viettel.okrkpi.integ.infrastructure.crypto.FieldEncryptorPayloadCipher;
 import vn.viettel.okrkpi.integ.infrastructure.events.OutboxCanonicalEventSink;
+import vn.viettel.okrkpi.integ.infrastructure.hrm.HrmConfiguration.HrmBeans;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcConnectors;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcDeadLetters;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcInboxMessages;
@@ -148,16 +156,75 @@ public class IntegConfiguration {
 
   @Bean
   Translators integTranslators(
-      ObjectProvider<InboundConnector> connectors, ObjectProvider<VOfficeBeans> voffice) {
-    return new Translators(inboundConnectors(connectors, voffice), Map.of());
+      ObjectProvider<InboundConnector> connectors,
+      ObjectProvider<VOfficeBeans> voffice,
+      ObjectProvider<HrmBeans> hrm) {
+    return new Translators(inboundConnectors(connectors, voffice, hrm), Map.of());
   }
 
-  /** Bộ kết nối vào khai báo thẳng là bean cộng với các bộ kiểu vOffice dựng theo danh sách mã. */
+  /**
+   * Bộ kết nối vào khai báo thẳng là bean cộng với các bộ kiểu vOffice dựng theo danh sách mã và
+   * các bộ HRM dựng theo hồ sơ (DV-13-08).
+   */
   static List<InboundConnector> inboundConnectors(
-      ObjectProvider<InboundConnector> connectors, ObjectProvider<VOfficeBeans> voffice) {
+      ObjectProvider<InboundConnector> connectors,
+      ObjectProvider<VOfficeBeans> voffice,
+      ObjectProvider<HrmBeans> hrm) {
     List<InboundConnector> all = new ArrayList<>(connectors.orderedStream().toList());
     voffice.ifAvailable(v -> all.addAll(v.connectors()));
+    hrm.ifAvailable(h -> all.addAll(h.connectors()));
     return all;
+  }
+
+  /** Luồng ảo cho lời gọi nguồn số liệu, để bộ giới hạn thời gian ngắt được lời gọi chậm. */
+  @Bean(destroyMethod = "shutdownNow")
+  ExecutorService integSourceExecutor() {
+    return Executors.newVirtualThreadPerTaskExecutor();
+  }
+
+  /** Số liệu nguồn của KR (DV-13-08): cắt ở thời hạn, ngắt mạch theo tenant và kết nối. */
+  @Bean
+  KrSourceValueService integKrSourceValueService(
+      Connectors connectors,
+      MappingXrefs xrefs,
+      ObjectProvider<IndicatorSource> sources,
+      ObjectProvider<HrmBeans> hrm,
+      TransactionTemplate integTransactions,
+      ObjectProvider<Clock> clock,
+      ExecutorService integSourceExecutor,
+      @Value("${okrkpi.integ.kr-source.timeout:PT2.5S}") Duration timeout,
+      @Value("${okrkpi.integ.kr-source.breaker-open:PT30S}") Duration open) {
+    List<IndicatorSource> all = new ArrayList<>(sources.orderedStream().toList());
+    hrm.ifAvailable(h -> all.addAll(h.indicators()));
+    CircuitBreakerRegistry breakers =
+        CircuitBreakerRegistry.of(
+            CircuitBreakerConfig.custom()
+                .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
+                .slidingWindowSize(10)
+                .minimumNumberOfCalls(5)
+                .failureRateThreshold(50)
+                .waitDurationInOpenState(open)
+                .permittedNumberOfCallsInHalfOpenState(1)
+                .build());
+    return new KrSourceValueService(
+        connectors,
+        xrefs,
+        all,
+        integTransactions,
+        clock.getIfAvailable(Clock::systemUTC),
+        timeout,
+        breakers,
+        integSourceExecutor);
+  }
+
+  @Bean
+  MappingCommands integMappingCommands(
+      Connectors connectors,
+      MappingXrefService mappings,
+      TransactionTemplate integTransactions,
+      ObjectProvider<Clock> clock) {
+    return new MappingCommands(
+        connectors, mappings, integTransactions, clock.getIfAvailable(Clock::systemUTC));
   }
 
   @Bean
@@ -273,11 +340,12 @@ public class IntegConfiguration {
       RouteSettings settings,
       ObjectProvider<InboundConnector> connectors,
       ObjectProvider<VOfficeBeans> voffice,
+      ObjectProvider<HrmBeans> hrm,
       PullService pulls,
       InboundPipeline pipeline,
       InboxIdempotentRepository idempotent) {
     return new CompositeRoutes(
-        inboundConnectors(connectors, voffice).stream()
+        inboundConnectors(connectors, voffice, hrm).stream()
             .map(source -> new PollingConnectorRoute(settings, source, pulls, pipeline, idempotent))
             .toList());
   }

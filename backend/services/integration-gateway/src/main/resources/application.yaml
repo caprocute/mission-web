@@ -104,6 +104,19 @@ okrkpi:
       codes: ${INTEG_VOFFICE_CODES:VOFFICE}
       period: ${INTEG_VOFFICE_PERIOD:PT30S}
       request-timeout: ${INTEG_VOFFICE_TIMEOUT:PT5S}
+    # DV-13-08: số liệu nguồn cho KR (MOD-01 trả trong 3 giây nên gateway cắt sớm hơn).
+    kr-source:
+      timeout: ${INTEG_KR_SOURCE_TIMEOUT:PT2.5S}
+      breaker-open: ${INTEG_KR_SOURCE_BREAKER_OPEN:PT30S}
+    # DV-13-08: HRM, ERP, HIS, quản lý trường học. Hồ sơ theo mã kết nối (connectors.<MÃ>: rest |
+    # batch, indicator, fields, values) khai báo ở giá trị triển khai, mẫu ở application-dev.yaml.
+    hrm:
+      enabled: ${INTEG_HRM_ENABLED:true}
+      org:
+        base-url: ${ORG_SERVICE_URL:}
+        token-url: ${INTEG_TOKEN_URL:}
+        client-id: ${INTEG_CLIENT_ID:integration-gateway}
+        client-secret: ${INTEG_CLIENT_SECRET:}
     route:
       max-redeliveries: ${INTEG_MAX_REDELIVERIES:5}
       redelivery-delay: ${INTEG_REDELIVERY_DELAY:PT2S}

@@ -1,0 +1,189 @@
+package vn.viettel.okrkpi.integ.infrastructure.hrm;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import vn.viettel.okrkpi.integ.application.CanonicalEvent;
+import vn.viettel.okrkpi.integ.application.TranslationContext;
+import vn.viettel.okrkpi.integ.application.TranslationRejectedException;
+import vn.viettel.okrkpi.integ.application.Translator;
+import vn.viettel.okrkpi.integ.application.port.PersonnelSink;
+import vn.viettel.okrkpi.integ.domain.EntityType;
+import vn.viettel.okrkpi.integ.domain.InboundMessage;
+import vn.viettel.okrkpi.integ.infrastructure.hrm.BatchFiles.FormatException;
+import vn.viettel.okrkpi.integ.infrastructure.hrm.BatchFiles.Table;
+import vn.viettel.okrkpi.integ.infrastructure.hrm.HrmProperties.Profile;
+import vn.viettel.okrkpi.integ.infrastructure.hrm.PersonRows.Input;
+import vn.viettel.okrkpi.integ.infrastructure.hrm.PersonRows.Result;
+
+/**
+ * Translator nhân sự HRM (DV-13-08): đọc trang REST hoặc tệp lô, kiểm cấu trúc và từng dòng, quy
+ * đổi đơn vị ({@code DON_VI}), chức danh ({@code CHUC_DANH}), người đã ánh xạ ({@code NHAN_SU}) qua
+ * {@code mapping_xref}, rồi chuyển cả lô cho org-service dưới một lần chạy suy ra từ mã thông điệp
+ * (phát lại thư chết dùng lại đúng lần chạy). Tệp sai cấu trúc, có dòng lỗi hay mã chưa ánh xạ thì
+ * cả tệp bị từ chối vào thư chết kèm số dòng, không chuyển nửa tệp. Không phát sự kiện outbox:
+ * org-service phát EVT-15, EVT-16 sau khi khớp người.
+ */
+class HrmPersonTranslator implements Translator {
+
+  static final String BAD_STRUCTURE = "SAI_CAU_TRUC";
+  static final String BAD_ROWS = "DONG_LOI";
+  static final String UNMAPPED = "CHUA_ANH_XA";
+  static final int DETAIL_MAX = 900;
+
+  private final String code;
+  private final PersonRows rows;
+  private final PersonnelSink sink;
+  private final ObjectMapper json;
+  private final int batchSize;
+
+  HrmPersonTranslator(String code, Profile profile, PersonnelSink sink, ObjectMapper json) {
+    this.code = Objects.requireNonNull(code, "code");
+    this.rows = new PersonRows(profile);
+    this.sink = Objects.requireNonNull(sink, "sink");
+    this.json = Objects.requireNonNull(json, "json");
+    this.batchSize = profile.batchSize();
+  }
+
+  @Override
+  public List<CanonicalEvent> translate(TranslationContext ctx, InboundMessage message) {
+    List<Input> inputs = inputs(message);
+    Result result = rows.map(inputs);
+    if (!result.errors().isEmpty()) {
+      throw new TranslationRejectedException(
+          BAD_ROWS,
+          "Có "
+              + result.errors().size()
+              + " dòng lỗi: "
+              + PersonRows.describe(result.errors(), DETAIL_MAX));
+    }
+    Map<Integer, List<String>> unmapped = new LinkedHashMap<>();
+    List<PersonnelSink.Person> persons = new ArrayList<>();
+    for (PersonRows.Row r : result.rows()) {
+      List<String> missing = new ArrayList<>();
+      UUID unit = resolve(ctx, EntityType.DON_VI, r.orgUnit(), "đơn vị", missing);
+      UUID title = resolve(ctx, EntityType.CHUC_DANH, r.jobTitle(), "chức danh", missing);
+      if (!missing.isEmpty()) {
+        unmapped.put(r.line(), missing);
+        continue;
+      }
+      List<PersonnelSink.Post> posts =
+          unit == null || title == null
+              ? List.of()
+              : List.of(new PersonnelSink.Post(unit, title, r.kind(), r.head(), r.effectiveFrom()));
+      UUID mapped =
+          ctx.mappings()
+              .resolve(
+                  ctx.tenant(),
+                  ctx.connector().id(),
+                  EntityType.NHAN_SU,
+                  r.externalId(),
+                  ctx.today())
+              .orElse(null);
+      persons.add(
+          new PersonnelSink.Person(
+              r.externalId(),
+              mapped,
+              r.fullName(),
+              r.nationalId(),
+              r.birthDate(),
+              r.employmentStatus(),
+              r.partyMember(),
+              posts,
+              r.effectiveFrom()));
+    }
+    if (!unmapped.isEmpty()) {
+      throw new TranslationRejectedException(
+          UNMAPPED,
+          "Có "
+              + unmapped.size()
+              + " dòng chưa ánh xạ mã: "
+              + PersonRows.describe(unmapped, DETAIL_MAX));
+    }
+    if (!persons.isEmpty()) {
+      UUID run = runId(ctx, message);
+      // Một lần chạy cho cả thông điệp, chia lô để thân yêu cầu không quá lớn.
+      for (int from = 0; from < persons.size(); from += batchSize) {
+        List<PersonnelSink.Person> part =
+            persons.subList(from, Math.min(persons.size(), from + batchSize));
+        sink.forward(ctx.tenant(), code, run, part);
+      }
+    }
+    return List.of();
+  }
+
+  /** Mã lần chạy ổn định theo tenant, kết nối và thông điệp. */
+  static UUID runId(TranslationContext ctx, InboundMessage message) {
+    return UUID.nameUUIDFromBytes(
+        (ctx.tenant().value() + "|" + ctx.connector().id() + "|" + message.externalMsgId())
+            .getBytes(StandardCharsets.UTF_8));
+  }
+
+  private static UUID resolve(
+      TranslationContext ctx,
+      EntityType type,
+      String external,
+      String label,
+      List<String> missing) {
+    if (external == null) {
+      return null;
+    }
+    Optional<UUID> id =
+        ctx.mappings().resolve(ctx.tenant(), ctx.connector().id(), type, external, ctx.today());
+    if (id.isEmpty()) {
+      missing.add(label + " " + external);
+      return null;
+    }
+    return id.get();
+  }
+
+  private List<Input> inputs(InboundMessage message) {
+    byte[] raw = message.raw();
+    try {
+      return switch (message.messageType()) {
+        case BatchFiles.TYPE_JSON -> fromJson(raw);
+        case BatchFiles.TYPE_CSV -> fromTable(BatchFiles.csv(raw));
+        case BatchFiles.TYPE_XLSX -> fromTable(BatchFiles.xlsx(raw));
+        case BatchFiles.TYPE_OVERSIZE ->
+            throw new FormatException("Tệp vượt dung lượng cho phép của kết nối");
+        default -> throw new FormatException("Loại tệp không hỗ trợ");
+      };
+    } catch (FormatException e) {
+      throw new TranslationRejectedException(BAD_STRUCTURE, e.getMessage());
+    }
+  }
+
+  private List<Input> fromTable(Table table) throws FormatException {
+    List<String> missing = rows.missingColumns(table.header());
+    if (!missing.isEmpty()) {
+      throw new FormatException("Thiếu cột: " + String.join(", ", missing));
+    }
+    return table.rows().stream().map(rows::fromTable).toList();
+  }
+
+  private List<Input> fromJson(byte[] raw) throws FormatException {
+    JsonNode items;
+    try {
+      items = json.readTree(raw);
+    } catch (IOException e) {
+      throw new FormatException("Trang nhân sự không phải JSON");
+    }
+    if (items == null || !items.isArray()) {
+      throw new FormatException("Trang nhân sự không phải danh sách");
+    }
+    List<Input> out = new ArrayList<>();
+    int i = 0;
+    for (JsonNode item : items) {
+      out.add(rows.fromJson(++i, item));
+    }
+    return out;
+  }
+}
