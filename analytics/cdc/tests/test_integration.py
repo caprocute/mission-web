@@ -279,3 +279,74 @@ def test_cdc_messages_carry_no_c2_and_tenant_salted_person_keys(stack: dict[str,
         assert k["id"] == v["id"] and len(bytes.fromhex(v["id"])) == 32  # khoá Kafka cũng không mang mã người rõ
     assert keys[TENANT_A][1]["id"] != keys[TENANT_B][1]["id"]
     assert keys[TENANT_A][1]["id"] == ha  # cùng người, cùng tenant: cùng mã giả danh ở mọi bảng
+
+
+def test_completed_process_history_reaches_topic(stack: dict[str, Any]) -> None:
+    """DV-06-11: CSDL flowable dựng bằng đúng migration của workflow-service (V1..V7, phân loại cột ở V7); một tiến
+    trình đã kết thúc ghi vào ACT_HI_* như engine làm tới topic cdc.flowable.flowable.act_hi_* trong 60 s, không mang
+    người xử lý hay văn bản tự do."""
+    import psycopg
+
+    admin = stack["dsn"].rsplit("/", 1)[0]
+    with psycopg.connect(stack["dsn"], autocommit=True) as c:
+        c.execute("CREATE DATABASE flowable")
+    dsn = admin + "/flowable"
+    mig = gen.MIGRATIONS["flowable"][0] / "flowable"
+    with psycopg.connect(dsn, autocommit=True) as c:
+        c.execute("CREATE SCHEMA flowable")
+        c.execute("CREATE TABLE public.debezium_heartbeat (slot_name text PRIMARY KEY, beat_at timestamptz NOT NULL)")
+        for f in sorted(mig.glob("V*.sql"), key=lambda x: int(x.name[1:].split("__")[0])):
+            c.execute(f.read_text().replace("${flyway:defaultSchema}", "flowable"))
+        c.execute("GRANT USAGE ON SCHEMA flowable TO cdc_analytics")
+        c.execute("GRANT SELECT ON flowable.act_hi_procinst, flowable.act_hi_taskinst, flowable.act_hi_actinst "
+                  "TO cdc_analytics")
+        c.execute("GRANT INSERT, UPDATE ON public.debezium_heartbeat TO cdc_analytics")
+    wanted = gen.wanted_tables()["flowable"]
+    p = gen.plan("flowable", wanted, gen.tables_from_database(dsn, wanted))
+    assert {"flowable.act_hi_procinst.start_user_id_", "flowable.act_hi_taskinst.assignee_",
+            "flowable.act_hi_taskinst.description_", "flowable.act_hi_procinst.delete_reason_"} <= set(p.excluded)
+    assert not p.pseudonymized
+    with psycopg.connect(dsn, autocommit=True) as c:
+        c.execute(gen.publication_sql(p))
+    cfg = gen.connector_config(p)
+    assert cfg["transforms"] == "unwrap" and not any(k.startswith("transforms.pseudo.") for k in cfg)
+    status, body = _http("POST", stack["connect"] + "/connectors", {"name": "cdc-flowable", "config": cfg})
+    assert status == 201, body
+
+    pid, tid, aid = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
+    t0 = time.monotonic()
+    with psycopg.connect(dsn, autocommit=True) as c:
+        deadline = time.monotonic() + 90
+        while not c.execute("SELECT 1 FROM pg_replication_slots WHERE slot_name = 'dbz_cdc_flowable' "
+                            "AND active").fetchone():
+            assert time.monotonic() < deadline, _http("GET", stack["connect"] + "/connectors/cdc-flowable/status")
+            time.sleep(1)
+        t0 = time.monotonic()
+        c.execute("""INSERT INTO flowable.act_hi_procinst (id_, rev_, proc_inst_id_, business_key_, proc_def_id_,
+                         start_time_, start_user_id_, start_act_id_, tenant_id_, name_)
+                     VALUES (%s, 1, %s, %s, 'giao-nhiem-vu:3:abc', now() - interval '1 hour', %s, 'batDau', %s,
+                             'Giao nhiệm vụ cho Nguyễn Văn A')""", (pid, pid, f"TASK:{uuid.uuid4()}", PERSON, TENANT_A))
+        c.execute("""INSERT INTO flowable.act_hi_taskinst (id_, rev_, proc_def_id_, task_def_key_, proc_inst_id_,
+                         name_, assignee_, description_, start_time_, priority_, tenant_id_)
+                     VALUES (%s, 1, 'giao-nhiem-vu:3:abc', 'nghiemThu', %s, 'Nghiệm thu', %s, 'ghi chú riêng',
+                             now() - interval '1 hour', 50, %s)""", (tid, pid, PERSON, TENANT_A))
+        c.execute("""INSERT INTO flowable.act_hi_actinst (id_, rev_, proc_def_id_, proc_inst_id_, execution_id_,
+                         act_id_, task_id_, act_type_, assignee_, start_time_, tenant_id_)
+                     VALUES (%s, 1, 'giao-nhiem-vu:3:abc', %s, %s, 'nghiemThu', %s, 'userTask', %s,
+                             now() - interval '1 hour', %s)""", (aid, pid, pid, tid, PERSON, TENANT_A))
+        c.execute("UPDATE flowable.act_hi_taskinst SET end_time_ = now(), duration_ = 3600000, completed_by_ = %s "
+                  "WHERE id_ = %s", (PERSON, tid))
+        c.execute("UPDATE flowable.act_hi_actinst SET end_time_ = now(), duration_ = 3600000 WHERE id_ = %s", (aid,))
+        c.execute("UPDATE flowable.act_hi_procinst SET end_time_ = now(), duration_ = 3600000, end_act_id_ = "
+                  "'ketThuc' WHERE id_ = %s", (pid,))
+    topics = [f"cdc.flowable.flowable.{t}" for t in ("act_hi_procinst", "act_hi_taskinst", "act_hi_actinst")]
+    msgs = _consume(stack["bootstrap"], topics, want=6, timeout=60)
+    took = time.monotonic() - t0
+    print(f"\nDV-06-11 lịch sử tiến trình tới topic sau {took:.1f}s")
+    assert took <= 60 and len(msgs) == 6, msgs
+    ended = next(v for _, v in msgs if v["id_"] == pid and v["__op"] == "u")
+    assert ended["end_time_"] and ended["end_act_id_"] == "ketThuc" and isinstance(ended["start_time_"], int)
+    assert ended["tenant_id_"] == TENANT_A
+    for _, v in msgs:
+        assert not {"start_user_id_", "assignee_", "completed_by_", "description_", "delete_reason_"} & set(v), v
+        assert PERSON not in json.dumps(v) and "Nguyễn" not in json.dumps(v) and "ghi chú" not in json.dumps(v)
