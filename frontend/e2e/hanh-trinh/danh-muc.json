@@ -535,8 +535,8 @@
       ],
       "caPhuDinh": ["Người lập lệnh không tự duyệt lệnh của mình"],
       "cheDoCaoTuoi": true,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "ghiChu": "Giả lập: kho coi mọi thao tác là của một người, nên ca phủ định chạy trên lệnh vừa lập, còn duyệt và khởi chạy dùng kỳ giả lập do người khác lập, duyệt. Hệ thống thật: chạy trọn trên kỳ tháng riêng của lần chạy; thời gian saga ghi vào báo cáo.",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-24",
@@ -545,8 +545,8 @@
       "nenTang": "web",
       "qt": ["QT-08"],
       "scr": ["SCR-0801"],
-      "tacNhan": ["AC-02", "AC-09"],
-      "taiKhoan": ["quantri", "duyet2"],
+      "tacNhan": ["AC-02", "AC-04", "AC-09"],
+      "taiKhoan": ["quantri", "lanhdao", "duyet2"],
       "operationIds": ["requestPeriodLockCancel", "approvePeriodLockCancel", "getPeriod"],
       "suKien": ["EVT-26"],
       "trangThaiCuoi": [
@@ -557,8 +557,8 @@
       ],
       "caPhuDinh": ["Sau bước ký lô giao diện chỉ cho thử lại, không cho huỷ"],
       "cheDoCaoTuoi": false,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "ghiChu": "Tài khoản lanhdao (AC-04) tham gia để duyệt lệnh trước khi khởi chạy trên hệ thống thật. Giả lập: duyệt huỷ trên đề nghị huỷ có sẵn do người khác gửi.",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-25",
@@ -584,8 +584,8 @@
       ],
       "caPhuDinh": [],
       "cheDoCaoTuoi": true,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "ghiChu": "Chế độ cao tuổi rút gọn bước: phiếu tự lưu, không có nút Lưu nháp.",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-26",
@@ -593,9 +593,9 @@
       "boKiemThu": "QA-06",
       "nenTang": "web",
       "qt": ["QT-09"],
-      "scr": ["SCR-0902"],
-      "tacNhan": ["AC-07"],
-      "taiKhoan": ["thamdinh"],
+      "scr": ["SCR-0902", "SCR-0903"],
+      "tacNhan": ["AC-07", "AC-05"],
+      "taiKhoan": ["thamdinh", "quanly"],
       "operationIds": [
         "listAppraisalProfiles",
         "getAppraisalProfile",
@@ -611,8 +611,8 @@
       ],
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "ghiChu": "Theo ma trận 15a: AC-07 thẩm định (SCR-0902), AC-05 quản lý trực tiếp ghi mức đề xuất (SCR-0903.de-xuat), không phải AC-07.",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-27",
@@ -639,8 +639,8 @@
       ],
       "caPhuDinh": ["Người đã thẩm định không được quyết định cùng hồ sơ"],
       "cheDoCaoTuoi": false,
-      "ghiChu": "Server dev dùng bộ ký giả lập của esign-service.",
-      "trangThai": "chua_viet"
+      "ghiChu": "Server dev dùng bộ ký giả lập của esign-service. Ca phủ định: giao diện chặn tuyến quyết định với người thẩm định; máy chủ từ chối người đã thẩm định quyết định cùng hồ sơ (chỉ kiểm trên hệ thống thật).",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-28",
@@ -657,7 +657,7 @@
       "caPhuDinh": [],
       "cheDoCaoTuoi": true,
       "ghiChu": "Bốn kỳ quý dựng bằng dữ liệu khởi tạo.",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-29",
@@ -678,7 +678,7 @@
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-30",

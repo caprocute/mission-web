@@ -14,9 +14,9 @@
 
 - **Tổng tiến độ đã gộp `main`**: **360 / 408 task (88.2%)** — Khối lượng quy đổi đã gộp: **426.5 / 492.5 đơn vị**.
 - **Tổng tiến độ tính cả các task đã xong chờ gộp**: **360 / 408 task (88.2%)** (gồm **360** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **11 task** (7 đang làm, 4 làm một phần).
+- **Đang thực hiện / Làm một phần**: **11 task** (6 đang làm, 5 làm một phần).
 - **Chưa bắt đầu**: **37 task**.
-- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: `QA-06`).
+- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
 
@@ -51,7 +51,7 @@
 
 Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 
-✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → ✅ `CORE-00-01` → ✅ `CORE-00-02` → ✅ `CORE-05-01` → ✅ `CORE-05-02` → ✅ `CORE-05-03` → ✅ `CORE-08-13` → ✅ `CORE-08-14` → ✅ `CORE-04-04` → ✅ `CORE-04-05` → ✅ `CORE-04-07` → ✅ `CORE-04-08` → ✅ `CORE-04-10` → 🔄 **`QA-06`** (Đang làm) → ⏳ `QA-07` → ⏳ `QA-16` → ⏳ `VH-08`
+✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → ✅ `CORE-00-01` → ✅ `CORE-00-02` → ✅ `CORE-05-01` → ✅ `CORE-05-02` → ✅ `CORE-05-03` → ✅ `CORE-08-13` → ✅ `CORE-08-14` → ✅ `CORE-04-04` → ✅ `CORE-04-05` → ✅ `CORE-04-07` → ✅ `CORE-04-08` → ✅ `CORE-04-10` → 🔄 **`QA-06`** (Làm một phần) → ⏳ `QA-07` → ⏳ `QA-16` → ⏳ `VH-08`
 
 ---
 
@@ -584,7 +584,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [QA-03](docs/tasks/QA-03-e2e-he-thong-that.md) | Bộ kiểm thử đầu cuối với hệ thống thật trên server dev (backend thật, Keycloak, APISIX) | M | B9 | 11 | INF-22, QA-01 | **Làm một phần** | Nhánh claude/project-thread-n43ag0: khung he-thong, lớp hỗ trợ, HT-17 mẫu đã đẩy; bộ giả lập 932 ca xanh; lần chạy thật chờ JWT mission-core (B1), seed hồ sơ (B9), kafka-ui, Remote Control |
 | [QA-04](docs/tasks/QA-04-hanh-trinh-okr.md) | Hành trình đầu cuối: đăng nhập, khởi tạo tenant, tổ chức, OKR, check-in | M | B9 | 14 | QA-03, CORE-01-08, DV-03-05 | **Làm một phần** | Nhánh claude/project-thread-n43ag0: HT-01..HT-09 ở qt00-03, giả lập 10 đạt 2 chờ (HT-04 VNeID, HT-17 chỉ he-thong), he-thong ghi chờ khi thiếu biến; lần chạy thật chờ INF-22 |
 | [QA-05](docs/tasks/QA-05-hanh-trinh-giao-viec.md) | Hành trình đầu cuối: kế hoạch, giao việc, tiến độ, minh chứng, nghiệm thu | L | B9 | 20 | QA-03, CORE-03-07, CORE-02-22 | **Chưa bắt đầu** |  |
-| [QA-06](docs/tasks/QA-06-hanh-trinh-danh-gia.md) | Hành trình đầu cuối: khoá kỳ, tự đánh giá, thẩm định, quyết định ký số, xếp loại năm | L | B9 | 21 | QA-05, DV-06-06, CORE-04-10 | **Đang làm** | Nhánh claude/project-thread-n43ag0: hành trình QT-08..QT-10, giả lập và he-thong |
+| [QA-06](docs/tasks/QA-06-hanh-trinh-danh-gia.md) | Hành trình đầu cuối: khoá kỳ, tự đánh giá, thẩm định, quyết định ký số, xếp loại năm | L | B9 | 21 | QA-05, DV-06-06, CORE-04-10 | **Làm một phần** | Nhánh claude/project-thread-n43ag0: HT-23..29 ở qt08-10, giả lập 7/7 đạt hai lần; he-thong 7 Chờ vì chưa đặt biến môi trường, chưa chạy trên dev |
 | [QA-07](docs/tasks/QA-07-hanh-trinh-giam-sat.md) | Hành trình đầu cuối: kiểm điểm, hồ sơ số, khiếu nại, mở lại kỳ, cảnh báo, Policy Pack, bảng điều hành, AI, UI Pack | L | B9 | 23 | QA-06, CORE-06-08, CORE-07-11, DV-15-06 | **Chưa bắt đầu** |  |
 | [QA-08](docs/tasks/QA-08-k6-perf-01-10.md) | Kịch bản k6 PERF-01..PERF-10 | L | B9 | 14 | QA-03, DL-08 | **Chưa bắt đầu** |  |
 | [QA-09](docs/tasks/QA-09-gatling-luong-flowable.md) | Kịch bản góp ý G2: PERF-11..PERF-13 (Gatling cho Flowable) | M | B9 | 15 | QA-08, DV-06-04 | **Chưa bắt đầu** |  |
@@ -1011,4 +1011,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 11:42 | B2 backend | `QA-04` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-n43ag0: hành trình QT-00..QT-03, giả lập và he-thong |
 | 23/10/2026 12:07 | B2 backend | `QA-04` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/project-thread-n43ag0: HT-01..HT-09 ở qt00-03, giả lập 10 đạt 2 chờ (HT-04 VNeID, HT-17 chỉ he-thong), he-thong ghi chờ khi thiếu biến; lần chạy thật chờ INF-22 |
 | 23/10/2026 12:09 | B2 backend | `QA-06` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-n43ag0: hành trình QT-08..QT-10, giả lập và he-thong |
+| 23/10/2026 12:52 | B2 backend | `QA-06` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/project-thread-n43ag0: HT-23..29 ở qt08-10, giả lập 7/7 đạt hai lần; he-thong 7 Chờ vì chưa đặt biến môi trường, chưa chạy trên dev |
 <!-- PROGRESS_LOG_END -->
