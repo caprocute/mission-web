@@ -70,7 +70,7 @@ Dòng tiêu đề cột: AC-01 `platform_admin`, AC-02 `tenant_admin`, AC-03 `po
 | SCR-0103 | Xem cây tổ chức hiện tại và tại một ngày trong quá khứ `xem` | - | R/Tn | - | - | - | - | R/Cd* | - | - | R/Tn* | - | - |  |
 | SCR-0103 | Nhập cây tổ chức từ Excel `nhap-excel` | - | X/Tn | - | - | - | - | - | - | - | - | - | - |  |
 | SCR-0103 | Thay đổi tổ chức (thành lập, sáp nhập, chia tách, giải thể) và sửa đơn vị `thay-doi` | - | X/Tn | - | - | - | - | - | - | - | - | - | - | BR-01-06 (không ghi đè lịch sử) |
-| SCR-0103 | Thay khoá phục hồi của tổ chức, ghi biên bản khôi phục khi mất khoá `khoa-phuc-hoi` | - | X/Tn* | - | - | - | - | - | - | - | - | - | - | MFA (AAL2); Shamir 3 trên 5, mảnh khoá giao trực tiếp theo biên bản (SEC-25) |
+| SCR-0103 | Thay khoá phục hồi của tổ chức, ghi biên bản khôi phục và nạp khoá bọc cho thiết bị mới khi mất khoá `khoa-phuc-hoi` | - | X/Tn* | - | - | - | - | - | - | - | - | - | - | MFA (AAL2); Shamir 3 trên 5, mảnh khoá giao trực tiếp theo biên bản (SEC-25) |
 
 #### QT-12. Khiếu nại, giải trình
 

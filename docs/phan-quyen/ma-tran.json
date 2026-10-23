@@ -715,7 +715,7 @@
    "qt": "QT-01",
    "scr": "SCR-0103",
    "key": "SCR-0103.khoa-phuc-hoi",
-   "ten": "Thay khoá phục hồi của tổ chức, ghi biên bản khôi phục khi mất khoá",
+   "ten": "Thay khoá phục hồi của tổ chức, ghi biên bản khôi phục và nạp khoá bọc cho thiết bị mới khi mất khoá",
    "web": true,
    "quyen": {
     "AC-01": "-",
@@ -731,7 +731,7 @@
     "AC-11": "-",
     "AC-12": "-"
    },
-   "api": "`POST /api/v1/org/e2ee/recovery-keys`, `POST /api/v1/org/e2ee/recoveries`",
+   "api": "`POST /api/v1/org/e2ee/recovery-keys`, `POST /api/v1/org/e2ee/recoveries`, `POST /api/v1/tasks/{id}/secret-content/recovery-wraps`, `POST /api/v1/evidences/{id}/versions/{v}/recovery-wraps`",
    "rang_buoc": "MFA (AAL2); Shamir 3 trên 5, mảnh khoá giao trực tiếp theo biên bản (SEC-25)",
    "nguon": "TL-01 \"Khôi phục khi mất khoá\"; TL-04 SEC-25; `org.yaml` (bổ sung CORE-07-06)",
    "ghi_chu": "Bổ sung cùng CORE-07-06; TL-02 chưa có màn hình riêng, tạm gắn SCR-0103 như hợp đồng."

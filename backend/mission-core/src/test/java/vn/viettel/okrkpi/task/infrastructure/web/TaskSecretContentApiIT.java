@@ -1,6 +1,8 @@
 package vn.viettel.okrkpi.task.infrastructure.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -43,6 +45,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -52,11 +55,13 @@ import vn.viettel.okrkpi.MissionCoreApplication;
 import vn.viettel.okrkpi.MissionCoreTestDatabase;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
+import vn.viettel.okrkpi.product.application.e2ee.port.EvidenceKeyWraps;
 import vn.viettel.okrkpi.product.application.e2ee.port.EvidenceKeyWraps.NewWrap;
 import vn.viettel.okrkpi.product.application.e2ee.port.EvidenceKeyWraps.StoredWrap;
 import vn.viettel.okrkpi.product.infrastructure.persistence.JdbcEvidenceKeyWraps;
 import vn.viettel.okrkpi.shared.audit.AuditEvent;
 import vn.viettel.okrkpi.shared.audit.AuditLogger;
+import vn.viettel.okrkpi.shared.infrastructure.e2ee.OrgRecoveryKeyClient;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 import vn.viettel.okrkpi.task.domain.lifecycle.TaskActor;
@@ -112,6 +117,9 @@ class TaskSecretContentApiIT extends ContractConformanceTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper json;
+
+  /** SVC-04 giả: biên bản khôi phục cho {@code restoreTaskSecretKeyWrap}. */
+  @MockitoBean private OrgRecoveryKeyClient org;
 
   @Autowired
   @Qualifier("taskDataSource") private DataSource taskDataSource;
@@ -326,6 +334,83 @@ class TaskSecretContentApiIT extends ContractConformanceTest {
   }
 
   @Test
+  void napKhoaBocKhoiPhucChoThietBiMoiTheoBienBan() throws Exception {
+    UUID task = task(true);
+    as(LEAD);
+    byte[] plaintext = "Chỉ đạo mật cần khôi phục".getBytes(StandardCharsets.UTF_8);
+    Encrypted v0 = encrypt(task, 0, plaintext);
+    assertThat(
+            status(
+                save(
+                    task,
+                    "\"0\"",
+                    v0,
+                    List.of(wrap(LEAD, chuTri, v0), wrap(RECOVERY, phucHoi, v0)))))
+        .isEqualTo(200);
+
+    // Người chủ trì mất khoá thiết bị; buổi khôi phục dựng lại khoá phục hồi, mở khoá nội dung từ
+    // bản bọc phục hồi và bọc lại cho khoá thiết bị mới. Biên bản ghi ở SVC-04.
+    Device moi = Device.generate();
+    byte[] cek =
+        inTask(
+            jdbc -> {
+              Map<String, Object> r =
+                  jdbc.sql(
+                          "SELECT ephemeral_pub, wrapped_cek FROM task.e2ee_key_wrap WHERE"
+                              + " object_id = ? AND recipient_person_id = ?")
+                      .params(task, RECOVERY)
+                      .query()
+                      .singleRow();
+              try {
+                return E2eeTestClient.unwrap(
+                    phucHoi, (byte[]) r.get("ephemeral_pub"), (byte[]) r.get("wrapped_cek"));
+              } catch (java.security.GeneralSecurityException e) {
+                throw new IllegalStateException(e);
+              }
+            });
+    UUID ok = UUID.randomUUID();
+    UUID stale = UUID.randomUUID();
+    UUID forOutsider = UUID.randomUUID();
+    Instant now = Instant.now();
+    when(org.recovery(any(), any())).thenReturn(Optional.empty());
+    when(org.recovery(tenant, ok))
+        .thenReturn(
+            Optional.of(
+                new OrgRecoveryKeyClient.Recovery(
+                    ok, "TASK_CONTENT", task, LEAD, moi.deviceId(), now)));
+    when(org.recovery(tenant, stale))
+        .thenReturn(
+            Optional.of(
+                new OrgRecoveryKeyClient.Recovery(
+                    stale,
+                    "TASK_CONTENT",
+                    task,
+                    LEAD,
+                    moi.deviceId(),
+                    now.minus(java.time.Duration.ofHours(25)))));
+    when(org.recovery(tenant, forOutsider))
+        .thenReturn(
+            Optional.of(
+                new OrgRecoveryKeyClient.Recovery(
+                    forOutsider, "TASK_CONTENT", task, OUTSIDER, ngoai.deviceId(), now)));
+
+    TestTaskCallers.current = new TaskActor(ASSIGNER, Set.of("tenant_admin"));
+    MvcResult restored = perform(restore(task, ok, wrapCek(LEAD, moi, cek)));
+    assertThat(restored.getResponse().getStatus()).isEqualTo(200);
+    assertThat(body(restored).get("rowVersion").asInt()).isZero();
+    assertThat(status(restore(task, ok, wrapCek(LEAD, moi, cek)))).isEqualTo(200);
+    assertThat(status(restore(task, ok, wrapCek(LEAD, ngoai, cek)))).isEqualTo(422);
+    assertThat(status(restore(task, stale, wrapCek(LEAD, moi, cek)))).isEqualTo(422);
+    assertThat(status(restore(task, UUID.randomUUID(), wrapCek(LEAD, moi, cek)))).isEqualTo(422);
+    assertThat(status(restore(task, ok, wrapCek(RECOVERY, phucHoi, cek)))).isEqualTo(422);
+    assertThat(status(restore(task, forOutsider, wrapCek(OUTSIDER, ngoai, cek)))).isEqualTo(403);
+
+    as(LEAD);
+    assertThat(open(perform(get("/api/v1/tasks/" + task + "/secret-content")), moi, task, 0))
+        .isEqualTo(plaintext);
+  }
+
+  @Test
   void nhiemVuKhongMatKhongLuuNoiDungMat() throws Exception {
     UUID task = task(false);
     as(LEAD);
@@ -377,6 +462,47 @@ class TaskSecretContentApiIT extends ContractConformanceTest {
                 new TransactionTemplate(productTm)
                     .execute(s -> store.activeFor(other, version, LEAD)));
     assertThat(leaked).isEmpty();
+
+    // Cổng nội bộ cho SVC-08: tệp gắn phiên bản có bản bọc, chỉ người giữ bản bọc mở được bản mã.
+    UUID object = UUID.randomUUID();
+    inProductRun(
+        () -> {
+          JdbcClient c = JdbcClient.create(productDataSource);
+          for (String t : List.of("deliverable", "evidence", "evidence_version")) {
+            c.sql("SELECT product.fn_create_period_partitions(?::regclass, ?)")
+                .params("product." + t, BUCKET)
+                .query()
+                .listOfRows();
+          }
+          UUID task = UUID.randomUUID();
+          UUID deliverable = UUID.randomUUID();
+          UUID evidence = UUID.randomUUID();
+          c.sql(
+                  "INSERT INTO product.deliverable (id, created_by, updated_by, period_id,"
+                      + " period_bucket, task_id, name, deliverable_type, unit, quantity_planned)"
+                      + " VALUES (?, ?, ?, ?, ?, ?, 'Báo cáo', 'BAO_CAO', 'Báo cáo', 1)")
+              .params(deliverable, ASSIGNER, ASSIGNER, period, BUCKET, task)
+              .update();
+          c.sql(
+                  "INSERT INTO product.evidence (id, created_by, updated_by, period_id,"
+                      + " period_bucket, deliverable_id, task_id, title, source_type) VALUES (?, ?,"
+                      + " ?, ?, ?, ?, ?, 'Báo cáo mật', 'TAI_LEN')")
+              .params(evidence, ASSIGNER, ASSIGNER, period, BUCKET, deliverable, task)
+              .update();
+          // Phiên bản nháp trỏ thẳng tệp bản mã (nhánh evidence_version.object_id của cổng).
+          c.sql(
+                  "INSERT INTO product.evidence_version (id, created_by, updated_by, period_id,"
+                      + " period_bucket, evidence_id, task_id, version_no, source, object_id)"
+                      + " VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'TAI_LEN', ?)")
+              .params(version, ASSIGNER, ASSIGNER, period, BUCKET, evidence, task, object)
+              .update();
+        });
+    assertThat(inProduct(() -> store.fileAccess(tenant, object, LEAD)))
+        .isEqualTo(new EvidenceKeyWraps.FileAccess(true, true));
+    assertThat(inProduct(() -> store.fileAccess(tenant, object, ACCEPTOR)))
+        .isEqualTo(new EvidenceKeyWraps.FileAccess(true, false));
+    assertThat(inProduct(() -> store.fileAccess(tenant, UUID.randomUUID(), LEAD)))
+        .isEqualTo(new EvidenceKeyWraps.FileAccess(false, false));
   }
 
   private static void as(UUID person) {
@@ -450,6 +576,14 @@ class TaskSecretContentApiIT extends ContractConformanceTest {
         .header("Idempotency-Key", UUID.randomUUID().toString())
         .contentType(MediaType.APPLICATION_JSON)
         .content(json.writeValueAsString(Map.of("keyWraps", wraps)));
+  }
+
+  private MockHttpServletRequestBuilder restore(
+      UUID task, UUID recoveryId, Map<String, Object> wrap) throws Exception {
+    return post("/api/v1/tasks/" + task + "/secret-content/recovery-wraps")
+        .header("Idempotency-Key", UUID.randomUUID().toString())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json.writeValueAsString(Map.of("recoveryId", recoveryId, "keyWrap", wrap)));
   }
 
   private MockHttpServletRequestBuilder revoke(UUID task, UUID person) {

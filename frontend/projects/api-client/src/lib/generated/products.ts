@@ -280,6 +280,30 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/evidences/{id}/versions/{v}/recovery-wraps': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+        /** @description Số phiên bản minh chứng (`product.evidence_version.version_no`), bắt đầu từ 1. */
+        v: components['parameters']['VersionNo'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Nạp khoá bọc E2EE của người nhận sau khi khôi phục bằng khoá phục hồi tổ chức
+     * @description Sau buổi khôi phục khi người nhận mất khoá thiết bị (TL-01 "Khôi phục khi mất khoá"), quản trị tenant đã ghi biên bản bằng `recordE2eeRecovery` của SVC-04 và bọc lại khoá của tệp C3 cho khoá mới của người đó. Máy chủ đối chiếu biên bản `recoveryId` qua SVC-04: `objectType` là `EVIDENCE_FILE`, `objectId` là mã phiên bản minh chứng, `newRecipientId` khớp `keyWrap.recipientId`, biên bản ghi trong 24 giờ; sai trả 422. Bản bọc mới thay bản bọc cũ của người đó trên phiên bản; người nhận phải đang có hoặc từng có bản bọc.
+     */
+    post: operations['restoreEvidenceKeyWrap'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/files/uploads': {
     parameters: {
       query?: never;
@@ -997,6 +1021,10 @@ export interface components {
       engineVersion?: string;
       scannedAt?: components['schemas']['DateTime'];
     };
+    EvidenceRecoveryWrapRequest: {
+      recoveryId: components['schemas']['Uuid'];
+      keyWrap: components['schemas']['EvidenceKeyWrap'];
+    };
     EvidenceKeyWrapBatchInput: {
       keyWraps: components['schemas']['EvidenceKeyWrap'][];
     };
@@ -1153,6 +1181,16 @@ export interface components {
     /** @description Thiếu header `If-Match` cho thao tác cập nhật (RFC 6585). */
     PreconditionRequired: {
       headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/problem+json': components['schemas']['ProblemDetails'];
+      };
+    };
+    /** @description Cắt tải khi cell gần bão hoà; thử lại có giãn cách. */
+    ServiceUnavailable: {
+      headers: {
+        'Retry-After': components['headers']['RetryAfter'];
         [name: string]: unknown;
       };
       content: {
@@ -1928,6 +1966,43 @@ export interface operations {
       404: components['responses']['NotFound'];
       409: components['responses']['Conflict'];
       422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  restoreEvidenceKeyWrap: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+        /** @description Số phiên bản minh chứng (`product.evidence_version.version_no`), bắt đầu từ 1. */
+        v: components['parameters']['VersionNo'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['EvidenceRecoveryWrapRequest'];
+      };
+    };
+    responses: {
+      /** @description Phiên bản minh chứng sau khi nạp khoá bọc khôi phục. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['EvidenceVersion'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      422: components['responses']['UnprocessableEntity'];
+      503: components['responses']['ServiceUnavailable'];
       default: components['responses']['Problem'];
     };
   };

@@ -446,6 +446,11 @@ public class OrgController implements OrgApi {
     return ResponseEntity.ok(body);
   }
 
+  @Override
+  public ResponseEntity<RecoveryRecord> getE2eeRecovery(UUID id) {
+    return ResponseEntity.ok(E2eeWebMapper.toDto(recovery.recovery(actor(), id)));
+  }
+
   private Actor actor() {
     Object actor = request.getAttribute(ActorFilter.ATTRIBUTE);
     if (actor == null) {

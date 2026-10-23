@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.task.application.secret;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -8,6 +9,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -25,7 +27,9 @@ import vn.viettel.okrkpi.shared.kernel.ActorId;
 import vn.viettel.okrkpi.shared.kernel.Classification;
 import vn.viettel.okrkpi.shared.kernel.Ids;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
+import vn.viettel.okrkpi.shared.resilience.DependencyUnavailableException;
 import vn.viettel.okrkpi.task.application.secret.port.RecoveryKeys;
+import vn.viettel.okrkpi.task.application.secret.port.RecoveryRecords;
 import vn.viettel.okrkpi.task.application.secret.port.TaskSecretContents;
 import vn.viettel.okrkpi.task.application.secret.port.TaskSecretContents.Content;
 import vn.viettel.okrkpi.task.application.secret.port.TaskSecretContents.TaskFacts;
@@ -62,16 +66,32 @@ public class TaskSecretContentService {
   static final String AUDIT_SHARE = "CHIA_SE_KHOA_NOI_DUNG_MAT";
   static final String AUDIT_REVOKE = "THU_HOI_KHOA_NOI_DUNG_MAT";
   static final Set<String> REVOKER_ROLES = Set.of("manager", "leader");
+  static final String AUDIT_RESTORE = "KHOI_PHUC_KHOA_NOI_DUNG_MAT";
+  static final String RECOVERY_OBJECT_TYPE = "TASK_CONTENT";
+
+  /** Biên bản khôi phục chỉ dùng để nạp khoá bọc trong 24 giờ kể từ lúc ghi (suy luận). */
+  static final Duration RECOVERY_WINDOW = Duration.ofHours(24);
 
   private final TaskSecretContents store;
   private final RecoveryKeys recovery;
+  private final RecoveryRecords recoveries;
   private final AuditLogger audit;
   private final Clock clock;
 
   public TaskSecretContentService(
       TaskSecretContents store, RecoveryKeys recovery, AuditLogger audit, Clock clock) {
+    this(store, recovery, TaskSecretContentService::noRecoveries, audit, clock);
+  }
+
+  public TaskSecretContentService(
+      TaskSecretContents store,
+      RecoveryKeys recovery,
+      RecoveryRecords recoveries,
+      AuditLogger audit,
+      Clock clock) {
     this.store = Objects.requireNonNull(store, "store");
     this.recovery = Objects.requireNonNull(recovery, "recovery");
+    this.recoveries = Objects.requireNonNull(recoveries, "recoveries");
     this.audit = Objects.requireNonNull(audit, "audit");
     this.clock = Objects.requireNonNull(clock, "clock");
   }
@@ -293,6 +313,78 @@ public class TaskSecretContentService {
       trail(
           tenant, actor, AUDIT_REVOKE, taskId, AuditEventType.PERMISSION_CHANGE, List.of(personId));
     }
+  }
+
+  /**
+   * Nạp khoá bọc cho khoá thiết bị mới của người nhận sau buổi khôi phục (TL-01 "Khôi phục khi mất
+   * khoá"): quản trị tenant đã ghi biên bản ở SVC-04; biên bản phải đúng nhiệm vụ, người nhận, vân
+   * tay khoá mới và ghi trong {@link #RECOVERY_WINDOW}. Không đổi phiên bản nội dung; nạp lại cùng
+   * biên bản ghi đè cùng bản bọc.
+   */
+  @Transactional(TX)
+  public Meta restore(
+      TenantId tenant, UUID taskId, UUID recoveryId, WrapInput input, TaskActor actor) {
+    TaskFacts task = store.task(tenant, taskId).orElseThrow(NoSuchElementException::new);
+    Content content =
+        store
+            .content(tenant, task.periodBucket(), taskId, true)
+            .orElseThrow(NoSuchElementException::new);
+    RecoveryKey key = recovery.of(tenant).orElse(null);
+    KeyWrap wrap;
+    try {
+      if (recoveryId == null) {
+        throw new Violation("recoveryId", "Thiếu biên bản khôi phục");
+      }
+      if (input == null) {
+        throw new Violation("keyWrap", "Thiếu khoá đã bọc");
+      }
+      wrap = parse(List.of(input), actor).get(0);
+      if (key != null && key.covers(wrap)) {
+        throw new Violation(
+            "keyWrap.deviceId", "Không nạp khoá phục hồi của tổ chức qua khôi phục");
+      }
+      RecoveryRecords.Recovery r =
+          recoveries
+              .find(tenant, recoveryId)
+              .orElseThrow(() -> new Violation("recoveryId", "Không có biên bản khôi phục này"));
+      Instant now = clock.instant();
+      if (!RECOVERY_OBJECT_TYPE.equals(r.objectType())
+          || !taskId.equals(r.objectId())
+          || !wrap.recipientId().equals(r.newRecipientId())
+          || !wrap.deviceId().equals(r.newKeyFingerprint())) {
+        throw new Violation(
+            "recoveryId", "Biên bản khôi phục không khớp nhiệm vụ, người nhận hoặc khoá mới");
+      }
+      if (r.recordedAt().isBefore(now.minus(RECOVERY_WINDOW))) {
+        throw new Violation("recoveryId", "Biên bản khôi phục đã quá 24 giờ");
+      }
+    } catch (Violation v) {
+      throw invalid(v);
+    }
+    if (!task.participant(wrap.recipientId())) {
+      throw new BusinessException(
+          FORBIDDEN, "Người nhận không phải người tham gia nhiệm vụ mật nên không được cấp khoá");
+    }
+    Instant now = clock.instant();
+    store.upsert(tenant, taskId, List.of(wrap), actor.personId(), now);
+    trail(
+        tenant,
+        actor,
+        AUDIT_RESTORE,
+        taskId,
+        AuditEventType.PERMISSION_CHANGE,
+        List.of(wrap.recipientId()));
+    return new Meta(
+        taskId,
+        content.sealed().sha256(),
+        count(store.wraps(tenant, taskId)),
+        now,
+        content.rowVersion());
+  }
+
+  private static Optional<RecoveryRecords.Recovery> noRecoveries(TenantId tenant, UUID id) {
+    throw new DependencyUnavailableException(
+        "org-service", DependencyUnavailableException.Reason.IO_ERROR, null, null);
   }
 
   private static List<KeyWrap> parse(List<WrapInput> input, TaskActor actor) {

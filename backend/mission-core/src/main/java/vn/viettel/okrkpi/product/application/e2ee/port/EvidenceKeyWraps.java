@@ -45,6 +45,14 @@ public interface EvidenceKeyWraps {
   /** Bản bọc còn hiệu lực mới nhất của một người. */
   Optional<StoredWrap> activeFor(TenantId tenant, UUID versionId, UUID personId);
 
+  /**
+   * Quyền mở bản mã của một tệp lưu ở SVC-08 ({@code objectId}) qua mọi phiên bản minh chứng gắn
+   * tệp đó: {@code wrapped} là đã có bản bọc nào, {@code active} là người đó đang giữ bản bọc.
+   */
+  record FileAccess(boolean wrapped, boolean active) {}
+
+  FileAccess fileAccess(TenantId tenant, UUID objectId, UUID personId);
+
   /** Thêm hoặc thay theo vân tay khoá; bản đã thu hồi được bật lại. */
   void upsert(TenantId tenant, UUID versionId, List<NewWrap> wraps, UUID actor, Instant at);
 
@@ -60,5 +68,18 @@ public interface EvidenceKeyWraps {
     }
 
     Optional<RecoveryKey> of(TenantId tenant);
+  }
+
+  /**
+   * Biên bản khôi phục khoá của SVC-04 ({@code getE2eeRecovery}); SVC-04 lỗi thì ném {@code
+   * DependencyUnavailableException} (503).
+   */
+  @FunctionalInterface
+  interface RecoveryRecords {
+
+    record Recovery(String objectType, UUID objectId, UUID newRecipientId, Instant recordedAt) {}
+
+    /** Rỗng khi SVC-04 không có biên bản này. */
+    Optional<Recovery> find(TenantId tenant, UUID recoveryId);
   }
 }
