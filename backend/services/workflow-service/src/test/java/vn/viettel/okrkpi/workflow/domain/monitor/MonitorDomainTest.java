@@ -50,10 +50,17 @@ class MonitorDomainTest {
     InstanceFilter tenant = InstanceFilter.tenant(TENANT, " ", true, period, MONDAY);
     assertThat(tenant.cellScope()).isFalse();
     assertThat(tenant.templateCode()).isNull();
-    assertThat(tenant.cursorScope()).isEqualTo("workflow.instances|" + TENANT + "||true|" + period);
+    assertThat(tenant.cursorScope())
+        .isEqualTo("workflow.instances|" + TENANT + "||true|" + period + "|");
+    assertThat(tenant.unitId()).isNull();
+    UUID unit = UUID.randomUUID();
+    InstanceFilter byUnit = tenant.withUnit(unit);
+    assertThat(byUnit.unitId()).isEqualTo(unit);
+    assertThat(byUnit.tenantId()).isEqualTo(TENANT);
+    assertThat(byUnit.cursorScope()).isNotEqualTo(tenant.cursorScope()).endsWith("|" + unit);
     InstanceFilter cell = InstanceFilter.cell("duyet-okr", null, null, MONDAY);
     assertThat(cell.cellScope()).isTrue();
-    assertThat(cell.cursorScope()).isEqualTo("workflow.instances|cell|duyet-okr||");
+    assertThat(cell.cursorScope()).isEqualTo("workflow.instances|cell|duyet-okr|||");
     assertThatThrownBy(() -> InstanceFilter.tenant(null, null, null, null, MONDAY))
         .isInstanceOf(NullPointerException.class);
   }
@@ -83,6 +90,7 @@ class MonitorDomainTest {
     assertThat(s.startedAt()).isEqualTo(started);
     assertThat(s.cellCode()).isEqualTo("CELL-HN");
     assertThat(s.currentTaskId()).isEqualTo("t-1");
+    assertThat(s.rowVersion()).isEqualTo(3);
   }
 
   @Test

@@ -43,6 +43,7 @@ final class MonitorWebMapper {
     dto.setStuck(s.stuck());
     dto.setStuckReason(s.stuckReason());
     dto.setCellCode(s.cellCode());
+    dto.setRowVersion(s.rowVersion());
     return dto;
   }
 

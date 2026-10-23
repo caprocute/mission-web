@@ -1418,6 +1418,8 @@ export interface components {
       stuck: boolean;
       stuckReason?: string;
       cellCode?: string;
+      /** @description `REV_` của user task đang chờ (`flowable.wf_task_projection.row_version`), gửi lại trong `If-Match` khi chuyển người xử lý hoặc gia hạn bước (bổ sung DV-06-10). */
+      rowVersion?: components['schemas']['RowVersion'];
     };
     WorkflowInstancePage: {
       items: components['schemas']['WorkflowInstanceSummary'][];
@@ -3013,6 +3015,8 @@ export interface operations {
         stuck?: boolean;
         /** @description Mã cell, chỉ quản trị nền tảng dùng. */
         cell?: string;
+        /** @description Lọc theo đơn vị xử lý của bước đang chờ (đơn vị trong nhóm ứng viên của user task, `flowable.wf_task_projection.candidate_unit_id`). Bước giao thẳng cho một người, không có nhóm ứng viên, không khớp bộ lọc này (bổ sung DV-06-10, suy luận). */
+        unit?: components['schemas']['Uuid'];
         /** @description Mã kỳ đánh giá (`config.period.id`). */
         period?: components['parameters']['PeriodId'];
         /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */

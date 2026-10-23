@@ -14,10 +14,12 @@ import java.util.UUID;
  * @param stuck chỉ lấy tiến trình kẹt ({@code true}), không kẹt ({@code false}) hoặc mọi tiến trình
  *     ({@code null})
  * @param periodId lọc theo kỳ, có thể {@code null}
+ * @param unitId lọc theo đơn vị xử lý của bước đang chờ (đơn vị của nhóm ứng viên, cột {@code
+ *     candidate_unit_id} của bảng chiếu), có thể {@code null}
  * @param now thời điểm xét quá hạn
  */
 public record InstanceFilter(
-    UUID tenantId, String templateCode, Boolean stuck, UUID periodId, Instant now) {
+    UUID tenantId, String templateCode, Boolean stuck, UUID periodId, UUID unitId, Instant now) {
 
   public InstanceFilter {
     Objects.requireNonNull(now, "now");
@@ -30,13 +32,18 @@ public record InstanceFilter(
   public static InstanceFilter tenant(
       UUID tenantId, String templateCode, Boolean stuck, UUID periodId, Instant now) {
     return new InstanceFilter(
-        Objects.requireNonNull(tenantId, "tenantId"), templateCode, stuck, periodId, now);
+        Objects.requireNonNull(tenantId, "tenantId"), templateCode, stuck, periodId, null, now);
   }
 
   /** Phạm vi cell (mọi tenant của cell). */
   public static InstanceFilter cell(
       String templateCode, Boolean stuck, UUID periodId, Instant now) {
-    return new InstanceFilter(null, templateCode, stuck, periodId, now);
+    return new InstanceFilter(null, templateCode, stuck, periodId, null, now);
+  }
+
+  /** Cùng bộ lọc, thêm lọc theo đơn vị xử lý ({@code null} bỏ lọc). */
+  public InstanceFilter withUnit(UUID unit) {
+    return new InstanceFilter(tenantId, templateCode, stuck, periodId, unit, now);
   }
 
   /** Đúng khi xem tổng hợp cả cell. */
@@ -53,6 +60,8 @@ public record InstanceFilter(
         + '|'
         + (stuck == null ? "" : stuck.toString())
         + '|'
-        + (periodId == null ? "" : periodId.toString());
+        + (periodId == null ? "" : periodId.toString())
+        + '|'
+        + (unitId == null ? "" : unitId.toString());
   }
 }

@@ -3,6 +3,8 @@ package vn.viettel.okrkpi.workflow.it;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -13,7 +15,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.swagger.v3.oas.models.PathItem;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -33,8 +39,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 import javax.sql.DataSource;
+import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.avro.specific.SpecificRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.flowable.common.engine.impl.identity.Authentication;
 import org.flowable.engine.ManagementService;
 import org.flowable.engine.runtime.ProcessInstance;
@@ -51,14 +65,29 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DelegatingDataSource;
+import org.springframework.kafka.core.KafkaOperations;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.transaction.PlatformTransactionManager;
+import vn.viettel.okrkpi.events.EventContracts;
+import vn.viettel.okrkpi.events.EventTopics;
 import vn.viettel.okrkpi.shared.authz.OpaDecision;
 import vn.viettel.okrkpi.shared.authz.OpaInput;
+import vn.viettel.okrkpi.shared.inbox.InboxEndpoint;
+import vn.viettel.okrkpi.shared.inbox.InboxListenerRegistrar;
+import vn.viettel.okrkpi.shared.inbox.InboxMessageProcessor;
+import vn.viettel.okrkpi.shared.inbox.InboxMetrics;
+import vn.viettel.okrkpi.shared.inbox.InboxOutcome;
+import vn.viettel.okrkpi.shared.inbox.InboxProperties;
+import vn.viettel.okrkpi.shared.inbox.InboxRetryDlqPublisher;
+import vn.viettel.okrkpi.shared.kernel.Classification;
+import vn.viettel.okrkpi.shared.outbox.OutboxHeaders;
 import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer;
 import vn.viettel.okrkpi.workflow.support.WorkflowIntegrationTest;
 import vn.viettel.okrkpi.workflow.support.WorkflowTestDatabase;
+import vn.vtokr.org.v1.OrgBootstrap;
+import vn.vtokr.org.v1.PhanCongDaThayDoi;
 
 /**
  * Giám sát tiến trình theo mẫu SCR-1506 (DV-06-10, BS-01) trên PostgreSQL thật và engine Flowable
@@ -174,6 +203,9 @@ class WorkflowMonitorApiIT extends WorkflowIntegrationTest {
 
   @Autowired private ObjectMapper json;
   @Autowired private ManagementService management;
+  @Autowired private InboxListenerRegistrar inboxRegistrar;
+  @Autowired private DataSource dataSource;
+  @Autowired private PlatformTransactionManager transactionManager;
 
   private final JdbcTemplate owner = WorkflowTestDatabase.owner();
   private final UUID tenant = UUID.randomUUID();
@@ -379,6 +411,33 @@ class WorkflowMonitorApiIT extends WorkflowIntegrationTest {
     assertThat(items.get(2).get("currentTaskId").asText()).isEqualTo(openTask(healthy).getId());
     assertThat(items.get(2).get("stuck").asBoolean()).isFalse();
     assertThat(items.get(2).get("candidateRole").asText()).isEqualTo("appraiser");
+    assertThat(items.get(0).get("rowVersion").asInt())
+        .isEqualTo(rowVersion(openTask(overdue).getId()));
+    assertThat(items.get(2).get("rowVersion").asInt())
+        .isEqualTo(rowVersion(openTask(healthy).getId()));
+
+    // Lọc theo đơn vị xử lý: chỉ bước có nhóm ứng viên ở đơn vị đó.
+    MvcResult byUnit =
+        mvc.perform(
+                get("/api/v1/workflow/instances")
+                    .param("template", KEY)
+                    .param("period", period.toString())
+                    .param("unit", unit.toString())
+                    .with(tenantAdmin()))
+            .andExpect(status().isOk())
+            .andReturn();
+    assertResponseConforms(byUnit, "/workflow/instances", PathItem.HttpMethod.GET);
+    assertThat(body(byUnit).get("items")).hasSize(1);
+    assertThat(body(byUnit).get("items").get(0).get("currentTaskId").asText())
+        .isEqualTo(openTask(healthy).getId());
+    mvc.perform(
+            get("/api/v1/workflow/instances")
+                .param("template", KEY)
+                .param("period", period.toString())
+                .param("unit", UUID.randomUUID().toString())
+                .with(tenantAdmin()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(0));
 
     MvcResult stuck =
         mvc.perform(
@@ -645,6 +704,260 @@ class WorkflowMonitorApiIT extends WorkflowIntegrationTest {
 
     assertThat(openTask(instance).getAssignee()).isNull();
     assertThat(outbox(tenant)).doesNotContainKey("sys.audit.v1");
+  }
+
+  // ------------------------------------------------------------------ bản sao phân công EVT-15
+
+  /**
+   * Bộ xử lý inbox thật của thư viện nền trên CSDL của ứng dụng (svc_flowable, RLS bật); Kafka thay
+   * bằng bản ghi dựng tay, thân Avro mã hoá bằng lớp sinh từ hợp đồng.
+   */
+  @SuppressWarnings("unchecked")
+  InboxMessageProcessor inboxProcessor() {
+    EventContracts.trustContractPackages();
+    KafkaOperations<String, byte[]> kafka = mock(KafkaOperations.class);
+    when(kafka.send(any(ProducerRecord.class))).thenReturn(CompletableFuture.completedFuture(null));
+    return new InboxMessageProcessor(
+        new JdbcTemplate(dataSource),
+        transactionManager,
+        "flowable",
+        (topic, headers, data) ->
+            EventTopics.ORG_BOOTSTRAP_V1.equals(topic)
+                ? decode(OrgBootstrap.class, data)
+                : decode(PhanCongDaThayDoi.class, data),
+        new InboxRetryDlqPublisher(kafka),
+        new InboxMetrics(new SimpleMeterRegistry()),
+        new InboxProperties.Retry(1, null, null, null),
+        vn.viettel.okrkpi.shared.kernel.Clock.systemUtc());
+  }
+
+  InboxEndpoint endpoint(String topic) {
+    return inboxRegistrar.endpoints().stream()
+        .filter(e -> e.topic().equals(topic))
+        .findFirst()
+        .orElseThrow();
+  }
+
+  static PhanCongDaThayDoi phanCong(
+      UUID id, UUID person, UUID orgUnit, LocalDate to, long version) {
+    return PhanCongDaThayDoi.newBuilder()
+        .setAssignmentId(id)
+        .setPersonId(person)
+        .setUnitId(orgUnit)
+        .setPositionId(null)
+        .setJobTitleId(UUID.randomUUID())
+        .setKind("CHINH")
+        .setIsPrimary(true)
+        .setValidFrom(LocalDate.of(2020, 1, 1))
+        .setValidTo(to)
+        .setSourceVersion(version)
+        .setAggregateVersion((int) version)
+        .setIsHead(false)
+        .build();
+  }
+
+  private long offset;
+
+  ConsumerRecord<String, byte[]> record(
+      String topic, UUID tenantId, UUID aggregateId, long version, SpecificRecord payload) {
+    ConsumerRecord<String, byte[]> r =
+        new ConsumerRecord<>(topic, 0, offset++, tenantId + ":" + aggregateId, encode(payload));
+    r.headers().add(OutboxHeaders.EVENT_ID, bytes(UUID.randomUUID().toString()));
+    r.headers().add(OutboxHeaders.TENANT_ID, bytes(tenantId.toString()));
+    r.headers().add(OutboxHeaders.AGGREGATE_VERSION, bytes(Long.toString(version)));
+    r.headers().add(OutboxHeaders.CE_TYPE, bytes(payload.getSchema().getName()));
+    r.headers().add(OutboxHeaders.CLASSIFICATION, bytes(Classification.C1.name()));
+    r.headers().add(OutboxHeaders.OCCURRED_AT, bytes(Instant.now().toString()));
+    return r;
+  }
+
+  static byte[] bytes(String value) {
+    return value.getBytes(StandardCharsets.UTF_8);
+  }
+
+  @SuppressWarnings("unchecked")
+  static byte[] encode(SpecificRecord payload) {
+    try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+      var encoder = EncoderFactory.get().binaryEncoder(out, null);
+      new SpecificDatumWriter<SpecificRecord>((Class<SpecificRecord>) payload.getClass())
+          .write(payload, encoder);
+      encoder.flush();
+      return out.toByteArray();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  static <T extends SpecificRecord> T decode(Class<T> type, byte[] data) {
+    try {
+      return new SpecificDatumReader<>(type)
+          .read(null, DecoderFactory.get().binaryDecoder(data, null));
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  MvcResult reassignTo(String taskId, UUID person) throws Exception {
+    return mvc.perform(
+            write(
+                    "reassign",
+                    taskId,
+                    UUID.randomUUID().toString(),
+                    "*",
+                    reassignBody(person, "Điều động cán bộ theo quyết định."))
+                .with(tenantAdmin()))
+        .andReturn();
+  }
+
+  Map<String, Object> replica(UUID assignmentId) {
+    return owner.queryForMap(
+        "SELECT person_id, org_unit_id, valid_to::text AS valid_to, source_version, branch, kind"
+            + " FROM org_replica.assignment_v WHERE id = ?",
+        assignmentId);
+  }
+
+  @Test
+  void suKienPhanCongMoKhoaChuyenNguoiXuLySuKienCuKhongGhiDe() throws Exception {
+    InboxMessageProcessor processor = inboxProcessor();
+    InboxEndpoint evt15 = endpoint(EventTopics.EVT_15_PHAN_CONG_DA_THAY_DOI);
+    InboxEndpoint boot = endpoint(EventTopics.ORG_BOOTSTRAP_V1);
+    assertThat(evt15.consumer()).isEqualTo("workflow.org-replica.assignment");
+    ProcessInstance instance =
+        startMonitored(tenant, null, group(), Instant.parse("2027-03-01T03:00:00Z"));
+    String taskId = openTask(instance).getId();
+
+    // Chưa có bản sao: 422.
+    MvcResult before = reassignTo(taskId, newcomer);
+    assertThat(before.getResponse().getStatus()).isEqualTo(422);
+    assertResponseConforms(before, "/workflow/tasks/{taskId}/reassign", PathItem.HttpMethod.POST);
+
+    // EVT-15 qua inbox (svc_flowable, RLS theo tenant của sự kiện).
+    UUID assignmentId = UUID.randomUUID();
+    ConsumerRecord<String, byte[]> first =
+        record(
+            EventTopics.EVT_15_PHAN_CONG_DA_THAY_DOI,
+            tenant,
+            assignmentId,
+            5,
+            phanCong(assignmentId, newcomer, unit, null, 5));
+    assertThat(processor.process(evt15, first, null)).isEqualTo(InboxOutcome.PROCESSED);
+    assertThat(processor.process(evt15, first, null)).isEqualTo(InboxOutcome.DUPLICATE_SKIPPED);
+    assertThat(replica(assignmentId))
+        .containsEntry("person_id", newcomer)
+        .containsEntry("org_unit_id", unit)
+        .containsEntry("source_version", 5L)
+        .containsEntry("branch", "CHINH");
+
+    // Bản cũ hơn qua topic thường bị inbox bỏ qua theo thứ tự phiên bản; qua nạp ban đầu (không
+    // kiểm
+    // thứ tự ở inbox) thì upsert theo source_version không ghi đè.
+    ConsumerRecord<String, byte[]> olderEvt =
+        record(
+            EventTopics.EVT_15_PHAN_CONG_DA_THAY_DOI,
+            tenant,
+            assignmentId,
+            3,
+            phanCong(assignmentId, newcomer, unit, LocalDate.of(2021, 1, 1), 3));
+    assertThat(processor.process(evt15, olderEvt, null)).isEqualTo(InboxOutcome.STALE_SKIPPED);
+    OrgBootstrap olderBoot =
+        OrgBootstrap.newBuilder()
+            .setBatchId(UUID.randomUUID())
+            .setSeq(1)
+            .setIsLast(false)
+            .setEntity(phanCong(assignmentId, newcomer, unit, LocalDate.of(2021, 1, 1), 4))
+            .build();
+    assertThat(
+            processor.process(
+                boot,
+                record(EventTopics.ORG_BOOTSTRAP_V1, tenant, assignmentId, 4, olderBoot),
+                null))
+        .isEqualTo(InboxOutcome.PROCESSED);
+    Map<String, Object> kept = replica(assignmentId);
+    assertThat(kept.get("source_version")).isEqualTo(5L);
+    assertThat(kept.get("valid_to")).isEqualTo("infinity");
+
+    // Nạp ban đầu cho người khác (phiên bản mới) thì có hiệu lực.
+    UUID other = UUID.randomUUID();
+    UUID otherAssignment = UUID.randomUUID();
+    OrgBootstrap fresh =
+        OrgBootstrap.newBuilder()
+            .setBatchId(UUID.randomUUID())
+            .setSeq(2)
+            .setIsLast(true)
+            .setEntity(phanCong(otherAssignment, other, unit, null, 1))
+            .build();
+    assertThat(
+            processor.process(
+                boot,
+                record(EventTopics.ORG_BOOTSTRAP_V1, tenant, otherAssignment, 1, fresh),
+                null))
+        .isEqualTo(InboxOutcome.PROCESSED);
+    assertThat(replica(otherAssignment)).containsEntry("person_id", other);
+
+    // Sự kiện của tenant khác không mở khoá cho tenant này.
+    UUID foreign = UUID.randomUUID();
+    assertThat(
+            processor.process(
+                evt15,
+                record(
+                    EventTopics.EVT_15_PHAN_CONG_DA_THAY_DOI,
+                    otherTenant,
+                    foreign,
+                    1,
+                    phanCong(foreign, current, unit, null, 1)),
+                null))
+        .isEqualTo(InboxOutcome.PROCESSED);
+    assertThat(reassignTo(taskId, current).getResponse().getStatus()).isEqualTo(422);
+
+    // Sau EVT-15: chuyển người xử lý thành công.
+    MvcResult after = reassignTo(taskId, newcomer);
+    assertThat(after.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(after, "/workflow/tasks/{taskId}/reassign", PathItem.HttpMethod.POST);
+    assertThat(openTask(instance).getAssignee()).isEqualTo(newcomer.toString());
+  }
+
+  @Test
+  void phanCongHetHanThiNguoiNhanLaiBi422() throws Exception {
+    InboxMessageProcessor processor = inboxProcessor();
+    InboxEndpoint evt15 = endpoint(EventTopics.EVT_15_PHAN_CONG_DA_THAY_DOI);
+    UUID person = UUID.randomUUID();
+    UUID assignmentId = UUID.randomUUID();
+    assertThat(
+            processor.process(
+                evt15,
+                record(
+                    EventTopics.EVT_15_PHAN_CONG_DA_THAY_DOI,
+                    tenant,
+                    assignmentId,
+                    1,
+                    phanCong(assignmentId, person, unit, null, 1)),
+                null))
+        .isEqualTo(InboxOutcome.PROCESSED);
+    String first =
+        openTask(startMonitored(tenant, null, group(), Instant.parse("2027-03-01T03:00:00Z")))
+            .getId();
+    assertThat(reassignTo(first, person).getResponse().getStatus()).isEqualTo(200);
+
+    // Điều động đi: SVC-04 phát trạng thái mới với ngày hết hiệu lực là hôm qua.
+    LocalDate yesterday = LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).minusDays(1);
+    assertThat(
+            processor.process(
+                evt15,
+                record(
+                    EventTopics.EVT_15_PHAN_CONG_DA_THAY_DOI,
+                    tenant,
+                    assignmentId,
+                    2,
+                    phanCong(assignmentId, person, unit, yesterday, 2)),
+                null))
+        .isEqualTo(InboxOutcome.PROCESSED);
+    assertThat(replica(assignmentId)).containsEntry("source_version", 2L);
+    String second =
+        openTask(startMonitored(tenant, null, group(), Instant.parse("2027-03-01T03:00:00Z")))
+            .getId();
+    MvcResult rejected = reassignTo(second, person);
+    assertThat(rejected.getResponse().getStatus()).isEqualTo(422);
+    assertThat(body(rejected).get("code").asText()).isEqualTo("WORKFLOW-422-ASSIGNEE-NOT-ELIGIBLE");
   }
 
   // ------------------------------------------------------------------ gia hạn

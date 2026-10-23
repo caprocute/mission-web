@@ -93,6 +93,7 @@ class SagaFrameworkIT {
     registry.add("spring.flyway.enabled", () -> "true");
     registry.add("flowable.database-schema-update", () -> "false");
     registry.add("flowable.check-process-definitions", () -> "false");
+    registry.add("okrkpi.inbox.listener-auto-startup", () -> "false");
   }
 
   @Autowired private MockMvc mvc;

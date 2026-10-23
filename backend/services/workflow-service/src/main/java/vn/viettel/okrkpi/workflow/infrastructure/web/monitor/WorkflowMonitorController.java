@@ -18,8 +18,9 @@ import vn.viettel.okrkpi.workflow.infrastructure.web.monitor.model.WorkflowTaskR
  * Adapter REST giám sát tiến trình theo mẫu (BS-01 SCR-1506; QT-15): {@code listWorkflowInstances},
  * {@code getWorkflowDiagram}, {@code reassignWorkflowTask}, {@code extendWorkflowTask} của {@code
  * platform.yaml}. Giao diện sinh bằng openapi-generator; không có đường nào sửa biến tiến trình hay
- * chuyển bước. {@code If-Match: *} (RFC 9110) được nhận vì danh sách chưa trả phiên bản của bước
- * (wiki trang 14 mục WEB-062).
+ * chuyển bước. Danh sách trả {@code rowVersion} của bước đang chờ để gửi lại trong {@code
+ * If-Match}; {@code If-Match: *} (RFC 9110) vẫn được nhận cho tương thích (wiki trang 14 mục
+ * WEB-062).
  */
 @RestController
 @RequestMapping("/api/v1")
@@ -35,9 +36,15 @@ public class WorkflowMonitorController implements WorkflowApi {
 
   @Override
   public ResponseEntity<WorkflowInstancePage> listWorkflowInstances(
-      String template, Boolean stuck, String cell, UUID period, Integer limit, String cursor) {
+      String template,
+      Boolean stuck,
+      String cell,
+      UUID unit,
+      UUID period,
+      Integer limit,
+      String cursor) {
     return ResponseEntity.ok(
-        MonitorWebMapper.page(monitor.list(template, stuck, cell, period, limit, cursor)));
+        MonitorWebMapper.page(monitor.list(template, stuck, cell, period, unit, limit, cursor)));
   }
 
   @Override

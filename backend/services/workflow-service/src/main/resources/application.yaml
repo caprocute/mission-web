@@ -202,6 +202,13 @@ okrkpi:
       url: ${APICURIO_REGISTRY_URL:http://127.0.0.1:35081/apis/registry/v2}
   idempotency:
     schema: flowable
+  # DV-06-10: consumer EVT-15 và org.bootstrap.v1 điền org_replica.assignment_v qua inbox idempotent
+  # flowable.inbox_processed (NEN-012). Tên consumer là nhóm consumer Kafka, khác tên của mission-core.
+  inbox:
+    schema: flowable
+    registry:
+      url: ${APICURIO_REGISTRY_URL:http://127.0.0.1:35081/apis/registry/v2}
+    listener-auto-startup: ${WF_INBOX_LISTENERS_ENABLED:true}
   # Token client credentials của mission-core không mang claim tenant: tenant đích của saga (chốt
   # kỳ, CORE-08-05) đọc từ header X-Tenant-Id, chỉ với tài khoản dịch vụ của các client này.
   tenant:

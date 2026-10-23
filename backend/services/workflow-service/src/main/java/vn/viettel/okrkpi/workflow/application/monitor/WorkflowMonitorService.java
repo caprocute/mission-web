@@ -122,6 +122,8 @@ public class WorkflowMonitorService {
    * @param cell mã cell: có thì xem tổng hợp cả cell (phạm vi nền tảng), {@code null} thì xem
    *     tenant của người gọi
    * @param periodId lọc theo kỳ, có thể {@code null}
+   * @param unitId lọc theo đơn vị xử lý của bước đang chờ (đơn vị của nhóm ứng viên), có thể {@code
+   *     null}
    * @param limit số dòng, {@code null} dùng mặc định 20
    * @param cursor con trỏ trang trước
    */
@@ -131,6 +133,7 @@ public class WorkflowMonitorService {
       Boolean stuck,
       String cell,
       UUID periodId,
+      UUID unitId,
       Integer limit,
       String cursor) {
     Approver approver = currentApprover.current();
@@ -139,10 +142,12 @@ public class WorkflowMonitorService {
     InstanceFilter filter;
     if (cellScope) {
       policy.checkView(resource("workflow_instance", null, CELL_RESOURCE_PREFIX + cell.strip()));
-      filter = InstanceFilter.cell(templateCode, stuck, periodId, now);
+      filter = InstanceFilter.cell(templateCode, stuck, periodId, now).withUnit(unitId);
     } else {
       policy.checkView(resource("workflow_instance", null, approver.tenantId().toString()));
-      filter = InstanceFilter.tenant(approver.tenantId(), templateCode, stuck, periodId, now);
+      filter =
+          InstanceFilter.tenant(approver.tenantId(), templateCode, stuck, periodId, now)
+              .withUnit(unitId);
     }
     PageRequest request = cursors.pageRequest(limit, cursor, filter.cursorScope());
     if (cellScope && !settings.cellCode().equalsIgnoreCase(cell.strip())) {

@@ -27,6 +27,8 @@ import vn.viettel.okrkpi.workflow.domain.TaskProjection;
  * @param stuck tiến trình kẹt
  * @param stuckReason lý do kẹt bằng lời, {@code null} khi không kẹt
  * @param cellCode mã cell
+ * @param rowVersion {@code REV_} của user task đang chờ ({@code row_version} của bảng chiếu), gửi
+ *     lại trong {@code If-Match} khi chuyển người xử lý hoặc gia hạn
  */
 public record InstanceSummary(
     BusinessKey businessKey,
@@ -41,7 +43,8 @@ public record InstanceSummary(
     Instant dueAt,
     boolean stuck,
     String stuckReason,
-    String cellCode) {
+    String cellCode,
+    int rowVersion) {
 
   /** Ngày nghiệp vụ theo giờ Việt Nam để đếm số ngày quá hạn. */
   public static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
@@ -77,7 +80,8 @@ public record InstanceSummary(
         p.dueAt(),
         overdue || orphan,
         reason(p, now, overdue, orphan),
-        cellCode);
+        cellCode,
+        p.rowVersion());
   }
 
   /** Không có người xử lý hợp lệ: chưa giao cho ai và cũng không có nhóm ứng viên. */

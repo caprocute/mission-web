@@ -146,18 +146,29 @@ class WorkflowMonitorServiceTest {
       store.rows.put("t" + i, row(tenant, "t" + i, NOW.plusSeconds(3600L * (i + 1))));
     }
     store.rows.put("x", row(otherTenant, "x", NOW.plusSeconds(60)));
-    WorkflowMonitorService.InstancePage first = service.list(null, null, null, null, 2, null);
+    WorkflowMonitorService.InstancePage first = service.list(null, null, null, null, null, 2, null);
     assertThat(first.items()).extracting(s -> s.currentTaskId()).containsExactly("t0", "t1");
     assertThat(first.nextCursor()).isNotNull();
     assertThat(first.items().get(0).title()).isEqualTo("Hồ sơ đánh giá năm 2026");
     assertThat(first.items().get(0).cellCode()).isEqualTo("CELL-HN");
     WorkflowMonitorService.InstancePage second =
-        service.list(null, null, null, null, 2, first.nextCursor());
+        service.list(null, null, null, null, null, 2, first.nextCursor());
     assertThat(second.items()).extracting(s -> s.currentTaskId()).containsExactly("t2");
     assertThat(second.nextCursor()).isNull();
     assertThat(policy.calls).containsOnly("xem");
     assertThat(policy.resources.get(0).tenantId()).isEqualTo(tenant.toString());
     assertThat(store.filters.get(0).tenantId()).isEqualTo(tenant);
+    assertThat(store.filters.get(0).unitId()).isNull();
+    assertThat(first.items().get(0).rowVersion()).isPositive();
+  }
+
+  @Test
+  void danhSachLocTheoDonViXuLyChuyenXuongBoLoc() {
+    UUID unit = UUID.randomUUID();
+    service.list(null, null, null, null, unit, 20, null);
+    service.list(null, null, "CELL-HN", null, unit, 20, null);
+    assertThat(store.filters).extracting(InstanceFilter::unitId).containsExactly(unit, unit);
+    assertThat(store.filters.get(1).cellScope()).isTrue();
   }
 
   @Test
@@ -165,8 +176,8 @@ class WorkflowMonitorServiceTest {
     for (int i = 0; i < 3; i++) {
       store.rows.put("t" + i, row(tenant, "t" + i, null));
     }
-    String next = service.list(null, null, null, null, 1, null).nextCursor();
-    assertThatThrownBy(() -> service.list("duyet-okr", null, null, null, 1, next))
+    String next = service.list(null, null, null, null, null, 1, null).nextCursor();
+    assertThatThrownBy(() -> service.list("duyet-okr", null, null, null, null, 1, next))
         .isInstanceOf(RuntimeException.class);
   }
 
@@ -174,7 +185,8 @@ class WorkflowMonitorServiceTest {
   void phamViCellKiemOpaTheoTaiNguyenCellVaCheNoiDung() {
     store.rows.put("t1", row(tenant, "t1", NOW.minusSeconds(86_400 * 2)));
     store.rows.put("t2", row(otherTenant, "t2", null));
-    WorkflowMonitorService.InstancePage page = service.list(null, true, "cell-hn", null, 20, null);
+    WorkflowMonitorService.InstancePage page =
+        service.list(null, true, "cell-hn", null, null, 20, null);
     assertThat(policy.resources.get(0).tenantId()).isEqualTo("cell:cell-hn");
     assertThat(store.filters.get(0).cellScope()).isTrue();
     assertThat(page.items()).hasSize(1);
@@ -185,7 +197,8 @@ class WorkflowMonitorServiceTest {
   @Test
   void cellKhacTraTrangRongVaVanKiemQuyen() {
     store.rows.put("t1", row(tenant, "t1", null));
-    WorkflowMonitorService.InstancePage page = service.list(null, null, "CELL-HCM", null, 20, null);
+    WorkflowMonitorService.InstancePage page =
+        service.list(null, null, "CELL-HCM", null, null, 20, null);
     assertThat(page.items()).isEmpty();
     assertThat(page.nextCursor()).isNull();
     assertThat(policy.calls).containsExactly("xem");
@@ -195,7 +208,7 @@ class WorkflowMonitorServiceTest {
   @Test
   void opaTuChoiDanhSachThiKhongDocBangChieu() {
     policy.deny = "COMMON-403-OUT-OF-SCOPE";
-    assertThatThrownBy(() -> service.list(null, null, "CELL-HN", null, 20, null))
+    assertThatThrownBy(() -> service.list(null, null, "CELL-HN", null, null, 20, null))
         .isInstanceOf(BusinessException.class);
     assertThat(store.filters).isEmpty();
   }

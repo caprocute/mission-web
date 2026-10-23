@@ -62,6 +62,10 @@ public class JdbcInstanceMonitorStore implements InstanceMonitorStore {
       sql.append(" AND period_id = ?");
       args.add(filter.periodId());
     }
+    if (filter.unitId() != null) {
+      sql.append(" AND candidate_unit_id = ?");
+      args.add(filter.unitId());
+    }
     if (filter.stuck() != null) {
       sql.append(filter.stuck() ? " AND " : " AND NOT ").append(STUCK);
       args.add(JdbcTaskProjectionStore.timestamp(filter.now()));
