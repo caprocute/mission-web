@@ -1,0 +1,14 @@
+{{- /* Mỗi tệp rules/*.yaml (nhóm luật Prometheus, kiểm bằng promtool) thành một PrometheusRule. */ -}}
+{{- if .Values.alerts.enabled }}
+{{- range $p, $_ := .Files.Glob "rules/*.yaml" }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: vt-{{ base $p | trimSuffix ".yaml" }}
+  namespace: observability
+  labels: { app.kubernetes.io/part-of: vt-pam }
+spec:
+  {{- $.Files.Get $p | fromYaml | toYaml | nindent 2 }}
+{{- end }}
+{{- end }}

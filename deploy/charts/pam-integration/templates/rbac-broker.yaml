@@ -1,0 +1,51 @@
+{{- $v := .Values }}
+{{- $hd := $v.hopDong }}
+# Quyền của broker PAM (INF-27; TL-04 mục 9.3): tạo, xoá binding có thời hạn tới đúng ba vai trò PAM. Động từ bind
+# giới hạn bằng resourceNames nên broker gán được vai trò mà không cần tự nắm quyền của vai trò (Kubernetes chặn leo
+# quyền theo động từ bind); broker không có quyền nào khác trên cụm. Hợp đồng chi tiết do vt-pam-binding-co-thoi-han
+# kiểm khi nhập. Binding này là thường trực nhưng chủ thể là định danh máy của PAM, không phải người.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: vt-pam-broker
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+    vt.io/cap-phat: pam-broker
+  annotations: { vt.io/sec: "SEC-29, SEC-42" }
+rules:
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["clusterroles"]
+    verbs: ["bind"]
+    resourceNames: {{ toJson $hd.vaiTroPam }}
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["rolebindings", "clusterrolebindings"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vt-pam-broker
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+    vt.io/cap-phat: pam-broker
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: vt-pam-broker }
+subjects:
+  {{- range $v.pam.broker.subjects }}
+  - {{ merge (dict "apiGroup" (ternary "" "rbac.authorization.k8s.io" (eq .kind "ServiceAccount"))) . | toJson }}
+  {{- end }}
+---
+# Hợp đồng tích hợp để cấu hình sản phẩm PAM (trung lập): thay sản phẩm chỉ cần cấu hình theo ConfigMap này.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pam-hop-dong
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+data:
+  hop-dong.json: |
+    {{- dict "sanPham" $v.pam.sanPham "hopDong" $hd "nhomDuyet" $v.pam.nhomDuyet "siem" $v.pam.siem "ghiPhien" $v.pam.ghiPhien
+        "csdl" (dict "dbaOps" $v.vaiTroCsdl.dbaOps "phaKinh" $v.vaiTroCsdl.phaKinh "thoiHanPhaKinh" $v.vaiTroCsdl.thoiHanPhaKinh
+                     "thoiHanDbaOps" $v.vaiTroCsdl.thoiHanDbaOps "nganSachKetNoiMoiCum" $v.quetCsdl.nganSachKetNoi
+                     "openbaoCreds" "database/creds/{cum}-dba-ops, database/creds/{cum}-pha-kinh-doc")
+        | toPrettyJson | nindent 4 }}

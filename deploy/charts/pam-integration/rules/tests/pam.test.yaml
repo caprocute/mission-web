@@ -1,0 +1,111 @@
+# Ca kiểm promtool cho rules/pam.yaml: mỗi cảnh báo có ca kích hoạt và ca không kích hoạt.
+rule_files:
+- ../pam.yaml
+evaluation_interval: 1m
+tests:
+- interval: 1m
+  input_series:
+  - series: vt_pam_cua_sau_rbac{loai="cua-sau", kind="ClusterRoleBinding", namespace="", binding="tao-tay", role="cluster-admin", job="pam-quet-rbac"}
+    values: 1x30
+  - series: vt_pam_cua_sau_rbac{loai="qua-han", kind="RoleBinding", namespace="core", binding="pam-yc-1", role="debug-app", job="pam-quet-rbac"}
+    values: 1x30
+  - series: vt_pam_quet_last_run_timestamp_seconds{job="pam-quet-rbac"}
+    values: 0+60x30
+  alert_rule_test:
+  - eval_time: 5m
+    alertname: PamCuaSauRbac
+    exp_alerts:
+    - exp_labels: { severity: critical, doi: soc, sec: SEC-42, loai: cua-sau, kind: ClusterRoleBinding, binding: tao-tay, role: cluster-admin }
+      exp_annotations:
+        summary: "ClusterRoleBinding /tao-tay gán cluster-admin không qua PAM hoặc sai hợp đồng (cua-sau)"
+        runbook_url: https://runbook.vt.local/okr/pam-cap-quyen
+  # Quá hạn chưa đủ 20 phút: PAM hoặc lần quét sau còn kịp thu hồi.
+  - eval_time: 10m
+    alertname: PamBindingQuaHan
+    exp_alerts: []
+  - eval_time: 25m
+    alertname: PamBindingQuaHan
+    exp_alerts:
+    - exp_labels: { severity: critical, doi: soc, sec: SEC-42, kind: RoleBinding, namespace: core, binding: pam-yc-1, role: debug-app }
+      exp_annotations:
+        summary: "Binding PAM core/pam-yc-1 (debug-app) đã quá hạn mà chưa bị thu hồi"
+        runbook_url: https://runbook.vt.local/okr/pam-cap-quyen
+  - eval_time: 25m
+    alertname: PamQuetKhongChay
+    exp_alerts: []
+  - eval_time: 25m
+    alertname: PamQuetRbacVangMat
+    exp_alerts: []
+- interval: 1m
+  input_series:
+  - series: vt_pam_cua_sau_csdl{cluster="pg-core", loai="thua-ke-dich-vu", vai_tro="alice", job="pam-quet-csdl"}
+    values: 1x10
+  - series: vt_pam_pha_kinh_dang_mo{cluster="pg-core", job="pam-quet-csdl"}
+    values: 0x5 1x5
+  - series: vt_pam_ket_noi_quan_tri{cluster="pg-core", vai_tro="tong", job="pam-quet-csdl"}
+    values: 12x10
+  - series: vt_pam_ket_noi_quan_tri{cluster="pg-iam", vai_tro="tong", job="pam-quet-csdl"}
+    values: 10x10
+  alert_rule_test:
+  - eval_time: 2m
+    alertname: PamCuaSauCsdl
+    exp_alerts:
+    - exp_labels: { severity: critical, doi: soc, sec: SEC-58, cluster: pg-core, loai: thua-ke-dich-vu, vai_tro: alice }
+      exp_annotations:
+        summary: "Cụm pg-core: vai trò alice đọc được dữ liệu nghiệp vụ ngoài phá kính (thua-ke-dich-vu)"
+        runbook_url: https://runbook.vt.local/okr/pam-pha-kinh
+  - eval_time: 3m
+    alertname: PamPhaKinhDangMo
+    exp_alerts: []
+  - eval_time: 7m
+    alertname: PamPhaKinhDangMo
+    exp_alerts:
+    - exp_labels: { severity: warning, doi: soc, sec: SEC-58, cluster: pg-core }
+      exp_annotations:
+        summary: "Cụm pg-core đang có 1 người dùng phá kính đọc dữ liệu nghiệp vụ; đối chiếu yêu cầu PAM"
+        runbook_url: https://runbook.vt.local/okr/pam-pha-kinh
+  # Đúng 10 kết nối là trong ngân sách; 12 kéo dài 5 phút thì cảnh báo.
+  - eval_time: 7m
+    alertname: PamKetNoiQuanTriVuotNganSach
+    exp_alerts:
+    - exp_labels: { severity: warning, doi: dba, sec: SEC-42, cluster: pg-core }
+      exp_annotations:
+        summary: "Cụm pg-core có 12 kết nối quản trị qua PAM, vượt ngân sách 10 (TL-04, C_admin)"
+        runbook_url: https://runbook.vt.local/okr/pam-cap-quyen
+- interval: 10m
+  input_series:
+  - series: vt_pam_quet_last_run_timestamp_seconds{job="pam-quet-csdl", cluster="pg-core"}
+    values: 0x20
+  alert_rule_test:
+  - eval_time: 50m
+    alertname: PamQuetKhongChay
+    exp_alerts: []
+  - eval_time: 70m
+    alertname: PamQuetKhongChay
+    exp_alerts:
+    - exp_labels: { severity: warning, doi: sre-nen-tang, sec: SEC-42, job: pam-quet-csdl, cluster: pg-core }
+      exp_annotations:
+        summary: "Quét pam-quet-csdl pg-core không có kết quả mới quá 1 giờ"
+        runbook_url: https://runbook.vt.local/okr/pam-cap-quyen
+  - eval_time: 2h
+    alertname: PamQuetRbacVangMat
+    exp_alerts:
+    - exp_labels: { severity: warning, doi: sre-nen-tang, sec: SEC-42, job: pam-quet-rbac }
+      exp_annotations:
+        summary: "Chưa có kết quả quét RBAC không có cửa sau nào trên Pushgateway"
+        runbook_url: https://runbook.vt.local/okr/pam-cap-quyen
+- interval: 5m
+  input_series:
+  - series: vt_pam_ngoai_le_csdl{cluster="pg-core", vai_tro="bao_admin", job="pam-quet-csdl"}
+    values: 1x400
+  alert_rule_test:
+  - eval_time: 20h
+    alertname: PamNgoaiLeCsdl
+    exp_alerts: []
+  - eval_time: 25h
+    alertname: PamNgoaiLeCsdl
+    exp_alerts:
+    - exp_labels: { severity: info, doi: dba, sec: SEC-58, cluster: pg-core, vai_tro: bao_admin }
+      exp_annotations:
+        summary: "Cụm pg-core: vai trò bao_admin đang được miễn quét theo ngoại lệ có hạn"
+        runbook_url: https://runbook.vt.local/okr/pam-pha-kinh
