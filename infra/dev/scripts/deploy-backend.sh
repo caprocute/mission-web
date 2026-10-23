@@ -17,6 +17,7 @@
 #   infra/dev/scripts/deploy-backend.sh                       # toàn bộ
 #   infra/dev/scripts/deploy-backend.sh mission-core apisix   # chỉ vài service
 #   SKIP_JARS=1 SKIP_MIGRATE=1 SKIP_SEED=1 infra/dev/scripts/deploy-backend.sh
+#   HA_TANG_KHONG_BAT_BUOC=apicurio infra/dev/scripts/deploy-backend.sh mission-core   # apicurio lỗi chỉ cảnh báo
 # Mật khẩu đọc từ infra/dev/.env (không commit); script không in giá trị bí mật.
 # =============================================================================
 set -euo pipefail
@@ -125,7 +126,13 @@ missing=0
 for c in postgres pgbouncer valkey keycloak opa kafka apicurio; do
   state="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "mission-dev-${c}" 2>/dev/null || true)"
   printf "  %-10s %s\n" "${c}" "${state:-không chạy}"
-  [[ "${state}" == "healthy" || "${state}" == "running" ]] || missing=1
+  [[ "${state}" == "healthy" || "${state}" == "running" ]] && continue
+  # Apicurio chỉ là registry lược đồ sự kiện: các service hiện chỉ đọc địa chỉ, không cần nó để chạy HTTP.
+  if [[ " ${HA_TANG_KHONG_BAT_BUOC:-} " == *" ${c} "* ]]; then
+    echo "    Cảnh báo: ${c} chưa sẵn sàng, bỏ qua theo HA_TANG_KHONG_BAT_BUOC."
+  else
+    missing=1
+  fi
 done
 [[ ${missing} -eq 0 ]] || die "hạ tầng chưa sẵn sàng; bật profile core, security, events trước (README mục 3)"
 
