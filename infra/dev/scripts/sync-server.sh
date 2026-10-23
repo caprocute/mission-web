@@ -42,6 +42,9 @@ DEV_SERVER_SSH_PORT="${DEV_SERVER_SSH_PORT:-2222}"
 DEV_SERVER_USER="${DEV_SERVER_USER:-provision}"
 DEV_SERVER_INFRA_DIR="${DEV_SERVER_INFRA_DIR:-}"
 DEV_SERVER_PROFILES="${DEV_SERVER_PROFILES:-core security events}"
+# .env của máy chủ dùng để so khoá và dựng cấu hình kiểm tra; mặc định <DEV_SERVER_INFRA_DIR>/.env.
+# trien-khai-lai.sh đặt biến này về .env của thư mục cũ khi thư mục mới chưa có .env (chuyển bố cục).
+SYNC_SERVER_ENV="${SYNC_SERVER_ENV:-${DEV_SERVER_INFRA_DIR}/.env}"
 # Dịch vụ cũ trên máy chủ được thay bằng dịch vụ của repo (cũ=mới): máy chủ từng chạy Debezium dưới tên
 # dịch vụ `connect` (container mission-dev-connect-1, cổng 35083). apply dừng và xoá container cũ ngay
 # trước `up` để dịch vụ mới nhận cổng; sync_preflight.py chặn nếu container cũ còn dữ liệu có tên.
@@ -101,8 +104,8 @@ check_env_keys() {
   echo "==> So khoá .env của máy chủ với infra/dev/.env.example"
   local expected remote_keys missing
   expected="$(grep -E '^[A-Z0-9_]+=' "${INFRA_DIR}/.env.example" | cut -d= -f1 | sort -u)"
-  remote_keys="$(remote "grep -E '^[A-Z0-9_]+=' $(printf '%q' "${DEV_SERVER_INFRA_DIR}/.env") | cut -d= -f1 | sort -u" || true)"
-  [[ -n "${remote_keys}" ]] || die "không đọc được ${DEV_SERVER_INFRA_DIR}/.env trên máy chủ"
+  remote_keys="$(remote "grep -E '^[A-Z0-9_]+=' $(printf '%q' "${SYNC_SERVER_ENV}") | cut -d= -f1 | sort -u" || true)"
+  [[ -n "${remote_keys}" ]] || die "không đọc được ${SYNC_SERVER_ENV} trên máy chủ"
   missing="$(comm -23 <(printf '%s\n' "${expected}") <(printf '%s\n' "${remote_keys}"))"
   if [[ -n "${missing}" ]]; then
     echo "  Khoá còn thiếu trên máy chủ (bổ sung giá trị thật trước khi apply; mặc định của compose sẽ được dùng):"
@@ -137,7 +140,7 @@ preflight() {
   command -v python3 >/dev/null 2>&1 || { echo "  Máy trạm thiếu python3; không kiểm được."; return 1; }
   local work rc=0
   work="$(mktemp -d)"
-  remote "grep -E '^(DEV_HOST|[A-Z0-9_]+_(DATA|PORT|BIND|HOST))=' $(printf '%q' "${DEV_SERVER_INFRA_DIR}/.env")" \
+  remote "grep -E '^(DEV_HOST|[A-Z0-9_]+_(DATA|PORT|BIND|HOST))=' $(printf '%q' "${SYNC_SERVER_ENV}")" \
     >"${work}/server-public.env" || true
   cut -d= -f1 "${work}/server-public.env" | sort -u >"${work}/keys"
   grep -E '^[A-Z0-9_]+=' "${INFRA_DIR}/.env.example" \
@@ -223,7 +226,11 @@ cmd_plan() {
   echo "==> Commit đang áp trên máy chủ: $(remote "cat $(printf '%q' "${DEV_SERVER_INFRA_DIR}/.repo-commit") 2>/dev/null" || echo 'chưa ghi')"
   copy_files yes
   echo "==> Kiểm compose config trên máy chủ (bản hiện có, trước khi chép)"
-  remote "$(compose_cmd) config -q" && echo "  Hợp lệ."
+  if remote "test -f $(printf '%q' "${DEV_SERVER_INFRA_DIR}/.env")"; then
+    remote "$(compose_cmd) config -q" && echo "  Hợp lệ."
+  else
+    echo "  Chưa có ${DEV_SERVER_INFRA_DIR}/.env (lần chuyển bố cục đầu tiên); bỏ qua."
+  fi
 }
 
 cmd_apply() {

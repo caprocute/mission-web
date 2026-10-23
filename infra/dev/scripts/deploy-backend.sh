@@ -32,12 +32,14 @@ die() {
   exit 1
 }
 
-[[ -f "${ENV_FILE}" ]] || die "thiếu ${ENV_FILE} (sao chép từ .env.example và điền mật khẩu)"
-set -a
-# shellcheck disable=SC1090
-source "${ENV_FILE}"
-set +a
-[[ -n "${DB_ROLE_PASSWORD_DEFAULT:-}" ]] || die "chưa đặt DB_ROLE_PASSWORD_DEFAULT trong .env"
+if [[ "${IN_MO_DUN:-0}" != "1" ]]; then
+  [[ -f "${ENV_FILE}" ]] || die "thiếu ${ENV_FILE} (sao chép từ .env.example và điền mật khẩu)"
+  set -a
+  # shellcheck disable=SC1090
+  source "${ENV_FILE}"
+  set +a
+  [[ -n "${DB_ROLE_PASSWORD_DEFAULT:-}" ]] || die "chưa đặt DB_ROLE_PASSWORD_DEFAULT trong .env"
+fi
 [[ -d "${REPO_ROOT}/backend" && -d "${REPO_ROOT}/services-go" ]] || die "cần bản checkout đầy đủ của repo"
 
 # Service Java: tên dịch vụ compose → mô-đun Maven.
@@ -66,6 +68,14 @@ else
   SERVICES=("${ALL_SERVICES[@]}")
 fi
 selected() { [[ " ${SERVICES[*]} " == *" $1 "* ]]; }
+
+# IN_MO_DUN=1: chỉ in mô-đun Maven của các service đã chọn (trien-khai-lai.sh dựng jar trên máy trạm) rồi thoát.
+if [[ "${IN_MO_DUN:-0}" == "1" ]]; then
+  for s in "${SERVICES[@]}"; do
+    [[ -n "${JAVA_MODULES[$s]:-}" ]] && echo "${JAVA_MODULES[$s]}"
+  done
+  exit 0
+fi
 
 compose() {
   docker compose -p "${PROJECT}" --project-directory "${INFRA_DIR}" -f "${INFRA_DIR}/docker-compose.yml" \
