@@ -40,10 +40,12 @@ class DossierVoteIsolationTest {
 
   /**
    * Thao tác đọc của {@code DossierProfilesApi} mà CORE-06-06 dùng để lập gói (tên không bắt đầu
-   * bằng {@code find}); accessor của record trả về là đọc.
+   * bằng {@code find}); accessor của record trả về là đọc. Riêng {@code lock} (CORE-06-07, QT-11
+   * bước 13) là lệnh ghi duy nhất được phép: khi gói đã nộp, MOD-04 tự chuyển hồ sơ {@code
+   * DA_KY_SO} sang {@code DA_KHOA}, không chạm mức đề xuất hay mức quyết định.
    */
   private static final java.util.Set<String> READS =
-      java.util.Set.of("anyDecided", "unitProfiles", "undecidedPersons");
+      java.util.Set.of("anyDecided", "unitProfiles", "undecidedPersons", "lock");
 
   @Test
   void mod06ChiGoiThaoTacDocCuaAppraisalApi() {

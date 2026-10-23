@@ -82,6 +82,7 @@ public interface DossierPackageRepository {
   /** Khoá dòng gói tới hết giao dịch (đổi trạng thái gói). */
   Optional<PackageRow> lock(TenantId tenant, int periodBucket, UUID id);
 
+  /** Phiên bản mới nhất của gói đơn vị, kỳ, loại. */
   Optional<PackageRow> findByUnit(
       TenantId tenant, int periodBucket, UUID orgUnitId, PackageKind kind);
 
@@ -167,4 +168,37 @@ public interface DossierPackageRepository {
    * lưu): coi như đã xử lý khi xét đủ điều kiện sinh biểu mẫu chính thức.
    */
   Set<UUID> settledSpecialCases(TenantId tenant, int periodBucket, UUID periodId);
+
+  // ---------------------------------------------------------------- ký gói (CORE-06-07)
+
+  /** Manifest đã chốt của gói (mảng JSON, {@code []} khi chưa chốt). */
+  String manifest(TenantId tenant, int periodBucket, UUID packageId);
+
+  /**
+   * Chốt manifest và băm của gói {@code CHO_KY} đúng phiên bản, bỏ yêu cầu ký cũ; {@code
+   * updated_by} là người yêu cầu ký. Trả phiên bản mới, 0 khi lệch.
+   */
+  long saveManifest(
+      TenantId tenant,
+      PackageRow row,
+      String manifestJson,
+      byte[] manifestHash,
+      long expectedVersion,
+      UUID actor);
+
+  /** Gắn mã yêu cầu ký của SVC-10 cho gói (không tăng phiên bản). */
+  int attachSignRequest(TenantId tenant, int periodBucket, UUID packageId, UUID signRequestId);
+
+  /** Gói của yêu cầu ký. */
+  Optional<PackageRow> findBySignRequest(TenantId tenant, UUID signRequestId);
+
+  /**
+   * Gói {@code DA_KY} sang {@code DA_NOP} với thời điểm nộp và băm gói (gói sau đó bị khoá). Trả
+   * phiên bản mới.
+   */
+  long submit(
+      TenantId tenant, PackageRow row, Instant submittedAt, byte[] packageSha256, UUID actor);
+
+  /** Phiên bản kế tiếp của gói ở {@code DANG_LAP}: cùng đơn vị, kỳ, loại, mã và hạn nộp. */
+  PackageRow newVersion(TenantId tenant, PackageRow previous, UUID id, UUID actor);
 }

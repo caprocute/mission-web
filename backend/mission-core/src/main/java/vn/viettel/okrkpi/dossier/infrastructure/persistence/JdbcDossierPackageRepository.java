@@ -23,6 +23,7 @@ import vn.viettel.okrkpi.dossier.domain.dossierpackage.PackageCode;
 import vn.viettel.okrkpi.dossier.domain.dossierpackage.PackageKind;
 import vn.viettel.okrkpi.dossier.domain.dossierpackage.PackageStatus;
 import vn.viettel.okrkpi.dossier.domain.dossierpackage.RenderProgress;
+import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 
 /**
@@ -51,6 +52,7 @@ public class JdbcDossierPackageRepository implements DossierPackageRepository {
 
   private static final Pattern BOUND = Pattern.compile("-?\\d+");
   private static final Duration BUCKET_TTL = Duration.ofMinutes(1);
+  private static final String FROZEN_STATE = "55000";
 
   private final JdbcClient jdbc;
   private final ConcurrentHashMap<String, Buckets> buckets = new ConcurrentHashMap<>();
@@ -87,7 +89,8 @@ public class JdbcDossierPackageRepository implements DossierPackageRepository {
             "SELECT "
                 + PACKAGE_COLUMNS
                 + " FROM dossier.dossier_package WHERE period_bucket = ? AND tenant_id = ?"
-                + " AND org_unit_id = ? AND package_kind = ? AND person_id IS NULL")
+                + " AND org_unit_id = ? AND package_kind = ? AND person_id IS NULL"
+                + " ORDER BY version_no DESC LIMIT 1")
         .params(periodBucket, tenant.value(), orgUnitId, kind.name())
         .query(this::packageRow)
         .optional();
@@ -202,7 +205,7 @@ public class JdbcDossierPackageRepository implements DossierPackageRepository {
     if (expectedVersion != null) {
       params.add(expectedVersion.intValue());
     }
-    return jdbc.sql(sql).params(params).query(Long.class).optional().orElse(0L);
+    return frozen(() -> jdbc.sql(sql).params(params).query(Long.class).optional().orElse(0L));
   }
 
   @Override
@@ -464,6 +467,137 @@ public class JdbcDossierPackageRepository implements DossierPackageRepository {
             .params(periodBucket, tenant.value(), periodId)
             .query(UUID.class)
             .list());
+  }
+
+  // ---------------------------------------------------------------- ký gói
+
+  @Override
+  public String manifest(TenantId tenant, int periodBucket, UUID packageId) {
+    return jdbc.sql(
+            "SELECT manifest::text FROM dossier.dossier_package WHERE period_bucket = ?"
+                + " AND tenant_id = ? AND id = ?")
+        .params(periodBucket, tenant.value(), packageId)
+        .query(String.class)
+        .optional()
+        .orElse("[]");
+  }
+
+  @Override
+  public long saveManifest(
+      TenantId tenant,
+      PackageRow row,
+      String manifestJson,
+      byte[] manifestHash,
+      long expectedVersion,
+      UUID actor) {
+    return frozen(
+        () ->
+            jdbc.sql(
+                    "UPDATE dossier.dossier_package SET manifest = ?::jsonb, manifest_hash = ?,"
+                        + " sign_request_id = NULL, row_version = row_version + 1,"
+                        + " updated_at = now(), updated_by = ? WHERE period_bucket = ?"
+                        + " AND tenant_id = ? AND id = ? AND status = 'CHO_KY'"
+                        + " AND row_version = ? RETURNING row_version")
+                .params(
+                    manifestJson,
+                    manifestHash,
+                    actor,
+                    row.periodBucket(),
+                    tenant.value(),
+                    row.id(),
+                    (int) expectedVersion)
+                .query(Long.class)
+                .optional()
+                .orElse(0L));
+  }
+
+  @Override
+  public int attachSignRequest(
+      TenantId tenant, int periodBucket, UUID packageId, UUID signRequestId) {
+    return frozen(
+        () ->
+            jdbc.sql(
+                    "UPDATE dossier.dossier_package SET sign_request_id = ? WHERE period_bucket = ?"
+                        + " AND tenant_id = ? AND id = ? AND status = 'CHO_KY'")
+                .params(signRequestId, periodBucket, tenant.value(), packageId)
+                .update());
+  }
+
+  @Override
+  public Optional<PackageRow> findBySignRequest(TenantId tenant, UUID signRequestId) {
+    return jdbc.sql(
+            "SELECT "
+                + PACKAGE_COLUMNS
+                + " FROM dossier.dossier_package WHERE tenant_id = ? AND sign_request_id = ?"
+                + " ORDER BY version_no DESC LIMIT 1")
+        .params(tenant.value(), signRequestId)
+        .query(this::packageRow)
+        .optional();
+  }
+
+  @Override
+  public long submit(
+      TenantId tenant, PackageRow row, Instant submittedAt, byte[] packageSha256, UUID actor) {
+    return frozen(
+        () ->
+            jdbc.sql(
+                    "UPDATE dossier.dossier_package SET status = 'DA_NOP', submitted_at = ?,"
+                        + " package_sha256 = ?, row_version = row_version + 1, updated_at = now(),"
+                        + " updated_by = ? WHERE period_bucket = ? AND tenant_id = ? AND id = ?"
+                        + " AND status = 'DA_KY' RETURNING row_version")
+                .params(
+                    Timestamp.from(submittedAt),
+                    packageSha256,
+                    actor,
+                    row.periodBucket(),
+                    tenant.value(),
+                    row.id())
+                .query(Long.class)
+                .optional()
+                .orElse(0L));
+  }
+
+  @Override
+  public PackageRow newVersion(TenantId tenant, PackageRow previous, UUID id, UUID actor) {
+    jdbc.sql(
+            """
+            INSERT INTO dossier.dossier_package (id, tenant_id, created_by, updated_by, period_id,
+                period_bucket, code, org_unit_id, person_id, package_kind, version_no, status,
+                deadline)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DANG_LAP', ?)
+            """)
+        .params(
+            id,
+            tenant.value(),
+            actor,
+            actor,
+            previous.periodId(),
+            previous.periodBucket(),
+            previous.code(),
+            previous.orgUnitId(),
+            nullable(previous.personId()),
+            previous.kind().name(),
+            previous.versionNo() + 1,
+            previous.deadline())
+        .update();
+    return lock(tenant, previous.periodBucket(), id).orElseThrow();
+  }
+
+  /**
+   * Trigger {@code fn_freeze_submitted_package} chặn mọi thay đổi trên gói đã nộp ({@code
+   * object_not_in_prerequisite_state}); lớp mã đổi sang 409 {@code DOSSIER-409-PACKAGE-LOCKED}.
+   */
+  private static <T> T frozen(java.util.function.Supplier<T> work) {
+    try {
+      return work.get();
+    } catch (org.springframework.dao.DataAccessException e) {
+      Throwable c = e.getMostSpecificCause();
+      if (c instanceof SQLException sql && FROZEN_STATE.equals(sql.getSQLState())) {
+        throw new BusinessException(
+            "DOSSIER-409-PACKAGE-LOCKED", "Gói hồ sơ đã nộp, không sửa được.");
+      }
+      throw e;
+    }
   }
 
   // ---------------------------------------------------------------- nội bộ

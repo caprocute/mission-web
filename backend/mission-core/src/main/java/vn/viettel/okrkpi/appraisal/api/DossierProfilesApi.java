@@ -95,4 +95,11 @@ public interface DossierProfilesApi {
 
   /** Có ít nhất một hồ sơ đã quyết định của đơn vị trong kỳ. */
   boolean anyDecided(TenantId tenant, UUID periodId, UUID orgUnitId);
+
+  /**
+   * Gói hồ sơ đã ký và nộp (CORE-06-07, BR-11-10): hồ sơ {@code DA_KY_SO} trong danh sách chuyển
+   * {@code DA_KHOA} qua máy trạng thái của MOD-04; hồ sơ ở trạng thái khác được giữ nguyên. Trả số
+   * hồ sơ vừa khoá.
+   */
+  int lock(TenantId tenant, java.util.Collection<UUID> profileIds, UUID actor);
 }

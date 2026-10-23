@@ -17,6 +17,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.appraisal.api.DossierProfilesApi;
+import vn.viettel.okrkpi.appraisal.application.profile.AppraisalProfileService;
 import vn.viettel.okrkpi.policy.api.PolicyQueryApi;
 import vn.viettel.okrkpi.policy.api.PolicyQueryApi.ResolvedPack;
 import vn.viettel.okrkpi.shared.kernel.PeriodId;
@@ -54,13 +55,23 @@ public class JdbcDossierProfiles implements DossierProfilesApi {
   private final JdbcClient jdbc;
   private final TransactionTemplate tx;
   private final PolicyQueryApi policies;
+  private final java.util.function.Supplier<AppraisalProfileService> lifecycle;
 
   public JdbcDossierProfiles(
       JdbcClient jdbc, PlatformTransactionManager tm, PolicyQueryApi policies) {
+    this(jdbc, tm, policies, () -> null);
+  }
+
+  public JdbcDossierProfiles(
+      JdbcClient jdbc,
+      PlatformTransactionManager tm,
+      PolicyQueryApi policies,
+      java.util.function.Supplier<AppraisalProfileService> lifecycle) {
     this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
     this.tx = new TransactionTemplate(Objects.requireNonNull(tm, "tm"));
     this.tx.setReadOnly(true);
     this.policies = policies;
+    this.lifecycle = Objects.requireNonNull(lifecycle, "lifecycle");
   }
 
   @Override
@@ -131,6 +142,37 @@ public class JdbcDossierProfiles implements DossierProfilesApi {
                             .query(Boolean.class)
                             .single()));
     return Boolean.TRUE.equals(any);
+  }
+
+  @Override
+  public int lock(TenantId tenant, Collection<UUID> profileIds, UUID actor) {
+    AppraisalProfileService service = lifecycle.get();
+    if (service == null || profileIds.isEmpty()) {
+      return 0;
+    }
+    List<UUID> signed =
+        call(
+            tenant,
+            () ->
+                tx.execute(
+                    s ->
+                        jdbc.sql(
+                                "SELECT id FROM appraisal.appraisal_profile WHERE tenant_id ="
+                                    + " :tenant AND id IN (:ids) AND status = 'DA_KY_SO'")
+                            .param("tenant", tenant.value())
+                            .param("ids", List.copyOf(profileIds))
+                            .query(UUID.class)
+                            .list()));
+    int locked = 0;
+    for (UUID id : signed) {
+      try {
+        call(tenant, () -> service.transition(tenant, id, null, actor, (p, row) -> p.lock(actor)));
+        locked++;
+      } catch (RuntimeException e) {
+        // Hồ sơ đổi trạng thái giữa lúc đọc và lúc khoá: giữ nguyên.
+      }
+    }
+    return locked;
   }
 
   // ---------------------------------------------------------------- đọc

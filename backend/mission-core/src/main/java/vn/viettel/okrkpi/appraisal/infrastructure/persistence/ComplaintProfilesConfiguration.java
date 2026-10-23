@@ -35,7 +35,10 @@ public class ComplaintProfilesConfiguration {
   JdbcDossierProfiles dossierProfiles(
       @Qualifier("appraisalDataSource") DataSource dataSource,
       @Qualifier("appraisalTransactionManager") PlatformTransactionManager tm,
-      ObjectProvider<PolicyQueryApi> policies) {
-    return new JdbcDossierProfiles(JdbcClient.create(dataSource), tm, policies.getIfAvailable());
+      ObjectProvider<PolicyQueryApi> policies,
+      ObjectProvider<vn.viettel.okrkpi.appraisal.application.profile.AppraisalProfileService>
+          lifecycle) {
+    return new JdbcDossierProfiles(
+        JdbcClient.create(dataSource), tm, policies.getIfAvailable(), lifecycle::getIfAvailable);
   }
 }

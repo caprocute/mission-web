@@ -3,6 +3,7 @@ package vn.viettel.okrkpi.dossier.infrastructure.web;
 import java.net.URI;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -13,6 +14,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,27 +29,33 @@ import org.springframework.web.server.ResponseStatusException;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.contract.dossiers.model.DocgenRenderStatus;
+import vn.viettel.okrkpi.contract.dossiers.model.DossierChecklistItem;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierForm;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierFormCode;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierFormPage;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierFormStatus;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierPackage;
+import vn.viettel.okrkpi.contract.dossiers.model.DossierPackageChecklist;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierPackageCreate;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierPackageFormCounts;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierPackageKind;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierPackagePage;
+import vn.viettel.okrkpi.contract.dossiers.model.DossierPackageSignRequest;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierPackageStatus;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierRegenerateRequest;
+import vn.viettel.okrkpi.contract.dossiers.model.DossierSignJob;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierTransferDestination;
 import vn.viettel.okrkpi.contract.dossiers.model.PeriodRef;
 import vn.viettel.okrkpi.contract.dossiers.model.Ref;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.DossierPackageService;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.DossierPackageService.NewPackageCommand;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.DossierPackageService.PackageView;
+import vn.viettel.okrkpi.dossier.application.dossierpackage.DossierSigningService;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.port.DossierPackageRepository.Filter;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.port.DossierPackageRepository.FormRow;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.port.DossierPackageRepository.PackageRow;
 import vn.viettel.okrkpi.dossier.application.meeting.ReviewMeetingService;
+import vn.viettel.okrkpi.dossier.domain.dossierpackage.Checklist;
 import vn.viettel.okrkpi.dossier.domain.dossierpackage.FormStatus;
 import vn.viettel.okrkpi.dossier.domain.dossierpackage.PackageKind;
 import vn.viettel.okrkpi.dossier.domain.dossierpackage.PackageStatus;
@@ -67,8 +75,9 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
 /**
  * Gói hồ sơ số của {@code dossiers.yaml} (CORE-06-06, QT-11 bước 10–12, SCR-1102): {@code
  * listDossierPackages}, {@code createDossierPackage}, {@code getDossierPackage}, {@code
- * listDossierPackageForms}, {@code regenerateDossierPackageForms} (202). Phạm vi đơn vị của phân
- * công đang chọn; tên đơn vị, người chưa có bản sao trong MOD-06 nên trả rỗng.
+ * listDossierPackageForms}, {@code regenerateDossierPackageForms} (202); CORE-06-07 thêm {@code
+ * getDossierPackageChecklist} và {@code signDossierPackage} (202 kèm mã yêu cầu ký). Phạm vi đơn vị
+ * của phân công đang chọn; tên đơn vị, người chưa có bản sao trong MOD-06 nên trả rỗng.
  */
 @RestController
 @RequestMapping("/api/v1/dossiers/packages")
@@ -78,16 +87,21 @@ public class DossierPackageController {
   static final int MAX_LIMIT = 200;
   static final String FORMAT = "PDF/A-2b";
 
+  static final String SIGN_TYPE = "ESIGN";
+
   private final DossierPackageService service;
+  private final DossierSigningService signing;
   private final DossierCallers callers;
   private final ObjectProvider<PeriodApi> periods;
 
   public DossierPackageController(
       DossierPackageService service,
+      DossierSigningService signing,
       ObjectProvider<DossierCaller> callers,
       ObjectProvider<AuthzSubjectResolver> subjects,
       ObjectProvider<PeriodApi> periods) {
     this.service = Objects.requireNonNull(service, "service");
+    this.signing = Objects.requireNonNull(signing, "signing");
     this.callers = new DossierCallers(callers, subjects);
     this.periods = Objects.requireNonNull(periods, "periods");
   }
@@ -254,6 +268,90 @@ public class DossierPackageController {
       throw notFound();
     }
     return Jobs.accepted(PackageRenderJobs.job(view));
+  }
+
+  @GetMapping("/{id}/checklist")
+  @RequiresPermission(
+      operationId = "getDossierPackageChecklist",
+      module = "dossiers",
+      resourceType = "dossier_package")
+  public ResponseEntity<DossierPackageChecklist> getDossierPackageChecklist(
+      @PathVariable("id") UUID id) {
+    TenantId tenant = TenantContext.require();
+    callers.actor();
+    Checklist checklist;
+    try {
+      checklist = signing.checklist(tenant, callers.unit().orElse(null), id);
+    } catch (NoSuchElementException e) {
+      throw notFound();
+    }
+    List<DossierChecklistItem> items = new ArrayList<>();
+    for (Checklist.Item i : checklist.items()) {
+      DossierChecklistItem item =
+          new DossierChecklistItem(
+              i.code(),
+              i.label(),
+              i.ok()
+                  ? DossierChecklistItem.StatusEnum.DAT
+                  : DossierChecklistItem.StatusEnum.CANH_BAO);
+      if (i.count() > 0) {
+        item.setCount(i.count());
+      }
+      items.add(item);
+    }
+    DossierPackageChecklist body = new DossierPackageChecklist(checklist.passed(), items);
+    body.setEvaluatedAt(time(checklist.evaluatedAt()));
+    return ResponseEntity.ok(body);
+  }
+
+  @PostMapping("/{id}/sign")
+  @Idempotent
+  @RequiresPermission(
+      operationId = "signDossierPackage",
+      module = "dossiers",
+      resourceType = "dossier_package")
+  public ResponseEntity<DossierSignJob> signDossierPackage(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestHeader(value = "Authorization", required = false) String authorization,
+      @RequestBody(required = false) DossierPackageSignRequest body) {
+    TenantId tenant = TenantContext.require();
+    long expected = ETags.expectedVersion(ifMatch, "DOSSIER");
+    UUID actor = callers.actor();
+    String provider =
+        body == null || body.getProvider() == null ? null : body.getProvider().getValue();
+    DossierSigningService.SignStarted started;
+    try {
+      started =
+          signing.sign(
+              tenant,
+              actor,
+              callers.unit().orElse(null),
+              id,
+              expected,
+              provider,
+              idempotencyKey,
+              authorization);
+    } catch (NoSuchElementException e) {
+      throw notFound();
+    } catch (DossierSigningService.SigningUnavailableException e) {
+      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
+    }
+    UUID request = started.signRequestId();
+    DossierSignJob job =
+        new DossierSignJob(
+            request.toString(),
+            SIGN_TYPE,
+            vn.viettel.okrkpi.contract.dossiers.model.JobStatus.DANG_CHAY,
+            request);
+    job.setProgress(0);
+    job.setMessage(PackageSignJobs.WAITING);
+    job.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+    return ResponseEntity.status(HttpStatus.ACCEPTED)
+        .location(Jobs.location(request.toString()))
+        .header(HttpHeaders.RETRY_AFTER, Long.toString(Jobs.DEFAULT_RETRY_AFTER_SECONDS))
+        .body(job);
   }
 
   // ---------------------------------------------------------------- ánh xạ
