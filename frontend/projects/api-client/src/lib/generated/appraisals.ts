@@ -698,6 +698,8 @@ export interface components {
       dueDate?: components['schemas']['Date'];
       anomalyHints?: components['schemas']['AppraisalAnomalyHint'][];
       rowVersion: components['schemas']['RowVersion'];
+      /** @description Thao tác của người gọi trên hồ sơ: `SCR-0901.luu`, `SCR-0901.ky-nop` khi hồ sơ ở bước tự đánh giá và người gọi là người được đánh giá; `SCR-0902.tra-lai`, `SCR-0902.ky` khi chờ thẩm định và người gọi đủ điều kiện tách vai (BR-09-14); `SCR-0903.de-xuat` khi đã thẩm định và người gọi khác người được đánh giá, người thẩm định, người quyết định. */
+      permittedActions?: components['schemas']['PermittedActions'];
     };
     AppraisalProfilePage: {
       items: components['schemas']['AppraisalProfileRow'][];
@@ -858,6 +860,8 @@ export interface components {
       quarterRatings?: components['schemas']['AppraisalQuarterRating'][];
       anomalyHints?: components['schemas']['AppraisalAnomalyHint'][];
       rowVersion: components['schemas']['RowVersion'];
+      /** @description Thao tác của người gọi trên hồ sơ: `SCR-0901.luu`, `SCR-0901.ky-nop` khi hồ sơ ở bước tự đánh giá và người gọi là người được đánh giá; `SCR-0902.tra-lai`, `SCR-0902.ky` khi chờ thẩm định và người gọi đủ điều kiện tách vai (BR-09-14); `SCR-0903.de-xuat` khi đã thẩm định và người gọi khác người được đánh giá, người thẩm định, người quyết định. */
+      permittedActions?: components['schemas']['PermittedActions'];
     };
     /** @description Nội dung lưu nháp phiếu tự đánh giá; mọi trường tuỳ chọn khi lưu nháp. */
     AppraisalSelfAssessmentInput: {
@@ -1470,6 +1474,14 @@ export interface components {
      * @example 7
      */
     RowVersion: number;
+    /**
+     * @description Thao tác người gọi được làm trên chính đối tượng này, dạng khoá chức năng của ma trận phân quyền `SCR-qqnn.<khoá>` (docs/phan-quyen/ma-tran.json). Máy chủ tính bằng OPA với cùng đầu vào như khi thực hiện thao tác (vai trò, phạm vi đơn vị, người tham gia, trạng thái, tách vai trò), để giao diện ẩn nút trước thay vì để người dùng bấm rồi nhận 403 (YC-PT-21). Chỉ là gợi ý hiển thị: thao tác vẫn được kiểm lại khi gọi. Không gửi trường này nghĩa là giao diện chỉ xét vai trò.
+     * @example [
+     *       "SCR-1601.nhac",
+     *       "SCR-1601.giao-lai"
+     *     ]
+     */
+    PermittedActions: string[];
     /** @description Con trỏ trang kế tiếp; `null` khi đã hết. */
     NextCursor: string | null;
     /**
