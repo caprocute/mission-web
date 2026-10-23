@@ -102,6 +102,14 @@ SELECT md5('assignment-version:' || p.id)::uuid, md5('assignment:' || p.id)::uui
 FROM seed_person p
 ON CONFLICT DO NOTHING;
 
+-- Trưởng đơn vị (is_head): lanhdao đứng đầu phòng 101, giamdocso đứng đầu Sở 100. Màn soạn mục tiêu lấy người xác
+-- nhận KR từ trưởng đơn vị sở hữu và đơn vị cấp trên (SCR-0202 trường 14), thiếu trưởng đơn vị thì không trình được.
+-- Câu UPDATE giữ cho lần seed lại trên dữ liệu cũ (chèn trước đây bỏ qua khi đã có bản ghi); tăng row_version để
+-- org-republish ghi đè bản sao org_replica (chỉ nhận phiên bản nguồn mới hơn).
+UPDATE org.assignment a SET is_head = true, row_version = a.row_version + 1
+FROM seed_person p
+WHERE a.person_id = p.id AND a.kind = 'CHINH' AND NOT a.is_head AND p.username IN ('lanhdao', 'giamdocso');
+
 -- Phân công kiêm nhiệm thứ hai của quanly ở Ban Tổ chức, để hành trình HT-02 (QT-00, SCR-0002) chọn được đơn vị
 -- và vai trò khi đăng nhập.
 INSERT INTO org.assignment (version_id, id, tenant_id, person_id, org_unit_id, job_title_id, kind, branch,

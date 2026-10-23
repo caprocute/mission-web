@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { CursorPage, MAX_PAGE_LIMIT } from './paging';
 import {
   AiOkrReview,
@@ -8,6 +8,7 @@ import {
   KrCheckin,
   ObjectiveDetail,
   Objective,
+  NewObjectiveDraft,
   ObjectiveDraft,
   OkrComposeContext,
   OkrCheckinCreate,
@@ -108,12 +109,16 @@ export class OkrApi {
 
   /** Mục tiêu cùng KR để sửa (`GET /api/v1/okr/objectives/{id}`). */
   objective(id: string): Observable<ObjectiveDetail> {
-    return this.http.get<ObjectiveDetail>(`/api/v1/okr/objectives/${encodeURIComponent(id)}`);
+    return this.http
+      .get<ObjectiveDetail>(`/api/v1/okr/objectives/${encodeURIComponent(id)}`)
+      .pipe(map(fromWire));
   }
 
   /** Tạo bản nháp `NHAP` (POST, Idempotency-Key do interceptor gắn). */
-  createObjective(draft: ObjectiveDraft): Observable<ObjectiveDetail> {
-    return this.http.post<ObjectiveDetail>('/api/v1/okr/objectives', draft);
+  createObjective(draft: NewObjectiveDraft): Observable<ObjectiveDetail> {
+    return this.http
+      .post<ObjectiveDetail>('/api/v1/okr/objectives', toWire(draft))
+      .pipe(map(fromWire));
   }
 
   /** Lưu nháp, kể cả lưu tự động mỗi 30 giây (PUT, If-Match; 409 khi người khác vừa sửa). */
@@ -122,21 +127,32 @@ export class OkrApi {
     rowVersion: number,
     draft: ObjectiveDraft,
   ): Observable<ObjectiveDetail> {
-    return this.http.put<ObjectiveDetail>(
-      `/api/v1/okr/objectives/${encodeURIComponent(id)}`,
-      draft,
-      {
+    return this.http
+      .put<ObjectiveDetail>(`/api/v1/okr/objectives/${encodeURIComponent(id)}`, toWire(draft), {
         headers: { 'If-Match': `"${rowVersion}"` },
-      },
-    );
+      })
+      .pipe(map(fromWire));
   }
 
-  /** Trình phê duyệt: máy chủ kiểm lại toàn bộ quy tắc, chuyển `CHO_DUYET`, tạo tiến trình `duyet-okr`. */
-  submitObjective(id: string): Observable<OkrSubmitResult> {
-    return this.http.post<OkrSubmitResult>(
-      `/api/v1/okr/objectives/${encodeURIComponent(id)}/submit`,
-      {},
-    );
+  /**
+   * Trình phê duyệt: máy chủ kiểm lại toàn bộ quy tắc, chuyển `CHO_DUYET`, tạo tiến trình `duyet-okr`
+   * (If-Match bắt buộc, thiếu thì 428).
+   */
+  submitObjective(id: string, rowVersion: number): Observable<OkrSubmitResult> {
+    return this.http
+      .post<SubmitWire>(
+        `/api/v1/okr/objectives/${encodeURIComponent(id)}/submit`,
+        {},
+        { headers: { 'If-Match': `"${rowVersion}"` } },
+      )
+      .pipe(
+        // Hợp đồng trả `OkrObjective` có người duyệt, hạn duyệt trong `approval` (MSG-02-08)
+        map((r) => ({
+          status: r.status,
+          reviewerName: r.reviewerName ?? r.approval?.reviewer?.name ?? '',
+          dueDate: r.dueDate ?? r.approval?.dueDate ?? '',
+        })),
+      );
   }
 
   /** Trợ lý AI soát KR (SVC-14, AC-12): chỉ đề xuất, không ghi; không gửi dữ liệu C3. */
@@ -237,3 +253,41 @@ export class OkrApi {
     );
   }
 }
+
+/**
+ * Hợp đồng gọi người xác nhận KR là `verifierPersonId` khi ghi (`OkrKeyResultInput`) và `verifier` (Ref) khi đọc
+ * (`OkrKeyResult`); mô hình soạn dùng `verifierId`. Giữ cả `verifierId` khi gửi cho kho giả lập.
+ */
+function toWire<T extends ObjectiveDraft>(d: T): T {
+  return {
+    ...d,
+    keyResults: d.keyResults.map((k) => ({ ...k, verifierPersonId: k.verifierId })),
+  };
+}
+
+function fromWire(d: ObjectiveDetail): ObjectiveDetail {
+  // Hợp đồng `OkrObjective` trả tham chiếu (`bases`, `parentObjective`, `ownerUnit`, `createdBy`) thay cho mã
+  const w = d as ObjectiveDetail & {
+    bases?: { id: string }[];
+    parentObjective?: { id: string } | null;
+    ownerUnit?: { name?: string } | null;
+    createdBy?: { name?: string } | null;
+  };
+  return {
+    ...d,
+    basisIds: d.basisIds ?? (w.bases ?? []).map((b) => b.id),
+    parentObjectiveId: d.parentObjectiveId ?? w.parentObjective?.id ?? null,
+    ownerUnitName: d.ownerUnitName ?? w.ownerUnit?.name ?? '',
+    authorName: d.authorName ?? w.createdBy?.name ?? '',
+    draftNo: d.draftNo ?? d.versionNo,
+    keyResults: (d.keyResults ?? []).map((k) => {
+      const w = k as typeof k & { verifier?: { id?: string } | null };
+      return { ...k, verifierId: k.verifierId ?? w.verifier?.id ?? null };
+    }),
+  };
+}
+
+type SubmitWire = Partial<OkrSubmitResult> & {
+  status: OkrSubmitResult['status'];
+  approval?: { reviewer?: { name?: string } | null; dueDate?: string | null } | null;
+};

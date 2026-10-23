@@ -188,7 +188,7 @@ describe('ObjectiveComposePage (SCR-0202)', () => {
         const krs = d.keyResults.filter((k) => k.code !== 'KR 3.3');
         krs[0] = { ...krs[0], weight: 0.7 };
         await firstValueFrom(api.saveObjective('o-3', d.rowVersion, { ...d, keyResults: krs }));
-        return firstValueFrom(api.submitObjective('o-3'));
+        return firstValueFrom(api.submitObjective('o-3', 1));
       },
     );
     expect(text(el)).toContain('nên không sửa trực tiếp được');

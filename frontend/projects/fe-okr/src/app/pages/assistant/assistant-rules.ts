@@ -1,6 +1,7 @@
 import type {
   KeyResultDraft,
   ObjectiveDetail,
+  NewObjectiveDraft,
   ObjectiveDraft,
   OkrAssistSuggestion,
   OkrComposeContext,
@@ -45,12 +46,14 @@ export function objectiveFromSuggestion(
   ownerType: OkrOwnerType,
   basisIds: string[],
   objectiveNo: number,
-): ObjectiveDraft {
+): NewObjectiveDraft {
   const krs = s.objective?.keyResults ?? [];
   const verifier = ctx.verifiers.find((v) => v.id !== ctx.me.id)?.id ?? null;
   return {
     periodId: ctx.period.id,
     ownerType,
+    ownerUnitId: ctx.unit.id,
+    ...(ownerType === 'CA_NHAN' ? { ownerPersonId: ctx.me.id } : {}),
     basisIds,
     parentObjectiveId: null,
     title: s.objective?.title ?? '',

@@ -148,7 +148,7 @@ const newKey = () => `k${++seq}`;
       @if (submitted(); as s) {
         <p-message severity="success" styleClass="msg">
           <span role="status">
-            Đã trình phê duyệt. Người duyệt: {{ s.reviewerName }}, hạn {{ fmtDate(s.dueDate) }}.
+            {{ submittedText(s) }}
           </span>
           <a [routerLink]="treeLink" [queryParams]="{ period: f.periodId }" class="linkbtn">
             Về cây mục tiêu
@@ -1105,7 +1105,11 @@ export class ObjectiveComposePage {
     this.actionError.set(null);
     const req = m
       ? this.api.saveObjective(m.id, m.rowVersion, draft)
-      : this.api.createObjective(draft);
+      : this.api.createObjective({
+          ...draft,
+          ownerUnitId: this.ctx()!.unit.id,
+          ...(draft.ownerType === 'CA_NHAN' ? { ownerPersonId: this.ctx()!.me.id } : {}),
+        });
     return new Observable<SavedMeta>((sub) => {
       const s = req.subscribe({
         next: (d) => {
@@ -1152,7 +1156,7 @@ export class ObjectiveComposePage {
     this.submitting.set(true);
     const m = this.meta();
     const saved$ = this.dirty() || !m ? this.save() : of(m);
-    saved$.pipe(switchMap((s) => this.api.submitObjective(s.id))).subscribe({
+    saved$.pipe(switchMap((s) => this.api.submitObjective(s.id, s.rowVersion))).subscribe({
       next: (res) => {
         this.submitting.set(false);
         this.meta.update((x) => (x ? { ...x, status: res.status } : x));
@@ -1230,6 +1234,13 @@ export class ObjectiveComposePage {
     this.aiMarked.update((x) => new Set([...x, key]));
     this.dismiss(s);
     queueMicrotask(() => document.getElementById(`kr-title-${key}`)?.focus());
+  }
+
+  /** MSG-02-08; máy chủ chưa trả người duyệt hoặc hạn duyệt thì chỉ báo đã trình. */
+  protected submittedText(s: OkrSubmitResult): string {
+    if (!s.reviewerName) return 'Đã trình phê duyệt.';
+    const han = s.dueDate ? `, hạn ${this.fmtDate(s.dueDate)}` : '';
+    return `Đã trình phê duyệt. Người duyệt: ${s.reviewerName}${han}.`;
   }
 
   private defaultOwnerType() {
