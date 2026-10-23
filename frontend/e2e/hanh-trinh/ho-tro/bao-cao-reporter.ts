@@ -43,7 +43,11 @@ export default class BaoCaoHeThong implements Reporter {
       giay: Math.round(result.duration / 100) / 10,
       cho,
       requestId: ann('x-request-id'),
-      conLai: [...ann('du-lieu-con-lai'), ...ann('khong-ap-dung').map((k) => `Chưa kiểm: ${k}`)],
+      conLai: [
+        ...ann('do-dac'),
+        ...ann('du-lieu-con-lai'),
+        ...ann('khong-ap-dung').map((k) => `Chưa kiểm: ${k}`),
+      ],
       loi: result.error?.message?.split('\n')[0]?.replace(new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g'), '') ?? null,
     });
   }

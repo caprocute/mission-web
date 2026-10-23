@@ -37,6 +37,10 @@ export const TAI_KHOAN = {
   thamdinh: ['member', 'appraiser'],
   /** member: AC-06 "Việc của tôi", cập nhật tiến độ (SCR-0503, SCR-0601). */
   canbo: ['member'],
+  /** decider: AC-08 quyết định xếp loại và ký lô (SCR-0904). */
+  quyetdinh: ['decider'],
+  /** second_approver: AC-09 duyệt thứ hai huỷ và hoàn tác khoá kỳ (SCR-0801). */
+  duyet2: ['second_approver'],
 } as const;
 export type TenTaiKhoan = keyof typeof TAI_KHOAN;
 
