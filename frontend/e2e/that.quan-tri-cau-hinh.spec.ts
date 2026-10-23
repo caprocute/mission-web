@@ -52,8 +52,8 @@ const TAI_KHOAN = {
   quantri: ['tenant_admin'],
   /**
    * AC-02 tenant_admin thứ hai: duyệt và phát hành UI Pack (SCR-1801 `duyet`, khác người soạn). Realm
-   * dev chưa có tài khoản này: chế độ `that` bỏ qua luồng UI Pack nếu không ghi đè
-   * `E2E_THAT_TK_QUANTRI2` bằng một tài khoản tenant_admin khác `quantri`.
+   * dev có tài khoản này từ 23/10/2026; realm khác không có thì chế độ `that` bỏ qua luồng UI Pack nếu
+   * không ghi đè `E2E_THAT_TK_QUANTRI2` bằng một tài khoản tenant_admin khác `quantri`.
    */
   quantri2: ['tenant_admin'],
   /** AC-03 policy_author: soạn công thức, chạy test case vàng, gửi phê duyệt (SCR-1501, SCR-1503). */
