@@ -10,13 +10,14 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
-  ORG_CHANGE_KIND_LABEL,
-  OrgChangeKind,
-  OrgChangeResult,
+  ORG_CHANGE_TYPE_LABEL,
+  OrgChangeOrder,
+  OrgChangeRequest,
+  OrgChangeType,
   OrgTreeApi,
   OrgUnitDetail,
-  OrgUnitMatch,
-  OrgUnitRef,
+  OrgUnitInput,
+  OrgUnitSearchHit,
   fieldErrors,
   toProblem,
 } from '@vt/api-client';
@@ -24,46 +25,55 @@ import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
-import { TextareaModule } from 'primeng/textarea';
 import { Subject, debounceTime, of, switchMap } from 'rxjs';
 
 /** MSG-01-09 (BR-01-07). */
 export const MSG_01_09 = 'Sáp nhập cần khai báo ít nhất một đơn vị tiền thân.';
 
-interface Draft {
-  kind: OrgChangeKind;
-  effectiveOn: string;
-  orderNo: string;
-  names: string;
-  predecessors: OrgUnitRef[];
+interface NewUnitDraft {
+  code: string;
+  name: string;
 }
 
-const KINDS = Object.keys(ORG_CHANGE_KIND_LABEL) as OrgChangeKind[];
-const HINT: Record<OrgChangeKind, string> = {
+interface Draft {
+  kind: OrgChangeType;
+  effectiveOn: string;
+  orderNo: string;
+  orderDate: string;
+  newName: string;
+  units: NewUnitDraft[];
+  predecessors: { id: string; name: string }[];
+}
+
+/** Trường có chỗ hiện lỗi riêng trong hộp; lỗi trường khác gộp vào thông báo chung. */
+const SHOWN = new Set(['effectiveOn', 'orderNo', 'orderDate', 'newName', 'relatedUnitIds']);
+
+const today = () => new Date().toISOString().slice(0, 10);
+const blankUnits = (kind: OrgChangeType): NewUnitDraft[] =>
+  Array.from({ length: kind === 'CHIA_TACH' ? 2 : 1 }, () => ({ code: '', name: '' }));
+
+const KINDS = Object.keys(ORG_CHANGE_TYPE_LABEL) as OrgChangeType[];
+const HINT: Record<OrgChangeType, string> = {
   THANH_LAP: 'Thành lập đơn vị mới trực thuộc đơn vị đang chọn.',
   DOI_TEN: 'Đơn vị giữ mã, lịch sử; tên mới có hiệu lực từ ngày quyết định.',
   SAP_NHAP:
     'Đơn vị tiền thân kết thúc hiệu lực, phân công và đơn vị trực thuộc chuyển về đơn vị đang chọn.',
   HOP_NHAT: 'Đơn vị đang chọn và đơn vị tiền thân kết thúc, hình thành đơn vị mới cùng cấp.',
-  CHIA_TACH: 'Đơn vị đang chọn kết thúc, hình thành các đơn vị mới cùng cấp (mỗi dòng một tên).',
+  CHIA_TACH: 'Đơn vị đang chọn kết thúc, hình thành các đơn vị mới cùng cấp.',
   GIAI_THE: 'Đơn vị kết thúc hiệu lực; chỉ được khi không còn đơn vị trực thuộc.',
 };
 
 /**
  * Hộp "Thay đổi tổ chức" của SCR-0103: thành lập, đổi tên, sáp nhập, hợp nhất, chia tách, giải thể
- * kèm ngày hiệu lực và văn bản căn cứ → `POST /api/v1/org/units/{id}/changes` (EVT-14, EVT-15).
- * Mỗi thay đổi tạo phiên bản mới, không ghi đè lịch sử (BR-01-06); BR-01-07, MSG-01-09 kiểm ở máy chủ.
+ * kèm ngày hiệu lực và quyết định căn cứ (số, ngày ban hành) → `POST /api/v1/org/units/{id}/changes`
+ * thân `OrgChangeRequest` (EVT-14, EVT-15). Đơn vị mới (`newUnits`) nhận cấp, loại, khối đối tượng,
+ * luồng đánh giá của đơn vị đang chọn (suy luận), người dùng nhập mã và tên; sửa chi tiết sau bằng
+ * "Sửa". Mỗi thay đổi tạo phiên bản mới, không ghi đè lịch sử (BR-01-06); BR-01-07, MSG-01-09 kiểm
+ * lại ở máy chủ.
  */
 @Component({
   selector: 'vt-org-change-dialog',
-  imports: [
-    FormsModule,
-    ButtonModule,
-    DialogModule,
-    InputTextModule,
-    MessageModule,
-    TextareaModule,
-  ],
+  imports: [FormsModule, ButtonModule, DialogModule, InputTextModule, MessageModule],
   template: `
     <p-dialog
       [header]="'Thay đổi tổ chức: ' + unit().name"
@@ -120,31 +130,91 @@ const HINT: Record<OrgChangeKind, string> = {
             <small class="err">{{ fe()['orderNo'] }}</small>
           }
         </div>
-      </div>
-      @if (needsNames()) {
-        <label for="oc-names">{{ namesLabel() }}</label>
-        @if (d().kind === 'CHIA_TACH') {
-          <textarea
-            id="oc-names"
-            pTextarea
-            rows="3"
-            class="full"
-            [ngModel]="d().names"
-            (ngModelChange)="set('names', $event)"
-          ></textarea>
-        } @else {
+        <div>
+          <label for="oc-order-date">Ngày ban hành</label>
           <input
-            id="oc-names"
+            id="oc-order-date"
             pInputText
+            type="date"
             class="full"
-            maxlength="255"
-            [ngModel]="d().names"
-            (ngModelChange)="set('names', $event)"
+            [max]="maxDay"
+            [ngModel]="d().orderDate"
+            (ngModelChange)="set('orderDate', $event)"
           />
+          @if (fe()['orderDate']) {
+            <small class="err">{{ fe()['orderDate'] }}</small>
+          }
+        </div>
+      </div>
+      @if (d().kind === 'DOI_TEN') {
+        <label for="oc-names">Tên mới</label>
+        <input
+          id="oc-names"
+          pInputText
+          class="full"
+          maxlength="255"
+          [ngModel]="d().newName"
+          (ngModelChange)="set('newName', $event)"
+        />
+        @if (fe()['newName']) {
+          <small class="err">{{ fe()['newName'] }}</small>
         }
-        @if (fe()['names']) {
-          <small class="err">{{ fe()['names'] }}</small>
-        }
+      }
+      @if (needsUnits()) {
+        <fieldset>
+          <legend>{{ unitsLabel() }}</legend>
+          @for (nu of d().units; track $index; let i = $index) {
+            <div class="unit-row">
+              <div>
+                <label class="sub" [for]="'oc-code-' + i">Mã đơn vị</label>
+                <input
+                  pInputText
+                  class="full"
+                  maxlength="30"
+                  [id]="'oc-code-' + i"
+                  [ngModel]="nu.code"
+                  (ngModelChange)="setUnit(i, 'code', $event)"
+                />
+              </div>
+              <div>
+                <label class="sub" [for]="'oc-name-' + i">Tên đơn vị</label>
+                <input
+                  pInputText
+                  class="full"
+                  maxlength="255"
+                  [id]="'oc-name-' + i"
+                  [ngModel]="nu.name"
+                  (ngModelChange)="setUnit(i, 'name', $event)"
+                />
+              </div>
+              @if (d().kind === 'CHIA_TACH' && d().units.length > 2) {
+                <p-button
+                  icon="pi pi-times"
+                  severity="secondary"
+                  [text]="true"
+                  [ariaLabel]="'Bỏ đơn vị thứ ' + (i + 1)"
+                  (onClick)="removeUnit(i)"
+                />
+              }
+            </div>
+          }
+          @if (d().kind === 'CHIA_TACH') {
+            <p-button
+              label="Thêm đơn vị"
+              icon="pi pi-plus"
+              severity="secondary"
+              [text]="true"
+              (onClick)="addUnit()"
+            />
+          }
+          <p class="muted small">
+            Cấp, loại, khối đối tượng và luồng đánh giá lấy theo {{ unit().name }}; có thể sửa sau
+            khi ghi.
+          </p>
+          @if (unitsError()) {
+            <small class="err" role="alert">{{ unitsError() }}</small>
+          }
+        </fieldset>
       }
       @if (needsPredecessors()) {
         <label for="oc-pred">Đơn vị tiền thân</label>
@@ -162,7 +232,7 @@ const HINT: Record<OrgChangeKind, string> = {
             @for (m of predMatches(); track m.id) {
               <li>
                 <button type="button" class="res" (click)="addPred(m)">
-                  {{ m.name }} <span class="muted small">{{ m.path }}</span>
+                  {{ m.name }} <span class="muted small">{{ path(m) }}</span>
                 </button>
               </li>
             }
@@ -186,8 +256,8 @@ const HINT: Record<OrgChangeKind, string> = {
             <li class="muted small">Chưa chọn đơn vị tiền thân.</li>
           }
         </ul>
-        @if (fe()['predecessorIds']) {
-          <small class="err" role="alert">{{ fe()['predecessorIds'] }}</small>
+        @if (fe()['relatedUnitIds']) {
+          <small class="err" role="alert">{{ fe()['relatedUnitIds'] }}</small>
         }
       }
       @if (error(); as e) {
@@ -238,11 +308,22 @@ const HINT: Record<OrgChangeKind, string> = {
     }
     .grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 0 12px;
     }
+    .unit-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+      gap: 0 12px;
+      align-items: end;
+    }
+    label.sub {
+      font-weight: 400;
+      margin: 6px 0 4px;
+    }
     @media (max-width: 560px) {
-      .grid {
+      .grid,
+      .unit-row {
         grid-template-columns: 1fr;
       }
     }
@@ -306,20 +387,23 @@ const HINT: Record<OrgChangeKind, string> = {
 export class OrgChangeDialog {
   readonly unit = input.required<OrgUnitDetail>();
   readonly visible = model(false);
-  readonly saved = output<OrgChangeResult>();
+  readonly saved = output<OrgChangeOrder>();
 
   private readonly api = inject(OrgTreeApi);
   protected readonly kinds = KINDS;
-  protected readonly kindLabel = ORG_CHANGE_KIND_LABEL;
+  protected readonly kindLabel = ORG_CHANGE_TYPE_LABEL;
   protected readonly hint = HINT;
+  protected readonly maxDay = today();
 
   protected readonly d = linkedSignal<boolean, Draft>({
     source: this.visible,
     computation: () => ({
       kind: 'DOI_TEN',
-      effectiveOn: new Date().toISOString().slice(0, 10),
+      effectiveOn: today(),
       orderNo: '',
-      names: '',
+      orderDate: today(),
+      newName: '',
+      units: blankUnits('DOI_TEN'),
       predecessors: [],
     }),
   });
@@ -327,34 +411,39 @@ export class OrgChangeDialog {
   protected readonly error = signal<string | null>(null);
   protected readonly fe = signal<Record<string, string>>({});
   protected readonly pq = signal('');
-  protected readonly predMatches = signal<OrgUnitMatch[]>([]);
+  protected readonly predMatches = signal<OrgUnitSearchHit[]>([]);
   private readonly pred$ = new Subject<string>();
 
-  protected readonly needsNames = computed(() => !['SAP_NHAP', 'GIAI_THE'].includes(this.d().kind));
+  protected readonly needsUnits = computed(() =>
+    ['THANH_LAP', 'HOP_NHAT', 'CHIA_TACH'].includes(this.d().kind),
+  );
   protected readonly needsPredecessors = computed(() =>
     ['SAP_NHAP', 'HOP_NHAT'].includes(this.d().kind),
   );
-  protected readonly namesLabel = computed(
+  protected readonly unitsLabel = computed(
     () =>
       ({
-        THANH_LAP: 'Tên đơn vị thành lập',
-        DOI_TEN: 'Tên mới',
-        HOP_NHAT: 'Tên đơn vị hợp nhất',
-        CHIA_TACH: 'Tên các đơn vị mới (mỗi dòng một tên)',
+        THANH_LAP: 'Đơn vị thành lập',
+        HOP_NHAT: 'Đơn vị hợp nhất',
+        CHIA_TACH: 'Các đơn vị mới',
       })[this.d().kind as 'THANH_LAP'] ?? '',
   );
-  private readonly names = computed(() =>
-    this.d()
-      .names.split('\n')
-      .map((n) => n.trim())
-      .filter(Boolean),
+  /** Lỗi máy chủ cho `newUnits` hoặc `newUnits.<i>.<trường>`. */
+  protected readonly unitsError = computed(() =>
+    Object.entries(this.fe())
+      .filter(([k, m]) => k.startsWith('newUnits') && m)
+      .map(([, m]) => m)
+      .join(' '),
   );
   /** Kiểm tra nhanh phía trình duyệt; máy chủ kiểm lại (MSG-01-09 khi thiếu tiền thân). */
   protected readonly valid = computed(() => {
     const d = this.d();
-    if (!d.effectiveOn || !d.orderNo.trim()) return false;
-    if (d.kind === 'CHIA_TACH') return this.names().length >= 2;
-    if (this.needsNames() && !this.names().length) return false;
+    if (!d.effectiveOn || !d.orderNo.trim() || !d.orderDate) return false;
+    if (d.kind === 'DOI_TEN') return !!d.newName.trim();
+    if (this.needsUnits()) {
+      const filled = d.units.every((u) => u.code.trim() && u.name.trim());
+      return filled && d.units.length >= (d.kind === 'CHIA_TACH' ? 2 : 1);
+    }
     return true;
   });
 
@@ -367,18 +456,45 @@ export class OrgChangeDialog {
       .subscribe((m) =>
         this.predMatches.set(
           m.filter(
-            (x) =>
-              !x.validTo &&
-              x.id !== this.unit().id &&
-              !this.d().predecessors.some((p) => p.id === x.id),
+            (x) => x.id !== this.unit().id && !this.d().predecessors.some((p) => p.id === x.id),
           ),
         ),
       );
   }
 
   protected set<K extends keyof Draft>(key: K, value: Draft[K]) {
-    this.d.update((d) => ({ ...d, [key]: value }));
+    this.d.update((d) => {
+      const next = { ...d, [key]: value };
+      // đổi loại thay đổi: số dòng đơn vị mới theo loại (chia tách ít nhất hai)
+      if (key === 'kind') next.units = blankUnits(value as OrgChangeType);
+      return next;
+    });
     this.fe.update((f) => ({ ...f, [key]: '' }));
+  }
+
+  protected setUnit(i: number, key: keyof NewUnitDraft, value: string) {
+    this.set(
+      'units',
+      this.d().units.map((u, j) => (j === i ? { ...u, [key]: value } : u)),
+    );
+    this.fe.update((f) =>
+      Object.fromEntries(Object.entries(f).filter(([k]) => !k.startsWith('newUnits'))),
+    );
+  }
+
+  protected addUnit() {
+    this.set('units', [...this.d().units, { code: '', name: '' }]);
+  }
+
+  protected removeUnit(i: number) {
+    this.set(
+      'units',
+      this.d().units.filter((_, j) => j !== i),
+    );
+  }
+
+  protected path(m: OrgUnitSearchHit) {
+    return m.ancestors.map((a) => a.name).join(' / ');
   }
 
   protected findPred(q: string) {
@@ -386,9 +502,9 @@ export class OrgChangeDialog {
     this.pred$.next(q);
   }
 
-  protected addPred(m: OrgUnitMatch) {
-    this.set('predecessors', [...this.d().predecessors, { id: m.id, code: m.code, name: m.name }]);
-    this.fe.update((f) => ({ ...f, predecessorIds: '' }));
+  protected addPred(m: OrgUnitSearchHit) {
+    this.set('predecessors', [...this.d().predecessors, { id: m.id, name: m.name }]);
+    this.fe.update((f) => ({ ...f, relatedUnitIds: '' }));
     this.pq.set('');
     this.predMatches.set([]);
   }
@@ -400,39 +516,61 @@ export class OrgChangeDialog {
     );
   }
 
+  /** Thân `OrgChangeRequest` theo loại thay đổi (khớp cách org-service đọc từng trường). */
+  private request(d: Draft): OrgChangeRequest {
+    const u = this.unit();
+    const parentId = d.kind === 'THANH_LAP' ? u.id : u.parentId;
+    const newUnit = (n: NewUnitDraft): OrgUnitInput => ({
+      code: n.code.trim(),
+      name: n.name.trim(),
+      level: u.level,
+      unitType: u.unitType,
+      subjectGroupId: u.subjectGroupId,
+      flows: [...u.flows],
+      validFrom: d.effectiveOn,
+      ...(parentId ? { parentId } : {}),
+    });
+    return {
+      changeType: d.kind,
+      effectiveOn: d.effectiveOn,
+      orderNo: d.orderNo.trim(),
+      orderDate: d.orderDate,
+      ...(d.kind === 'DOI_TEN' ? { newName: d.newName.trim() } : {}),
+      ...(this.needsUnits() ? { newUnits: d.units.map(newUnit) } : {}),
+      ...(this.needsPredecessors()
+        ? {
+            relatedUnitIds: d.predecessors.map((p) => p.id),
+            // phân công của đơn vị tiền thân chuyển về đơn vị đang chọn (hợp nhất: về đơn vị mới)
+            moveAssignmentsTo: u.id,
+          }
+        : {}),
+    };
+  }
+
   protected save() {
     const d = this.d();
     if (this.needsPredecessors() && !d.predecessors.length) {
-      this.fe.set({ predecessorIds: MSG_01_09 });
+      this.fe.set({ relatedUnitIds: MSG_01_09 });
       return;
     }
     this.busy.set(true);
     this.error.set(null);
-    this.api
-      .change(this.unit().id, {
-        kind: d.kind,
-        effectiveOn: d.effectiveOn,
-        orderNo: d.orderNo.trim(),
-        names: this.needsNames()
-          ? d.kind === 'CHIA_TACH'
-            ? this.names()
-            : [d.names.trim()]
-          : undefined,
-        predecessorIds: this.needsPredecessors() ? d.predecessors.map((p) => p.id) : undefined,
-      })
-      .subscribe({
-        next: (r) => {
-          this.busy.set(false);
-          this.visible.set(false);
-          this.saved.emit(r);
-        },
-        error: (e) => {
-          this.busy.set(false);
-          const p = toProblem(e);
-          const f = fieldErrors(p);
-          this.fe.set(f);
-          this.error.set(Object.keys(f).length ? null : p.title);
-        },
-      });
+    this.api.change(this.unit().id, this.request(d)).subscribe({
+      next: (r) => {
+        this.busy.set(false);
+        this.visible.set(false);
+        this.saved.emit(r);
+      },
+      error: (e) => {
+        this.busy.set(false);
+        const p = toProblem(e);
+        const f = fieldErrors(p);
+        this.fe.set(f);
+        const other = Object.entries(f)
+          .filter(([k]) => !SHOWN.has(k) && !k.startsWith('newUnits'))
+          .map(([, m]) => m);
+        this.error.set(other.length ? other.join(' ') : Object.keys(f).length ? null : p.title);
+      },
+    });
   }
 }

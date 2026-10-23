@@ -7,11 +7,13 @@
  *   13 phân công (BR-01-08).
  * Vùng: 1 bộ chọn chế độ; 2 cây đơn vị (đơn vị kết thúc hiện mờ, nhãn hợp nhất); 3 thẻ chi tiết; 4 lịch sử thay
  *   đổi (ghi muộn, tương lai đã duyệt); 5 nhân sự và phân công (chính, kiêm nhiệm, điều động đi, biệt phái; PL 6).
- * Chức năng: Xem tại ngày (`/org/units/tree?asOf=&recordedAsOf=`, khoá sửa); Nhập từ Excel (POST /org/imports,
- *   202, EVT-14); Thay đổi tổ chức (POST /org/units/{id}/changes, EVT-14, EVT-15); Sửa (PUT /org/units/{id},
- *   If-Match, phiên bản mới, BR-01-06). Dữ liệu đồng bộ từ nguồn ngoài không sửa trên nền tảng.
- * Thông báo: MSG-01-08 chế độ chỉ đọc, MSG-01-09 thiếu tiền thân, MSG-01-10 ghi muộn vào kỳ đã khoá,
- *   MSG-01-11 chuyển phân công khi sáp nhập.
+ * Chức năng: Xem tại ngày (`/org/units/tree?asOf=&recordedAsOf=`, nhánh sâu `/org/units/{id}/subtree`,
+ *   khoá sửa); Nhập từ Excel (POST /org/imports, 202 + `/api/v1/jobs/{id}`, lỗi từng dòng ở
+ *   `problem.errors`, EVT-14); Thay đổi tổ chức (POST /org/units/{id}/changes → `OrgChangeOrder`, EVT-14,
+ *   EVT-15); Sửa (PUT /org/units/{id} `OrgUnitInput`, If-Match theo `rowVersion`, phiên bản mới, BR-01-06).
+ *   Dữ liệu đồng bộ từ nguồn ngoài: máy chủ từ chối sửa (409), giao diện hiện thông báo của máy chủ.
+ * Thông báo: MSG-01-08 chế độ chỉ đọc, MSG-01-09 thiếu tiền thân. MSG-01-10 (kỳ đã khoá) và MSG-01-11
+ *   (số phân công chuyển theo) chưa hiện: hợp đồng `OrgUnit`, `OrgChangeOrder` chưa có trường mang chúng.
  * Quyền (wiki/15a): SCR-0103.xem, SCR-0103.nhap-excel, SCR-0103.thay-doi.
  */
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
@@ -20,21 +22,23 @@ import { FormsModule } from '@angular/forms';
 import {
   Job,
   JobTracker,
-  ORG_HISTORY_KIND_LABEL,
-  ORG_UNIT_LEVEL_LABEL,
+  ORG_CHANGE_TYPE_LABEL,
   ORG_UNIT_TYPE_LABEL,
-  OrgChangeResult,
+  OrgChangeOrder,
   OrgTimeQuery,
   OrgTreeApi,
+  OrgUnitAssignment,
   OrgUnitDetail,
+  OrgUnitVersion,
   UNIT_ASSIGNMENT_KIND_LABEL,
-  UnitAssignment,
+  orgImportErrors,
+  orgUnitLevelLabel,
 } from '@vt/api-client';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
-import { Subscription } from 'rxjs';
+import { Subscription, catchError, forkJoin, map, of } from 'rxjs';
 import { ADMIN_CAN } from '../../admin-permissions';
 import { errorText, fmtDate, fmtDateTime } from '../../admin-ui';
 import { OrgChangeDialog } from './org-change.dialog';
@@ -131,7 +135,7 @@ const FLOW_LABEL: Record<string, string> = {
       <p class="warnbox" role="status">{{ msg0108(date(d)) }}</p>
     } @else if (!simple()) {
       <p class="warnbox">
-        Đang hiển thị cả đơn vị đã kết thúc hiệu lực. Chọn <strong>Xem tại ngày</strong>, ví dụ
+        Cây hiển thị các đơn vị đang có hiệu lực. Chọn <strong>Xem tại ngày</strong>, ví dụ
         30/06/2025 (trước sắp xếp đơn vị hành chính cấp xã 01/07/2025), để tái hiện đúng cơ cấu đã
         dùng khi đánh giá quý II/2025; chế độ đó chỉ đọc.
       </p>
@@ -143,16 +147,26 @@ const FLOW_LABEL: Record<string, string> = {
         "
         styleClass="msg"
       >
-        <span role="status">{{
-          j.status === 'THAT_BAI'
-            ? (j.problem?.title ?? 'Nhập tệp không thành công.')
-            : (j.message ?? 'Đang nhập tệp…')
-        }}</span>
-        @if (j.resultLocation) {
-          <button type="button" class="link" (click)="downloadReport(j.resultLocation)">
-            Tải báo cáo lỗi
-          </button>
-        }
+        <div class="imp">
+          <span role="status">{{
+            j.status === 'THAT_BAI'
+              ? (j.message ?? j.problem?.title ?? 'Nhập tệp không thành công.')
+              : (j.message ?? 'Đang nhập tệp…')
+          }}</span>
+          @if (importErrors().length) {
+            <ul class="imp-errs" aria-label="Lỗi trong tệp nhập">
+              @for (e of importErrors().slice(0, 10); track $index) {
+                <li>{{ e.message }}</li>
+              }
+            </ul>
+            @if (importErrors().length > 10) {
+              <span class="small"
+                >Còn {{ importErrors().length - 10 }} lỗi khác trong báo cáo.</span
+              >
+            }
+            <button type="button" class="link" (click)="downloadReport()">Tải báo cáo lỗi</button>
+          }
+        </div>
       </p-message>
     }
     @for (n of notices(); track n.text) {
@@ -173,9 +187,6 @@ const FLOW_LABEL: Record<string, string> = {
             <div class="title">
               <h2 id="z3" class="h">{{ u.shortName ?? u.name }}</h2>
               <span class="pill" [class.off]="ended()">{{ statusText() }}</span>
-              @if (u.syncedFrom) {
-                <span class="pill sync">Đồng bộ từ CSDL CBCCVC</span>
-              }
               <span class="spacer"></span>
               @if (canEdit() && !editing()) {
                 <p-button label="Sửa" [text]="true" (onClick)="editing.set(true)" />
@@ -194,14 +205,14 @@ const FLOW_LABEL: Record<string, string> = {
                   <dt>Mã đơn vị</dt>
                   <dd>
                     {{ u.code }}
-                    @if (u.externalCode) {
-                      · mã CSDL CBCCVC {{ u.externalCode }}
+                    @if (u.nationalCode) {
+                      · mã CSDL CBCCVC {{ u.nationalCode }}
                     }
                   </dd>
                   <dt>Cấp, loại</dt>
-                  <dd>{{ levelLabel[u.level] }} · {{ typeLabel[u.unitType] }}</dd>
+                  <dd>{{ levelLabel(u.level) }} · {{ typeLabel[u.unitType] }}</dd>
                   <dt>Khối đối tượng</dt>
-                  <dd>{{ u.subjectGroup.name }} (Phụ lục 2A)</dd>
+                  <dd>{{ u.subjectGroupName ?? 'Chưa xác định' }} (Phụ lục 2A)</dd>
                   <dt>Luồng đánh giá</dt>
                   <dd>{{ flows(u) }}</dd>
                 </div>
@@ -209,11 +220,18 @@ const FLOW_LABEL: Record<string, string> = {
                   <dt>Hiệu lực</dt>
                   <dd>{{ date(u.validFrom) }} → {{ u.validTo ? date(prev(u.validTo)) : 'nay' }}</dd>
                   <dt>Ghi nhận lúc</dt>
-                  <dd>{{ dateTime(u.recordedFrom) }} · {{ u.recordedBy }}</dd>
+                  <dd>
+                    {{ dateTime(u.recordedFrom) }}
+                    @if (u.recordedByName) {
+                      · {{ u.recordedByName }}
+                    }
+                  </dd>
                   <dt>Đơn vị cấp trên</dt>
-                  <dd>{{ u.parent?.name ?? 'Không có (đơn vị cấp cao nhất)' }}</dd>
+                  <dd>
+                    {{ u.parentId ? (u.parentName ?? '') : 'Không có (đơn vị cấp cao nhất)' }}
+                  </dd>
                   <dt>Đơn vị tiền thân</dt>
-                  <dd>{{ predecessors(u) }}</dd>
+                  <dd>{{ predecessorsText() }}</dd>
                 </div>
               </dl>
             }
@@ -227,19 +245,30 @@ const FLOW_LABEL: Record<string, string> = {
             <section class="box" aria-labelledby="z4">
               <h2 id="z4" class="h">Lịch sử thay đổi</h2>
               <ol class="tl">
-                @for (h of historyRows(); track h.id) {
-                  <li [class]="'k-' + (h.effectiveOn > todayStr ? 'future' : h.kind)">
+                @for (h of historyRows(); track h.versionId) {
+                  <li
+                    [class]="'k-' + (h.validFrom > todayStr ? 'future' : (h.changeType ?? 'SUA'))"
+                  >
                     <strong>
-                      {{ h.effectiveOn > todayStr ? 'Sắp tới · ' : '' }}{{ date(h.effectiveOn) }} ·
-                      {{ h.title || kindLabel[h.kind] }}
+                      {{ h.validFrom > todayStr ? 'Sắp tới · ' : '' }}{{ date(h.validFrom) }} ·
+                      {{ versionTitle(h) }}
                     </strong>
                     <span class="block">
-                      {{ h.detail }}
-                      @if (h.orderNo) {
-                        · {{ h.orderNo }}
+                      {{ h.name }}
+                      @if (h.parentName) {
+                        · thuộc {{ h.parentName }}
+                      }
+                      @if (h.validTo) {
+                        · đến {{ date(prev(h.validTo)) }}
+                      }
+                      @if (h.changeOrder) {
+                        · {{ h.changeOrder.orderNo }}
                       }
                       @if (late(h)) {
-                        · ghi nhận {{ date(h.recordedAt) }} (ghi muộn {{ late(h) }} ngày)
+                        · ghi nhận {{ date(h.recordedFrom) }} (ghi muộn {{ late(h) }} ngày)
+                      }
+                      @if (h.recordedTo) {
+                        · đã đính chính
                       }
                     </span>
                   </li>
@@ -268,9 +297,9 @@ const FLOW_LABEL: Record<string, string> = {
                   @for (a of assignRows(); track a.id) {
                     <tr>
                       <td>{{ a.personName }}</td>
-                      <td>{{ a.jobTitle }}</td>
+                      <td>{{ a.jobTitleName }}</td>
                       <td>
-                        <span class="tag">{{ kindOf(a) }}</span>
+                        <span class="tag">{{ kindOf[a.kind] }}</span>
                       </td>
                       <td>{{ period(a) }}</td>
                     </tr>
@@ -401,8 +430,7 @@ const FLOW_LABEL: Record<string, string> = {
       color: #146c2e;
       font-size: 0.85em;
     }
-    .pill.off,
-    .pill.sync {
+    .pill.off {
       background: #eef0f3;
       color: #374151;
     }
@@ -472,6 +500,10 @@ const FLOW_LABEL: Record<string, string> = {
     .err {
       color: #b4001f;
     }
+    .imp-errs {
+      margin: 6px 0 2px;
+      padding-left: 20px;
+    }
     .link {
       background: none;
       border: 0;
@@ -503,9 +535,9 @@ export class OrgTreePage {
 
   protected readonly maxDay = today();
   protected readonly todayStr = today();
-  protected readonly levelLabel = ORG_UNIT_LEVEL_LABEL;
+  protected readonly levelLabel = orgUnitLevelLabel;
   protected readonly typeLabel = ORG_UNIT_TYPE_LABEL;
-  protected readonly kindLabel = ORG_HISTORY_KIND_LABEL;
+  protected readonly kindLabel = ORG_CHANGE_TYPE_LABEL;
   protected readonly date = fmtDate;
   protected readonly dateTime = fmtDateTime;
   protected readonly prev = prevDay;
@@ -536,6 +568,8 @@ export class OrgTreePage {
   protected readonly importDone = computed(() =>
     ['HOAN_TAT', 'THAT_BAI', 'DA_HUY'].includes(this.importJob()?.status ?? ''),
   );
+  /** Lỗi từng dòng của tệp nhập (`Job.problem.errors`). */
+  protected readonly importErrors = computed(() => orgImportErrors(this.importJob()));
   private importSub: Subscription | null = null;
 
   private readonly params = computed(() => {
@@ -549,19 +583,48 @@ export class OrgTreePage {
   protected readonly u = computed<OrgUnitDetail | null>(() =>
     this.unit.hasValue() ? this.unit.value() : null,
   );
+  /** Tên đơn vị tiền thân: đọc từng đơn vị tại ngày trước hiệu lực của phiên bản đang xem. */
+  private readonly preds = rxResource({
+    params: () => {
+      const u = this.u();
+      if (!u?.predecessorIds?.length) return undefined;
+      return {
+        ids: u.predecessorIds,
+        t: { asOf: prevDay(u.validFrom), recordedAsOf: this.time().recordedAsOf },
+      };
+    },
+    stream: ({ params }) =>
+      forkJoin(
+        params.ids.map((id) =>
+          this.api.unit(id, params.t).pipe(
+            map((p) => p.name),
+            catchError(() => of(null)),
+          ),
+        ),
+      ),
+  });
+  protected readonly predecessorsText = computed(() => {
+    const ids = this.u()?.predecessorIds ?? [];
+    if (!ids.length) return 'Không có';
+    if (!this.preds.hasValue()) return 'Đang tải…';
+    const names = this.preds.value().filter((n): n is string => !!n);
+    return names.length ? names.join('; ') : `${ids.length} đơn vị`;
+  });
+  /** Vùng 4 chỉ theo trục ghi nhận: lịch sử là toàn bộ trục hiệu lực (hợp đồng không nhận `asOf`). */
   private readonly history = rxResource({
     params: this.params,
-    stream: ({ params }) => this.api.history(params.id, params.t),
+    stream: ({ params }) =>
+      this.api.history(params.id, { recordedAsOf: params.t.recordedAsOf }, { limit: 50 }),
   });
   protected readonly historyRows = computed(() =>
-    this.history.hasValue() ? this.history.value() : [],
+    this.history.hasValue() ? this.history.value().items : [],
   );
   private readonly assign = rxResource({
     params: this.params,
-    stream: ({ params }) => this.api.assignments(params.id, params.t),
+    stream: ({ params }) => this.api.assignments(params.id, params.t, { limit: 200 }),
   });
-  protected readonly allAssign = computed(() =>
-    this.assign.hasValue() ? this.assign.value() : [],
+  protected readonly allAssign = computed<OrgUnitAssignment[]>(() =>
+    this.assign.hasValue() ? this.assign.value().items : [],
   );
   protected readonly assignRows = computed(() =>
     this.showAll() ? this.allAssign() : this.allAssign().slice(0, 8),
@@ -582,28 +645,24 @@ export class OrgTreePage {
     return 'Đang hiệu lực';
   });
   protected readonly canEdit = computed(
-    () =>
-      !this.readOnly() &&
-      this.can('SCR-0103.thay-doi') &&
-      !!this.u() &&
-      !this.ended() &&
-      !this.u()!.syncedFrom,
+    () => !this.readOnly() && this.can('SCR-0103.thay-doi') && !!this.u() && !this.ended(),
   );
   protected readonly canChange = computed(() => !!this.u() && !this.ended());
 
   protected flows(u: OrgUnitDetail) {
     return u.flows.map((f) => FLOW_LABEL[f] ?? f).join(' và ');
   }
-  protected predecessors(u: OrgUnitDetail) {
-    return u.predecessors.map((p) => p.name).join('; ') || 'Không có';
+  protected versionTitle(h: OrgUnitVersion) {
+    if (h.changeType) return this.kindLabel[h.changeType];
+    return h.changedFields?.length ? 'Cập nhật thông tin' : 'Ghi nhận đơn vị';
   }
-  protected period(a: UnitAssignment) {
+  protected period(a: OrgUnitAssignment) {
     const from = a.validFrom ? fmtDate(a.validFrom) : '';
     return a.validTo ? `${from} → ${fmtDate(prevDay(a.validTo))}` : `${from} →`;
   }
-  protected late(h: { effectiveOn: string; recordedAt: string }): number {
+  protected late(h: OrgUnitVersion): number {
     const days = Math.round(
-      (Date.parse(h.recordedAt.slice(0, 10)) - Date.parse(h.effectiveOn)) / 86_400_000,
+      (Date.parse(h.recordedFrom.slice(0, 10)) - Date.parse(h.validFrom)) / 86_400_000,
     );
     return days > 0 && days < 365 ? days : 0;
   }
@@ -626,17 +685,28 @@ export class OrgTreePage {
         kind: 'success',
         text: `Đã cập nhật thông tin ${r.name}, có hiệu lực từ ngày ${fmtDate(r.validFrom)}.`,
       },
-      ...(r.warning ? [{ kind: 'warn' as const, text: r.warning }] : []),
     ]);
     this.refresh();
   }
 
-  protected onChanged(r: OrgChangeResult) {
+  protected onChanged(r: OrgChangeOrder) {
+    const kind = this.kindLabel[r.changeType].toLowerCase();
+    const day = fmtDate(r.effectiveOn);
     this.notices.set([
-      { kind: 'success', text: r.message ?? 'Đã ghi thay đổi tổ chức.' },
-      ...(r.warning ? [{ kind: 'warn' as const, text: r.warning }] : []),
+      {
+        kind: 'success',
+        text:
+          r.status === 'NHAP'
+            ? `Đã ghi quyết định ${r.orderNo} (${kind}); thay đổi sẽ áp dụng từ ngày ${day}.`
+            : `Đã ghi quyết định ${r.orderNo} (${kind}), có hiệu lực từ ngày ${day}.`,
+      },
     ]);
-    this.selected.set(r.unitId);
+    // đơn vị đang chọn kết thúc hiệu lực: chuyển sang đơn vị cấp trên để thấy cơ cấu mới
+    const ends = ['HOP_NHAT', 'CHIA_TACH', 'GIAI_THE'].includes(r.changeType);
+    const parent = this.u()?.parentId;
+    if (ends && r.status !== 'NHAP' && r.effectiveOn <= today() && parent) {
+      this.selected.set(parent);
+    }
     this.refresh();
   }
 
@@ -654,16 +724,19 @@ export class OrgTreePage {
     this.importSub?.unsubscribe();
     this.importJob.set({
       id: '',
-      type: 'ORG_IMPORT',
+      type: 'IMPORT',
       status: 'CHO',
       progress: 0,
       message: `Đang tải ${file.name}…`,
     });
     this.importSub = this.api.import(file).subscribe({
-      next: (loc) => {
-        this.importSub = this.jobs.track(loc).subscribe({
+      next: (accepted) => {
+        this.importJob.set({ ...accepted.job, message: accepted.job.message ?? 'Đang nhập tệp…' });
+        this.importSub = this.jobs.track(accepted.location).subscribe({
           next: (j) => this.importJob.set(j),
-          complete: () => this.refresh(),
+          complete: () => {
+            if (this.importJob()?.status === 'HOAN_TAT') this.refresh();
+          },
           error: (e) => this.importFail(e),
         });
       },
@@ -674,20 +747,25 @@ export class OrgTreePage {
   private importFail(e: unknown) {
     this.importJob.set({
       id: '',
-      type: 'ORG_IMPORT',
+      type: 'IMPORT',
       status: 'THAT_BAI',
-      problem: { type: 'about:blank', status: 0, title: errorText(e, 'Không nhập được tệp.') },
+      message: errorText(e, 'Không nhập được tệp.'),
     });
   }
 
-  protected downloadReport(loc: string) {
-    this.api.report(loc).subscribe((blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'bao-cao-loi-nhap-cay-to-chuc.csv';
-      a.click();
-      URL.revokeObjectURL(url);
-    });
+  /** Báo cáo lỗi dựng tại trình duyệt từ `problem.errors` của job (CSV, mở được bằng Excel). */
+  protected downloadReport() {
+    const cell = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const lines = [
+      ['Dòng', 'Nội dung lỗi'],
+      ...this.importErrors().map((e) => [e.row ? String(e.row) : '', e.message]),
+    ].map((l) => l.map(cell).join(','));
+    const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bao-cao-loi-nhap-cay-to-chuc.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 }

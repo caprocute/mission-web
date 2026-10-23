@@ -201,4 +201,21 @@ class OrgRepublishIT extends IntegrationTestBase {
     assertThat(RepublishTestSupport.audits(report.batchId())).singleElement()
         .satisfies(a -> assertThat(a.getPurpose()).contains("dryRun=true"));
   }
+
+  @Test
+  void chiPhatBamChoDoiSoatKhongPhatThucThe() {
+    RepublishReport dry = run(Set.of(), Set.of(), true);
+    RepublishReport report;
+    TenantContextHolder.set(tenant);
+    try {
+      report = service.run(new RepublishRequest(tenant, Set.of(), Set.of(), null, false, "doi-soat", true));
+    } finally {
+      TenantContextHolder.clear();
+    }
+    List<Received> batch = RepublishTestSupport.readBatch(report.batchId(), WAIT);
+    assertThat(batch).extracting(r -> r.message().getMarker()).containsExactly("BAT_DAU", "KET_THUC");
+    assertThat(batch.getLast().message().getSeq()).isEqualTo(1L);
+    assertThat(batch.getLast().message().getBucketHashes()).isEqualTo(dry.bucketHashes());
+    assertThat(batch.getLast().message().getEntityCounts()).containsEntry("PERSON", 40L);
+  }
 }

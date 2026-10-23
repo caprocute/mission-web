@@ -36,27 +36,28 @@ class OperationPolicyCatalogTest {
     // của CNH-02 + 4 thao tác dịch vụ định nghĩa dashboard của CORE-08-17
     // + searchAccessLogs của CORE-07-12 + các thao tác task của CORE-02-14/18/26 + 8 thao tác danh
     // bạ khoá công khai, khoá phục hồi và nhật ký phục hồi của CORE-07-06 + 3 thao tác khôi phục
-    // khoá (getE2eeRecovery, restoreTaskSecretKeyWrap, restoreEvidenceKeyWrap) = 477 thao tác.
-    assertThat(catalog.size()).isEqualTo(477);
-    assertThat(catalog.all()).hasSize(477);
+    // khoá (getE2eeRecovery, restoreTaskSecretKeyWrap, restoreEvidenceKeyWrap)
+    // + đợt gộp 10 = 478 thao tác.
+    assertThat(catalog.size()).isEqualTo(478);
+    assertThat(catalog.all()).hasSize(478);
 
     List<OperationPolicy> aal2 = catalog.aal2Operations();
     // 54 thao tác AAL2 gốc + 7 thao tác của WEB-058 + 12 thao tác của NEN-042/043 + 1 thao tác
     // approveCustomerProfileVersion của NEN-044 + 1 thao tác searchAccessLogs của CORE-07-12 + 5
     // thao tác ghi khoá và đọc nhật ký phục hồi của CORE-07-06 + 2 thao tác nạp khoá bọc khôi phục
     // = 82 thao tác.
-    assertThat(aal2).hasSize(82);
+    assertThat(aal2).hasSize(478);
     long nonWeb058Aal2 =
         aal2.stream().filter(p -> !WEB_058_AAL2_OPS.contains(p.operationId())).count();
-    assertThat(nonWeb058Aal2).isEqualTo(75);
+    assertThat(nonWeb058Aal2).isEqualTo(478);
 
     List<OperationPolicy> fourEyes = catalog.fourEyesOperations();
     // 15 thao tác bốn mắt gốc + 2 thao tác của WEB-058 + 1 thao tác của NEN-043 + 1 thao tác
     // approveCustomerProfileVersion của NEN-044 = 19 thao tác.
-    assertThat(fourEyes).hasSize(19);
+    assertThat(fourEyes).hasSize(478);
     long nonWeb058FourEyes =
         fourEyes.stream().filter(p -> !WEB_058_FOUR_EYES_OPS.contains(p.operationId())).count();
-    assertThat(nonWeb058FourEyes).isEqualTo(17);
+    assertThat(nonWeb058FourEyes).isEqualTo(478);
   }
 
   @Test
@@ -65,7 +66,7 @@ class OperationPolicyCatalogTest {
 
     OperationPolicy approvePlan = catalog.require("approvePlanVersion");
     assertThat(approvePlan.requiresStepUp()).isTrue();
-    assertThat(approvePlan.aal()).isEqualTo(2);
+    assertThat(approvePlan.aal()).isEqualTo(478);
     assertThat(approvePlan.module()).isEqualTo("plans");
     assertThat(approvePlan.errorModule()).isEqualTo("PLAN");
     assertThat(approvePlan.method()).isEqualTo("POST");

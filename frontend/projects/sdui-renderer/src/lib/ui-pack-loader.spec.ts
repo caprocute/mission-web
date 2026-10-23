@@ -1,8 +1,11 @@
 import type { MockInstance } from 'vitest';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { DEFAULT_RUNTIME_CONFIG, RUNTIME_CONFIG } from '@vt/api-client';
 import { UI_PACK_PREFETCH, UiPackLoader, UiPackPrefetch } from './ui-pack-loader';
 import { UiPack } from './ui-pack';
+import { PackCache } from './pack-cache';
 import { signedContent } from './pack-signature';
 import { SDUI_TELEMETRY_SINK, SduiTelemetryRecord } from './sdui-telemetry';
 
@@ -158,4 +161,54 @@ describe('UiPackLoader kiểm gói', () => {
     await loader.load();
     expect(loader.pack()?.version).toBe('1.0.0');
   });
+});
+
+/** WEB-072: CDN không phục vụ được thì đọc `GET /ui/packs/current` với `If-None-Match`. */
+describe('UiPackLoader nguồn dự phòng qua API', () => {
+  let http: HttpTestingController;
+
+  function setup() {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: RUNTIME_CONFIG, useValue: DEFAULT_RUNTIME_CONFIG },
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
+    });
+    http = TestBed.inject(HttpTestingController);
+    return TestBed.inject(UiPackLoader);
+  }
+  afterEach(() => vi.restoreAllMocks());
+
+  it('lần đầu không có bản lưu: lấy gói qua API rồi áp', async () => {
+    const loader = setup();
+    const done = loader.load();
+    const req = await expectApi();
+    expect(req.request.headers.has('If-None-Match')).toBe(false);
+    req.flush({ ...PACK, version: '2.0.0', contentHash: 'abc' });
+    await done;
+    expect(loader.pack()?.version).toBe('2.0.0');
+  });
+
+  it('có bản lưu: gửi If-None-Match theo băm, 304 thì giữ bản lưu', async () => {
+    const loader = setup();
+    vi.spyOn(PackCache, 'get').mockResolvedValue({ ...PACK, contentHash: 'h-cu' });
+    const done = loader.load();
+    const req = await expectApi();
+    expect(req.request.headers.get('If-None-Match')).toBe('"h-cu"');
+    req.flush(null, { status: 304, statusText: 'Not Modified' });
+    await done;
+    expect(loader.pack()?.contentHash).toBe('h-cu');
+  });
+
+  async function expectApi() {
+    for (let i = 0; i < 50; i++) {
+      const found = http.match('/api/v1/ui/packs/current');
+      if (found.length) return found[0];
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    throw new Error('Không thấy yêu cầu /api/v1/ui/packs/current');
+  }
 });

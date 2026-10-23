@@ -1,8 +1,10 @@
 package vn.viettel.okrkpi.integ.infrastructure.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
+import java.net.http.HttpClient;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
@@ -29,6 +31,7 @@ import vn.viettel.okrkpi.integ.application.InboundPipeline;
 import vn.viettel.okrkpi.integ.application.IndicatorSource;
 import vn.viettel.okrkpi.integ.application.IssuedDocumentSearch;
 import vn.viettel.okrkpi.integ.application.IssuedDocumentSource;
+import vn.viettel.okrkpi.integ.application.IssuedDocumentTransfer;
 import vn.viettel.okrkpi.integ.application.KrSourceValueService;
 import vn.viettel.okrkpi.integ.application.MappingCommands;
 import vn.viettel.okrkpi.integ.application.MappingXrefService;
@@ -43,6 +46,7 @@ import vn.viettel.okrkpi.integ.application.port.CanonicalEventSink;
 import vn.viettel.okrkpi.integ.application.port.ConnectorSecrets;
 import vn.viettel.okrkpi.integ.application.port.Connectors;
 import vn.viettel.okrkpi.integ.application.port.DeadLetters;
+import vn.viettel.okrkpi.integ.application.port.EvidenceObjects;
 import vn.viettel.okrkpi.integ.application.port.InboxMessages;
 import vn.viettel.okrkpi.integ.application.port.KtxhValues;
 import vn.viettel.okrkpi.integ.application.port.MappingXrefs;
@@ -63,6 +67,7 @@ import vn.viettel.okrkpi.integ.infrastructure.camel.RouteSettings;
 import vn.viettel.okrkpi.integ.infrastructure.camel.SyncRunRoute;
 import vn.viettel.okrkpi.integ.infrastructure.crypto.FieldEncryptorPayloadCipher;
 import vn.viettel.okrkpi.integ.infrastructure.events.OutboxCanonicalEventSink;
+import vn.viettel.okrkpi.integ.infrastructure.evidence.HttpEvidenceObjects;
 import vn.viettel.okrkpi.integ.infrastructure.hrm.HrmConfiguration.HrmBeans;
 import vn.viettel.okrkpi.integ.infrastructure.lgsp.LgspConfiguration.LgspBeans;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcConnectors;
@@ -285,6 +290,32 @@ public class IntegConfiguration {
     voffice.ifAvailable(v -> all.addAll(v.sources()));
     return new IssuedDocumentSearch(
         connectors, mappings, all, integTransactions, clock.getIfAvailable(Clock::systemUTC));
+  }
+
+  /**
+   * CORE-03-04: chuyển tệp gốc văn bản đã ban hành sang SVC-08. Để trống {@code
+   * okrkpi.integ.evidence.base-url} thì lệnh chuyển trả 502 để mission-core báo thử lại.
+   */
+  @Bean
+  IssuedDocumentTransfer integIssuedDocumentTransfer(
+      IssuedDocumentSearch integIssuedDocumentSearch,
+      ObjectProvider<EvidenceObjects> override,
+      ObjectProvider<ObjectMapper> mapper,
+      @Value("${okrkpi.integ.evidence.base-url:}") String baseUrl,
+      @Value("${okrkpi.integ.evidence.timeout:PT30S}") Duration timeout) {
+    EvidenceObjects port = override.getIfAvailable();
+    if (port == null && !baseUrl.isBlank()) {
+      port =
+          new HttpEvidenceObjects(
+              HttpClient.newBuilder()
+                  .connectTimeout(Duration.ofSeconds(2))
+                  .followRedirects(HttpClient.Redirect.NEVER)
+                  .build(),
+              mapper.getIfAvailable(ObjectMapper::new),
+              baseUrl,
+              timeout);
+    }
+    return new IssuedDocumentTransfer(integIssuedDocumentSearch, port);
   }
 
   @Bean

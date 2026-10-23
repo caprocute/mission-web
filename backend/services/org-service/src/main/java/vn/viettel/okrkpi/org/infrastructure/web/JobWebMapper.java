@@ -5,12 +5,13 @@ import vn.viettel.okrkpi.org.application.orgimport.ImportColumns;
 import vn.viettel.okrkpi.org.application.orgimport.ImportError;
 import vn.viettel.okrkpi.org.application.orgimport.OrgImportService.ImportJobView;
 import vn.viettel.okrkpi.org.infrastructure.web.model.GetMyOrgProfile401Response;
-import vn.viettel.okrkpi.org.infrastructure.web.model.GetMyOrgProfile401ResponseErrorsInner;
+import vn.viettel.okrkpi.org.infrastructure.web.model.OrgImportError;
+import vn.viettel.okrkpi.org.infrastructure.web.model.OrgImportReport;
 import vn.viettel.okrkpi.org.infrastructure.web.model.ImportOrgExcel202Response;
 
 /**
- * Tác vụ nhập (DV-04-05) sang lược đồ {@code Job}: báo cáo lỗi từng dòng nằm ở {@code problem.errors[]} với
- * {@code field = rows.<số dòng>.<cột>} và thông điệp tiếng Việt ghi rõ dòng, cột, lý do.
+ * Tác vụ nhập (DV-04-05) sang lược đồ {@code Job}: khi tệp có lỗi, {@code resultLocation} trỏ báo cáo
+ * {@code /org/imports/{id}/report} chứa lỗi từng dòng, từng cột kèm lý do tiếng Việt (hợp đồng {@code importOrgExcel}).
  */
 final class JobWebMapper {
 
@@ -40,22 +41,38 @@ final class JobWebMapper {
       job.setResultLocation("/api/v1/org/tree");
     }
     if ("THAT_BAI".equals(v.status())) {
+      // Hợp đồng importOrgExcel: báo cáo lỗi từng dòng nằm ở resultLocation, problem chỉ tóm tắt.
+      if (!v.errors().isEmpty()) {
+        job.setResultLocation("/api/v1/org/imports/" + v.id() + "/report");
+      }
       GetMyOrgProfile401Response p = new GetMyOrgProfile401Response();
       p.setType("https://okrkpi.vn/problems/import-invalid");
       p.setTitle("Tệp nhập chưa hợp lệ");
       p.setStatus(422);
       p.setCode("ORG-422-IMPORT-INVALID");
       p.setDetail(v.message());
-      for (ImportError e : v.errors()) {
-        GetMyOrgProfile401ResponseErrorsInner fe = new GetMyOrgProfile401ResponseErrorsInner();
-        fe.setField("rows." + e.row() + "." + FIELD.getOrDefault(e.column(), "file"));
-        fe.setMessage(e.row() > 0 && !e.column().isEmpty()
-            ? "Dòng " + e.row() + ", cột " + e.column() + ": " + e.message() : e.message());
-        fe.setRule(e.rule());
-        p.addErrorsItem(fe);
-      }
       job.setProblem(p);
     }
     return job;
+  }
+
+  static OrgImportReport toReport(ImportJobView v) {
+    OrgImportReport r = new OrgImportReport();
+    r.setJobId(v.id());
+    r.setStatus(OrgImportReport.StatusEnum.fromValue(v.status()));
+    r.setTotalRows(v.totalRows());
+    r.setCreatedUnits(v.createdUnits());
+    r.setChangeOrderId(v.changeOrderId());
+    for (ImportError e : v.errors()) {
+      OrgImportError out = new OrgImportError();
+      out.setRow(e.row());
+      out.setColumn(e.column());
+      out.setField(FIELD.getOrDefault(e.column(), "file"));
+      out.setMessage(e.row() > 0 && !e.column().isEmpty()
+          ? "Dòng " + e.row() + ", cột " + e.column() + ": " + e.message() : e.message());
+      out.setRule(e.rule());
+      r.addErrorsItem(out);
+    }
+    return r;
   }
 }

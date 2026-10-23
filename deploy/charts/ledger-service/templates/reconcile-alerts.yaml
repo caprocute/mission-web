@@ -1,0 +1,51 @@
+{{- /*
+DL-12 · TL-03 "Sổ cái bất biến › Kiểm tra toàn vẹn": cảnh báo cho bốn loại kiểm tra sổ cái do DV-09-04 hiện thực
+(đầu chuỗi mỗi 15 phút, niêm phong sau mỗi cửa sổ, toàn bộ hằng tuần 1/4 tenant, lưu trữ hằng quý) và cho job niêm
+phong DV-09-03. Phá chuỗi băm đã có luật LedgerChainBroken ở observability-cell (ledger_verify_failures_total); tệp
+này thêm cảnh báo khi kiểm tra hoặc niêm phong ngừng chạy và khi quá 24 giờ chưa có dấu thời gian. Chỉ số do
+ledger-service xuất ở /metrics. Bật mặc định; tắt bằng reconcile.alerts.enabled=false.
+*/ -}}
+{{- $rc := .Values.reconcile | default dict -}}
+{{- $al := $rc.alerts | default dict -}}
+{{- if ne (toString (dig "enabled" true $al)) "false" }}
+{{- $rb := $al.runbookBase | default "https://runbook.vt.local/okr" }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ .Release.Name }}-kiem-tra-so-cai
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: ledger-service
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: reconcile
+spec:
+  groups:
+    - name: ledger-kiem-tra-toan-ven
+      rules:
+        - alert: LedgerKiemTraNgungChay
+          expr: (time() - max(ledger_verify_last_finished_seconds)) > 3600
+          for: 15m
+          labels: { severity: warning, doi: soc }
+          annotations:
+            summary: "Kiểm tra toàn vẹn sổ cái chưa có lần nào kết thúc trong 1 giờ (lịch đầu chuỗi mỗi 15 phút)"
+            runbook_url: {{ $rb }}/doi-soat-so-cai
+        - alert: LedgerNiemPhongNgungChay
+          expr: (time() - max(ledger_seal_last_sealed_seconds)) > 2 * 3600
+          for: 10m
+          labels: { severity: critical, doi: soc }
+          annotations:
+            summary: "Sổ cái chưa niêm phong được cửa sổ nào trong 2 giờ"
+            runbook_url: {{ $rb }}/doi-soat-so-cai
+        - alert: LedgerDauThoiGianQuaHan
+          expr: increase(ledger_seal_tsa_overdue_total[1h]) > 0
+          labels: { severity: critical, doi: soc }
+          annotations:
+            summary: "Quá 24 giờ chưa lấy được dấu thời gian RFC 3161 cho niêm phong sổ cái"
+            runbook_url: {{ $rb }}/doi-soat-so-cai
+        - alert: LedgerTSALoi
+          expr: increase(ledger_seal_tsa_failures_total[1h]) > 0
+          labels: { severity: warning, doi: sre }
+          annotations:
+            summary: "TSA không cấp dấu thời gian, cửa sổ niêm phong được gộp vào lần sau"
+            runbook_url: {{ $rb }}/doi-soat-so-cai
+{{- end }}

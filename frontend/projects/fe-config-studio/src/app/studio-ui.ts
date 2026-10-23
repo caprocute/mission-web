@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ProblemDetails, toProblem } from '@vt/api-client';
+import { Job, ProblemDetails, toProblem } from '@vt/api-client';
 import { TEXT_FORBIDDEN } from '@vt/auth';
 
 /** Số thập phân theo cách viết Việt Nam: 0,783; 91,2. */
@@ -22,6 +22,12 @@ export function errorText(err: unknown, fallback: string): string {
   const p: ProblemDetails = toProblem(err);
   if (p.status === 403) return TEXT_FORBIDDEN;
   return p.detail || p.title || fallback;
+}
+
+/** Lời nhắn khi tác vụ nền (202 + `Location`) kết thúc không thành công: `problem` của job trước. */
+export function jobErrorText(job: Job, fallback: string): string {
+  if (job.problem?.status === 403) return TEXT_FORBIDDEN;
+  return job.problem?.detail || job.problem?.title || fallback;
 }
 
 /** Mã lỗi nghiệp vụ của RFC 9457 (`code`), nếu có. */

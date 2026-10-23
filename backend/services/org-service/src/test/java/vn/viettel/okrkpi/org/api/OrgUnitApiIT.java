@@ -1,6 +1,10 @@
 package vn.viettel.okrkpi.org.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -26,7 +30,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import vn.viettel.okrkpi.org.application.port.IntegrationGatewayPort;
+import vn.viettel.okrkpi.org.domain.OrgConflictException;
 import vn.viettel.okrkpi.org.support.ContractValidator;
 import vn.viettel.okrkpi.org.support.Fixtures;
 import vn.viettel.okrkpi.org.support.IntegrationTestBase;
@@ -44,6 +51,8 @@ class OrgUnitApiIT extends IntegrationTestBase {
 
   @Autowired
   MockMvc mvc;
+  @MockitoBean
+  IntegrationGatewayPort gateway;
   @Autowired
   ObjectMapper json;
 
@@ -208,6 +217,30 @@ class OrgUnitApiIT extends IntegrationTestBase {
       b.header(HttpHeaders.IF_MATCH, ifMatch);
     }
     return key == null ? b : b.header("Idempotency-Key", key);
+  }
+
+  @Test
+  void suaDonViGhiMaCsdlQuocGiaQuaGateway_trungMaThiKhongTaoPhienBan() throws Exception {
+    Map<String, Object> in = input("SNV", "Sở Nội vụ tỉnh", "2026-01-01", null);
+    in.put("nationalCode", " 000.00.12.H29 ");
+    asAdmin(putUnit(childB, "\"0\"", UUID.randomUUID().toString(), in)).andExpect(status().isOk());
+    verify(gateway).mapUnitXref(tenant, "CBCCVC", "000.00.12.H29", childB);
+
+    doThrow(new OrgConflictException("ORG-409-XREF-EXISTS", "Mã đơn vị trên CSDL CBCCVC đã gắn với đơn vị khác."))
+        .when(gateway).mapUnitXref(any(), any(), any(), any());
+    in.put("name", "Sở Nội vụ tỉnh mới");
+    in.put("nationalCode", "000.00.13.H29");
+    asAdmin(putUnit(childB, "\"1\"", UUID.randomUUID().toString(), in))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("ORG-409-XREF-EXISTS"));
+    asAdmin(get("/api/v1/org/units/{id}", childB).param("asOf", "2026-02-01"))
+        .andExpect(jsonPath("$.name").value("Sở Nội vụ tỉnh"));
+
+    // Không gửi mã: giữ ánh xạ cũ, không gọi gateway.
+    org.mockito.Mockito.reset(gateway);
+    in.remove("nationalCode");
+    asAdmin(putUnit(childB, "\"1\"", UUID.randomUUID().toString(), in)).andExpect(status().isOk());
+    verify(gateway, never()).mapUnitXref(any(), any(), any(), any());
   }
 
   @Test

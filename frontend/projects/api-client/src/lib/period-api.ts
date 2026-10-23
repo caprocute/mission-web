@@ -1,7 +1,8 @@
-import { HttpClient, HttpResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { apiUrl } from './api-path';
+import { JobAccepted, acceptedJob } from './job-tracker';
 import { Job } from './models/job';
 import {
   Period,
@@ -22,15 +23,9 @@ import { CursorPage, MAX_PAGE_LIMIT } from './paging';
 const ifMatch = (rowVersion: number) => ({ 'If-Match': `"${rowVersion}"` });
 
 /** Kết quả thao tác trả 202: địa chỉ theo dõi `/api/v1/jobs/{id}` và job ban đầu. */
-export interface PeriodJobAccepted {
-  location: string | null;
-  job: Job;
-}
+export type PeriodJobAccepted = JobAccepted;
 
-const accepted = (res: HttpResponse<Job>): PeriodJobAccepted => ({
-  location: res.headers.get('Location'),
-  job: res.body!,
-});
+const accepted = acceptedJob;
 
 /**
  * Client cho `/api/v1/periods` của MOD-08 và saga khoá kỳ của workflow-service (QT-08, SCR-0801),

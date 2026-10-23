@@ -11,7 +11,10 @@ import {
 import { ADMIN_CAN } from '../../admin-permissions';
 import { OrgTreePage } from './org-tree.page';
 
-/** WEB-018: SCR-0103 trên dữ liệu giả lập: cây nạp lười, tìm đơn vị, hai trục thời gian, quyền, BR-01-07. */
+/**
+ * WEB-018, WEB-072: SCR-0103 trên dữ liệu giả lập theo hợp đồng `org.yaml`: cây nạp lười, tìm đơn vị,
+ * hai trục thời gian, lịch sử phiên bản, quyền, thay đổi tổ chức, BR-01-07.
+ */
 async function render(can: (k: string) => boolean = () => true) {
   TestBed.configureTestingModule({
     imports: [OrgTreePage],
@@ -56,27 +59,42 @@ async function open(el: HTMLElement, q: string, name: string) {
 }
 
 describe('OrgTreePage (SCR-0103)', () => {
-  it('cây mở sẵn cấp gốc, đơn vị đã kết thúc có nhãn kết thúc', async () => {
+  it('cây mở sẵn cấp gốc, chỉ có đơn vị đang hiệu lực', async () => {
     const { el } = await render();
     await until(el, '[role=treeitem]', () => items(el).length > 3);
     expect(items(el)[0]).toContain('Đảng bộ tỉnh Thái Nguyên');
-    expect(items(el).find((t) => t.includes('Huyện Phú Bình'))).toContain('kết thúc 30/06/2025');
+    expect(items(el).some((t) => t.includes('UBND tỉnh'))).toBe(true);
+    expect(items(el).some((t) => t.includes('Huyện Phú Bình'))).toBe(false);
     expect(text(el.querySelector('#z3'))).toBe('Đảng bộ tỉnh Thái Nguyên');
   });
 
-  it('tìm đơn vị mở nhánh, hiện chi tiết, lịch sử ghi muộn và phân công', async () => {
+  it('tìm đơn vị mở nhánh, hiện chi tiết, tiền thân, lịch sử và phân công', async () => {
     const { el } = await render();
     await open(el, 'so noi vu', 'Sở Nội vụ');
     await until(el, '.tl li', () => text(el.querySelector('.tl')).includes('Hợp nhất'));
-    const card = text(el.querySelector('section[aria-labelledby=z3]'));
-    expect(card).toContain('000.20.21.H56');
-    expect(card).toContain('Sở Nội vụ (cũ); Sở Lao động – Thương binh và Xã hội');
-    expect(text(el.querySelector('.tl'))).toContain('ghi muộn 1 ngày');
+    const card = () => text(el.querySelector('section[aria-labelledby=z3]'));
+    await until(el, '#z3', () => card().includes('Sở Lao động'));
+    expect(card()).toContain('000.20.21.H56');
+    expect(card()).toContain('Khối 4 · cơ quan hành chính');
+    expect(card()).toContain('UBND tỉnh');
+    expect(card()).toContain('Sở Nội vụ (cũ); Sở Lao động – Thương binh và Xã hội');
+    expect(text(el.querySelector('.tl'))).toContain('512/QĐ-UBND');
     await until(el, '.tbl tbody tr', () => text(el.querySelector('.tbl')).includes('Biệt phái'));
-    expect(text(el.querySelector('.tbl'))).toContain('Điều động đi');
+    expect(text(el.querySelector('.tbl'))).toContain('Điều động');
     expect(el.querySelector('[role=treeitem][aria-selected=true]')?.textContent).toContain(
       'Sở Nội vụ',
     );
+  });
+
+  it('nhánh sâu nạp lười; lịch sử đổi tên ghi muộn', async () => {
+    const { el } = await render();
+    await open(el, 'cong chuc', 'Phòng Công chức, viên chức');
+    expect(items(el).some((t) => t.includes('Phòng Công chức, viên chức'))).toBe(true);
+    await until(el, '.tl li', () => text(el.querySelector('.tl')).includes('Đổi tên'));
+    expect(text(el.querySelector('.tl'))).toContain('96/QĐ-SNV');
+    expect(text(el.querySelector('.tl'))).toContain('ghi muộn 1 ngày');
+    // đơn vị không lộ mã trạng thái hay tên trường thô
+    expect(text(el.querySelector('.tl'))).not.toMatch(/DOI_TEN|changedFields|name/);
   });
 
   it('xem tại ngày: MSG-01-08, chỉ đọc, cơ cấu trước sắp xếp', async () => {
@@ -100,6 +118,25 @@ describe('OrgTreePage (SCR-0103)', () => {
     expect(button(el, 'Sửa')).toBeUndefined();
     expect(button(el, 'Thay đổi tổ chức')).toBeUndefined();
     expect(button(el, 'Nhập từ Excel')).toBeUndefined();
+  });
+
+  it('đổi tên gửi quyết định có ngày ban hành, báo đã ghi quyết định', async () => {
+    const { el } = await render();
+    await open(el, 'tu phap', 'Sở Tư pháp');
+    button(el, 'Thay đổi tổ chức')!.click();
+    await until(el, '#oc-names');
+    const type = (sel: string, v: string) => {
+      const i = el.querySelector(sel) as HTMLInputElement;
+      i.value = v;
+      i.dispatchEvent(new Event('input'));
+    };
+    expect((el.querySelector('#oc-order-date') as HTMLInputElement).value).toBeTruthy();
+    type('#oc-names', 'Sở Tư pháp tỉnh Thái Nguyên');
+    type('#oc-order', '10/QĐ-UBND');
+    await until(el, 'button', () => button(el, 'Ghi thay đổi')?.disabled === false);
+    button(el, 'Ghi thay đổi')!.click();
+    await until(el, 'p-message', () => text(el).includes('Đã ghi quyết định 10/QĐ-UBND'));
+    expect(text(el)).toContain('Đã ghi quyết định 10/QĐ-UBND (đổi tên), có hiệu lực từ ngày');
   });
 
   it('sáp nhập thiếu đơn vị tiền thân hiện MSG-01-09 ngay trong hộp', async () => {
