@@ -18,6 +18,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.support.TransactionOperations;
 import vn.viettel.okrkpi.appraisal.api.ComplaintProfilesApi.Participants;
 import vn.viettel.okrkpi.oversight.application.complaint.ComplaintHandlingService.ComplaintAuthz;
 import vn.viettel.okrkpi.oversight.application.complaint.ComplaintService.NotFoundException;
@@ -113,6 +114,7 @@ class ComplaintHandlingServiceTest {
             null,
             sink,
             (tenant, actor, action, type, id, purpose, role) -> audits.add(action),
+            TransactionOperations.withoutTransaction(),
             clock);
     service =
         new ComplaintHandlingService(

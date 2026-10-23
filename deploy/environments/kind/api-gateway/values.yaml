@@ -1,0 +1,8 @@
+# Giá trị chart api-gateway cho cụm kind, môi trường dev (DV-01-02). Ghép sau tests/values-kind.yaml của chart.
+# Chỉ biến và tham chiếu bí mật, không có giá trị bí mật.
+# SEC-34: ở dev Coraza chỉ phát hiện (ghi nhật ký, không chặn) để thử quy tắc loại trừ trên lưu lượng thật.
+coraza:
+  ruleEngine: DetectionOnly
+# Mức suy giảm nền; standalone không có bộ điều khiển, đổi mức bằng helm upgrade --set degrade.level=<0..3>.
+degrade:
+  level: 0

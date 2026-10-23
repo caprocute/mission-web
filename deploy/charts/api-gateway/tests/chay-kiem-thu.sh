@@ -45,5 +45,7 @@ phai_hong "ảnh Coraza thiếu digest" "SEC-55"
 phai_hong "mode lạ" "mode chỉ nhận" -f tests/values-ci.yaml --set mode=abc
 phai_hong "verifier lạ" "oidc.verifier chỉ nhận" -f tests/values-ci.yaml --set oidc.verifier=jwt-auth
 phai_hong "thuật toán ký lạ" "signingAlg" -f tests/values-ci.yaml --set oidc.signingAlg=HS256
+# Giới hạn tần suất, lớp ưu tiên, cắt tải, WAF (DV-01-02).
+tests/kiem-thu-gioi-han.sh > "$OUT/gh" 2>&1 && ok "$(tail -1 "$OUT/gh")" || { hong "kiem-thu-gioi-han.sh"; grep HỎNG "$OUT/gh"; }
 echo "Tổng: $dat đạt, $truot hỏng"
 [ "$truot" -eq 0 ]

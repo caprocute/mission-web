@@ -7,6 +7,7 @@ import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,12 +16,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import vn.viettel.okrkpi.esign.application.seal.LedgerSealService;
 import vn.viettel.okrkpi.esign.application.sign.EsignService;
 import vn.viettel.okrkpi.esign.domain.sign.CertificateRef;
 import vn.viettel.okrkpi.esign.domain.sign.ProviderCode;
 import vn.viettel.okrkpi.esign.domain.sign.SignPurpose;
 import vn.viettel.okrkpi.esign.domain.sign.SignRequest;
 import vn.viettel.okrkpi.esign.domain.sign.SignRequestStatus;
+import vn.viettel.okrkpi.esign.infrastructure.provider.hsm.HsmUnavailableException;
 import vn.viettel.okrkpi.esign.infrastructure.web.api.EsignApi;
 import vn.viettel.okrkpi.esign.infrastructure.web.model.EsignCertificate;
 import vn.viettel.okrkpi.esign.infrastructure.web.model.EsignPurpose;
@@ -29,7 +32,10 @@ import vn.viettel.okrkpi.esign.infrastructure.web.model.EsignRequestCreate;
 import vn.viettel.okrkpi.esign.infrastructure.web.model.EsignRequestPage;
 import vn.viettel.okrkpi.esign.infrastructure.web.model.EsignRequestStatus;
 import vn.viettel.okrkpi.esign.infrastructure.web.model.EsignSignatureFormat;
+import vn.viettel.okrkpi.esign.infrastructure.web.model.LedgerSealSignRequest;
+import vn.viettel.okrkpi.esign.infrastructure.web.model.LedgerSealSignature;
 import vn.viettel.okrkpi.esign.infrastructure.web.model.ListMyEsignCertificates200Response;
+import vn.viettel.okrkpi.esign.spi.SignatureProviderException;
 import vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver;
 import vn.viettel.okrkpi.shared.authz.StepUpValidator;
 import vn.viettel.okrkpi.shared.error.BusinessException;
@@ -40,6 +46,7 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
  * API ký số của SVC-10 theo {@code dossiers.yaml} (QT-04, QT-09, QT-11, QT-12, QT-13, QT-15):
  * {@code createEsignRequest} (202, AAL2), {@code getEsignRequest}, {@code listMyEsignRequests},
  * {@code listMyEsignCertificates}. Người gọi là {@code sub} của token; chỉ thấy yêu cầu của mình.
+ * {@code signLedgerSeal} (DV-10-03) là điểm vào nội bộ của dịch vụ sổ cái, ký bằng HSM.
  */
 @RestController
 @RequestMapping("/api/v1")
@@ -49,16 +56,56 @@ public class EsignController implements EsignApi {
   static final long RETRY_AFTER_SECONDS = 2;
   private static final String OUT_OF_SCOPE = "COMMON-403-OUT-OF-SCOPE";
   private static final String VALIDATION = "COMMON-422-VALIDATION";
+  private static final String SEAL_UNAVAILABLE = "ESIGN-422-PROVIDER-UNAVAILABLE";
 
   private final EsignService service;
   private final StepUpValidator stepUp;
   private final AuthzSubjectResolver subjects;
+  private final ObjectProvider<LedgerSealService> seals;
 
   public EsignController(
-      EsignService service, StepUpValidator stepUp, AuthzSubjectResolver subjects) {
+      EsignService service,
+      StepUpValidator stepUp,
+      AuthzSubjectResolver subjects,
+      ObjectProvider<LedgerSealService> seals) {
     this.service = service;
     this.stepUp = stepUp;
     this.subjects = subjects;
+    this.seals = seals;
+  }
+
+  @Override
+  @Idempotent(schema = "esign")
+  public ResponseEntity<LedgerSealSignature> signLedgerSeal(
+      String idempotencyKey, LedgerSealSignRequest body) {
+    LedgerSealService seal = seals.getIfAvailable();
+    if (seal == null) {
+      throw new BusinessException(SEAL_UNAVAILABLE, "Chưa cấu hình HSM niêm phong sổ cái.");
+    }
+    LedgerSealService.Result r;
+    try {
+      r =
+          seal.seal(
+              new LedgerSealService.Command(
+                  subjects.currentSubject().clientId(),
+                  body.getSealDate(),
+                  body.getMerkleRoot(),
+                  body.getPrevMerkleRoot(),
+                  body.getEventCount() == null ? 0 : body.getEventCount()));
+    } catch (HsmUnavailableException | SignatureProviderException e) {
+      throw new BusinessException(
+          SEAL_UNAVAILABLE, "HSM hoặc máy chủ dấu thời gian chưa sẵn sàng.");
+    }
+    Base64.Encoder b64 = Base64.getEncoder();
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            new LedgerSealSignature(
+                r.sealDate(),
+                r.merkleRoot(),
+                b64.encodeToString(r.signature()),
+                b64.encodeToString(r.timestampToken()),
+                r.certificateSerial(),
+                r.signedAt().atOffset(ZoneOffset.UTC)));
   }
 
   @Override

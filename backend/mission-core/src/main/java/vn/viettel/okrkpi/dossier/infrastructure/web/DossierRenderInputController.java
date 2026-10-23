@@ -9,11 +9,16 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.DossierPackageService;
+import vn.viettel.okrkpi.dossier.application.dossierpackage.DossierPackageService.PreviewInput;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.DossierPackageService.RenderInput;
+import vn.viettel.okrkpi.shared.docgen.FormPreviewSource;
+import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 
 /**
@@ -22,20 +27,32 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
  * /internal/v1/dossier-render-inputs/{packageId}?actor=&formCodes=} trả biểu mẫu {@code CHO_SINH}
  * của gói đang sinh kèm băm hex, phiên bản mẫu và Policy Pack; {@code GET
  * /internal/v1/dossier-form-instances/{id}/render-data} trả tài liệu JSON chuẩn tắc mà băm của nó
- * là {@code data_snapshot_hash}. Không nằm trong hợp đồng công khai; bảo vệ bằng xác thực dịch vụ
- * của mesh.
+ * là {@code data_snapshot_hash}. DV-11-02, DV-11-03 thêm {@code POST
+ * /internal/v1/dossier-draft-forms} (tạo biểu mẫu nháp ngoài gói, trả như danh sách biểu mẫu) và
+ * {@code POST /internal/v1/dossier-form-previews} (dữ liệu hiện tại để xem trước, không ghi gì).
+ * Không nằm trong hợp đồng công khai; bảo vệ bằng xác thực dịch vụ của mesh.
  */
 @RestController
 public class DossierRenderInputController {
 
   private final DossierPackageService service;
+  private final List<FormPreviewSource> sources;
 
-  public DossierRenderInputController(DossierPackageService service) {
+  public DossierRenderInputController(
+      DossierPackageService service, List<FormPreviewSource> sources) {
     this.service = Objects.requireNonNull(service, "service");
+    this.sources = List.copyOf(sources);
   }
 
   /** Thân phản hồi danh sách biểu mẫu. */
   public record Inputs(List<RenderInput> forms) {}
+
+  /** Thân yêu cầu tạo biểu mẫu nháp ({@code HttpRenderInputClient.DraftRequest}). */
+  public record DraftRequest(UUID actor, String formCode, UUID periodId, List<UUID> profileIds) {}
+
+  /** Thân yêu cầu dữ liệu xem trước ({@code HttpRenderInputClient.PreviewRequest}). */
+  public record PreviewRequest(
+      UUID actor, String formCode, String sourceModule, UUID sourceRefId) {}
 
   @GetMapping("/internal/v1/dossier-render-inputs/{packageId}")
   public ResponseEntity<Inputs> inputs(
@@ -54,6 +71,50 @@ public class DossierRenderInputController {
             .renderInputs(TenantContext.require(), actor, packageId, codes)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     return ResponseEntity.ok(new Inputs(forms));
+  }
+
+  @PostMapping("/internal/v1/dossier-draft-forms")
+  public ResponseEntity<Inputs> drafts(@RequestBody DraftRequest request) {
+    List<RenderInput> forms =
+        service
+            .draftForms(
+                TenantContext.require(),
+                request.actor(),
+                request.formCode(),
+                request.periodId(),
+                request.profileIds())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    return ResponseEntity.ok(new Inputs(forms));
+  }
+
+  @PostMapping("/internal/v1/dossier-form-previews")
+  public ResponseEntity<PreviewInput> preview(@RequestBody PreviewRequest request) {
+    TenantId tenant = TenantContext.require();
+    // Nguồn của module khác (MOD-07): module đó dựng dữ liệu và kiểm quyền, MOD-06 chọn mẫu.
+    for (FormPreviewSource source : sources) {
+      if (source.module().equals(request.sourceModule())) {
+        if (request.sourceRefId() == null) {
+          throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        FormPreviewSource.Source found =
+            source
+                .find(tenant, request.actor(), request.sourceRefId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        return ResponseEntity.ok(
+            service.previewFromSource(
+                tenant, request.formCode(), found.profileId(), found.canonicalJson()));
+      }
+    }
+    PreviewInput body =
+        service
+            .preview(
+                tenant,
+                request.actor(),
+                request.formCode(),
+                request.sourceModule(),
+                request.sourceRefId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    return ResponseEntity.ok(body);
   }
 
   @GetMapping("/internal/v1/dossier-form-instances/{id}/render-data")

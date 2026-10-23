@@ -2,7 +2,8 @@
 """Kiểm mọi tuyến của cổng đều có xác thực hoặc nằm trong danh sách công khai tường minh (DV-01-03).
 
 Dựng chart api-gateway bằng `helm template` (hoặc đọc --rendered), rồi với mỗi mục http của mọi ApisixRoute:
-  * hoặc tham chiếu plugin_config protected-api cùng namespace, và protected-api đó có plugin kiểm token
+  * hoặc tham chiếu plugin_config protected-api (hoặc protected-api-p<lớp> của lớp ưu tiên, DV-01-02) cùng
+    namespace, và plugin_config đó có plugin kiểm token
     (openid-connect, hoặc vt-claims với verify: true);
   * hoặc khớp chính xác đúng một dòng của public-routes.yaml: một đường dẫn không ký tự đại diện, một phương thức.
 Tuyến không thoả bị báo kèm tên. Kiểm thêm public-routes.yaml khớp hợp đồng (sinh-tuyen-cong-khai.py --check) và
@@ -14,6 +15,7 @@ bảng tuyến khớp hợp đồng, thao tác chỉ dành cho client nội bộ
 from __future__ import annotations
 
 import argparse
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -53,10 +55,10 @@ def check(docs: list[dict], public: list[dict]) -> tuple[list[str], int]:
             name = f"{ns}/{rname}#{h.get('name')}"
             pc = h.get("plugin_config_name")
             if pc:
-                if pc != "protected-api":
+                if not re.fullmatch(r"protected-api(-p[13])?", pc):
                     errors.append(f"{name}: plugin_config {pc} không phải protected-api")
                 elif not configs.get((ns, pc)):
-                    errors.append(f"{name}: protected-api ở namespace {ns} thiếu hoặc không có plugin kiểm token")
+                    errors.append(f"{name}: {pc} ở namespace {ns} thiếu hoặc không có plugin kiểm token")
                 continue
             m = h.get("match") or {}
             paths, methods = m.get("paths") or [], [x.upper() for x in m.get("methods") or []]

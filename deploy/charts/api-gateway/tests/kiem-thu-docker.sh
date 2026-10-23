@@ -91,7 +91,8 @@ docker run -d --name "$NET-apisix" --network "$NET" -p 127.0.0.1::9080 -e APISIX
   -e VT_ROUTE_COOKIE_KEY="$(cat "$W/route-key")" \
   -e APISIX_STAND_ALONE=true \
   -v "$W/config.yaml:/usr/local/apisix/conf/config.yaml:ro" -v "$W/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro" \
-  -v "$W/vt-claims.lua:/opt/vt/lua/apisix/plugins/vt-claims.lua:ro" "$APISIX_IMG" >/dev/null
+  -v "$W/vt-claims.lua:/opt/vt/lua/apisix/plugins/vt-claims.lua:ro" \
+  -v "$W/vt-problem.lua:/opt/vt/lua/apisix/plugins/vt-problem.lua:ro" -v "$W/vt-waf-body.lua:/opt/vt/lua/apisix/plugins/vt-waf-body.lua:ro" "$APISIX_IMG" >/dev/null
 PORT=$(docker port "$NET-apisix" 9080/tcp | head -1 | sed 's/.*://')
 for i in $(seq 1 60); do curl -s -o /dev/null "http://127.0.0.1:$PORT/" && break; sleep 1; done
 if ! python3 -I "$(pwd)/tests/kiem-thu-docker.py" "http://127.0.0.1:$PORT" "$W/toks.json"; then

@@ -68,11 +68,15 @@ data:
       - ip-restriction
       - openid-connect
       - vt-claims
+      - client-control
+      - workflow
       - limit-conn
       - limit-count
       - limit-req
       - proxy-rewrite
       - response-rewrite
+      - vt-problem
+      - vt-waf-body
       - redirect
       - opentelemetry
       - prometheus
@@ -87,6 +91,7 @@ data:
   apisix.yaml: |
     routes:
       {{- range $routes }}
+      {{- $rp := include "api-gateway.routePlugins" (dict "root" $ "route" .) | fromYaml }}
       - id: {{ .name }}
         uris: {{ toJson .paths }}
         hosts: {{ toJson .hosts }}
@@ -97,10 +102,10 @@ data:
         {{- with .uriRegex }}
         vars: [["uri", "~~", {{ . | quote }}]]
         {{- end }}
-        {{- with .pluginConfig }}
-        plugin_config_id: {{ . }}
+        {{- if .pluginConfig }}
+        plugin_config_id: {{ include "api-gateway.routePluginConfig" (dict "root" $ "route" .) }}
         {{- end }}
-        {{- if or .rewrite .deny }}
+        {{- if or .rewrite .deny $rp }}
         plugins:
           {{- with .rewrite }}
           proxy-rewrite:
@@ -110,6 +115,9 @@ data:
           fault-injection:
             abort:
               {{- include "api-gateway.denyAbort" $ | nindent 14 }}
+          {{- end }}
+          {{- with $rp }}
+          {{- toYaml . | nindent 10 }}
           {{- end }}
         {{- end }}
         upstream:
@@ -140,9 +148,12 @@ data:
           timeout: {{ toJson $v.routeDefaults.timeout }}
       {{- end }}
     plugin_configs:
-      - id: protected-api
+      {{- range $class := list "1" "2" "3" }}
+      - id: {{ include "api-gateway.classConfigName" $class }}
+        labels: { vt.io/priority-class: {{ $class | quote }}, vt.io/degrade-level: {{ $v.degrade.level | toString | quote }} }
         plugins:
-          {{- include "api-gateway.protectedApi" . | nindent 10 }}
+          {{- include "api-gateway.pluginConfig" (dict "root" $ "class" $class "level" $v.degrade.level) | nindent 10 }}
+      {{- end }}
     {{- if $v.opentelemetry.enabled }}
     plugin_metadata:
       - id: opentelemetry
@@ -165,3 +176,7 @@ metadata:
 data:
   vt-claims.lua: |
     {{- .Files.Get "files/vt-claims.lua" | nindent 4 }}
+  vt-problem.lua: |
+    {{- .Files.Get "files/vt-problem.lua" | nindent 4 }}
+  vt-waf-body.lua: |
+    {{- .Files.Get "files/vt-waf-body.lua" | nindent 4 }}

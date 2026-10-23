@@ -45,22 +45,27 @@ capabilities:
   "Include @crs-setup-conf"
   (printf "SecRuleEngine %s" $c.ruleEngine)
   (printf "SecAction \"id:900000,phase:1,pass,t:none,nolog,setvar:tx.blocking_paranoia_level=%d\"" (int $c.paranoiaLevel))
-  (printf "SecAction \"id:900110,phase:1,pass,t:none,nolog,setvar:tx.inbound_anomaly_score_threshold=%d\"" (int $c.anomalyThreshold)) -}}
+  (printf "SecAction \"id:900110,phase:1,pass,t:none,nolog,setvar:tx.inbound_anomaly_score_threshold=%d\"" (int $c.anomalyThreshold))
+  (printf "SecAction \"id:900200,phase:1,pass,t:none,nolog,setvar:'tx.allowed_methods=%s'\"" $c.allowedMethods) -}}
 {{- $d = concat $d (default list $c.exclusions) (list "Include @owasp_crs/*.conf") -}}
 {{- dict "directives_map" (dict "default" $d) "default_directives" "default" | toJson -}}
 {{- end -}}
 
-{{/* Plugin toàn cục: Coraza, header bảo mật (SEC-24), OpenTelemetry (traceparent). */}}
+{{/* Plugin toàn cục: Coraza, header bảo mật (SEC-24), lỗi RFC 9457 của cổng (vt-problem), OpenTelemetry (traceparent). */}}
 {{- define "api-gateway.globalPlugins" -}}
 {{- $v := .Values -}}
 {{- if $v.coraza.enabled }}
 coraza-filter:
   conf: {{ include "api-gateway.corazaConf" . | quote }}
+# Đưa thân request vào Coraza (APISIX không tự chuyển thân cho coraza-proxy-wasm, DV-01-02).
+vt-waf-body:
+  max_bytes: {{ $v.coraza.inspectBodyBytes | int }}
 {{- end }}
 response-rewrite:
   headers:
     set:
       {{- toYaml $v.securityHeaders | nindent 6 }}
+{{ include "api-gateway.problemPlugin" . }}
 prometheus: {}
 # Mã yêu cầu cho mọi tuyến; giữ X-Request-Id client gửi nếu có, trả lại trong phản hồi.
 request-id:
@@ -75,10 +80,10 @@ opentelemetry:
 {{- end }}
 {{- end -}}
 
-{{/* ApisixPluginConfig protected-api (TL-04 mục 6.8). */}}
+{{/* Plugin xác thực của ApisixPluginConfig protected-api* (TL-04 mục 6.8); giới hạn tần suất và cắt tải ghép thêm
+ở api-gateway.pluginConfig (_rate-limit.tpl, DV-01-02). */}}
 {{- define "api-gateway.protectedApi" -}}
 {{- $v := .Values -}}
-{{- $r := $v.rateLimit -}}
 {{- if eq $v.oidc.verifier "openid-connect" }}
 openid-connect:
   discovery: {{ include "api-gateway.discovery" . }}
@@ -111,42 +116,6 @@ vt-claims:
   route_cookie:
     cell_code: {{ include "api-gateway.cellCode" . | quote }}
   {{- end }}
-limit-count:
-  count: {{ $r.user.count | int }}
-  time_window: {{ $r.user.timeWindow | int }}
-  key_type: var_combination
-  key: "$vt_tenant $vt_sub"
-  policy: {{ $r.policy }}
-  {{- if eq $r.policy "redis-cluster" }}
-  redis_cluster_nodes:
-    {{- toYaml $r.redisClusterNodes | nindent 4 }}
-  redis_cluster_name: {{ $r.redisClusterName }}
-  redis_cluster_ssl: {{ $r.redisSsl }}
-  redis_cluster_ssl_verify: {{ $r.redisSsl }}
-  {{- else if eq $r.policy "redis" }}
-  redis_host: {{ $r.redisHost }}
-  redis_port: {{ $r.redisPort | int }}
-  {{- end }}
-  rejected_code: 429
-  show_limit_quota_header: true
-  allow_degradation: true
-limit-req:
-  rate: {{ $r.tenant.rate | int }}
-  burst: {{ $r.tenant.burst | int }}
-  key_type: var
-  key: vt_tenant
-  rejected_code: 429
-  nodelay: true
-  allow_degradation: true
-response-rewrite:
-  # limit-count tự bọc rejected_msg trong {"error_msg": ...}, nên thân RFC 9457 được ghi lại ở đây.
-  vars:
-    - ["status", "==", 429]
-  headers:
-    set:
-      Retry-After: {{ $r.retryAfter | quote }}
-      Content-Type: application/problem+json
-  body: {{ dict "type" $r.problemType "title" $r.problemTitle "status" 429 | toJson | quote }}
 {{- end -}}
 
 {{/* Metadata của plugin opentelemetry (APISIX 3.13 đọc collector từ plugin_metadata, không từ plugin_attr). */}}
@@ -179,7 +148,7 @@ với Host này. Mặc định api.cell-<cell>.okrkpi.vn như dữ liệu regist
 {{/* Danh sách tuyến đã trộn routeDefaults (DV-01-01), dạng JSON để template dùng fromJsonArray. */}}
 {{- define "api-gateway.routes" -}}
 {{- $out := list -}}
-{{- range .Values.routes -}}
+{{- range concat (default list .Values.routes) (default list .Values.classRoutes) (default list .Values.extraRoutes) -}}
 {{- $r := mergeOverwrite (deepCopy $.Values.routeDefaults) (deepCopy .) -}}
 {{- if not .hosts }}{{ $_ := set $r "hosts" (include "api-gateway.hosts" $ | fromJsonArray) }}{{ end -}}
 {{- if and $r.uriRegex (not (regexMatch "^\\^" $r.uriRegex)) }}{{ fail (printf "api-gateway: uriRegex của tuyến %s phải neo ^...$" $r.name) }}{{ end -}}

@@ -107,6 +107,28 @@ public class JdbcInboxMessages implements InboxMessages {
   }
 
   @Override
+  public Optional<Raw> latestEmitted(TenantId tenant, UUID connectorId, String externalId) {
+    String escaped = externalId.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+    return jdbc.sql(
+            "SELECT id, received_day, connector_id, external_msg_id, message_type, raw_enc, status"
+                + " FROM integ.inbox_message WHERE tenant_id = ? AND connector_id = ?"
+                + " AND (external_msg_id = ? OR external_msg_id LIKE ?) AND status = 'DA_PHAT'"
+                + " ORDER BY received_at DESC, id DESC LIMIT 1")
+        .params(tenant.value(), connectorId, externalId, escaped + ":%")
+        .query(
+            (rs, i) ->
+                new Raw(
+                    rs.getObject(1, UUID.class),
+                    rs.getDate(2).toLocalDate(),
+                    rs.getObject(3, UUID.class),
+                    rs.getString(4),
+                    rs.getString(5),
+                    rs.getBytes(6),
+                    InboxStatus.valueOf(rs.getString(7))))
+        .optional();
+  }
+
+  @Override
   public void mark(
       TenantId tenant, LocalDate day, UUID id, InboxStatus status, UUID emittedEventId) {
     jdbc.sql(

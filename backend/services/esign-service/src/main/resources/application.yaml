@@ -63,7 +63,7 @@ management:
           include: livenessState,ping
         # Readiness kiểm tra pool CSDL và trạng thái sẵn sàng của kết nối hạ tầng (pool CSDL, producer Kafka).
         readiness:
-          include: readinessState,db,templateReadiness
+          include: readinessState,db,templateReadiness,hsm
   health:
     livenessstate:
       enabled: true
@@ -139,6 +139,33 @@ okrkpi:
         bucket: ${ESIGN_S3_BUCKET:dossier}
         access-key: ${ESIGN_S3_ACCESS_KEY:}
         secret-key: ${ESIGN_S3_SECRET_KEY:}
+    # DV-10-03: HSM qua PKCS#11 (dev: SoftHSM2). PIN nạp từ OpenBao qua biến môi trường, không
+    # ghi vào tệp; khoá nằm trên token, không trích xuất được.
+    hsm:
+      enabled: ${ESIGN_HSM_ENABLED:false}
+      library: ${ESIGN_HSM_LIBRARY:}
+      slot: ${ESIGN_HSM_SLOT:}
+      slot-list-index: ${ESIGN_HSM_SLOT_LIST_INDEX:}
+      pin: ${ESIGN_HSM_PIN:}
+      org-key-alias: ${ESIGN_HSM_ORG_KEY_ALIAS:mission-org-sign}
+      seal-key-alias: ${ESIGN_HSM_SEAL_KEY_ALIAS:mission-seal}
+      max-sessions: ${ESIGN_HSM_MAX_SESSIONS:8}
+      acquire-timeout: ${ESIGN_HSM_ACQUIRE_TIMEOUT:2s}
+      provision-dev-keys: ${ESIGN_HSM_PROVISION_DEV_KEYS:false}
+    # Máy chủ dấu thời gian RFC 3161: danh sách theo thứ tự ưu tiên, phân tách bằng dấu phẩy.
+    tsa:
+      enabled: ${ESIGN_TSA_ENABLED:false}
+      urls: ${ESIGN_TSA_URLS:}
+      trust-anchors: ${ESIGN_TSA_TRUST_ANCHORS:}
+    seal:
+      allowed-clients: ${ESIGN_SEAL_ALLOWED_CLIENTS:ledger-service}
+    # Gia hạn dấu thời gian lưu trữ PAdES-LTA hằng năm (mặc định 02:00 UTC ngày 15/01).
+    archive-timestamp:
+      enabled: ${ESIGN_ARCHIVE_TS_ENABLED:false}
+      cron: ${ESIGN_ARCHIVE_TS_CRON:0 0 2 15 1 *}
+      renew-before: ${ESIGN_ARCHIVE_TS_RENEW_BEFORE:400d}
+      batch-size: ${ESIGN_ARCHIVE_TS_BATCH:200}
+      bucket: ${ESIGN_S3_BUCKET:dossier}
     worker:
       enabled: ${ESIGN_WORKER_ENABLED:true}
       poll-interval: ${ESIGN_WORKER_POLL:2s}

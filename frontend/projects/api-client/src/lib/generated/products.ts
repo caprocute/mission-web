@@ -843,6 +843,10 @@ export interface components {
       /** @description Nhận xét nghiệm thu (`comment_enc`); chỉ trả cho người có quyền đọc C2. */
       comment?: string;
       reviewer: components['schemas']['Ref'];
+      /** @description Người nghiệm thu được chỉ định khi `reviewer` nghiệm thu thay theo uỷ quyền (`product.acceptance.on_behalf_of`, TL-03 bổ sung 23/10/2026); vắng khi nghiệm thu trực tiếp. Màn hình hiện nhãn "nghiệm thu thay" (SCR-0703, CORE-03-08). */
+      onBehalfOf?: components['schemas']['Ref'];
+      /** @description Uỷ quyền nghiệm thu thay đã dùng (`product.acceptance.delegation_id`); có khi và chỉ khi có `onBehalfOf`. */
+      delegationId?: components['schemas']['Uuid'];
       decidedAt: components['schemas']['DateTime'];
     };
     /** @description Xác nhận nghiệm thu. `comment` bắt buộc khi `qualityLevel` < 1 (BR-07-08); `revisionCause` và `isObjectiveRevision` bắt buộc khi có phiên bản trước bị yêu cầu bổ sung. Mọi tiêu chuẩn chất lượng phải có kết quả (MSG-07-09). */
