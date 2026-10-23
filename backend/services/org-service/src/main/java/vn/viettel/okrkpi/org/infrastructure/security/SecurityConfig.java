@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -17,6 +18,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import vn.viettel.okrkpi.org.infrastructure.web.InternalIdentityController;
 import vn.viettel.okrkpi.org.infrastructure.web.InternalSyncController;
 import vn.viettel.okrkpi.org.infrastructure.web.ScimController;
 
@@ -50,7 +52,8 @@ public class SecurityConfig {
 
   /**
    * DV-04-07: cổng nội bộ {@code /internal/**} chỉ nhận token dịch vụ có vai trò realm {@code svc_integration_gateway};
-   * không dựng {@code Actor} người dùng, controller tự đặt tenant theo thân yêu cầu.
+   * không dựng {@code Actor} người dùng, controller tự đặt tenant theo thân yêu cầu. DV-02-04: riêng cổng tra người theo
+   * số định danh chỉ nhận vai trò {@code svc_iam} của môi giới danh tính Keycloak.
    */
   @Bean
   SecurityFilterChain internal(HttpSecurity http, ProblemAuthenticationEntryPoint entryPoint,
@@ -59,6 +62,8 @@ public class SecurityConfig {
     http.securityMatcher("/internal/**")
         .authorizeHttpRequests(a -> {
           if (authEnabled) {
+            a.requestMatchers(HttpMethod.POST, "/internal/v1/org/tenants/*/persons/national-id-match")
+                .hasRole(InternalIdentityController.SERVICE_ROLE);
             a.anyRequest().hasRole(InternalSyncController.SERVICE_ROLE);
           } else {
             a.anyRequest().permitAll();

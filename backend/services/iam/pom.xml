@@ -35,5 +35,46 @@
     <vt-events.version>0.1.0-SNAPSHOT</vt-events.version>
     <keycloak.image>mirror.gcr.io/keycloak/keycloak:26.4.0</keycloak.image>
     <keycloak-config-cli.image>adorsys/keycloak-config-cli:6.5.1-26</keycloak-config-cli.image>
+    <!-- Cùng phiên bản và cấu hình với backend/pom.xml (BACKEND.md mục 4). -->
+    <spotbugs-maven-plugin.version>4.10.5.0</spotbugs-maven-plugin.version>
+    <findsecbugs-plugin.version>1.14.0</findsecbugs-plugin.version>
+    <!-- Thoát hiểm cục bộ, không dùng trong CI: -Dquality.skip=true. -->
+    <quality.skip>false</quality.skip>
   </properties>
+  <build>
+    <plugins>
+      <!-- SpotBugs + Find Security Bugs: chỉ lỗi mức cao làm hỏng build, như reactor backend. -->
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <version>${spotbugs-maven-plugin.version}</version>
+        <configuration>
+          <effort>Max</effort>
+          <threshold>High</threshold>
+          <failOnError>true</failOnError>
+          <includeTests>false</includeTests>
+          <xmlOutput>true</xmlOutput>
+          <plugins>
+            <plugin>
+              <groupId>com.h3xstream.findsecbugs</groupId>
+              <artifactId>findsecbugs-plugin</artifactId>
+              <version>${findsecbugs-plugin.version}</version>
+            </plugin>
+          </plugins>
+        </configuration>
+        <executions>
+          <execution>
+            <id>spotbugs-check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>verify</phase>
+            <configuration>
+              <skip>${quality.skip}</skip>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

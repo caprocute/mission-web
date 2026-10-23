@@ -137,6 +137,41 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.name }}
                   key: {{ .Values.secrets.keys.apisixClientSecret }}
+            # DV-02-04: VNeID qua môi giới danh tính
+            - name: MISSION_VNEID_ENABLED
+              value: {{ $r.vneid.enabled | quote }}
+            - name: MISSION_VNEID_ISSUER
+              value: {{ $r.vneid.issuer | quote }}
+            - name: MISSION_VNEID_AUTHORIZATION_URL
+              value: {{ $r.vneid.authorizationUrl | quote }}
+            - name: MISSION_VNEID_TOKEN_URL
+              value: {{ $r.vneid.tokenUrl | quote }}
+            - name: MISSION_VNEID_JWKS_URL
+              value: {{ $r.vneid.jwksUrl | quote }}
+            - name: MISSION_VNEID_CLIENT_ID
+              value: {{ $r.vneid.clientId | quote }}
+            - name: MISSION_VNEID_CLIENT_AUTH_METHOD
+              value: {{ $r.vneid.clientAuthMethod | quote }}
+            - name: MISSION_VNEID_SCOPE
+              value: {{ $r.vneid.scope | quote }}
+            - name: MISSION_VNEID_LEVEL_CLAIM
+              value: {{ $r.vneid.levelClaim | quote }}
+            - name: MISSION_VNEID_NATIONAL_ID_CLAIM
+              value: {{ $r.vneid.nationalIdClaim | quote }}
+            - name: MISSION_VNEID_BREAKER_FAILURES
+              value: {{ $r.vneid.breaker.failures | quote }}
+            - name: MISSION_VNEID_BREAKER_OPEN_SECONDS
+              value: {{ $r.vneid.breaker.openSeconds | quote }}
+            - name: MISSION_VNEID_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: {{ .Values.secrets.keys.vneidClientSecret }}
+            - name: MISSION_IAM_BROKER_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: {{ .Values.secrets.keys.iamBrokerClientSecret }}
           resources:
             {{- toYaml .Values.job.resources | nindent 12 }}
           volumeMounts:

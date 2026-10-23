@@ -405,4 +405,52 @@ class OrgSyncApiIT extends IntegrationTestBase {
     api(put("/api/v1/org/sync-schedules").header("Idempotency-Key", UUID.randomUUID().toString())
         .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isPreconditionRequired());
   }
+
+  // ---------- DV-02-04: cổng nội bộ tra người theo số định danh cho môi giới VNeID ----------
+  // Đặt trong lớp này để dùng chung ngữ cảnh Spring (thêm lớp kiểm thử có ngữ cảnh riêng làm cạn kết nối CSDL).
+
+  static final String MATCH_PATH = "/internal/v1/org/tenants/%s/persons/national-id-match";
+
+  private JsonNode matchNationalId(UUID inTenant, String nationalId) throws Exception {
+    String out = internal(post(MATCH_PATH.formatted(inTenant)).contentType(MediaType.APPLICATION_JSON)
+        .content(json.writeValueAsString(Map.of("nationalId", nationalId))), "svc_iam")
+        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+    assertThat(out).doesNotContain(NATIONAL_A);
+    return json.readTree(out);
+  }
+
+  /** Khớp bằng chỉ mục mù của tenant; khoảng trắng không làm lệch; tenant khác không thấy người; không lộ số định danh. */
+  @Test
+  void nationalIdMatch_findsExactlyOnePersonByBlindIndex() throws Exception {
+    batch(UUID.randomUUID(), List.of(record("HR-1", "Trần Thị Bình", NATIONAL_A, "1990-05-01", "DANG_CONG_TAC", false,
+        List.of(pos(unitA, title, "CHINH", false, "2025-01-01")))), true);
+    UUID person = fx.admin().queryForObject("SELECT DISTINCT id FROM org.person WHERE tenant_id = ?", UUID.class,
+        tenant);
+
+    JsonNode found = matchNationalId(tenant, " 0010 9001 2345 ");
+    assertThat(found.get("matches").asInt()).isEqualTo(1);
+    assertThat(found.get("personId").asText()).isEqualTo(person.toString());
+
+    JsonNode none = matchNationalId(tenant, "079200000000");
+    assertThat(none.get("matches").asInt()).isZero();
+    assertThat(none.path("personId").isMissingNode() || none.path("personId").isNull()).isTrue();
+
+    assertThat(matchNationalId(UUID.randomUUID(), NATIONAL_A).get("matches").asInt()).isZero();
+  }
+
+  /** Chỉ vai trò svc_iam gọi được; svc_iam không mở được cổng nội bộ khác; số định danh rỗng trả 400. */
+  @Test
+  void nationalIdMatch_onlyForIamServiceRole_andRejectsBlank() throws Exception {
+    String body = json.writeValueAsString(Map.of("nationalId", NATIONAL_A));
+    internal(post(MATCH_PATH.formatted(tenant)).contentType(MediaType.APPLICATION_JSON).content(body),
+        "svc_integration_gateway").andExpect(status().isForbidden());
+    internal(post(MATCH_PATH.formatted(tenant)).contentType(MediaType.APPLICATION_JSON).content(body), "tenant_admin")
+        .andExpect(status().isForbidden());
+    internal(post("/internal/v1/org/sync-runs/" + UUID.randomUUID() + "/batches")
+        .contentType(MediaType.APPLICATION_JSON).content("{}"), "svc_iam").andExpect(status().isForbidden());
+    internal(post(MATCH_PATH.formatted(tenant)).contentType(MediaType.APPLICATION_JSON)
+        .content("{\"nationalId\":\" \"}"), "svc_iam").andExpect(status().isBadRequest());
+    internal(post(MATCH_PATH.formatted(tenant)).contentType(MediaType.APPLICATION_JSON).content(body), "svc_iam")
+        .andExpect(status().isOk()).andExpect(jsonPath("$.matches").value(0));
+  }
 }
