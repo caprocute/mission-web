@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **362 / 408 task (88.7%)** — Khối lượng quy đổi đã gộp: **429.5 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **364 / 408 task (89.2%)** (gồm **362** đã gộp `main` + **2** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **365 / 408 task (89.5%)** (gồm **362** đã gộp `main` + **3** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **15 task** (11 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **29 task**.
+- **Chưa bắt đầu**: **28 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **20 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -29,10 +29,10 @@
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **13** | 0 | 0 | 0 | **100.0%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 9 | 3 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **2** | 0 | 3 | 11 | **12.5%** |
-| **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
+| **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 1 | 0 | 9 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **1** | 2 | 1 | 5 | **11.1%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **362** | **2** | **15** | **29** | **88.7%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **362** | **3** | **15** | **28** | **88.7%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -44,7 +44,7 @@
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **119** | 0 | 1 | 0 | **99.2%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **18** | 0 | 13 | 11 | **42.9%** |
-| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **5** | 2 | 0 | 16 | **21.7%** |
+| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **5** | 3 | 0 | 15 | **21.7%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **1** | 0 | 1 | 2 | **25.0%** |
 
 ### 1.3. Trạng thái 23 task trên Đường găng
@@ -596,7 +596,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [QA-15](docs/tasks/QA-15-dr-chuyen-vung.md) | Diễn tập khôi phục DR-10..DR-16, chuyển vùng giữa hai trung tâm dữ liệu | L | B9 | 16 | QA-14, INF-18, INF-20 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần TTDL thứ hai |
 | [QA-16](docs/tasks/QA-16-uat-tenant-thi-diem.md) | Kiểm thử chấp nhận nghiệp vụ: tenant thí điểm chạy trọn một kỳ đánh giá | L | B9 | 24 | QA-07 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần tenant và người dùng thật |
 
-### MOB · SVC-18 mobile-app (Flutter) (0/10 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### MOB · SVC-18 mobile-app (Flutter) (0/10 đã gộp `main`, 1 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -605,7 +605,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [MOB-03](docs/tasks/MOB-03-viec-cua-toi-di-dong.md) | SCR-0504 Việc của tôi và cập nhật tiến độ trên di động | M | B10 | 18 | MOB-02, CORE-02-19, CORE-02-18 | **Chưa bắt đầu** |  |
 | [MOB-04](docs/tasks/MOB-04-check-in-kr-di-dong.md) | SCR-0302 Check-in KR trên di động | M | B10 | 14 | MOB-02, CORE-01-08 | **Chưa bắt đầu** |  |
 | [MOB-05](docs/tasks/MOB-05-nop-minh-chung-ocr.md) | SCR-0702 Nộp minh chứng trên di động có OCR, tải theo khối | M | B10 | 19 | MOB-02, DV-08-02, CORE-03-05 | **Chưa bắt đầu** |  |
-| [MOB-06](docs/tasks/MOB-06-bieu-mau-dong-tu-danh-gia.md) | Bộ dựng biểu mẫu từ JSON Schema và CEL trên Flutter, phiếu tự đánh giá | L | B10 | 17 | MOB-02, CORE-08-13, CORE-04-04 | **Chưa bắt đầu** |  |
+| [MOB-06](docs/tasks/MOB-06-bieu-mau-dong-tu-danh-gia.md) | Bộ dựng biểu mẫu từ JSON Schema và CEL trên Flutter, phiếu tự đánh giá | L | B10 | 17 | MOB-02, CORE-08-13, CORE-04-04 | **Xong, chờ gộp** | Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: package mobile/packages/vt_form_engine (CEL đối chiếu 76 ca vàng vt-cel, 14 ca CompiledForm, phiếu tự đánh giá), flutter test 115 xanh; nhóm MOB đang hoãn theo YC-PT-17 nhưng luồng gộp giao; chưa chạy trình giả lập |
 | [MOB-07](docs/tasks/MOB-07-ky-so-mysign.md) | Ký số MySign trên di động | M | B10 | 18 | MOB-06, DV-10-02 | **Chưa bắt đầu** |  |
 | [MOB-08](docs/tasks/MOB-08-che-do-cao-tuoi.md) | SCR-1803 Chế độ Đảng viên cao tuổi trên di động | M | B10 | 19 | MOB-03, MOB-06, DL-06 | **Chưa bắt đầu** |  |
 | [MOB-09](docs/tasks/MOB-09-thong-bao-day.md) | Thông báo đẩy FCM, APNs | S | B10 | 9 | MOB-01, DV-12-03, DV-12-05 | **Chưa bắt đầu** |  |
@@ -1024,4 +1024,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 13:27 | B2 (luồng B6) | `VH-03` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: ops/van-hanh (trực, SEV, thông báo, phân tích sau sự cố, CAB, đóng băng) và biên bản diễn tập trên bàn SEV-1; markdownlint sạch; diễn tập với người thật còn chờ đơn vị vận hành |
 | 23/10/2026 13:27 | B2 (luồng B6) | `QA-07` | Chuyển trạng thái sang **Đã gộp main** — Gộp main đến 3a3dcc57; sửa tiếp lỗi axe thẻ Test case SCR-1503 ở b93d7bb2 |
 | 23/10/2026 13:40 | B2 (luồng B6) | `VH-03` | Chuyển trạng thái sang **Đã gộp main** — Gộp main đến db417ba2 (quy trình ops/van-hanh, cửa sổ đóng băng, CNPGClusterNotHealthy); nối sổ tay VH-01, VH-02 đang làm |
+| 23/10/2026 14:20 | B2 (luồng B6) | `MOB-06` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: package mobile/packages/vt_form_engine (CEL đối chiếu 76 ca vàng vt-cel, 14 ca CompiledForm, phiếu tự đánh giá), flutter test 115 xanh; nhóm MOB đang hoãn theo YC-PT-17 nhưng luồng gộp giao; chưa chạy trình giả lập |
 <!-- PROGRESS_LOG_END -->
