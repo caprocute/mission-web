@@ -20,6 +20,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.support.TransactionOperations;
 import vn.viettel.okrkpi.appraisal.api.ComplaintProfilesApi.Participants;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodLockedException;
@@ -139,6 +140,7 @@ class ComplaintResolutionServiceTest {
             null,
             sink,
             (tenant, actor, action, type, id, purpose, role) -> audits.add(action),
+            TransactionOperations.withoutTransaction(),
             clock);
     service =
         new ComplaintResolutionService(
