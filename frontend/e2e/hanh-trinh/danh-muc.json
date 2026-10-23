@@ -1,0 +1,969 @@
+{
+  "phienBan": 1,
+  "moTa": "Danh mục hành trình đầu cuối của QA-01. Mã HT-xx là mã cục bộ của bộ kiểm thử, không phải mã thiết kế.",
+  "nguon": "docs/tasks/QA-01-chien-luoc-kiem-thu.md; wiki/11-kiem-thu-va-chat-luong.md",
+  "taiKhoanBoSung": {
+    "AC-02": ["quantri2"]
+  },
+  "trangThaiHopLe": ["chua_viet", "dang_viet", "dat", "tam_hoan"],
+  "taiKhoanTheoTacNhan": {
+    "AC-01": "nentang",
+    "AC-02": "quantri",
+    "AC-03": "chinhsach",
+    "AC-04": "lanhdao",
+    "AC-05": "quanly",
+    "AC-06": "canbo",
+    "AC-07": "thamdinh",
+    "AC-08": "quyetdinh",
+    "AC-09": "duyet2",
+    "AC-10": "kiemtra"
+  },
+  "hanhTrinh": [
+    {
+      "ma": "HT-01",
+      "ten": "Đăng nhập tài khoản cơ quan và mở trang Việc của tôi hôm nay",
+      "boKiemThu": "QA-04",
+      "nenTang": "web",
+      "qt": ["QT-00"],
+      "scr": ["SCR-0001", "SCR-0002"],
+      "tacNhan": ["AC-06"],
+      "taiKhoan": ["canbo"],
+      "operationIds": ["resolveTenantCell", "getMyOrgProfile", "getHomeLayout", "listMyTasks"],
+      "suKien": [],
+      "trangThaiCuoi": [],
+      "caPhuDinh": ["Sai mật khẩu năm lần thì tài khoản bị khoá tạm"],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-02",
+      "ten": "Chọn đơn vị và vai trò khi có nhiều phân công",
+      "boKiemThu": "QA-04",
+      "nenTang": "web",
+      "qt": ["QT-00"],
+      "scr": ["SCR-0001", "SCR-0002"],
+      "tacNhan": ["AC-05"],
+      "taiKhoan": ["quanly"],
+      "operationIds": ["getMyOrgProfile", "setMyContext"],
+      "suKien": [],
+      "trangThaiCuoi": [],
+      "caPhuDinh": ["Chọn đơn vị không thuộc phân công của mình bị từ chối"],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-03",
+      "ten": "Xác thực bậc hai bằng OTP và xác thực lại khi phê duyệt",
+      "boKiemThu": "QA-04",
+      "nenTang": "web",
+      "qt": ["QT-00"],
+      "scr": ["SCR-0001"],
+      "tacNhan": ["AC-07", "AC-05"],
+      "taiKhoan": ["thamdinh", "quanly"],
+      "operationIds": ["getMyOrgProfile", "approveOkrObjective"],
+      "suKien": [],
+      "trangThaiCuoi": [],
+      "caPhuDinh": ["Phê duyệt khi chưa xác thực lại bị yêu cầu bậc hai"],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-04",
+      "ten": "Đăng nhập bằng VNeID mức 2 và liên kết với hồ sơ cán bộ",
+      "boKiemThu": "QA-04",
+      "nenTang": "web",
+      "qt": ["QT-00"],
+      "scr": ["SCR-0001"],
+      "tacNhan": ["AC-06", "AC-11"],
+      "taiKhoan": ["canbo"],
+      "operationIds": ["resolveTenantCell", "getMyOrgProfile"],
+      "suKien": [],
+      "trangThaiCuoi": [],
+      "caPhuDinh": ["Tài khoản VNeID mức 1 bị từ chối", "Không khớp hồ sơ thì không tạo tài khoản"],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "VNeID dùng bản giả lập trên server dev (YC-PT-13).",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-05",
+      "ten": "Khởi tạo, cấp phát và kích hoạt tenant mới",
+      "boKiemThu": "QA-04",
+      "nenTang": "web",
+      "qt": ["QT-01"],
+      "scr": ["SCR-0101", "SCR-0102"],
+      "tacNhan": ["AC-01"],
+      "taiKhoan": ["nentang"],
+      "operationIds": [
+        "createConfigTenant",
+        "provisionConfigTenant",
+        "getJob",
+        "activateConfigTenant",
+        "listConfigTenants"
+      ],
+      "suKien": [],
+      "trangThaiCuoi": [],
+      "caPhuDinh": ["Tài khoản quản trị tenant không mở được danh sách tenant"],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-06",
+      "ten": "Ghi thay đổi đơn vị có hiệu lực từ ngày và phân công cán bộ",
+      "boKiemThu": "QA-04",
+      "nenTang": "web",
+      "qt": ["QT-01"],
+      "scr": ["SCR-0103"],
+      "tacNhan": ["AC-02"],
+      "taiKhoan": ["quantri"],
+      "operationIds": ["getOrgTree", "changeOrgUnit", "listOrgUnitHistory", "createOrgAssignment"],
+      "suKien": ["EVT-14", "EVT-15"],
+      "trangThaiCuoi": [],
+      "caPhuDinh": ["Cập nhật đơn vị với phiên bản cũ nhận xung đột và được mời tải lại"],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-07",
+      "ten": "Chạy đồng bộ nhân sự và xử lý sai lệch đối soát",
+      "boKiemThu": "QA-04",
+      "nenTang": "web",
+      "qt": ["QT-01"],
+      "scr": ["SCR-0104"],
+      "tacNhan": ["AC-02"],
+      "taiKhoan": ["quantri"],
+      "operationIds": ["startOrgSyncRun", "resolveOrgDiscrepancies", "mapOrgDiscrepancy"],
+      "suKien": ["EVT-16"],
+      "trangThaiCuoi": [],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-08",
+      "ten": "Lập mục tiêu và kết quả then chốt, bị trả lại, sửa và được phê duyệt",
+      "boKiemThu": "QA-04",
+      "nenTang": "web",
+      "qt": ["QT-02"],
+      "scr": ["SCR-0201", "SCR-0202", "SCR-0203"],
+      "tacNhan": ["AC-06", "AC-05"],
+      "taiKhoan": ["canbo", "quanly"],
+      "operationIds": [
+        "createOkrObjective",
+        "createOkrKeyResult",
+        "submitOkrObjective",
+        "returnOkrObjective",
+        "updateOkrObjective",
+        "approveOkrObjective",
+        "getOkrTree"
+      ],
+      "suKien": ["EVT-01"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "okr.objective",
+          "trangThai": "DA_DUYET"
+        }
+      ],
+      "caPhuDinh": ["Tài khoản không có quyền phê duyệt bị máy chủ từ chối"],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-09",
+      "ten": "Check-in kết quả then chốt và gửi lại không tạo bản ghi trùng",
+      "boKiemThu": "QA-04",
+      "nenTang": "web",
+      "qt": ["QT-03"],
+      "scr": ["SCR-0301"],
+      "tacNhan": ["AC-06"],
+      "taiKhoan": ["canbo"],
+      "operationIds": ["getOkrObjective", "createOkrCheckin"],
+      "suKien": ["EVT-02"],
+      "trangThaiCuoi": [],
+      "caPhuDinh": ["Gửi lại cùng khoá chống lặp không tạo check-in thứ hai"],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-10",
+      "ten": "Check-in kết quả then chốt trên di động trong ba chạm",
+      "boKiemThu": "MOB",
+      "nenTang": "di-dong",
+      "qt": ["QT-03"],
+      "scr": ["SCR-0302"],
+      "tacNhan": ["AC-06"],
+      "taiKhoan": ["canbo"],
+      "operationIds": ["createOkrCheckin"],
+      "suKien": ["EVT-02"],
+      "trangThaiCuoi": [],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-11",
+      "ten": "Lập kế hoạch quý từ danh mục công việc, bị trả lại và được phê duyệt",
+      "boKiemThu": "QA-05",
+      "nenTang": "web",
+      "qt": ["QT-04"],
+      "scr": ["SCR-0401", "SCR-0402", "SCR-0403"],
+      "tacNhan": ["AC-05", "AC-04"],
+      "taiKhoan": ["quanly", "lanhdao"],
+      "operationIds": [
+        "createPlan",
+        "savePlanVersion",
+        "checkPlanVersion",
+        "submitPlanVersion",
+        "returnPlanVersion",
+        "approvePlanVersion",
+        "getPlanVersion"
+      ],
+      "suKien": ["EVT-03"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "task.plan_version",
+          "trangThai": "DA_DUYET"
+        }
+      ],
+      "caPhuDinh": ["Gửi duyệt kế hoạch chưa qua kiểm tra hợp lệ bị chặn"],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-12",
+      "ten": "Điều chỉnh kế hoạch đã duyệt thành phiên bản mới",
+      "boKiemThu": "QA-05",
+      "nenTang": "web",
+      "qt": ["QT-04"],
+      "scr": ["SCR-0402", "SCR-0403"],
+      "tacNhan": ["AC-05", "AC-04"],
+      "taiKhoan": ["quanly", "lanhdao"],
+      "operationIds": ["createPlanAdjustment", "submitPlanVersion", "approvePlanVersion"],
+      "suKien": ["EVT-03"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "task.plan_version",
+          "trangThai": "DA_DUYET"
+        }
+      ],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-13",
+      "ten": "Giao nhiệm vụ từ kế hoạch và cán bộ nhận việc",
+      "boKiemThu": "QA-05",
+      "nenTang": "web",
+      "qt": ["QT-05"],
+      "scr": ["SCR-0501", "SCR-0503"],
+      "tacNhan": ["AC-05", "AC-06"],
+      "taiKhoan": ["quanly", "canbo"],
+      "operationIds": [
+        "createTaskDraft",
+        "checkTaskAssignment",
+        "assignTask",
+        "listMyTasks",
+        "acceptTask"
+      ],
+      "suKien": ["EVT-04", "EVT-06"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "task.task",
+          "trangThai": "DANG_THUC_HIEN"
+        }
+      ],
+      "caPhuDinh": ["Giao việc cho người ngoài đơn vị quản lý bị từ chối"],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-14",
+      "ten": "Tạo nhiệm vụ từ văn bản chỉ đạo đến",
+      "boKiemThu": "QA-05",
+      "nenTang": "web",
+      "qt": ["QT-05"],
+      "scr": ["SCR-0502"],
+      "tacNhan": ["AC-05"],
+      "taiKhoan": ["quanly"],
+      "operationIds": ["createTaskFromDocument", "assignTask"],
+      "suKien": ["EVT-24", "EVT-04"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "task.task",
+          "trangThai": "DA_GIAO"
+        }
+      ],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "Văn bản đến nạp bằng dữ liệu khởi tạo (EVT-24 giả lập).",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-15",
+      "ten": "Cán bộ đăng ký nhiệm vụ và quản lý quyết định",
+      "boKiemThu": "QA-05",
+      "nenTang": "web",
+      "qt": ["QT-05"],
+      "scr": ["SCR-0503", "SCR-0501"],
+      "tacNhan": ["AC-06", "AC-05"],
+      "taiKhoan": ["canbo", "quanly"],
+      "operationIds": ["registerTask", "decideTaskRegistration"],
+      "suKien": ["EVT-04"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "task.task",
+          "trangThai": "DA_GIAO"
+        }
+      ],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-16",
+      "ten": "Việc của tôi và cập nhật tiến độ nhanh trên di động",
+      "boKiemThu": "MOB",
+      "nenTang": "di-dong",
+      "qt": ["QT-05", "QT-06"],
+      "scr": ["SCR-0504"],
+      "tacNhan": ["AC-06"],
+      "taiKhoan": ["canbo"],
+      "operationIds": ["listMyTasks", "updateTaskProgress"],
+      "suKien": ["EVT-05"],
+      "trangThaiCuoi": [],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-17",
+      "ten": "Cập nhật tiến độ nhiệm vụ từ trang chủ trong ba chạm",
+      "boKiemThu": "QA-05",
+      "nenTang": "web",
+      "qt": ["QT-06"],
+      "scr": ["SCR-0002", "SCR-0601"],
+      "tacNhan": ["AC-06"],
+      "taiKhoan": ["canbo"],
+      "operationIds": ["listMyTasks", "getTask", "updateTaskProgress"],
+      "suKien": ["EVT-05"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "task.task",
+          "trangThai": "DANG_THUC_HIEN"
+        }
+      ],
+      "caPhuDinh": ["Cập nhật với phiên bản cũ nhận xung đột"],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "Hành trình mẫu của QA-03.",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-18",
+      "ten": "Báo điểm nghẽn, quản lý xử lý và báo cáo lên cấp trên",
+      "boKiemThu": "QA-05",
+      "nenTang": "web",
+      "qt": ["QT-06"],
+      "scr": ["SCR-0601"],
+      "tacNhan": ["AC-06", "AC-05"],
+      "taiKhoan": ["canbo", "quanly"],
+      "operationIds": ["reportTaskBlocker", "handleTaskBlocker", "escalateTaskBlocker"],
+      "suKien": ["EVT-21"],
+      "trangThaiCuoi": [],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-19",
+      "ten": "Đề nghị gia hạn nhiệm vụ và quản lý phê duyệt",
+      "boKiemThu": "QA-05",
+      "nenTang": "web",
+      "qt": ["QT-06"],
+      "scr": ["SCR-0601", "SCR-0602"],
+      "tacNhan": ["AC-06", "AC-05"],
+      "taiKhoan": ["canbo", "quanly"],
+      "operationIds": [
+        "previewTaskChangeRequest",
+        "submitTaskChangeRequest",
+        "decideTaskChangeRequest"
+      ],
+      "suKien": ["EVT-06"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "task.task",
+          "trangThai": "DANG_THUC_HIEN"
+        }
+      ],
+      "caPhuDinh": ["Đề nghị vượt ngưỡng đi qua luồng duyệt nhiều bước"],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-20",
+      "ten": "Tải lên và nộp minh chứng sau khi quét mã độc",
+      "boKiemThu": "QA-05",
+      "nenTang": "web",
+      "qt": ["QT-07"],
+      "scr": ["SCR-0701"],
+      "tacNhan": ["AC-06"],
+      "taiKhoan": ["canbo"],
+      "operationIds": [
+        "createFileUpload",
+        "uploadFilePart",
+        "completeFileUpload",
+        "createEvidence",
+        "submitEvidenceVersion"
+      ],
+      "suKien": ["EVT-07"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "product.evidence_version",
+          "trangThai": "DA_NOP"
+        },
+        {
+          "doiTuong": "task.task",
+          "trangThai": "CHO_NGHIEM_THU"
+        }
+      ],
+      "caPhuDinh": ["Tệp thử EICAR bị đánh dấu nhiễm và không nộp được"],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-21",
+      "ten": "Nghiệm thu năm mức, yêu cầu bổ sung rồi xác nhận minh chứng",
+      "boKiemThu": "QA-05",
+      "nenTang": "web",
+      "qt": ["QT-07"],
+      "scr": ["SCR-0703", "SCR-0701"],
+      "tacNhan": ["AC-05", "AC-06"],
+      "taiKhoan": ["quanly", "canbo"],
+      "operationIds": [
+        "openEvidenceReview",
+        "previewAppraisalTaskScore",
+        "requestEvidenceRevision",
+        "createEvidenceVersion",
+        "submitEvidenceVersion",
+        "acceptEvidenceVersion"
+      ],
+      "suKien": ["EVT-07", "EVT-08", "EVT-06"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "product.evidence_version",
+          "trangThai": "DA_XAC_NHAN"
+        },
+        {
+          "doiTuong": "task.task",
+          "trangThai": "HOAN_THANH"
+        }
+      ],
+      "caPhuDinh": [
+        "Người khởi tạo nhiệm vụ không được tự nghiệm thu",
+        "Xác nhận nghiệm thu khi chưa xác thực bậc hai bị chặn"
+      ],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-22",
+      "ten": "Chụp văn bản giấy và nộp minh chứng trên di động",
+      "boKiemThu": "MOB",
+      "nenTang": "di-dong",
+      "qt": ["QT-07"],
+      "scr": ["SCR-0702"],
+      "tacNhan": ["AC-06"],
+      "taiKhoan": ["canbo"],
+      "operationIds": [
+        "createFileUpload",
+        "completeFileUpload",
+        "ocrEvidenceObject",
+        "createEvidence",
+        "submitEvidenceVersion"
+      ],
+      "suKien": ["EVT-07"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "product.evidence_version",
+          "trangThai": "DA_NOP"
+        }
+      ],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-23",
+      "ten": "Lập lệnh khoá kỳ, duyệt và theo dõi saga chốt kỳ tới khi khoá xong",
+      "boKiemThu": "QA-06",
+      "nenTang": "web",
+      "qt": ["QT-08"],
+      "scr": ["SCR-0801"],
+      "tacNhan": ["AC-02", "AC-04"],
+      "taiKhoan": ["quantri", "lanhdao"],
+      "operationIds": [
+        "createPeriodLockOrder",
+        "approvePeriodLockOrder",
+        "startPeriodLock",
+        "getPeriodLockProgress",
+        "listPeriodLockEvents"
+      ],
+      "suKien": ["EVT-09", "EVT-10", "EVT-17", "EVT-18", "EVT-19"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "config.period",
+          "trangThai": "DA_KHOA"
+        }
+      ],
+      "caPhuDinh": ["Người lập lệnh không tự duyệt lệnh của mình"],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-24",
+      "ten": "Huỷ khoá kỳ trước bước ký lô và trở về kỳ mở",
+      "boKiemThu": "QA-06",
+      "nenTang": "web",
+      "qt": ["QT-08"],
+      "scr": ["SCR-0801"],
+      "tacNhan": ["AC-02", "AC-09"],
+      "taiKhoan": ["quantri", "duyet2"],
+      "operationIds": ["requestPeriodLockCancel", "approvePeriodLockCancel", "getPeriod"],
+      "suKien": ["EVT-26"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "config.period",
+          "trangThai": "MO"
+        }
+      ],
+      "caPhuDinh": ["Sau bước ký lô giao diện chỉ cho thử lại, không cho huỷ"],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-25",
+      "ten": "Tự đánh giá, bị trả lại, sửa và gửi lại",
+      "boKiemThu": "QA-06",
+      "nenTang": "web",
+      "qt": ["QT-09"],
+      "scr": ["SCR-0901"],
+      "tacNhan": ["AC-06", "AC-07"],
+      "taiKhoan": ["canbo", "thamdinh"],
+      "operationIds": [
+        "listMyAppraisalProfiles",
+        "saveAppraisalSelfAssessment",
+        "submitAppraisalSelfAssessment",
+        "returnAppraisalProfile"
+      ],
+      "suKien": ["EVT-11"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "appraisal.appraisal_profile",
+          "trangThai": "CHO_THAM_DINH"
+        }
+      ],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-26",
+      "ten": "Thẩm định và đề xuất mức xếp loại",
+      "boKiemThu": "QA-06",
+      "nenTang": "web",
+      "qt": ["QT-09"],
+      "scr": ["SCR-0902"],
+      "tacNhan": ["AC-07"],
+      "taiKhoan": ["thamdinh"],
+      "operationIds": [
+        "listAppraisalProfiles",
+        "getAppraisalProfile",
+        "appraiseAppraisalProfile",
+        "proposeAppraisalRating"
+      ],
+      "suKien": ["EVT-11"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "appraisal.appraisal_profile",
+          "trangThai": "CHO_QUYET_DINH"
+        }
+      ],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-27",
+      "ten": "Quyết định xếp loại hàng loạt có ký số và xem phiếu có giải thích",
+      "boKiemThu": "QA-06",
+      "nenTang": "web",
+      "qt": ["QT-09"],
+      "scr": ["SCR-0904", "SCR-0903"],
+      "tacNhan": ["AC-08", "AC-06"],
+      "taiKhoan": ["quyetdinh", "canbo"],
+      "operationIds": [
+        "createAppraisalBatchDecision",
+        "getAppraisalBatchDecision",
+        "createEsignRequest",
+        "getAppraisalScores",
+        "getAppraisalScoreTrace"
+      ],
+      "suKien": ["EVT-12", "EVT-18"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "appraisal.appraisal_profile",
+          "trangThai": "DA_KY_SO"
+        }
+      ],
+      "caPhuDinh": ["Người đã thẩm định không được quyết định cùng hồ sơ"],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "Server dev dùng bộ ký giả lập của esign-service.",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-28",
+      "ten": "Xếp loại năm từ bốn quý và giải thích kết quả",
+      "boKiemThu": "QA-06",
+      "nenTang": "web",
+      "qt": ["QT-10"],
+      "scr": ["SCR-1001"],
+      "tacNhan": ["AC-07"],
+      "taiKhoan": ["thamdinh"],
+      "operationIds": ["listAnnualAppraisalRatings", "getAnnualAppraisalExplanation"],
+      "suKien": [],
+      "trangThaiCuoi": [],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "Bốn kỳ quý dựng bằng dữ liệu khởi tạo.",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-29",
+      "ten": "Phân nhóm cán bộ triển vọng",
+      "boKiemThu": "QA-06",
+      "nenTang": "web",
+      "qt": ["QT-10"],
+      "scr": ["SCR-1002"],
+      "tacNhan": ["AC-04"],
+      "taiKhoan": ["lanhdao"],
+      "operationIds": [
+        "getProspectGroupBoard",
+        "saveProspectGroupBoard",
+        "submitProspectGroupBoard"
+      ],
+      "suKien": [],
+      "trangThaiCuoi": [],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-30",
+      "ten": "Điều hành hội nghị kiểm điểm và lập biên bản",
+      "boKiemThu": "QA-07",
+      "nenTang": "web",
+      "qt": ["QT-11"],
+      "scr": ["SCR-1101"],
+      "tacNhan": ["AC-04", "AC-06"],
+      "taiKhoan": ["lanhdao", "canbo"],
+      "operationIds": [
+        "createDossierMeeting",
+        "sendDossierMeetingDraft",
+        "createDossierMeetingComment",
+        "createDossierMeetingMinutes",
+        "closeDossierMeeting"
+      ],
+      "suKien": [],
+      "trangThaiCuoi": [],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-31",
+      "ten": "Lập gói hồ sơ số, ký số và xuất gói",
+      "boKiemThu": "QA-07",
+      "nenTang": "web",
+      "qt": ["QT-11"],
+      "scr": ["SCR-1102"],
+      "tacNhan": ["AC-07"],
+      "taiKhoan": ["thamdinh"],
+      "operationIds": [
+        "createDossierPackage",
+        "getDossierPackageChecklist",
+        "signDossierPackage",
+        "exportDossierPackage",
+        "getJob"
+      ],
+      "suKien": ["EVT-17", "EVT-18"],
+      "trangThaiCuoi": [],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-32",
+      "ten": "Cán bộ gửi khiếu nại kết quả xếp loại",
+      "boKiemThu": "QA-07",
+      "nenTang": "web",
+      "qt": ["QT-12"],
+      "scr": ["SCR-1201"],
+      "tacNhan": ["AC-06"],
+      "taiKhoan": ["canbo"],
+      "operationIds": ["listComplainableProfiles", "createComplaint", "submitComplaint"],
+      "suKien": ["EVT-25"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "appraisal.appraisal_profile",
+          "trangThai": "KHIEU_NAI"
+        }
+      ],
+      "caPhuDinh": ["Gửi khiếu nại quá hạn bị từ chối"],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-33",
+      "ten": "Tiếp nhận khiếu nại, yêu cầu giải trình, kết luận và trả lời",
+      "boKiemThu": "QA-07",
+      "nenTang": "web",
+      "qt": ["QT-12"],
+      "scr": ["SCR-1202"],
+      "tacNhan": ["AC-10", "AC-07"],
+      "taiKhoan": ["kiemtra", "thamdinh"],
+      "operationIds": [
+        "acceptComplaint",
+        "requestComplaintExplanations",
+        "submitComplaintExplanation",
+        "saveComplaintConclusion",
+        "respondComplaint"
+      ],
+      "suKien": ["EVT-21"],
+      "trangThaiCuoi": [],
+      "caPhuDinh": ["Người bị khiếu nại không được xử lý khiếu nại của chính mình"],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-34",
+      "ten": "Yêu cầu mở lại kỳ, mô phỏng tác động và hai người duyệt",
+      "boKiemThu": "QA-07",
+      "nenTang": "web",
+      "qt": ["QT-13"],
+      "scr": ["SCR-1301"],
+      "tacNhan": ["AC-10", "AC-08", "AC-09"],
+      "taiKhoan": ["kiemtra", "quyetdinh", "duyet2"],
+      "operationIds": ["createReopenRequest", "simulateReopenRequest", "approveReopenRequest"],
+      "suKien": ["EVT-22"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "config.period",
+          "trangThai": "MO_LAI_HAU_KIEM"
+        }
+      ],
+      "caPhuDinh": [
+        "Cùng một người duyệt hai lượt bị từ chối",
+        "Duyệt khi chưa xác thực bậc hai bị yêu cầu xác thực lại"
+      ],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-35",
+      "ten": "Tra cứu sổ cái và kiểm tra toàn vẹn chuỗi băm",
+      "boKiemThu": "QA-07",
+      "nenTang": "web",
+      "qt": ["QT-13"],
+      "scr": ["SCR-1302"],
+      "tacNhan": ["AC-10"],
+      "taiKhoan": ["kiemtra"],
+      "operationIds": [
+        "listLedgerEntries",
+        "createLedgerVerifyRun",
+        "getLedgerVerifyRun",
+        "getLedgerInclusionProof"
+      ],
+      "suKien": [],
+      "trangThaiCuoi": [],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-36",
+      "ten": "Xem cảnh báo bất thường, giao kiểm tra và kết luận",
+      "boKiemThu": "QA-07",
+      "nenTang": "web",
+      "qt": ["QT-14"],
+      "scr": ["SCR-1401", "SCR-1603"],
+      "tacNhan": ["AC-10"],
+      "taiKhoan": ["kiemtra"],
+      "operationIds": ["listAnomalyAlerts", "getAnomalyAlert", "createAlertAction"],
+      "suKien": ["EVT-20"],
+      "trangThaiCuoi": [],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "Cảnh báo tạo từ dữ liệu khởi tạo.",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-37",
+      "ten": "Soạn phiên bản Policy Pack, chạy ca vàng và phát hành",
+      "boKiemThu": "QA-07",
+      "nenTang": "web",
+      "qt": ["QT-15"],
+      "scr": ["SCR-1501", "SCR-1502", "SCR-1503"],
+      "tacNhan": ["AC-03", "AC-08"],
+      "taiKhoan": ["chinhsach", "quyetdinh"],
+      "operationIds": [
+        "createPolicyPackVersion",
+        "savePolicyRule",
+        "saveDecisionTable",
+        "runPolicyTests",
+        "submitPolicyPackVersion",
+        "approvePolicyPackVersion"
+      ],
+      "suKien": ["EVT-13"],
+      "trangThaiCuoi": [
+        {
+          "doiTuong": "policy.policy_pack_version",
+          "trangThai": "DA_PHAT_HANH"
+        }
+      ],
+      "caPhuDinh": ["Ca vàng chưa đạt 100% thì không gửi duyệt được"],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-38",
+      "ten": "Cấu hình luồng duyệt từ mẫu và mô phỏng ràng buộc",
+      "boKiemThu": "QA-07",
+      "nenTang": "web",
+      "qt": ["QT-15"],
+      "scr": ["SCR-1504"],
+      "tacNhan": ["AC-03"],
+      "taiKhoan": ["chinhsach"],
+      "operationIds": [
+        "listPolicyWorkflowTemplates",
+        "saveWorkflowBinding",
+        "simulateWorkflowBinding"
+      ],
+      "suKien": [],
+      "trangThaiCuoi": [],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": false,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-39",
+      "ten": "Bảng điều hành, dựng dashboard và đi xuống tới minh chứng",
+      "boKiemThu": "QA-07",
+      "nenTang": "web",
+      "qt": ["QT-16"],
+      "scr": ["SCR-1601", "SCR-1602", "SCR-1603"],
+      "tacNhan": ["AC-04", "AC-05"],
+      "taiKhoan": ["lanhdao", "quanly"],
+      "operationIds": ["queryAnalytics", "createDashboard", "getDashboard", "getTraceChain"],
+      "suKien": [],
+      "trangThaiCuoi": [],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-40",
+      "ten": "Trợ lý AI gợi ý kết quả then chốt, người dùng chấp nhận hoặc bỏ qua",
+      "boKiemThu": "QA-07",
+      "nenTang": "web",
+      "qt": ["QT-17"],
+      "scr": ["SCR-1701"],
+      "tacNhan": ["AC-06", "AC-12"],
+      "taiKhoan": ["canbo"],
+      "operationIds": ["assistOkrDraft", "reviewOkrKeyResults", "decideAiSuggestion"],
+      "suKien": [],
+      "trangThaiCuoi": [],
+      "caPhuDinh": ["Trợ lý AI không tự ghi dữ liệu khi người dùng chưa quyết định"],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-41",
+      "ten": "Soạn, xem trước và phát hành UI Pack cùng biểu mẫu động",
+      "boKiemThu": "QA-07",
+      "nenTang": "web",
+      "qt": ["QT-18"],
+      "scr": ["SCR-1801", "SCR-1802"],
+      "tacNhan": ["AC-02"],
+      "taiKhoan": ["quantri", "quantri2"],
+      "operationIds": [
+        "createUiPackVersion",
+        "createUiFormVersion",
+        "runUiFormTests",
+        "attachUiPackForm",
+        "previewUiPackVersion",
+        "submitUiPackVersion",
+        "publishUiPackVersion",
+        "getCurrentUiPack"
+      ],
+      "suKien": ["EVT-23"],
+      "trangThaiCuoi": [],
+      "caPhuDinh": [
+        "UI Pack vượt 30 KB bị từ chối",
+        "Người soạn không tự phát hành phiên bản của mình"
+      ],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "Hai quản trị tenant: một người soạn, một người duyệt phát hành (suy luận).",
+      "trangThai": "chua_viet"
+    },
+    {
+      "ma": "HT-42",
+      "ten": "Chế độ Đảng viên cao tuổi trên di động",
+      "boKiemThu": "MOB",
+      "nenTang": "di-dong",
+      "qt": ["QT-18"],
+      "scr": ["SCR-1803"],
+      "tacNhan": ["AC-06"],
+      "taiKhoan": ["canbo"],
+      "operationIds": ["getCurrentUiPack", "listMyTasks"],
+      "suKien": [],
+      "trangThaiCuoi": [],
+      "caPhuDinh": [],
+      "cheDoCaoTuoi": true,
+      "ghiChu": "",
+      "trangThai": "chua_viet"
+    }
+  ]
+}
