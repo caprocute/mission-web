@@ -16,6 +16,7 @@
 #   infra/dev/scripts/deploy-backend.sh                       # toàn bộ
 #   infra/dev/scripts/deploy-backend.sh mission-core apisix   # chỉ vài service
 #   SKIP_JARS=1 SKIP_MIGRATE=1 infra/dev/scripts/deploy-backend.sh
+#   SKIP_BUILD=1 infra/dev/scripts/deploy-backend.sh tenant-registry   # ảnh đã dựng sẵn (máy không ra được mạng gói)
 # Mật khẩu đọc từ infra/dev/.env (không commit); script không in giá trị bí mật.
 # =============================================================================
 set -euo pipefail
@@ -80,7 +81,17 @@ for s in "${SERVICES[@]}"; do
 done
 if [[ ${#modules[@]} -gt 0 && "${SKIP_JARS:-0}" != "1" ]]; then
   echo "==> Dựng jar: ${modules[*]}"
-  (cd "${REPO_ROOT}/backend" && ./mvnw -B -q -pl "$(IFS=,; echo "${modules[*]}")" -am package -DskipTests)
+  (cd "${REPO_ROOT}/backend" && ./mvnw -B -q -pl "$(IFS=,; echo "${modules[*]}")" -am install -DskipTests)
+  # Service ngoài mission-core đóng ảnh bằng Jib nên `package` chỉ ra jar thường; Dockerfile.java cần jar Spring
+  # Boot, nên đóng gói lại riêng các service (không chạy trên thư viện, thư viện không có lớp main).
+  services_only=()
+  for m in "${modules[@]}"; do
+    [[ "${m}" == services/* ]] && services_only+=("${m}")
+  done
+  if [[ ${#services_only[@]} -gt 0 ]]; then
+    (cd "${REPO_ROOT}/backend" && ./mvnw -B -q -o -pl "$(IFS=,; echo "${services_only[*]}")" package \
+      spring-boot:repackage -DskipTests)
+  fi
 fi
 
 # --- (2) ảnh -----------------------------------------------------------------
@@ -88,7 +99,7 @@ build=()
 for s in "${SERVICES[@]}"; do
   [[ "${s}" != "apisix" ]] && build+=("${s}")
 done
-if [[ ${#build[@]} -gt 0 ]]; then
+if [[ ${#build[@]} -gt 0 && "${SKIP_BUILD:-0}" != "1" ]]; then
   echo "==> Dựng ảnh: ${build[*]}"
   compose build "${build[@]}"
 fi
@@ -172,6 +183,10 @@ fi
 
 # --- (5) bật service -------------------------------------------------------------
 echo "==> Bật service: ${SERVICES[*]}"
+# evidence-service quét minh chứng bằng clamd (dịch vụ clamav); bật kèm trừ khi .env tắt quét.
+if selected evidence-service && [[ "${EVIDENCE_SCAN_ENABLED:-true}" == "true" ]]; then
+  compose up -d --no-deps clamav
+fi
 compose up -d --no-deps "${SERVICES[@]}"
 
 # --- (6) chờ healthcheck ----------------------------------------------------------

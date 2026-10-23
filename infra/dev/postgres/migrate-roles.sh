@@ -5,7 +5,7 @@
 #
 # Script bất biến (idempotent) khởi tạo hoặc nâng cấp:
 #   - 4 CSDL: mission, keycloak, flowable, ledger;
-#   - Tiện ích mở rộng pgcrypto (public) và pg_partman (schema partman);
+#   - Tiện ích mở rộng pgcrypto, btree_gist (public) và pg_partman (schema partman);
 #   - 21 schema trong CSDL mission (8 mô-đun mission-core, org_replica,
 #     modulith, keyring, 4 microservice có dữ liệu tenant, 2 dịch vụ dùng chung,
 #     cùng registry, esign, ai, apicurio);
@@ -114,6 +114,8 @@ bootstrap_database_schemas() {
 
   run_psql "${db_name}" <<EOSQL
 CREATE EXTENSION IF NOT EXISTS pgcrypto SCHEMA public;
+-- btree_gist cho ràng buộc EXCLUDE của config, task, org (như DatabaseBootstrap của vt-db-migration).
+CREATE EXTENSION IF NOT EXISTS btree_gist SCHEMA public;
 CREATE SCHEMA IF NOT EXISTS partman;
 DO \$\$
 BEGIN
@@ -334,6 +336,12 @@ EOSQL
 
 # 4. Khởi tạo CSDL flowable (schema flowable) và ledger (schema ledger)
 bootstrap_database_schemas "flowable" "flowable" "" ""
+
+# workflow-service tự chạy Flyway bằng mig_flowable lúc khởi động; V1 mở đầu bằng CREATE SCHEMA IF NOT EXISTS
+# flowable, mà PostgreSQL kiểm quyền CREATE trên CSDL trước khi xét schema đã có, nên mig_flowable cần quyền này.
+run_psql "flowable" <<'EOSQL'
+GRANT CREATE ON DATABASE flowable TO mig_flowable;
+EOSQL
 bootstrap_database_schemas "ledger" "ledger" "" ""
 
 echo "==> [NEN-020] Hoàn tất khởi tạo schema, pg_partman và bộ tài khoản mig_/svc_/ro_/cdc_."

@@ -37,6 +37,7 @@ function fakeOAuth() {
     setupAutomaticSilentRefresh: vi.fn(),
     getIdentityClaims: vi.fn().mockReturnValue(null),
     getAccessToken: vi.fn().mockReturnValue('tok'),
+    getRefreshToken: vi.fn().mockReturnValue('rt'),
     initCodeFlow: vi.fn(),
     initLoginFlowInPopup: vi.fn().mockResolvedValue(true),
     refreshToken: vi.fn().mockResolvedValue({}),
@@ -337,6 +338,16 @@ describe('SessionService: OIDC (auth.enabled = true, Keycloak giả lập)', () 
     expect(session.notice()).toEqual(
       expect.objectContaining({ text: TEXT_SESSION_EXPIRED, relogin: true }),
     );
+  });
+
+  it('401 khi chưa có refresh token: không gọi làm mới, không báo hết phiên', async () => {
+    const { session, oauth } = setup({ authEnabled: true });
+    oauth.getIdentityClaims.mockReturnValue({ sub: 'u1' });
+    await session.init();
+    oauth.getRefreshToken.mockReturnValue(null);
+    await expect(session.handleUnauthorized()).resolves.toBe(false);
+    expect(oauth.refreshToken).not.toHaveBeenCalled();
+    expect(session.state()).not.toBe('HET_HAN');
   });
 
   it('Keycloak không phản hồi: báo lỗi, không vòng lặp chuyển hướng', async () => {

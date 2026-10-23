@@ -159,7 +159,11 @@ export function buildAppConfig(
             void flags.load();
           }
         });
-        return flags.load();
+        // Chờ phiên sẵn sàng: gọi trước khi có token chỉ nhận 401 (trình duyệt ghi lỗi tải tài nguyên); chưa
+        // đăng nhập thì trình duyệt đang chuyển sang Keycloak, cờ nạp ở lần tải trang sau đăng nhập
+        return session.ready.then(() =>
+          cfg.auth.enabled && !session.isAuthenticated() ? undefined : flags.load(),
+        );
       }),
     ],
   };

@@ -39,7 +39,8 @@ Toàn bộ cổng host đặt trong dải `35000–35999` và đều cấu hình
 | workflow-service (SVC-06) | `mission-dev-workflow-service` | `35112` | `WORKFLOW_SERVICE_PORT` | `backend` | CSDL `flowable` |
 | scoring-service (SVC-07) | `mission-dev-scoring-service` | `35113` | `SCORING_SERVICE_PORT` | `backend` | Schema `scoring` |
 | document-service (SVC-11) | `mission-dev-document-service` | `35114` | `DOCUMENT_SERVICE_PORT` | `backend` | Schema `docgen`, cần gotenberg, MinIO |
-| evidence-service (SVC-08) | `mission-dev-evidence-service` | `35115` | `EVIDENCE_SERVICE_PORT` | `backend` | Schema `evidence`, quét virus tắt |
+| evidence-service (SVC-08) | `mission-dev-evidence-service` | `35115` | `EVIDENCE_SERVICE_PORT` | `backend` | Schema `evidence`, quét mã độc bằng clamd (tắt bằng `EVIDENCE_SCAN_ENABLED=false`) |
+| clamd (ClamAV 1.4) | `mission-dev-clamav` | không mở cổng | — | `backend` | Quét minh chứng cho evidence-service; lần đầu tải chữ ký vài phút, cần mạng ra `database.clamav.net` |
 | esign-service (SVC-10) | `mission-dev-esign-service` | `35116` | `ESIGN_SERVICE_PORT` | `backend` | Schema `esign`, nhà cung cấp ký giả lập |
 | integration-gateway (SVC-13) | `mission-dev-integration-gateway` | `35117` | `INTEGRATION_GATEWAY_PORT` | `backend` | Schema `integ`, chỉ cổng nội bộ |
 | analytics-api (SVC-15) | `mission-dev-analytics-api` | `35118` | `ANALYTICS_API_PORT` | `backend` | Cần profile `analytics` |
@@ -150,11 +151,15 @@ Profile `backend` chạy cổng API dev (APISIX, cổng `35000`) cùng mission-c
 infra/dev/scripts/deploy-backend.sh                    # dựng jar, dựng ảnh, migration, bật service, chờ healthcheck, gọi health.sh
 infra/dev/scripts/deploy-backend.sh mission-core apisix
 infra/dev/scripts/smoke-backend.sh                     # sức khoẻ, 401 khi không token, GET tasks/mine và periods có JWT thử
+infra/dev/scripts/dang-ky-luoc-do.sh                   # đăng ký lược đồ Avro vào Apicurio (dạng .avsc và dạng lớp sinh mã)
+infra/dev/scripts/tao-phan-vung-ky.sh                  # tạo trước phân vùng theo kỳ (period_bucket) từ năm 2020 tới năm sau
+infra/dev/scripts/seed-org.sh                          # tổ chức thử, cell và tenant thử của registry, phát lại org_replica
+SKIP_BUILD=1 infra/dev/scripts/deploy-backend.sh tenant-registry   # ảnh đã dựng sẵn ở nơi khác
 ```
 
 `deploy-backend.sh` chỉ kiểm hạ tầng đang chạy chứ không bật hay dựng lại Postgres, Kafka (tránh gắn nhầm volume khi `.env` thiếu `*_DATA`, xem mục 2.1), và chỉ thao tác project `mission-dev` (in số container trước và sau). Migration chạy trước khi bật service: schema của mission-core (`keyring` trước) và của scoring, document, evidence, esign, integration-gateway bằng `MigrationRunner` của `vt-db-migration` trong chính ảnh service, tài khoản `mig_<schema>`, nối thẳng PostgreSQL; org-service bằng hồ sơ Spring `migrate` (`mig_org`); workflow-service tự chạy Flyway schema `flowable` lúc khởi động bằng `mig_flowable`. Migration của ba service Go có lệnh tạo và đặt tham số vai trò nên chạy bằng tài khoản quản trị PostgreSQL, chỉ lần đầu (khi bảng mốc chưa có), giống chế độ `AUTO_MIGRATE` dev của chính service.
 
-Token của Keycloak mang `iss` theo địa chỉ dùng để đăng nhập, nên `KEYCLOAK_PUBLIC_URL` (mặc định `http://127.0.0.1:35080`) phải trùng địa chỉ mà trình duyệt và kiểm thử khói dùng; service trong container kiểm `iss` theo giá trị này và lấy JWKS qua đường nội bộ `keycloak:8080`. Kiểm thử khói đăng nhập tài khoản thử (mặc định `canbo`, đổi bằng `SMOKE_USER`) qua client `mission-web` đúng như trình duyệt (Authorization Code + PKCE, mã OTP sinh từ `KC_TEST_OTP_SECRET`, `scripts/lay-token-thu.py`), nên không cần bật direct grant cho client nào. Kiểm sự kiện sau thao tác ghi là tuỳ chọn: đặt `SMOKE_WRITE_PATH`, `SMOKE_EVENT_TOPIC` (và `SMOKE_WRITE_METHOD`, `SMOKE_WRITE_BODY`).
+Token của Keycloak mang `iss` theo địa chỉ dùng để đăng nhập, nên `KEYCLOAK_PUBLIC_URL` (mặc định `http://127.0.0.1:35080`) phải trùng địa chỉ mà trình duyệt và kiểm thử khói dùng (khi chạy web trên cùng máy, đặt `http://localhost:35080`, vì thư viện OIDC của web chỉ cho phép `http` với `localhost`; kiểm thử khói khi đó cần `KC_URL` cùng giá trị); service trong container kiểm `iss` theo giá trị này và lấy JWKS qua đường nội bộ `keycloak:8080`. Kiểm thử khói đăng nhập tài khoản thử (mặc định `canbo`, đổi bằng `SMOKE_USER`) qua client `mission-web` đúng như trình duyệt (Authorization Code + PKCE, mã OTP sinh từ `KC_TEST_OTP_SECRET`, `scripts/lay-token-thu.py`), nên không cần bật direct grant cho client nào. Kiểm sự kiện sau thao tác ghi là tuỳ chọn: đặt `SMOKE_WRITE_PATH`, `SMOKE_EVENT_TOPIC` (và `SMOKE_WRITE_METHOD`, `SMOKE_WRITE_BODY`).
 
 ---
 

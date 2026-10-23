@@ -68,6 +68,8 @@ bootstrap_db() {
 
   psql_exec "${db_name}" <<EOSQL
 CREATE EXTENSION IF NOT EXISTS pgcrypto SCHEMA public;
+-- btree_gist cho ràng buộc EXCLUDE của config, task, org (như DatabaseBootstrap của vt-db-migration).
+CREATE EXTENSION IF NOT EXISTS btree_gist SCHEMA public;
 CREATE SCHEMA IF NOT EXISTS partman;
 DO \$\$
 BEGIN
@@ -222,4 +224,10 @@ ALTER ROLE apicurio IN DATABASE mission SET search_path = apicurio, public;
 EOSQL
 
 bootstrap_db "flowable" "flowable" "" ""
+
+# workflow-service tự chạy Flyway bằng mig_flowable lúc khởi động; V1 mở đầu bằng CREATE SCHEMA IF NOT EXISTS
+# flowable, mà PostgreSQL kiểm quyền CREATE trên CSDL trước khi xét schema đã có, nên mig_flowable cần quyền này.
+psql_exec "flowable" <<'EOSQL'
+GRANT CREATE ON DATABASE flowable TO mig_flowable;
+EOSQL
 bootstrap_db "ledger" "ledger" "" ""
