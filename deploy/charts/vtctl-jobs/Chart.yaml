@@ -1,0 +1,6 @@
+apiVersion: v2
+name: vtctl-jobs
+description: INF-26 · mẫu Job chạy trong cell cho lệnh vtctl cần chạy gần dữ liệu (outbox-replay của NEN-022)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
