@@ -9,6 +9,9 @@ import java.util.UUID;
  * templates}, băm nội dung để phát hiện tệp bị thay; kỳ cũ sinh lại đúng phiên bản cũ.
  *
  * @param subjectGroupCodes khối đối tượng áp dụng; rỗng nghĩa là mọi khối
+ * @param manifestKey khoá tệp kê khai trường của mẫu trên bucket {@code templates} (DL-05,
+ *     DV-11-02); {@code null} là mẫu cũ trộn theo chỗ giữ {@code ${ten}}
+ * @param manifestSha256 băm SHA-256 của tệp kê khai, {@code null} khi không có kê khai
  */
 public record Template(
     UUID id,
@@ -18,7 +21,9 @@ public record Template(
     List<String> subjectGroupCodes,
     String objectKey,
     byte[] contentSha256,
-    TemplateStatus status) {
+    TemplateStatus status,
+    String manifestKey,
+    byte[] manifestSha256) {
 
   public Template {
     Objects.requireNonNull(id, "id");
@@ -35,6 +40,41 @@ public record Template(
     }
     subjectGroupCodes = subjectGroupCodes == null ? List.of() : List.copyOf(subjectGroupCodes);
     contentSha256 = contentSha256.clone();
+    if ((manifestKey == null) != (manifestSha256 == null)) {
+      throw new IllegalArgumentException("Khoá và băm tệp kê khai phải cùng có hoặc cùng vắng");
+    }
+    if (manifestSha256 != null && manifestSha256.length != 32) {
+      throw new IllegalArgumentException("Băm tệp kê khai phải là SHA-256 (32 byte)");
+    }
+    manifestSha256 = manifestSha256 == null ? null : manifestSha256.clone();
+  }
+
+  /** Mẫu không có tệp kê khai trường (trộn theo chỗ giữ {@code ${ten}}). */
+  public Template(
+      UUID id,
+      UUID tenantId,
+      String formCode,
+      int versionNo,
+      List<String> subjectGroupCodes,
+      String objectKey,
+      byte[] contentSha256,
+      TemplateStatus status) {
+    this(
+        id,
+        tenantId,
+        formCode,
+        versionNo,
+        subjectGroupCodes,
+        objectKey,
+        contentSha256,
+        status,
+        null,
+        null);
+  }
+
+  /** Mẫu có tệp kê khai trường: trộn vào content control theo tag (DV-11-02, DV-11-03). */
+  public boolean hasManifest() {
+    return manifestKey != null;
   }
 
   /** Mẫu đang hiệu lực và áp dụng cho khối {@code subjectGroupCode} ({@code null} là không rõ). */
@@ -59,6 +99,11 @@ public record Template(
   @Override
   public byte[] contentSha256() {
     return contentSha256.clone();
+  }
+
+  @Override
+  public byte[] manifestSha256() {
+    return manifestSha256 == null ? null : manifestSha256.clone();
   }
 
   @Override

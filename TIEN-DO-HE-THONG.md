@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **308 / 408 task (75.5%)** — Khối lượng quy đổi đã gộp: **357 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **311 / 408 task (76.2%)** (gồm **308** đã gộp `main` + **3** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **313 / 408 task (76.7%)** (gồm **308** đã gộp `main` + **5** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **5 task** (1 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **92 task**.
+- **Chưa bắt đầu**: **90 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -25,14 +25,14 @@
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **68** | 0 | 2 | 2 | **94.4%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **103** | 1 | 2 | 11 | **88.0%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **70** | 2 | 1 | 31 | **67.3%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **70** | 4 | 1 | 29 | **67.3%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **12** | 0 | 0 | 1 | **92.3%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **308** | **3** | **5** | **92** | **75.5%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **308** | **5** | **5** | **90** | **75.5%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -41,7 +41,7 @@
 | **M0 – Nền móng phát triển & CSDL** | 60 | **60** | 0 | 0 | 0 | **100.0%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **34** | 0 | 0 | 6 | **85.0%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **86** | 2 | 3 | 29 | **71.7%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **86** | 4 | 3 | 27 | **71.7%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **61** | 1 | 1 | 9 | **84.7%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **16** | 0 | 1 | 25 | **38.1%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **3** | 0 | 0 | 20 | **13.0%** |
@@ -454,13 +454,13 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-10-05](docs/tasks/DV-10-05-ban-co-yeu-cach-ly.md) | Nhà cung cấp Ban Cơ yếu cho bản cách ly qua `CryptoProvider` | M | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần thư viện Ban Cơ yếu |
 | [DV-10-06](docs/tasks/DV-10-06-ky-lo-quyet-dinh.md) | Ký lô 100.000 phiếu trong 4 giờ: phiên ký một lần xác nhận, worker co giãn | M | B6 | 11 | DV-10-03 | **Chưa bắt đầu** |  |
 
-### DV-11 · SVC-11 document-service (2/4 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-11 · SVC-11 document-service (2/4 đã gộp `main`, 2 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-11-01](docs/tasks/DV-11-01-khung-docgen-gotenberg.md) | Khung service, migration schema `docgen`, Gotenberg, job sinh 202 | M | B6 | 9 | NEN-019, NEN-033 | **Đã gộp main** | Dịch vụ sinh tài liệu: docx4j, Gotenberg PDF/A-2b, veraPDF, S3 |
-| [DV-11-02](docs/tasks/DV-11-02-mau-1a-1d.md) | Mẫu 1A, 1B, 1C, 1D bằng docx4j | M | B6 | 10 | DV-11-01, DL-05 | **Chưa bắt đầu** |  |
-| [DV-11-03](docs/tasks/DV-11-03-mau-2-mau-3-bang-diem.md) | Mẫu 2, Mẫu 3, bảng chấm điểm | M | B6 | 10 | DV-11-01, DL-05 | **Chưa bắt đầu** |  |
+| [DV-11-02](docs/tasks/DV-11-02-mau-1a-1d.md) | Mẫu 1A, 1B, 1C, 1D bằng docx4j | M | B6 | 10 | DV-11-01, DL-05 | **Xong, chờ gộp** | Nhánh claude/project-thread-uusb7v: đã qua verify document-service (Gotenberg IT 7 mẫu, PDF/A, khớp hợp đồng, jacoco) |
+| [DV-11-03](docs/tasks/DV-11-03-mau-2-mau-3-bang-diem.md) | Mẫu 2, Mẫu 3, bảng chấm điểm | M | B6 | 10 | DV-11-01, DL-05 | **Xong, chờ gộp** | Nhánh claude/project-thread-uusb7v: đã qua verify document-service (Gotenberg IT 7 mẫu, PDF/A, khớp hợp đồng, jacoco) |
 | [DV-11-04](docs/tasks/DV-11-04-goi-ho-so-pdfa.md) | Gói hồ sơ PDF/A có tem, phiên bản mẫu theo Policy Pack, EVT-17 | M | B6 | 11 | DV-11-02, DV-11-03 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 
 ### DV-12 · SVC-12 notification-service (Go) (5/5 đã gộp `main`, 0 chờ gộp, 0 đang làm)
@@ -988,4 +988,8 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 02:40 | B4 | `CORE-04-12` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: đã qua build & test; migration appraisal V6__appraisal_danh_sach_phan_nhom.sql |
 | 23/10/2026 02:40 | B4 | `DV-07-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: đã qua build & test (verify scoring-service 197 unit + 20 IT, helm lint); chưa đo tải (YC-PT-19) |
 | 23/10/2026 02:40 | B4 | `DV-07-06` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: đã qua build & test (verify scoring-service 197 unit + 20 IT, helm lint); chưa đo tải (YC-PT-19) |
+| 23/10/2026 02:44 | B4 | `DV-11-02` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-uusb7v: đang thực hiện |
+| 23/10/2026 02:44 | B4 | `DV-11-03` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-uusb7v: đang thực hiện |
+| 23/10/2026 03:44 | B4 | `DV-11-02` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: đã qua verify document-service (Gotenberg IT 7 mẫu, PDF/A, khớp hợp đồng, jacoco) |
+| 23/10/2026 03:44 | B4 | `DV-11-03` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: đã qua verify document-service (Gotenberg IT 7 mẫu, PDF/A, khớp hợp đồng, jacoco) |
 <!-- PROGRESS_LOG_END -->
