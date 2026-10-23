@@ -16,6 +16,8 @@
 # - Khoá trùng trong .env.example chỉ được bổ sung một lần.
 # - POSTGRES_USER, POSTGRES_PASSWORD thiếu mà .env có PG_SUPERUSER, PG_SUPERUSER_PASSWORD (tên khoá của .env máy
 #   chủ cũ) thì lấy cùng giá trị đó, vì Postgres đã khởi tạo với mật khẩu ấy; sinh mới sẽ khoá ngoài chính mình.
+# - DB_ROLE_PASSWORD_DEFAULT thiếu mà .env có MISSION_DB_PASSWORD (compose cũ dùng khoá này cho role apicurio,
+#   registry…) thì lấy cùng giá trị, vì các role đó đã tạo với mật khẩu ấy.
 # - OPA_CONNECT_TIMEOUT, OPA_READ_TIMEOUT còn để 2s (mặc định cũ) được nâng lên 5s: qua đường hầm OPA mất
 #   1,8–2,5 s nên 2s vẫn bị 403 fail-closed.
 # =============================================================================
@@ -44,6 +46,7 @@ value_for() {
   case "${key}" in
     POSTGRES_USER) mapped="PG_SUPERUSER" ;;
     POSTGRES_PASSWORD) mapped="PG_SUPERUSER_PASSWORD" ;;
+    DB_ROLE_PASSWORD_DEFAULT) mapped="MISSION_DB_PASSWORD" ;;
     *) mapped="" ;;
   esac
   if [[ -n "${mapped}" && -f "${ENV}" ]] && grep -qE "^${mapped}=.+" "${ENV}"; then
@@ -110,6 +113,8 @@ case "${MODE}" in
       how="giá trị mẫu"
       if [[ "${k}" == POSTGRES_USER || "${k}" == POSTGRES_PASSWORD ]] && grep -qE "^PG_SUPERUSER(_PASSWORD)?=.+" "${ENV}"; then
         how="lấy từ PG_SUPERUSER*"
+      elif [[ "${k}" == DB_ROLE_PASSWORD_DEFAULT ]] && grep -qE "^MISSION_DB_PASSWORD=.+" "${ENV}"; then
+        how="lấy từ MISSION_DB_PASSWORD"
       elif [[ "${sample}" == "<FILL_IN>" || "${sample}" == "__GENERATE__" ]]; then
         if is_secret "${k}"; then how="sinh ngẫu nhiên"; else how="để trống, điền tay khi dùng hệ thống ngoài"; fi
       fi
