@@ -156,7 +156,11 @@ spec:
         }
         stage('Ma trận phân quyền') {
           steps {
-            container('python') { sh 'python3 docs/phan-quyen/gen_matrix.py --check' }   // = npm run check:permissions
+            container('python') {
+              sh 'python3 docs/phan-quyen/gen_matrix.py --check'   // = npm run check:permissions
+              // Realm dev khớp ma trận, mô tả không quá 255 ký tự, URI có biến kèm mặc định (QA-02)
+              sh 'python3 docs/phan-quyen/check_realm.py'
+            }
           }
         }
         stage('Cấu hình CDC phân tích') {
