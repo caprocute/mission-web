@@ -166,7 +166,10 @@ public final class LedgerFields {
             : column instanceof java.sql.Date d && v.equals(d.toLocalDate()));
   }
 
-  /** So thời điểm tới micro giây với cột {@code timestamptz}. */
+  /**
+   * So thời điểm tới micro giây với cột {@code timestamptz}; PostgreSQL làm tròn còn Avro cắt phần
+   * nano giây, nên chấp nhận lệch một micro giây.
+   */
   public void sameInstant(String field, Object column) {
     Instant v = micros(field);
     check(
@@ -174,7 +177,7 @@ public final class LedgerFields {
         v == null
             ? column == null
             : column instanceof Timestamp t
-                && v.equals(t.toInstant().truncatedTo(ChronoUnit.MICROS)));
+                && Math.abs(ChronoUnit.MICROS.between(v, t.toInstant())) <= 1);
   }
 
   /** So tập uuid của trường mảng với danh sách cột. */
