@@ -117,6 +117,7 @@ public class OkrComposeController {
   private final CursorCodec cursors;
   private final OkrAiProvenance provenance;
   private final ObjectProvider<AccessDirectory> names;
+  private final OkrNameFiller fill;
 
   public OkrComposeController(
       OkrComposeService compose,
@@ -132,7 +133,9 @@ public class OkrComposeController {
       OkrApproveBatchJobs batches,
       CursorCodec cursors,
       OkrAiProvenance provenance,
-      ObjectProvider<AccessDirectory> names) {
+      ObjectProvider<AccessDirectory> names,
+      OkrNameFiller fill) {
+    this.fill = Objects.requireNonNull(fill, "fill");
     this.names = Objects.requireNonNull(names, "names");
     this.provenance = Objects.requireNonNull(provenance, "provenance");
     this.submits = Objects.requireNonNull(submits, "submits");
@@ -762,6 +765,7 @@ public class OkrComposeController {
       reads
           .objectiveRow(tenant, view.row().parentObjectiveId())
           .ifPresent(parent -> dto.parentObjective(OkrReadController.objectiveRef(parent)));
+      fill.objectiveRefs(tenant, java.util.Collections.singletonList(dto.getParentObjective()));
     }
     reads
         .optionalPeriod(tenant, view.row().periodId())

@@ -355,6 +355,12 @@ class OkrReadApiIT extends ContractConformanceTest {
                             .update();
                       }
                       jdbc.sql(
+                              "INSERT INTO org_replica.org_unit_v (id, valid_from, code, name,"
+                                  + " unit_type, source_version, source_event_id) VALUES (?,"
+                                  + " DATE '2020-01-01', 'TC', 'Phòng Tài chính', 'SO', 1, ?)")
+                          .params(PEER_UNIT, UUID.randomUUID())
+                          .update();
+                      jdbc.sql(
                               "INSERT INTO org_replica.person_v (id, full_name, employment_status,"
                                   + " source_version, source_event_id) VALUES (?, 'Nguyễn Văn An',"
                                   + " 'DANG_LAM_VIEC', 1, ?)")
@@ -375,6 +381,33 @@ class OkrReadApiIT extends ContractConformanceTest {
                     .param("period", period.toString())
                     .param("unit", CHILD_UNIT.toString())));
     assertThat(peer.at("/unit/name").asText()).isEmpty();
+    // trường tên rời: mục tiêu cấp trên (mã, tên, đơn vị), liên kết ngang, bản đồ liên kết, KR
+    assertThat(peer.at("/parent/unitName").asText()).isEqualTo("Phòng Kế hoạch");
+    assertThat(peer.at("/objectives/0/parentObjective/code").asText()).isEqualTo("MT-01");
+    assertThat(peer.at("/objectives/0/parentObjective/title").asText()).isEqualTo("Mục tiêu MT-01");
+    assertThat(peer.at("/objectives/0/parentObjective/unitName").asText())
+        .isEqualTo("Phòng Kế hoạch");
+    assertThat(tree.at("/peerLinks/0/peerUnitName").asText()).isEqualTo("Phòng Tài chính");
+    JsonNode list =
+        body(
+            perform(
+                get("/api/v1/okr/objectives")
+                    .param("period", period.toString())
+                    .param("unit", CHILD_UNIT.toString())));
+    assertThat(list.at("/items/0/parentObjective/code").asText()).isEqualTo("MT-01");
+    assertThat(list.at("/items/0/parentObjective/unitName").asText()).isEqualTo("Phòng Kế hoạch");
+    assertThat(detail.at("/keyResults").size()).isPositive();
+    JsonNode kr = body(perform(get("/api/v1/okr/key-results/" + kr1)));
+    assertThat(kr.at("/objective/unitName").asText()).isEqualTo("Phòng Kế hoạch");
+    JsonNode graph = body(perform(get("/api/v1/okr/alignment").param("objective", o1.toString())));
+    boolean found = false;
+    for (JsonNode n : graph.get("nodes")) {
+      if (n.get("id").asText().equals(o2.toString())) {
+        assertThat(n.get("unitName").asText()).isEqualTo("Phòng Tài chính");
+        found = true;
+      }
+    }
+    assertThat(found).isTrue();
   }
 
   @Test

@@ -170,6 +170,12 @@ public class OkrReadService {
     return repository.objective(tenant, id);
   }
 
+  /** Các mục tiêu theo mã, một truy vấn; mã không thấy (hoặc tenant khác) thì vắng. */
+  @Transactional(transactionManager = TX, readOnly = true)
+  public List<ObjectiveRow> objectiveRows(TenantId tenant, Collection<UUID> ids) {
+    return ids.isEmpty() ? List.of() : repository.objectivesByIds(tenant, ids);
+  }
+
   @Transactional(transactionManager = TX, readOnly = true)
   public List<KeyResultView> keyResults(
       TenantId tenant, KeyResultFilter filter, String afterCode, UUID afterId, int limit) {

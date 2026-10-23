@@ -91,6 +91,7 @@ public class OkrCheckinController {
   private final OkrReadService reads;
   private final OkrMilestoneService milestones;
   private final OkrSourceValueService sources;
+  private final OkrNameFiller names;
 
   public OkrCheckinController(
       OkrCheckinService checkins,
@@ -101,7 +102,9 @@ public class OkrCheckinController {
       OkrCheckinDelegateService delegates,
       OkrReadService reads,
       OkrMilestoneService milestones,
-      OkrSourceValueService sources) {
+      OkrSourceValueService sources,
+      OkrNameFiller names) {
+    this.names = Objects.requireNonNull(names, "names");
     this.sources = Objects.requireNonNull(sources, "sources");
     this.milestones = Objects.requireNonNull(milestones, "milestones");
     this.delegates = Objects.requireNonNull(delegates, "delegates");
@@ -429,6 +432,7 @@ public class OkrCheckinController {
               dto.viewerIsOwner(viewer.equals(owner));
             });
     delegates.delegateOf(tenant, id).ifPresent(d -> dto.checkinDelegate(new Ref(d.personId(), "")));
+    names.objectiveRefs(tenant, java.util.Collections.singletonList(dto.getObjective()));
     return dto;
   }
 
