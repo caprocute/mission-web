@@ -29,6 +29,16 @@ Mã thoát của tiến trình là 0 khi thành công, 2 khi tham số sai và 1
 
 ## 3. Chạy thử
 
+Bằng vtctl (INF-26): Mọi lệnh ghi của `vtctl` mặc định chỉ chạy thử và in tóm tắt tác động; thêm `--confirm` mới thực hiện, khi đó vtctl ghi một bản ghi kiểm toán (INF-26, `services-go/vtctl/README.md`). Không có `--confirm`, vtctl dựng Job và kiểm phía máy chủ (`--dry-run=server`) mà không tạo; muốn xem số thực thể thì chạy thủ công như dưới. Có `--confirm` thì Job chạy thật (`republish.dryRun=false`), `republish.operator` lấy từ token đăng nhập vtctl.
+
+```bash
+vtctl -e <môi trường> -c <cell> org republish --tenant <uuid-tenant> --reason "<số phiếu>"
+vtctl -e <môi trường> -c <cell> org republish --tenant <uuid-tenant> --entity person --bucket 17 --bucket 203 \
+  --reason "<số phiếu>" --wait 30m --confirm
+```
+
+Phương án dự phòng (lệnh thủ công):
+
 Giá trị mặc định của chart là `republish.dryRun=true`. Lần chạy thử cho biết số thực thể và băm tổng theo bucket mà không phát gì lên `org.bootstrap.v1`:
 
 ```bash

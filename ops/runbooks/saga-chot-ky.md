@@ -20,6 +20,8 @@ Mỗi bước từ 2 đến 6 giao một tác vụ dài cho bên làm với mã 
 
 ## 2. Theo dõi
 
+Bằng vtctl (INF-26), với tài khoản có quyền quản trị tenant của kỳ: `vtctl -e <môi trường> -c <cell> period-lock status <period-id>`. Các lệnh điều khiển `period-lock pause|resume <period-id> [--comment ...]` và `period-lock retry-failed <period-id> [--profile <id> ...]` mặc định chạy thử; thêm `--confirm` mới gửi, vtctl xin xác thực bước lên vì các thao tác này yêu cầu `aal: 2`, và ghi một bản ghi kiểm toán. Dưới đây là các cách theo dõi trực tiếp.
+
 - Tiến độ tổng: `GET /api/v1/jobs/{sagaId}` (loại `PERIOD_LOCK`); SCR-0801 đọc tiến độ từng bước từ MOD-08.
 - Vết từng bước: sự kiện `sys.audit.v1` với `purpose = CHOT_KY`, `objectType = SAGA_BUOC`, `objectId = <sagaId>:<số bước>:<mã bước>`; hành động `SAGA_BAT_DAU_BUOC`, `SAGA_CHO_TRA_LOI`, `SAGA_NHAN_TRA_LOI`, `SAGA_BUOC_LOI`, `SAGA_CHO_XU_LY`, `SAGA_HOAN_TAT`.
 - Trạng thái trong CSDL (chạy với vai trò chỉ đọc của schema `flowable`, đặt ngữ cảnh tenant trước):

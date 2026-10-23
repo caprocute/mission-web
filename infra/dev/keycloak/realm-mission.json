@@ -263,7 +263,7 @@
     },
     {
       "name": "mission-context",
-      "description": "Ngữ cảnh Mission (WEB-056): vai trò realm, tenant, đơn vị, mức xác thực acr. Tên claim tenant/unit_id giữ theo SessionService tới khi chốt (wiki/14).",
+      "description": "Ngữ cảnh Mission (WEB-056): vai trò realm, tenant, đơn vị, mức xác thực acr. Claim tenant_id (mặc định okrkpi.tenant.claim) và tenant (SessionService) cùng mang UUID tenant; unit_id là UUID đơn vị; sub là id người dùng, trùng org.person.id của dữ liệu thử (infra/dev/postgres/seed).",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "false",
@@ -293,6 +293,21 @@
           "config": {
             "user.attribute": "tenant",
             "claim.name": "tenant",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "tenant_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "tenant",
+            "claim.name": "tenant_id",
             "jsonType.label": "String",
             "id.token.claim": "true",
             "access.token.claim": "true",
@@ -863,6 +878,7 @@
   ],
   "users": [
     {
+      "id": "d0000000-0000-4000-8000-000000000301",
       "username": "nentang",
       "enabled": true,
       "firstName": "Nền",
@@ -871,7 +887,7 @@
       "emailVerified": true,
       "attributes": {
         "tenant": [
-          "default"
+          "d0000000-0000-4000-8000-000000000001"
         ]
       },
       "credentials": [
@@ -893,6 +909,7 @@
       ]
     },
     {
+      "id": "d0000000-0000-4000-8000-000000000302",
       "username": "quantri",
       "enabled": true,
       "firstName": "Trị",
@@ -901,10 +918,10 @@
       "emailVerified": true,
       "attributes": {
         "tenant": [
-          "default"
+          "d0000000-0000-4000-8000-000000000001"
         ],
         "unit_id": [
-          "phong-tong-hop"
+          "d0000000-0000-4000-8000-000000000101"
         ]
       },
       "credentials": [
@@ -926,6 +943,7 @@
       ]
     },
     {
+      "id": "d0000000-0000-4000-8000-000000000303",
       "username": "quantri2",
       "enabled": true,
       "firstName": "Hai",
@@ -934,10 +952,10 @@
       "emailVerified": true,
       "attributes": {
         "tenant": [
-          "default"
+          "d0000000-0000-4000-8000-000000000001"
         ],
         "unit_id": [
-          "phong-tong-hop"
+          "d0000000-0000-4000-8000-000000000101"
         ]
       },
       "credentials": [
@@ -959,6 +977,7 @@
       ]
     },
     {
+      "id": "d0000000-0000-4000-8000-000000000304",
       "username": "chinhsach",
       "enabled": true,
       "firstName": "Sách",
@@ -967,10 +986,10 @@
       "emailVerified": true,
       "attributes": {
         "tenant": [
-          "default"
+          "d0000000-0000-4000-8000-000000000001"
         ],
         "unit_id": [
-          "phong-tong-hop"
+          "d0000000-0000-4000-8000-000000000101"
         ]
       },
       "credentials": [
@@ -991,6 +1010,7 @@
       ]
     },
     {
+      "id": "d0000000-0000-4000-8000-000000000305",
       "username": "lanhdao",
       "enabled": true,
       "firstName": "Đạo",
@@ -999,10 +1019,10 @@
       "emailVerified": true,
       "attributes": {
         "tenant": [
-          "default"
+          "d0000000-0000-4000-8000-000000000001"
         ],
         "unit_id": [
-          "phong-tong-hop"
+          "d0000000-0000-4000-8000-000000000101"
         ]
       },
       "credentials": [
@@ -1024,6 +1044,7 @@
       ]
     },
     {
+      "id": "d0000000-0000-4000-8000-000000000306",
       "username": "quanly",
       "enabled": true,
       "firstName": "Lý",
@@ -1032,10 +1053,10 @@
       "emailVerified": true,
       "attributes": {
         "tenant": [
-          "default"
+          "d0000000-0000-4000-8000-000000000001"
         ],
         "unit_id": [
-          "phong-tong-hop"
+          "d0000000-0000-4000-8000-000000000101"
         ]
       },
       "credentials": [
@@ -1057,6 +1078,7 @@
       ]
     },
     {
+      "id": "d0000000-0000-4000-8000-000000000307",
       "username": "canbo",
       "enabled": true,
       "firstName": "Bộ",
@@ -1065,10 +1087,10 @@
       "emailVerified": true,
       "attributes": {
         "tenant": [
-          "default"
+          "d0000000-0000-4000-8000-000000000001"
         ],
         "unit_id": [
-          "phong-tong-hop"
+          "d0000000-0000-4000-8000-000000000101"
         ]
       },
       "credentials": [
@@ -1089,6 +1111,7 @@
       ]
     },
     {
+      "id": "d0000000-0000-4000-8000-000000000308",
       "username": "thamdinh",
       "enabled": true,
       "firstName": "Định",
@@ -1097,10 +1120,10 @@
       "emailVerified": true,
       "attributes": {
         "tenant": [
-          "default"
+          "d0000000-0000-4000-8000-000000000001"
         ],
         "unit_id": [
-          "ban-to-chuc"
+          "d0000000-0000-4000-8000-000000000102"
         ]
       },
       "credentials": [
@@ -1122,6 +1145,7 @@
       ]
     },
     {
+      "id": "d0000000-0000-4000-8000-000000000309",
       "username": "quyetdinh",
       "enabled": true,
       "firstName": "Định",
@@ -1130,10 +1154,10 @@
       "emailVerified": true,
       "attributes": {
         "tenant": [
-          "default"
+          "d0000000-0000-4000-8000-000000000001"
         ],
         "unit_id": [
-          "ban-to-chuc"
+          "d0000000-0000-4000-8000-000000000102"
         ]
       },
       "credentials": [
@@ -1154,6 +1178,7 @@
       ]
     },
     {
+      "id": "d0000000-0000-4000-8000-000000000310",
       "username": "duyet2",
       "enabled": true,
       "firstName": "Hai",
@@ -1162,10 +1187,10 @@
       "emailVerified": true,
       "attributes": {
         "tenant": [
-          "default"
+          "d0000000-0000-4000-8000-000000000001"
         ],
         "unit_id": [
-          "ban-to-chuc"
+          "d0000000-0000-4000-8000-000000000102"
         ]
       },
       "credentials": [
@@ -1186,6 +1211,7 @@
       ]
     },
     {
+      "id": "d0000000-0000-4000-8000-000000000311",
       "username": "kiemtra",
       "enabled": true,
       "firstName": "Tra",
@@ -1194,10 +1220,10 @@
       "emailVerified": true,
       "attributes": {
         "tenant": [
-          "default"
+          "d0000000-0000-4000-8000-000000000001"
         ],
         "unit_id": [
-          "uy-ban-kiem-tra"
+          "d0000000-0000-4000-8000-000000000103"
         ]
       },
       "credentials": [

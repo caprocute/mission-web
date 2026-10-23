@@ -24,6 +24,19 @@ Cell vượt 1,5 triệu tài khoản hoặc 75.000 người dùng đồng thờ
 
 ## 3. Thực hiện (bốn mắt)
 
+Bằng vtctl (INF-26): Mọi lệnh ghi của `vtctl` mặc định chỉ chạy thử và in tóm tắt tác động; thêm `--confirm` mới thực hiện, khi đó vtctl ghi một bản ghi kiểm toán (INF-26, `services-go/vtctl/README.md`). vtctl tự đọc ETag làm `If-Match`, gửi `Idempotency-Key` và xin xác thực bước lên khi máy chủ yêu cầu; bốn mắt vẫn do tenant-registry kiểm (người duyệt trùng người đề nghị nhận `REGISTRY-403-SAME-APPROVER`).
+
+```bash
+vtctl -e <môi trường> cell list                     # mã cell đích
+vtctl -e <môi trường> cell move request <tenant-id> --target-cell <cell-id> --reason "<số văn bản>" \
+  --planned-at 2026-11-07T22:00:00+07:00 --confirm  # quản trị nền tảng thứ nhất
+vtctl -e <môi trường> cell move approve <tenant-id> <move-id> --confirm   # quản trị nền tảng thứ hai
+vtctl -e <môi trường> cell move status <tenant-id> <move-id>              # theo dõi status, currentStep
+vtctl -e <môi trường> cell move cancel <tenant-id> <move-id> --confirm    # quay lui trước cắt chuyển (mục 5)
+```
+
+Phương án dự phòng (gọi API thủ công):
+
 1. Quản trị nền tảng thứ nhất: `POST /api/v1/registry/tenants/{id}/move` với `If-Match` là phiên bản tenant, thân `targetCellId`, `reason` (số văn bản), tuỳ chọn `targetTenancyModel`, `dataRegion`, `plannedAt`. Kết quả `CHO_DUYET`.
 2. Quản trị nền tảng thứ hai (khác người đề nghị, đã xác thực bước lên AAL2): `POST .../move/{moveId}/approve` với `If-Match` là phiên bản lệnh. Tenant sang `DANG_CHUYEN_CELL`; saga chạy sáu bước:
 

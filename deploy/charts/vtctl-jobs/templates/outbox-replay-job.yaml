@@ -1,0 +1,83 @@
+{{- if .Values.outboxReplay.enabled }}
+{{- $o := .Values.outboxReplay }}
+{{- if not (and $o.schema $o.tenant) }}
+{{- fail "outboxReplay.schema và outboxReplay.tenant là bắt buộc" }}
+{{- end }}
+{{- if and $o.confirm (not (and .Values.operator .Values.reason)) }}
+{{- fail "operator và reason là bắt buộc khi outboxReplay.confirm=true (ghi sys.audit.v1)" }}
+{{- end }}
+# INF-26 · `vtctl outbox replay`: Job chạy outbox-replay (NEN-022) trong cell, gần CSDL và Kafka.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: outbox-replay-
+  namespace: {{ include "vtctl-jobs.namespace" . }}
+  labels:
+    {{- include "vtctl-jobs.labels" . | nindent 4 }}
+    app.kubernetes.io/component: outbox-replay
+  annotations:
+    mission.vn/operator: {{ .Values.operator | quote }}
+    mission.vn/reason: {{ .Values.reason | quote }}
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: {{ $o.activeDeadlineSeconds }}
+  ttlSecondsAfterFinished: {{ $o.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vtctl-jobs
+        app.kubernetes.io/component: outbox-replay
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: outbox-replay
+          image: {{ include "vtctl-jobs.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- include "vtctl-jobs.securityContext" . | nindent 12 }}
+          args:
+            - --schema={{ $o.schema }}
+            - --tenant={{ $o.tenant }}
+            {{- range $k, $v := dict "from" $o.from "to" $o.to "event-id" $o.eventId "aggregate-id" $o.aggregateId "event-type" $o.eventType "topic" $o.topic "consumer" $o.consumer "after-created-at" $o.afterCreatedAt "after-id" $o.afterId }}
+            {{- if $v }}
+            - --{{ $k }}={{ $v }}
+            {{- end }}
+            {{- end }}
+            - --rate-limit={{ $o.rateLimit }}
+            - --batch-size={{ $o.batchSize }}
+            {{- with .Values.operator }}
+            - --actor={{ . }}
+            {{- end }}
+            {{- with .Values.reason }}
+            - --reason={{ . }}
+            {{- end }}
+            {{- if $o.confirm }}
+            - --confirm
+            {{- else }}
+            - --dry-run=true
+            {{- end }}
+          {{- with $o.envFromSecret }}
+          envFrom:
+            - secretRef:
+                name: {{ . }}
+          {{- end }}
+          resources:
+            requests:
+              cpu: 200m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 16Mi
+{{- end }}
