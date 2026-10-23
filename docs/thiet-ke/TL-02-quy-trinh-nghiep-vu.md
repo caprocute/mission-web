@@ -4593,13 +4593,13 @@ Bảng dưới đây liệt kê các điểm khác thiết kế của phần A. 
 | QT-02 | Tầng OKR (cá nhân, đơn vị, cấp trên) | Chưa chốt cách phân tầng hiển thị | Câu hỏi mở |
 | QT-04, BR-04-01 | Hạn duyệt kế hoạch quý lưu ở cấu hình kỳ | Tính khi đọc theo quy tắc `NGAY_LAM_VIEC_CUOI_TUAN_LICH_THU_2` của Policy Pack; dấu "duyệt muộn" được tính, không lưu cột; quá hạn không chặn duyệt | Theo mã, chờ xác nhận |
 | QT-04, gửi duyệt | Tiến trình `duyet-ke-hoach` | Tiến trình tên `duyet-ke-hoach-quy` (theo SCR-1504 và hợp đồng), khởi tạo ngay khi gửi duyệt, không đợi EVT-03; nội dung phiên bản chờ duyệt được khoá bằng trạng thái và mã băm SHA-256 | Theo mã, chờ xác nhận |
-| QT-04, dòng kế hoạch | Có tên sản phẩm | Hợp đồng có `productName` nhưng TL-03 chưa có cột `plan_item.product_name` | Câu hỏi mở (TL-03) |
+| QT-04, dòng kế hoạch | Có tên sản phẩm | Thêm cột `plan_item.product_name` vào TL-03 để lưu `productName` của hợp đồng | Đã chốt 23/10/2026, chờ hiện thực |
 | QT-05, SCR-0503 | Năm loại đề nghị điều chỉnh | Giữ năm loại `GIA_HAN`, `DOI_SO_LUONG`, `DOI_SAN_PHAM`, `TAM_DUNG`, `HUY`; đề nghị không có bản nháp, gửi là chờ duyệt; mỗi quyết định bắt buộc ghi nguyên nhân và lý do | Theo mã |
 | QT-05, giao lại | Đề nghị đổi người chủ trì | Thao tác giao lại trực tiếp của người giao, có lưu vết; consumer EVT-15 đánh dấu nhiệm vụ cần giao lại khi người chủ trì chuyển công tác | Theo mã, chờ xác nhận |
 | QT-06, SCR-0601 | Dự báo nguy cơ trễ hạn | Nhịp thực hiện lấy theo 5 ngày làm việc gần nhất; ngưỡng Thấp khi n/m ≤ 0,8, Trung bình khi đến 1,0, Cao khi vượt 1,0 (suy luận, tham số dịch vụ); kết quả ghi qua cổng `delay-risk` của MOD-02 | Theo mã, chờ xác nhận |
 | QT-07, SCR-0701 | Một tệp mỗi phiên bản minh chứng | Tối đa 20 tệp mỗi phiên bản; tệp trùng mã băm với minh chứng khác được đánh dấu nghi trùng; tệp bị cách ly do mã độc không cho tải | Theo mã |
-| QT-07, SCR-0703 | Nghiệm thu thay | Đã hiện thực theo uỷ quyền, nhưng TL-03 chưa có cột lưu người được thay nên màn hình chưa hiện nhãn "nghiệm thu thay" | Câu hỏi mở |
-| QT-08, bước 1 | Chuyển kỳ sang `DANG_KHOA` và phát EVT-09 | EVT-09 chỉ phát khi kỳ đã `DA_KHOA` (bước hoàn tất); chuyển `MO` sang `DANG_KHOA` chưa có sự kiện, các module chặn ghi qua bảng chiếu trạng thái kỳ; EVT-26 phát khi bù trừ `DANG_KHOA` về `MO` | Câu hỏi mở (cần sự kiện bắt đầu khoá hoặc dấu chặn luồng) |
+| QT-07, SCR-0703 | Nghiệm thu thay | Đã hiện thực theo uỷ quyền; thêm cột `acceptance.on_behalf_of`, `delegation_id` để màn hình và báo cáo hiện nhãn "nghiệm thu thay" | Đã chốt 23/10/2026, chờ hiện thực |
+| QT-08, bước 1 | Chuyển kỳ sang `DANG_KHOA` và phát EVT-09 | EVT-09 "Kỳ đã khoá" phát khi kỳ đã `DA_KHOA` (bước hoàn tất), đúng nghĩa tên sự kiện; việc chuyển `MO` sang `DANG_KHOA` được báo bằng dòng outbox kỹ thuật `period.drain.marker` mà TL-03 đã định nghĩa cho bước khoá của saga, không đặt mã EVT mới; các module chặn ghi qua bảng chiếu trạng thái kỳ; EVT-26 phát khi bù trừ `DANG_KHOA` về `MO` | Đã chốt 23/10/2026, chờ hiện thực (dấu chặn luồng) |
 | QT-08, SCR-0801 | Saga sáu bước, hai người duyệt khi huỷ | Đúng sáu bước của TL-02a; huỷ được trước khi bước ký số lô xong; người duyệt phải khác người lập, người khởi chạy phải khác người duyệt; lệnh khoá có thời điểm dự kiến | Đã chốt (theo TL-02a) |
 
 ## Phần B: QT-09 đến QT-18 {-}
@@ -4617,7 +4617,7 @@ Phần B có nhiều điểm suy luận ở các luật cảnh báo bất thư�
 | QT-13 | Hai người duyệt mở lại kỳ | Chọn hai người duyệt bằng Java, không bao giờ hạ xuống một người duyệt; mở lại hết hạn thì kỳ tự khoá lại | Đã chốt bởi luồng điều phối |
 | QT-14, luật 1 đến 8 | Ngưỡng ở TL-02b, ví dụ khác ở TL-01 | Theo TL-02b; ngưỡng thiếu số là giả định; dấu hiệu 8 gộp với BR-06-12 thành một luật miễn trừ lặp; cảnh báo tự đóng khi lượt sau không còn phát hiện | Theo mã, chờ xác nhận |
 | QT-14, xử lý cảnh báo | Thông báo cảnh báo mức cao | Gom thông báo hằng ngày lúc 03:30, mỗi người xử lý một thông báo, không nêu tên người bị cảnh báo | Theo mã |
-| QT-15, SCR-1504 | Tham số luồng phát hành cùng Policy Pack | MOD-05 công bố API, SVC-06 giữ dữ liệu; khoá `wf_binding` chưa có phiên bản gói | Câu hỏi mở (TL-03) |
+| QT-15, SCR-1504 | Tham số luồng phát hành cùng Policy Pack | MOD-05 công bố API, SVC-06 giữ dữ liệu; `wf_binding` thêm cột phiên bản Policy Pack vào khoá duy nhất | Đã chốt 23/10/2026, chờ hiện thực |
 | QT-15 | Soạn gói cho từng tập khách hàng | Hồ sơ tập khách hàng (ADR-33); hồ sơ TWĐ chạy 1.441 ca vàng trên cùng bản build lõi với hai gói cũ | Đã chốt 22/10/2026 |
 | QT-16, SCR-1601 | Đệm kết quả 5 phút | Đệm 60 giây theo TL-01, cộng làm mới pre-aggregation 5 phút, vẫn trong giới hạn BR-16-08; chỉ tiêu kinh tế xã hội có cờ công bố chưa có nguồn dữ liệu | Theo mã |
 | QT-16, chia sẻ bảng điều hành | Thông báo cho người được chia sẻ | Chưa phát EVT-21 vì analytics-api không có danh bạ người dùng theo đơn vị | Câu hỏi mở |
