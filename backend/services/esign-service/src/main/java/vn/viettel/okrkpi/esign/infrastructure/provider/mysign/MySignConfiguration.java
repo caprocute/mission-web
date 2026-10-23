@@ -1,17 +1,12 @@
 package vn.viettel.okrkpi.esign.infrastructure.provider.mysign;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.net.URI;
 import java.time.Clock;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import vn.viettel.okrkpi.shared.resilience.ResilientClientFactory;
 
@@ -30,21 +25,7 @@ public class MySignConfiguration {
 
   @Bean(destroyMethod = "close")
   S3Client esignS3(MySignProperties properties) {
-    MySignProperties.Storage storage = properties.storage();
-    var builder =
-        S3Client.builder()
-            .region(Region.of(storage.region()))
-            .httpClient(UrlConnectionHttpClient.create())
-            .forcePathStyle(true);
-    if (storage.endpoint() != null && !storage.endpoint().isBlank()) {
-      builder.endpointOverride(URI.create(storage.endpoint()));
-    }
-    if (storage.accessKey() != null && !storage.accessKey().isBlank()) {
-      builder.credentialsProvider(
-          StaticCredentialsProvider.create(
-              AwsBasicCredentials.create(storage.accessKey(), storage.secretKey())));
-    }
-    return builder.build();
+    return S3ObjectStorage.client(properties.storage());
   }
 
   @Bean

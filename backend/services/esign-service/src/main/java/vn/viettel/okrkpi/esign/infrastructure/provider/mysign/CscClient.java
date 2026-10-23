@@ -35,18 +35,48 @@ public class CscClient {
 
   private final ResilientClient api;
   private final ResilientClient tokenEndpoint;
-  private final MySignProperties properties;
+  private final Connection properties;
   private final Clock clock;
   private volatile Token token;
+
+  /**
+   * Tham số kết nối CSC của một nhà cung cấp (MySign, Viettel-CA, CA chuyên dùng Chính phủ): client
+   * OAuth2 và đường dẫn các thao tác.
+   */
+  public record Connection(
+      String clientId,
+      String clientSecret,
+      String scope,
+      MySignProperties.Paths paths,
+      java.time.Duration tokenSkew) {
+    public Connection {
+      paths = paths == null ? new MySignProperties.Paths(null, null, null, null) : paths;
+      tokenSkew = tokenSkew == null ? java.time.Duration.ofSeconds(30) : tokenSkew;
+    }
+  }
 
   public CscClient(
       ResilientClient api,
       ResilientClient tokenEndpoint,
       MySignProperties properties,
       Clock clock) {
+    this(
+        api,
+        tokenEndpoint,
+        new Connection(
+            properties.clientId(),
+            properties.clientSecret(),
+            properties.scope(),
+            properties.paths(),
+            properties.tokenSkew()),
+        clock);
+  }
+
+  public CscClient(
+      ResilientClient api, ResilientClient tokenEndpoint, Connection connection, Clock clock) {
     this.api = Objects.requireNonNull(api, "api");
     this.tokenEndpoint = Objects.requireNonNull(tokenEndpoint, "tokenEndpoint");
-    this.properties = Objects.requireNonNull(properties, "properties");
+    this.properties = Objects.requireNonNull(connection, "connection");
     this.clock = Objects.requireNonNull(clock, "clock");
   }
 

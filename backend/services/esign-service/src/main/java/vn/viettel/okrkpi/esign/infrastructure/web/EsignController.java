@@ -114,7 +114,10 @@ public class EsignController implements EsignApi {
   @Override
   public ResponseEntity<ListMyEsignCertificates200Response> listMyEsignCertificates() {
     ListMyEsignCertificates200Response body = new ListMyEsignCertificates200Response();
-    body.setItems(service.certificatesOf(caller()).stream().map(EsignController::toDto).toList());
+    body.setItems(
+        service.certificatesOf(TenantContext.require().value(), caller()).stream()
+            .map(EsignController::toDto)
+            .toList());
     return ResponseEntity.ok(body);
   }
 

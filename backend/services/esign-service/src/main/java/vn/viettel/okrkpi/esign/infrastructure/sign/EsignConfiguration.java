@@ -37,19 +37,23 @@ public class EsignConfiguration {
 
   /**
    * Cấu hình {@code okrkpi.esign}: mã nhà cung cấp → {@code id()} của bản hiện thực, nhà cung cấp
-   * mặc định, hạn xác nhận, địa chỉ cổng nội bộ của từng module nguồn.
+   * mặc định, hạn xác nhận, địa chỉ cổng nội bộ của từng module nguồn, và nhà cung cấp theo tenant
+   * ({@code tenants.[<mã tenant>].enabled}, {@code tenants.[<mã tenant>].default-provider},
+   * DV-10-04).
    */
   @ConfigurationProperties(prefix = "okrkpi.esign")
   public record EsignProperties(
       Map<ProviderCode, String> providerIds,
       ProviderCode defaultProvider,
       Duration confirmWindow,
-      Map<String, String> sources) {
+      Map<String, String> sources,
+      Map<String, ProviderRegistry.TenantProviders> tenants) {
     public EsignProperties {
       providerIds = providerIds == null ? Map.of() : providerIds;
       defaultProvider = defaultProvider == null ? ProviderCode.MYSIGN : defaultProvider;
       confirmWindow = confirmWindow == null ? Duration.ofSeconds(120) : confirmWindow;
       sources = sources == null ? Map.of() : sources;
+      tenants = tenants == null ? Map.of() : tenants;
     }
   }
 
@@ -74,8 +78,10 @@ public class EsignConfiguration {
       ObjectProvider<SignatureProvider> providers, EsignProperties properties) {
     Map<ProviderCode, String> ids = new EnumMap<>(ProviderCode.class);
     ids.putAll(properties.providerIds());
+    Map<java.util.UUID, ProviderRegistry.TenantProviders> tenants = new HashMap<>();
+    properties.tenants().forEach((id, t) -> tenants.put(java.util.UUID.fromString(id.trim()), t));
     return new ProviderRegistry(
-        providers.orderedStream().toList(), ids, properties.defaultProvider());
+        providers.orderedStream().toList(), ids, properties.defaultProvider(), tenants);
   }
 
   @Bean

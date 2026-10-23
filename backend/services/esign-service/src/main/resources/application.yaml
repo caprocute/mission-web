@@ -125,6 +125,43 @@ okrkpi:
         bucket: ${ESIGN_S3_BUCKET:dossier}
         access-key: ${ESIGN_S3_ACCESS_KEY:}
         secret-key: ${ESIGN_S3_SECRET_KEY:}
+    # DV-10-04: Viettel-CA và CA chuyên dùng Chính phủ ký từ xa theo CSC API. Chứng thư gốc, OCSP,
+    # CRL và địa chỉ dịch vụ là cấu hình triển khai (tệp PEM gắn từ ConfigMap); bí mật client từ OpenBao.
+    viettel-ca:
+      enabled: ${ESIGN_VIETTEL_CA_ENABLED:false}
+      base-url: ${ESIGN_VIETTEL_CA_BASE_URL:}
+      token-url: ${ESIGN_VIETTEL_CA_TOKEN_URL:}
+      client-id: ${ESIGN_VIETTEL_CA_CLIENT_ID:}
+      client-secret: ${ESIGN_VIETTEL_CA_CLIENT_SECRET:}
+      scope: ${ESIGN_VIETTEL_CA_SCOPE:}
+      tsa-url: ${ESIGN_TSA_URL:}
+      trust-anchors: ${ESIGN_VIETTEL_CA_TRUST_ANCHORS:}
+      ocsp-url: ${ESIGN_VIETTEL_CA_OCSP_URL:}
+      crl-url: ${ESIGN_VIETTEL_CA_CRL_URL:}
+      storage:
+        endpoint: ${ESIGN_S3_ENDPOINT:}
+        region: ${ESIGN_S3_REGION:us-east-1}
+        bucket: ${ESIGN_S3_BUCKET:dossier}
+        access-key: ${ESIGN_S3_ACCESS_KEY:}
+        secret-key: ${ESIGN_S3_SECRET_KEY:}
+    gov-ca:
+      enabled: ${ESIGN_GOV_CA_ENABLED:false}
+      mode: ${ESIGN_GOV_CA_MODE:REMOTE}
+      base-url: ${ESIGN_GOV_CA_BASE_URL:}
+      token-url: ${ESIGN_GOV_CA_TOKEN_URL:}
+      client-id: ${ESIGN_GOV_CA_CLIENT_ID:}
+      client-secret: ${ESIGN_GOV_CA_CLIENT_SECRET:}
+      scope: ${ESIGN_GOV_CA_SCOPE:}
+      tsa-url: ${ESIGN_TSA_URL:}
+      trust-anchors: ${ESIGN_GOV_CA_TRUST_ANCHORS:}
+      ocsp-url: ${ESIGN_GOV_CA_OCSP_URL:}
+      crl-url: ${ESIGN_GOV_CA_CRL_URL:}
+      storage:
+        endpoint: ${ESIGN_S3_ENDPOINT:}
+        region: ${ESIGN_S3_REGION:us-east-1}
+        bucket: ${ESIGN_S3_BUCKET:dossier}
+        access-key: ${ESIGN_S3_ACCESS_KEY:}
+        secret-key: ${ESIGN_S3_SECRET_KEY:}
     worker:
       enabled: ${ESIGN_WORKER_ENABLED:true}
       poll-interval: ${ESIGN_WORKER_POLL:2s}
@@ -136,3 +173,18 @@ okrkpi:
       dossier: ${ESIGN_SOURCE_CORE_URL:http://127.0.0.1:8080}
       oversight: ${ESIGN_SOURCE_CORE_URL:http://127.0.0.1:8080}
       policy: ${ESIGN_SOURCE_CORE_URL:http://127.0.0.1:8080}
+
+# DV-10-04: instance Resilience4j riêng cho từng nhà cung cấp, cùng mức với esign-mysign (TL-01).
+resilience4j:
+  circuitbreaker:
+    instances:
+      esign-viettel-ca: {baseConfig: default, waitDurationInOpenState: 60s}
+      esign-gov-ca: {baseConfig: default, waitDurationInOpenState: 60s}
+  timelimiter:
+    instances:
+      esign-viettel-ca: {timeoutDuration: 10s}
+      esign-gov-ca: {timeoutDuration: 10s}
+  bulkhead:
+    instances:
+      esign-viettel-ca: {maxConcurrentCalls: 50}
+      esign-gov-ca: {maxConcurrentCalls: 50}

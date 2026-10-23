@@ -80,11 +80,18 @@ public class EsignService {
   /**
    * Mở yêu cầu ký: lấy tài liệu và băm từ module nguồn, kiểm người gọi là chủ thể ký, chọn chứng
    * thư, mở phiên ở nhà cung cấp và trả yêu cầu ở {@code CHO_XAC_NHAN}. Việc chờ người ký xác nhận
-   * diễn ra sau, ở worker thăm dò.
+   * diễn ra sau, ở worker thăm dò. Lỗi nghiệp vụ không hoàn tác giao dịch: mọi lỗi nghiệp vụ đều
+   * ném trước khi ghi yêu cầu, và kết quả kiểm thu hồi vừa cập nhật vào chứng thư phải được giữ lại
+   * (DV-10-04).
    */
-  @Transactional
+  @Transactional(noRollbackFor = BusinessException.class)
   public SignRequest create(CreateCommand cmd) {
-    ProviderCode code = cmd.provider() != null ? cmd.provider() : providers.defaultCode();
+    ProviderCode code =
+        cmd.provider() != null ? cmd.provider() : providers.defaultCode(cmd.tenantId());
+    if (!providers.enabled(cmd.tenantId(), code)) {
+      throw new BusinessException(
+          PROVIDER_UNAVAILABLE, "Nhà cung cấp chữ ký số này chưa được bật cho đơn vị.");
+    }
     SignatureProvider provider =
         providers
             .forCode(code)
@@ -110,7 +117,10 @@ public class EsignService {
       throw new BusinessException(REQUEST_PENDING, "Hồ sơ này đang có yêu cầu ký chờ xác nhận.");
     }
     Instant now = clock.instant();
-    CertificateRef certificate = chooseCertificate(cmd.caller(), cmd.certificateId(), now);
+    CertificateRef certificate =
+        cmd.certificateId() == null && provider.checksCertificates()
+            ? ownCertificate(provider, cmd.caller(), now)
+            : recheck(provider, chooseCertificate(cmd.caller(), cmd.certificateId(), now), now);
     List<SignItem> items = new ArrayList<>();
     List<vn.viettel.okrkpi.esign.spi.SignRequest.Document> documents = new ArrayList<>();
     for (SourceDocumentPort.Document doc : source.documents()) {
@@ -168,6 +178,88 @@ public class EsignService {
     return certificates.findByPerson(caller).stream()
         .sorted(Comparator.comparing(CertificateRef::notAfter).reversed())
         .toList();
+  }
+
+  /**
+   * Chứng thư của người gọi ở mọi nhà cung cấp tenant được dùng (DV-10-04): hỏi từng nhà cung cấp,
+   * lưu chứng thư mới hoặc cập nhật kết quả kiểm tra thu hồi vào {@code esign.certificate_ref}, rồi
+   * trả danh sách đã lưu. Nhà cung cấp lỗi thì bỏ qua và dùng dữ liệu đã lưu.
+   */
+  public List<CertificateRef> certificatesOf(UUID tenantId, UUID caller) {
+    for (SignatureProvider provider : providers.enabledFor(tenantId)) {
+      try {
+        for (SignedItem.Certificate cert : provider.certificates(tenantId, caller)) {
+          certificates.upsert(toRef(tenantId, caller, cert));
+        }
+      } catch (RuntimeException e) {
+        LOG.warn(
+            "Không liệt kê được chứng thư ở nhà cung cấp {}: {}", provider.id(), e.getMessage());
+      }
+    }
+    return certificatesOf(caller);
+  }
+
+  /**
+   * Kiểm lại thu hồi của chứng thư đã chọn qua nhà cung cấp; bị thu hồi thì lưu kết quả và trả 422
+   * {@code ESIGN-422-CERTIFICATE-INVALID}.
+   */
+  private CertificateRef recheck(SignatureProvider provider, CertificateRef chosen, Instant now) {
+    if (chosen == null) {
+      return null;
+    }
+    Optional<SignedItem.Certificate> fresh = provider.recheck(chosen.certDer());
+    if (fresh.isEmpty()) {
+      return chosen;
+    }
+    CertificateRef updated =
+        certificates.upsert(toRef(chosen.tenantId(), chosen.personId(), fresh.get()));
+    if (!updated.usableAt(now)) {
+      throw new BusinessException(
+          CERTIFICATE_INVALID, "Chứng thư số đã hết hạn, bị thu hồi hoặc không hợp lệ.");
+    }
+    return updated;
+  }
+
+  /**
+   * Chứng thư đã lưu của người ký thuộc chuỗi gốc của {@code provider}, kiểm lại thu hồi và cập
+   * nhật trạng thái; rỗng khi chưa có (nhà cung cấp dùng chứng thư mặc định). Có chứng thư mà không
+   * chứng thư nào còn dùng được thì báo lỗi (DV-10-04).
+   */
+  private CertificateRef ownCertificate(SignatureProvider provider, UUID caller, Instant now) {
+    List<CertificateRef> own = new ArrayList<>();
+    for (CertificateRef stored : certificates.findByPerson(caller)) {
+      provider
+          .recheck(stored.certDer())
+          .ifPresent(
+              fresh ->
+                  own.add(certificates.upsert(toRef(stored.tenantId(), stored.personId(), fresh))));
+    }
+    if (own.isEmpty()) {
+      return null;
+    }
+    return own.stream()
+        .filter(c -> c.usableAt(now))
+        .max(Comparator.comparing(CertificateRef::notAfter))
+        .orElseThrow(
+            () ->
+                new BusinessException(
+                    CERTIFICATE_INVALID, "Chứng thư số đã hết hạn, bị thu hồi hoặc không hợp lệ."));
+  }
+
+  private static CertificateRef toRef(UUID tenantId, UUID personId, SignedItem.Certificate cert) {
+    return new CertificateRef(
+        Ids.newUuidV7(),
+        tenantId,
+        personId,
+        Hashes.sha256(cert.der()),
+        cert.subjectDn(),
+        cert.issuerDn(),
+        cert.serialNo(),
+        cert.notBefore(),
+        cert.notAfter(),
+        cert.der(),
+        cert.ocspStatus(),
+        cert.ocspAt());
   }
 
   /**
