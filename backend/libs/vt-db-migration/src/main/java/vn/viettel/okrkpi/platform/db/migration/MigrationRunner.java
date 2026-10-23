@@ -55,6 +55,11 @@ public final class MigrationRunner {
   public record Arguments(List<String> databases, List<String> schemas, int parallel) {}
 
   public static void main(String[] args) {
+    if (standby(System.getenv("VT_SITE_ROLE"))) {
+      // INF-28: CSDL ở TTDL chờ là bản sao chỉ đọc; migration chỉ chạy ở TTDL primary.
+      LOG.info("TTDL chờ (VT_SITE_ROLE=standby): bỏ qua migration");
+      System.exit(0);
+    }
     int code;
     try {
       Arguments parsed = parse(args);
@@ -67,6 +72,11 @@ public final class MigrationRunner {
       code = 2;
     }
     System.exit(code);
+  }
+
+  /** {@code true} khi vai trò TTDL là chờ (INF-28, QA-15). */
+  public static boolean standby(String siteRole) {
+    return siteRole != null && "standby".equalsIgnoreCase(siteRole.trim());
   }
 
   /** 0 khi mọi CSDL thành công, 1 khi có ít nhất một CSDL lỗi. */

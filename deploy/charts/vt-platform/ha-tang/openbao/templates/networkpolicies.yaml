@@ -23,6 +23,7 @@ spec:
       ports: [{ port: 8200, protocol: TCP }, { port: 8201, protocol: TCP }]
     - from:
         - podSelector: { matchLabels: { app.kubernetes.io/name: openbao-xoay-khoa } }
+        - podSelector: { matchLabels: { app.kubernetes.io/name: openbao-sao-luu-raft } }
         {{- range (concat $v.clientNamespaces (list $v.certManager.namespace $v.eso.namespace $v.observabilityNamespace)) }}
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ . }} } }
         {{- end }}
@@ -39,6 +40,13 @@ spec:
           podSelector: { matchLabels: { cnpg.io/podRole: instance } }
         {{- end }}
       ports: [{ port: 5432, protocol: TCP }]
+    {{- if $v.audit.socket.enabled }}
+    # Thiết bị kiểm toán socket tới otel-siem (SEC-43, INF-19); chiều nhận khai ở chart otel-collector.
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $v.observabilityNamespace }} } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: otel-siem } }
+      ports: [{ port: {{ (split ":" $v.audit.socket.address)._1 | int }}, protocol: TCP }]
+    {{- end }}
     {{- with $v.hsmCidrs }}
     - to:
         {{- range . }}

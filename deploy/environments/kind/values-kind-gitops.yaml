@@ -19,3 +19,6 @@ projects:
 services:
   - { name: ung-dung-thu, project: okr-apps, namespace: vt-thu-gitops, path: environments/kind/gitops/ung-dung-thu,
       image: { repository: image.repository, digest: image.digest } }
+# Cụm kind chỉ chạy một cell; vùng điều phối toàn cục được kiểm tĩnh và thử PowerDNS bằng container (INF-20, deploy/charts/global-dns/tests).
+toanCuc:
+  enabled: false

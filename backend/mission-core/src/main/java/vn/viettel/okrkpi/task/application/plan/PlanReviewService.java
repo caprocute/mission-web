@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
@@ -26,6 +27,7 @@ import vn.viettel.okrkpi.task.api.PlanVersionReturnedEvent;
 import vn.viettel.okrkpi.task.api.PlanVersionSubmittedEvent;
 import vn.viettel.okrkpi.task.application.plan.PlanChecker.Check;
 import vn.viettel.okrkpi.task.application.plan.PlanService.VersionView;
+import vn.viettel.okrkpi.task.application.plan.port.PlanApprovalInbox;
 import vn.viettel.okrkpi.task.application.plan.port.PlanNotices;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.PendingPlan;
@@ -56,6 +58,7 @@ public class PlanReviewService {
   private final PlanNotices notices;
   private final ApplicationEventPublisher publisher;
   private final Clock clock;
+  private final PlanApprovalInbox inbox;
 
   public PlanReviewService(
       PlanRepository plans,
@@ -65,6 +68,19 @@ public class PlanReviewService {
       PlanNotices notices,
       ApplicationEventPublisher publisher,
       Clock clock) {
+    this(plans, planService, periods, org, notices, publisher, clock, null);
+  }
+
+  /** {@code inbox} có thể {@code null}: "Chờ tôi duyệt" dùng nguồn dự phòng. */
+  public PlanReviewService(
+      PlanRepository plans,
+      PlanService planService,
+      PeriodApi periods,
+      OrgDirectoryApi org,
+      PlanNotices notices,
+      ApplicationEventPublisher publisher,
+      Clock clock,
+      PlanApprovalInbox inbox) {
     this.plans = Objects.requireNonNull(plans, "plans");
     this.planService = Objects.requireNonNull(planService, "planService");
     this.periods = Objects.requireNonNull(periods, "periods");
@@ -72,6 +88,7 @@ public class PlanReviewService {
     this.notices = Objects.requireNonNull(notices, "notices");
     this.publisher = Objects.requireNonNull(publisher, "publisher");
     this.clock = Objects.requireNonNull(clock, "clock");
+    this.inbox = inbox;
   }
 
   /** Gửi duyệt từ {@code NHAP} hoặc {@code TRA_LAI}; còn lỗi chặn thì 422 kèm danh sách. */
@@ -154,24 +171,27 @@ public class PlanReviewService {
   /** Một dòng chờ duyệt kèm kỳ. */
   public record Review(ReviewRow row, PeriodSnapshot period) {}
 
-  /** Phiên bản {@code CHO_DUYET} của các đơn vị mà người gọi đứng đầu. */
+  /**
+   * Phiên bản {@code CHO_DUYET} chờ người gọi duyệt: theo hộp việc của SVC-06 khi đọc được (gồm cả
+   * duyệt thay theo uỷ quyền và người duyệt do {@code wf_binding} chỉ định); nếu không, dự phòng
+   * bằng các đơn vị mà người gọi đứng đầu.
+   */
   @Transactional(transactionManager = PlanService.TX, readOnly = true)
   public List<Review> approvals(TenantId tenant, UUID actor, UUID afterPlanId, int limit) {
-    if (org == null) {
-      return List.of();
-    }
-    Set<UUID> units = new LinkedHashSet<>();
-    for (AssignmentView a : org.assignmentsOf(tenant, actor, today())) {
-      if (a.head()) {
-        units.add(a.orgUnitId());
-      }
-    }
-    if (units.isEmpty()) {
-      return List.of();
+    Optional<List<UUID>> fromInbox = inbox == null ? Optional.empty() : inbox.awaitingPlanIds();
+    List<ReviewRow> rows;
+    if (fromInbox.isPresent()) {
+      rows =
+          fromInbox.get().isEmpty()
+              ? List.of()
+              : plans.awaitingReviewOfPlans(tenant, fromInbox.get(), afterPlanId, limit);
+    } else {
+      Set<UUID> units = headedUnits(tenant, actor);
+      rows = units.isEmpty() ? List.of() : plans.awaitingReview(tenant, units, afterPlanId, limit);
     }
     Map<UUID, PeriodSnapshot> byId = new HashMap<>();
     List<Review> out = new ArrayList<>();
-    for (ReviewRow r : plans.awaitingReview(tenant, units, afterPlanId, limit)) {
+    for (ReviewRow r : rows) {
       PeriodSnapshot p =
           byId.computeIfAbsent(
               r.plan().periodId(),
@@ -182,6 +202,19 @@ public class PlanReviewService {
       out.add(new Review(r, p));
     }
     return out;
+  }
+
+  private Set<UUID> headedUnits(TenantId tenant, UUID actor) {
+    Set<UUID> units = new LinkedHashSet<>();
+    if (org == null) {
+      return units;
+    }
+    for (AssignmentView a : org.assignmentsOf(tenant, actor, today())) {
+      if (a.head()) {
+        units.add(a.orgUnitId());
+      }
+    }
+    return units;
   }
 
   private VersionRow locked(

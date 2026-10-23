@@ -1,0 +1,8 @@
+# INF-28 · Values của CELL-G2 tại TTDL Hoà Lạc (primary mặc định): bật khối replica của CNPG và tài khoản
+# nguồn, listener liên TTDL của Kafka để TTDL chờ kéo dữ liệu; cùng manifest với values-sn.yaml (TL-04 distributed topology).
+data-pg:
+  replica:
+    enabled: true
+kafka:
+  mirrorMaker:
+    enabled: true

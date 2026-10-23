@@ -1,0 +1,63 @@
+# INF-20 · GeoDNS của vùng điều phối toàn cục (TL-04 "GeoDNS và định tuyến tenant tới cell", DR-10, DR-13, DR-16).
+# PowerDNS Authoritative 4.9 với bản ghi LUA, CSDL gpgsql là CSDL pdns trong pg-registry (chart global-pg), nên hai
+# TTDL thấy cùng một vùng. Ba loại bản ghi:
+#   - tên miền chung (app): LUA ifurlup, tự chuyển sang VIP phía Nam khi VIP Hoà Lạc hỏng (chuyển vùng tự động duy nhất);
+#   - điểm vào cell (cell-<x>.edge): A TTL 60 do dns-sync ghi theo cờ TTDL đang hoạt động trong SVC-03, không tự chuyển;
+#   - tên miền tenant: CNAME TTL 300 tới điểm vào cell, do quy trình cấp phát OPS-07 (tenant-registry) tạo.
+# Không có bí mật trong values: khoá API và mật khẩu CSDL do External Secrets lấy từ OpenBao.
+site: hl
+# TTDL giữ primary của pg-registry (cùng giá trị với chart global-pg): chỉ ở đây mới ghi vùng DNS (Job pdns-vung,
+# dns-sync); PowerDNS cả hai TTDL đều trả lời truy vấn.
+primarySite: hl
+namespace: dns
+zone: danhgia.vn
+nameservers: [ns1.danhgia.vn, ns2.danhgia.vn]
+
+pdns:
+  image: harbor.vt.local/dockerhub/powerdns/pdns-auth-49@sha256:ae9747404642013be65cfb199c019eab8d775dffb4dd70973ca3718d6fa1c107
+  replicas: 3
+  # Dịch vụ DNS công khai (VIP của TTDL, cấp qua MetalLB/LB của Viettel Cloud).
+  service:
+    type: LoadBalancer
+    loadBalancerIP: ""
+  db:
+    host: pg-registry-rw.registry-db.svc
+    port: 5432
+    name: pdns
+    user: pdns
+  resources:
+    requests: { cpu: 500m, memory: 512Mi }
+    limits: { cpu: "2", memory: 512Mi }
+  # Chu kỳ kiểm tra sức khoẻ của bản ghi LUA (giây).
+  luaHealthCheckInterval: 10
+
+# Bản ghi LUA của tên miền chung: danh sách đầu là VIP ưu tiên (Hoà Lạc), danh sách sau chỉ dùng khi toàn bộ danh
+# sách đầu không khoẻ. Kiểm tra /healthz/edge phải trả đúng chuỗi OK (TL-04 mục 2.7).
+common:
+  - name: app
+    ttl: 60
+    url: https://app.danhgia.vn/healthz/edge
+    vips: [["203.0.113.10"], ["198.51.100.10"]]
+    stringmatch: OK
+    timeout: 2
+    interval: 10
+    minimumFailures: 3
+
+externalSecrets:
+  enabled: true
+  secretStoreRef: { kind: ClusterSecretStore, name: openbao-global }
+  pdnsPath: mission/global/pdns
+  dnsSyncPath: mission/global/dns-sync
+
+dnsSync:
+  enabled: true
+  # Ảnh theo digest do ApplicationSet truyền từ deploy/environments/global/digests.yaml; thiếu digest thì chart từ chối.
+  image: harbor.vt.local/okr/dns-sync
+  interval: 15s
+  ttl: 60
+  registryUrl: http://tenant-registry.global.svc.cluster.local:8080
+  tokenUrl: https://sso.global.danhgia.vn/realms/platform/protocol/openid-connect/token
+  clientId: dns-sync
+  # VIP của điểm vào từng cell ở mỗi TTDL (khoá là mã registry.cell.code, TTDL theo registry.cell.primary_dc).
+  cells:
+    CELL-G4: { vip: { HOALAC: 203.0.113.24, PHIANAM: 198.51.100.24 } }

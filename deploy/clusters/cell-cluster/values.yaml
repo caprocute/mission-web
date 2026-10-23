@@ -32,6 +32,14 @@ controlPlane:
   replicas: 3
   flavor: ""
 
+# Cờ API server (INF-19, TL-04 mục 9.3). TLS tối thiểu ≥ 1.2; INF-08 đã chọn 1.3. OIDC: Keycloak riêng của vận hành
+# (realm platform-ops, MFA bắt buộc), client kubernetes; địa chỉ issuer là giá trị của môi trường.
+apiServer:
+  tlsMinVersion: VersionTLS13
+  oidc:
+    issuerUrl: ""
+    clientId: kubernetes
+
 # Chín node pool (TL-04 mục 3.3). perZone: số node mỗi vùng; autoscale: min/max mỗi vùng cho Cluster Autoscaler
 # (chỉ ingress, app-general, app-worker). Pool dữ liệu và vùng bảo mật không co giãn.
 pools: {}

@@ -1,0 +1,12 @@
+vai_tro,ten_vai_tro,tai_khoan,ho_ten,don_vi,chuc_danh,duoc_danh_gia_trong_ky
+AC-01,Quản trị nền tảng,nentang,Tạ Văn Nền,Đơn vị vận hành nền tảng,,không
+AC-02,Quản trị tenant,quantri,Hoàng Văn Quản Trị,Phòng Tổng hợp,Chuyên viên,không
+AC-02,Quản trị tenant (dự phòng),quantri2,Lê Văn Hai,Phòng Tổng hợp,Chuyên viên,không
+AC-03,Quản trị nghiệp vụ,chinhsach,Đỗ Thị Chính Sách,Phòng Tổng hợp,Chuyên viên,không
+AC-04,Lãnh đạo,lanhdao,Lê Văn Lãnh Đạo,Phòng Tổng hợp,Giám đốc,có
+AC-05,Cán bộ quản lý trực tiếp,quanly,Trần Thị Quản Lý,Phòng Tổng hợp,Trưởng phòng,có
+AC-06,Cán bộ,canbo,Nguyễn Văn Cán Bộ,Phòng Tổng hợp,Chuyên viên,có
+AC-07,Cơ quan tổ chức cán bộ (thẩm định),thamdinh,Phạm Thị Thẩm Định,Ban Tổ chức,Chuyên viên,có
+AC-08,Cấp có thẩm quyền quyết định,quyetdinh,Vũ Văn Quyết Định,Ban Tổ chức,Trưởng phòng,không
+AC-09,Người duyệt thứ hai,duyet2,Bùi Thị Duyệt Hai,Ban Tổ chức,Chuyên viên,không
+AC-10,Cơ quan kiểm tra giám sát,kiemtra,Ngô Văn Kiểm Tra,Ủy ban Kiểm tra,Kiểm tra viên,có

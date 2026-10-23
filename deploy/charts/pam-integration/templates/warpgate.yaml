@@ -1,0 +1,412 @@
+{{- if .Values.warpgate.enabled }}
+{{- $v := .Values }}
+{{- $w := $v.warpgate }}
+{{- $ns := $w.namespace }}
+{{- if not (regexMatch "^sha256:[a-f0-9]{64}$" (toString $w.image.digest)) }}
+{{- fail "pam-integration: warpgate.image.digest phải là sha256 (SEC-55)" }}
+{{- end }}
+{{- $siemHost := (splitList ":" $v.pam.siem.syslog) | first }}
+{{- $siemPort := (splitList ":" $v.pam.siem.syslog) | last }}
+{{- $siemNs := index (splitList "." $siemHost) 1 }}
+{{- $siemSvc := index (splitList "." $siemHost) 0 }}
+# Warpgate (INF-27; SEC-42): proxy ghi phiên SSH, kubectl, psql của người vận hành. Namespace riêng, Pod Security
+# restricted, mặc định từ chối mọi chiều; đường vào chỉ từ warpgate.nguonCIDRs, đường ra chỉ tới mục tiêu đã khai.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    vt.io/security-zone: secure
+    vt.io/cell: {{ $v.cell | quote }}
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: {{ $ns }}
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: warpgate
+  namespace: {{ $ns }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: warpgate }
+  policyTypes: ["Ingress", "Egress"]
+  {{- with $w.nguonCIDRs }}
+  ingress:
+    - from:
+        {{- range . }}
+        - ipBlock: { cidr: {{ . }} }
+        {{- end }}
+      ports:
+        {{- range $ten, $cong := $w.cong }}
+        - { protocol: TCP, port: {{ $cong | int }} }
+        {{- end }}
+  {{- else }}
+  ingress: []
+  {{- end }}
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    # Sự kiện kiểm toán tới otel-siem (sidecar cầu nối, syslog TLS).
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ $siemNs }} }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: {{ $siemSvc }} }
+      ports:
+        - { protocol: TCP, port: {{ $siemPort | int }} }
+    # Kho bí mật: KV của OpenBao (chỉ đọc kv/warpgate/*).
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: secure-data }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: openbao }
+      ports:
+        - { protocol: TCP, port: 8200 }
+    # Mục tiêu psql: các cụm CNPG mà quét CSDL theo dõi (NetworkPolicy pam-proxy-to-pg mở chiều vào).
+    - to:
+        {{- range (list "data-pg" "secure-data") }}
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ . }} }
+          podSelector:
+            matchExpressions: [{ key: cnpg.io/cluster, operator: Exists }]
+        {{- end }}
+      ports:
+        - { protocol: TCP, port: 5432 }
+    {{- with $w.dich.apiServerCIDRs }}
+    - to:
+        {{- range . }}
+        - ipBlock: { cidr: {{ . }} }
+        {{- end }}
+      ports:
+        - { protocol: TCP, port: 6443 }
+    {{- end }}
+    {{- with $w.dich.sshCIDRs }}
+    - to:
+        {{- range . }}
+        - ipBlock: { cidr: {{ . }} }
+        {{- end }}
+      ports:
+        - { protocol: TCP, port: 22 }
+    {{- end }}
+    {{- with $w.dich.keycloakCIDRs }}
+    - to:
+        {{- range . }}
+        - ipBlock: { cidr: {{ . }} }
+        {{- end }}
+      ports:
+        - { protocol: TCP, port: 443 }
+    {{- end }}
+---
+# ServiceAccount của Warpgate: chỉ dùng đăng nhập auth kubernetes của OpenBao (kho bí mật); không có binding RBAC nào.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: warpgate
+  namespace: {{ $ns }}
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+---
+# Mẫu cấu hình Warpgate 0.30 (khoá theo WarpgateConfigStore, kiểm bằng "warpgate check"). Init container thay chỗ giữ
+# client_secret bằng giá trị từ Secret rồi ghi vào emptyDir bộ nhớ. Mục tiêu, vai trò, kho bí mật không nằm ở đây
+# (Warpgate lưu trong CSDL), xem ConfigMap warpgate-nhap.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: warpgate-cau-hinh
+  namespace: {{ $ns }}
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+data:
+  warpgate.yaml.mau: |
+    external_host: {{ $w.externalHost }}
+    database_url: "sqlite:/data/db"
+    # Mục recordings chỉ nạp vào CSDL ở lần chạy đầu (Warpgate 0.30 cảnh báo đã cũ); sau đó đổi trong giao diện quản trị.
+    recordings: { enable: true, path: /data/recordings }
+    sso_providers:
+      - name: {{ $w.sso.name }}
+        label: {{ $w.sso.label | quote }}
+        auto_create_users: true
+        provider:
+          type: custom
+          client_id: {{ $w.sso.clientId }}
+          client_secret: "__OIDC_CLIENT_SECRET__"
+          issuer_url: {{ $w.sso.issuerUrl }}
+          scopes: {{ toJson $w.sso.scopes }}
+          roles_claim: {{ $w.sso.rolesClaim }}
+          role_mappings: {{ toJson $w.sso.roleMappings }}
+          admin_role_mappings: {{ toJson $w.sso.adminRoleMappings }}
+    http:
+      listen: "0.0.0.0:{{ $w.cong.http }}"
+      certificate: /tls/tls.crt
+      key: /tls/tls.key
+      trust_x_forwarded_headers: false
+    ssh:
+      enable: true
+      listen: "0.0.0.0:{{ $w.cong.ssh }}"
+      host_key_verification: auto_reject
+    kubernetes:
+      enable: true
+      listen: "0.0.0.0:{{ $w.cong.kubernetes }}"
+      certificate: /tls/tls.crt
+      key: /tls/tls.key
+    postgres:
+      enable: true
+      listen: "0.0.0.0:{{ $w.cong.postgres }}"
+      certificate: /tls/tls.crt
+      key: /tls/tls.key
+    mysql: { enable: false }
+    log:
+      retention: {{ $w.log.retention }}
+      audit_retention: {{ $w.log.auditRetention }}
+      format: json
+      send_to: /run/warpgate-log/log.sock
+---
+# Dữ liệu nhập vào CSDL Warpgate qua API quản trị (/@warpgate/admin/api), Terraform provider hoặc operator: kho bí mật
+# OpenBao và mục tiêu kubectl, SSH, psql. Chỉ có tham chiếu secret://, không có giá trị bí mật.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: warpgate-nhap
+  namespace: {{ $ns }}
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+data:
+  kho-bi-mat.json: |
+    {{- dict "name" $w.khoBiMat.name "backend_type" "openbao" "address" $w.khoBiMat.address "tls_skip_verify" false
+         "allowed_paths" $w.khoBiMat.allowedPaths
+         "auth" (dict "method" "Kubernetes" "role" $w.khoBiMat.role "mount" $w.khoBiMat.authMount) | toPrettyJson | nindent 4 }}
+  vai-tro.json: |
+    {{- $vt := list }}
+    {{- range $nhom, $ds := $w.sso.roleMappings }}{{ $vt = concat $vt $ds }}{{ end }}
+    {{- range $w.mucTieu }}{{ $vt = concat $vt .vaiTro }}{{ end }}
+    {{- $vt | uniq | sortAlpha | toPrettyJson | nindent 4 }}
+  muc-tieu.json: |
+    {{- $mt := list }}
+    {{- range $w.mucTieu }}
+    {{- $t := dict "name" .name "description" (default "" .description) "options" .options
+         "ticket_requests_disabled" true "ticket_require_approval" false "require_approval" false }}
+    {{- $mt = append $mt (dict "target" $t "roles" .vaiTro) }}
+    {{- end }}
+    {{- toPrettyJson $mt | nindent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: warpgate-cau-noi
+  namespace: {{ $ns }}
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+data:
+  warpgate_pam.py: |
+    {{- .Files.Get "files/warpgate/warpgate_pam.py" | nindent 4 }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: warpgate
+  namespace: {{ $ns }}
+spec:
+  secretName: warpgate-tls
+  commonName: {{ $w.externalHost }}
+  dnsNames: [{{ $w.externalHost }}, warpgate.{{ $ns }}.svc, warpgate.{{ $ns }}.svc.cluster.local]
+  usages: [server auth, digital signature, key encipherment]
+  duration: 2160h
+  renewBefore: 720h
+  privateKey: { algorithm: ECDSA, size: 256, rotationPolicy: Always }
+  issuerRef:
+    {{- toYaml $w.issuerRef | nindent 4 }}
+---
+# Chứng thư máy khách của sidecar cầu nối: otel-siem đòi mTLS ở cổng syslog.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: warpgate-siem
+  namespace: {{ $ns }}
+spec:
+  secretName: warpgate-siem-tls
+  commonName: warpgate.{{ $ns }}.svc
+  dnsNames: [warpgate.{{ $ns }}.svc]
+  usages: [client auth, digital signature, key encipherment]
+  duration: 2160h
+  renewBefore: 720h
+  privateKey: { algorithm: ECDSA, size: 256, rotationPolicy: Always }
+  issuerRef:
+    {{- toYaml $w.issuerRef | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: warpgate
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: warpgate
+  {{- with $w.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $w.service.type }}
+  selector: { app.kubernetes.io/name: warpgate }
+  ports:
+    {{- range $ten, $cong := $w.cong }}
+    - { name: {{ $ten }}, port: {{ $cong | int }}, targetPort: {{ $ten }}, protocol: TCP }
+    {{- end }}
+---
+# Một bản sao: CSDL SQLite và bản ghi phiên trên PVC. Recreate khi đổi phiên bản (StatefulSet, OnDelete không cần).
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: warpgate
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: warpgate
+    app.kubernetes.io/version: {{ $w.image.tag | quote }}
+    {{- include "pam.labels" . | nindent 4 }}
+  annotations:
+    # client_secret OIDC qua secretKeyRef theo yêu cầu điều phối; biến chỉ có ở init container (chạy xong là thoát),
+    # container warpgate và cầu nối không thấy biến này.
+    ignore-check.kube-linter.io/read-secret-from-env-var: "secretKeyRef chỉ ở init container cau-hinh"
+spec:
+  serviceName: warpgate
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: warpgate }
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: warpgate
+        app.kubernetes.io/version: {{ $w.image.tag | quote }}
+        {{- include "pam.labels" . | nindent 8 }}
+      annotations:
+        checksum/cau-hinh: {{ printf "%s%s" (toJson $w) (.Files.Get "files/warpgate/warpgate_pam.py") | sha256sum }}
+    spec:
+      serviceAccountName: warpgate
+      # Token chiếu (audience openbao) chỉ để đăng nhập OpenBao; không gắn token mặc định của API server.
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        {{- include "pam.restrictedPod" . | nindent 8 }}
+      initContainers:
+        - name: cau-hinh
+          image: {{ include "pam.image" (dict "root" . "name" "python") }}
+          command: ["python3", "-I", "/cau-noi/warpgate_pam.py", "cau-hinh", "/mau/warpgate.yaml.mau", "/run/warpgate/warpgate.yaml"]
+          env:
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef: { name: {{ $w.sso.clientSecretRef.name }}, key: {{ $w.sso.clientSecretRef.key }} }
+          securityContext:
+            {{- include "pam.restrictedContainer" . | nindent 12 }}
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 100m, memory: 64Mi }
+          volumeMounts:
+            - { name: mau, mountPath: /mau, readOnly: true }
+            - { name: cau-noi, mountPath: /cau-noi, readOnly: true }
+            - { name: cau-hinh, mountPath: /run/warpgate }
+      containers:
+        - name: warpgate
+          image: {{ printf "%s@%s" $w.image.repository $w.image.digest }}
+          args: ["run"]
+          env:
+            - { name: WARPGATE_CONFIG, value: /run/warpgate/warpgate.yaml }
+          ports:
+            {{- range $ten, $cong := $w.cong }}
+            - { name: {{ $ten }}, containerPort: {{ $cong | int }}, protocol: TCP }
+            {{- end }}
+          readinessProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 10
+          livenessProbe:
+            exec: { command: ["/usr/local/bin/warpgate", "healthcheck"] }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+          securityContext:
+            {{- include "pam.restrictedContainer" . | nindent 12 }}
+          resources:
+            {{- toYaml $w.resources | nindent 12 }}
+          volumeMounts:
+            - { name: cau-hinh, mountPath: /run/warpgate }
+            - { name: du-lieu, mountPath: /data }
+            - { name: log, mountPath: /run/warpgate-log }
+            - { name: tls, mountPath: /tls, readOnly: true }
+            - { name: openbao-token, mountPath: /var/run/secrets/kubernetes.io/serviceaccount, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+        - name: cau-noi
+          image: {{ include "pam.image" (dict "root" . "name" "python") }}
+          command: ["python3", "-I", "/cau-noi/warpgate_pam.py", "cau-noi"]
+          env:
+            - { name: SOCKET, value: /run/warpgate-log/log.sock }
+            - { name: SIEM_HOST, value: {{ $siemHost | quote }} }
+            - { name: SIEM_PORT, value: {{ $siemPort | quote }} }
+            - { name: SD_ID, value: {{ $v.pam.siem.sdId | quote }} }
+            - { name: EXTERNAL_HOST, value: {{ $w.externalHost | quote }} }
+            - { name: HANG_DOI_TOI_DA, value: {{ $w.cauNoi.hangDoiToiDa | quote }} }
+            - { name: TLS_CA, value: /siem-tls/ca.crt }
+            - { name: TLS_CRT, value: /siem-tls/tls.crt }
+            - { name: TLS_KEY, value: /siem-tls/tls.key }
+            - name: HOSTNAME_PAM
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+          readinessProbe:
+            exec: { command: ["test", "-S", "/run/warpgate-log/log.sock"] }
+            periodSeconds: 10
+          livenessProbe:
+            exec: { command: ["test", "-S", "/run/warpgate-log/log.sock"] }
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          securityContext:
+            {{- include "pam.restrictedContainer" . | nindent 12 }}
+          resources:
+            {{- toYaml $w.cauNoi.resources | nindent 12 }}
+          volumeMounts:
+            - { name: cau-noi, mountPath: /cau-noi, readOnly: true }
+            - { name: log, mountPath: /run/warpgate-log }
+            - { name: siem-tls, mountPath: /siem-tls, readOnly: true }
+      volumes:
+        - name: mau
+          configMap: { name: warpgate-cau-hinh }
+        - name: cau-noi
+          configMap: { name: warpgate-cau-noi }
+        - name: cau-hinh
+          emptyDir: { medium: Memory, sizeLimit: 1Mi }
+        - name: log
+          emptyDir: { medium: Memory, sizeLimit: 1Mi }
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
+        - name: tls
+          secret: { secretName: warpgate-tls, defaultMode: 0440 }
+        - name: siem-tls
+          secret: { secretName: warpgate-siem-tls, defaultMode: 0440 }
+        - name: openbao-token
+          projected:
+            sources:
+              - serviceAccountToken: { audience: openbao, expirationSeconds: 3600, path: token }
+  volumeClaimTemplates:
+    - metadata:
+        name: du-lieu
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- with $w.luuTru.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests: { storage: {{ $w.luuTru.size }} }
+{{- end }}

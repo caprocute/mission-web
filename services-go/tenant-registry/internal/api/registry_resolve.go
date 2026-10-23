@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -123,6 +124,7 @@ type registryCell struct {
 	Name             string    `json:"name"`
 	PrimaryDC        string    `json:"primaryDc"`
 	StandbyDC        *string   `json:"standbyDc"`
+	ActiveDC         string    `json:"activeDc"`
 	TenancyModel     string    `json:"tenancyModel"`
 	APIBaseURL       string    `json:"apiBaseUrl"`
 	CapacityAccounts int       `json:"capacityAccounts"`
@@ -182,7 +184,14 @@ func decodeCursor(r *http.Request) (string, error) {
 
 // listCells: GET /api/v1/registry/cells (SCR-0101, SCR-0102; platform_admin, AAL2).
 func (s *Server) listCells(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireRole(w, r, true, auth.RolePlatformAdmin); !ok {
+	p, ok := s.requireRole(w, r, true, auth.RolePlatformAdmin, auth.RoleServiceClient)
+	if !ok {
+		return
+	}
+	// INF-20: client dịch vụ chỉ đọc (dns-sync, cổng lớp ngoài) gọi được mà không cần step-up, nhưng chỉ client có
+	// trong CellReaderClients; client dịch vụ khác vẫn 403.
+	if !p.HasRole(auth.RolePlatformAdmin) && !slices.Contains(s.CellReaderClients, p.ClientID) {
+		s.fail(w, r, problem.Forbidden())
 		return
 	}
 	q := r.URL.Query()
@@ -216,7 +225,7 @@ func (s *Server) listCells(w http.ResponseWriter, r *http.Request) {
 		page.NextCursor = encodeCursor(cells[limit-1].Code)
 	}
 	for _, c := range cells {
-		page.Items = append(page.Items, registryCell{ID: c.ID, Code: c.Code, Name: c.Name, PrimaryDC: c.PrimaryDC, StandbyDC: c.StandbyDC,
+		page.Items = append(page.Items, registryCell{ID: c.ID, Code: c.Code, Name: c.Name, PrimaryDC: c.PrimaryDC, StandbyDC: c.StandbyDC, ActiveDC: c.ActiveDC,
 			TenancyModel: c.TenancyModel, APIBaseURL: c.APIBaseURL, CapacityAccounts: c.CapacityAccounts, Status: c.Status,
 			TenantCount: c.TenantCount, AccountCount: c.AccountCount})
 	}

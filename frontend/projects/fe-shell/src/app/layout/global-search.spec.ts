@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import { PermissionService } from '@vt/auth';
 import { GlobalSearch, highlightSegments } from './global-search';
 
 describe('Tìm kiếm toàn cục (WEB-012)', () => {
@@ -18,7 +19,12 @@ describe('Tìm kiếm toàn cục (WEB-012)', () => {
   it('gõ từ khoá thì gợi ý, mũi tên chọn, Enter mở kết quả; 403 thì ẩn ô', async () => {
     vi.useFakeTimers();
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: PermissionService, useValue: { canApi: () => true } },
+      ],
     });
     const nav = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
     const http = TestBed.inject(HttpTestingController);
@@ -59,5 +65,19 @@ describe('Tìm kiếm toàn cục (WEB-012)', () => {
     f.detectChanges();
     expect((f.nativeElement as HTMLElement).hidden).toBe(true);
     vi.useRealTimers();
+  });
+
+  it('vai trò không được gọi tìm kiếm theo ma trận API thì không hiện ô (YC-PT-21)', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: PermissionService, useValue: { canApi: () => false } },
+      ],
+    });
+    const f = TestBed.createComponent(GlobalSearch);
+    f.detectChanges();
+    expect((f.nativeElement as HTMLElement).hidden).toBe(true);
   });
 });

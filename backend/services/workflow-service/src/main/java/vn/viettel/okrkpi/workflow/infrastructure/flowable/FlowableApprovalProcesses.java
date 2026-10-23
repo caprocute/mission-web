@@ -7,7 +7,9 @@ import java.util.UUID;
 import org.flowable.common.engine.impl.identity.Authentication;
 import org.flowable.engine.HistoryService;
 import org.flowable.engine.RuntimeService;
+import org.flowable.engine.TaskService;
 import org.flowable.engine.history.HistoricProcessInstance;
+import org.flowable.engine.runtime.ProcessInstance;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import vn.viettel.okrkpi.workflow.application.port.ApprovalProcesses;
@@ -24,12 +26,14 @@ public class FlowableApprovalProcesses implements ApprovalProcesses {
 
   private final RuntimeService runtime;
   private final HistoryService history;
+  private final TaskService tasks;
   private final JdbcTemplate jdbc;
 
   public FlowableApprovalProcesses(
-      RuntimeService runtime, HistoryService history, JdbcTemplate jdbc) {
+      RuntimeService runtime, HistoryService history, TaskService tasks, JdbcTemplate jdbc) {
     this.runtime = runtime;
     this.history = history;
+    this.tasks = tasks;
     this.jdbc = jdbc;
   }
 
@@ -78,5 +82,24 @@ public class FlowableApprovalProcesses implements ApprovalProcesses {
     } finally {
       Authentication.setAuthenticatedUserId(null);
     }
+  }
+
+  @Override
+  public int cancelWaiting(
+      UUID tenantId, String templateCode, BusinessKey businessKey, String reason) {
+    int cancelled = 0;
+    for (ProcessInstance p :
+        runtime
+            .createProcessInstanceQuery()
+            .processDefinitionKey(templateCode)
+            .processInstanceTenantId(tenantId.toString())
+            .processInstanceBusinessKey(businessKey.value())
+            .list()) {
+      if (tasks.createTaskQuery().processInstanceId(p.getId()).count() > 0) {
+        runtime.deleteProcessInstance(p.getId(), reason);
+        cancelled++;
+      }
+    }
+    return cancelled;
   }
 }

@@ -747,6 +747,8 @@ export interface components {
       createdAt?: components['schemas']['DateTime'];
       updatedAt?: components['schemas']['DateTime'];
       rowVersion: components['schemas']['RowVersion'];
+      /** @description Thao tác của người gọi trên mục tiêu này: `SCR-0202.soan-don-vi`, `SCR-0202.soan-ca-nhan`, `SCR-0202.trinh` khi mục tiêu còn nháp (mục tiêu cá nhân chỉ của chính mình), `SCR-0203.duyet` khi chờ duyệt và người gọi không phải người soạn (BR-02-08), `SCR-0203.tra-lai` khi chờ duyệt. */
+      permittedActions?: components['schemas']['PermittedActions'];
     };
     OkrObjectivePage: {
       items: components['schemas']['OkrObjective'][];
@@ -937,6 +939,8 @@ export interface components {
       /** @description Tổng số nhiệm vụ liên kết, có thể nhiều hơn số phần tử `linkedWork`. */
       linkedTaskCount?: number;
       rowVersion: components['schemas']['RowVersion'];
+      /** @description Thao tác của người gọi trên KR này: `SCR-0201.check-in` khi mục tiêu đã duyệt và người gọi là chủ KR hoặc người được giao check-in thay (BR-03-01). */
+      permittedActions?: components['schemas']['PermittedActions'];
     };
     /** @description KR khi soạn (SCR-0202 trường 7-16). Khi mục tiêu còn `NHAP`, bản nháp được lưu dù thiếu `targetValue` hoặc `dueDate` (gửi `null` hoặc bỏ trường); khi trình, máy chủ kiểm lại đủ trường theo BR-02-04 và trả 422. Lưu KR thiếu hai trường này khi mục tiêu không còn `NHAP` cũng trả 422. */
     OkrKeyResultInput: {
@@ -1418,6 +1422,14 @@ export interface components {
      * @example 7
      */
     RowVersion: number;
+    /**
+     * @description Thao tác người gọi được làm trên chính đối tượng này, dạng khoá chức năng của ma trận phân quyền `SCR-qqnn.<khoá>` (docs/phan-quyen/ma-tran.json). Máy chủ tính bằng OPA với cùng đầu vào như khi thực hiện thao tác (vai trò, phạm vi đơn vị, người tham gia, trạng thái, tách vai trò), để giao diện ẩn nút trước thay vì để người dùng bấm rồi nhận 403 (YC-PT-21). Chỉ là gợi ý hiển thị: thao tác vẫn được kiểm lại khi gọi. Không gửi trường này nghĩa là giao diện chỉ xét vai trò.
+     * @example [
+     *       "SCR-1601.nhac",
+     *       "SCR-1601.giao-lai"
+     *     ]
+     */
+    PermittedActions: string[];
     /** @description Con trỏ trang kế tiếp; `null` khi đã hết. */
     NextCursor: string | null;
     /**

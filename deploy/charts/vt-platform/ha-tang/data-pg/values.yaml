@@ -133,7 +133,7 @@ roleLimits: { ro: 20, cdc: 5, mig: 10 }
 clients:
   pg-core:     { rw: [core], ro: [core, analytics] }
   pg-flowable: { rw: [core, workers] }
-  pg-platform: { rw: [platform, workers, analytics], ro: [analytics] }
+  pg-platform: { rw: [platform, workers, analytics], ro: [analytics, sao-luu] }   # sao-luu: kiểm mẫu minh chứng (INF-18)
   pg-iam:      { rw: [identity] }
   pg-ledger:   { rw: [secure] }
   pg-secure:   { rw: [secure] }
@@ -148,8 +148,8 @@ placement:
     nodeSelector: { vt.io/pool: postgres }
     tolerations: [{ key: vt.io/pool, operator: Equal, value: postgres, effect: NoSchedule }]
   secure:
-    nodeSelector: { vt.io/pool: security-zone }
-    tolerations: [{ key: vt.io/pool, operator: Equal, value: security-zone, effect: NoSchedule }]
+    nodeSelector: { vt.io/zone: secure }
+    tolerations: [{ key: vt.io/zone, operator: Equal, value: secure, effect: NoSchedule }]
   # required ở cụm thật (ba vùng sự cố); compact chỉ một vùng nên hạ về preferred và khoá theo hostname.
   antiAffinity: required
 
@@ -184,3 +184,65 @@ grantsJob:
 
 monitoring:
   enablePodMonitor: true
+
+# Sao lưu theo thời điểm bằng plugin Barman Cloud (INF-17, TL-04 mục 8.2, bảng lịch sao lưu): mỗi cụm một ObjectStore
+# trỏ tới bucket bk-cell-<mã>-pg của kho sao lưu ceph-sn-bk (bucket và Object Lock khai ở rgw-cell
+# values-kho-sao-luu.yaml), WAL liên tục (archive_timeout 60 s ở parameters) và bản nền hằng ngày 01:30 từ standby,
+# sau đối chiếu điểm OPS-21 lúc 00:30. retentionPolicy chỉ để CNPG đánh dấu bản hết hạn trong danh mục: khoá S3
+# không có quyền xoá, vòng đời của bucket dọn bản quá 35 ngày. Bản cuối tháng, cuối năm do job giu-dai-han của chart
+# backup-cell chép sang dai-han/.
+backup:
+  enabled: true
+  # Plugin barman-cloud.cloudnative-pg.io (plugin-barman-cloud v0.15) phải cài cùng CNPG trong cnpg-system.
+  plugin: barman-cloud.cloudnative-pg.io
+  # Tên ObjectStore: <tiền tố>-<cụm> (TL-04: bk-sn-pg-core).
+  objectStorePrefix: bk-sn
+  endpoint: https://s3-bk.sn.vt.local
+  # Bucket: rỗng là bk-cell-<global.cell>-pg; đường dẫn đích s3://<bucket>/<cụm>.
+  bucket: ""
+  # CA nội bộ để kiểm TLS của RGW (Secret trust bundle của cert-manager trong namespace của cụm); null khi dùng http.
+  endpointCA: { name: vt-noi-bo-ca, key: ca.crt }
+  # Khoá S3 của cell (OpenBao kv/cell-<mã>/backup/pg, SEC-10) thành Secret bk-sn-s3-pg trong namespace của cụm.
+  credentials:
+    secretName: bk-sn-s3-pg
+    path: ""          # rỗng: kv/cell-<global.cell>/backup/pg
+  retentionPolicy: 35d
+  wal: { compression: zstd, encryption: AES256, maxParallel: 8 }
+  # Bản nền: CRD ObjectStore chỉ nhận bzip2, gzip, lz4, snappy (không có zstd như mẫu TL-04, wiki 14); chọn lz4.
+  data: { compression: lz4, encryption: AES256, jobs: 4, immediateCheckpoint: false }
+  sidecar:
+    resources:
+      requests: { cpu: 500m, memory: 512Mi }
+      limits: { cpu: "2", memory: 1Gi }
+  # Lịch CNPG (có trường giây) tính theo UTC: 18:30:00 UTC là 01:30 giờ Việt Nam, đúng mốc TL-04 (sau OPS-21 00:30).
+  schedule: "0 30 18 * * *"
+  target: prefer-standby
+  # Đích mạng của instance tới kho sao lưu (NetworkPolicyPeer): mặc định khối địa chỉ RGW kho sao lưu khai theo cell;
+  # ở kind là pod MinIO trong cụm.
+  egressTo: []
+  egressPort: 443
+
+# INF-28 · Bản sao ấm ở TTDL thứ hai (TL-04 "PostgreSQL: CloudNativePG và Barman Cloud", replica cluster; DR-10,
+# DR-16). Bật ở values của cả hai TTDL (cells/<cell>/values-<site>.yaml): mỗi cụm khai cùng một manifest theo
+# distributed topology của CNPG (replica.self, replica.primary, externalClusters cho cả hai TTDL). Cụm nào là
+# primary suy ra từ global.siteRole do ApplicationSet tính từ primarySite trong cells/<cell>/cell.yaml, nên chuyển
+# vùng có kế hoạch là một commit đổi primarySite: CNPG hạ cấp cụm cũ, ghi WAL cuối rồi promote cụm mới.
+replica:
+  enabled: false
+  sites: [hl, sn]
+  # TTDL khởi tạo cụm bằng initdb (giữ cố định sau lần dựng đầu, bootstrap không đổi khi chuyển vùng); TTDL kia
+  # dựng bằng pg_basebackup từ cụm này.
+  initdbSite: hl
+  # Địa chỉ dịch vụ rw của cụm ở từng TTDL, các %s lần lượt: tên cụm, namespace, mã cell, TTDL (TL-04: ví dụ
+  # pg-core-rw.data-pg.cell-hcm-hl.vt.local). Mạng liên TTDL và DNS nội bộ xuất các tên này.
+  hostFormat: "%s-rw.%s.cell-%s-%s.vt.local"
+  # Chứng thư client streaming_replica (do CA của cụm bên kia ký) và CA máy chủ của cụm bên kia, đồng bộ qua
+  # OpenBao PKI (tên Secret: %s là tên cụm, rồi TTDL của CA).
+  replicationSecretFormat: "%s-replication"
+  caSecretFormat: "%s-ca-%s"
+  # Dải địa chỉ node của cụm TTDL kia được mở 5432 tới instance (luồng WAL hai chiều để quay về, DR-16).
+  peerCIDRs: []
+  # Nguồn WAL dự phòng từ kho Barman Cloud (ObjectStore bk-<site>-<cụm> do INF-17 dựng); tắt khi chưa có kho.
+  walArchive:
+    enabled: false
+    objectFormat: "bk-%s-%s"

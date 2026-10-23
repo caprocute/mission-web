@@ -147,6 +147,18 @@ public class ReviewService {
         .toList();
   }
 
+  /**
+   * Thao tác người gọi còn làm được trên hồ sơ (YC-PT-21), cùng điều kiện tách vai với {@link
+   * #returnProfile}, {@link #prepareAppraisal} và {@link #propose}; người nghiệm thu minh chứng chỉ
+   * tra khi cần.
+   */
+  public Set<String> permittedOn(TenantId tenant, ProfileSummary p, UUID actor) {
+    return AppraisalPermittedActions.of(
+        p,
+        actor,
+        () -> acceptors == null ? Set.of() : acceptors.of(tenant, p.periodId(), p.personId()));
+  }
+
   /** Đơn vị, luồng và năm vai đã tham gia hồ sơ để kiểm quyền OPA. */
   @Transactional(transactionManager = TX, readOnly = true)
   public Optional<ReviewParticipants> participants(TenantId tenant, UUID profileId) {

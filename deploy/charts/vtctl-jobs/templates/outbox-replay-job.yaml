@@ -62,6 +62,15 @@ spec:
             {{- else }}
             - --dry-run=true
             {{- end }}
+          {{- if $o.kafkaTLSSecret }}
+          env:
+            - name: KAFKA_TLS_CA_FILE
+              value: /etc/kafka/tls/ca.crt
+            - name: KAFKA_TLS_CERT_FILE
+              value: /etc/kafka/tls/user.crt
+            - name: KAFKA_TLS_KEY_FILE
+              value: /etc/kafka/tls/user.key
+          {{- end }}
           {{- with $o.envFromSecret }}
           envFrom:
             - secretRef:
@@ -76,8 +85,19 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            {{- if $o.kafkaTLSSecret }}
+            - name: kafka-tls
+              mountPath: /etc/kafka/tls
+              readOnly: true
+            {{- end }}
       volumes:
         - name: tmp
           emptyDir:
             sizeLimit: 16Mi
+        {{- with $o.kafkaTLSSecret }}
+        - name: kafka-tls
+          secret:
+            secretName: {{ . }}
+            defaultMode: 0400
+        {{- end }}
 {{- end }}

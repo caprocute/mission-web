@@ -154,6 +154,8 @@ export interface EvidenceVersion {
   /** Quyết định nghiệm thu của phiên bản này, nếu đã có. */
   acceptance?: EvidenceAcceptance | null;
   rowVersion: number;
+  /** Thao tác máy chủ cho phép người gọi làm trên phiên bản này (YC-PT-21). */
+  permittedActions?: readonly string[] | null;
 }
 
 /** Nội dung phiên bản khi lưu nháp (`EvidenceVersionDraft`). */

@@ -45,6 +45,7 @@ import {
   UploadProgress,
   toProblem,
 } from '@vt/api-client';
+import { permittedOn } from '@vt/auth';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { firstValueFrom, of } from 'rxjs';
@@ -123,14 +124,16 @@ const fmtSize = (n?: number | null) =>
               [disabled]="!!busy()"
               (onClick)="save()"
             />
-            <p-button
-              label="Nộp để nghiệm thu"
-              icon="pi pi-send"
-              [loading]="busy() === 'submit'"
-              [disabled]="!!busy() || blockers().length > 0"
-              [attr.aria-describedby]="blockers().length ? 'submit-why' : null"
-              (onClick)="submit()"
-            />
+            @if (canSubmit()) {
+              <p-button
+                label="Nộp để nghiệm thu"
+                icon="pi pi-send"
+                [loading]="busy() === 'submit'"
+                [disabled]="!!busy() || blockers().length > 0"
+                [attr.aria-describedby]="blockers().length ? 'submit-why' : null"
+                (onClick)="submit()"
+              />
+            }
           </div>
         }
       </header>
@@ -151,7 +154,7 @@ const fmtSize = (n?: number | null) =>
         @if (!isLead()) {
           <p class="msg warn">Chỉ người chủ trì nhiệm vụ nộp được minh chứng.</p>
         }
-      } @else if (blockers().length && !busy()) {
+      } @else if (canSubmit() && blockers().length && !busy()) {
         <p class="msg info" id="submit-why">Để nộp: {{ blockers().join('; ') }}.</p>
       }
 
@@ -634,8 +637,16 @@ export class EvidenceSubmitPage {
     const e = this.evidence.value();
     if (!e || !this.can('SCR-0701.soan') || !this.isLead()) return false;
     if (this.isNewVersion()) return true;
-    return e.currentStatus === 'NHAP' && !!this.latest();
+    const v = this.latest();
+    return e.currentStatus === 'NHAP' && !!v && permittedOn(v, 'SCR-0701.soan');
   });
+
+  /** Quyền nộp theo vai trò, cộng điều kiện máy chủ trả trên phiên bản nháp đã lưu (YC-PT-21). */
+  protected readonly canSubmit = computed(
+    () =>
+      this.can('SCR-0701.nop') &&
+      (this.isNewVersion() || permittedOn(this.latest(), 'SCR-0701.nop')),
+  );
 
   protected readonly versionNo = computed(() => {
     const e = this.evidence.value();
@@ -732,7 +743,6 @@ export class EvidenceSubmitPage {
   /** Điều kiện nộp hiển thị sẵn (máy chủ vẫn kiểm lại BR-07-02 … BR-07-04). */
   protected readonly blockers = computed(() => {
     const out: string[] = [];
-    if (!this.can('SCR-0701.nop')) out.push('cần quyền nộp minh chứng');
     const f = this.file();
     if (this.source() === 'VAN_BAN_HE_THONG' ? !this.doc() : !f) {
       out.push(this.source() === 'VAN_BAN_HE_THONG' ? 'chọn văn bản' : 'tải tệp minh chứng');
@@ -897,7 +907,7 @@ export class EvidenceSubmitPage {
   }
 
   protected async submit() {
-    if (this.blockers().length) return;
+    if (!this.canSubmit() || this.blockers().length) return;
     this.busy.set('submit');
     this.reset();
     try {

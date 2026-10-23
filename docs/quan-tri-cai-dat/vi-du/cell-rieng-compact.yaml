@@ -1,0 +1,37 @@
+# Mẫu values riêng của một cell đám mây riêng hồ sơ compact (VH-06). Chép thành deploy/cells/<mã cell>/values.yaml
+# trong kho GitOps nhân bản của khách hàng, đổi "kh01" thành mã cell đã cấp. Chồng sau values-private.yaml và
+# sizing/values-sizing-compact.yaml (TL-05 Phụ lục A: mô hình → hồ sơ → cell). Không ghi mật khẩu, khoá hay địa chỉ
+# máy chủ vào tệp này: bí mật nằm trong OpenBao của cell, ESO đồng bộ thành Secret.
+global:
+  cell: kh01
+  # Compact: một vùng sự cố (TL-05 mục 9.2, ngoại lệ thứ nhất). Tên vùng khớp nhãn topology.kubernetes.io/zone của node.
+  topology:
+    zones: [kh01-a]
+  # Đổi kho ảnh sang Harbor nội bộ nhân bản từ Harbor của Viettel (mo-hinh-dam-may-rieng.md, Bước 2). Ảnh bên thứ ba
+  # đi qua project proxy-cache cùng tên như Harbor của Viettel (deploy/clusters/mgmt/harbor). Đích không được bắt đầu
+  # bằng một tiền tố gốc. Có thể sinh bằng infra/airgap/goi/tools/doi-registry.py --sinh-doi-kho-anh.
+  doiKhoAnh:
+    "harbor.vt.local/": "harbor.kh01.local/"
+    "docker.io/": "harbor.kh01.local/dockerhub/"
+    "adorsys/": "harbor.kh01.local/dockerhub/adorsys/"
+    "quay.io/": "harbor.kh01.local/quay/"
+    "ghcr.io/": "harbor.kh01.local/ghcr/"
+    "registry.k8s.io/": "harbor.kh01.local/k8s-registry/"
+    "cr.fluentbit.io/": "harbor.kh01.local/fluentbit/"
+    "gcr.io/": "harbor.kh01.local/gcr/"
+  featureFlags:
+    # Trợ lý AI tắt khi khách hàng không cấp GPU (TL-05 mục 9.1).
+    aiAssistant: false
+api-gateway:
+  cell: kh01
+cell-base:
+  cell: kh01
+observability-cell:
+  cell: kh01
+ai-gateway:
+  thanhPhan:
+    vllm:
+      enabled: false
+data-pg:
+  # Mỗi tenant silo một CSDL td_<mã tenant>; quy trình đưa tenant vào cell (OPS-07) thêm tên vào danh sách này.
+  tenantDatabases: [td_kh01]

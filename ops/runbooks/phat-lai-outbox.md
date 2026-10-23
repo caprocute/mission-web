@@ -58,6 +58,8 @@ vtctl -e <môi trường> -c <cell> outbox replay --schema task --tenant <uuid-t
   --from 2026-10-20T08:00:00Z --to 2026-10-20T10:30:00Z --reason "INC-2026-1020-slot-lost" --wait 4h --confirm
 ```
 
+Công cụ đọc thông tin nối từ biến môi trường, Job nạp từ Secret khai ở `outboxReplay.envFromSecret`: `DATABASE_URL` (vai trò chỉ đọc có `SELECT` trên `<schema>.outbox_event` và `partman.part_config`; công cụ tự đặt `app.tenant_id` trong từng giao dịch chỉ đọc nên RLS vẫn áp dụng), `KAFKA_BROKERS` (danh sách cách nhau bởi dấu phẩy, chỉ cần khi `--confirm`), và `KAFKA_TLS_CA_FILE`, `KAFKA_TLS_CERT_FILE`, `KAFKA_TLS_KEY_FILE` cho mTLS. Thiếu biến cần thiết thì công cụ dừng với mã 1 và nêu tên biến.
+
 Phương án dự phòng khi chạy công cụ trực tiếp trong pod của cell (lệnh thủ công):
 
 Mặc định `outbox-replay` luôn chạy ở chế độ `--dry-run=true` (không gửi thông điệp lên Kafka, không ghi kiểm toán, chỉ kiểm tra hợp đồng `outbox-sources.yaml` và đếm số bản ghi theo topic và tenant).

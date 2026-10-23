@@ -1,0 +1,5 @@
+apiVersion: v2
+name: global-pg
+description: INF-20 · PostgreSQL toàn cục (CNPG) của vùng điều phối, schema registry của SVC-03 và CSDL của PowerDNS
+type: application
+version: 0.1.0

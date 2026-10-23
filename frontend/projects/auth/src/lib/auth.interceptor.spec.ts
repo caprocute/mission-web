@@ -94,10 +94,15 @@ describe('authInterceptor', () => {
     expect(retry.request.headers.get('Authorization')).toBe('Bearer tok-2');
   });
 
-  it('403: thông báo chung hoặc MSG-00-06; màn hình tự xử lý thì bỏ qua', () => {
+  it('403: thông báo chung chỉ cho thao tác ghi, MSG-00-06 cho mọi request; màn hình tự xử lý thì bỏ qua', () => {
     const { http, ctrl, session } = setup();
     const noop = { error: () => undefined };
-    http.get('/api/v1/a').subscribe(noop);
+    // YC-PT-21: lời gọi đọc bị từ chối không bật thông báo nổi, màn hình hiện lỗi tại chỗ
+    http.get('/api/v1/doc').subscribe(noop);
+    ctrl.expectOne('/api/v1/doc').flush({ status: 403 }, { status: 403, statusText: 'Forbidden' });
+    expect(session.showNotice).not.toHaveBeenCalled();
+
+    http.post('/api/v1/a', {}).subscribe(noop);
     ctrl.expectOne('/api/v1/a').flush({ status: 403 }, { status: 403, statusText: 'Forbidden' });
     expect(session.showNotice).toHaveBeenLastCalledWith({
       severity: 'error',

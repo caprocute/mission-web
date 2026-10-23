@@ -4,7 +4,9 @@ có chữ ký GPG thuộc signatureKeys, nguồn duy nhất là kho GitOps, đí
 release-manager được sync, kể cả sync tay trong cửa sổ đóng băng khi CAB khẩn duyệt.
 */ -}}
 {{- $v := .Values }}
-{{- range $ten, $p := $v.projects }}
+{{- range $goc, $p := $v.projects }}
+{{- if or (ne $goc $v.toanCuc.project) $v.toanCuc.enabled }}
+{{- $ten := printf "%s%s" $goc $v.projectSuffix }}
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -40,8 +42,9 @@ spec:
         - p, proj:{{ $ten }}:{{ $v.releaseManagers.role }}, applications, sync, {{ $ten }}/*, allow
         - p, proj:{{ $ten }}:{{ $v.releaseManagers.role }}, applications, get, {{ $ten }}/*, allow
       groups: {{ toJson $v.releaseManagers.groups }}
+  {{- with concat $v.syncWindows $v.syncWindowsBoSung }}
   syncWindows:
-    {{- range concat $v.syncWindows $v.syncWindowsBoSung }}
+    {{- range . }}
     - kind: {{ .kind }}
       schedule: {{ .schedule | quote }}
       duration: {{ .duration }}
@@ -49,4 +52,6 @@ spec:
       manualSync: {{ .manualSync }}
       timeZone: {{ default "Asia/Ho_Chi_Minh" .timeZone }}
     {{- end }}
+  {{- end }}
+{{- end }}
 {{- end }}

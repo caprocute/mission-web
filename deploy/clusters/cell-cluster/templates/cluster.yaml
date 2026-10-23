@@ -60,15 +60,58 @@ spec:
       kind: OpenStackMachineTemplate
       name: {{ $name }}-cp
   kubeadmConfigSpec:
+    # Tệp chính sách kiểm toán và cấu hình mã hoá etcd đặt lên mọi master trước kubeadm (INF-19, TL-04 mục 9.3).
+    files:
+      - path: /etc/kubernetes/audit-policy.yaml
+        owner: root:root
+        permissions: "0600"
+        content: |
+          {{- $.Files.Get "files/audit-policy.yaml" | nindent 10 }}
+      - path: /etc/kubernetes/encryption-config.yaml
+        owner: root:root
+        permissions: "0600"
+        content: |
+          {{- $.Files.Get "files/encryption-config.yaml" | nindent 10 }}
     clusterConfiguration:
+      # Cờ API server cố định theo kube-bench và TL-04 mục 9.3 (SEC-27, SEC-29, SEC-30, SEC-31).
       apiServer:
         extraArgs:
-          tls-min-version: VersionTLS13
+          anonymous-auth: "false"
+          authorization-mode: Node,RBAC
+          enable-admission-plugins: NodeRestriction
           profiling: "false"
+          audit-policy-file: /etc/kubernetes/audit-policy.yaml
+          audit-log-path: /var/log/kubernetes/audit/audit.log
+          audit-log-maxage: "7"
+          audit-log-maxbackup: "10"
+          audit-log-maxsize: "200"
+          # KMS v2 qua plugin OpenBao Transit (socket /var/run/kms/openbao.sock).
+          encryption-provider-config: /etc/kubernetes/encryption-config.yaml
+          tls-min-version: {{ include "cell-cluster.tlsMin" $v.apiServer.tlsMinVersion }}
+          service-account-lookup: "true"
+          # kubectl của người vận hành: OIDC Keycloak vận hành (realm platform-ops, MFA). Tiền tố "oidc:" tách tên và
+          # nhóm OIDC khỏi system:* (một nhóm Keycloak tên system:masters không thể thành cluster-admin).
+          oidc-issuer-url: {{ include "cell-cluster.req" (list $v.apiServer.oidc.issuerUrl "apiServer.oidc.issuerUrl") }}
+          oidc-client-id: {{ $v.apiServer.oidc.clientId }}
+          oidc-username-claim: preferred_username
+          oidc-groups-claim: groups
+          oidc-username-prefix: "oidc:"
+          oidc-groups-prefix: "oidc:"
+        extraVolumes:
+          - { name: audit-policy, hostPath: /etc/kubernetes/audit-policy.yaml, mountPath: /etc/kubernetes/audit-policy.yaml, readOnly: true, pathType: File }
+          - { name: audit-log, hostPath: /var/log/kubernetes/audit, mountPath: /var/log/kubernetes/audit, readOnly: false, pathType: DirectoryOrCreate }
+          - { name: encryption-config, hostPath: /etc/kubernetes/encryption-config.yaml, mountPath: /etc/kubernetes/encryption-config.yaml, readOnly: true, pathType: File }
+          - { name: kms-socket, hostPath: /var/run/kms, mountPath: /var/run/kms, readOnly: false, pathType: DirectoryOrCreate }
       controllerManager:
-        extraArgs: { profiling: "false" }
+        extraArgs:
+          profiling: "false"
+          terminated-pod-gc-threshold: "1000"
       scheduler:
         extraArgs: { profiling: "false" }
+      etcd:
+        local:
+          extraArgs:
+            cipher-suites: TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
     initConfiguration:
       nodeRegistration:
         kubeletExtraArgs:

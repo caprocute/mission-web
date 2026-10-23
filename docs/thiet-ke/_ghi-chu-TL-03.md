@@ -58,7 +58,7 @@ Bỏ khỏi bản nháp: `appraisal.special_case_flag` (trùng `dossier.special_
 - `product.evidence_version`: `excluded_period_id`, `reuse_justification`, `attested_at`, `doc_*`; `product.acceptance`: `criteria_results`, `revision_cause`, `comment_enc`.
 - `okr.objective`/`key_result`: `ai_assisted`, `risk_flag`, `content_source`…; `okr.kr_checkin`: `status`, `source_value`, `override_reason`.
 - `config.period`: `milestones`, `plan_deadline`; `config.ui_pack_version`: `policy_pack_ref`, `tokens_json`, `assets_json`, `layout_json`, `elder_mode`, `few_steps`.
-- `registry.tenant`: `onboarding_code`, `contract_ref`, `flows`, `expected_accounts`, `account_count`, `kek_ref`; `registry.cell.capacity_accounts`; `registry.tenant_cell.tenancy_model`, `data_region`.
+- `registry.tenant`: `onboarding_code`, `contract_ref`, `flows`, `expected_accounts`, `account_count`, `kek_ref`; `registry.cell.capacity_accounts`; `registry.cell.active_dc` (TTDL đang phục vụ cell, cờ `active_site` của TL-04 mà `dns-sync` đọc; NULL nghĩa là `primary_dc`, CHECK thuộc `primary_dc` hoặc `standby_dc`; migration V4 của SVC-03, INF-20); `registry.tenant_cell.tenancy_model`, `data_region`.
 - `dossier.review_meeting`: `draft_sent_at`, `meeting_at`, `participants_json`, `vote_json`; `oversight.complaint`: `kind`, `targets_json`; `oversight.reopen_request`: `scope_json`, `open_until`, `code`; `flowable.wf_binding`: `scope_json`, `params_json`; `ai.suggestion_log`: `accepted_by`, `edited_fields`, `decision`, `sources_json`.
 - Cột chỉ mục mù `<cột>_bidx` (HMAC-SHA256 cắt 16 byte) cho C2 cần tra cứu bằng.
 

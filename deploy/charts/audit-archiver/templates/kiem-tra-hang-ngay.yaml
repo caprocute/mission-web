@@ -1,0 +1,128 @@
+{{- /*
+INF-24 · TL-04 "Bảng lịch sao lưu", dòng sys.audit.v1: "Kiểm chữ ký và đếm bản ghi hằng ngày". Job chạy
+`audit-archiver kiem-tra`: kiểm chữ ký, chuỗi kê khai, SHA-256 và số bản ghi của các lô trong cửa sổ dailyCheck.window,
+đối chiếu offset nhóm audit-archiver với kê khai cuối và offset đầu log Kafka, đẩy kết quả lên Pushgateway. Sai lệch
+cho mã thoát 1 (job lỗi) và nhật ký mức lỗi gắn canh_bao_an_ninh để luồng SIEM (INF-19) nhận; luật cảnh báo ở
+templates/canh-bao.yaml. Dùng cùng ảnh, tài khoản dịch vụ, ConfigMap và bí mật với Deployment.
+*/ -}}
+{{- $dc := .Values.dailyCheck -}}
+{{- if $dc.enabled }}
+{{- $name := .Values.name | default .Release.Name }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $name }}-kiem-tra
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: kiem-tra
+    app.kubernetes.io/part-of: vt-platform
+spec:
+  schedule: {{ $dc.schedule | quote }}
+  timeZone: {{ $dc.timeZone | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: {{ $dc.activeDeadlineSeconds | int }}
+      ttlSecondsAfterFinished: 604800
+      template:
+        metadata:
+          labels:
+            # Nhãn tên riêng để Service, PDB và NetworkPolicy của Deployment không chọn nhầm pod của job.
+            app.kubernetes.io/name: {{ $name }}-kiem-tra
+            app.kubernetes.io/instance: {{ .Release.Name }}
+            app.kubernetes.io/component: kiem-tra
+        spec:
+          restartPolicy: Never
+          serviceAccountName: {{ $name }}
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            fsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          {{- /* Cùng node pool với Deployment (vt-service.scheduling): pool secure dùng vùng node secure. */}}
+          {{- if eq .Values.nodePool "secure" }}
+          nodeSelector:
+            vt.io/zone: secure
+          tolerations:
+            - { key: vt.io/zone, operator: Equal, value: secure, effect: NoSchedule }
+          {{- else if and .Values.nodePool (ne .Values.nodePool "none") }}
+          nodeSelector:
+            vt.io/pool: {{ .Values.nodePool }}
+          {{- end }}
+          containers:
+            - name: kiem-tra
+              image: "{{ .Values.image.repository }}@{{ .Values.image.digest }}"
+              imagePullPolicy: IfNotPresent
+              args: ["kiem-tra", "-cua-so={{ $dc.window }}"]
+              envFrom:
+                - configMapRef:
+                    name: {{ $name }}
+              resources:
+                {{- toYaml $dc.resources | nindent 16 }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - { name: tmp, mountPath: /tmp }
+                {{- toYaml .Values.extraVolumeMounts | nindent 16 }}
+          volumes:
+            - name: tmp
+              emptyDir: { sizeLimit: 64Mi }
+            {{- toYaml .Values.extraVolumes | nindent 12 }}
+---
+# Pod của job không nhận kết nối nào; chỉ ra DNS, Kafka, OpenBao, kho sao lưu (qua egress gateway) và Pushgateway.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $name }}-kiem-tra
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}-kiem-tra
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}-kiem-tra
+  policyTypes: ["Ingress", "Egress"]
+  ingress: []
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    {{- range .Values.networkPolicy.egressTo }}
+    - to:
+        {{- if .ipBlock }}
+        - ipBlock: {{ toYaml .ipBlock | nindent 12 }}
+        {{- else }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .namespace }} } }
+          {{- with .podLabels }}
+          podSelector: { matchLabels: {{ toJson . }} }
+          {{- end }}
+        {{- end }}
+      ports:
+        {{- range .ports }}
+        - { protocol: {{ .protocol | default "TCP" }}, port: {{ .port }} }
+        {{- end }}
+    {{- end }}
+    {{- with $dc.pushgateway }}
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .namespace }} } }
+          podSelector: { matchLabels: {{ toJson .podLabels }} }
+      ports:
+        - { protocol: TCP, port: {{ .port }} }
+    {{- end }}
+{{- end }}

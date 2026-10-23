@@ -26,6 +26,7 @@ const KET_QUA: Record<string, string> = {
 
 export default class BaoCaoHeThong implements Reporter {
   private readonly dong: Dong[] = [];
+  constructor(private readonly options: { tep?: string } = {}) {}
 
   onTestEnd(test: TestCase, result: TestResult): void {
     const ann = (t: string) =>
@@ -42,8 +43,12 @@ export default class BaoCaoHeThong implements Reporter {
       giay: Math.round(result.duration / 100) / 10,
       cho,
       requestId: ann('x-request-id'),
-      conLai: ann('du-lieu-con-lai'),
-      loi: result.error?.message?.split('\n')[0]?.replace(/\u001b\[[0-9;]*m/g, '') ?? null,
+      conLai: [
+        ...ann('do-dac'),
+        ...ann('du-lieu-con-lai'),
+        ...ann('khong-ap-dung').map((k) => `Chưa kiểm: ${k}`),
+      ],
+      loi: result.error?.message?.split('\n')[0]?.replace(new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g'), '') ?? null,
     });
   }
 
@@ -52,7 +57,9 @@ export default class BaoCaoHeThong implements Reporter {
     const dem = (k: string) => this.dong.filter((d) => d.ketQua === k).length;
     const o = (s: string) => s.replaceAll('|', '\\|');
     const lines = [
-      '# Kiểm thử đầu cuối trên hệ thống thật',
+      this.options.tep?.includes('gia-lap')
+        ? '# Hành trình đầu cuối trên dữ liệu giả lập'
+        : '# Kiểm thử đầu cuối trên hệ thống thật',
       '',
       `Thời điểm: ${new Date().toISOString()}. Tổng kết: ${result.status}; ${this.dong.length} hành trình, ` +
         `${dem('Đạt')} đạt, ${dem('Không đạt') + dem('Quá thời gian')} không đạt, ${dem('Chờ')} chờ việc khác.`,
@@ -72,7 +79,7 @@ export default class BaoCaoHeThong implements Reporter {
     ];
     const dir = join(__dirname, '..', '..', '..', 'dist', 'e2e-ket-qua');
     mkdirSync(dir, { recursive: true });
-    const file = join(dir, 'bao-cao-he-thong.md');
+    const file = join(dir, this.options.tep ?? 'bao-cao-he-thong.md');
     writeFileSync(file, lines.join('\n'));
     console.log(`\nBáo cáo hệ thống thật: ${file}`);
   }

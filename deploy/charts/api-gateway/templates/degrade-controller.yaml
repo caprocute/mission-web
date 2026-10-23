@@ -24,6 +24,8 @@ data:
   p{{ $class }}-{{ $level }}.json: {{ $list | toJson | quote }}
   {{- end }}
   {{- end }}
+{{- /* INF-25: external=true thì bộ điều khiển Go của chart degrade-controller dùng ConfigMap trên, không chạy bản Python. */ -}}
+{{- if not $c.external }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -178,5 +180,6 @@ spec:
       interval: 15s
       relabelings:
         - { targetLabel: cell, replacement: {{ $v.cell | quote }} }
+{{- end }}
 {{- end }}
 {{- end }}

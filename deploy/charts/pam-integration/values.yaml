@@ -1,0 +1,283 @@
+# Tích hợp PAM của cell (INF-27; TL-04 mục 9.3 "RBAC (SEC-29)", "DBA không đọc được dữ liệu C2 (SEC-58)", mục 9.7
+# bảng cấp độ 4 "PAM có ghi phiên" SEC-42, "SOC và SIEM" SEC-43; ngân sách kết nối quản trị mục 4, C_admin = 10).
+# Chart trung lập với sản phẩm PAM: mọi địa chỉ, định danh và tham số của sản phẩm nằm ở khối pam dưới đây; thay sản
+# phẩm chỉ đổi values. Chart không tự cấp quyền: binding có thời hạn do PAM tạo, chart chỉ ràng buộc hợp đồng (chính
+# sách nhập), kiểm chứng "không có cửa sau" và thu hồi binding PAM đã quá hạn (chỉ giảm quyền, không bao giờ cấp).
+# Không ghi bí mật, địa chỉ hay tên máy thật vào tệp này (dùng *.vt.local).
+cell: g4
+
+# Namespace chạy hai CronJob quét (Pod Security restricted, mặc định từ chối mọi chiều).
+namespace: pam-kiem-soat
+
+images:
+  # Cùng digest ảnh Python chính thức mà api-gateway dùng (qua proxy-cache Harbor, SEC-55); script chỉ dùng thư viện
+  # chuẩn (urllib, json, ssl), không cài thêm gói.
+  python:
+    repository: harbor.vt.local/dockerhub/library/python
+    digest: sha256:1b668429b3511ab407d8e00648891631b0b1a4d7e15e3ca70f38ab5b91ad4ab4
+  # Ảnh PostgreSQL nội bộ có psql (cùng ảnh Job cấp quyền của data-pg, INF-11).
+  postgresql:
+    repository: harbor.vt.local/platform/postgresql
+    digest: sha256:a62c149a342b2b1955dda3a9d75e2c6851622e43302a577f393271c19a3c8622
+
+# Tham số của sản phẩm PAM. Luồng điều phối đã chốt Warpgate (Apache-2.0) ngày 23/10/2026 theo YC-PT-18 (wiki 14);
+# chart vẫn trung lập: khối warpgate bên dưới tắt được để thay sản phẩm khác theo cùng hợp đồng.
+pam:
+  # Tên sản phẩm chỉ để ghi nhận trong ConfigMap hợp đồng; không đổi hành vi chart.
+  sanPham: warpgate
+  # Định danh PAM dùng gọi API server để tạo và xoá binding có thời hạn. Mặc định là tài khoản dịch vụ OIDC của client
+  # pam-broker trong realm platform-ops (Keycloak đặt tên service-account-<client>, API server gắn tiền tố "oidc:").
+  broker:
+    subjects:
+      - { kind: User, name: "oidc:service-account-pam-broker" }
+  # Máy proxy ghi phiên của PAM ở ngoài cụm (dải địa chỉ khai theo cell); dùng cho NetworkPolicy tới CSDL. Để trống
+  # thì không mở đường nào cho PAM tới CSDL.
+  proxyCIDRs: []
+  # Nếu PAM chạy trong cụm: namespace và nhãn pod của proxy ghi phiên (Warpgate của chart tự được thêm khi bật).
+  proxyInCluster: { namespace: "", podLabels: {} }
+  # Nhóm người duyệt (Keycloak platform-ops) mà PAM phải cấu hình; chart chỉ ghi vào ConfigMap hợp đồng.
+  nhomDuyet:
+    debug-app: [platform-ops-truong-ca]
+    operate-data: [platform-ops-truong-dba]
+    platform-admin: [platform-ops-truong-ca, platform-ops-an-ninh]
+    pha-kinh-csdl: [platform-ops-an-ninh, khach-hang-nguoi-duyet]
+  # Đích sự kiện PAM: syslog RFC 5424 qua TLS tới otel-siem (INF-19), chuẩn hoá ECS sang sys.siem.v1.
+  siem:
+    syslog: otel-siem.observability.svc:6514
+    # SD-ID của dữ liệu có cấu trúc (32473 là số doanh nghiệp IANA dành cho tài liệu, RFC 5612; thay khi có số thật).
+    sdId: vtpam@32473
+  # Lưu bản ghi phiên: 1 năm, bất biến (SEC-42, SEC-44): bucket RGW có Object Lock chế độ compliance.
+  ghiPhien:
+    luuNgay: 365
+    bucket: pam-ghi-phien
+    endpoint: https://rgw.vt.local
+    objectLock: compliance
+
+# Hợp đồng binding có thời hạn (khớp ops/runbooks/an-ninh-pam-rbac.md của INF-19 và mở rộng thêm chú thích duyệt).
+hopDong:
+  # Vai trò PAM được cấp (security-cell, nhãn vt.io/cap-phat: pam-4h); không có vai trò nào khác được cấp qua PAM.
+  vaiTroPam: [debug-app, operate-data, platform-admin]
+  # Vai trò chỉ được gán bằng ClusterRoleBinding (toàn cụm); hai vai trò còn lại chỉ bằng RoleBinding theo vùng.
+  vaiTroToanCum: [platform-admin]
+  # Vùng namespace cho RoleBinding của từng vai trò (cell-base, TL-04 mục 3.5).
+  vungNamespace:
+    debug-app: [core, identity, platform, workers, analytics]
+    operate-data: [data-pg, data-kafka, data-search]
+  thoiHanToiDa: 4h
+  # Số người duyệt tối thiểu theo vai trò (TL-04 mục 9.3: platform-admin hai người duyệt).
+  soNguoiDuyet: { debug-app: 1, operate-data: 1, platform-admin: 2 }
+  # Lệch đồng hồ cho phép giữa chú thích vt.io/cap-luc và creationTimestamp.
+  lechDongHo: 10m
+  tienToTen: pam-
+  nhan: { vt.io/cap-phat: pam }
+  chuThich:
+    yeuCau: vt.io/pam-yeu-cau
+    nguoiYeuCau: vt.io/nguoi-yeu-cau
+    nguoiDuyet: vt.io/nguoi-duyet
+    capLuc: vt.io/cap-luc
+    hetHan: vt.io/het-han
+    phien: vt.io/pam-phien
+
+# Chính sách nhập (ValidatingAdmissionPolicy, API gốc Kubernetes ≥ 1.30, không cần webhook): binding tới vai trò PAM
+# hoặc cluster-admin chỉ được tạo bởi định danh broker và phải đủ hợp đồng. Áp cả với system:masters, nên cũng chặn
+# tạo tay bằng admin.conf; phá kính dùng thẳng admin.conf, không cần tạo binding.
+admission:
+  enabled: true
+  # Deny ở cụm thật; Audit chỉ dùng trong giai đoạn chuyển đổi (ghi chú thích kiểm toán, không chặn).
+  validationActions: [Deny]
+  vaiTroBaoVe: [debug-app, operate-data, platform-admin, cluster-admin]
+  # Định danh hệ thống được bỏ qua: kube-apiserver tự đối soát binding mặc định (bootstrap RBAC) qua loopback.
+  boQuaNguoiDung: ["system:apiserver"]
+
+# Quét RBAC "không có cửa sau" và thu hồi binding PAM quá hạn.
+quetRbac:
+  enabled: true
+  schedule: "*/10 * * * *"
+  # Vai trò coi là đặc quyền ngoài danh sách PAM. Script còn tự coi là đặc quyền mọi ClusterRole có nhãn
+  # vt.io/cap-phat=pam-4h, có quy tắc "*" trên "*", hay có động từ escalate, bind, impersonate, hoặc pods/exec,
+  # pods/attach, pods/portforward, nodes/proxy, đọc secrets.
+  vaiTroDacQuyen: [cluster-admin, admin, edit, debug-app, operate-data, platform-admin]
+  # Binding hệ thống được phép: tên (regex) và mọi chủ thể (regex trên "Kind:namespace/tên") đều phải khớp.
+  choPhep:
+    - { ten: "^cluster-admin$", chuThe: "^Group:/system:masters$" }
+    - { ten: "^system:", chuThe: "^(Group:/system:.*|User:/system:.*|ServiceAccount:kube-system/.*)$" }
+    - { ten: "^kubeadm:", chuThe: "^(Group:/(kubeadm:|system:).*|ServiceAccount:kube-system/.*)$" }
+    # Argo CD: tài khoản dịch vụ, không người dùng (TL-04 bảng vai trò).
+    - { ten: "^argocd-", chuThe: "^ServiceAccount:argocd/argocd-.*$" }
+    # Operator nền tảng cài qua GitOps.
+    - { ten: "^(cnpg|strimzi|cert-manager|external-secrets|kyverno|cilium|istio|keda|kured|falco)", chuThe: "^ServiceAccount:(cnpg-system|data-kafka|cert-manager|external-secrets|kyverno|kube-system|istio-system|keda|platform-privileged)/.*$" }
+    # Binding của chính chart này (vt-pam-broker, vt-pam-quet-rbac) được template tự thêm, khớp đúng chủ thể khai ở
+    # pam.broker.subjects và ServiceAccount của CronJob quét.
+  # Thu hồi binding mang nhãn PAM đã quá vt.io/het-han cộng ân hạn (PAM thật lẽ ra đã xoá). Chỉ xoá binding PAM quá
+  # hạn; binding cửa sau không do PAM tạo chỉ báo động (SOC xử lý theo runbook), không tự xoá.
+  thuHoiQuaHan: true
+  anHan: 5m
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+# Quét vai trò CSDL: vai trò đọc được bảng nghiệp vụ ngoài vai trò dịch vụ và phá kính; ngân sách kết nối quản trị.
+quetCsdl:
+  enabled: true
+  schedule: "*/15 * * * *"
+  # Cụm CNPG cần quét. secretRef: Secret (ExternalSecret từ OpenBao) chứa username, password của vai trò quét
+  # pam_quet (thành viên pg_monitor, không đọc bảng nghiệp vụ). Kết nối thẳng dịch vụ -rw, TLS verify-full.
+  clusters:
+    - { name: pg-core, namespace: data-pg, schemas: [config, policy, okr, task, product, appraisal, dossier, oversight, org_replica] }
+    - { name: pg-flowable, namespace: data-pg, schemas: [flowable] }
+    - { name: pg-platform, namespace: data-pg, schemas: [org, scoring, evidence, docgen, notify, integ] }
+    - { name: pg-iam, namespace: data-pg, schemas: [iam] }
+    - { name: pg-ledger, namespace: secure-data, schemas: [ledger] }
+    - { name: pg-secure, namespace: secure-data, schemas: [esign, ai] }
+  secretRef: { nameTemplate: "%s-pam-quet" }
+  # ESO đọc mật khẩu pam_quet (static role OpenBao, xoay 24 giờ) bằng SecretStore riêng của namespace quét, đăng nhập
+  # auth kubernetes vai trò pam-quet (files/openbao/cau-hinh-pam.sh). Tắt khi Secret do cách khác cung cấp.
+  externalSecret:
+    enabled: true
+    server: https://openbao.secure-data.svc:8200
+    authMount: k8s-cell-g4
+    role: pam-quet
+    # ConfigMap chứa CA của OpenBao (khoá ca.crt) trong namespace quét, do trust-manager hoặc ESO phân phối.
+    caConfigMap: openbao-ca
+    refreshInterval: 1h
+  # Secret CA của từng cụm do CNPG sinh (<cụm>-ca, khoá ca.crt); phải có trong namespace quét (ESO hoặc trust-manager
+  # chép sang, xem ops/runbooks/pam-cap-quyen.md mục chuẩn bị).
+  caSecretTemplate: "%s-ca"
+  # Vai trò được đọc bảng nghiệp vụ hợp lệ: bốn vai trò theo schema của TL-03 (svc_, ro_, mig_, cdc_).
+  vaiTroDichVu: "^(svc|ro|mig|cdc)_[a-z_]+$"
+  # Người dùng động do OpenBao tạo (username_template mặc định "v-<tên hiển thị>-<vai trò>-..."), luôn có VALID UNTIL.
+  nguoiDungDong: "^v-"
+  # Siêu người dùng được phép (CNPG tạo postgres, chỉ nối cục bộ khi enableSuperuserAccess tắt).
+  sieuNguoiDung: [postgres]
+  # Ngoại lệ có ghi danh, có hạn (YYYY-MM-DD), mỗi mục { vaiTro, denNgay, lyDo }; merge request cần người phụ trách
+  # an ninh duyệt. Ngoại lệ tạm cho bao_admin đã gỡ (23/10/2026): data-pg cấp svc_<schema> cho bao_admin chỉ với
+  # ADMIN (INHERIT FALSE, SET FALSE) nên bao_admin không còn đọc được bảng nghiệp vụ.
+  ngoaiLe: []
+  # Ngân sách kết nối quản trị qua PAM mỗi cụm (TL-04 mục 4, C_admin).
+  nganSachKetNoi: 10
+  resources:
+    requests: { cpu: 20m, memory: 32Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+# Vai trò CSDL quản trị (SEC-58): dba_ops không SELECT bảng nghiệp vụ; dba_pha_kinh_doc là vai trò đọc của phá kính,
+# chỉ cấp cho người dùng động 2 giờ qua OpenBao khi PAM đủ hai người duyệt. SQL ở files/sql/vai-tro-dba.sql, chart
+# đưa vào ConfigMap trong namespace của cụm để CNPG postInitSQLRefs (INF-11) hoặc DBA chạy qua phiên PAM.
+vaiTroCsdl:
+  dbaOps: dba_ops
+  phaKinh: dba_pha_kinh_doc
+  thoiHanPhaKinh: 2h
+  thoiHanDbaOps: 4h
+  # Giới hạn kết nối của từng người dùng động (cộng với cảnh báo theo cụm ở nganSachKetNoi).
+  ketNoiMoiNguoi: 2
+
+# OpenBao (INF-13): vai trò database engine cho dba_ops và phá kính, chính sách cho broker PAM và quản trị khoá qua PAM.
+# Script files/openbao/cau-hinh-pam.sh chạy sau deploy/openbao/cau-hinh.sh (cùng biến CELL, PG_CLUSTERS).
+openbao:
+  configMap: true
+
+# Warpgate 0.30.0 (Apache-2.0): proxy ghi phiên SSH, kubectl, psql (SEC-42). Bản tối thiểu, một bản sao (CSDL SQLite
+# trên PVC; nhiều bản sao cần database_url PostgreSQL, xem wiki 12). Hai người duyệt và RoleBinding có thời hạn vẫn
+# ở tầng Kubernetes (chính sách nhập và CronJob của chart này), không dùng phê duyệt riêng của Warpgate.
+warpgate:
+  enabled: true
+  namespace: pam
+  image:
+    # Bản ổn định mới nhất trên ghcr.io/warp-tech/warpgate lúc chốt (thẻ 0.30.0, digest của image index), qua
+    # proxy-cache ghcr của Harbor (SEC-55).
+    repository: harbor.vt.local/ghcr/warp-tech/warpgate
+    tag: 0.30.0
+    digest: sha256:8d0899c48c7dae1833d0ff1af4f47417bd7324fa7dad15aa4a727cb83d598ec6
+  # Tên miền người dùng gõ (cookie, đường dẫn bản ghi phiên); chứng thư máy chủ cấp cho tên này.
+  externalHost: warpgate.vt.local
+  cong: { http: 8888, ssh: 2222, kubernetes: 8443, postgres: 55432 }
+  service:
+    type: ClusterIP
+    annotations: {}
+  # Chứng thư máy chủ (HTTPS, kubectl, PostgreSQL) và chứng thư máy khách gửi SIEM (otel-siem đòi mTLS), PKI của cell.
+  issuerRef: { kind: ClusterIssuer, name: openbao-pki-cell }
+  # SSO OIDC tới Keycloak realm platform-ops (cùng realm API server dùng). client_secret lấy từ Secret (ESO dựng từ
+  # OpenBao), chèn vào cấu hình lúc khởi động; không ghi vào values hay ConfigMap.
+  sso:
+    name: keycloak-platform-ops
+    label: Đăng nhập bằng tài khoản vận hành
+    issuerUrl: https://sso-ops.vt.local/realms/platform-ops
+    clientId: warpgate
+    clientSecretRef: { name: warpgate-oidc, key: client-secret }
+    scopes: [openid, email, profile]
+    # Nhóm Keycloak trong claim groups → vai trò Warpgate (vai trò Warpgate chỉ mở quyền vào mục tiêu; quyền thật trên
+    # cụm hay CSDL vẫn do binding có thời hạn và người dùng động OpenBao quyết định).
+    rolesClaim: groups
+    roleMappings:
+      platform-ops-sre: [pam-kubectl, pam-ssh]
+      platform-ops-dba: [pam-psql]
+    adminRoleMappings:
+      platform-ops-an-ninh: [warpgate:admin]
+  # Lưu bản ghi phiên trên PVC (ghi lần đầu vào CSDL Warpgate; sao chép sang bucket bất biến theo pam.ghiPhien là
+  # việc của vận hành, xem wiki 12). Nhật ký trong CSDL: 7 ngày, kiểm toán 365 ngày (SEC-42).
+  luuTru: { size: 50Gi, storageClassName: "" }
+  log: { retention: 7days, auditRetention: 365days }
+  # Kho bí mật của Warpgate (secret backend kiểu openbao, chỉ đọc KV v2): đăng nhập auth kubernetes của OpenBao bằng
+  # ServiceAccount warpgate, vai trò và chính sách do files/openbao/cau-hinh-pam.sh tạo (chỉ đọc kv/warpgate/*).
+  khoBiMat:
+    name: openbao-cell
+    address: https://openbao.secure-data.svc:8200
+    authMount: k8s-cell-g4
+    role: warpgate
+    allowedPaths: [kv/warpgate]
+  # Mục tiêu (không nằm trong tệp cấu hình Warpgate, lưu trong CSDL): options theo lược đồ TargetDataRequest của API
+  # quản trị 0.30 (POST /@warpgate/admin/api/targets), vaiTro gắn sau bằng /targets/{id}/roles/{role_id}. Mật khẩu,
+  # khoá, token là tham chiếu secret://<kho>/<mount>/<đường dẫn>#<trường> tới KV của OpenBao, không có giá trị.
+  mucTieu:
+    - name: kubectl-g4
+      description: API server cell g4
+      vaiTro: [pam-kubectl]
+      options:
+        kind: Kubernetes
+        cluster_url: https://api.g4.vt.local:6443
+        tls: { mode: Required, verify: true }
+        auth: { kind: Token, token: "secret://openbao-cell/kv/warpgate/kubectl-g4#token" }
+    - name: ssh-node-g4
+      description: Node của cell g4 (khẩn cấp)
+      vaiTro: [pam-ssh]
+      options:
+        kind: Ssh
+        host: node-01.g4.vt.local
+        port: 22
+        username: van-hanh
+        allow_insecure_algos: false
+        auth: { kind: PublicKey }
+    - name: psql-pg-core
+      description: pg-core (dba_ops, không đọc bảng nghiệp vụ)
+      vaiTro: [pam-psql]
+      options:
+        kind: Postgres
+        host: pg-core-rw.data-pg.svc
+        port: 5432
+        username: dba_ops_warpgate
+        auth: { kind: Password, password: "secret://openbao-cell/kv/warpgate/psql-pg-core#password" }
+        tls: { mode: Required, verify: true }
+        protocol_version: "3.0"
+        default_database_name: khoi_tao
+  # Cầu nối nhật ký: Warpgate gửi từng sự kiện JSON qua socket datagram Unix (log.send_to); sidecar chuyển sự kiện
+  # kiểm toán sang syslog RFC 5424 SD-ID pam.siem.sdId qua TLS tới otel-siem (pam.siem.syslog). Ảnh Python dùng chung.
+  cauNoi:
+    hangDoiToiDa: 10000
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+      limits: { cpu: 100m, memory: 96Mi }
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 1Gi }
+  # Đường vào: dải máy của người vận hành (VPN, máy nhảy) tới các cổng của Warpgate. Để trống thì không ai vào được.
+  nguonCIDRs: []
+  # Đường ra (ngoài DNS, CSDL trong cụm, OpenBao và otel-siem): API server, SSH tới node, Keycloak platform-ops.
+  dich:
+    apiServerCIDRs: []
+    sshCIDRs: []
+    keycloakCIDRs: []
+
+pushgateway:
+  url: http://pushgateway.observability.svc:9091
+
+alerts:
+  enabled: true

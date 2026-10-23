@@ -10,7 +10,8 @@ import {
   ProblemPresenter,
   UserPreferenceItem,
 } from '@vt/api-client';
-import { SessionService } from '@vt/auth';
+import { PermissionKey, PermissionService, SessionService } from '@vt/auth';
+import { NAV, SECTION_KEYS } from '../layout/nav';
 import { SduiNodeComponent, SduiOutletComponent, UiPackLoader } from '@vt/sdui-renderer';
 import { ButtonModule } from 'primeng/button';
 import {
@@ -45,62 +46,86 @@ const HOME_KEY = 'ui.home.layout';
         <span class="vt-hero-kicker">Bàn làm việc điều hành · Kỳ đánh giá 2026</span>
         <h1>Xin chào, {{ fullName() }}</h1>
         <p class="muted">
-          Dưới đây là những việc đồng chí cần quan tâm hôm nay và lối tắt tới khung cấu hình nền
-          tảng.
+          Dưới đây là những việc đồng chí cần quan tâm hôm nay{{
+            shortcuts().platform ? ' và lối tắt tới khung cấu hình nền tảng' : ''
+          }}.
         </p>
       </div>
-      <div class="hero-actions">
-        <a routerLink="/config-studio" class="hero-btn hero-btn--primary">
-          <i class="pi pi-sliders-h" aria-hidden="true"></i>
-          <span>Khung cấu hình &amp; Luồng động</span>
-        </a>
-        <a routerLink="/admin" class="hero-btn hero-btn--ghost">
-          <i class="pi pi-cog" aria-hidden="true"></i>
-          <span>Quản trị nền tảng</span>
-        </a>
-      </div>
+      @if (shortcuts().configStudio || shortcuts().admin) {
+        <div class="hero-actions">
+          @if (shortcuts().configStudio) {
+            <a routerLink="/config-studio" class="hero-btn hero-btn--primary">
+              <i class="pi pi-sliders-h" aria-hidden="true"></i>
+              <span>Khung cấu hình &amp; Luồng động</span>
+            </a>
+          }
+          @if (shortcuts().admin) {
+            <a routerLink="/admin" class="hero-btn hero-btn--ghost">
+              <i class="pi pi-cog" aria-hidden="true"></i>
+              <span>Quản trị nền tảng</span>
+            </a>
+          }
+        </div>
+      }
     </header>
 
-    <section class="platform-strip" aria-label="Khung nền tảng cấu hình và quản trị">
-      <div class="strip-head">
-        <span class="strip-badge">KHUNG NỀN TẢNG LÕI</span>
-        <strong>Các phân hệ nền tảng vận hành hệ thống</strong>
-      </div>
-      <div class="platform-cards">
-        <a routerLink="/config-studio" class="p-card">
-          <span class="p-icon p-icon--rose" aria-hidden="true"><i class="pi pi-sitemap"></i></span>
-          <span class="p-copy">
-            <strong>Chính sách &amp; Luồng quy trình động</strong>
-            <small
-              >Thiết kế quy trình phê duyệt, công thức điểm và bảng xếp loại QĐ 366-QĐ/TW</small
-            >
-          </span>
-        </a>
-        <a routerLink="/admin/org" class="p-card">
-          <span class="p-icon p-icon--blue" aria-hidden="true"><i class="pi pi-building"></i></span>
-          <span class="p-copy">
-            <strong>Cây tổ chức &amp; Đồng bộ nhân sự</strong>
-            <small>Quản lý cơ cấu đơn vị đa cấp và đối soát dữ liệu cán bộ</small>
-          </span>
-        </a>
-        <a routerLink="/admin/access" class="p-card">
-          <span class="p-icon p-icon--amber" aria-hidden="true"><i class="pi pi-shield"></i></span>
-          <span class="p-copy">
-            <strong>Phân quyền &amp; Ủy quyền xử lý</strong>
-            <small>Cấp vai trò theo đơn vị và thiết lập ủy quyền duyệt thay có thời hạn</small>
-          </span>
-        </a>
-        <a routerLink="/tasks" class="p-card">
-          <span class="p-icon p-icon--emerald" aria-hidden="true"
-            ><i class="pi pi-check-square"></i
-          ></span>
-          <span class="p-copy">
-            <strong>Không gian công việc &amp; Mục tiêu OKR</strong>
-            <small>Xử lý nhiệm vụ hằng ngày trong ≤ 3 chạm và cập nhật tiến độ kết quả</small>
-          </span>
-        </a>
-      </div>
-    </section>
+    <!-- YC-PT-21: thẻ lối tắt chỉ hiện khi vai trò vào được tuyến đích (cùng khoá với guard) -->
+    @if (shortcuts().platform) {
+      <section class="platform-strip" aria-label="Khung nền tảng cấu hình và quản trị">
+        <div class="strip-head">
+          <span class="strip-badge">KHUNG NỀN TẢNG LÕI</span>
+          <strong>Các phân hệ nền tảng vận hành hệ thống</strong>
+        </div>
+        <div class="platform-cards">
+          @if (shortcuts().configStudio) {
+            <a routerLink="/config-studio" class="p-card">
+              <span class="p-icon p-icon--rose" aria-hidden="true"
+                ><i class="pi pi-sitemap"></i
+              ></span>
+              <span class="p-copy">
+                <strong>Chính sách &amp; Luồng quy trình động</strong>
+                <small
+                  >Thiết kế quy trình phê duyệt, công thức điểm và bảng xếp loại QĐ 366-QĐ/TW</small
+                >
+              </span>
+            </a>
+          }
+          @if (shortcuts().org) {
+            <a routerLink="/admin/org" class="p-card">
+              <span class="p-icon p-icon--blue" aria-hidden="true"
+                ><i class="pi pi-building"></i
+              ></span>
+              <span class="p-copy">
+                <strong>Cây tổ chức &amp; Đồng bộ nhân sự</strong>
+                <small>Quản lý cơ cấu đơn vị đa cấp và đối soát dữ liệu cán bộ</small>
+              </span>
+            </a>
+          }
+          @if (shortcuts().access) {
+            <a routerLink="/admin/access" class="p-card">
+              <span class="p-icon p-icon--amber" aria-hidden="true"
+                ><i class="pi pi-shield"></i
+              ></span>
+              <span class="p-copy">
+                <strong>Phân quyền &amp; Ủy quyền xử lý</strong>
+                <small>Cấp vai trò theo đơn vị và thiết lập ủy quyền duyệt thay có thời hạn</small>
+              </span>
+            </a>
+          }
+          @if (shortcuts().tasks) {
+            <a routerLink="/tasks" class="p-card">
+              <span class="p-icon p-icon--emerald" aria-hidden="true"
+                ><i class="pi pi-check-square"></i
+              ></span>
+              <span class="p-copy">
+                <strong>Không gian công việc &amp; Mục tiêu OKR</strong>
+                <small>Xử lý nhiệm vụ hằng ngày trong ≤ 3 chạm và cập nhật tiến độ kết quả</small>
+              </span>
+            </a>
+          }
+        </div>
+      </section>
+    }
 
     <section class="home-widgets" aria-labelledby="home-widgets-title">
       <div class="home-tools">
@@ -395,10 +420,25 @@ const HOME_KEY = 'ui.home.layout';
 })
 export class HomePage {
   private readonly session = inject(SessionService);
+  private readonly permissions = inject(PermissionService);
   private readonly api = inject(PreferenceApi);
   private readonly loader = inject(UiPackLoader);
   private readonly presenter = inject(ProblemPresenter);
   protected readonly fullName = computed(() => this.session.user()?.name ?? '');
+  /** Lối tắt trên trang chủ: dùng đúng khoá của mục menu và guard tuyến đích (YC-PT-21). */
+  protected readonly shortcuts = computed(() => {
+    const can = (...keys: PermissionKey[]) => this.permissions.canAny(...keys);
+    const tasks = NAV.find((i) => i.link === '/tasks')?.perms ?? SECTION_KEYS.tasks;
+    const s = {
+      configStudio: can(...SECTION_KEYS.configStudio),
+      admin: can(...SECTION_KEYS.admin),
+      org: can(...SECTION_KEYS.admin) && can('SCR-0103.xem'),
+      access: can(...SECTION_KEYS.admin) && can('SCR-0105.xem'),
+      tasks: can(...tasks),
+    };
+    // Dải "Khung nền tảng" chỉ hiện khi có ít nhất một lối tắt cấu hình hoặc quản trị
+    return { ...s, platform: s.configStudio || s.org || s.access };
+  });
 
   protected readonly layout = rxResource({ stream: () => this.api.homeLayout() });
   protected readonly editing = signal(false);

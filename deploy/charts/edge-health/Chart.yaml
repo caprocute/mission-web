@@ -1,0 +1,5 @@
+apiVersion: v2
+name: edge-health
+description: INF-20 · đích kiểm tra sức khoẻ /healthz/edge của cell và của vùng điều phối toàn cục
+type: application
+version: 0.1.0

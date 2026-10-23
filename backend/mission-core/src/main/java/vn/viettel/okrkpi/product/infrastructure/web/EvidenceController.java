@@ -375,6 +375,7 @@ public class EvidenceController {
     TenantId tenant = TenantContext.require();
     VersionDetail v = found(() -> service.getVersion(tenant, id, versionNo));
     EvidenceVersion dto = version(v);
+    dto.permittedActions(reviews.permittedOn(tenant, v.version(), actor().personId()));
     if (v.version().hasE2ee()) {
       dto.setKeyWrap(
           keyWraps

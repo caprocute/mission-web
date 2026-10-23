@@ -3,7 +3,8 @@ Cấp quyền theo TL-03 "Không truy cập chéo và quyền tối thiểu": ch
 qua TLS verify-full tới <cụm>-rw, nên không cần superuser. Quyền riêng từng bảng (bảng nhật ký chỉ ghi thêm,
 SELECT outbox_event cho cdc_) thuộc migration Flyway của service. Chạy lại an toàn (GRANT/REVOKE lũy đẳng).
 */}}
-{{- if .Values.grantsJob.enabled }}
+{{- /* INF-28: không chạy ở TTDL chờ (bản sao chỉ đọc); quyền đến từ WAL. */}}
+{{- if and .Values.grantsJob.enabled (not (fromYaml (include "data-pg.replica" .)).standby) }}
 {{- $root := . }}
 {{- $v := .Values }}
 {{- $cums := fromYaml (include "data-pg.clusters" .) }}

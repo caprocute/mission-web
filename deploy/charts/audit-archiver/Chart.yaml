@@ -1,0 +1,10 @@
+apiVersion: v2
+name: audit-archiver
+description: 'INF-24 audit-archiver: chuyển nhật ký kiểm toán sys.audit.v1 sang Parquet ký số trên bucket Object Lock 10 năm của kho sao lưu (TL-04 "Kafka: MirrorMaker 2", "Bảng lịch sao lưu").'
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+dependencies:
+  - name: vt-service
+    version: 0.1.0
+    repository: file://../vt-service

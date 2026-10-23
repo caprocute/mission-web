@@ -144,6 +144,50 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/config/tenants/{id}/suspend': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Tạm ngừng tenant
+     * @description Chuyển `DANG_VAN_HANH` → `TAM_NGUNG` khi hết hạn hợp đồng hoặc có sự cố an ninh (TL-02a QT-01 "Trạng thái đối tượng", quyết định của AC-01), yêu cầu MFA bước lên. Dữ liệu giữ nguyên; người dùng của tenant thấy MSG-00-07 ở trang đăng nhập, chỉ quản trị nền tảng đăng nhập được. Lý do (số văn bản) bắt buộc, ghi `registry.tenant_status_log`; phát `registry.tenant.changed.v1`. Vận hành lại bằng `activateConfigTenant`. Sai trạng thái trả 409 mã `CONFIG-409-TENANT-STATE`.
+     */
+    post: operations['suspendConfigTenant'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/tenants/{id}/terminate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Chấm dứt tenant
+     * @description Chuyển `TAM_NGUNG` → `DA_CHAM_DUT` khi đã xuất trả dữ liệu cho tổ chức và hết thời hạn lưu giữ theo hợp đồng (TL-02a QT-01 "Trạng thái đối tượng"; TL-04 mục 11.4), yêu cầu MFA bước lên. Đây là trạng thái cuối, không quay lại được. Lý do (số văn bản) và số biên bản bàn giao dữ liệu bắt buộc, ghi `registry.tenant_status_log`; phát `registry.tenant.changed.v1` để các service ngừng phục vụ tenant và quy trình huỷ KEK `kek-tenant-<id>` (TL-04 mục 8.4) bắt đầu. Sổ cái của tenant vẫn giữ theo NFR-09. Tenant chưa tạm ngừng trả 409 mã `CONFIG-409-TENANT-STATE`; hồ sơ còn ở `KHOI_TAO` thì huỷ bằng `cancelConfigTenant`.
+     */
+    post: operations['terminateConfigTenant'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/config/security/report-suspicious': {
     parameters: {
       query?: never;
@@ -1798,6 +1842,18 @@ export interface components {
     ConfigTenantActivateRequest: {
       /** @description Lý do, số văn bản (ghi `registry.tenant_status_log.reason`) */
       reason?: string;
+    };
+    /** @description Lý do tạm ngừng (hết hạn hợp đồng, sự cố an ninh) kèm số văn bản. */
+    ConfigTenantSuspendRequest: {
+      /** @description Lý do, số văn bản (ghi `registry.tenant_status_log.reason`) */
+      reason: string;
+    };
+    /** @description Lý do chấm dứt kèm số văn bản và số biên bản bàn giao dữ liệu đã xuất trả cho tổ chức. */
+    ConfigTenantTerminateRequest: {
+      /** @description Lý do, số văn bản (ghi `registry.tenant_status_log.reason`) */
+      reason: string;
+      /** @description Số biên bản bàn giao dữ liệu xuất trả (ghi kèm lý do trong nhật ký trạng thái) */
+      handoverRef: string;
     };
     /** @description Bộ lọc và định dạng tệp xuất, cùng bộ lọc với `GET /config/tenants` (định dạng là suy luận). */
     ConfigTenantExportRequest: {
@@ -4289,6 +4345,84 @@ export interface operations {
     };
     responses: {
       /** @description Tenant đã vào vận hành. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ConfigTenant'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  suspendConfigTenant: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ConfigTenantSuspendRequest'];
+      };
+    };
+    responses: {
+      /** @description Tenant đã tạm ngừng. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ConfigTenant'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  terminateConfigTenant: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ConfigTenantTerminateRequest'];
+      };
+    };
+    responses: {
+      /** @description Tenant đã chấm dứt. */
       200: {
         headers: {
           ETag: components['headers']['ETag'];

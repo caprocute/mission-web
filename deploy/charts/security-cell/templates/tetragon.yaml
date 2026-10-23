@@ -1,0 +1,33 @@
+{{- if .Values.tetragon.enabled }}
+{{- $t := .Values.tetragon }}
+{{- if not (has $t.action (list "Override" "Sigkill")) }}
+{{- fail "security-cell: tetragon.action chỉ nhận Override hoặc Sigkill" }}
+{{- end }}
+{{- range $t.namespaces }}
+---
+# Chặn ptrace trong namespace {{ . }} (TL-04 mục 9.3, SEC-50): không tiến trình nào trong vùng bảo mật được đọc hay
+# sửa bộ nhớ tiến trình khác (sổ cái, ký số, ai-gateway). Tetragon thực thi ở nhân, trước khi lời gọi hệ thống chạy;
+# sự kiện kèm theo (Post) đi vào nhật ký Tetragon, Fluent Bit chuyển luồng an ninh.
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicyNamespaced
+metadata:
+  name: chan-ptrace
+  namespace: {{ . }}
+  labels:
+    app.kubernetes.io/part-of: vt-security
+spec:
+  kprobes:
+    - call: sys_ptrace
+      syscall: true
+      args:
+        - { index: 0, type: int }
+      selectors:
+        - matchActions:
+            {{- if eq $t.action "Override" }}
+            - { action: Override, argError: -1 }
+            {{- else }}
+            - { action: Sigkill }
+            {{- end }}
+            - { action: Post }
+{{- end }}
+{{- end }}

@@ -1,0 +1,58 @@
+# Cảnh báo PAM và "không có cửa sau" (INF-27; TL-04 mục 9.3 SEC-29, SEC-58, mục 9.7 SEC-42, SEC-43; ngân sách kết
+# nối quản trị mục 4, C_admin = 10). Chỉ số vt_pam_* do hai CronJob của chart đẩy lên Pushgateway (nhãn job theo
+# grouping key: pam-quet-rbac, pam-quet-csdl). Nhãn doi chọn người nhận trong Alertmanager (observability-mgmt).
+groups:
+  - name: vt-pam.alerts
+    rules:
+      - alert: PamCuaSauRbac
+        expr: max by (loai, kind, namespace, binding, role) (vt_pam_cua_sau_rbac{loai=~"cua-sau|sai-hop-dong"}) > 0
+        labels: { severity: critical, doi: soc, sec: SEC-42 }
+        annotations:
+          summary: "{{ $labels.kind }} {{ $labels.namespace }}/{{ $labels.binding }} gán {{ $labels.role }} không qua PAM hoặc sai hợp đồng ({{ $labels.loai }})"
+          runbook_url: https://runbook.vt.local/okr/pam-cap-quyen
+      - alert: PamBindingQuaHan
+        expr: max by (kind, namespace, binding, role) (vt_pam_cua_sau_rbac{loai="qua-han"}) > 0
+        for: 20m
+        labels: { severity: critical, doi: soc, sec: SEC-42 }
+        annotations:
+          summary: "Binding PAM {{ $labels.namespace }}/{{ $labels.binding }} ({{ $labels.role }}) đã quá hạn mà chưa bị thu hồi"
+          runbook_url: https://runbook.vt.local/okr/pam-cap-quyen
+      - alert: PamCuaSauCsdl
+        expr: max by (cluster, loai, vai_tro) (vt_pam_cua_sau_csdl) > 0
+        labels: { severity: critical, doi: soc, sec: SEC-58 }
+        annotations:
+          summary: "Cụm {{ $labels.cluster }}: vai trò {{ $labels.vai_tro }} đọc được dữ liệu nghiệp vụ ngoài phá kính ({{ $labels.loai }})"
+          runbook_url: https://runbook.vt.local/okr/pam-pha-kinh
+      - alert: PamPhaKinhDangMo
+        expr: max by (cluster) (vt_pam_pha_kinh_dang_mo) > 0
+        labels: { severity: warning, doi: soc, sec: SEC-58 }
+        annotations:
+          summary: "Cụm {{ $labels.cluster }} đang có {{ $value }} người dùng phá kính đọc dữ liệu nghiệp vụ; đối chiếu yêu cầu PAM"
+          runbook_url: https://runbook.vt.local/okr/pam-pha-kinh
+      - alert: PamKetNoiQuanTriVuotNganSach
+        expr: max by (cluster) (vt_pam_ket_noi_quan_tri{vai_tro="tong"}) > 10
+        for: 5m
+        labels: { severity: warning, doi: dba, sec: SEC-42 }
+        annotations:
+          summary: "Cụm {{ $labels.cluster }} có {{ $value }} kết nối quản trị qua PAM, vượt ngân sách 10 (TL-04, C_admin)"
+          runbook_url: https://runbook.vt.local/okr/pam-cap-quyen
+      - alert: PamNgoaiLeCsdl
+        expr: max by (cluster, vai_tro) (vt_pam_ngoai_le_csdl) > 0
+        for: 1d
+        labels: { severity: info, doi: dba, sec: SEC-58 }
+        annotations:
+          summary: "Cụm {{ $labels.cluster }}: vai trò {{ $labels.vai_tro }} đang được miễn quét theo ngoại lệ có hạn"
+          runbook_url: https://runbook.vt.local/okr/pam-pha-kinh
+      - alert: PamQuetKhongChay
+        expr: time() - max by (job, cluster) (vt_pam_quet_last_run_timestamp_seconds) > 3600
+        labels: { severity: warning, doi: sre-nen-tang, sec: SEC-42 }
+        annotations:
+          summary: "Quét {{ $labels.job }} {{ $labels.cluster }} không có kết quả mới quá 1 giờ"
+          runbook_url: https://runbook.vt.local/okr/pam-cap-quyen
+      - alert: PamQuetRbacVangMat
+        expr: absent(vt_pam_quet_last_run_timestamp_seconds{job="pam-quet-rbac"})
+        for: 1h
+        labels: { severity: warning, doi: sre-nen-tang, sec: SEC-42 }
+        annotations:
+          summary: "Chưa có kết quả quét RBAC không có cửa sau nào trên Pushgateway"
+          runbook_url: https://runbook.vt.local/okr/pam-cap-quyen

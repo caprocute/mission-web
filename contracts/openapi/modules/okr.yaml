@@ -1932,6 +1932,12 @@ components:
         createdAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
         updatedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
         rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+        permittedActions:
+          $ref: '../common/common.yaml#/components/schemas/PermittedActions'
+          description: >-
+            Thao tác của người gọi trên mục tiêu này: `SCR-0202.soan-don-vi`, `SCR-0202.soan-ca-nhan`,
+            `SCR-0202.trinh` khi mục tiêu còn nháp (mục tiêu cá nhân chỉ của chính mình), `SCR-0203.duyet`
+            khi chờ duyệt và người gọi không phải người soạn (BR-02-08), `SCR-0203.tra-lai` khi chờ duyệt.
     OkrObjectivePage:
       type: object
       required: [items, nextCursor]
@@ -2190,6 +2196,11 @@ components:
           minimum: 0
           description: Tổng số nhiệm vụ liên kết, có thể nhiều hơn số phần tử `linkedWork`.
         rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+        permittedActions:
+          $ref: '../common/common.yaml#/components/schemas/PermittedActions'
+          description: >-
+            Thao tác của người gọi trên KR này: `SCR-0201.check-in` khi mục tiêu đã duyệt và người gọi là
+            chủ KR hoặc người được giao check-in thay (BR-03-01).
     OkrKeyResultInput:
       description: >-
         KR khi soạn (SCR-0202 trường 7-16). Khi mục tiêu còn `NHAP`, bản nháp được lưu dù thiếu `targetValue`

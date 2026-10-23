@@ -20,6 +20,10 @@ const keycloak = process.env.E2E_MODE === 'keycloak';
 const that = process.env.E2E_MODE === 'that';
 if (process.env.npm_lifecycle_event === 'e2e:he-thong') process.env.E2E_MODE = 'he-thong';
 const heThong = process.env.E2E_MODE === 'he-thong';
+/** Hành trình QA-03..QA-07 trên dữ liệu giả lập (`npm run e2e:hanh-trinh` hoặc `E2E_HANH_TRINH=1`). */
+const hanhTrinhGiaLap =
+  !heThong &&
+  (process.env.npm_lifecycle_event === 'e2e:hanh-trinh' || process.env.E2E_HANH_TRINH === '1');
 const thatGiaLap = !keycloak && !that && !heThong && process.env.E2E_THAT_GIA_LAP === '1';
 /** Đăng nhập Keycloak thật: chạy tuần tự hơn, thời gian chờ dài, không chụp màn hình. */
 const real = keycloak || that || heThong;
@@ -27,31 +31,39 @@ const port = Number(process.env.E2E_PORT ?? 4200);
 
 export default defineConfig({
   testDir: '.',
-  testMatch: heThong
-    ? /hanh-trinh\/.*\.spec\.ts/
-    : keycloak
-      ? /keycloak\..*spec\.ts/
-      : that
-        ? /that\..*spec\.ts/
-        : thatGiaLap
-          ? [/gia-lap\..*spec\.ts/, /that\..*spec\.ts/]
-          : /gia-lap\..*spec\.ts/,
-  outputDir: `../dist/e2e-ket-qua/test-results${heThong ? '-he-thong' : that || thatGiaLap ? '-that' : ''}`,
+  testMatch:
+    heThong || hanhTrinhGiaLap
+      ? /hanh-trinh\/.*\.spec\.ts/
+      : keycloak
+        ? /keycloak\..*spec\.ts/
+        : that
+          ? /that\..*spec\.ts/
+          : thatGiaLap
+            ? [/gia-lap\..*spec\.ts/, /that\..*spec\.ts/]
+            : /gia-lap\..*spec\.ts/,
+  outputDir: `../dist/e2e-ket-qua/test-results${
+    heThong ? '-he-thong' : hanhTrinhGiaLap ? '-hanh-trinh' : that || thatGiaLap ? '-that' : ''
+  }`,
   fullyParallel: !heThong,
   workers: heThong ? 1 : real ? 2 : undefined,
   retries: 0,
   timeout: heThong ? 300_000 : real ? 120_000 : 30_000,
   reporter: heThong
-    ? [['list'], ['./hanh-trinh/ho-tro/bao-cao-reporter.ts']]
-    : that
-      ? [['list']]
-      : [
+    ? [['list'], ['./hanh-trinh/ho-tro/bao-cao-reporter.ts', { tep: 'bao-cao-he-thong.md' }]]
+    : hanhTrinhGiaLap
+      ? [
           ['list'],
-          [
-            './ma-tran-reporter.ts',
-            { mode: keycloak ? 'keycloak-dev' : thatGiaLap ? 'gia-lap-that' : 'gia-lap' },
+          ['./hanh-trinh/ho-tro/bao-cao-reporter.ts', { tep: 'bao-cao-hanh-trinh-gia-lap.md' }],
+        ]
+      : that
+        ? [['list']]
+        : [
+            ['list'],
+            [
+              './ma-tran-reporter.ts',
+              { mode: keycloak ? 'keycloak-dev' : thatGiaLap ? 'gia-lap-that' : 'gia-lap' },
+            ],
           ],
-        ],
   use: {
     baseURL: `http://localhost:${port}`,
     // Không chụp ảnh hay trace khi đăng nhập thật để không lưu lại màn hình nhập mật khẩu, OTP

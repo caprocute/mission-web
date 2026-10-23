@@ -1,0 +1,9 @@
+apiVersion: v2
+name: pam-integration
+description: >-
+  Tích hợp PAM cho truy cập đặc quyền (INF-27; TL-04 mục 9.3, 9.7; SEC-42, SEC-58, SEC-29): hợp đồng binding có
+  thời hạn 4 giờ, chính sách nhập ValidatingAdmissionPolicy, quét "không có cửa sau" RBAC và vai trò CSDL, chỉ số và
+  cảnh báo, vai trò dba_ops và phá kính đọc 2 giờ, cấu hình OpenBao database engine. Trung lập với sản phẩm PAM:
+  địa chỉ và tham số của sản phẩm nằm trong values.
+type: application
+version: 0.1.0

@@ -1,0 +1,21 @@
+# INF-20 · Origin của CDN (TL-04 mục 2.6, TL-01 chương 7, wiki 03). CDN kéo từ origin này; origin đọc bucket trên
+# Ceph RGW của vùng toàn cục, nơi pipeline web (INF-05) đẩy bản dựng SVC-17 và MOD-08 đẩy UI Pack đã phát hành.
+# Chính sách cache khớp deploy/web/nginx.conf:
+#   - tệp có băm trong tên (js, css, phông, ảnh) và gói UI Pack /ui-packs/<tenant>/<phiên bản>/…: 1 năm, immutable;
+#   - tệp điều khiển phiên bản (current.json, federation.manifest.json, remoteEntry.json, config.json): 60 s,
+#     stale-while-revalidate 600 (con trỏ UI Pack).
+# Vô hiệu cache khi có EVT-23: gói theo phiên bản không bao giờ đổi nội dung nên không cần xoá; chỉ con trỏ
+# /ui-packs/<tenant>/current.json của đúng tenant đó cần xoá trên CDN, và kể cả không xoá thì sau tối đa 60 s CDN
+# cũng lấy con trỏ mới (khoá phiên bản nằm trong đường dẫn).
+namespace: cdn-origin
+image: harbor.vt.local/dockerhub/nginxinc/nginx-unprivileged@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0
+replicas: 3
+# Bucket tĩnh trên RGW (đọc công khai qua mạng nội bộ của vùng, không ghi).
+bucket:
+  endpoint: http://rgw-global.rgw.svc:8080
+  web: okr-web
+  uiPacks: okr-ui-packs
+host: static.danhgia.vn
+resources:
+  requests: { cpu: 200m, memory: 128Mi }
+  limits: { cpu: "1", memory: 128Mi }

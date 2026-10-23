@@ -263,7 +263,7 @@
     },
     {
       "name": "mission-context",
-      "description": "Ngữ cảnh Mission (WEB-056): vai trò realm, tenant, đơn vị, mức xác thực acr. Claim tenant_id (mặc định okrkpi.tenant.claim) và tenant (SessionService) cùng mang UUID tenant; unit_id là UUID đơn vị; sub là id người dùng, trùng org.person.id của dữ liệu thử (infra/dev/postgres/seed).",
+      "description": "Ngữ cảnh Mission (WEB-056): vai trò realm, acr, tenant_id và tenant (UUID tenant), unit_id (UUID đơn vị); sub trùng org.person.id của dữ liệu thử.",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "false",
@@ -373,12 +373,12 @@
       "redirectUris": [
         "http://localhost:4200/*",
         "http://localhost:35200/*",
-        "${WEB_ORIGIN}/*"
+        "${WEB_ORIGIN:http://localhost:4200}/*"
       ],
       "webOrigins": [
         "http://localhost:4200",
         "http://localhost:35200",
-        "${WEB_ORIGIN}"
+        "${WEB_ORIGIN:http://localhost:4200}"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
@@ -423,6 +423,21 @@
       "defaultClientScopes": [
         "basic",
         "mission-context"
+      ]
+    },
+    {
+      "clientId": "tenant-registry-provisioner",
+      "name": "tenant-registry-provisioner (tài khoản dịch vụ saga cấp phát, SVC-03)",
+      "bearerOnly": false,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${PROVISION_CLIENT_SECRET}",
+      "defaultClientScopes": [
+        "basic"
       ]
     }
   ],
@@ -1251,6 +1266,20 @@
       "realmRoles": [
         "svc_org_service"
       ]
+    },
+    {
+      "username": "service-account-tenant-registry-provisioner",
+      "enabled": true,
+      "serviceAccountClientId": "tenant-registry-provisioner",
+      "clientRoles": {
+        "realm-management": [
+          "manage-realm",
+          "manage-users",
+          "manage-identity-providers",
+          "view-realm",
+          "query-users"
+        ]
+      }
     }
   ]
 }

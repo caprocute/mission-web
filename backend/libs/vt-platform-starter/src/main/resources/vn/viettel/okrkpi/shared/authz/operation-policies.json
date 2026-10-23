@@ -1,8 +1,8 @@
 {
   "description": "Bảng chính sách thao tác trích từ mở rộng x-mission trong contracts/openapi/modules/*.yaml (NEN-014). Không sửa tay: chạy tools/extract-x-mission.mjs.",
   "source": "contracts/openapi/modules/*.yaml",
-  "count": 479,
-  "aal2Count": 82,
+  "count": 481,
+  "aal2Count": 84,
   "fourEyesCount": 19,
   "operations": [
     {
@@ -5874,12 +5874,13 @@
         "SCR-0102"
       ],
       "roles": [
-        "platform_admin"
+        "platform_admin",
+        "service_client"
       ],
       "scope": "N",
       "aal": 2,
       "fourEyes": false,
-      "source": "TL-01 SVC-03 (API chính); TL-03 `registry.cell`"
+      "source": "TL-01 SVC-03 (API chính); TL-03 `registry.cell`; TL-04 \"GeoDNS và định tuyến tenant tới cell\" (dns-sync, INF-20)"
     },
     {
       "operationId": "listComplainableProfiles",
@@ -10780,6 +10781,50 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-02a SCR-0402 \"Gợi ý từ OKR\""
+    },
+    {
+      "operationId": "suspendConfigTenant",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "POST",
+      "path": "/config/tenants/{id}/suspend",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [
+        "SCR-0101"
+      ],
+      "roles": [
+        "platform_admin"
+      ],
+      "scope": "N",
+      "aal": 2,
+      "fourEyes": false,
+      "source": "TL-02a QT-01 \"Trạng thái đối tượng\" (DANG_VAN_HANH → TAM_NGUNG); INF-26 (vtctl tenant suspend)"
+    },
+    {
+      "operationId": "terminateConfigTenant",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "POST",
+      "path": "/config/tenants/{id}/terminate",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [
+        "SCR-0101"
+      ],
+      "roles": [
+        "platform_admin"
+      ],
+      "scope": "N",
+      "aal": 2,
+      "fourEyes": false,
+      "source": "TL-02a QT-01 \"Trạng thái đối tượng\" (TAM_NGUNG → DA_CHAM_DUT); TL-04 mục 11.4; VH-04 (vtctl tenant terminate)"
     },
     {
       "operationId": "testConfigTenantIdp",

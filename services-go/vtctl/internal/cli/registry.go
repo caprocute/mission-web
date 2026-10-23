@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -56,7 +57,7 @@ func decodeMap(res *api.Response) map[string]any {
 }
 
 func tenantCmd(a *App) *cobra.Command {
-	cmd := &cobra.Command{Use: "tenant", Short: "Trạng thái và kích hoạt lại tenant (máy trạng thái DV-03-03, SVC-03)"}
+	cmd := &cobra.Command{Use: "tenant", Short: "Trạng thái, kích hoạt lại và tạm ngừng tenant (máy trạng thái DV-03-03, SVC-03)"}
 	status := &cobra.Command{
 		Use:   "status <tenant-id>",
 		Short: "Xem bản ghi danh bạ, trạng thái và cell hiện hành của tenant",
@@ -90,61 +91,82 @@ func tenantCmd(a *App) *cobra.Command {
 			return nil
 		},
 	}
-	var reason, key string
-	activate := &cobra.Command{
-		Use:   "activate <tenant-id>",
-		Short: "Kích hoạt hoặc kích hoạt lại tenant (SAN_SANG hoặc TAM_NGUNG sang DANG_VAN_HANH, aal2)",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := uuidArg(args[0], "mã tenant"); err != nil {
-				return err
-			}
-			if err := requireReason(reason); err != nil {
-				return err
-			}
-			k, err := ensureKey(key)
-			if err != nil {
-				return err
-			}
-			t, err := a.target(false)
-			if err != nil {
-				return err
-			}
-			reg, err := a.registry(t)
-			if err != nil {
-				return err
-			}
-			path := "/config/tenants/" + args[0]
-			var cur map[string]any
-			read := func(ctx context.Context) (*api.Response, error) { return reg.Get(ctx, path, false, &cur) }
-			return a.write(cmd.Context(), t, Write{
-				Command: "tenant activate", Args: flagArgs(cmd, args...), Key: k,
-				Summary: []string{"Chuyển tenant " + args[0] + " sang DANG_VAN_HANH (activateConfigTenant); lý do: " + reason},
-				Preview: func(ctx context.Context) (map[string]any, error) {
-					res, err := read(ctx)
-					if err != nil {
-						return nil, err
+	// transition dựng lệnh đổi trạng thái tenant qua một API config (If-Match từ ETag, Idempotency-Key, aal2).
+	// handover: lệnh cần thêm --handover-ref (số biên bản bàn giao dữ liệu, terminateConfigTenant).
+	transition := func(name, short, op, summary string, handover bool) *cobra.Command {
+		var reason, ref, key string
+		c := &cobra.Command{
+			Use:   name + " <tenant-id>",
+			Short: short,
+			Args:  cobra.ExactArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				if err := uuidArg(args[0], "mã tenant"); err != nil {
+					return err
+				}
+				if err := requireReason(reason); err != nil {
+					return err
+				}
+				body := map[string]any{"reason": reason}
+				if handover {
+					if strings.TrimSpace(ref) == "" {
+						return usagef("cần --handover-ref (số biên bản bàn giao dữ liệu đã xuất trả)")
 					}
-					return map[string]any{"trangThaiHienTai": cur["status"], "etag": res.ETag}, nil
-				},
-				Do: func(ctx context.Context) (map[string]any, error) {
-					got, err := read(ctx)
-					if err != nil {
-						return nil, err
-					}
-					res, err := reg.Do(ctx, api.Request{Method: http.MethodPost, Path: path + "/activate", IfMatch: got.ETag,
-						IdempotencyKey: k, AAL2: true, Body: map[string]any{"reason": reason}})
-					if err != nil {
-						return nil, err
-					}
-					return decodeMap(res), nil
-				},
-			})
-		},
+					body["handoverRef"] = ref
+				}
+				k, err := ensureKey(key)
+				if err != nil {
+					return err
+				}
+				t, err := a.target(false)
+				if err != nil {
+					return err
+				}
+				reg, err := a.registry(t)
+				if err != nil {
+					return err
+				}
+				path := "/config/tenants/" + args[0]
+				var cur map[string]any
+				read := func(ctx context.Context) (*api.Response, error) { return reg.Get(ctx, path, false, &cur) }
+				return a.write(cmd.Context(), t, Write{
+					Command: "tenant " + name, Args: flagArgs(cmd, args...), Key: k,
+					Summary: []string{"Chuyển tenant " + args[0] + " " + summary + "; lý do: " + reason},
+					Preview: func(ctx context.Context) (map[string]any, error) {
+						res, err := read(ctx)
+						if err != nil {
+							return nil, err
+						}
+						return map[string]any{"trangThaiHienTai": cur["status"], "etag": res.ETag}, nil
+					},
+					Do: func(ctx context.Context) (map[string]any, error) {
+						got, err := read(ctx)
+						if err != nil {
+							return nil, err
+						}
+						res, err := reg.Do(ctx, api.Request{Method: http.MethodPost, Path: path + "/" + op, IfMatch: got.ETag,
+							IdempotencyKey: k, AAL2: true, Body: body})
+						if err != nil {
+							return nil, err
+						}
+						return decodeMap(res), nil
+					},
+				})
+			},
+		}
+		c.Flags().StringVar(&reason, "reason", "", "lý do, số văn bản (ghi registry.tenant_status_log)")
+		if handover {
+			c.Flags().StringVar(&ref, "handover-ref", "", "số biên bản bàn giao dữ liệu đã xuất trả cho tổ chức")
+		}
+		keyFlag(c, &key)
+		return c
 	}
-	activate.Flags().StringVar(&reason, "reason", "", "lý do, số văn bản (ghi registry.tenant_status_log)")
-	keyFlag(activate, &key)
-	cmd.AddCommand(status, activate)
+	activate := transition("activate", "Kích hoạt hoặc kích hoạt lại tenant (SAN_SANG hoặc TAM_NGUNG sang DANG_VAN_HANH, aal2)",
+		"activate", "sang DANG_VAN_HANH (activateConfigTenant)", false)
+	suspend := transition("suspend", "Tạm ngừng tenant khi hết hạn hợp đồng hoặc sự cố an ninh (DANG_VAN_HANH sang TAM_NGUNG, aal2)",
+		"suspend", "sang TAM_NGUNG (suspendConfigTenant), dữ liệu giữ nguyên, người dùng của tenant không đăng nhập được", false)
+	terminate := transition("terminate", "Chấm dứt tenant sau khi đã xuất trả dữ liệu (TAM_NGUNG sang DA_CHAM_DUT, trạng thái cuối, aal2)",
+		"terminate", "sang DA_CHAM_DUT (terminateConfigTenant), trạng thái cuối không quay lại, bắt đầu quy trình huỷ KEK", true)
+	cmd.AddCommand(status, activate, suspend, terminate)
 	return cmd
 }
 

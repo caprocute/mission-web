@@ -41,6 +41,11 @@ data:
                             - {{ printf "%s:%v" $ten . | quote }}
                             {{- end }}
                             {{- end }}
+                            {{- with .Values.soc }}{{ $soc := . }}{{ if .fqdn }}
+                            {{- range .ports }}
+                            - {{ printf "%s:%v" $soc.fqdn . | quote }}
+                            {{- end }}
+                            {{- end }}{{ end }}
                           routes:
                             - match: { connect_matcher: {} }
                               route:

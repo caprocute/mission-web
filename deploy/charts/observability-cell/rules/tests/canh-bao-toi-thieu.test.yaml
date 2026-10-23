@@ -597,3 +597,72 @@ tests:
   - eval_time: 3m
     alertname: CNPGReplicaClusterLag
     exp_alerts: []
+# CNPGClusterNotHealthy: hai instance của pg-core đều là standby quá 2 phút thì báo; một lần chuyển primary trong
+# 1 phút không báo; replica cluster phía Nam toàn standby không báo; bộ thu số liệu mất kết nối ở mọi instance thì báo.
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: cnpg_collector_up{cluster="pg-core",pod="pg-core-1"}
+    values: 1x10
+  - series: cnpg_collector_up{cluster="pg-core",pod="pg-core-2"}
+    values: 1x10
+  - series: cnpg_pg_replication_in_recovery{cluster="pg-core",pod="pg-core-1"}
+    values: 0 0 _ _ _ _ _ _ _ _ _
+  - series: cnpg_pg_replication_in_recovery{cluster="pg-core",pod="pg-core-2"}
+    values: 1x10
+  - series: cnpg_collector_up{cluster="pg-core-sn",pod="pg-core-sn-1"}
+    values: 1x10
+  - series: cnpg_pg_replication_in_recovery{cluster="pg-core-sn",pod="pg-core-sn-1"}
+    values: 1x10
+  alert_rule_test:
+  - eval_time: 3m
+    alertname: CNPGClusterNotHealthy
+    exp_alerts: []
+  - eval_time: 9m
+    alertname: CNPGClusterNotHealthy
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+        doi: dba
+        cluster: pg-core
+      exp_annotations:
+        summary: Cụm PostgreSQL pg-core không có primary nhận ghi
+        runbook_url: https://runbook.vt.local/okr/slo-availability
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: cnpg_collector_up{cluster="pg-core",pod="pg-core-1"}
+    values: 1x10
+  - series: cnpg_collector_up{cluster="pg-core",pod="pg-core-2"}
+    values: 1x10
+  - series: cnpg_pg_replication_in_recovery{cluster="pg-core",pod="pg-core-1"}
+    values: 0 0 0 1 1 1 1 1 1 1 1
+  - series: cnpg_pg_replication_in_recovery{cluster="pg-core",pod="pg-core-2"}
+    values: 1 1 1 1 0 0 0 0 0 0 0
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: CNPGClusterNotHealthy
+    exp_alerts: []
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: cnpg_collector_up{cluster="pg-ledger",pod="pg-ledger-1"}
+    values: 1 1 0 0 0 0 0 0
+  - series: cnpg_collector_up{cluster="pg-ledger",pod="pg-ledger-2"}
+    values: 1 1 0 0 0 0 0 0
+  - series: cnpg_pg_replication_in_recovery{cluster="pg-ledger",pod="pg-ledger-1"}
+    values: 0x7
+  alert_rule_test:
+  - eval_time: 7m
+    alertname: CNPGClusterNotHealthy
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+        doi: dba
+        cluster: pg-ledger
+      exp_annotations:
+        summary: Cụm PostgreSQL pg-ledger không có primary nhận ghi
+        runbook_url: https://runbook.vt.local/okr/slo-availability

@@ -43,6 +43,7 @@ func NewPGOutboxStore(querier Querier) (*PGOutboxStore, error) {
 }
 
 // BuildSelectQuery constructs the parameterized SQL query and arguments for reading `<schema>.outbox_event`.
+// uuid and jsonb columns are cast to text so they scan into the string fields of OutboxRow.
 func BuildSelectQuery(filter Filter, afterCreatedAt *time.Time, afterID string, limit int) (string, []any) {
 	var (
 		conds []string
@@ -80,7 +81,7 @@ func BuildSelectQuery(filter Filter, afterCreatedAt *time.Time, afterID string, 
 
 	limitPlaceholder := addArg(limit)
 	sql := fmt.Sprintf(
-		`SELECT id, tenant_id, aggregate_type, aggregate_id, aggregate_version, event_type, topic, event_key, payload, schema_version, headers, created_at FROM %s.outbox_event WHERE %s ORDER BY created_at ASC, id ASC LIMIT %s`,
+		`SELECT id::text, tenant_id::text, aggregate_type, aggregate_id::text, aggregate_version, event_type, topic, event_key, payload, schema_version, headers::text, created_at FROM %s.outbox_event WHERE %s ORDER BY created_at ASC, id ASC LIMIT %s`,
 		filter.Schema,
 		strings.Join(conds, " AND "),
 		limitPlaceholder,
@@ -146,6 +147,18 @@ func (s *PGOutboxStore) RetentionPolicy(ctx context.Context, schema string) (str
 		return "3 days", nil
 	}
 	return retention, nil
+}
+
+// LastReplayTimestamp implements SafePointSource with pg_last_xact_replay_timestamp().
+func (s *PGOutboxStore) LastReplayTimestamp(ctx context.Context) (time.Time, bool, error) {
+	var ts *time.Time
+	if err := s.querier.QueryRow(ctx, `SELECT pg_last_xact_replay_timestamp()`).Scan(&ts); err != nil {
+		return time.Time{}, false, err
+	}
+	if ts == nil {
+		return time.Time{}, false, nil
+	}
+	return *ts, true, nil
 }
 
 // SimulatedPoolOutboxStore adapts `vtplatform/db.SimulatedPool` to `OutboxStore` so tests can

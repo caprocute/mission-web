@@ -4,10 +4,11 @@ import {
   HttpInterceptorFn,
   HttpRequest,
 } from '@angular/common/http';
-import { inject } from '@angular/core';
+import { inject, isDevMode } from '@angular/core';
 import { catchError, from, switchMap, throwError } from 'rxjs';
 import { toProblem } from '@vt/api-client';
 import { MSG_00_06, MSG_00_07, TEXT_FORBIDDEN } from './messages';
+import { PermissionService, apiModuleOf } from './permission.service';
 import { Acr, SessionService } from './session.service';
 
 /**
@@ -36,12 +37,17 @@ export function parseStepUpChallenge(header: string | null): { acr: Acr; maxAge?
  * xử lý lỗi xác thực theo QT-00:
  * - 401 có `insufficient_user_authentication` (RFC 9470, BR-00-02): mở hộp MFA bước lên rồi gửi lại.
  * - 401 khác: làm mới token một lần rồi gửi lại; không được thì báo hết phiên, giữ màn hình.
- * - 403: hiện thông báo (MSG-00-06, MSG-00-07 hoặc thông báo chung), trừ khi màn hình tự xử lý.
+ * - 403: hiện MSG-00-06, MSG-00-07 với mọi request; thông báo chung "không có quyền" chỉ hiện cho
+ *   thao tác ghi do người dùng bấm (YC-PT-21). Lời gọi đọc bị từ chối do màn hình tự hiện tại chỗ,
+ *   không bật thông báo nổi khi người dùng chưa làm gì; trừ khi màn hình tự xử lý.
+ * - Chế độ phát triển: cảnh báo trên console khi màn hình gọi API mà vai trò không có trong ma trận
+ *   (`[vt-quyen]`), để kiểm thử theo vai trò bắt được chỗ còn bày chức năng không có quyền.
  * Request ghi được gắn `Idempotency-Key` trước khi gửi để lần gửi lại dùng cùng khoá.
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   if (!isApi(req.url)) return next(req);
   const session = inject(SessionService);
+  if (isDevMode()) warnOutsideMatrix(req, inject(PermissionService));
   const base =
     WRITE_METHODS.has(req.method) && !req.headers.has('Idempotency-Key')
       ? req.clone({ setHeaders: { 'Idempotency-Key': crypto.randomUUID() } })
@@ -73,10 +79,25 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           ? MSG_00_06
           : /TENANT.*SUSPENDED|TAM_NGUNG/.test(code)
             ? MSG_00_07(session.user()?.tenant ?? '')
-            : TEXT_FORBIDDEN;
-        session.showNotice({ severity: 'error', text });
+            : WRITE_METHODS.has(req.method)
+              ? TEXT_FORBIDDEN
+              : null;
+        if (text) session.showNotice({ severity: 'error', text });
       }
       return throwError(() => err);
     }),
   );
 };
+
+/** `/registry/resolve` gọi trước khi có vai trò, không cần vai trò (ghi chú của ma trận API). */
+const NO_ROLE_NEEDED = /\/api\/v1\/registry\/resolve/;
+
+function warnOutsideMatrix(req: HttpRequest<unknown>, permissions: PermissionService): void {
+  const module = apiModuleOf(req.url);
+  if (!module || NO_ROLE_NEEDED.test(req.url)) return;
+  if (!permissions.canApi(module, req.method)) {
+    console.warn(
+      `[vt-quyen] ${req.method} ${req.url.split('?')[0]} ngoài ma trận của vai trò hiện tại`,
+    );
+  }
+}

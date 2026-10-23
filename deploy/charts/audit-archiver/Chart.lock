@@ -1,0 +1,6 @@
+dependencies:
+- name: vt-service
+  repository: file://../vt-service
+  version: 0.1.0
+digest: sha256:beb42b562d47d3a965a69ad0fd90567bc801c46c003d6aea1783726e44d9bcd1
+generated: "2026-10-23T11:19:57.888159274Z"

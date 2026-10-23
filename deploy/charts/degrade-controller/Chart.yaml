@@ -1,0 +1,6 @@
+apiVersion: v2
+name: degrade-controller
+description: INF-25 · bộ điều khiển suy giảm ba mức của cell (TL-04 "Hành vi khi bão hoà", OPS-13, OPS-14)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

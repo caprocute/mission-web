@@ -1,0 +1,3 @@
+# Origin CDN production (INF-20): đọc bucket okr-web, okr-ui-packs của RGW vùng toàn cục tại TTDL này; endpoint thật
+# khai ở values-<site>.yaml khi được cấp.
+{}

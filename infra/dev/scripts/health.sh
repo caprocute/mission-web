@@ -63,3 +63,32 @@ check "Grafana (35300)"           curl -fsS "http://${HOST}:${GRAFANA_PORT:-3530
 check "Prometheus (35990)"        curl -fsS "http://${HOST}:${PROMETHEUS_PORT:-35990}/-/healthy"
 check "Tempo (35320)"             curl -fsS "http://${HOST}:${TEMPO_PORT:-35320}/ready"
 check "Loki (35310)"              curl -fsS "http://${HOST}:${LOKI_PORT:-35310}/ready"
+
+echo
+echo "==> Kiểm tra đầu cuối (profile backend, INF-22 — chỉ xanh khi bật profile):"
+# APISIX trả 401 cho /api/v1/* không token: coi là đang chạy khi có phản hồi HTTP.
+check "APISIX dev (35000)"        bash -c "[[ \$(curl -s -o /dev/null -w '%{http_code}' 'http://${HOST}:${APISIX_PORT:-35000}/api/v1/periods') != 000 ]]"
+# Cổng quản trị của mission-core chỉ mở trên loopback của máy chủ.
+check "mission-core readiness (35101)" curl -fsS "http://127.0.0.1:${MISSION_CORE_MGMT_PORT:-35101}/actuator/health/readiness"
+# Service khác: trạng thái healthcheck của container khi có docker CLI, nếu không thì thử cổng TCP.
+backend_check() {
+  local label="$1" container="$2" port="$3"
+  if command -v docker >/dev/null 2>&1 && docker inspect "${container}" >/dev/null 2>&1; then
+    check "${label}" bash -c "[[ \$(docker inspect -f '{{.State.Health.Status}}' '${container}') == healthy ]]"
+  else
+    check "${label}" bash -c "</dev/tcp/${HOST}/${port}"
+  fi
+}
+backend_check "mission-core (35100)"         mission-dev-mission-core         "${MISSION_CORE_PORT:-35100}"
+backend_check "tenant-registry (35110)"      mission-dev-tenant-registry      "${TENANT_REGISTRY_PORT:-35110}"
+backend_check "org-service (35111)"          mission-dev-org-service          "${ORG_SERVICE_PORT:-35111}"
+backend_check "workflow-service (35112)"     mission-dev-workflow-service     "${WORKFLOW_SERVICE_PORT:-35112}"
+backend_check "scoring-service (35113)"      mission-dev-scoring-service      "${SCORING_SERVICE_PORT:-35113}"
+backend_check "document-service (35114)"     mission-dev-document-service     "${DOCUMENT_SERVICE_PORT:-35114}"
+backend_check "evidence-service (35115)"     mission-dev-evidence-service     "${EVIDENCE_SERVICE_PORT:-35115}"
+backend_check "esign-service (35116)"        mission-dev-esign-service        "${ESIGN_SERVICE_PORT:-35116}"
+backend_check "integration-gateway (35117)"  mission-dev-integration-gateway  "${INTEGRATION_GATEWAY_PORT:-35117}"
+backend_check "analytics-api (35118)"        mission-dev-analytics-api        "${ANALYTICS_API_PORT:-35118}"
+backend_check "search (35119)"               mission-dev-search               "${SEARCH_SERVICE_PORT:-35119}"
+backend_check "ledger-service (35120)"       mission-dev-ledger-service       "${LEDGER_SERVICE_PORT:-35120}"
+backend_check "notification-service (35121)" mission-dev-notification-service "${NOTIFICATION_SERVICE_PORT:-35121}"

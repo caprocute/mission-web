@@ -275,6 +275,54 @@ def ts_source(d):
         # Giữ đúng định dạng Prettier (printWidth 100) để `format:check` không báo lệch
         out += [line] if len(line) <= 100 else [f"  '{f['key']}':", f"    '{' '.join(cells)}',"]
     out += ["};", ""]
+    # Khoá năng lực nền (`mo_man_hinh: false`), ví dụ tra khoá công khai để mã hoá nội dung mật: không
+    # tính là "vào được màn hình" khi gom khoá cho menu, lối tắt và guard tuyến (YC-PT-21).
+    bg = [f["key"] for f in fs if f.get("mo_man_hinh") is False]
+    out += [
+        "/** Khoá năng lực nền, không mở màn hình: `screenKeys()` bỏ qua khi gom khoá cho menu và tuyến. */",
+    ]
+    head = "export const NON_ENTRY_KEYS: readonly PermissionKey[] = ["
+    one = head + ", ".join(f"'{k}'" for k in bg) + "];"
+    # Giữ định dạng Prettier: một dòng khi vừa printWidth 100
+    out += [one, ""] if len(one) <= 100 else [head, *[f"  '{k}'," for k in bg], "];", ""]
+    # Ma trận API (YC-PT-21): giao diện ẩn phần tử gắn với một API mà vai trò không được gọi (ví dụ ô
+    # tìm kiếm toàn cục) và cảnh báo khi màn hình gọi API ngoài ma trận; máy chủ vẫn kiểm quyền.
+    out += [
+        "/** Module API của ma trận (`/api/v1/<module>`). */",
+        "export type ApiModule =",
+    ]
+    apis = d.get("api", [])
+    out += [f"  | '{a['module']}'" + (";" if i == len(apis) - 1 else "") for i, a in enumerate(apis)]
+    out += [
+        "",
+        "/**",
+        " * Vai trò được gọi từng phương thức của module API, cách nhau bởi dấu cách; hậu tố `*` đánh dấu",
+        " * ô suy luận. Phương thức không có trong bảng: không vai trò người dùng nào được gọi.",
+        " */",
+        "export const API_PERMISSION_TABLE: Readonly<",
+        "  Record<ApiModule, Readonly<Partial<Record<string, string>>>>",
+        "> = {",
+    ]
+    for a in apis:
+        by_method = {}
+        for ac, role in roles:
+            for tok in a["quyen"].get(ac, "-").split():
+                if tok == "-":
+                    continue
+                meth = tok.rstrip("*")
+                by_method.setdefault(meth, []).append(role + ("*" if tok.endswith("*") else ""))
+        if not by_method:
+            out.append(f"  {a['module']}: {{}},")
+            continue
+        out.append(f"  {a['module']}: {{")
+        for meth in HTTP_METHODS:
+            if meth in by_method:
+                line = f"    {meth}: '{' '.join(by_method[meth])}',"
+                wrapped = f"      '{' '.join(by_method[meth])}',"
+                # Prettier chỉ xuống dòng khi chuỗi xuống dòng vừa printWidth 100
+                out += [line] if len(line) <= 100 or len(wrapped) > 100 else [f"    {meth}:", wrapped]
+        out.append("  },")
+    out += ["};", ""]
     return "\n".join(out)
 
 

@@ -1,6 +1,7 @@
 # Sổ tay vận hành: Bật, tắt mức suy giảm của cổng API (`degradation`)
 
 > **Mã truy vết:** OPS-14 · DV-01-02 · TL-04 "Hành vi khi bão hoà" (ba mức suy giảm) và "Cắt tải và giới hạn tốc độ ở APISIX" · TL-01 mục 14.5 (lớp ưu tiên) · cảnh báo `SaturationLevel2` (`deploy/charts/observability-cell/rules/canh-bao-toi-thieu.yaml`).
+> **Bộ điều khiển Go (INF-25):** khi cài chart `degrade-controller`, bật, ghim mức có thời hạn, chống dao động và tạm dừng tác vụ nền theo runbook `suy-giam-ba-muc.md`; phần dưới vẫn đúng cho tác động trên cổng.
 > **Thành phần:** bộ điều khiển suy giảm `apisix-degrade-controller` (namespace `edge`, chart `deploy/charts/api-gateway`), ApisixPluginConfig `protected-api`, `protected-api-p1`, `protected-api-p3` ở mọi namespace có tuyến.
 
 ## 1. Triệu chứng và tác động

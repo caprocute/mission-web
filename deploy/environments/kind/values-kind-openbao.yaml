@@ -57,3 +57,5 @@ rotation:
   schedule: "0 0 1 1 *"
 monitoring:
   prometheusRule: false
+# Snapshot Raft lên kho sao lưu (INF-18) không thuộc kịch bản kiểm thử bí mật; kiểm tĩnh ở backup-cell/tests.
+saoLuuRaft: { enabled: false }

@@ -47,12 +47,14 @@ robots:
   - {ten: pull-mgmt-hl,    moTa: "cụm quản trị Hòa Lạc chỉ kéo", hanNgay: 90, quyen: [{project: "*", hanhDong: [pull]}]}
   - {ten: pull-mgmt-sn,    moTa: "cụm quản trị Sơn Nam chỉ kéo", hanNgay: 90, quyen: [{project: "*", hanhDong: [pull]}]}
 
-# Nhân bản sang harbor-sn (TL-04 mục 12, DR). Tạo sẵn ở trạng thái tắt; INF-18 bật khi harbor-sn đã dựng.
+# Nhân bản sang harbor-sn (TL-04 mục 12, mục 8.11 và bảng lịch sao lưu "Theo sự kiện đẩy ảnh", INF-18). Robot
+# replicate-sn do cau-hinh-sn.yaml tạo trên harbor-sn trước (mật khẩu ở kv/mgmt/harbor-sn/robots/replicate-sn); khi
+# chưa có, script bỏ qua bước này. Kéo thử theo digest hằng ngày ở CronJob kiem-keo-harbor của chart backup-cell.
 nhanBan:
-  dich: {ten: harbor-sn, loai: harbor, url: https://harbor-sn.vt.local, secretOpenBao: kv/mgmt/harbor/robots/replicate-sn}
+  dich: {ten: harbor-sn, loai: harbor, url: https://harbor-sn.vt.local, secretOpenBao: kv/mgmt/harbor-sn/robots/replicate-sn}
   quyTac:
     - ten: nhan-ban-sang-sn
-      bat: false
+      bat: true
       kichHoat: event_based          # đẩy ngay khi có ảnh mới, kèm chữ ký và attestation (artifact phụ)
       xoaTheo: true
       boLoc: [{type: name, value: "{okr,platform,k8s}/**"}]

@@ -6,6 +6,7 @@ import {
   Objective,
   progressPct,
 } from '@vt/api-client';
+import { permittedOn } from '@vt/auth';
 import { TagModule } from 'primeng/tag';
 import {
   confidenceSeverity,
@@ -56,7 +57,7 @@ const TIER_LABEL: Record<number, string> = { 1: 'cấp đơn vị', 2: 'cấp ph
         </div>
         <strong class="pct">{{ pct() }}%</strong>
         <span class="muted">{{ krs.length }} KR</span>
-        @if (canEdit() && o.status === 'NHAP') {
+        @if (canEdit() && o.status === 'NHAP' && permittedOn(o, 'SCR-0202.soan-don-vi')) {
           <button
             type="button"
             class="editbtn"
@@ -319,6 +320,8 @@ export class ObjectiveNode {
   readonly canEdit = input(false);
   readonly edit = output<Objective>();
 
+  /** Thao tác máy chủ cho phép trên mục tiêu này (YC-PT-21). */
+  protected readonly permittedOn = permittedOn;
   protected readonly open = signal(false);
   protected readonly confLabel = CONFIDENCE_LABEL;
   protected readonly valueOverTarget = valueOverTarget;

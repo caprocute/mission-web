@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Kiểm tĩnh khuôn Cluster API (INF-08): render cell-g4-hl với mẫu hạ tầng, kubeconform -strict theo schema CRD
-# Cluster API và CAPO, đếm control plane, MachineDeployment, taint, nhãn; các ca phải thất bại.
+# Cluster API và CAPO, đếm control plane, MachineDeployment, taint, nhãn; các ca phải thất bại; chính sách kiểm
+# toán API và cờ API server (INF-19, tests/test_kiem_toan_api.py).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 OUT=$(mktemp -d); trap 'rm -rf "$OUT"' EXIT
@@ -62,6 +63,20 @@ assert "@sha256:" in c["image"]
 assert ca["spec"]["template"]["spec"]["volumes"][0]["secret"]["secretName"] == "cell-g4-hl-kubeconfig"
 print("Cluster Autoscaler provider Cluster API: tự phát hiện theo cụm, cân bằng ba vùng, kubeconfig cụm cell, ảnh theo digest")
 PY
+# Hồ sơ compact (TL-05 mục 3.3, 9.2): hai pool hoi-tu, du-lieu trên một vùng, khớp global.poolMap của vt-platform.
+VC=(-f cell-mau-compact/values.yaml -f cell-mau-compact/values-mau-ha-tang.yaml)
+helm template x cell-cluster "${VC[@]}" > "$OUT/cc.yaml" && kubeconform -strict -summary -schema-location default -schema-location "$CRD" "$OUT/cc.yaml" > "$OUT/kcc" 2>&1 \
+  && python3 - "$OUT/cc.yaml" <<'PY' && ok "compact: 3 node hoi-tu không taint, 3 node du-lieu nhãn vt.io/zone=secure taint vùng bảo mật ($(tail -1 "$OUT/kcc"))" || { hong "khuôn compact"; cat "$OUT/kcc"; }
+import sys, yaml
+docs = [d for d in yaml.safe_load_all(open(sys.argv[1])) if d]
+md = {d["metadata"]["labels"]["vt.io/pool"]: d for d in docs if d["kind"] == "MachineDeployment"}
+assert set(md) == {"hoi-tu", "du-lieu"} and all(d["spec"]["replicas"] == 3 for d in md.values()), md.keys()
+kct = {d["metadata"]["name"]: d["spec"]["template"]["spec"]["joinConfiguration"]["nodeRegistration"] for d in docs if d["kind"] == "KubeadmConfigTemplate"}
+nr = {p: kct[d["spec"]["template"]["spec"]["bootstrap"]["configRef"]["name"]] for p, d in md.items()}
+assert nr["hoi-tu"]["taints"] == [] and "vt.io/pool=hoi-tu" in nr["hoi-tu"]["kubeletExtraArgs"]["node-labels"]
+assert "vt.io/zone=secure" in nr["du-lieu"]["kubeletExtraArgs"]["node-labels"] and nr["du-lieu"]["taints"][0]["key"] == "vt.io/zone"
+assert md["hoi-tu"]["spec"]["strategy"]["rollingUpdate"]["maxSurge"] == 1 and md["du-lieu"]["spec"]["strategy"]["rollingUpdate"]["maxSurge"] == 0
+PY
 phai_hong() { local mota=$1 mau=$2; shift 2
   if helm template x cell-cluster "$@" >/dev/null 2>"$OUT/e"; then hong "$mota: lẽ ra phải thất bại"
   elif grep -q "$mau" "$OUT/e"; then ok "$mota bị từ chối"; else hong "$mota: thông báo không rõ"; cat "$OUT/e"; fi; }
@@ -70,5 +85,8 @@ phai_hong "pool dữ liệu co giãn tự động" "không được co giãn" "$
 phai_hong "pool lạ" "không có trong bảng" "${V[@]}" --set-json 'pools.abc={"enabled":true,"perZone":[1,1,1]}'
 grep -rqiE 'viettel.*(password|token)|[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}:[0-9]+' cell-cluster/templates cell-cluster/values.yaml cell-g4-hl/values.yaml \
   && hong "khuôn chứa địa chỉ hoặc bí mật" || ok "khuôn và values cell không chứa địa chỉ máy chủ hay bí mật"
+# INF-19: chính sách kiểm toán API đúng TL-04 và cờ API server (anonymous-auth, profiling, KMS v2, TLS ≥ 1.2).
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s cell-cluster/tests -p 'test_*.py' > "$OUT/ut" 2>&1 \
+  && ok "kiểm toán API và cờ API server ($(grep -o 'Ran [0-9]* tests' "$OUT/ut"))" || { hong "test_kiem_toan_api"; tail -20 "$OUT/ut"; }
 echo "Tổng: $dat đạt, $truot hỏng"
 [ "$truot" -eq 0 ]

@@ -1,0 +1,76 @@
+{{- /*
+Thành phần của vùng điều phối toàn cục (INF-20; TL-04 mục 2.6): mỗi thành phần một ApplicationSet, bộ sinh list theo
+TTDL (global-hl, global-sn chạy chủ động cả hai) ghép tệp digest của vùng. Values chồng: values của chart →
+deploy/environments/global/<thành phần>/values.yaml → values-<site>.yaml (tệp thiếu được bỏ qua) → site. Không có
+RollingSync: hai TTDL đồng bộ độc lập và cửa sổ đóng băng OPS-06 của AppProject vẫn áp dụng.
+*/ -}}
+{{- $v := .Values }}
+{{- $g := $v.toanCuc }}
+{{- if $g.enabled }}
+{{- $L := "{{" }}
+{{- $root := trimSuffix "/" $v.gitops.root }}
+{{- if not (hasKey $v.projects $g.project) }}{{ fail (printf "vt-gitops: toanCuc.project %s chưa khai trong projects" $g.project) }}{{ end }}
+{{- range $a := $g.apps }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: {{ $v.appsetPrefix }}-toan-cuc-{{ $a.name }}
+  namespace: {{ $v.argocdNamespace }}
+  labels:
+    app.kubernetes.io/part-of: vt-gitops
+    vt.io/toan-cuc: "true"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                {{- range $g.sites }}
+                - { site: {{ . }} }
+                {{- end }}
+          - git:
+              repoURL: {{ $v.gitops.repoURL }}
+              revision: {{ $v.gitops.revision }}
+              pathParamPrefix: digests
+              files:
+                - path: {{ $root }}/{{ $g.digests }}
+  template:
+    metadata:
+      name: '{{ $a.name }}-global-{{ $L }} .site }}'
+      labels:
+        vt.io/toan-cuc: "true"
+        site: '{{ $L }} .site }}'
+        vt.io/service: {{ $a.name }}
+    spec:
+      project: {{ $g.project }}{{ $v.projectSuffix }}
+      source:
+        repoURL: {{ $v.gitops.repoURL }}
+        targetRevision: {{ $v.gitops.revision }}
+        path: {{ $root }}/charts/{{ $a.name }}
+        helm:
+          ignoreMissingValueFiles: true
+          valueFiles:
+            - ../../environments/global/{{ $a.name }}/values.yaml
+            - '../../environments/global/{{ $a.name }}/values-{{ $L }} .site }}.yaml'
+          valuesObject:
+            site: '{{ $L }} .site }}'
+          {{- with $a.params }}
+          parameters:
+            {{- range . }}
+            {{- $anh := printf "(index .images %q)" .image }}
+            - name: {{ .name }}
+              value: '{{ replace "DIGEST" (printf "%s %s.digest }}" $L $anh) (replace "REPO" (printf "%s %s.repository }}" $L $anh) .format) }}'
+            {{- end }}
+          {{- end }}
+      destination:
+        name: '{{ printf $g.destinationNameFormat (printf "%s .site }}" $L) }}'
+        namespace: {{ $a.namespace }}
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: {{ toJson $v.syncPolicy.syncOptions }}
+        retry: {{ toJson $v.syncPolicy.retry }}
+{{- end }}
+{{- end }}

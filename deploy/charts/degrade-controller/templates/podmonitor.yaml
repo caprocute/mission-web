@@ -1,0 +1,18 @@
+{{- if .Values.podMonitor }}
+# vt_degrade_level cho luật SaturationLevel2 (observability-cell) và bảng điều khiển suy giảm.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: degrade-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "degrade-controller.labels" . | nindent 4 }}
+spec:
+  selector: { matchLabels: { app.kubernetes.io/name: degrade-controller } }
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      relabelings:
+        - { targetLabel: cell, replacement: {{ .Values.cell | quote }} }
+{{- end }}

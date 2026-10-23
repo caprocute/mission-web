@@ -284,8 +284,9 @@ class MyTaskServicesTest {
     when(units.listUnitTasks(eq(TENANT), eq(uq), eq(manager), any(), anyInt()))
         .thenReturn(
             List.of(
-                new UnitTaskRow(restricted, UUID.randomUUID(), true),
-                new UnitTaskRow(task(UUID.randomUUID(), TaskStatus.HUY, TODAY, false), ME, true)));
+                new UnitTaskRow(restricted, UUID.randomUUID(), true, null),
+                new UnitTaskRow(
+                    task(UUID.randomUUID(), TaskStatus.HUY, TODAY, false), ME, true, null)));
     written.clear();
     queued.clear();
     svc.export(TENANT, new TaskExportService.ExportQuery(all, uq, true), manager);

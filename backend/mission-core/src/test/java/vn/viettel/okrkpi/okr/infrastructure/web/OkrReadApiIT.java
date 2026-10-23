@@ -294,6 +294,7 @@ class OkrReadApiIT extends ContractConformanceTest {
     assertResponseConforms(r, "/okr/objectives/{id}", PathItem.HttpMethod.GET);
     assertThat(body(r).at("/parentObjective/code").asText()).isEqualTo("MT-01");
     assertThat(body(r).at("/period/id").asText()).isEqualTo(period.toString());
+    assertThat(body(r).get("permittedActions").isArray()).isTrue();
 
     MvcResult one = perform(get("/api/v1/okr/objectives/" + o1));
     assertThat(body(one).get("peerLinks")).hasSize(3);
@@ -305,6 +306,7 @@ class OkrReadApiIT extends ContractConformanceTest {
     assertThat(body(kr).at("/lastCheckin/value").decimalValue()).isEqualByComparingTo("5");
     assertThat(body(kr).get("latestBlocker").asText()).isEqualTo("Chờ kinh phí");
     assertThat(body(kr).at("/objective/id").asText()).isEqualTo(o1.toString());
+    assertThat(body(kr).get("permittedActions").isArray()).isTrue();
 
     assertThat(
             perform(get("/api/v1/okr/objectives/" + UUID.randomUUID())).getResponse().getStatus())

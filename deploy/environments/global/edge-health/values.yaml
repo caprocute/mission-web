@@ -1,0 +1,7 @@
+# /healthz/edge của vùng điều phối toàn cục (INF-20): APISIX lớp ngoài trỏ đường này tới edge-health bằng globalRoutes
+# (api-gateway-global), nên không cần ApisixRoute. Điều kiện: tenant-registry có ít nhất một nửa replica sẵn sàng và
+# primary của pg-registry ở TTDL này (tên cụm theo TTDL ở values-<site>.yaml).
+workload: { group: apps, version: v1, resource: deployments, namespace: global, name: tenant-registry }
+pg: { namespace: registry-db, name: pg-registry-hl }
+apisixRoute:
+  enabled: false

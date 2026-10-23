@@ -1,0 +1,72 @@
+{{- /*
+INF-24 · TL-04 "Bảng lịch sao lưu" (sys.audit.v1: RPO ≤ 5 phút, kiểm chữ ký và đếm bản ghi hằng ngày), SEC-43:
+cảnh báo khi nhật ký kiểm toán chậm vào kho bất biến quá 5 phút, khi một phân vùng bị dừng vì chuỗi kê khai hay kho
+không nhất quán, khi ghi kho lỗi liên tục, và khi job kiểm hằng ngày không đạt hoặc ngừng chạy. Sai lệch toàn vẹn
+gắn nhãn doi: soc để chuyển đội an ninh (INF-19). Chỉ số do audit-archiver xuất ở /metrics và do job đẩy lên
+Pushgateway. Tắt bằng alerts.enabled=false.
+*/ -}}
+{{- if .Values.alerts.enabled }}
+{{- $name := .Values.name | default .Release.Name }}
+{{- $rb := .Values.alerts.runbookBase }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ $name }}-canh-bao
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  groups:
+    - name: audit-archiver
+      rules:
+        - alert: AuditArchiverChamQua5Phut
+          expr: max by (topic, phan_vung) (audit_archiver_do_tre_giay) > 300
+          for: 1m
+          labels: { severity: critical, doi: soc }
+          annotations:
+            summary: "Nhật ký kiểm toán {{`{{ $labels.topic }}`}} phân vùng {{`{{ $labels.phan_vung }}`}} chưa vào kho bất biến sau 5 phút"
+            runbook_url: {{ $rb }}/audit-archiver#cham-qua-5-phut
+        - alert: AuditArchiverPhanVungDung
+          expr: max by (topic, phan_vung) (audit_archiver_phan_vung_dung) > 0
+          for: 0m
+          labels: { severity: critical, doi: soc }
+          annotations:
+            summary: "audit-archiver dừng phân vùng {{`{{ $labels.phan_vung }}`}} của {{`{{ $labels.topic }}`}} vì chuỗi kê khai hoặc kho không nhất quán"
+            runbook_url: {{ $rb }}/audit-archiver#phan-vung-dung
+        - alert: AuditArchiverGhiKhoLoi
+          expr: sum by (topic, giai_doan) (increase(audit_archiver_loi_total[10m])) > 5
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "audit-archiver lỗi liên tục ở giai đoạn {{`{{ $labels.giai_doan }}`}}"
+            runbook_url: {{ $rb }}/audit-archiver#loi-ghi-kho
+        - alert: AuditArchiverKhongCoPod
+          expr: absent(up{job=~".*{{ $name }}.*"} == 1)
+          for: 5m
+          labels: { severity: critical, doi: soc }
+          annotations:
+            summary: "Không có pod audit-archiver nào chạy, nhật ký kiểm toán không vào kho bất biến"
+            runbook_url: {{ $rb }}/audit-archiver#khong-co-pod
+        - alert: AuditArchiverKiemTraKhongDat
+          expr: min by (topic) (audit_archiver_kiem_tra_dat) == 0
+          for: 0m
+          labels: { severity: critical, doi: soc }
+          annotations:
+            summary: "Kiểm hằng ngày kho nhật ký kiểm toán {{`{{ $labels.topic }}`}} phát hiện sai lệch chữ ký, chuỗi hoặc số bản ghi"
+            runbook_url: {{ $rb }}/audit-archiver#kiem-tra-khong-dat
+        - alert: AuditArchiverKiemTraNgungChay
+          expr: time() - max(audit_archiver_kiem_tra_lan_cuoi_giay) > 26 * 3600
+          for: 30m
+          labels: { severity: warning, doi: soc }
+          annotations:
+            summary: "Job kiểm hằng ngày kho nhật ký kiểm toán không chạy xong trong 26 giờ"
+            runbook_url: {{ $rb }}/audit-archiver#kiem-tra-ngung-chay
+        - alert: AuditArchiverKiemTraJobLoi
+          expr: max(kube_job_status_failed{namespace="{{ .Values.namespace | default .Release.Namespace }}", job_name=~"{{ $name }}-kiem-tra-.*"}) > 0
+          for: 0m
+          labels: { severity: critical, doi: soc }
+          annotations:
+            summary: "Job kiểm hằng ngày kho nhật ký kiểm toán kết thúc lỗi"
+            runbook_url: {{ $rb }}/audit-archiver#kiem-tra-khong-dat
+{{- end }}

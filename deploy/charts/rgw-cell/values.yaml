@@ -21,7 +21,8 @@ lopLuuTruHdd: HDD_EC
 # thể đặt hạn riêng từng đối tượng dài hơn theo lớp; điểm lệch với TL-04 "10 năm cho mọi bucket" ở wiki 14).
 # theoTenant: khoá đối tượng bắt đầu bằng t/<tenant>/ nên chính sách giới hạn được theo tiền tố tenant (templates và
 # ledger-archive dùng chung cho cell, suy luận).
-# vongDoi: chuyenHddSauNgay (chuyển lớp HDD), hetHanSauNgay (xoá phiên bản hiện tại), huyMultipartSauNgay.
+# vongDoi: chuyenHddSauNgay (chuyển lớp HDD), hetHanSauNgay (xoá phiên bản hiện tại), huyMultipartSauNgay; kho sao lưu
+# thêm don (theo tiền tố) và donPhienBanCuSauNgay (chỉ phiên bản cũ).
 # Bucket backup (sao lưu PostgreSQL) thuộc INF-17, không khai ở đây.
 buckets:
   evidence:
@@ -60,7 +61,8 @@ buckets:
     vongDoi: { huyMultipartSauNgay: 1 }
 
 # Người dùng S3 (uid RGW do khoi-tao-multisite.sh tạo, khoá ở OpenBao <duongDan>/<uid>). quyen: bucket → thao tác
-# (doc: GetObject, GetObjectVersion; ghi: PutObject và đặt hạn giữ theo đối tượng; liet-ke: ListBucket). Khoá theo
+# (doc: GetObject, GetObjectVersion; ghi: PutObject và đặt hạn giữ theo đối tượng; liet-ke: ListBucket; xoa-danh-dau:
+# DeleteObject chỉ tạo delete marker trên bucket versioning). Khoá theo
 # nội dung t/<tenant>/sha256/<ab>/<băm>: tienTo giới hạn tiền tố được phép (mặc định t/ cho mọi tenant của cell;
 # tenant: <mã> thu về t/<mã>/ cho tài khoản riêng từng tenant). Không ai ngoài quanTri có DeleteObject, đổi
 # Object Lock hay đổi chính sách. namespace: nơi tạo Secret khoá S3 (ExternalSecret) cho service.
@@ -79,6 +81,13 @@ nguoiDung:
     namespace: secure
     quyen:
       ledger-archive: [doc, ghi, liet-ke]
+  # Sao lưu ngày minh chứng và biểu mẫu ký sang kho sao lưu (INF-18, TL-04 mục 8.4): chỉ đọc, liệt kê; Secret tạo trong
+  # namespace sao-luu của chart backup-cell (rclone sync dưới tài khoản chỉ đọc nguồn).
+  sao-luu-minh-chung:
+    namespace: sao-luu
+    quyen:
+      evidence: [doc, liet-ke]
+      dossier: [doc, liet-ke]
   # tenant-registry (SVC-03) ở vùng điều phối toàn cục, chép gói chuyển liên cell qua API S3 (DV-03-07); namespace
   # rỗng: không tạo Secret trong cell, khoá giao cho vùng điều phối.
   tenant-registry:

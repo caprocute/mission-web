@@ -7,8 +7,9 @@ trên nhãn wave. Biểu thức của Argo CD (dạng ngoặc nhọn kép) đư�
 {{- $L := "{{" }}
 {{- $root := trimSuffix "/" $v.gitops.root }}
 {{- $tatCa := list }}
-{{- range $v.services }}{{ $tatCa = append $tatCa .name }}{{ end }}
+{{- range $v.services }}{{ if not .chart }}{{ $tatCa = append $tatCa .name }}{{ end }}{{ end }}
 {{- range $s := $v.services }}
+{{- if not (has $s.name $v.servicesTat) }}
 {{- if not (hasKey $v.projects $s.project) }}
 {{- fail (printf "vt-gitops: service %s dùng project %s chưa khai trong projects" $s.name $s.project) }}
 {{- end }}
@@ -16,7 +17,7 @@ trên nhãn wave. Biểu thức của Argo CD (dạng ngoặc nhọn kép) đư�
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: okr-{{ $s.name }}
+  name: {{ $v.appsetPrefix }}-{{ $s.name }}
   namespace: {{ $v.argocdNamespace }}
   labels:
     app.kubernetes.io/part-of: vt-gitops
@@ -68,18 +69,26 @@ spec:
         site: '{{ $L }} .site }}'
         vt.io/service: {{ $s.name }}
     spec:
-      project: {{ $s.project }}
+      project: {{ $s.project }}{{ $v.projectSuffix }}
       source:
         repoURL: {{ $v.gitops.repoURL }}
         targetRevision: {{ $v.gitops.revision }}
-        {{- if $v.chartRieng }}
+        {{- if $s.chart }}
+        path: {{ $root }}/{{ $s.chart }}
+        {{- else if $v.chartRieng }}
         path: {{ $root }}/{{ default (printf "charts/%s" $s.name) $s.path }}
         {{- else }}
         path: {{ $root }}/{{ $v.platformChart.path }}
         {{- end }}
         helm:
           ignoreMissingValueFiles: true
-          {{- if not $v.chartRieng }}
+          {{- if $s.chart }}
+          {{- $len := len (splitList "/" (trimSuffix "/" $s.chart)) }}
+          {{- $ve := repeat $len "../" }}
+          valueFiles:
+            - '{{ $ve }}cells/{{ $L }} .cell.name }}/{{ $s.name }}.yaml'
+            - '{{ $ve }}cells/{{ $L }} .cell.name }}/{{ $s.name }}-{{ $L }} .site }}.yaml'
+          {{- else if not $v.chartRieng }}
           valueFiles:
             {{- range $v.platformChart.valueFiles }}
             - '{{ replace "{{ .model }}" $v.deploymentModel . }}'
@@ -91,7 +100,9 @@ spec:
               site: '{{ $L }} .site }}'
               siteRole: '{{ $L }} if eq .site .cell.primarySite }}primary{{ $L }} else }}standby{{ $L }} end }}'
               sizing: '{{ $L }} .cell.sizing }}'
-            {{- if $v.chartRieng }}
+            {{- if $s.chart }}
+            cell: '{{ $L }} .cell.name }}'
+            {{- else if $v.chartRieng }}
             {{- if $v.namespaceTheoCell }}
             namespace: '{{ $s.namespace }}-{{ $L }} .cell.name }}'
             {{- end }}
@@ -120,6 +131,14 @@ spec:
         {{- if not $v.rollingSync.enabled }}
         automated: { prune: true, selfHeal: true }
         {{- end }}
+        {{- if $v.ignoreDifferences }}
+        syncOptions: {{ toJson (append $v.syncPolicy.syncOptions "RespectIgnoreDifferences=true") }}
+        {{- else }}
         syncOptions: {{ toJson $v.syncPolicy.syncOptions }}
+        {{- end }}
         retry: {{ toJson $v.syncPolicy.retry }}
+      {{- with $v.ignoreDifferences }}
+      ignoreDifferences: {{ toJson . }}
+      {{- end }}
+{{- end }}
 {{- end }}

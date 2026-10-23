@@ -46,6 +46,7 @@ import {
   RatingLevel,
   toProblem,
 } from '@vt/api-client';
+import { permittedOn } from '@vt/auth';
 import { ThemeService } from '@vt/design-system';
 import { firstValueFrom } from 'rxjs';
 import { APPRAISAL_CAN } from '../../appraisal-permissions';
@@ -264,6 +265,7 @@ export class RatingSheetPage {
     () =>
       this.profile()?.status === 'DA_THAM_DINH' &&
       this.can('SCR-0903.de-xuat') &&
+      permittedOn(this.profile(), 'SCR-0903.de-xuat') &&
       !!this.appraised(),
   );
   protected readonly finalLevel = computed(() => {

@@ -1,0 +1,579 @@
+{
+  "consumer": {
+    "name": "mission-web"
+  },
+  "provider": {
+    "name": "mission-core"
+  },
+  "interactions": [
+    {
+      "description": "danh sách việc của tôi trong kỳ hiện hành",
+      "providerStates": [
+        {
+          "name": "cán bộ chủ trì một nhiệm vụ đang thực hiện trong kỳ hiện hành",
+          "params": {
+            "taskId": "01927a02-0000-7000-8000-00000000c502"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/tasks/mine",
+        "query": {
+          "limit": [
+            "20"
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "items": [
+            {
+              "id": "01927a02-0000-7000-8000-00000000c502",
+              "code": "NV-0001",
+              "title": "Báo cáo chuyên đề",
+              "status": "DANG_THUC_HIEN",
+              "dueDate": "2029-03-15",
+              "progress": 20,
+              "role": "CHU_TRI",
+              "taskGroup": "THUONG_XUYEN",
+              "rowVersion": 1,
+              "openBlockerCount": 0,
+              "assignerName": "Lê Văn Giao"
+            }
+          ],
+          "nextCursor": null,
+          "counts": {
+            "TAT_CA": 1,
+            "CHAM": 0,
+            "SAP_HAN": 0
+          }
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items": {
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.items[*].id": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.items[*].dueDate": {
+              "matchers": [
+                {
+                  "match": "date",
+                  "format": "yyyy-MM-dd"
+                }
+              ]
+            },
+            "$.items[*].progress": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.items[*].rowVersion": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.items[*].openBlockerCount": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.counts.TAT_CA": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.counts.CHAM": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.counts.SAP_HAN": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "cập nhật tiến độ nhiệm vụ",
+      "providerStates": [
+        {
+          "name": "cán bộ chủ trì một nhiệm vụ đang thực hiện trong kỳ hiện hành",
+          "params": {
+            "taskId": "01927a02-0000-7000-8000-00000000c502"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/tasks/01927a02-0000-7000-8000-00000000c502/progress",
+        "headers": {
+          "If-Match": "\"1\"",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "percent": 60,
+          "note": "Đã hoàn thành phần khảo sát"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "id": "01927a02-0000-7000-8000-00000000c502",
+          "status": "DANG_THUC_HIEN",
+          "progress": 60,
+          "rowVersion": 2
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.id": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.progress": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.rowVersion": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "kết quả then chốt của tôi",
+      "providerStates": [
+        {
+          "name": "cán bộ sở hữu một kết quả then chốt đã duyệt trong kỳ hiện hành",
+          "params": {
+            "keyResultId": "01927a02-0000-7000-8000-00000000c513"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/okr/key-results",
+        "query": {
+          "owner": [
+            "me"
+          ],
+          "limit": [
+            "200"
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "items": [
+            {
+              "id": "01927a02-0000-7000-8000-00000000c513",
+              "code": "KR 1.1",
+              "title": "Kết quả kiểm thử",
+              "unit": "chi bộ",
+              "targetValue": 10
+            }
+          ],
+          "nextCursor": null
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items": {
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.items[*].id": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "tạo minh chứng cho sản phẩm của nhiệm vụ",
+      "providerStates": [
+        {
+          "name": "cán bộ chủ trì một nhiệm vụ có sản phẩm chưa có minh chứng",
+          "params": {
+            "taskId": "01927a02-0000-7000-8000-00000000c502",
+            "deliverableId": "01927a02-0000-7000-8000-00000000c521"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/evidences",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "deliverableId": "01927a02-0000-7000-8000-00000000c521",
+          "title": "Báo cáo chuyên đề",
+          "sourceType": "TAI_LEN"
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "id": "01927a02-0000-7000-8000-00000000c522",
+          "deliverableId": "01927a02-0000-7000-8000-00000000c521",
+          "task": {
+            "id": "01927a02-0000-7000-8000-00000000c502",
+            "code": "NV-PACT-01",
+            "name": "Báo cáo chuyên đề"
+          },
+          "title": "Báo cáo chuyên đề",
+          "sourceType": "TAI_LEN",
+          "rowVersion": 0
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.id": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.deliverableId": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.task.id": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.rowVersion": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "minh chứng của tôi",
+      "providerStates": [
+        {
+          "name": "cán bộ đã tạo một minh chứng cho sản phẩm của nhiệm vụ mình chủ trì",
+          "params": {
+            "taskId": "01927a02-0000-7000-8000-00000000c502",
+            "deliverableId": "01927a02-0000-7000-8000-00000000c521"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/evidences",
+        "query": {
+          "submitter": [
+            "me"
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "items": [
+            {
+              "id": "01927a02-0000-7000-8000-00000000c522",
+              "deliverableId": "01927a02-0000-7000-8000-00000000c521",
+              "task": {
+                "id": "01927a02-0000-7000-8000-00000000c502",
+                "code": "NV-PACT-01",
+                "name": "Báo cáo chuyên đề"
+              },
+              "title": "Báo cáo chuyên đề",
+              "sourceType": "TAI_LEN",
+              "rowVersion": 0
+            }
+          ],
+          "nextCursor": null
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items": {
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.items[*].id": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.items[*].deliverableId": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.items[*].task.id": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.items[*].rowVersion": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "hồ sơ đánh giá của tôi",
+      "providerStates": [
+        {
+          "name": "cán bộ có một hồ sơ đánh giá đang tự đánh giá trong kỳ hiện hành",
+          "params": {
+            "profileId": "01927a02-0000-7000-8000-00000000c531"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/appraisals/profiles/mine",
+        "query": {
+          "limit": [
+            "50"
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "items": [
+            {
+              "id": "01927a02-0000-7000-8000-00000000c531",
+              "flow": "DANG",
+              "status": "TU_DANH_GIA",
+              "rowVersion": 1
+            }
+          ],
+          "nextCursor": null
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items": {
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.items[*].id": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.items[*].rowVersion": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "mở phiếu tự đánh giá",
+      "providerStates": [
+        {
+          "name": "cán bộ có một hồ sơ đánh giá đang tự đánh giá trong kỳ hiện hành",
+          "params": {
+            "profileId": "01927a02-0000-7000-8000-00000000c531"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/appraisals/profiles/01927a02-0000-7000-8000-00000000c531"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "id": "01927a02-0000-7000-8000-00000000c531",
+          "flow": "DANG",
+          "status": "TU_DANH_GIA",
+          "rowVersion": 1
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.id": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.rowVersion": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  }
+}

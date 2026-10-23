@@ -110,3 +110,53 @@ spec:
     - toEntities: [kube-apiserver]
 {{- end }}
 {{- end }}
+{{- if $v.mirrorMaker.enabled }}
+---
+# INF-28: listener liên TTDL của broker chỉ nhận từ dải node của TTDL kia (MirrorMaker 2).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kafka-lien-ttdl
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { strimzi.io/cluster: {{ $v.cluster }}, strimzi.io/broker-role: "true" }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        {{- range $v.mirrorMaker.peerCIDRs }}
+        - ipBlock: { cidr: {{ . }} }
+        {{- else }}
+        - ipBlock: { cidr: 192.0.2.0/32 }
+        {{- end }}
+      ports: [{ port: {{ $v.mirrorMaker.listener.port }}, protocol: TCP }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mirror-maker
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { strimzi.io/kind: KafkaMirrorMaker2 }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { strimzi.io/cluster: {{ $v.cluster }}, strimzi.io/broker-role: "true" } }
+      ports: [{ port: 9093, protocol: TCP }]
+    {{- with $v.mirrorMaker.peerCIDRs }}
+    - to:
+        {{- range . }}
+        - ipBlock: { cidr: {{ . }} }
+        {{- end }}
+      ports: [{ port: {{ $v.mirrorMaker.listener.port }}, protocol: TCP }]
+    {{- end }}
+    # Kết nối nội bộ giữa các worker Connect của MirrorMaker 2 (REST 8083).
+    - to:
+        - podSelector: { matchLabels: { strimzi.io/kind: KafkaMirrorMaker2 } }
+      ports: [{ port: 8083, protocol: TCP }]
+{{- end }}

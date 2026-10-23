@@ -1,0 +1,4 @@
+# Cấu hình markdownlint cho docs/quan-tri-cai-dat (VH-06). Văn xuôi tiếng Việt viết thành đoạn dài, nên tắt giới hạn
+# độ dài dòng (MD013); các luật còn lại giữ mặc định.
+default: true
+MD013: false

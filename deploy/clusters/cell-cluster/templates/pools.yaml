@@ -1,8 +1,9 @@
 {{- $v := .Values }}
 {{- $name := $v.clusterName }}
 {{- $i := $v.infrastructure }}
-{{- $vm := list "system" "ingress" "app-general" "app-worker" }}
-{{- $known := list "system" "ingress" "app-general" "app-worker" "data-postgres-large" "data-postgres-small" "data-kafka" "data-search" "security-zone" "gpu" }}
+{{- $vm := list "system" "ingress" "app-general" "app-worker" "hoi-tu" }}
+{{- /* hoi-tu, du-lieu: hai pool của hồ sơ compact (TL-05 mục 3.3, 9.2; sizing/values-sizing-compact.yaml). */}}
+{{- $known := list "system" "ingress" "app-general" "app-worker" "data-postgres-large" "data-postgres-small" "data-kafka" "data-search" "security-zone" "gpu" "hoi-tu" "du-lieu" }}
 {{- range $pool, $p := $v.pools }}
 {{- if not (has $pool $known) }}{{ fail (printf "cell-cluster: pool %s không có trong bảng TL-04 mục 3.3" $pool) }}{{ end }}
 {{- if and $p.autoscale (not (has $pool (list "ingress" "app-general" "app-worker"))) }}{{ fail (printf "cell-cluster: pool %s không được co giãn tự động (TL-04 mục 3.3)" $pool) }}{{ end }}
