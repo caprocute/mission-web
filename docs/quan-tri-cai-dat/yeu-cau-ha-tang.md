@@ -49,11 +49,14 @@ Mọi pod của nền tảng chọn node qua nhãn `vt.io/pool`, và hầu hết
 
 Mỗi node còn phải có nhãn `topology.kubernetes.io/zone` khớp với danh sách `global.topology.zones` trong values của cell. Hồ sơ S và M cần ba vùng sự cố; hồ sơ compact chỉ có một vùng. Node của pool data-search cần `vm.max_map_count=262144` cho OpenSearch, đặt trong cấu hình kubeadm của pool.
 
-Hai khoảng trống dưới đây được phát hiện khi viết tài liệu này, bằng cách đối chiếu bản render của chart với khuôn cụm. Cả hai đã được báo cho luồng điều phối và phải được sửa ở chart trước khi cài một cell thật.
+Hồ sơ compact không dùng bảng trên mà gộp pool lên hai loại node theo TL-05 mục 9.2. Tệp `sizing/values-sizing-compact.yaml` ánh xạ mọi pool logic sang hai nhãn này qua `global.poolMap` (chart dựng trên `vt-service`) và qua khối `placement` của chart hạ tầng; khuôn cụm mẫu ở `deploy/clusters/cell-mau-compact/values.yaml`.
 
-> **Khoảng trống 1: tên pool của tầng dữ liệu lệch giữa chart và khuôn cụm.** Chart `opensearch`, `clickhouse` chọn node `vt.io/pool=data-search`, còn chart `data-pg` (cho `pg-ledger`, `pg-secure`) và `openbao` chọn `vt.io/pool=security-zone` với taint khoá `vt.io/pool`. Trong khi đó TL-04 mục 3.3 và khuôn `deploy/clusters/cell-cluster` gắn `vt.io/pool=search` và `vt.io/pool=secure` (taint `vt.io/zone=secure`). Trên cụm dựng theo khuôn, các pod này sẽ không xếp được lên node nào. Khi chưa sửa chart, có thể ghi đè `nodeSelector` và `tolerations` của bốn chart này trong values của cell; không sửa nhãn node lệch khỏi TL-04.
->
-> **Khoảng trống 2: hồ sơ compact chưa xếp được lên sáu node.** TL-05 gộp pool system, ingress, app-general và app-worker lên ba node hội tụ, và gộp vùng bảo mật với tầng dữ liệu trên ba node dữ liệu. Tuy nhiên bản render của `vt-platform` với `values-private.yaml` và `sizing/values-sizing-compact.yaml` vẫn chọn node theo tám giá trị `vt.io/pool` riêng, trong khi một node chỉ mang được một giá trị của một nhãn. Cần một thay đổi ở chart (đề xuất: hồ sơ compact đổi bộ chọn node sang hai nhãn kiểu `hoi-tu` và `du-lieu`, suy luận) trước khi cài một bản compact thật. Ngoài bộ chọn node, OpenBao giữ 5 replica với ràng buộc chống đặt chung bắt buộc, nên với ba node dữ liệu values của cell phải hạ `openbao.replicas` xuống 3 (Raft 3 node vẫn chịu được mất một node). Giá trị này chưa có trong `values-sizing-compact.yaml`, nên tệp mẫu `vi-du/cell-rieng-compact.yaml` đặt nó. Valkey đã tự xử lý trường hợp một vùng: hai pod cùng shard chỉ bắt buộc khác node.
+| Loại node (compact) | Nhãn | Taint | Thành phần chạy trên node |
+|---|---|---|---|
+| hội tụ (3 node) | `vt.io/pool=hoi-tu` | không | Pool system, ingress, app-general, app-worker gộp lại: dịch vụ ứng dụng, APISIX, Prometheus và các operator |
+| dữ liệu (3 node) | `vt.io/pool=du-lieu`, `vt.io/zone=secure` | `vt.io/zone=secure:NoSchedule` | PostgreSQL, Kafka, Valkey, OpenSearch, ClickHouse, và vùng bảo mật (ledger, esign, pg-ledger, pg-secure, OpenBao 3 replica) |
+
+Hai điểm lệch phát hiện khi viết tài liệu này (tên pool của tầng dữ liệu trong chart khác TL-04 mục 3.3, và hồ sơ compact chưa xếp được lên sáu node) đã được sửa ở chart: chart `opensearch`, `clickhouse` chọn `vt.io/pool=search`, chart `data-pg` (phần secure) và `openbao` chọn `vt.io/zone=secure` cùng toleration tương ứng, chart `kafka` chọn `vt.io/pool=kafka`, và hồ sơ compact đặt `openbao.replicas: 3` (Raft 3 node vẫn chịu được mất một node). Valkey tự xử lý trường hợp một vùng: hai pod cùng shard chỉ bắt buộc khác node. Một số pod chưa khai bộ chọn node (Apicurio, kube-state-metrics, org-service, workflow-service) xếp lên node không có taint, tức pool app-general ở hồ sơ S trở lên và node hội tụ ở compact.
 
 ## Mạng
 

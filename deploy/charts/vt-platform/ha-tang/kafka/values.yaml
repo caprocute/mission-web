@@ -29,6 +29,11 @@ brokers:
 controllers:
   replicas: 3
   resources: { cpu: "1", memory: 4Gi }
+# Bố trí node (TL-04 mục 3.3): broker và controller trên pool data-kafka (nhãn vt.io/pool=kafka, taint cùng tên).
+# Strimzi không có nodeSelector trong template pod nên chart dựng nodeAffinity bắt buộc từ nodeSelector này.
+placement:
+  nodeSelector: { vt.io/pool: kafka }
+  tolerations: [{ key: vt.io/pool, operator: Equal, value: kafka, effect: NoSchedule }]
 # Ổ dữ liệu broker theo hồ sơ (TL-05: lưu giữ 0,1 / 0,6 / 1,5 / 2,2 TB sau nhân bản, NVMe dư 7–10 lần; M lấy
 # 3500Gi của Phụ lục A, các hồ sơ khác suy luận cùng tỷ lệ). Controller giữ siêu dữ liệu KRaft, 20Gi.
 luuTru:

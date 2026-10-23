@@ -7,12 +7,22 @@ global:
   topology:
     # Một vùng sự cố: vt-service và chart hạ tầng đổi ràng buộc rải theo vùng sang theo node (TL-05 Phụ lục A).
     zones: [hl-a]
+  # Gộp pool (TL-05 mục 3.3, 9.2): sáu node, ba node hội tụ VM-32-128 mang vt.io/pool=hoi-tu (không taint) chạy
+  # system, ingress, app-general, app-worker; ba node dữ liệu PHY-DB-S mang vt.io/pool=du-lieu và vt.io/zone=secure,
+  # taint vt.io/zone=secure:NoSchedule, chạy tầng dữ liệu và vùng bảo mật (ngoại lệ thứ hai, chỉ node dữ liệu có
+  # đường tới HSM). vt-service đổi pool theo bảng này; chart hạ tầng đổi bằng khối placement bên dưới.
+  poolMap:
+    app-general: hoi-tu
+    worker: hoi-tu
+    ingress: hoi-tu
+    system: hoi-tu
 
 # Ứng dụng. org-service (chart DV-04-01) chưa có HPA nên chỉ đặt replicaCount bằng minReplicas của TL-05; mission-core
 # giữ pool 12 kết nối mỗi pod (task 5, các module còn lại 1) vì pg-core gộp.
 # kafka.connect và search.api là chỗ giữ số replica cho Kafka Connect (INF-10) và search API (chưa có workload riêng).
 api-gateway:
   apisix:
+    nodePool: hoi-tu
     autoscaling:
       minReplicas: 2
       maxReplicas: 3
@@ -150,6 +160,9 @@ org-service:
   replicaCount: 2
 kafka:
   cheDo: ket-hop
+  placement:
+    nodeSelector: { vt.io/pool: du-lieu }
+    tolerations: [{ key: vt.io/zone, operator: Equal, value: secure, effect: NoSchedule }]
   brokers:
     replicas: 3
     resources:
@@ -162,6 +175,35 @@ kafka:
     replicas:
       min: 1
       max: 1
+
+# Tầng dữ liệu trên ba node dữ liệu (xem global.poolMap). Vùng bảo mật (pg-ledger, OpenBao, ledger, esign) giữ bộ chọn
+# vt.io/zone=secure mặc định, khớp nhãn của node dữ liệu. OpenBao 3 node Raft, mỗi node một máy dữ liệu.
+data-pg:
+  placement:
+    app:
+      nodeSelector: { vt.io/pool: du-lieu }
+      tolerations: [{ key: vt.io/zone, operator: Equal, value: secure, effect: NoSchedule }]
+valkey:
+  placement:
+    nodeSelector: { vt.io/pool: du-lieu }
+    tolerations: [{ key: vt.io/zone, operator: Equal, value: secure, effect: NoSchedule }]
+opensearch:
+  placement:
+    nodeSelector: { vt.io/pool: du-lieu }
+    tolerations: [{ key: vt.io/zone, operator: Equal, value: secure, effect: NoSchedule }]
+clickhouse:
+  placement:
+    nodeSelector: { vt.io/pool: du-lieu }
+    tolerations: [{ key: vt.io/zone, operator: Equal, value: secure, effect: NoSchedule }]
+openbao:
+  replicas: 3
+observability-cell:
+  kube-prometheus-stack:
+    prometheusOperator:
+      nodeSelector: { vt.io/pool: hoi-tu }
+    prometheus:
+      prometheusSpec:
+        nodeSelector: { vt.io/pool: hoi-tu }
 
 # Node pool máy ảo cho Cluster API và Cluster Autoscaler (INF-16 đọc). Pool máy vật lý không co giãn nên không ghi ở đây.
 # Hồ sơ compact gộp system, ingress, app-general và app-worker lên ba node hội tụ, không co giãn node.

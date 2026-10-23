@@ -63,6 +63,55 @@ head -n -1 "$W/anh-da-nap.tsv" > "$W/thieu.tsv"
 python3 goi/tools/doi-registry.py "$W/thieu.tsv" < "$W/ag.yaml" > /dev/null 2>&1 \
   && hong "đổi registry để lọt ảnh chưa có trong gói" || ok "đổi registry dừng khi có ảnh chưa nạp"
 
+# Mô hình đám mây riêng (VH-06): cùng bảng đối chiếu sinh global.doiKhoAnh, cell-base dựng vt-doi-kho-anh đổi ảnh lúc
+# tạo pod; vt-require-signed-images giữ khoá kms của OpenBao trong cell, chỉ đổi registry.
+python3 goi/tools/doi-registry.py --sinh-doi-kho-anh "$W/anh-da-nap.tsv" > "$W/dk.yaml" 2>"$W/loi" \
+  && grep -q '"harbor.vt.local/": "harbor.qp.local/okr/"' "$W/dk.yaml" \
+  && ok "sinh global.doiKhoAnh từ bảng đối chiếu ($(grep -c '": "' "$W/dk.yaml") tiền tố)" || { hong "sinh doiKhoAnh"; cat "$W/loi"; }
+printf 'harbor.vt.local/okr/a@sha256:1\tharbor.vt.local/okr/a@sha256:1\n' > "$W/chong.tsv"
+python3 goi/tools/doi-registry.py --sinh-doi-kho-anh "$W/chong.tsv" > /dev/null 2>&1 \
+  && hong "doiKhoAnh để lọt tiền tố đích chồng tiền tố gốc" || ok "doiKhoAnh dừng khi đích bắt đầu bằng tiền tố gốc"
+helm template cb "$GOC/deploy/charts/cell-base" -f "$W/dk.yaml" > "$W/cb.yaml" 2>"$W/loi" || cat "$W/loi"
+python3 - "$W/cb.yaml" "$W/ag.yaml" "$W/pod.yaml" <<'EOF'
+import sys, yaml
+d = [x for x in yaml.safe_load_all(open(sys.argv[1])) if x]
+yaml.safe_dump_all([x for x in d if x["kind"] == "ClusterPolicy"], open(sys.argv[1] + "-pol.yaml", "w"))
+anh = []
+def tim(o):
+    if isinstance(o, dict):
+        for k, v in o.items():
+            if k == "image" and isinstance(v, str) and "@sha256:" in v: anh.append(v)
+            else: tim(v)
+    elif isinstance(o, list):
+        for x in o: tim(x)
+for x in yaml.safe_load_all(open(sys.argv[2])): tim(x)
+anh = sorted(set(anh))
+yaml.safe_dump({"apiVersion": "v1", "kind": "Pod", "metadata": {"name": "thu", "namespace": "core"},
+                "spec": {"initContainers": [{"name": "i0", "image": anh[0]}],
+                         "containers": [{"name": f"c{i}", "image": a} for i, a in enumerate(anh)]}}, open(sys.argv[3], "w"))
+EOF
+if command -v kyverno >/dev/null; then
+  mkdir -p "$W/mt"
+  kyverno apply "$W/cb.yaml-pol.yaml" --resource "$W/pod.yaml" -o "$W/mt" > "$W/ky" 2>&1
+  python3 - "$W/mt" "$W/pod.yaml" <<'EOF' && ok "vt-doi-kho-anh: mọi ảnh của bản render đổi sang Harbor khách hàng lúc tạo pod, digest giữ nguyên" || { hong "vt-doi-kho-anh"; tail -5 "$W/ky"; }
+import glob, sys, yaml
+p = [x for x in yaml.safe_load_all(open(glob.glob(sys.argv[1] + "/*.yaml")[0])) if x][-1]
+goc = yaml.safe_load(open(sys.argv[2]))["spec"]
+moi = [c["image"] for c in p["spec"]["containers"] + p["spec"]["initContainers"]]
+assert len(moi) == len(goc["containers"]) + 1
+assert all(a.startswith("harbor.qp.local/okr/") for a in moi), [a for a in moi if not a.startswith("harbor.qp.local/")]
+assert {a.split("@")[1] for a in moi} == {c["image"].split("@")[1] for c in goc["containers"]}
+EOF
+else echo "  [BỎ QUA] vt-doi-kho-anh: không có kyverno CLI"; fi
+mkdir -p "$W/kvr"
+python3 goi/tools/doi-khoa-kyverno.py --chi-registry --registry-goc harbor.vt.local --kho harbor.qp.local --ra "$W/kvr" \
+  "$GOC"/deploy/policies/vt-require-signed-images.yaml > /dev/null && python3 - "$W/kvr" <<'EOF' && ok "Kyverno --chi-registry: giữ khoá kms, imageReferences trỏ Harbor khách hàng" || hong "doi-khoa-kyverno --chi-registry"
+import sys, yaml
+v = yaml.safe_load(open(sys.argv[1] + "/vt-require-signed-images.yaml"))["spec"]["rules"][0]["verifyImages"][0]
+assert v["imageReferences"] == ["harbor.qp.local/*"]
+assert v["attestors"][0]["entries"][0]["keys"]["kms"] == "hashivault://cosign-release"
+EOF
+
 # Chạy thử với registry cục bộ.
 if [ "${KHONG_DOCKER:-0}" = 1 ] || ! docker info >/dev/null 2>&1; then
   echo "  [BỎ QUA] chạy thử với registry cục bộ: không có Docker"
