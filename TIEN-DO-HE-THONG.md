@@ -14,7 +14,7 @@
 
 - **Tổng tiến độ đã gộp `main`**: **360 / 408 task (88.2%)** — Khối lượng quy đổi đã gộp: **426.5 / 492.5 đơn vị**.
 - **Tổng tiến độ tính cả các task đã xong chờ gộp**: **360 / 408 task (88.2%)** (gồm **360** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **7 task** (5 đang làm, 2 làm một phần).
+- **Đang thực hiện / Làm một phần**: **7 task** (4 đang làm, 3 làm một phần).
 - **Chưa bắt đầu**: **41 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
@@ -581,7 +581,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 |---|---|:---:|:---:|:---:|---|---|---|
 | [QA-01](docs/tasks/QA-01-chien-luoc-kiem-thu.md) | Chiến lược kiểm thử toàn hệ thống và danh mục khoảng 40 hành trình đầu cuối | S | B9 | 1 | – | **Đã gộp main** | Gộp 0fb85523 |
 | [QA-02](docs/tasks/QA-02-pact-hop-dong.md) | Pact Broker và kiểm thử hợp đồng frontend với API, service với service | M | B9 | 4 | NEN-006, INF-05 | **Chưa bắt đầu** |  |
-| [QA-03](docs/tasks/QA-03-e2e-he-thong-that.md) | Bộ kiểm thử đầu cuối với hệ thống thật trên server dev (backend thật, Keycloak, APISIX) | M | B9 | 11 | INF-22, QA-01 | **Đang làm** | Nhánh claude/project-thread-n43ag0: dựng khung e2e hệ thống thật |
+| [QA-03](docs/tasks/QA-03-e2e-he-thong-that.md) | Bộ kiểm thử đầu cuối với hệ thống thật trên server dev (backend thật, Keycloak, APISIX) | M | B9 | 11 | INF-22, QA-01 | **Làm một phần** | Nhánh claude/project-thread-n43ag0: khung he-thong, lớp hỗ trợ, HT-17 mẫu đã đẩy; bộ giả lập 932 ca xanh; lần chạy thật chờ JWT mission-core (B1), seed hồ sơ (B9), kafka-ui, Remote Control |
 | [QA-04](docs/tasks/QA-04-hanh-trinh-okr.md) | Hành trình đầu cuối: đăng nhập, khởi tạo tenant, tổ chức, OKR, check-in | M | B9 | 14 | QA-03, CORE-01-08, DV-03-05 | **Chưa bắt đầu** |  |
 | [QA-05](docs/tasks/QA-05-hanh-trinh-giao-viec.md) | Hành trình đầu cuối: kế hoạch, giao việc, tiến độ, minh chứng, nghiệm thu | L | B9 | 20 | QA-03, CORE-03-07, CORE-02-22 | **Chưa bắt đầu** |  |
 | [QA-06](docs/tasks/QA-06-hanh-trinh-danh-gia.md) | Hành trình đầu cuối: khoá kỳ, tự đánh giá, thẩm định, quyết định ký số, xếp loại năm | L | B9 | 21 | QA-05, DV-06-06, CORE-04-10 | **Chưa bắt đầu** |  |
@@ -1006,4 +1006,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 11:02 | Điều phối (main) | `QA-01` | Chuyển trạng thái sang **Đã gộp main** — Gộp 0fb85523 |
 | 23/10/2026 11:02 | Điều phối (main) | `QA-13` | Chuyển trạng thái sang **Đang làm** — Giao B4 |
 | 23/10/2026 11:05 | B2 backend | `QA-03` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-n43ag0: dựng khung e2e hệ thống thật |
+| 23/10/2026 11:40 | B2 backend | `QA-03` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/project-thread-n43ag0: khung he-thong, lớp hỗ trợ, HT-17 mẫu đã đẩy; bộ giả lập 932 ca xanh; lần chạy thật chờ JWT mission-core (B1), seed hồ sơ (B9), kafka-ui, Remote Control |
 <!-- PROGRESS_LOG_END -->

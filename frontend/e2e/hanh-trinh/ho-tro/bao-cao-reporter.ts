@@ -32,7 +32,7 @@ export default class BaoCaoHeThong implements Reporter {
       test.annotations.filter((a) => a.type === t && a.description).map((a) => a.description!);
     const cho = ann('cho');
     this.dong.push({
-      hanhTrinh: test.titlePath().slice(2).join(' › '),
+      hanhTrinh: test.titlePath().slice(3).join(' › '),
       ketQua:
         result.status === 'skipped'
           ? cho.length

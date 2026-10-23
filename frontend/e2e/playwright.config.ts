@@ -64,6 +64,8 @@ export default defineConfig({
     cwd: '..',
     url: `http://localhost:${port}/config.json`,
     reuseExistingServer: false,
-    env: { E2E_PORT: String(port), E2E_MODE: process.env.E2E_MODE ?? '' },
+    // Không đặt E2E_MODE thì serve.mjs dựng cấu hình động từ .env (bật đăng nhập, gọi máy chủ thật);
+    // bộ kiểm thử mặc định là giả lập nên truyền rõ `gia-lap`
+    env: { E2E_PORT: String(port), E2E_MODE: process.env.E2E_MODE || 'gia-lap' },
   },
 });
