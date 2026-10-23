@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -64,6 +65,7 @@ import vn.viettel.okrkpi.product.application.evidence.EvidenceAcceptanceService.
 import vn.viettel.okrkpi.product.application.evidence.EvidenceAcceptanceService.AcceptanceView;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceAcceptanceService.Decision;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceActor;
+import vn.viettel.okrkpi.product.application.evidence.EvidenceAiConfirmationService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceReviewService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceSubmissionService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceSubmissionService.DraftInput;
@@ -107,6 +109,7 @@ public class EvidenceController {
   private static final String MODULE = "products";
 
   private final EvidenceSubmissionService service;
+  private final EvidenceAiConfirmationService aiConfirmation;
   private final EvidenceReviewService reviews;
   private final EvidenceAcceptanceService acceptances;
   private final CursorCodec cursors;
@@ -115,12 +118,14 @@ public class EvidenceController {
 
   public EvidenceController(
       EvidenceSubmissionService service,
+      EvidenceAiConfirmationService aiConfirmation,
       EvidenceReviewService reviews,
       EvidenceAcceptanceService acceptances,
       CursorCodec cursors,
       ObjectProvider<EvidenceCaller> callers,
       ObjectProvider<AuthzSubjectResolver> subjects) {
     this.service = Objects.requireNonNull(service, "service");
+    this.aiConfirmation = Objects.requireNonNull(aiConfirmation, "aiConfirmation");
     this.reviews = Objects.requireNonNull(reviews, "reviews");
     this.acceptances = Objects.requireNonNull(acceptances, "acceptances");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
@@ -354,6 +359,7 @@ public class EvidenceController {
       @PathVariable("id") UUID id,
       @PathVariable("v") int versionNo,
       @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
       @RequestBody(required = false) EvidenceSubmit body) {
     long expected = ETags.expectedVersion(ifMatch, "PRODUCT");
     boolean attested =
@@ -365,14 +371,15 @@ public class EvidenceController {
     SubmitOutcome done =
         found(
             () ->
-                service.submit(
+                aiConfirmation.submit(
                     TenantContext.require(),
                     id,
                     versionNo,
                     expected,
                     attested,
                     aiConfirmed,
-                    actor));
+                    actor,
+                    authorization));
     EvidenceSubmitResult result =
         new EvidenceSubmitResult()
             .version(version(done.version()))
@@ -657,7 +664,10 @@ public class EvidenceController {
         body.getDocNumber(),
         body.getDocDate(),
         body.getDocSummary(),
-        body.getNote());
+        body.getNote(),
+        body.getAiFieldsEdited() == null
+            ? List.of()
+            : body.getAiFieldsEdited().stream().map(f -> f.getValue()).toList());
   }
 
   // ---------------------------------------------------------------- hỗ trợ
