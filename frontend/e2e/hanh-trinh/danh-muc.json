@@ -700,8 +700,8 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": true,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-31",
@@ -723,8 +723,8 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-32",
@@ -745,8 +745,8 @@
       ],
       "caPhuDinh": ["Gửi khiếu nại quá hạn bị từ chối"],
       "cheDoCaoTuoi": true,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-33",
@@ -768,8 +768,8 @@
       "trangThaiCuoi": [],
       "caPhuDinh": ["Người bị khiếu nại không được xử lý khiếu nại của chính mình"],
       "cheDoCaoTuoi": false,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\". Người xử lý khiếu nại theo ma trận 15a là người thẩm định (thamdinh), khác danh mục ghi AC-10; hành trình theo ma trận.",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-34",
@@ -793,8 +793,8 @@
         "Duyệt khi chưa xác thực bậc hai bị yêu cầu xác thực lại"
       ],
       "cheDoCaoTuoi": true,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-35",
@@ -815,8 +815,8 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-36",
@@ -832,8 +832,8 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": true,
-      "ghiChu": "Cảnh báo tạo từ dữ liệu khởi tạo.",
-      "trangThai": "chua_viet"
+      "ghiChu": "Cảnh báo tạo từ dữ liệu khởi tạo. Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-37",
@@ -861,8 +861,8 @@
       ],
       "caPhuDinh": ["Ca vàng chưa đạt 100% thì không gửi duyệt được"],
       "cheDoCaoTuoi": true,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\". Lỗi phát hiện: thẻ Test case của SCR-1503 vi phạm axe scrollable-region-focusable, cần task sửa riêng; hành trình ghi chú thay vì dừng.",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-38",
@@ -882,8 +882,8 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-39",
@@ -899,8 +899,8 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": true,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-40",
@@ -916,8 +916,8 @@
       "trangThaiCuoi": [],
       "caPhuDinh": ["Trợ lý AI không tự ghi dữ liệu khi người dùng chưa quyết định"],
       "cheDoCaoTuoi": true,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-41",
@@ -945,8 +945,8 @@
         "Người soạn không tự phát hành phiên bản của mình"
       ],
       "cheDoCaoTuoi": true,
-      "ghiChu": "Hai quản trị tenant: một người soạn, một người duyệt phát hành (suy luận).",
-      "trangThai": "chua_viet"
+      "ghiChu": "Hai quản trị tenant: một người soạn, một người duyệt phát hành (suy luận). Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-42",
