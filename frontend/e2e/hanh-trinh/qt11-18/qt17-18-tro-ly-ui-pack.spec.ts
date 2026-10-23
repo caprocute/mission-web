@@ -1,8 +1,8 @@
 import { Request, expect, test } from '@playwright/test';
-import { batCaoTuoi, chiHeThong, xacThucBuocLen } from '../ho-tro/kiem-tra';
+import { batCaoTuoi, chiHeThong, xacThucBuocLen, kiemAxeOnDinh } from '../ho-tro/kiem-tra';
 import { HE_THONG, cho } from '../ho-tro/moi-truong';
 import { Phien, main, spaGoto } from '../ho-tro/phien';
-import { kiemAxeOnDinh, SEED, api, kiemMoiTruong, kiemSuKien } from './chung';
+import { SEED, api, kiemMoiTruong, kiemSuKien } from './chung';
 
 /**
  * QT-17 Trợ lý AI chỉ đọc (SCR-1701), QT-18 UI Pack và biểu mẫu động (SCR-1801, SCR-1802) →

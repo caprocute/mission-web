@@ -1,9 +1,9 @@
 import { Page, expect, test } from '@playwright/test';
 import { ApiHeThong } from '../ho-tro/api';
-import { batCaoTuoi, chiHeThong, xacThucBuocLen } from '../ho-tro/kiem-tra';
+import { batCaoTuoi, chiHeThong, xacThucBuocLen, kiemAxeOnDinh } from '../ho-tro/kiem-tra';
 import { HE_THONG } from '../ho-tro/moi-truong';
 import { Phien, TenTaiKhoan, main } from '../ho-tro/phien';
-import { kiemAxeOnDinh, SEED, api, kiemMoiTruong, kiemSuKien, timHoacCho } from './chung';
+import { SEED, api, kiemMoiTruong, kiemSuKien, timHoacCho } from './chung';
 
 /**
  * QT-11 Kiểm điểm và hồ sơ số: SCR-1101 Hội nghị kiểm điểm, SCR-1102 Gói hồ sơ số và ký số →

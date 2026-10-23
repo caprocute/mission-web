@@ -1,8 +1,8 @@
 import { Page, expect, test } from '@playwright/test';
-import { batCaoTuoi, chiHeThong, chon, xacThucBuocLen } from '../ho-tro/kiem-tra';
+import { batCaoTuoi, chiHeThong, chon, xacThucBuocLen, kiemAxeOnDinh } from '../ho-tro/kiem-tra';
 import { HE_THONG } from '../ho-tro/moi-truong';
 import { Phien, main, spaGoto } from '../ho-tro/phien';
-import { kiemAxeOnDinh, SEED, api, kiemMoiTruong, kiemSuKien, timHoacCho } from './chung';
+import { SEED, api, kiemMoiTruong, kiemSuKien, timHoacCho } from './chung';
 
 /**
  * QT-14 Cảnh báo bất thường (SCR-1401), QT-15 Policy Pack và luồng duyệt động (SCR-1501..SCR-1504),
@@ -229,6 +229,8 @@ test.describe('QT-14 QT-15 QT-16 Cảnh báo, chính sách và bảng điều h�
     const tu = new Date(Date.now() - 5_000);
     page = await s.trang('quyetdinh', `${goc}/test-case`);
     m = main(page);
+    await expect(m.getByTestId('cases')).toBeVisible();
+    await kiemAxeOnDinh(page, 'thẻ Test case của phiên bản chờ phê duyệt');
     await m.getByRole('button', { name: 'Ký số phê duyệt' }).click();
     const ky = page.getByRole('dialog', { name: 'Ký số phê duyệt phát hành' });
     await ky.getByRole('textbox', { name: 'Ý kiến phê duyệt' }).fill(SEED.chinhSach.yKienPheDuyet);
@@ -239,13 +241,6 @@ test.describe('QT-14 QT-15 QT-16 Cảnh báo, chính sách và bảng điều h�
       m.getByText(/đã được phát hành, áp dụng từ kỳ/),
       !HE_THONG,
     );
-    // Thẻ "Test case" còn vùng cuộn bảng kết quả chưa nhận tiêu điểm bàn phím (axe-core
-    // `scrollable-region-focusable`); lỗi ngoài phạm vi QA-07, ghi vào báo cáo để mở task sửa riêng
-    test.info().annotations.push({
-      type: 'loi-phat-hien',
-      description:
-        'SCR-1503 thẻ Test case: vùng cuộn bảng kết quả chưa nhận tiêu điểm (axe scrollable-region-focusable)',
-    });
 
     await chiHeThong('đọc lại phiên bản ở trạng thái đã phát hành', async () => {
       const a = await api(s, 'chinhsach');

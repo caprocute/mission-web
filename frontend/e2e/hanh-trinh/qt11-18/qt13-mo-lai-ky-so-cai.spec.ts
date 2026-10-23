@@ -1,16 +1,8 @@
 import { Page, expect, test } from '@playwright/test';
-import { batCaoTuoi, chiHeThong, chon, xacThucBuocLen } from '../ho-tro/kiem-tra';
+import { batCaoTuoi, chiHeThong, chon, xacThucBuocLen, kiemAxeOnDinh } from '../ho-tro/kiem-tra';
 import { HE_THONG } from '../ho-tro/moi-truong';
 import { Phien, main } from '../ho-tro/phien';
-import {
-  kiemAxeOnDinh,
-  SEED,
-  api,
-  kiemMoiTruong,
-  kiemSuKien,
-  maTuDuongDan,
-  timHoacCho,
-} from './chung';
+import { SEED, api, kiemMoiTruong, kiemSuKien, maTuDuongDan, timHoacCho } from './chung';
 
 /**
  * QT-13 Hậu kiểm, mở lại kỳ và sổ cái: SCR-1301 (yêu cầu mở lại kỳ, hai người duyệt), SCR-1302 (sổ
