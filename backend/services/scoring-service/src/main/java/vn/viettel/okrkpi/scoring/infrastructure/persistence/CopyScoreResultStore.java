@@ -8,8 +8,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.postgresql.PGConnection;
 import org.springframework.jdbc.core.ConnectionCallback;
@@ -17,6 +19,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import vn.viettel.okrkpi.scoring.application.port.ScoreResultStore;
 import vn.viettel.okrkpi.scoring.domain.ComputedScore;
 import vn.viettel.okrkpi.scoring.domain.ScoreBatch;
+import vn.viettel.okrkpi.scoring.domain.ScoreStatus;
 import vn.viettel.okrkpi.scoring.domain.TraceStep;
 import vn.viettel.okrkpi.shared.kernel.Ids;
 
@@ -53,6 +56,46 @@ public class CopyScoreResultStore implements ScoreResultStore {
 
   public CopyScoreResultStore(JdbcTemplate jdbc) {
     this.jdbc = jdbc;
+  }
+
+  private static final String LATEST_SQL =
+      "SELECT DISTINCT ON (profile_id, flow) profile_id, flow, input_hash, policy_content_hash,"
+          + " status FROM "
+          + SCHEMA
+          + ".score_result WHERE period_bucket = ? AND tenant_id = ? AND profile_id = ANY (?)"
+          + " ORDER BY profile_id, flow, computed_at DESC, id DESC";
+
+  @Override
+  public Set<UUID> unchanged(ScoreBatch batch) {
+    UUID[] profiles =
+        batch.items().stream().map(ComputedScore::profileId).distinct().toArray(UUID[]::new);
+    Map<String, String> latest = new HashMap<>();
+    jdbc.query(
+        con -> {
+          PreparedStatement ps = con.prepareStatement(LATEST_SQL);
+          ps.setInt(1, batch.periodBucket());
+          ps.setObject(2, batch.tenantId());
+          ps.setArray(3, con.createArrayOf("uuid", profiles));
+          return ps;
+        },
+        rs -> {
+          if ("OK".equals(rs.getString(5))) {
+            latest.put(
+                rs.getObject(1, UUID.class) + ":" + rs.getString(2),
+                HexFormat.of().formatHex(rs.getBytes(3))
+                    + HexFormat.of().formatHex(rs.getBytes(4)));
+          }
+        });
+    String pack = HexFormat.of().formatHex(batch.policyContentHash());
+    Set<UUID> out = new HashSet<>();
+    for (ComputedScore s : batch.items()) {
+      if (s.status() == ScoreStatus.OK
+          && (HexFormat.of().formatHex(s.input().hash()) + pack)
+              .equals(latest.get(s.profileId() + ":" + s.flow()))) {
+        out.add(s.resultId());
+      }
+    }
+    return out;
   }
 
   @Override

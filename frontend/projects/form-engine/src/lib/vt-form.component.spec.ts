@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { JSONSchema7 } from './json-schema';
 import { of } from 'rxjs';
 import { MAU_1B_CONTEXT, MAU_1B_RULES, MAU_1B_SCHEMA, MAU_1B_UI } from '../samples/mau-1b';
+import { bigForm } from '../samples/bieu-mau-50-truong';
 import { VT_FORM_CATALOGS } from './fields/field-types';
 import { FormRule, FormUi, ServerFieldError } from './form-rule';
 import { provideFormEngine } from './provide-form-engine';
@@ -266,5 +267,41 @@ describe('VtFormComponent: widget ngày, trường ngoài nhóm, nguồn danh m�
     expect(
       [...q<HTMLSelectElement>(el, '#vt-f-loai').options].map((o) => o.textContent?.trim()),
     ).toContain('Việc đột xuất');
+  });
+
+  it('biểu mẫu lớn dựng dần theo nhóm: lượt vẽ đầu chỉ có nhóm đầu, whenStable chờ đủ; gửi thì dựng hết', async () => {
+    const f = bigForm();
+    TestBed.configureTestingModule({ providers: [provideFormEngine()] });
+    const fixture = TestBed.createComponent(HostComponent);
+    const host = fixture.componentInstance;
+    host.schema.set(f.schema);
+    host.ui.set(f.ui);
+    host.rules.set(f.rules);
+    host.context.set({});
+    host.value.set(f.model);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const inputs = () => el.querySelectorAll('input, textarea, select').length;
+    expect(inputs()).toBe(10);
+    expect(el.querySelectorAll('fieldset.vt-section[aria-busy="true"]').length).toBe(4);
+    // điều khiển của nhóm chưa vẽ đã có, nên biểu mẫu hợp lệ và gửi được ngay
+    q<HTMLButtonElement>(el, 'button[type=submit]').click();
+    fixture.detectChanges();
+    expect(inputs()).toBe(50);
+    expect(host.sent.length).toBe(1);
+    expect(Object.keys(host.sent[0]).length).toBe(50);
+  });
+
+  it('biểu mẫu lớn: whenStable trả về khi mọi nhóm đã dựng', async () => {
+    const f = bigForm();
+    const { el } = await setup({
+      schema: f.schema,
+      ui: f.ui,
+      rules: f.rules,
+      context: {},
+      value: f.model,
+    });
+    expect(el.querySelectorAll('input, textarea, select').length).toBe(50);
+    expect(el.querySelector('fieldset.vt-section[aria-busy]')).toBeNull();
   });
 });

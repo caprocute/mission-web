@@ -21,6 +21,7 @@ import vn.viettel.okrkpi.policy.application.PolicyPeriodCalendar;
 import vn.viettel.okrkpi.policy.application.PolicyResolutionService;
 import vn.viettel.okrkpi.policy.application.PolicyRuleService;
 import vn.viettel.okrkpi.policy.application.PolicySchemaAdapter;
+import vn.viettel.okrkpi.policy.application.PolicySpecialCaseRulesAdapter;
 import vn.viettel.okrkpi.policy.application.port.PolicyAudit;
 import vn.viettel.okrkpi.policy.infrastructure.signing.KeyPairPolicyCaseSigner;
 import vn.viettel.okrkpi.policy.infrastructure.web.PolicyIdempotency;
@@ -178,6 +179,13 @@ public class PolicyPackConfiguration {
       PolicyResolutionService policyResolutionService,
       JdbcPolicyPackRepository policyPackRepository) {
     return new PolicySchemaAdapter(policyResolutionService, policyPackRepository);
+  }
+
+  /** Cổng bảng trường hợp đặc thù của MOD-08 cho MOD-06 (đảo phụ thuộc, CORE-06-05). */
+  @Bean
+  PolicySpecialCaseRulesAdapter policySpecialCaseRulesAdapter(
+      PolicyResolutionService policyResolutionService) {
+    return new PolicySpecialCaseRulesAdapter(policyResolutionService);
   }
 
   @Bean

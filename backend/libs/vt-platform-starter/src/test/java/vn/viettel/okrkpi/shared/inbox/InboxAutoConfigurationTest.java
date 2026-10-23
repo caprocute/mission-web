@@ -87,7 +87,8 @@ class InboxAutoConfigurationTest {
     assertThat(purgeJob).isNotNull();
 
     InboxListenerRegistrar registrar =
-        config.inboxListenerRegistrar(processor, providerOf(factory), props);
+        InboxAutoConfiguration.inboxListenerRegistrar(
+            providerOf(processor), providerOf(factory), props);
     InboxHealthIndicator health = config.inboxHealthIndicator(props, registrar);
     assertThat(health.health().getStatus()).isEqualTo(Status.UP);
   }

@@ -63,6 +63,22 @@ public record ScoreBatch(
     return policyContentHash.clone();
   }
 
+  /** Cùng lô với tập kết quả khác (bỏ kết quả không đổi khi ghi luỹ đẳng). */
+  public ScoreBatch withItems(List<ComputedScore> subset) {
+    return new ScoreBatch(
+        tenantId,
+        jobId,
+        jobKind,
+        periodId,
+        periodBucket,
+        policyPackVersionId,
+        policyContentHash,
+        engineVersion,
+        actorId,
+        computedAt,
+        subset);
+  }
+
   /** Số kết quả {@link ScoreStatus#OK} và {@link ScoreStatus#LOI} của lô. */
   public int count(ScoreStatus status) {
     return (int) items.stream().filter(i -> i.status() == status).count();

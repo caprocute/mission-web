@@ -77,6 +77,9 @@ Các thuật ngữ nghiệp vụ dùng trong TL-02 và giao diện. Chi tiết q
 | Nhiệm vụ | Công việc được giao cho người chủ trì (`CHU_TRI`) và người phối hợp (`PHOI_HOP`), có hạn và tiến độ (QT-05, QT-06) |
 | Minh chứng | Tệp hoặc dữ liệu chứng minh kết quả nhiệm vụ, lưu không sửa được (QT-07) |
 | Nghiệm thu | Người quản lý xác nhận chất lượng kết quả nhiệm vụ theo 5 mức (SCR-0703) |
+| A, B, C (số lượng, chất lượng, tiến độ) | Ba thành phần của KPI nhiệm vụ (BR-09-01): A = min(số sản phẩm đã xác nhận / số lượng giao, 1), phần vượt ghi riêng thành tỷ lệ vượt (BR-09-04); B là trung bình mức chất lượng nghiệm thu của các sản phẩm, một trong năm mức 1; 0,75; 0,5; 0,25; 0 (BR-07-07); C = max(0, 1 − 0,05 × số ngày làm việc chậm do chủ quan). Chỉ sản phẩm có minh chứng `DA_XAC_NHAN` và không bị chặn do cảnh báo trùng được đếm (BR-07-05, BR-09-02) |
+| KPI nhiệm vụ, KPI nhóm | KPI nhiệm vụ mặc định là (A + B + C) / 3; KPI nhóm là trung bình KPI các nhiệm vụ trong nhóm; điểm = Σ KPI nhóm × điểm tối đa nhóm, tối đa 100, làm tròn 1 chữ số nửa lên (BR-09-03). Công thức nằm trong Policy Pack, SVC-07 tính (DV-07-03) |
+| Vết tính | Các bước tính điểm của một kết quả (`scoring.score_trace`, khoảng 40 bước): mã quy tắc, căn cứ, giá trị vào, giá trị ra; nguồn của ngăn "Vết tính" ở SCR-0901 và thẻ vết tính ở SCR-0903 |
 | Kỳ, khoá kỳ | Kỳ đánh giá (tháng, quý, năm); khoá kỳ là saga tính điểm, sinh biểu mẫu, ký lô rồi niêm phong (QT-08) |
 | Tự đánh giá, thẩm định, quyết định | Ba bước xếp loại: cá nhân tự đánh giá, cơ quan tổ chức thẩm định, cấp có thẩm quyền quyết định (QT-09) |
 | HTXSNV, HTTNV, HTNV, KHTNV | Bốn mức xếp loại: hoàn thành xuất sắc nhiệm vụ, hoàn thành tốt nhiệm vụ, hoàn thành nhiệm vụ, không hoàn thành nhiệm vụ |

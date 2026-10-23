@@ -284,6 +284,37 @@ class TaskTreeApiIT extends ContractConformanceTest {
     assertThat(body(missing).get("errors").get(0).get("field").asText()).isEqualTo("parentTaskId");
   }
 
+  /** CORE-02-27: nhiệm vụ soạn từ mục danh mục mang theo mức hệ số và trục của mục. */
+  @Test
+  void nhiemVuSaoChepMucHeSoTuDanhMuc() throws Exception {
+    UUID catalog = UUID.randomUUID();
+    UUID item = UUID.randomUUID();
+    inTask(
+        jdbc -> {
+          jdbc.sql(
+                  "INSERT INTO task.work_catalog (id, created_by, updated_by, code, name, scope,"
+                      + " version, version_no, source, status) VALUES (?, ?, ?, 'KHOI-CAY',"
+                      + " 'Danh mục khối', 'KHOI', 1, 1, 'TU_TAO', 'HIEU_LUC')")
+              .params(catalog, ASSIGNER, ASSIGNER)
+              .update();
+          return jdbc.sql(
+                  "INSERT INTO task.catalog_item (id, created_by, updated_by, work_catalog_id,"
+                      + " code, name, product_name, unit, difficulty, standard_score, base_score,"
+                      + " quality_standard, task_group, coefficient_levels, axis_code) VALUES (?, ?,"
+                      + " ?, ?, 'TC-KC-01', 'Thẩm định đề án', 'Đề án', 'bản', 3, 40, 40, 'Đúng"
+                      + " mẫu', 'THUONG_XUYEN', '{\"he_so_nhom\":\"NHOM_3\"}'::jsonb, 'TR2')")
+              .params(item, ASSIGNER, ASSIGNER, catalog)
+              .update();
+        });
+    ObjectNode d = draft("Thẩm định đề án nhân sự");
+    d.put("catalogItemId", item.toString());
+    String id = assigned(d, null);
+    JsonNode detail = body(perform(get("/api/v1/tasks/" + id)));
+    assertThat(detail.get("coefficientLevels").get("he_so_nhom").asText()).isEqualTo("NHOM_3");
+    assertThat(detail.get("axisCode").asText()).isEqualTo("TR2");
+    assertThat(detail.get("standardScore").decimalValue()).isEqualByComparingTo("40");
+  }
+
   @Test
   void motNguoiMotViecChanViecLaHaiNguoiVaLechTongDiem() throws Exception {
     MODE.set("MOT_NGUOI_MOT_VIEC");
