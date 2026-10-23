@@ -1,0 +1,6 @@
+{
+  "avroBase64": "SDAxOTBhM2Y0LTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMUgwMTkwYTNmNC0yMjIyLTcwMDAtODAwMC0wMDAwMDAwMDAwMDJIMDE5MGEzZjQtMzMzMy03MDAwLTgwMDAtMDAwMDAwMDAwMDAzSDAxOTBhM2Y0LTQ0NDQtNzAwMC04MDAwLTAwMDAwMDAwMDAwNAYAxXYCBMVoAICJlsaq86AGCg==",
+  "canonicalJson": "{\"actualValue\":{\"bytes\":\"Åh\"},\"aggregateVersion\":5,\"evidenceCount\":0,\"periodId\":\"0190a3f4-2222-7000-8000-000000000002\",\"progressId\":\"0190a3f4-3333-7000-8000-000000000003\",\"progressPct\":\"\\u0000Åv\",\"reportedAt\":1761200000123456,\"reporterId\":\"0190a3f4-4444-7000-8000-000000000004\",\"taskId\":\"0190a3f4-1111-7000-8000-000000000001\"}",
+  "payloadHash": "b558ef457ae5cd654f0b313d9dc64df93f8292ff9aa51f959969a9c88c4ddccd",
+  "topic": "task.task.progressed.v1"
+}

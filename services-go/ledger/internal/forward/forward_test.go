@@ -3,6 +3,9 @@ package forward
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"math/big"
 	"os"
@@ -156,3 +159,69 @@ func TestConvertBothHeaderStyles(t *testing.T) {
 		t.Fatalf("khoá sai phải là ErrInvalid, được %v", err)
 	}
 }
+
+// Vector chung với mission-core (R2 của DL-12 tính lại payload_hash bằng JsonEncoder của Avro Java):
+// thân Avro nhị phân, bản JSON Avro theo đặc tả và băm. UPDATE_GOLDEN=1 thì ghi lại tệp.
+func TestPayloadHashGoldenVectors(t *testing.T) {
+	dir := filepath.Join("..", "..", "..", "..", "data", "golden", "ledger-canon", "payload-avro")
+	cases := []struct {
+		file, topic string
+		native      map[string]any
+	}{
+		{"evt04-nhiem-vu-da-giao.json", "task.task.assigned.v1", map[string]any{
+			"taskId": "0190a3f4-1111-7000-8000-000000000001", "planItemId": goavroUnion("string", "0190a3f4-5555-7000-8000-000000000005"),
+			// Tiêu đề viết dạng tổ hợp (NFD): băm phải bằng băm của dạng dựng sẵn.
+			"title": "Rà soát hồ sơ", "leadAssigneeId": "0190a3f4-4444-7000-8000-000000000004",
+			"assigneeIds": []any{"0190a3f4-6666-7000-8000-000000000006"}, "dueDate": time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
+			"weight": goavroUnion("bytes.decimal", big.NewRat(1, 4)), "isKeyTask": true, "isSecret": false, "aggregateVersion": int32(2),
+		}},
+		{"evt05-tien-do-da-cap-nhat.json", "task.task.progressed.v1", map[string]any{
+			"taskId": "0190a3f4-1111-7000-8000-000000000001", "periodId": "0190a3f4-2222-7000-8000-000000000002",
+			"progressId": "0190a3f4-3333-7000-8000-000000000003", "reporterId": "0190a3f4-4444-7000-8000-000000000004",
+			"progressPct": big.NewRat(1011, 20), "actualValue": goavroUnion("bytes.decimal", big.NewRat(-3, 2)), "evidenceCount": int32(0),
+			"reportedAt": time.UnixMicro(1761200000123456).UTC(), "aggregateVersion": int32(5),
+		}},
+	}
+	for _, c := range cases {
+		bin, err := codecs[c.topic].BinaryFromNative(nil, c.native)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sum, err := PayloadHash(c.topic, bin)
+		if err != nil {
+			t.Fatal(err)
+		}
+		native, _, _ := codecs[c.topic].NativeFromBinary(bin)
+		text, _ := codecs[c.topic].TextualFromNative(nil, native)
+		text, _ = specUnionNames(text)
+		canonical, _ := canon.CanonicalizeJSON(text)
+		got := map[string]string{"topic": c.topic, "avroBase64": base64.StdEncoding.EncodeToString(bin),
+			"canonicalJson": string(canonical), "payloadHash": hex.EncodeToString(sum)}
+		path := filepath.Join(dir, c.file)
+		if os.Getenv("UPDATE_GOLDEN") == "1" {
+			out, _ := json.MarshalIndent(got, "", "  ")
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, append(out, '\n'), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("%v (chạy UPDATE_GOLDEN=1 để tạo)", err)
+		}
+		var want map[string]string
+		if err := json.Unmarshal(raw, &want); err != nil {
+			t.Fatal(err)
+		}
+		for k, v := range got {
+			if want[k] != v {
+				t.Errorf("%s: %s = %s, tệp mẫu %s", c.file, k, v, want[k])
+			}
+		}
+	}
+}
+
+func goavroUnion(name string, v any) map[string]any { return map[string]any{name: v} }
