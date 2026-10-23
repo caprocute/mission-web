@@ -52,12 +52,15 @@ lúc chưa đăng nhập xong làm Keycloak trả 400 và web báo hết phiên)
 
 Khoảng trống phía máy chủ còn chặn hành trình (ghi ngày 23/10/2026):
 
-- `GET /catalog/items` gắn chức năng `SCR-0503.xem`, mà ma trận chỉ cấp cho `member` phạm vi bản thân trong khi mục
-  danh mục không có người sở hữu; OPA trả `out_of_scope` cho cả cán bộ lẫn quản lý, nên HT-11 và HT-13 dừng ở bước
-  chọn mục danh mục.
-- `GET /periods` gắn `SCR-0801.xem` (màn hình cấu hình kỳ), nên vai trò `member` bị từ chối dù ma trận API cho phép.
-- Chưa có API tạo Policy Pack (hợp đồng chỉ có tạo phiên bản cho gói đã có, `importPack` không có nơi gọi), nên
-  HT-25 đến HT-27 vẫn ghi "Chờ".
+- Đã sửa trong lượt sau (23/10/2026): `GET /catalog/items` nay gắn `SCR-0401.xem` (phạm vi đơn vị) và `GET /periods`
+  chỉ xét dòng API `periods` của ma trận, nên cán bộ, quản lý, lãnh đạo đọc được kỳ và danh mục (ca kiểm
+  `backend/opa/okrkpi/doc_chung_test.rego`). Tenant thử chưa có mục danh mục nào, nên HT-11 và HT-13 vẫn cần
+  mục danh mục được tạo trước.
+- Chưa có API tạo Policy Pack, nên `seed-org.sh` nạp gói mẫu luồng Đảng bằng `infra/dev/postgres/seed/policy-goi-mau.sql`
+  (sinh từ `data/policy-pack` bằng `data/policy-pack/sinh_seed_dev.py`, wiki trang 14); compose có thêm
+  `cel-js-runner` để lần chạy ca vàng đối chiếu được hai engine. Còn chặn HT-37: đọc danh sách bảng quyết định
+  trả 500 (bảng tiêu chí chung có đầu ra ngoài thang mức) và phiên bản chưa có quy tắc cho thẻ Công thức.
+  HT-25 đến HT-27 cần một phiên bản đã phát hành gắn vào kỳ, tức là HT-37 đi hết trước.
 - esign-service và document-service tự tạo `outbox_event` ở V1, trùng migration chung V0_x mà `MigrationRunner`
   thêm vào, nên hai service không triển khai được và ký số (HT-27) trả 503.
 - Compose chưa có kafka-ui, nên bước kiểm sự kiện ghi "Chờ".

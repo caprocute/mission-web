@@ -68,7 +68,8 @@ declare -A JAVA_MODULES=(
 )
 GO_SERVICES=(tenant-registry ledger-service notification-service)
 # web: ảnh SVC-17 (deploy/web/Dockerfile, npm build bên trong ảnh), APISIX phục vụ qua tuyến `web`.
-ALL_SERVICES=(apisix "${!JAVA_MODULES[@]}" ${GO_SERVICES[@]+"${GO_SERVICES[@]}"} web)
+# cel-js-runner: bộ chạy cel-js để mission-core đối chiếu hai engine khi chạy ca vàng Policy Pack (npm build trong ảnh).
+ALL_SERVICES=(apisix "${!JAVA_MODULES[@]}" ${GO_SERVICES[@]+"${GO_SERVICES[@]}"} cel-js-runner web)
 
 if [[ $# -gt 0 ]]; then
   SERVICES=("$@")

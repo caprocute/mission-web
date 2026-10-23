@@ -45,7 +45,8 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
 /**
  * {@code GET/POST /api/v1/periods} ({@code listPeriods}, {@code createPeriod}) và {@code GET
  * /api/v1/periods/{id}} ({@code getPeriod}) của {@code config.yaml} (QT-08, SCR-0801). Quyền theo
- * ma trận dòng SCR-0801 qua OPA ({@code SCR-0801.xem}, {@code SCR-0801.tao-ky}).
+ * ma trận qua OPA: đọc kỳ theo dòng API {@code periods} (mọi vai trò nghiệp vụ), tạo kỳ theo {@code
+ * SCR-0801.tao-ky}.
  */
 @RestController
 @RequestMapping("/api/v1/periods")
@@ -125,11 +126,10 @@ public class PeriodController {
   }
 
   @GetMapping("/{id}")
-  @RequiresPermission(
-      action = "SCR-0801.xem",
-      operationId = "getPeriod",
-      module = "config",
-      resourceType = "period")
+  // Đọc kỳ là quyền chung của mọi vai trò theo dòng API `periods` của ma trận (bộ chọn kỳ ở trang
+  // chủ, kế hoạch,
+  // giao việc), không phải chức năng SCR-0801.xem của màn hình quản trị kỳ, nên chỉ xét theo API.
+  @RequiresPermission(operationId = "getPeriod", module = "periods", resourceType = "period")
   public ResponseEntity<Period> getPeriod(@PathVariable("id") UUID id) {
     Period dto =
         periods
@@ -140,11 +140,10 @@ public class PeriodController {
   }
 
   @GetMapping
-  @RequiresPermission(
-      action = "SCR-0801.xem",
-      operationId = "listPeriods",
-      module = "config",
-      resourceType = "period")
+  // Đọc kỳ là quyền chung của mọi vai trò theo dòng API `periods` của ma trận (bộ chọn kỳ ở trang
+  // chủ, kế hoạch,
+  // giao việc), không phải chức năng SCR-0801.xem của màn hình quản trị kỳ, nên chỉ xét theo API.
+  @RequiresPermission(operationId = "listPeriods", module = "periods", resourceType = "period")
   public PeriodPage listPeriods(
       @RequestParam(value = "year", required = false) Integer year,
       @RequestParam(value = "kind", required = false) PeriodKind kind,

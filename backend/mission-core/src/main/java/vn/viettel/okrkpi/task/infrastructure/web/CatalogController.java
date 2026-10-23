@@ -104,8 +104,11 @@ public class CatalogController {
   }
 
   @GetMapping("/items")
+  // Chức năng xem danh mục của ma trận là SCR-0401.xem (phạm vi đơn vị); SCR-0503.xem là "Việc của
+  // tôi" với phạm vi
+  // bản thân nên mục danh mục, vốn không có người sở hữu, luôn bị từ chối.
   @RequiresPermission(
-      action = "SCR-0503.xem",
+      action = "SCR-0401.xem",
       operationId = "listApplicableCatalogItems",
       module = "catalog",
       resourceType = "catalog_item")

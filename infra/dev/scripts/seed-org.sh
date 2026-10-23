@@ -25,8 +25,9 @@ POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-mission-dev-postgres}"
 # Tenant thử cũng phải có trong tenant-registry (cell DEV) để bước khám phá cell sau đăng nhập không trả 404.
 # Thư viện căn cứ thử okr.basis của mission-core: bản này chưa có API ghi căn cứ, thiếu thì khung soạn mục tiêu
 # (SCR-0202) không có lựa chọn "Căn cứ" bắt buộc; nạp sau migration okr của mission-core.
+# Policy Pack mẫu luồng Đảng: hợp đồng chưa có API tạo gói, tệp sinh từ data/policy-pack bằng sinh_seed_dev.py.
 for seed in "${SEED}" "${SCRIPT_DIR}/../postgres/seed/registry-du-lieu-thu.sql" \
-  "${SCRIPT_DIR}/../postgres/seed/okr-can-cu-thu.sql"; do
+  "${SCRIPT_DIR}/../postgres/seed/okr-can-cu-thu.sql" "${SCRIPT_DIR}/../postgres/seed/policy-goi-mau.sql"; do
   if command -v docker >/dev/null 2>&1 && docker inspect -f '{{.State.Running}}' "${POSTGRES_CONTAINER}" 2>/dev/null | grep -q true; then
     docker exec -i -e PGPASSWORD="${PG_SUPERPASS}" "${POSTGRES_CONTAINER}" \
       psql -q -v ON_ERROR_STOP=1 --username "${PG_SUPERUSER}" --dbname "${PG_DB}" < "${seed}"
@@ -35,4 +36,4 @@ for seed in "${SEED}" "${SCRIPT_DIR}/../postgres/seed/registry-du-lieu-thu.sql" 
       --username "${PG_SUPERUSER}" --dbname "${PG_DB}" < "${seed}"
   fi
 done
-echo "Đã nạp dữ liệu thử org-service, tenant-registry và căn cứ OKR cho tenant d0000000-0000-4000-8000-000000000001."
+echo "Đã nạp dữ liệu thử org-service, tenant-registry, căn cứ OKR và Policy Pack mẫu cho tenant d0000000-0000-4000-8000-000000000001."
