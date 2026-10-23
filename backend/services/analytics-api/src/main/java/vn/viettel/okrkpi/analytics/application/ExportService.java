@@ -30,6 +30,7 @@ import vn.viettel.okrkpi.analytics.domain.TraceLink;
 import vn.viettel.okrkpi.analytics.domain.TraceObjectType;
 import vn.viettel.okrkpi.analytics.domain.Viewer;
 import vn.viettel.okrkpi.analytics.domain.WidgetData;
+import vn.viettel.okrkpi.shared.job.JobIds;
 
 /**
  * DV-15-06 · tác vụ dài 202 của SVC-15: {@code exportTraceChain} (SCR-1603) và {@code
@@ -192,7 +193,7 @@ public class ExportService {
       String objectRef,
       List<String> formats,
       Producer producer) {
-    String id = UUID.randomUUID().toString();
+    String id = JobIds.format(ExportJob.JOB_PREFIX, UUID.randomUUID());
     ExportJob accepted =
         new ExportJob(
             id,

@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **337 / 408 task (82.6%)** — Khối lượng quy đổi đã gộp: **397.5 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **342 / 408 task (83.8%)** (gồm **337** đã gộp `main` + **5** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **344 / 408 task (84.3%)** (gồm **337** đã gộp `main` + **7** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **3 task** (0 đang làm, 3 làm một phần).
-- **Chưa bắt đầu**: **63 task**.
+- **Chưa bắt đầu**: **61 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -25,14 +25,14 @@
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **68** | 0 | 2 | 2 | **94.4%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **113** | 0 | 1 | 3 | **96.6%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **88** | 5 | 0 | 11 | **84.6%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **88** | 7 | 0 | 9 | **84.6%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **13** | 0 | 0 | 0 | **100.0%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **337** | **5** | **3** | **63** | **82.6%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **337** | **7** | **3** | **61** | **82.6%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -41,7 +41,7 @@
 | **M0 – Nền móng phát triển & CSDL** | 60 | **60** | 0 | 0 | 0 | **100.0%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **35** | 4 | 0 | 1 | **87.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **107** | 0 | 2 | 11 | **89.2%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **107** | 2 | 2 | 9 | **89.2%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **67** | 1 | 0 | 4 | **93.1%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **16** | 0 | 1 | 25 | **38.1%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **4** | 0 | 0 | 19 | **17.4%** |
@@ -352,7 +352,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-01-01](docs/tasks/DV-01-01-tuyen-apisix-xac-thuc.md) | Tuyến APISIX theo module (ApisixRoute), xác thực JWT qua JWKS, plugin gán claim tenant | M | B5 | 2 | INF-08, DV-02-01 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: bảng tuyến theo module, vt-claims ES256, kiểm tĩnh và APISIX thật xanh |
 | [DV-01-02](docs/tasks/DV-01-02-gioi-han-toc-do-waf.md) | Giới hạn tốc độ ba tầng, plugin bảo vệ API, cắt tải, WAF Coraza với OWASP CRS 4 | M | B5 | 3 | DV-01-01 | **Xong, chờ gộp** | Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: ba tầng giới hạn, lớp ưu tiên, bộ điều khiển suy giảm, Coraza CRS 4; đã hợp nhất mô hình tuyến của DV-01-01; kiểm thử tĩnh và APISIX thật trên Docker xanh |
 | [DV-01-03](docs/tasks/DV-01-03-tuyen-cong-khai-ci.md) | Danh sách tuyến công khai tường minh và kiểm thử CI quét toàn bộ CRD | S | B5 | 3 | DV-01-01 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: public-routes.yaml sinh từ hợp đồng, kiểm CRD và fixture âm tính |
-| [DV-01-04](docs/tasks/DV-01-04-apisix-lop-ngoai.md) | APISIX lớp ngoài ở vùng toàn cục: phân giải tenant sang cell, đệm 5 phút, khám phá cell | M | B5 | 9 | DV-01-01, DV-03-02 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: chart api-gateway-global, APISIX thật 19 ca, p95 trúng đệm 2,9 ms; mã cell và /jobs theo registry |
+| [DV-01-04](docs/tasks/DV-01-04-apisix-lop-ngoai.md) | APISIX lớp ngoài ở vùng toàn cục: phân giải tenant sang cell, đệm 5 phút, khám phá cell | M | B5 | 9 | DV-01-01, DV-03-02 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: lớp toàn cục + mã tác vụ có tiền tố ở 6 service (org-, wf-, score-, doc-, ledger-, ana-), kiểm thử xanh |
 
 ### DV-02 · SVC-02 iam (Keycloak) (7/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -443,16 +443,16 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-09-04](docs/tasks/DV-09-04-kiem-tra-toan-ven.md) | Kiểm tra toàn vẹn định kỳ, chỉ ra bản ghi bị phá, phát EVT-20 | M | B6 | 12 | DV-09-03 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [DV-09-05](docs/tasks/DV-09-05-tra-cuu-xuat-bang-chung.md) | API tra cứu, xuất bằng chứng có ký và công cụ kiểm chứng độc lập `ledger-verify` | L | B6 | 12 | DV-09-03 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 
-### DV-10 · SVC-10 esign-service (2/6 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-10 · SVC-10 esign-service (2/6 đã gộp `main`, 2 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-10-01](docs/tasks/DV-10-01-khung-esign-provider.md) | Khung service, migration schema `esign`, giao diện nhà cung cấp `SignatureProvider` | M | B6 | 9 | NEN-019, NEN-033 | **Đã gộp main** | Đã gộp main (nhánh B6 bd3538e) |
 | [DV-10-02](docs/tasks/DV-10-02-nha-cung-cap-mysign.md) | Nhà cung cấp MySign (CSC API) ký từ xa bất đồng bộ, EVT-18 | L | B6 | 10 | DV-10-01 | **Đã gộp main** | Gộp main 22/10 |
 | [DV-10-03](docs/tasks/DV-10-03-hsm-pkcs11-tsa.md) | Nhà cung cấp HSM qua PKCS#11 và dấu thời gian TSA | L | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Dev dùng SoftHSM |
-| [DV-10-04](docs/tasks/DV-10-04-viettel-ca-ca-chinh-phu.md) | Nhà cung cấp Viettel-CA và CA chuyên dùng Chính phủ | M | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần môi trường thử CA |
+| [DV-10-04](docs/tasks/DV-10-04-viettel-ca-ca-chinh-phu.md) | Nhà cung cấp Viettel-CA và CA chuyên dùng Chính phủ | M | B6 | 10 | DV-10-01 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: Viettel-CA, CA Chính phủ qua CSC, OCSP/CRL; esign verify xanh |
 | [DV-10-05](docs/tasks/DV-10-05-ban-co-yeu-cach-ly.md) | Nhà cung cấp Ban Cơ yếu cho bản cách ly qua `CryptoProvider` | M | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần thư viện Ban Cơ yếu |
-| [DV-10-06](docs/tasks/DV-10-06-ky-lo-quyet-dinh.md) | Ký lô 100.000 phiếu trong 4 giờ: phiên ký một lần xác nhận, worker co giãn | M | B6 | 11 | DV-10-03 | **Chưa bắt đầu** |  |
+| [DV-10-06](docs/tasks/DV-10-06-ky-lo-quyet-dinh.md) | Ký lô 100.000 phiếu trong 4 giờ: phiên ký một lần xác nhận, worker co giãn | M | B6 | 11 | DV-10-03 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: ký lô một lần xác nhận, worker co giãn; esign verify xanh (70 đơn vị, 27 tích hợp) |
 
 ### DV-11 · SVC-11 document-service (4/4 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -515,7 +515,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-15-08](docs/tasks/DV-15-08-dau-hieu-3-5-7.md) | Dấu hiệu bất thường 3, 5, 7 | M | B7 | 6 | DV-15-07 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [DV-15-09](docs/tasks/DV-15-09-dau-hieu-6-8.md) | Dấu hiệu bất thường 6, 8 và tự đóng khi hết dấu hiệu; dấu hiệu tỷ lệ chấp nhận khách quan | M | B7 | 6 | DV-15-07 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [DV-15-10](docs/tasks/DV-15-10-du-bao-tre-han.md) | Dự báo nguy cơ trễ nhiệm vụ | M | B7 | 14 | DV-15-01, CORE-02-26 | **Đã gộp main** | Đã gộp main (f74d95f1) |
-| [DV-15-11](docs/tasks/DV-15-11-mirrormaker-kho-quoc-gia.md) | MirrorMaker 2 đẩy dữ liệu tổng hợp lên kho phân tích quốc gia | M | B7 | 5 | DV-15-01, INF-10 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: job agg V015 (k=10), bộ xuất Avro, MM2 agg.* + KafkaUser, kubeconform, kiểm thử tĩnh và tích hợp xanh; hạ tầng đích chờ INF-10/INF-18 |
+| [DV-15-11](docs/tasks/DV-15-11-mirrormaker-kho-quoc-gia.md) | MirrorMaker 2 đẩy dữ liệu tổng hợp lên kho phân tích quốc gia | M | B7 | 5 | DV-15-01, INF-10 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: tổng hợp quốc gia agg_* + MM2 luồng phân tích, đã qua kiểm thử |
 
 ### DV-16 · SVC-16 search (2/2 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -996,5 +996,8 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 05:52 | B1 (Claude) | `DV-01-03` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: public-routes.yaml sinh từ hợp đồng, kiểm CRD và fixture âm tính |
 | 23/10/2026 05:52 | B1 (Claude) | `DV-01-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: chart api-gateway-global, APISIX thật 19 ca, p95 trúng đệm 2,9 ms; mã cell và /jobs theo registry |
 | 23/10/2026 06:11 | B2 (luồng B6) | `DV-01-02` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: ba tầng giới hạn, lớp ưu tiên, bộ điều khiển suy giảm, Coraza CRS 4; đã hợp nhất mô hình tuyến của DV-01-01; kiểm thử tĩnh và APISIX thật trên Docker xanh |
-| 23/10/2026 07:08 | B7 | `DV-15-11` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: job agg V015 (k=10), bộ xuất Avro, MM2 agg.* + KafkaUser, kubeconform, kiểm thử tĩnh và tích hợp xanh; hạ tầng đích chờ INF-10/INF-18 |
+| 23/10/2026 06:58 | B1 (Claude) | `DV-01-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: lớp toàn cục + mã tác vụ có tiền tố ở 6 service (org-, wf-, score-, doc-, ledger-, ana-), kiểm thử xanh |
+| 23/10/2026 07:48 | B7 | `DV-15-11` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: tổng hợp quốc gia agg_* + MM2 luồng phân tích, đã qua kiểm thử |
+| 23/10/2026 07:49 | B7 | `DV-10-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: Viettel-CA, CA Chính phủ qua CSC, OCSP/CRL; esign verify xanh |
+| 23/10/2026 07:49 | B7 | `DV-10-06` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: ký lô một lần xác nhận, worker co giãn; esign verify xanh (70 đơn vị, 27 tích hợp) |
 <!-- PROGRESS_LOG_END -->

@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -311,7 +312,7 @@ func TestApiKhopHopDong(t *testing.T) {
 	check("modules/oversight.yaml", "/ledger/verify-runs", "post", res, body)
 	var job struct{ ID string }
 	_ = json.Unmarshal(body, &job)
-	if res.Header.Get("Location") != "/api/v1/jobs/"+job.ID {
+	if !strings.HasPrefix(job.ID, "ledger-") || res.Header.Get("Location") != "/api/v1/jobs/"+job.ID {
 		t.Fatalf("Location = %s", res.Header.Get("Location"))
 	}
 	again, body2 := call("POST", "/api/v1/ledger/verify-runs", tok, key, map[string]any{"verifyKind": "TOAN_BO"})
@@ -335,7 +336,7 @@ func TestApiKhopHopDong(t *testing.T) {
 	if res, _ := call("GET", "/api/v1/jobs/"+job.ID, appraiser, "", nil); res.StatusCode != 404 {
 		t.Fatalf("người khác xem job phải 404: %d", res.StatusCode)
 	}
-	res, body = call("GET", "/api/v1/ledger/verify-runs/"+job.ID, appraiser, "", nil)
+	res, body = call("GET", "/api/v1/ledger/verify-runs/"+strings.TrimPrefix(job.ID, "ledger-"), appraiser, "", nil)
 	check("modules/oversight.yaml", "/ledger/verify-runs/{id}", "get", res, body)
 	if res.StatusCode != 200 {
 		t.Fatalf("GET run: %d %s", res.StatusCode, body)

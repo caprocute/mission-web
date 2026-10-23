@@ -340,7 +340,7 @@ class DocgenFlowIT extends ContractConformanceTest {
   }
 
   private static UUID idOf(String location) {
-    return UUID.fromString(location.substring(location.lastIndexOf('/') + 1));
+    return UUID.fromString(location.substring(location.lastIndexOf("/doc-") + "/doc-".length()));
   }
 
   private RenderJobStatus process(UUID requestId) throws Exception {
@@ -358,7 +358,7 @@ class DocgenFlowIT extends ContractConformanceTest {
     String key = UUID.randomUUID().toString();
     UUID packageId = dossierPackage("Nguyễn Thị Hoa");
     String location = requestRender(packageId, key);
-    assertThat(location).startsWith("/api/v1/jobs/");
+    assertThat(location).startsWith("/api/v1/jobs/doc-");
     assertThat(requestRender(packageId, key)).isEqualTo(location);
     UUID requestId = idOf(location);
 
@@ -426,7 +426,7 @@ class DocgenFlowIT extends ContractConformanceTest {
             .query(String.class)
             .single();
     assertThat(error).contains("băm dữ liệu không khớp");
-    mvc.perform(as(get("/api/v1/jobs/" + requestId), "appraiser"))
+    mvc.perform(as(get("/api/v1/jobs/doc-" + requestId), "appraiser"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("THAT_BAI"));
   }

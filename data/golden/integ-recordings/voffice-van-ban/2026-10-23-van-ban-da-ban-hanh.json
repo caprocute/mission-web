@@ -1,0 +1,109 @@
+{
+  "provider" : "voffice-van-ban",
+  "ghiLuc" : "2026-10-23",
+  "nguon" : "phiên ghi giả lập theo dạng phản hồi vOffice (chưa có môi trường thử thật)",
+  "daChe" : true,
+  "exchanges" : [ {
+    "request" : {
+      "method" : "GET",
+      "path" : "/api/v2/documents",
+      "query" : {
+        "unitId" : [ "DV-01" ],
+        "limit" : [ "20" ]
+      },
+      "headers" : {
+        "Accept" : "application/json",
+        "Authorization" : "Bearer ma-gia-lap"
+      }
+    },
+    "response" : {
+      "status" : 200,
+      "headers" : {
+        "Content-Type" : "application/json; charset=utf-8"
+      },
+      "body" : {
+        "items" : [ {
+          "id" : "47-BC/BTCĐUK",
+          "docNumber" : "47-BC/BTCĐUK",
+          "issuedDate" : "2026-10-19",
+          "summary" : "Báo cáo chuyên đề công tác kiểm tra quý III năm 2026",
+          "signerName" : "Phạm Minh Hà",
+          "signatureValid" : true,
+          "signerEmail" : "nguoi-53cf73cb@example.invalid"
+        } ],
+        "nextCursor" : null
+      }
+    }
+  }, {
+    "request" : {
+      "method" : "GET",
+      "path" : "/api/v2/documents/detail",
+      "query" : {
+        "id" : [ "47-BC/BTCĐUK" ],
+        "unitId" : [ "DV-01" ]
+      },
+      "headers" : {
+        "Accept" : "application/json",
+        "Authorization" : "Bearer ma-gia-lap"
+      }
+    },
+    "response" : {
+      "status" : 200,
+      "headers" : {
+        "Content-Type" : "application/json; charset=utf-8"
+      },
+      "body" : {
+        "id" : "47-BC/BTCĐUK",
+        "docNumber" : "47-BC/BTCĐUK",
+        "issuedDate" : "2026-10-19",
+        "summary" : "Báo cáo chuyên đề công tác kiểm tra quý III năm 2026",
+        "signerName" : "Phạm Minh Hà",
+        "signatureValid" : true,
+        "signerEmail" : "nguoi-53cf73cb@example.invalid",
+        "unitId" : "DV-01",
+        "fileName" : "47-BC.pdf",
+        "mediaType" : "application/pdf",
+        "sha256" : "f6ccdefa32a8a2973db13b9cc5e0d9079979fa330d0915a55b7aafaac8c6f14e"
+      }
+    }
+  }, {
+    "request" : {
+      "method" : "GET",
+      "path" : "/api/v2/documents/content",
+      "query" : {
+        "id" : [ "47-BC/BTCĐUK" ],
+        "unitId" : [ "DV-01" ]
+      },
+      "headers" : {
+        "Accept" : "*/*",
+        "Authorization" : "Bearer ma-gia-lap"
+      }
+    },
+    "response" : {
+      "status" : 200,
+      "headers" : {
+        "Content-Type" : "application/pdf"
+      },
+      "body" : "%PDF-1.4\n% van ban gia lap da ky\n%%EOF\n"
+    }
+  }, {
+    "request" : {
+      "method" : "GET",
+      "path" : "/api/v2/documents/detail",
+      "query" : {
+        "id" : [ "99-BC/KHONG-CO" ],
+        "unitId" : [ "DV-01" ]
+      },
+      "headers" : {
+        "Accept" : "application/json",
+        "Authorization" : "Bearer ma-gia-lap"
+      }
+    },
+    "response" : {
+      "status" : 404,
+      "headers" : {
+        "Content-Type" : "application/problem+json"
+      }
+    }
+  } ]
+}

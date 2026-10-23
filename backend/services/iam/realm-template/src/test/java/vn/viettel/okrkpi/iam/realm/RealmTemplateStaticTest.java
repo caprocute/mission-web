@@ -50,6 +50,8 @@ class RealmTemplateStaticTest {
     Map<String, String> expected = expectedRolesFromMatrix();
     Map<String, JsonNode> actual = new LinkedHashMap<>();
     realm().path("roles").path("realm").forEach(r -> actual.put(r.path("name").asText(), r));
+    // Vai trò dịch vụ svc_* (DV-02-04) không thuộc ma trận AC và không gán cho người.
+    actual.keySet().removeIf(name -> name.startsWith("svc_"));
 
     assertThat(actual.keySet()).as("realm role trong mẫu so với ma-tran.json")
         .containsExactlyInAnyOrderElementsOf(expected.keySet());
@@ -92,7 +94,8 @@ class RealmTemplateStaticTest {
     JsonNode r = realm();
     Map<String, JsonNode> clients = new LinkedHashMap<>();
     r.path("clients").forEach(c -> clients.put(c.path("clientId").asText(), c));
-    assertThat(clients.keySet()).containsExactlyInAnyOrder("mission-web", "mission-mobile", "apisix-gateway");
+    assertThat(clients.keySet())
+        .containsExactlyInAnyOrder("mission-web", "mission-mobile", "apisix-gateway", "mission-iam-broker");
     for (String id : new String[] {"mission-web", "mission-mobile"}) {
       JsonNode c = clients.get(id);
       assertThat(c.path("publicClient").asBoolean()).as(id).isTrue();
@@ -109,6 +112,39 @@ class RealmTemplateStaticTest {
     assertThat(gw.path("implicitFlowEnabled").asBoolean()).isFalse();
     assertThat(gw.path("directAccessGrantsEnabled").asBoolean()).isFalse();
     assertThat(gw.path("serviceAccountsEnabled").asBoolean()).isFalse();
+    // DV-02-04: tài khoản dịch vụ gọi org-service chỉ dùng client credentials.
+    JsonNode broker = clients.get("mission-iam-broker");
+    assertThat(broker.path("publicClient").asBoolean()).isFalse();
+    assertThat(broker.path("serviceAccountsEnabled").asBoolean()).isTrue();
+    assertThat(broker.path("standardFlowEnabled").asBoolean()).isFalse();
+    assertThat(broker.path("directAccessGrantsEnabled").asBoolean()).isFalse();
+  }
+
+  @Test
+  void vneidQuaMoiGioiCoPkceNonceVaKhongLuuToken() {
+    JsonNode idps = realm().path("identityProviders");
+    assertThat(idps).hasSize(1);
+    JsonNode v = idps.get(0);
+    assertThat(v.path("alias").asText()).isEqualTo("vneid");
+    assertThat(v.path("providerId").asText()).isEqualTo("mission-vneid");
+    assertThat(v.path("storeToken").asBoolean()).isFalse();
+    assertThat(v.path("trustEmail").asBoolean()).isFalse();
+    assertThat(v.path("firstBrokerLoginFlowAlias").asText()).isEqualTo("mission-vneid-first-login");
+    assertThat(v.path("postBrokerLoginFlowAlias").asText()).isEqualTo("mission-vneid-post-login");
+    JsonNode c = v.path("config");
+    assertThat(c.path("pkceEnabled").asText()).isEqualTo("true");
+    assertThat(c.path("pkceMethod").asText()).isEqualTo("S256");
+    assertThat(c.path("disableNonce").asText()).isEqualTo("false");
+    assertThat(c.path("validateSignature").asText()).isEqualTo("true");
+    assertThat(c.path("missionRequiredLevel").asText()).isEqualTo("2");
+    assertThat(c.path("missionTimeoutMillis").asText()).isEqualTo("10000");
+    // Luồng đăng nhập lần đầu chỉ có bước liên kết, không có bước tạo tài khoản.
+    realm().path("authenticationFlows").forEach(f -> {
+      if (f.path("alias").asText().startsWith("mission-vneid")) {
+        assertThat(f.path("authenticationExecutions").findValuesAsText("authenticator"))
+            .containsExactly("mission-vneid-link");
+      }
+    });
   }
 
   @Test
@@ -120,7 +156,12 @@ class RealmTemplateStaticTest {
             .matches("\\$\\(env:[A-Z0-9_]+\\)");
       }
     });
-    assertThat(raw.has("users")).as("mẫu không chứa tài khoản người dùng").isFalse();
+    // Chỉ có người dùng của tài khoản dịch vụ (DV-02-04), không có tài khoản người hay mật khẩu.
+    raw.path("users").forEach(u -> {
+      assertThat(u.path("username").asText()).as("chỉ tài khoản dịch vụ").startsWith("service-account-");
+      assertThat(u.has("serviceAccountClientId")).isTrue();
+      assertThat(u.has("credentials")).as("không có mật khẩu").isFalse();
+    });
     assertThat(TEMPLATE).doesNotContainPattern("(?i)-----BEGIN [A-Z ]*PRIVATE KEY-----");
     raw.path("components").path("org.keycloak.keys.KeyProvider").forEach(k ->
         assertThat(k.path("config").has("privateKey")).as("khoá ký không nằm trong mẫu").isFalse());

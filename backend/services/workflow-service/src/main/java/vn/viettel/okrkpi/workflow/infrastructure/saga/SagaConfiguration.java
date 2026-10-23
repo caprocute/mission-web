@@ -3,6 +3,8 @@ package vn.viettel.okrkpi.workflow.infrastructure.saga;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import org.flowable.engine.ManagementService;
 import org.flowable.engine.RepositoryService;
 import org.flowable.engine.RuntimeService;
@@ -21,6 +23,7 @@ import vn.viettel.okrkpi.workflow.application.saga.SagaCatalog;
 import vn.viettel.okrkpi.workflow.application.saga.SagaJournal;
 import vn.viettel.okrkpi.workflow.application.saga.SagaService;
 import vn.viettel.okrkpi.workflow.application.saga.SagaStepHandler;
+import vn.viettel.okrkpi.workflow.application.saga.SagaStepHandlerSet;
 import vn.viettel.okrkpi.workflow.domain.saga.SagaRepository;
 
 /**
@@ -40,8 +43,12 @@ public class SagaConfiguration {
 
   @Bean
   SagaCatalog sagaCatalog(
-      ObjectProvider<SagaBlueprint> blueprints, ObjectProvider<SagaStepHandler> handlers) {
-    return new SagaCatalog(blueprints.orderedStream().toList(), handlers.orderedStream().toList());
+      ObjectProvider<SagaBlueprint> blueprints,
+      ObjectProvider<SagaStepHandler> handlers,
+      ObjectProvider<SagaStepHandlerSet> handlerSets) {
+    List<SagaStepHandler> all = new ArrayList<>(handlers.orderedStream().toList());
+    handlerSets.orderedStream().forEach(set -> all.addAll(set.handlers()));
+    return new SagaCatalog(blueprints.orderedStream().toList(), all);
   }
 
   @Bean

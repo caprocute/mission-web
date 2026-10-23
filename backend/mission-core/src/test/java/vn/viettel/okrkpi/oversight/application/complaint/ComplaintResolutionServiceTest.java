@@ -20,6 +20,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.support.TransactionOperations;
 import vn.viettel.okrkpi.appraisal.api.ComplaintProfilesApi.Participants;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodLockedException;
@@ -87,6 +88,7 @@ class ComplaintResolutionServiceTest {
   private FakeSealer sealer = new FakeSealer();
   private ComplaintService filing;
   private ComplaintResolutionService service;
+  private java.util.function.Consumer<UUID> duringSign = id -> {};
   private UUID profileId;
 
   @BeforeEach
@@ -139,6 +141,7 @@ class ComplaintResolutionServiceTest {
             null,
             sink,
             (tenant, actor, action, type, id, purpose, role) -> audits.add(action),
+            TransactionOperations.withoutTransaction(),
             clock);
     service =
         new ComplaintResolutionService(
@@ -153,6 +156,7 @@ class ComplaintResolutionServiceTest {
             sealer,
             withSigner
                 ? (tenant, id, key, auth) -> {
+                  duringSign.accept(id);
                   UUID s = UUID.randomUUID();
                   signed.add(s);
                   return s;
@@ -167,6 +171,7 @@ class ComplaintResolutionServiceTest {
                 : null,
             sink,
             (tenant, actor, action, type, id, purpose, role) -> audits.add(action),
+            TransactionOperations.withoutTransaction(),
             clock);
   }
 
@@ -644,6 +649,56 @@ class ComplaintResolutionServiceTest {
   }
 
   @Test
+  void taiLieuCanKyVanBanTraLoiSanSangTrongLoiGoiSvc10() {
+    Complaint c = waiting();
+    service.saveConclusion(T, appraiser(handler), c.id(), etag(c), adjust("TONG_DIEM", 93));
+    assertThat(service.responseSource(T, c.id())).isEmpty();
+    List<ComplaintResolutionService.ResponseSource> seen = new ArrayList<>();
+    duringSign = id -> seen.add(service.responseSource(T, id).orElseThrow());
+    UUID sign = service.respond(T, decider(decider), c.id(), etag(c(c)), "k1", null, null);
+    assertThat(seen).singleElement().satisfies(x -> assertThat(x.signer()).isEqualTo(decider));
+    assertThat(repo.responseSigners).isEmpty();
+    assertThat(service.responseSource(T, c.id()).orElseThrow().sha256())
+        .isEqualTo(seen.get(0).sha256());
+    assertThat(process.conclusions.get(c.id()).signRequestId()).isEqualTo(sign);
+  }
+
+  @Test
+  void svc10LoiThiGoNguoiKyDangMoVanBanTraLoi() {
+    Complaint c = waiting();
+    service.saveConclusion(T, appraiser(handler), c.id(), etag(c), adjust("TONG_DIEM", 93));
+    duringSign =
+        id -> {
+          throw new IllegalStateException("SVC-10 lỗi");
+        };
+    assertThatThrownBy(
+            () -> service.respond(T, decider(decider), c.id(), etag(c(c)), "k1", null, null))
+        .isInstanceOf(IllegalStateException.class);
+    assertThat(repo.responseSigners).isEmpty();
+    assertThat(service.responseSource(T, c.id())).isEmpty();
+    assertThat(process.conclusions.get(c.id()).signing()).isFalse();
+    duringSign = id -> {};
+    assertThat(service.respond(T, decider(decider), c.id(), etag(c(c)), "k2", null, null))
+        .isNotNull();
+  }
+
+  @Test
+  void khieuNaiDoiTrongLucGoiSvc10ThiKhongGhiKetLuan() {
+    Complaint c = waiting();
+    service.saveConclusion(T, appraiser(handler), c.id(), etag(c), adjust("TONG_DIEM", 93));
+    duringSign = id -> repo.rows.put(id, repo.rows.get(id).touched());
+    assertThatThrownBy(
+            () -> service.respond(T, decider(decider), c.id(), etag(c(c)), "k1", null, null))
+        .satisfies(e -> assertThat(code(e)).isEqualTo("OVERSIGHT-409-VERSION-CONFLICT"));
+    assertThat(process.conclusions.get(c.id()).signing()).isFalse();
+    duringSign = id -> {};
+    repo.failMark = true;
+    assertThatThrownBy(
+            () -> service.respond(T, decider(decider), c.id(), etag(c(c)), "k2", null, null))
+        .satisfies(e -> assertThat(code(e)).isEqualTo("OVERSIGHT-409-VERSION-CONFLICT"));
+  }
+
+  @Test
   void kyTraLoiKiemQuyen() {
     Complaint c = waiting();
     Actor weak = new Actor(decider, List.of("decider"), unit, "aal1", NOW.getEpochSecond());
@@ -718,6 +773,7 @@ class ComplaintResolutionServiceTest {
                   TenantId tenant, Complaint c, String t, Collection<UUID> to) {}
             },
             (tenant, actor, action, type, id, purpose, role) -> {},
+            TransactionOperations.withoutTransaction(),
             clock);
     Complaint c = accepted();
     assertThatThrownBy(

@@ -21,6 +21,9 @@ public record ExportJob(
 
   public static final String TYPE = "EXPORT";
 
+  /** Tiền tố mã tác vụ của SVC-15: cổng cell định tuyến {@code /api/v1/jobs/ana-…} về đây. */
+  public static final String JOB_PREFIX = "ana";
+
   /** Trùng tên {@code JobStatus} của hợp đồng. */
   public enum Status {
     CHO,

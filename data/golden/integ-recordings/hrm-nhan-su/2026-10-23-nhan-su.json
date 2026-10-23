@@ -1,0 +1,92 @@
+{
+  "provider" : "hrm-nhan-su",
+  "ghiLuc" : "2026-10-23",
+  "nguon" : "phiên ghi giả lập theo dạng phản hồi HRM REST (chưa có môi trường thử thật)",
+  "daChe" : true,
+  "exchanges" : [ {
+    "request" : {
+      "method" : "GET",
+      "path" : "/api/persons",
+      "query" : {
+        "updatedSince" : [ "1970-01-01T00:00:00Z" ],
+        "limit" : [ "200" ]
+      },
+      "headers" : {
+        "Accept" : "application/json",
+        "Authorization" : "Bearer ma-gia-lap"
+      }
+    },
+    "response" : {
+      "status" : 200,
+      "headers" : {
+        "Content-Type" : "application/json; charset=utf-8"
+      },
+      "body" : {
+        "items" : [ {
+          "externalId" : "NS-0457",
+          "fullName" : "Nguyễn Văn Quân",
+          "nationalId" : "000205965267",
+          "birthDate" : "1985-01-01",
+          "phone" : "0000014485",
+          "email" : "nguoi-2c9326d6@example.invalid",
+          "orgUnit" : "DV-01",
+          "jobTitle" : "CV",
+          "updatedAt" : "2026-10-21T02:00:00Z",
+          "ghiChu" : "Liên hệ qua số 0000657816 hoặc nguoi-f4a6e285@example.invalid"
+        }, {
+          "externalId" : "NS-0458",
+          "fullName" : "Nguyễn Văn Quân",
+          "nationalId" : "000205965267",
+          "birthDate" : "1985-01-01",
+          "orgUnit" : "DV-02",
+          "jobTitle" : "TP",
+          "updatedAt" : "2026-10-21T02:05:00Z"
+        } ],
+        "nextCursor" : "c2"
+      }
+    }
+  }, {
+    "request" : {
+      "method" : "GET",
+      "path" : "/api/persons",
+      "query" : {
+        "updatedSince" : [ "c2" ],
+        "limit" : [ "200" ]
+      },
+      "headers" : {
+        "Accept" : "application/json",
+        "Authorization" : "Bearer ma-gia-lap"
+      }
+    },
+    "response" : {
+      "status" : 200,
+      "headers" : {
+        "Content-Type" : "application/json; charset=utf-8"
+      },
+      "body" : {
+        "items" : [ ]
+      }
+    }
+  }, {
+    "request" : {
+      "method" : "GET",
+      "path" : "/api/indicators/CS-1",
+      "query" : { },
+      "headers" : {
+        "Accept" : "application/json",
+        "Authorization" : "Bearer ma-gia-lap"
+      }
+    },
+    "response" : {
+      "status" : 200,
+      "headers" : {
+        "Content-Type" : "application/json; charset=utf-8"
+      },
+      "body" : {
+        "value" : 3.4,
+        "measuredAt" : "2026-10-22T08:00:00+07:00",
+        "nguoiCapNhat" : "Đỗ Minh Quân"
+      }
+    }
+  } ]
+}

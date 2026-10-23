@@ -135,6 +135,21 @@ final class RepoFiles {
     env.put("MISSION_MFA_RISK_THRESHOLD", mfa.path("risk").path("threshold").asText());
     env.put("MISSION_SIGNING_KEY_PRIORITY", r.path("signingKeyPriority").asText());
     env.put("MISSION_APISIX_CLIENT_SECRET", apisixSecret);
+    JsonNode v = r.path("vneid");
+    env.put("MISSION_VNEID_ENABLED", v.path("enabled").asText());
+    env.put("MISSION_VNEID_ISSUER", v.path("issuer").asText());
+    env.put("MISSION_VNEID_AUTHORIZATION_URL", v.path("authorizationUrl").asText());
+    env.put("MISSION_VNEID_TOKEN_URL", v.path("tokenUrl").asText());
+    env.put("MISSION_VNEID_JWKS_URL", v.path("jwksUrl").asText());
+    env.put("MISSION_VNEID_CLIENT_ID", v.path("clientId").asText());
+    env.put("MISSION_VNEID_CLIENT_AUTH_METHOD", v.path("clientAuthMethod").asText());
+    env.put("MISSION_VNEID_SCOPE", v.path("scope").asText());
+    env.put("MISSION_VNEID_LEVEL_CLAIM", v.path("levelClaim").asText());
+    env.put("MISSION_VNEID_NATIONAL_ID_CLAIM", v.path("nationalIdClaim").asText());
+    env.put("MISSION_VNEID_BREAKER_FAILURES", v.path("breaker").path("failures").asText());
+    env.put("MISSION_VNEID_BREAKER_OPEN_SECONDS", v.path("breaker").path("openSeconds").asText());
+    env.put("MISSION_VNEID_CLIENT_SECRET", "vneid-" + apisixSecret);
+    env.put("MISSION_IAM_BROKER_CLIENT_SECRET", "broker-" + apisixSecret);
     env.putAll(overrides);
     return env;
   }

@@ -2,7 +2,8 @@ package vn.viettel.okrkpi.workflow.infrastructure.template;
 
 /**
  * Tám quy tắc quản trị "chống mạng nhện" của TL-01 G2 (BS-01 mục "Dữ liệu và quy tắc quản trị đã
- * có"). Vi phạm bất kỳ quy tắc nào làm việc đăng ký mẫu thất bại.
+ * có") và hai giới hạn tải của BS-01 SCR-1505 (quy tắc 9, 10; bổ sung DV-06-09). Vi phạm bất kỳ quy
+ * tắc nào làm việc đăng ký mẫu thất bại.
  */
 public enum LintRule {
   /** 1. Mỗi mẫu là một định nghĩa dùng chung; cấm định nghĩa gắn {@code tenantId}. */
@@ -20,7 +21,13 @@ public enum LintRule {
   /** 7. Mỗi mẫu có Flowable test, test DMN, mô tả nghiệp vụ, người sở hữu. */
   R7_KIEM_THU_MO_TA_CHU_SO_HUU("Có kiểm thử luồng, kiểm thử DMN, mô tả và người sở hữu"),
   /** 8. Không quá ba phiên bản chính còn tiến trình chạy. */
-  R8_TOI_DA_3_PHIEN_BAN("Không quá ba phiên bản chính còn tiến trình chạy");
+  R8_TOI_DA_3_PHIEN_BAN("Không quá ba phiên bản chính còn tiến trình chạy"),
+  /**
+   * 9. BS-01 "Giới hạn tải": không quá 12 user task trên một nhánh từ điểm bắt đầu tới kết thúc.
+   */
+  R9_TOI_DA_12_USER_TASK_MOI_NHANH("Không quá 12 user task trên mỗi nhánh của luồng"),
+  /** 10. BS-01 "Giới hạn tải": mỗi đa thể hiện tối đa 50 phần tử. */
+  R10_DA_THE_HIEN_TOI_DA_50("Đa thể hiện tối đa 50 phần tử");
 
   private final String description;
 

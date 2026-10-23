@@ -66,6 +66,7 @@ public final class WorkflowTestDatabase {
     registry.add("flowable.async-executor-activate", () -> "false");
     registry.add("flowable.check-process-definitions", () -> "false");
     registry.add("management.server.port", () -> "0");
+    registry.add("okrkpi.inbox.listener-auto-startup", () -> "false");
     registry.add("springdoc.api-docs.enabled", () -> "true");
     registry.add(
         "springdoc.packages-to-scan", () -> "vn.viettel.okrkpi.workflow.infrastructure.web");

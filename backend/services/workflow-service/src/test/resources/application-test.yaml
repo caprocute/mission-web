@@ -25,5 +25,6 @@ management:
 okrkpi:
   saga:
     enabled: false
+  # Không mở kết nối Kafka trong kiểm thử; consumer inbox được gọi thẳng qua bộ xử lý inbox.
   inbox:
     listener-auto-startup: false

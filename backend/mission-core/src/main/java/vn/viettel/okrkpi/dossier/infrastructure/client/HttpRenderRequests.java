@@ -14,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.port.RenderRequests;
+import vn.viettel.okrkpi.shared.job.JobIds;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.resilience.ResilientClient;
 
@@ -29,6 +30,7 @@ public class HttpRenderRequests implements RenderRequests {
   public static final String INSTANCE = "dossier-docgen";
   static final String RENDER_JOBS = "/api/v1/dossiers/render-jobs";
   static final String JOB = "/api/v1/jobs/{id}";
+  static final String JOB_PREFIX = "doc";
   static final String TENANT_HEADER = "X-Tenant-Id";
   static final Set<String> FINISHED = Set.of("HOAN_TAT", "THAT_BAI");
 
@@ -57,7 +59,9 @@ public class HttpRenderRequests implements RenderRequests {
       if (id == null) {
         throw new RenderUnavailableException("SVC-11 không trả mã lệnh sinh", null);
       }
-      return UUID.fromString(id.toString());
+      // Mã job của SVC-11 mang tiền tố doc- (wiki 14 mục DV-01-04); mã lệnh là phần UUID.
+      return JobIds.parse(JOB_PREFIX, id.toString())
+          .orElseThrow(() -> new IllegalArgumentException("Mã lệnh sinh không hợp lệ: " + id));
     } catch (RenderUnavailableException e) {
       throw e;
     } catch (RuntimeException e) {
@@ -69,7 +73,14 @@ public class HttpRenderRequests implements RenderRequests {
   public Optional<RequestState> state(TenantId tenant, UUID requestId) {
     Map<?, ?> job;
     try {
-      job = client.exchange(HttpMethod.GET, JOB, null, headers(tenant), Map.class, requestId);
+      job =
+          client.exchange(
+              HttpMethod.GET,
+              JOB,
+              null,
+              headers(tenant),
+              Map.class,
+              JobIds.format(JOB_PREFIX, requestId));
     } catch (RuntimeException e) {
       // 404 (lệnh không còn), 5xx hay mất kết nối: lần theo dõi sau đọc lại.
       return Optional.empty();

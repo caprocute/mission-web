@@ -136,6 +136,8 @@ class RealmTemplateKeycloakIT {
     admin.get("/admin/realms/" + REALM + "/roles").forEach(x -> roles.add(x.path("name").asText()));
     // Keycloak tự tạo default-roles-<realm>, offline_access, uma_authorization; còn lại phải đúng ma trận
     roles.removeAll(Set.of("default-roles-" + REALM, "offline_access", "uma_authorization"));
+    // Vai trò dịch vụ svc_* (DV-02-04) không thuộc ma trận AC
+    roles.removeIf(name -> name.startsWith("svc_"));
     assertThat(roles).containsExactlyInAnyOrderElementsOf(RealmTemplateStaticTest.expectedRolesFromMatrix().keySet());
 
     // Văn bản MSG-00-01, MSG-00-02 cho trang đăng nhập tiếng Việt

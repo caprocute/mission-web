@@ -30,6 +30,7 @@ import vn.viettel.okrkpi.scoring.infrastructure.web.model.AppraisalSimulationInp
 import vn.viettel.okrkpi.scoring.infrastructure.web.model.AppraisalSimulationResult;
 import vn.viettel.okrkpi.scoring.infrastructure.web.model.SubmitAppraisalSelfAssessment202Response;
 import vn.viettel.okrkpi.shared.idempotency.Idempotent;
+import vn.viettel.okrkpi.shared.job.JobIds;
 import vn.viettel.okrkpi.shared.job.Jobs;
 
 /**
@@ -150,17 +151,16 @@ public class ScoreTraceController implements AppraisalsApi {
   @Idempotent
   public ResponseEntity<SubmitAppraisalSelfAssessment202Response> recomputeAppraisalProfile(
       String idempotencyKey, UUID id) {
-    UUID job = rechecks.request(id, CurrentCaller.actor());
+    String job =
+        JobIds.format(ScoreJobSource.JOB_PREFIX, rechecks.request(id, CurrentCaller.actor()));
     SubmitAppraisalSelfAssessment202Response body =
         new SubmitAppraisalSelfAssessment202Response(
-            job.toString(),
-            ScoreJobSource.TYPE,
-            SubmitAppraisalSelfAssessment202Response.StatusEnum.CHO);
+            job, ScoreJobSource.TYPE, SubmitAppraisalSelfAssessment202Response.StatusEnum.CHO);
     body.setProgress(0);
     body.setMessage("Đang chờ tính lại để đối chiếu.");
     body.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
     return ResponseEntity.accepted()
-        .location(Jobs.location(job.toString()))
+        .location(Jobs.location(job))
         .header(HttpHeaders.RETRY_AFTER, Long.toString(Jobs.DEFAULT_RETRY_AFTER_SECONDS))
         .body(body);
   }

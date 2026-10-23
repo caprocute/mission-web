@@ -811,6 +811,13 @@ paths:
           in: query
           description: Mã cell, chỉ quản trị nền tảng dùng.
           schema: { type: string, maxLength: 16 }
+        - name: unit
+          in: query
+          description: >-
+            Lọc theo đơn vị xử lý của bước đang chờ (đơn vị trong nhóm ứng viên của user task,
+            `flowable.wf_task_projection.candidate_unit_id`). Bước giao thẳng cho một người, không có nhóm ứng
+            viên, không khớp bộ lọc này (bổ sung DV-06-10, suy luận).
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         - $ref: '../common/common.yaml#/components/parameters/PeriodId'
         - $ref: '../common/common.yaml#/components/parameters/Limit'
         - $ref: '../common/common.yaml#/components/parameters/Cursor'
@@ -839,6 +846,7 @@ paths:
                         stuck: true
                         stuckReason: Quá hạn 3 ngày, không có người xử lý trong đơn vị ứng viên.
                         cellCode: CELL-HN
+                        rowVersion: 2
                     nextCursor: null
         '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
         '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
@@ -3484,6 +3492,11 @@ components:
         stuck: { type: boolean }
         stuckReason: { type: string }
         cellCode: { type: string }
+        rowVersion:
+          $ref: '../common/common.yaml#/components/schemas/RowVersion'
+          description: >-
+            `REV_` của user task đang chờ (`flowable.wf_task_projection.row_version`), gửi lại trong `If-Match` khi
+            chuyển người xử lý hoặc gia hạn bước (bổ sung DV-06-10).
     WorkflowInstancePage:
       type: object
       required: [items, nextCursor]

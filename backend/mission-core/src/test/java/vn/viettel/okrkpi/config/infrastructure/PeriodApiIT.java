@@ -302,7 +302,23 @@ class PeriodApiIT extends ContractConformanceTest {
                     .param(periodId.value())
                     .query(String.class)
                     .list());
-    assertThat(topics).containsExactly("config.period.unlocked.v1", "config.period.locked.v1");
+    assertThat(topics)
+        .containsExactly(
+            "period.drain.marker",
+            "config.period.unlocked.v1",
+            "period.drain.marker",
+            "config.period.locked.v1");
+    List<String> markers =
+        inTenant(
+            jdbc ->
+                jdbc.sql(
+                        "SELECT aggregate_version || ':' || (headers ->> 'classification')"
+                            + " FROM config.outbox_event WHERE aggregate_id = ?"
+                            + " AND topic = 'period.drain.marker' ORDER BY aggregate_version")
+                    .param(periodId.value())
+                    .query(String.class)
+                    .list());
+    assertThat(markers).containsExactly("1:C0", "3:C0");
     JsonNode locked = body(perform(get("/api/v1/periods/" + id)));
     assertThat(locked.get("status").asText()).isEqualTo("DA_KHOA");
     assertThat(locked.get("rowVersion").asInt()).isEqualTo(4);

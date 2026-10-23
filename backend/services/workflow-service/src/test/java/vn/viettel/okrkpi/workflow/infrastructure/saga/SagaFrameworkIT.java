@@ -94,6 +94,7 @@ class SagaFrameworkIT {
     registry.add("spring.flyway.enabled", () -> "true");
     registry.add("flowable.database-schema-update", () -> "false");
     registry.add("flowable.check-process-definitions", () -> "false");
+    registry.add("okrkpi.inbox.listener-auto-startup", () -> "false");
   }
 
   @Autowired private MockMvc mvc;
@@ -271,8 +272,8 @@ class SagaFrameworkIT {
             .andReturn()
             .getResponse()
             .getHeader("Location");
-    assertThat(location).startsWith("/api/v1/jobs/");
-    UUID id = UUID.fromString(location.substring("/api/v1/jobs/".length()));
+    assertThat(location).startsWith("/api/v1/jobs/wf-");
+    UUID id = UUID.fromString(location.substring("/api/v1/jobs/wf-".length()));
 
     SagaInstance done = drive(id);
     assertThat(done.status()).isEqualTo(SagaStatus.HOAN_TAT);

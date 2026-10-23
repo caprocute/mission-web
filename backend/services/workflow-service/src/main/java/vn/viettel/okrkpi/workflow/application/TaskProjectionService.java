@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import vn.viettel.okrkpi.workflow.application.port.TaskProjectionStore;
 import vn.viettel.okrkpi.workflow.domain.BusinessKey;
 import vn.viettel.okrkpi.workflow.domain.CandidateGroup;
+import vn.viettel.okrkpi.workflow.domain.ProcessRef;
 import vn.viettel.okrkpi.workflow.domain.TaskProjection;
 import vn.viettel.okrkpi.workflow.internal.TaskTitles;
 
@@ -59,7 +60,13 @@ public class TaskProjectionService {
             uuid(event.periodId()).orElse(null),
             event.dueAt(),
             event.createdAt() == null ? Instant.EPOCH : event.createdAt(),
-            Math.max(1, event.revision())));
+            Math.max(1, event.revision()),
+            new ProcessRef(
+                event.processInstanceId(),
+                event.activityId(),
+                event.activityName(),
+                event.templateVersion(),
+                event.processStartedAt())));
   }
 
   /** User task được nhận hoặc giao lại. */

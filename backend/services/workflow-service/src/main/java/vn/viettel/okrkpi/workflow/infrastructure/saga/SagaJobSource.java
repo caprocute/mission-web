@@ -11,6 +11,7 @@ import org.springframework.http.ProblemDetail;
 import vn.viettel.okrkpi.shared.error.ErrorCatalog;
 import vn.viettel.okrkpi.shared.error.ErrorCode;
 import vn.viettel.okrkpi.shared.job.Job;
+import vn.viettel.okrkpi.shared.job.JobIds;
 import vn.viettel.okrkpi.shared.job.JobSource;
 import vn.viettel.okrkpi.shared.job.JobStatus;
 import vn.viettel.okrkpi.shared.job.TrackedJob;
@@ -40,6 +41,12 @@ public class SagaJobSource implements JobSource {
     this.sagas = sagas;
   }
 
+  /**
+   * Tiền tố mã tác vụ của SVC-06 (saga và lô duyệt): cổng cell định tuyến {@code /api/v1/jobs/wf-…}
+   * về đây (wiki 14 mục DV-01-04).
+   */
+  public static final String JOB_PREFIX = "wf";
+
   @Override
   public String name() {
     return "saga";
@@ -47,12 +54,11 @@ public class SagaJobSource implements JobSource {
 
   @Override
   public Optional<TrackedJob> find(TenantId tenant, String jobId) {
-    UUID id;
-    try {
-      id = UUID.fromString(jobId);
-    } catch (IllegalArgumentException e) {
+    Optional<UUID> parsed = JobIds.parse(JOB_PREFIX, jobId);
+    if (parsed.isEmpty()) {
       return Optional.empty();
     }
+    UUID id = parsed.get();
     return sagas
         .find(id)
         .filter(s -> s.tenantId().equals(tenant.value()))
@@ -71,7 +77,7 @@ public class SagaJobSource implements JobSource {
         status == JobStatus.HOAN_TAT || total == 0 ? 100 : saga.completedSteps() * 100 / total;
     Instant at = saga.finishedAt() != null ? saga.finishedAt() : saga.startedAt();
     return new Job(
-        saga.id().toString(),
+        JobIds.format(JOB_PREFIX, saga.id()),
         type(saga.type()),
         status,
         status == JobStatus.THAT_BAI ? null : progress,
@@ -118,6 +124,7 @@ public class SagaJobSource implements JobSource {
       case MO_LAI_HAU_KIEM -> "PERIOD_REOPEN";
       case TOT_NGHIEP_TENANT -> "TENANT_GRADUATION";
       case DONG_GOI_HO_SO -> "DOSSIER_PACKAGE";
+      case PHAT_HANH_MAU_LUONG -> "WF_TEMPLATE_RELEASE";
     };
   }
 

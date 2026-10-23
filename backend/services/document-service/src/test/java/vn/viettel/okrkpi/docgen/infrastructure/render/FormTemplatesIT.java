@@ -464,7 +464,9 @@ class FormTemplatesIT {
             .andReturn()
             .getResponse()
             .getContentAsString(StandardCharsets.UTF_8);
-    UUID requestId = UUID.fromString(JSON.readTree(response).path("id").asText());
+    String jobId = JSON.readTree(response).path("id").asText();
+    assertThat(jobId).startsWith("doc-");
+    UUID requestId = UUID.fromString(jobId.substring("doc-".length()));
     processAll(requestId);
     Job job = TenantContext.call(TenantId.of(TENANT), () -> service.job(requestId)).orElseThrow();
     assertThat(job.status()).isEqualTo(JobStatus.HOAN_TAT);

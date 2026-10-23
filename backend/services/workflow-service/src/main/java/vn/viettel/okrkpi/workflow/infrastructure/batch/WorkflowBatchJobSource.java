@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 import vn.viettel.okrkpi.shared.job.Job;
+import vn.viettel.okrkpi.shared.job.JobIds;
 import vn.viettel.okrkpi.shared.job.JobSource;
 import vn.viettel.okrkpi.shared.job.JobStatus;
 import vn.viettel.okrkpi.shared.job.TrackedJob;
@@ -30,6 +31,9 @@ public class WorkflowBatchJobSource implements JobSource {
     this.clock = clock;
   }
 
+  /** Tiền tố mã tác vụ của SVC-06, chung với saga (wiki 14 mục DV-01-04). */
+  static final String JOB_PREFIX = "wf";
+
   @Override
   public String name() {
     return "flowable.wf_task_batch";
@@ -37,12 +41,11 @@ public class WorkflowBatchJobSource implements JobSource {
 
   @Override
   public Optional<TrackedJob> find(TenantId tenant, String jobId) {
-    UUID id;
-    try {
-      id = UUID.fromString(jobId);
-    } catch (IllegalArgumentException e) {
+    Optional<UUID> parsed = JobIds.parse(JOB_PREFIX, jobId);
+    if (parsed.isEmpty()) {
       return Optional.empty();
     }
+    UUID id = parsed.get();
     return batches
         .find(tenant.value(), id)
         .map(
@@ -74,7 +77,7 @@ public class WorkflowBatchJobSource implements JobSource {
           case THAT_BAI -> "Lô duyệt bị gián đoạn, vui lòng mở lại hộp việc và gửi lại";
         };
     return new Job(
-        job.id().toString(),
+        JobIds.format(JOB_PREFIX, job.id()),
         BatchJob.JOB_TYPE,
         JobStatus.valueOf(status.name()),
         job.progress(),

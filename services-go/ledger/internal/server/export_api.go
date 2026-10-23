@@ -101,7 +101,7 @@ func (s *Server) createLedgerExport(w http.ResponseWriter, r *http.Request, c ca
 		}
 		s.audit(r, c, "createLedgerExport", subject, detail)
 	}
-	w.Header().Set("Location", "/api/v1/jobs/"+job.ID.String())
+	w.Header().Set("Location", "/api/v1/jobs/"+jobID(job.ID))
 	w.Header().Set("Retry-After", "2")
 	writeJSON(w, http.StatusAccepted, s.exportJobView(r, job))
 }
@@ -111,7 +111,7 @@ func (s *Server) exportJobView(r *http.Request, j *export.Job) map[string]any {
 	if j.Status == export.StatusDone || j.Status == export.StatusFailed {
 		progress = 100
 	}
-	v := map[string]any{"id": j.ID.String(), "type": ExportJobType, "status": j.Status, "progress": progress,
+	v := map[string]any{"id": jobID(j.ID), "type": ExportJobType, "status": j.Status, "progress": progress,
 		"updatedAt": j.CreatedAt.UTC().Format(time.RFC3339Nano)}
 	if j.FinishedAt != nil {
 		v["updatedAt"] = j.FinishedAt.UTC().Format(time.RFC3339Nano)
@@ -125,7 +125,7 @@ func (s *Server) exportJobView(r *http.Request, j *export.Job) map[string]any {
 		}
 	}
 	if j.Status == export.StatusFailed {
-		v["problem"] = problem.InternalServerError("/api/v1/jobs/"+j.ID.String(), "")
+		v["problem"] = problem.InternalServerError("/api/v1/jobs/"+jobID(j.ID), "")
 	}
 	return v
 }
