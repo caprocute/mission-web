@@ -1,0 +1,10 @@
+# Hồ sơ dev của mission-core: chạy trên máy trạm, gọi hạ tầng của server dev qua đường hầm SSH (cổng 35xxx,
+# infra/dev/.env.example). Chỉ ghi đè những gì khác hồ sơ mặc định.
+okrkpi:
+  opa:
+    # Chạy thử trên dev ngày 23/10/2026: tắt OPA thì API trả 401, nên hồ sơ dev bật mặc định.
+    enabled: ${OPA_ENABLED:true}
+    base-url: ${OPA_BASE_URL:http://127.0.0.1:35181}
+    # Qua đường hầm, 50/100 ms của TL-01 làm lời gọi quá hạn và bị từ chối (fail closed, 403).
+    connect-timeout: ${OPA_CONNECT_TIMEOUT:2s}
+    read-timeout: ${OPA_READ_TIMEOUT:2s}

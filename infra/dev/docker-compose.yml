@@ -55,6 +55,12 @@ x-backend-java-env: &backend-java-env
   REDIS_PORT: "6379"
   SPRING_DATA_REDIS_PASSWORD: ${VALKEY_PASSWORD:-}
   OPA_URL: http://opa:8181/v1/data/mission/authz
+  # Bộ uỷ quyền okrkpi.opa (vt-platform-starter): bật mặc định ở dev; OPA nằm ở container opa, không cùng pod,
+  # nên timeout lấy từ .env (mặc định 2s) thay cho 50/100 ms của TL-01.
+  OPA_ENABLED: ${OPA_ENABLED:-true}
+  OPA_BASE_URL: http://opa:8181
+  OPA_CONNECT_TIMEOUT: ${OPA_CONNECT_TIMEOUT:-2s}
+  OPA_READ_TIMEOUT: ${OPA_READ_TIMEOUT:-2s}
   OPENBAO_URL: http://openbao:8200
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
   TZ: Asia/Ho_Chi_Minh
@@ -344,6 +350,28 @@ services:
       interval: 15s
       timeout: 10s
       retries: 10
+    networks:
+      - mission-net
+
+  # Tạo đủ topic theo danh mục production (kafka/topics.txt) mỗi lần bật profile events; chạy một lần rồi thoát,
+  # chạy lại không đổi gì (--if-not-exists). Thay cho bước tay ./scripts/create-topics.sh.
+  kafka-init:
+    image: apache/kafka:3.9.1
+    container_name: mission-dev-kafka-init
+    restart: "no"
+    profiles: ["events", "all"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_LOCAL_EXEC: "1"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_PARTITIONS: ${KAFKA_PARTITIONS:-3}
+      TOPICS_FILE: /kafka-init/topics.txt
+    entrypoint: ["bash", "/kafka-init/create-topics.sh"]
+    volumes:
+      - ./scripts/create-topics.sh:/kafka-init/create-topics.sh:ro
+      - ./kafka/topics.txt:/kafka-init/topics.txt:ro
     networks:
       - mission-net
 
