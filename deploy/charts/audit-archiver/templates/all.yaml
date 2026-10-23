@@ -1,0 +1,6 @@
+{{- /*
+Chart dịch vụ dựng trên thư viện vt-service (INF-02); khoá values xem vt-service/templates/_defaults.tpl. Cấu hình
+chạy dựng từ archive.* (templates/_env.tpl) rồi đặt vào config để vt-service sinh ConfigMap gắn qua envFrom.
+*/ -}}
+{{- $_ := set .Values "config" (include "audit-archiver.env" . | fromYaml) -}}
+{{ include "vt-service.all" . }}

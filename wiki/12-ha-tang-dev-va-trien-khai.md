@@ -371,6 +371,19 @@ Kiểm tra gồm `tests/chay-kiem-thu.sh` (lint, kubeconform, cú pháp Lua, cá
 
 Kiểm thử dùng máy chủ giả lập (`httptest`), `kubectl`/`helm` giả và cụm Kafka `kfake` trong tiến trình; đặt `VTCTL_KAFKA_IT=1` để chạy với Kafka thật qua Testcontainers. Chưa chạy được trên cụm kind trong đợt này; giới hạn còn lại ghi ở `services-go/vtctl/README.md`.
 
+## Kho bất biến nhật ký kiểm toán: audit-archiver (INF-24)
+
+Topic `sys.audit.v1` có một đường lưu trữ riêng không qua MirrorMaker 2 (TL-04 "Kafka: MirrorMaker 2", "Bảng lịch sao lưu"): dịch vụ Go `services-go/audit-archiver` đọc topic theo nhóm `audit-archiver`, gom lô theo phân vùng (bản ghi cũ nhất trong lô tối đa 4 phút, hoặc 200.000 bản ghi, hoặc 64 MiB), ghi tệp Parquet nén zstd giữ nguyên thân Avro và header phong bì, kèm tệp kê khai JSON (dải offset, số bản ghi, SHA-256 của tệp, băm kê khai trước để nối chuỗi) và chữ ký ed25519 của kê khai qua OpenBao Transit (khoá `audit-archiver`, không xuất được). Ba đối tượng của một lô cùng tên gốc `cell-<mã>/<topic>/<yyyy>/<MM>/<dd>/<HH>/<phân vùng 4 số>-<offset bắt đầu 20 số>` trên bucket `audit-cell-<mã>` của kho sao lưu, mỗi đối tượng đặt hạn giữ COMPLIANCE 10 năm (tham số `archive.retentionYears`). Offset Kafka chỉ được xác nhận sau khi kê khai, chữ ký và dữ liệu đã ghi và tệp đã khoá; metadata của offset là khoá kê khai cuối, nên khi nhận lại phân vùng dịch vụ tiếp tục từ kê khai cuối trong kho (không mất, không trùng) và dựng lại tệp dữ liệu từ Kafka nếu sự cố xảy ra giữa lúc ghi kê khai và ghi dữ liệu. Công cụ `audit-verify` trong cùng ảnh cho kiểm toán viên chỉ cần tệp khoá công khai (`audit-archiver khoa-cong-khai`) và quyền đọc bucket; CronJob `audit-archiver-kiem-tra` chạy `kiem-tra` hằng ngày lúc 03:30 với cửa sổ 48 giờ chồng nhau và đối chiếu offset Kafka. Chart `deploy/charts/audit-archiver` (trên `vt-service`), sổ tay `ops/runbooks/audit-archiver.md`.
+
+Bẫy đã gặp:
+
+- RGW của ảnh `quay.io/ceph/demo` hiểu tên máy `localhost` trong tiêu đề Host là tên bucket kiểu virtual-host và trả `NoSuchBucket` cho mọi lệnh tạo bucket; gọi bằng `127.0.0.1` hoặc IP container.
+- Ảnh MinIO không còn tải công khai được (Docker Hub, quay.io và mirror.gcr.io đều từ chối), nên kiểm thử dùng Ceph RGW một nút, gần production hơn.
+- Module Kafka của testcontainers-go 0.44 chỉ chạy được với ảnh `confluentinc/confluent-local`; ảnh `apache/kafka-native` thoát ngay vì kịch bản khởi động của module gọi tệp cấu hình Confluent.
+- Mã hoá Parquet phải xác định (zstd một luồng, không ghi thời điểm vào siêu dữ liệu) để tệp dựng lại từ Kafka trùng từng byte với SHA-256 trong kê khai đã ký.
+
+Kiểm thử: `go vet`, `go test ./...` (kiểm thử đơn vị và tích hợp Testcontainers Kafka, Ceph RGW, OpenBao: 10.000 sự kiện qua một lần SIGKILL giữa chừng vào kho đủ và không trùng; dựng lại tệp sau sự cố giữa kê khai và dữ liệu; kho từ chối xoá phiên bản và rút hạn; sửa một byte hay ghi đè thì `audit-verify` báo lỗi) và `govulncheck` sạch; `deploy/environments/kind/kiem-thu-audit-archiver.sh` cài chart lên kind (hoặc chạy ảnh bằng Docker với `CHE_DO=docker` khi không dựng được kind, như trong container kiểm thử của đợt này), đo độ trễ từ sự kiện tới tệp qua chỉ số `audit_archiver_do_tre_lo_cuoi_giay`, chạy job kiểm hằng ngày và `audit-verify` ngoài cụm.
+
 ## Lộ trình theo TL-04
 
 TL-04 chia lộ trình thành các đợt. Đợt 0a kéo dài 2 tuần, xử lý ngay các lỗ hổng S01 đến S05, S07, S08 và S11 của hệ cũ: gitleaks, xoay vòng bí mật, OpenBao tối thiểu, sửa CORS và cookie, bỏ token khỏi URL và log, rồi kiểm tra lại. Đợt 0b kéo dài 6 tuần: chart `vt-service`, đặt APISIX trước hệ cũ để sinh `traceparent`, dựng OTel, Tempo, Prometheus, Fluent Bit và cụm quản trị Argo CD, Harbor, Grafana, với mục tiêu có trace xuyên bốn tầng. Đợt 0c kéo dài 6 tuần: Resilience4j, cổng chất lượng Jenkins, Kyverno chế độ Enforce, Flyway và thử tải 500 người dùng đồng thời với p95 dưới 3 giây.
