@@ -24,3 +24,9 @@ openbao:
   configMap: false
 alerts:
   enabled: false
+# Warpgate: kind không có Harbor, cert-manager issuer openbao-pki-cell và Secret OIDC; kiem-thu-pam.sh chưa thử Warpgate
+# trên cụm (đã thử bằng nhị phân, tests/test_warpgate.py). Bật thì đổi ảnh sang ghcr.io/warp-tech/warpgate cùng digest.
+warpgate:
+  enabled: false
+  image:
+    repository: ghcr.io/warp-tech/warpgate

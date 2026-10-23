@@ -62,7 +62,7 @@ BEGIN
     GRANT dba_ops TO bao_admin WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
     GRANT dba_pha_kinh_doc TO bao_admin WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
     GRANT pam_quet TO bao_admin WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
-    GRANT pg_signal_backend TO bao_admin;
+    GRANT pg_signal_backend TO bao_admin WITH INHERIT TRUE;
   END IF;
 END
 $$;

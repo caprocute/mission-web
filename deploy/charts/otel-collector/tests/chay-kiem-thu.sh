@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Kiểm tĩnh chart otel-collector (INF-14): lint, render, kubeconform -strict, otelcol validate cho cấu hình agent và
 # gateway (mặc định và kind), cờ thay AGPL chuyển đích trace; luồng SIEM (INF-19): otelcol validate cho otel-siem và
-# chặng ra SOC, chạy thật bộ xử lý ECS (tests/kiem-thu-siem.py). Cần docker, hoặc OTELCOL=<tệp otelcol-contrib>.
+# chặng ra SOC, chạy thật bộ xử lý ECS (tests/kiem-thu-siem.py, gồm sự kiện PAM qua receiver syslog). Cần docker, hoặc OTELCOL=<tệp otelcol-contrib>.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT=$(mktemp -d); trap 'rm -rf "$OUT"' EXIT
@@ -24,8 +24,11 @@ for d in yaml.safe_load_all(open(sys.argv[1])):
         open(f"{sys.argv[2]}/{d['metadata']['name']}.yaml", "w").write(d["data"]["config.yaml"])
 PY
   for c in otel-agent otel-gateway; do
-    docker run --rm -v "$OUT/$ten:/c:ro" -e K8S_NODE_NAME=n "$OTEL" validate --config="/c/$c.yaml" >/dev/null 2>"$OUT/e" \
-      && ok "otelcol validate $c ($ten)" || { hong "otelcol validate $c ($ten)"; tail -3 "$OUT/e"; }
+    if [ -n "${OTELCOL:-}" ]; then
+      K8S_NODE_NAME=n "$OTELCOL" validate --config="$OUT/$ten/$c.yaml" >/dev/null 2>"$OUT/e"
+    else
+      docker run --rm -v "$OUT/$ten:/c:ro" -e K8S_NODE_NAME=n "$OTEL" validate --config="/c/$c.yaml" >/dev/null 2>"$OUT/e"
+    fi && ok "otelcol validate $c ($ten)" || { hong "otelcol validate $c ($ten)"; tail -3 "$OUT/e"; }
   done
 done
 g="$OUT/mac-dinh/otel-gateway.yaml"

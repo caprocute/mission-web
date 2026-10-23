@@ -19,6 +19,24 @@
 #   PKI_SIGNED_CERT       chứng thư CA trung gian đã ký (PEM, kèm chuỗi tới CA gốc); có thì nạp vào mount PKI
 set -euo pipefail
 cd "$(dirname "$0")"
+
+# Câu SQL của người dùng động mission-core (tách hàm để kiểm thử chạy thật trên PostgreSQL, xem tests/).
+# bao_admin chỉ có ADMIN OPTION trên svc_<schema> (INHERIT FALSE, SET FALSE; data-pg) và không có createrole_self_grant,
+# nên không đọc được bảng nghiệp vụ, kể cả qua người dùng động mà chính nó tạo. Vì vậy câu thu hồi không dùng
+# REASSIGN OWNED, DROP OWNED (PostgreSQL 16 đòi quyền của vai trò bị thu hồi, bao_admin không có): ngắt phiên còn mở
+# (chờ tối đa 5 giây để tiến trình dọn bảng tạm), rồi DROP ROLE. Người dùng động không được sở hữu đối tượng nào
+# (vai trò svc_ không có CREATE trên schema; Flyway chạy bằng mig_), nên còn sở hữu thì DROP ROLE lỗi, lease thu hồi
+# thất bại và hiện trong nhật ký kiểm toán OpenBao để xử lý tay.
+cau_tao_mission() { # <danh sách vai trò nhóm, cách nhau dấu phẩy>
+  printf 'CREATE ROLE "{{name}}" WITH LOGIN INHERIT NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD '"'"'{{password}}'"'"' VALID UNTIL '"'"'{{expiration}}'"'"' IN ROLE %s;' "$1"
+}
+cau_thu_hoi_dong() {
+  printf '%s' 'SELECT pg_terminate_backend(pid, 5000) FROM pg_stat_activity WHERE usename = '"'"'{{name}}'"'"'; DROP ROLE IF EXISTS "{{name}}";'
+}
+# "--in-sql [vai trò nhóm]": chỉ in câu tạo và câu thu hồi (kiểm thử), không gọi OpenBao.
+if [ "${1:-}" = "--in-sql" ]; then
+  cau_tao_mission "${2:-svc_task}"; echo; cau_thu_hoi_dong; echo; exit 0
+fi
 : "${CELL:?cần CELL}"
 K8S_HOST=${K8S_HOST:-https://kubernetes.default.svc}
 PG_CLUSTERS=${PG_CLUSTERS-pg-core:data-pg}
@@ -83,11 +101,10 @@ for muc in $PG_CLUSTERS; do
 done
 # Người dùng động của mission-core: NOBYPASSRLS, sống 24 giờ, gia hạn tối đa 72 giờ, thu hồi khi lease hết hay
 # pod chết (TL-04 mục 9.4). Thành viên các vai trò svc_<schema> của mission-core (INF-11 tách vai trò theo schema).
-nhom=${PG_CORE_SVC_ROLES%%,*}
 if [[ " $PG_CLUSTERS " == *" pg-core:"* ]]; then
 bao write database/roles/pg-core-mission db_name="pg-core-$CELL" default_ttl=24h max_ttl=72h \
-  creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN INHERIT NOBYPASSRLS PASSWORD '{{password}}' VALID UNTIL '{{expiration}}' IN ROLE $PG_CORE_SVC_ROLES;" \
-  revocation_statements="REASSIGN OWNED BY \"{{name}}\" TO $nhom; DROP OWNED BY \"{{name}}\"; DROP ROLE IF EXISTS \"{{name}}\";" >/dev/null
+  creation_statements="$(cau_tao_mission "$PG_CORE_SVC_ROLES")" \
+  revocation_statements="$(cau_thu_hoi_dong)" >/dev/null
 echo "  pg-core-mission → $PG_CORE_SVC_ROLES"
 fi
 

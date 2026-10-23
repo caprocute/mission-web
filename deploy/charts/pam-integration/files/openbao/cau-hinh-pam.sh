@@ -12,7 +12,8 @@
 #     kiện hai người duyệt (một từ khách hàng) do PAM thực thi; OpenBao chỉ cho định danh broker của PAM đọc đường này,
 #     và mọi lần đọc đi vào thiết bị kiểm toán → otel-siem → sys.siem.v1 (quy tắc SOC "pha-kinh").
 #   - Static role "<cụm>-pam-quet": xoay mật khẩu pam_quet 24 giờ cho CronJob quét (đọc qua ESO).
-#   - Chính sách pam-broker, pam-quet-<cell>, quan-tri-khoa; auth cert cho broker PAM; vai trò OIDC quan-tri-khoa.
+#   - Chính sách pam-broker, pam-quet-<cell>, quan-tri-khoa, warpgate; auth cert cho broker PAM; vai trò OIDC
+#     quan-tri-khoa; vai trò auth kubernetes "warpgate" (kho bí mật của Warpgate, chỉ đọc kv/warpgate/*).
 #     Token của người và của broker bị ràng buộc token_bound_cidrs = dải proxy PAM, nên chỉ dùng được khi đi qua PAM.
 #
 # Biến:
@@ -24,6 +25,7 @@
 #   OIDC_PATH           đường auth OIDC của Keycloak platform-ops (mặc định oidc-platform-ops; trống thì bỏ qua)
 #   NHOM_QUAN_TRI_KHOA  nhóm Keycloak được nhận chính sách quan-tri-khoa (mặc định platform-ops-quan-tri-khoa)
 #   APP_NS_QUET         namespace CronJob quét (mặc định pam-kiem-soat); SA pam-quet-csdl
+#   WARPGATE_NS         namespace của Warpgate (mặc định pam; trống thì bỏ qua vai trò warpgate); SA warpgate
 #   THOI_HAN_DBA        mặc định 4h;  THOI_HAN_PHA_KINH mặc định 2h;  KET_NOI_MOI_NGUOI mặc định 2
 set -euo pipefail
 PG_CLUSTERS=${PG_CLUSTERS-pg-core:data-pg}
@@ -32,6 +34,7 @@ PAM_BROKER_CN=${PAM_BROKER_CN:-pam-broker.vt.local}
 OIDC_PATH=${OIDC_PATH-oidc-platform-ops}
 NHOM_QUAN_TRI_KHOA=${NHOM_QUAN_TRI_KHOA:-platform-ops-quan-tri-khoa}
 APP_NS_QUET=${APP_NS_QUET:-pam-kiem-soat}
+WARPGATE_NS=${WARPGATE_NS-pam}
 THOI_HAN_DBA=${THOI_HAN_DBA:-4h}
 THOI_HAN_PHA_KINH=${THOI_HAN_PHA_KINH:-2h}
 KET_NOI_MOI_NGUOI=${KET_NOI_MOI_NGUOI:-2}
@@ -45,7 +48,7 @@ cau_tao() { # <vai trò nhóm> <số kết nối>
   printf 'CREATE ROLE "{{name}}" WITH LOGIN INHERIT NOBYPASSRLS NOCREATEDB NOCREATEROLE CONNECTION LIMIT %s PASSWORD '"'"'{{password}}'"'"' VALID UNTIL '"'"'{{expiration}}'"'"' IN ROLE %s;' "$2" "$1"
 }
 cau_thu_hoi() {
-  printf '%s' 'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '"'"'{{name}}'"'"'; DROP ROLE IF EXISTS "{{name}}";'
+  printf '%s' 'SELECT pg_terminate_backend(pid, 5000) FROM pg_stat_activity WHERE usename = '"'"'{{name}}'"'"'; DROP ROLE IF EXISTS "{{name}}";'
 }
 # "--in-sql <vai trò nhóm> <số kết nối>": chỉ in câu tạo và câu thu hồi (kiểm thử), không gọi OpenBao.
 if [ "${1:-}" = "--in-sql" ]; then cau_tao "${2:-dba_ops}" "${3:-$KET_NOI_MOI_NGUOI}"; echo; cau_thu_hoi; echo; exit 0; fi
@@ -81,11 +84,19 @@ printf '%s' "$chinh_sach_quet" | bao policy write "pam-quet-$CELL" - >/dev/null
 HCL=$THU_MUC/chinh-sach/quan-tri-khoa.hcl
 [ -f "$HCL" ] || HCL=$THU_MUC/quan-tri-khoa.hcl   # bản trong ConfigMap pam-openbao để phẳng
 sed -e "s/@CELL@/$CELL/g" "$HCL" | bao policy write quan-tri-khoa - >/dev/null
-echo "  pam-broker, pam-quet-$CELL, quan-tri-khoa"
+# Warpgate: chỉ đọc tham chiếu secret:// của mục tiêu (token kubectl, mật khẩu psql) trong KV v2 kv/warpgate/*.
+printf '%s\n' 'path "kv/data/warpgate/*" { capabilities = ["read"] }' | bao policy write warpgate - >/dev/null
+echo "  pam-broker, pam-quet-$CELL, quan-tri-khoa, warpgate"
 
 buoc "Auth kubernetes: CronJob quét đọc mật khẩu pam_quet (ESO SecretStore trong $APP_NS_QUET)"
 bao write "auth/$AUTH/role/pam-quet" bound_service_account_names=pam-quet-csdl bound_service_account_namespaces="$APP_NS_QUET" \
   audience=openbao token_policies="pam-quet-$CELL" token_ttl=15m token_max_ttl=1h >/dev/null
+
+if [ -n "$WARPGATE_NS" ]; then
+  buoc "Auth kubernetes: Warpgate đọc kho bí mật (SA warpgate trong $WARPGATE_NS)"
+  bao write "auth/$AUTH/role/warpgate" bound_service_account_names=warpgate bound_service_account_namespaces="$WARPGATE_NS" \
+    audience=openbao token_policies=warpgate token_ttl=15m token_max_ttl=1h >/dev/null
+fi
 
 if [ -n "$PAM_BROKER_CA" ]; then
   buoc "Auth cert cho broker PAM (token 15 phút, chỉ dùng được từ dải proxy PAM)"
