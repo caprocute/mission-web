@@ -144,6 +144,14 @@ mission:
       base-url: ${CORE_BASE_URL:http://127.0.0.1:8080/api/v1}
       # Tệp token dịch vụ do ESO/CSI gắn từ OpenBao; không đặt token trong cấu hình.
       token-file: ${CORE_TOKEN_FILE:}
+    # Giám sát tiến trình theo mẫu SCR-1506 (BS-01, DV-06-10).
+    monitor:
+      # Mã cell nơi dịch vụ chạy; trùng vt.platform.routing.cell-code khi bật định tuyến cell.
+      cell-code: ${WF_CELL_CODE:${vt.platform.routing.cell-code:cell-shared-01}}
+      # Số ngày làm việc tối đa được gia hạn một bước khi tenant chưa khai tham số
+      # gia_han_toi_da_ngay_lam_viec trong wf_binding.params_json (suy luận).
+      max-extension-working-days: ${WF_MAX_EXTENSION_DAYS:10}
+      zone: ${WF_BUSINESS_ZONE:Asia/Ho_Chi_Minh}
     # Mẫu luồng nội bộ SCR-1505 (BS-01, DV-06-09).
     release:
       # Thứ tự cell triển khai cuốn chiếu, phân tách bằng dấu phẩy; không cố định mã cell trong mã nguồn.

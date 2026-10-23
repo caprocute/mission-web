@@ -26,9 +26,13 @@ import vn.viettel.okrkpi.workflow.domain.TaskProjection;
 @Repository
 public class JdbcTaskProjectionStore implements TaskProjectionStore {
 
-  private static final String COLUMNS =
+  static final String COLUMNS =
       "task_id, tenant_id, assignee_id, candidate_role, candidate_unit_id, business_type,"
           + " business_id, template_code, title, period_id, due_at, created_at, row_version";
+
+  /** Cột thông tin tiến trình bổ sung ở V10 cho giám sát (DV-06-10). */
+  static final String PROCESS_COLUMNS =
+      "process_instance_id, activity_id, activity_name, template_version, process_started_at";
 
   private static final RowMapper<TaskProjection> MAPPER = JdbcTaskProjectionStore::map;
 
@@ -44,12 +48,22 @@ public class JdbcTaskProjectionStore implements TaskProjectionStore {
     jdbc.update(
         "INSERT INTO flowable.wf_task_projection ("
             + COLUMNS
-            + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            + ", "
+            + PROCESS_COLUMNS
+            + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             + " ON CONFLICT (task_id) DO UPDATE SET assignee_id = EXCLUDED.assignee_id,"
             + " candidate_role = EXCLUDED.candidate_role,"
             + " candidate_unit_id = EXCLUDED.candidate_unit_id, title = EXCLUDED.title,"
             + " period_id = EXCLUDED.period_id, due_at = EXCLUDED.due_at,"
-            + " row_version = EXCLUDED.row_version",
+            + " row_version = EXCLUDED.row_version,"
+            + " process_instance_id = COALESCE(EXCLUDED.process_instance_id,"
+            + " wf_task_projection.process_instance_id),"
+            + " activity_id = COALESCE(EXCLUDED.activity_id, wf_task_projection.activity_id),"
+            + " activity_name = COALESCE(EXCLUDED.activity_name, wf_task_projection.activity_name),"
+            + " template_version = COALESCE(EXCLUDED.template_version,"
+            + " wf_task_projection.template_version),"
+            + " process_started_at = COALESCE(EXCLUDED.process_started_at,"
+            + " wf_task_projection.process_started_at)",
         p.taskId(),
         p.tenantId(),
         p.assigneeId(),
@@ -62,7 +76,12 @@ public class JdbcTaskProjectionStore implements TaskProjectionStore {
         p.periodId(),
         timestamp(p.dueAt()),
         timestamp(p.createdAt()),
-        p.rowVersion());
+        p.rowVersion(),
+        p.process().processInstanceId(),
+        p.process().activityId(),
+        p.process().activityName(),
+        p.process().templateVersion(),
+        timestamp(p.process().startedAt()));
   }
 
   @Override
@@ -186,7 +205,7 @@ public class JdbcTaskProjectionStore implements TaskProjectionStore {
     }
   }
 
-  private static TaskProjection map(ResultSet rs, int rowNum) throws SQLException {
+  static TaskProjection map(ResultSet rs, int rowNum) throws SQLException {
     return new TaskProjection(
         rs.getString("task_id"),
         rs.getObject("tenant_id", UUID.class),
@@ -202,11 +221,11 @@ public class JdbcTaskProjectionStore implements TaskProjectionStore {
         rs.getInt("row_version"));
   }
 
-  private static Timestamp timestamp(Instant value) {
+  static Timestamp timestamp(Instant value) {
     return value == null ? null : Timestamp.from(value);
   }
 
-  private static Instant instant(Timestamp value) {
+  static Instant instant(Timestamp value) {
     return value == null ? null : value.toInstant();
   }
 }

@@ -345,6 +345,35 @@
               </configOptions>
             </configuration>
           </execution>
+          <!-- DV-06-10: giám sát tiến trình theo mẫu (SCR-1506, BS-01). -->
+          <execution>
+            <id>workflow-monitor-api</id>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <configuration>
+              <inputSpec>${contract.dir}/modules/platform.yaml</inputSpec>
+              <generatorName>spring</generatorName>
+              <openapiNormalizer>FILTER=operationId:listWorkflowInstances|getWorkflowDiagram|reassignWorkflowTask|extendWorkflowTask</openapiNormalizer>
+              <apiPackage>vn.viettel.okrkpi.workflow.infrastructure.web.monitor.api</apiPackage>
+              <modelPackage>vn.viettel.okrkpi.workflow.infrastructure.web.monitor.model</modelPackage>
+              <generateSupportingFiles>false</generateSupportingFiles>
+              <generateApiTests>false</generateApiTests>
+              <generateModelTests>false</generateModelTests>
+              <generateApiDocumentation>false</generateApiDocumentation>
+              <generateModelDocumentation>false</generateModelDocumentation>
+              <configOptions>
+                <interfaceOnly>true</interfaceOnly>
+                <useSpringBoot3>true</useSpringBoot3>
+                <useTags>false</useTags>
+                <openApiNullable>false</openApiNullable>
+                <annotationLibrary>swagger2</annotationLibrary>
+                <documentationProvider>springdoc</documentationProvider>
+                <useBeanValidation>true</useBeanValidation>
+                <skipDefaultInterface>true</skipDefaultInterface>
+              </configOptions>
+            </configuration>
+          </execution>
           <execution>
             <id>jobs-api</id>
             <goals>
