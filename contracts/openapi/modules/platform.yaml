@@ -139,7 +139,10 @@ paths:
       summary: Danh sách cell, sức chứa và tải hiện tại
       description: >-
         Liệt kê các cell (`registry.cell`) cùng số tenant và số tài khoản đang phục vụ, để quản trị nền tảng
-        chọn cell khi tiếp nhận hoặc chuyển tenant. Số tài khoản cập nhật hằng đêm từ SVC-02.
+        chọn cell khi tiếp nhận hoặc chuyển tenant. Số tài khoản cập nhật hằng đêm từ SVC-02. Client dịch vụ chỉ
+        đọc có trong danh sách cấu hình của SVC-03 (`dns-sync` ghi bản ghi điểm vào cell theo `activeDc`, TL-04
+        "GeoDNS và định tuyến tenant tới cell") gọi được bằng token client credentials, không cần step-up; client
+        dịch vụ khác nhận 403.
       parameters:
         - name: status
           in: query
@@ -164,6 +167,7 @@ paths:
                         name: Cell Hà Nội
                         primaryDc: HOALAC
                         standbyDc: PHIANAM
+                        activeDc: HOALAC
                         tenancyModel: BRIDGE
                         apiBaseUrl: 'https://api.cell-hn.okrkpi.vn'
                         capacityAccounts: 1500000
@@ -174,6 +178,7 @@ paths:
                         code: CELL-NB
                         name: Cell thí điểm Ninh Bình
                         primaryDc: PHIANAM
+                        activeDc: PHIANAM
                         tenancyModel: POOL
                         apiBaseUrl: 'https://api.cell-nb.okrkpi.vn'
                         capacityAccounts: 300000
@@ -188,10 +193,10 @@ paths:
         qt: [QT-01]
         scr: [SCR-0101, SCR-0102]
         owner: SVC-03
-        roles: [platform_admin]
+        roles: [platform_admin, service_client]
         scope: N
         aal: 2
-        source: TL-01 SVC-03 (API chính); TL-03 `registry.cell`
+        source: TL-01 SVC-03 (API chính); TL-03 `registry.cell`; TL-04 "GeoDNS và định tuyến tenant tới cell" (dns-sync, INF-20)
 
   /registry/tenants:
     post:
@@ -3195,13 +3200,19 @@ components:
     RegistryCell:
       description: Cell (`registry.cell`) kèm tải hiện tại.
       type: object
-      required: [id, code, name, primaryDc, tenancyModel, apiBaseUrl, capacityAccounts, status]
+      required: [id, code, name, primaryDc, activeDc, tenancyModel, apiBaseUrl, capacityAccounts, status]
       properties:
         id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         code: { type: string, maxLength: 16 }
         name: { type: string, maxLength: 255 }
         primaryDc: { $ref: '#/components/schemas/DataCenter' }
         standbyDc: { type: [string, 'null'], maxLength: 16 }
+        activeDc:
+          allOf: [{ $ref: '#/components/schemas/DataCenter' }]
+          description: >-
+            TTDL đang phục vụ cell (cờ `active_site` của TL-04, cột `registry.cell.active_dc`; bằng `primaryDc` khi
+            chưa chuyển vùng). Chỉ đổi khi chỉ huy sự cố duyệt chuyển vùng (DR-10) hoặc quay về (DR-16); `dns-sync`
+            ghi bản ghi A của điểm vào cell theo trường này.
         tenancyModel: { $ref: '#/components/schemas/RegistryTenancyModel' }
         apiBaseUrl: { type: string, maxLength: 255 }
         capacityAccounts: { type: integer, minimum: 0 }
@@ -3213,6 +3224,7 @@ components:
           code: CELL-HN
           name: Cell Hà Nội
           primaryDc: HOALAC
+          activeDc: HOALAC
           tenancyModel: BRIDGE
           apiBaseUrl: 'https://api.cell-hn.okrkpi.vn'
           capacityAccounts: 1500000

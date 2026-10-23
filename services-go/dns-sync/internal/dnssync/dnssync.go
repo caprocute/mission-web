@@ -19,8 +19,8 @@ import (
 type Cell struct {
 	Code      string `json:"code"`
 	PrimaryDc string `json:"primaryDc"`
-	// ActiveDc là cờ active_site của TL-04; hợp đồng platform.yaml chưa có trường này (wiki 14), khi vắng thì dùng
-	// primaryDc, tức trạng thái bình thường khi chưa chuyển vùng.
+	// ActiveDc là cờ active_site của TL-04 (RegistryCell.activeDc, cột registry.cell.active_dc). Khi vắng (SVC-03
+	// bản cũ trong lúc nâng cấp) thì dùng primaryDc, tức trạng thái bình thường khi chưa chuyển vùng.
 	ActiveDc string `json:"activeDc,omitempty"`
 }
 

@@ -29,7 +29,7 @@ Cảnh báo `PgRegistryCrossSiteSyncLost` nghĩa là kênh WAL liên TTDL đứt
 ## 3. Chuyển vùng cell (DR-10)
 
 1. IC quyết định chuyển cell; làm theo sổ tay chuyển vùng của cell (Patroni/CNPG của cell, Ceph multisite) cho tới khi TTDL phía Nam phục vụ được.
-2. Đặt TTDL đang hoạt động của cell trong SVC-03 sang `PHIANAM`. (Hợp đồng `RegistryCell` hiện chỉ có `primaryDc`/`standbyDc`; `dns-sync` đọc trường tuỳ chọn `activeDc` và khi thiếu thì dùng `primaryDc`. Đề xuất bổ sung `activeDc` đã gửi cho DV-03; trước khi có, đổi `primaryDc`.)
+2. Đặt TTDL đang hoạt động của cell sang TTDL dự phòng: cột `registry.cell.active_dc` (trường `activeDc` của `RegistryCell`, NULL nghĩa là `primary_dc`; ràng buộc chỉ cho phép `primary_dc` hoặc `standby_dc`). Hợp đồng chưa có API ghi cờ này, nên người trực chạy `UPDATE registry.cell SET active_dc = 'PHIANAM' WHERE code = 'CELL-<X>'` bằng vai trò quản trị của `pg-registry` theo quy trình bốn mắt; quay về (DR-16) thì đặt lại `NULL`.
 3. Trong vòng một chu kỳ (`INTERVAL`, mặc định 15 s) `dns-sync` ghi bản ghi `cell-<x>.edge` mới và ghi nhật ký `dns_sync_changed` với giá trị cũ, mới. Người dùng thấy cell mới sau tối đa 60 s (TTL) cộng bộ đệm của resolver.
 4. Kiểm: `dig` ở mục 2 trả VIP phía Nam; ghi thời điểm vào biên bản sự cố.
 
