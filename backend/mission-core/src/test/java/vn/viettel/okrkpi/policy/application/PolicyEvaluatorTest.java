@@ -154,6 +154,51 @@ class PolicyEvaluatorTest {
     assertThat(out).doesNotContainKey("diem");
   }
 
+  /** Quy tắc nhập từ manifest (ManifestRuleImport) cho cùng kết quả với chỉ dùng manifest. */
+  @ParameterizedTest
+  @MethodSource("packs")
+  void rulesImportedFromManifestKeepGoldenSuitePassing(String pack) throws IOException {
+    List<PolicyRule> rules = ManifestRuleImport.rules(UUID.randomUUID(), manifest(pack), JSON);
+    assertThat(rules).isNotEmpty();
+    PolicyEvaluator ev = evaluator(pack, rules);
+    SoftAssertions soft = new SoftAssertions();
+    for (GoldenSuiteYaml.Entry e : suite(pack).entries()) {
+      Map<String, Object> input = JSON.convertValue(e.input(), Map.class);
+      soft.assertThat(ResultComparison.diff(e.expected(), ev.evaluate(input, false).outputs()))
+          .as(e.caseCode())
+          .isEmpty();
+    }
+    soft.assertAll();
+  }
+
+  /** Tham số sửa ở quy tắc thay mặc định của manifest; ca có tham_so riêng vẫn ghi đè sau. */
+  @Test
+  void ruleParamsReplaceManifestDefaults() throws IOException {
+    List<PolicyRule> rules =
+        ManifestRuleImport.rules(UUID.randomUUID(), manifest("khoi-dang/quy-dinh-moi"), JSON)
+            .stream()
+            .map(
+                r ->
+                    r.paramsJson().contains("loai_ngay")
+                        ? new PolicyRule(
+                            r.id(),
+                            r.versionId(),
+                            r.ruleKey(),
+                            r.expression(),
+                            r.resultType(),
+                            r.roundingJson(),
+                            r.legalRef(),
+                            r.evalOrder(),
+                            "{\"loai_ngay\":\"NGAY_LICH\"}",
+                            r.overridable())
+                        : r)
+            .toList();
+    PolicyEvaluator ev = evaluator("khoi-dang/quy-dinh-moi", rules);
+    assertThat(ev.params(null)).containsEntry("loai_ngay", "NGAY_LICH");
+    assertThat(ev.params(Map.of("loai_ngay", "NGAY_LAM_VIEC")))
+        .containsEntry("loai_ngay", "NGAY_LAM_VIEC");
+  }
+
   @Test
   void paramsNestOverridesByDottedKey() throws IOException {
     PolicyEvaluator ev = evaluator("khoi-dang/quy-dinh-moi", List.of());

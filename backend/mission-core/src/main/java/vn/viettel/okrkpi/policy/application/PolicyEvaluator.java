@@ -104,7 +104,10 @@ final class PolicyEvaluator {
     this.cel = cel;
     this.manifest = manifest;
     this.params =
-        manifest.get("params") instanceof Map<?, ?> p ? (Map<String, Object>) p : Map.of();
+        withRuleParams(
+            json,
+            manifest.get("params") instanceof Map<?, ?> p ? (Map<String, Object>) p : Map.of(),
+            rules);
     Map<String, PolicyRule> byKey = new LinkedHashMap<>();
     rules.forEach(r -> byKey.put(r.ruleKey(), r));
     Map<String, CelValueType> types = PolicyRuleService.environment(manifest);
@@ -320,6 +323,33 @@ final class PolicyEvaluator {
     run.scope(extraRules, vars, "", true);
     run.decide(vars);
     run.context.putAll(vars);
+  }
+
+  /**
+   * Tham số đặt ở quy tắc của phiên bản ({@code policy_rule.params_json}, sửa ở SCR-1501) thay giá
+   * trị {@code mac_dinh} của tham số cùng khoá trong manifest; khoá không khai trong manifest bị bỏ
+   * qua (suy luận: tham số phải khai kiểu ở manifest, BR-15-01). Ca vàng có {@code tham_so} vẫn ghi
+   * đè sau.
+   */
+  @SuppressWarnings("unchecked")
+  private static Map<String, Object> withRuleParams(
+      ObjectMapper json, Map<String, Object> declared, List<PolicyRule> rules) {
+    Map<String, Object> merged = new LinkedHashMap<>(declared);
+    rules.stream()
+        .sorted(Comparator.comparingInt(PolicyRule::evalOrder))
+        .forEach(
+            r ->
+                read(json, r.paramsJson())
+                    .forEach(
+                        (k, v) -> {
+                          if (merged.get(k) instanceof Map<?, ?> decl) {
+                            Map<String, Object> copy =
+                                new LinkedHashMap<>((Map<String, Object>) decl);
+                            copy.put("mac_dinh", v);
+                            merged.put(k, copy);
+                          }
+                        }));
+    return merged;
   }
 
   /**

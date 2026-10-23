@@ -11,6 +11,7 @@ import {
   PolicyApi,
   PolicyRule,
   RATING_LEVELS,
+  GENERAL_CRITERIA_LEVEL_LABEL,
   RATING_LEVEL_LABEL,
   RatingLevel,
   shadowedDecisionRows,
@@ -142,7 +143,12 @@ const VARIABLE_HINT: Record<string, string> = {
                     </td>
                   }
                   <td>
-                    @if (canEdit()) {
+                    @if (!r.ratingLevel) {
+                      <!-- Bảng không xếp loại (tiêu chí chung): đầu ra là outputValue, chỉ xem -->
+                      <span class="lv" [attr.data-output]="r.outputValue">{{
+                        outputLabel(r.outputValue)
+                      }}</span>
+                    } @else if (canEdit()) {
                       <select
                         class="cell level"
                         [attr.aria-label]="'Dòng ' + (i + 1) + ', mức xếp loại'"
@@ -520,6 +526,11 @@ export class DecisionTablePage {
   protected readonly ruleKeys = RULE_KEYS;
   protected readonly levels = RATING_LEVELS;
   protected readonly levelLabel = RATING_LEVEL_LABEL;
+
+  /** Nhãn đầu ra của bảng không xếp loại; giá trị chưa có nhãn hiện như máy chủ trả. */
+  protected outputLabel(v: string | undefined): string {
+    return (GENERAL_CRITERIA_LEVEL_LABEL as Record<string, string>)[v ?? ''] ?? v ?? '';
+  }
   protected readonly hitLabel = HIT_POLICY_LABEL;
   protected readonly statusLabel = POLICY_VERSION_STATUS_LABEL;
 

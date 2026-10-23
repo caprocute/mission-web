@@ -16,6 +16,12 @@ import { errorText, jobErrorText } from '../../studio-ui';
 
 /** Tên hiển thị của quy tắc không có nhãn trong `manifest.labels`. */
 export const RULE_TITLE: Record<string, string> = {
+  A: 'Số lượng',
+  B: 'Chất lượng',
+  C: 'Tiến độ',
+  kpi_A: 'Số lượng',
+  kpi_B: 'Chất lượng',
+  kpi_C: 'Tiến độ',
   kpi_nhiem_vu: 'Điểm KPI của nhiệm vụ',
   nhom: 'KPI nhóm nhiệm vụ',
   diem: 'Tổng hợp điểm',
