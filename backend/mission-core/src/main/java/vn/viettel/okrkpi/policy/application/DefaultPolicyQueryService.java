@@ -18,6 +18,7 @@ public class DefaultPolicyQueryService implements PolicyQueryApi {
   private final PeriodApi periodApi;
   private final Map<PolicyKey, PolicyFormulaView> policies = new ConcurrentHashMap<>();
   private PolicyResolutionService resolution;
+  private CustomerProfileService profiles;
 
   public DefaultPolicyQueryService(PeriodApi periodApi) {
     this.periodApi = Objects.requireNonNull(periodApi, "periodApi must not be null");
@@ -27,6 +28,20 @@ public class DefaultPolicyQueryService implements PolicyQueryApi {
   @org.springframework.beans.factory.annotation.Autowired(required = false)
   public void setResolution(PolicyResolutionService resolution) {
     this.resolution = resolution;
+  }
+
+  /** Hồ sơ tập khách hàng (CORE-05-12); chưa nối thì không có hồ sơ, điểm cắm giữ mặc định. */
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  public void setCustomerProfiles(CustomerProfileService profiles) {
+    this.profiles = profiles;
+  }
+
+  @Override
+  public Optional<ResolvedProfile> customerProfile(
+      TenantId tenantId, PeriodId periodId, String flow, UUID subjectGroupId, UUID orgUnitId) {
+    return profiles == null
+        ? Optional.empty()
+        : profiles.resolve(tenantId, periodId, flow, subjectGroupId, orgUnitId);
   }
 
   @Override
