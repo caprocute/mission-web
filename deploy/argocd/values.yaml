@@ -99,6 +99,16 @@ projects:
     namespaceResourceBlacklist:
       - { group: "", kind: ResourceQuota }
 
+  # INF-20 · Vùng điều phối toàn cục (templates/toan-cuc.yaml): SVC-03, PowerDNS, pg-registry, origin CDN, APISIX lớp
+  # ngoài. Được tạo Role/RoleBinding trong namespace của mình (edge-health chỉ đọc đúng một tài nguyên).
+  okr-toan-cuc:
+    description: Vùng điều phối toàn cục (SVC-01 lớp ngoài, SVC-03, GeoDNS, PostgreSQL toàn cục, origin CDN)
+    signatureKeys: [4AEE18F83AFDEB23]
+    namespaces: [global, registry-db, dns, edge, cdn-origin]
+    clusterResourceWhitelist: []
+    namespaceResourceBlacklist:
+      - { group: "", kind: ResourceQuota }
+
 # Chỉ vai trò release-manager được sync; nhóm lấy từ Keycloak vận hành (đăng nhập có MFA, TL-04 mục 9.6).
 releaseManagers:
   role: release-manager
@@ -165,6 +175,31 @@ services:
 servicesTat: []
 # Hậu tố tên AppProject (khoá của projects); bản staging dùng -stg để hai bản cùng chạy trên cụm quản trị.
 projectSuffix: ""
+
+# INF-20 · Thành phần của vùng điều phối toàn cục, một ApplicationSet mỗi thành phần × TTDL. Đích global-<site> từ QM-3;
+# ở QM-1, QM-2 vùng điều phối gộp vào cụm quản trị (TL-05) thì đặt destinationNameFormat "mgmt-%s" và sites [hl].
+# params: tham số Helm lấy từ tệp digest của vùng (REPO, DIGEST thay bằng repository, digest của mục images.<image>).
+toanCuc:
+  enabled: true
+  project: okr-toan-cuc
+  sites: [hl, sn]
+  destinationNameFormat: "global-%s"
+  digests: environments/global/digests.yaml
+  apps:
+    - { name: global-pg, namespace: registry-db }
+    - name: global-dns
+      namespace: dns
+      params: [{ name: dnsSync.image, image: dns-sync, format: "REPO@DIGEST" }]
+    - name: edge-health
+      namespace: edge
+      params: [{ name: image, image: dns-sync, format: "REPO@DIGEST" }]
+    - name: tenant-registry
+      namespace: global
+      params:
+        - { name: image.repository, image: tenant-registry, format: "REPO" }
+        - { name: image.tag, image: tenant-registry, format: "gitops@DIGEST" }
+    - { name: api-gateway-global, namespace: edge }
+    - { name: global-cdn-origin, namespace: cdn-origin }
 
 # Môi trường tạm theo nhánh cho pull request (INF-21, templates/moi-truong-pr.yaml): chỉ bật ở bản staging.
 prEnvironments:

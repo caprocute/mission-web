@@ -14,6 +14,9 @@ sites: [hl]
 cellsExclude: [dtw, g1, g2, g3, g4, hcm, hn, nb, sh]
 rollingSync:
   enabled: false
+# Vùng điều phối toàn cục chỉ do bản production quản lý (INF-20).
+toanCuc:
+  enabled: false
 syncWindows: []
 syncWindowsBoSung: []
 # Tầng dữ liệu trên máy ảo (TL-05 "Môi trường phi sản xuất"): không sinh ApplicationSet, tắt trong mọi Application.

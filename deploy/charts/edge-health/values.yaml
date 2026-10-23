@@ -1,0 +1,18 @@
+# INF-20 · /healthz/edge (TL-04 "GeoDNS và định tuyến tenant tới cell"). Trả "OK" khi: request đi qua APISIX (route
+# dưới đây là đường duy nhất tới dịch vụ), workload chính có ít nhất một nửa replica sẵn sàng, và primary của cụm CNPG
+# chính nằm ở TTDL này. Ở cell: mission-core và pg-core. Ở vùng điều phối toàn cục: tenant-registry và pg-registry-<site>,
+# APISIX lớp ngoài trỏ /healthz/edge tới đây bằng globalRoutes (deploy/environments/global/api-gateway-global).
+namespace: edge
+# Ảnh theo digest do ApplicationSet truyền từ deploy/environments/global/digests.yaml; thiếu digest thì chart từ chối.
+image: harbor.vt.local/okr/dns-sync
+replicas: 3
+cacheFor: 2s
+workload: { group: argoproj.io, version: v1alpha1, resource: rollouts, namespace: core, name: mission-core }
+pg: { namespace: data-pg, name: pg-core }
+# Route trên APISIX của cell (chế độ controller, ApisixRoute); tắt ở vùng toàn cục (APISIX standalone).
+apisixRoute:
+  enabled: true
+  hosts: ["cell-g4.edge.danhgia.vn"]
+resources:
+  requests: { cpu: 50m, memory: 32Mi }
+  limits: { cpu: 200m, memory: 32Mi }

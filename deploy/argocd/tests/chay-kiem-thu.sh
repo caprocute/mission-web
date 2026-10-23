@@ -2,7 +2,7 @@
 # Kiểm thử tĩnh kho GitOps (INF-04): helm lint, render chart deploy/argocd, kubeconform -strict với schema CRD của
 # Argo CD 3.1 và Argo Rollouts 1.8 (tests/crd-schemas, sinh bằng vt-platform/ci/tao-schema-crd.py), mô phỏng bộ sinh
 # ApplicationSet (tests/kiem-appset.py), render thử nguồn Helm của từng Application ở CELL-G4, bản staging và môi
-# trường tạm theo PR (INF-21), Rollout canary của
+# trường tạm theo PR (INF-21), vùng điều phối toàn cục (INF-20), Rollout canary của
 # mission-core, kiểm thử đơn vị script sinh lịch đóng băng. Cần helm, kubeconform, python3 + PyYAML, jsonschema.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -81,6 +81,45 @@ done < "$W/lenh"
 cd "$GOC/deploy/argocd"
 }
 render_apps "$W/ts.json" CELL-G4
+
+# INF-20 · Vùng điều phối toàn cục: render chart của từng Application global-<site> với values của vùng (digest rỗng
+# thay bằng digest giả), kubeconform, và kiểm các bất biến chính (pg-registry đồng bộ remote_apply, bản ghi app là LUA
+# ifurlup, /healthz/edge có tuyến ở APISIX lớp ngoài).
+KIEM_TOAN_CUC_XUAT="$W/tc.json" python3 tests/kiem-appset.py "$W/goc.yaml" > /dev/null 2>&1
+python3 - "$W/tc.json" > "$W/lenh-tc" <<'EOF'
+import json, sys
+gia = "sha256:" + "1" * 64
+for a in json.load(open(sys.argv[1])):
+    h = a["helm"]
+    args = [f"-f {f}" for f in a["valueFiles"]] + [f"--set {k}={v}" for k, v in h["valuesObject"].items()]
+    for p in h.get("parameters", []):
+        v = p["value"]
+        args.append(f"--set {p['name']}={v + gia if v.endswith('@') else v}")
+    print(f"{a['ten']}\t{a['chart']}\t{a['namespace']}\t{' '.join(args)}")
+EOF
+LOI_TC=0; SO_TC=0; : > "$W/tc.yaml"
+while IFS=$'\t' read -r ten chart ns args; do
+  SO_TC=$((SO_TC+1))
+  # shellcheck disable=SC2086
+  if ! helm template "$ten" "$chart" -n "$ns" $args > "$W/app.yaml" 2> "$W/loi-app"; then
+    LOI_TC=$((LOI_TC+1)); echo "    $ten: $(tail -1 "$W/loi-app")"
+  else echo "---" >> "$W/tc.yaml"; cat "$W/app.yaml" >> "$W/tc.yaml"; fi
+done < "$W/lenh-tc"
+[ "$SO_TC" -gt 0 ] && [ "$LOI_TC" = 0 ] && ok "render $SO_TC Application vùng điều phối toàn cục" || hong "render vùng toàn cục ($LOI_TC/$SO_TC lỗi)"
+kc "$W/tc.yaml" > "$W/kc" 2>&1 && ok "kubeconform vùng toàn cục ($(tail -1 "$W/kc"))" || { hong "kubeconform vùng toàn cục"; grep -v '^Summary' "$W/kc" | head -20; }
+python3 - "$W/tc.yaml" <<'EOF' && ok "vùng toàn cục: remote_apply, LUA ifurlup cho app, /healthz/edge ở APISIX lớp ngoài, ảnh theo digest" || hong "bất biến vùng toàn cục"
+import re, sys, yaml
+ds = [d for d in yaml.safe_load_all(open(sys.argv[1])) if d]
+pg = [d for d in ds if d["kind"] == "Cluster" and d["apiVersion"].startswith("postgresql.cnpg.io")]
+assert {d["metadata"]["name"] for d in pg} == {"pg-registry-hl", "pg-registry-sn"}, [d["metadata"]["name"] for d in pg]
+assert all(d["spec"]["postgresql"]["parameters"]["synchronous_commit"] == "remote_apply" for d in pg)
+vung = [d for d in ds if d["kind"] == "ConfigMap" and d["metadata"]["name"] == "pdns-vung"]
+assert len(vung) == 2 and all("ifurlup(" in d["data"]["app.lua"] for d in vung)
+t = open(sys.argv[1]).read()
+assert "/healthz/edge" in t and "edge-health" in t
+anh = re.findall(r"image:\s*[\"']?(\S+)", t)
+assert anh and all("@sha256:" in a for a in anh), [a for a in anh if "@sha256:" not in a]
+EOF
 
 # INF-21 · Bản staging: chỉ CELL-STG một TTDL, không tầng dữ liệu trong cụm, đồng bộ tự động, AppProject riêng; môi
 # trường tạm theo PR (ApplicationSet pullRequest, namespace pr-<số>, finalizer dọn khi PR đóng).

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: global-dns
+description: INF-20 · GeoDNS PowerDNS Authoritative và tác vụ dns-sync của vùng điều phối toàn cục
+type: application
+version: 0.1.0

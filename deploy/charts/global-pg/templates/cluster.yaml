@@ -1,0 +1,121 @@
+{{- $v := .Values }}
+{{- if not (has $v.site $v.sites) }}{{ fail (printf "global-pg: site %s không thuộc sites" $v.site) }}{{ end }}
+{{- if not (has $v.primarySite $v.sites) }}{{ fail "global-pg: primarySite không thuộc sites" }}{{ end }}
+{{- if not (regexMatch "@sha256:[a-f0-9]{64}$" $v.imageName) }}{{ fail "global-pg: ảnh phải ghim digest (SEC-55)" }}{{ end }}
+{{- $self := printf "%s-%s" $v.name $v.site }}
+{{- $khac := list }}
+{{- range $v.sites }}{{ if ne . $v.site }}{{ $khac = append $khac . }}{{ end }}{{ end }}
+{{- $peer := first $khac }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ $self }}
+  namespace: {{ $v.namespace }}
+  labels:
+    vt.io/global: "true"
+    vt.io/site: {{ $v.site }}
+spec:
+  instances: {{ $v.instances }}
+  imageName: {{ $v.imageName }}
+  primaryUpdateStrategy: unsupervised
+  storage: { size: {{ $v.storage.size }}, storageClass: {{ $v.storage.storageClass }} }
+  walStorage: { size: {{ $v.walStorage.size }}, storageClass: {{ $v.walStorage.storageClass }} }
+  resources: {{ toJson $v.resources }}
+  affinity:
+    topologyKey: topology.kubernetes.io/zone
+    enablePodAntiAffinity: true
+    podAntiAffinityType: required
+  postgresql:
+    parameters:
+      synchronous_commit: remote_apply
+      wal_keep_size: 2GB
+    synchronous:
+      method: {{ $v.synchronous.method }}
+      number: {{ $v.synchronous.number }}
+      dataDurability: {{ $v.synchronous.dataDurability }}
+      # Instance của TTDL bên kia đứng đầu danh sách (application_name là tên pod).
+      standbyNamesPre:
+        {{- range $i := until (int $v.instances) }}
+        - {{ printf "%s-%s-%d" $v.name $peer (add1 $i) }}
+        {{- end }}
+  {{- if eq $v.site $v.primarySite }}
+  bootstrap:
+    initdb:
+      database: registry
+      owner: {{ $v.databases.registry.owner }}
+  {{- else }}
+  bootstrap:
+    pg_basebackup:
+      source: {{ printf "%s-%s" $v.name $v.primarySite }}
+  {{- end }}
+  replica:
+    primary: {{ printf "%s-%s" $v.name $v.primarySite }}
+    self: {{ $self }}
+    source: {{ printf "%s-%s" $v.name $peer }}
+  externalClusters:
+    {{- range $v.sites }}
+    - name: {{ printf "%s-%s" $v.name . }}
+      connectionParameters:
+        host: {{ (index $v.peers .).host }}
+        port: {{ (index $v.peers .).port | quote }}
+        user: streaming_replica
+        dbname: postgres
+        sslmode: verify-full
+      sslKey: { name: {{ $v.replicationSecrets.clientCert }}, key: tls.key }
+      sslCert: { name: {{ $v.replicationSecrets.clientCert }}, key: tls.crt }
+      sslRootCert: { name: {{ $v.replicationSecrets.ca }}, key: ca.crt }
+    {{- end }}
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: {{ $v.backup.objectStore }}
+        serverName: {{ $self }}
+  monitoring:
+    enablePodMonitor: true
+{{- if eq $v.site $v.primarySite }}
+{{- range $db, $d := $v.databases }}
+{{- if ne $db "registry" }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: {{ $self }}-{{ $db }}
+  namespace: {{ $v.namespace }}
+spec:
+  name: {{ $db }}
+  owner: {{ $d.owner }}
+  cluster: { name: {{ $self }} }
+{{- end }}
+{{- end }}
+{{- end }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ $self }}
+  namespace: {{ $v.namespace }}
+spec:
+  groups:
+    - name: pg-registry
+      rules:
+        # Primary không còn bản sao đồng bộ ở TTDL bên kia: ghi vẫn chạy nhưng RPO chéo TTDL không còn bằng 0 (DR-13).
+        - alert: PgRegistryCrossSiteSyncLost
+          expr: 'count(cnpg_pg_replication_is_wal_receiver_up{cluster="{{ printf "%s-%s" $v.name $peer }}"} == 1) == 0'
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "pg-registry mất sao chép đồng bộ chéo TTDL"
+---
+# Tên ổn định pg-registry-rw cho SVC-03 và PowerDNS ở mọi TTDL: trỏ instance primary của cụm tại chỗ (ở TTDL giữ
+# primary là bản ghi được, ở TTDL kia là primary chỉ định của replica cluster, chỉ đọc).
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $v.name }}-rw
+  namespace: {{ $v.namespace }}
+spec:
+  selector:
+    cnpg.io/cluster: {{ $self }}
+    cnpg.io/instanceRole: primary
+  ports: [{ name: postgres, port: 5432, targetPort: 5432 }]
