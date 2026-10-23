@@ -123,6 +123,15 @@ public record Complaint(
     return copy(ComplaintStatus.DONG, filedAt, responseDeadline, handlerUnitId, signRequestId, h);
   }
 
+  /**
+   * Bước xử lý không đổi phần tiếp nhận (CORE-07-04): {@code DANG_GIAI_TRINH}, {@code
+   * CHO_KET_LUAN}, {@code DA_TRA_LOI}, {@code DANG_THI_HANH} theo {@link ComplaintTransitions}.
+   */
+  public Complaint moved(ComplaintStatus to) {
+    requireMove(to);
+    return copy(to, filedAt, responseDeadline, handlerUnitId, signRequestId, handling);
+  }
+
   private void requireMove(ComplaintStatus to) {
     if (!ComplaintTransitions.allowed(status, to)) {
       throw new IllegalStateException("Không chuyển được khiếu nại từ " + status + " sang " + to);
