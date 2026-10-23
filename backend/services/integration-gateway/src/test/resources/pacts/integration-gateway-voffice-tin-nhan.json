@@ -1,0 +1,121 @@
+{
+  "consumer": {
+    "name": "integration-gateway"
+  },
+  "provider": {
+    "name": "voffice-van-ban-day"
+  },
+  "messages": [
+    {
+      "description": "văn bản chỉ đạo vOffice đẩy tới SVC-13 (một phần tử, cùng dạng với trang kéo)",
+      "providerStates": [
+        {
+          "name": "vOffice ban hành văn bản chỉ đạo gửi đơn vị DV-01",
+          "params": {
+            "donVi": "DV-01"
+          }
+        }
+      ],
+      "contents": {
+        "id": "VB-2026-0001",
+        "version": 1,
+        "docNumber": "12/CT-UBND",
+        "issuedDate": "2026-10-19",
+        "issuer": "Uỷ ban nhân dân tỉnh",
+        "summary": "Chỉ đạo triển khai nhiệm vụ trọng tâm quý IV năm 2026",
+        "recipientUnitId": "DV-01",
+        "updatedAt": "2026-10-20T01:00:00Z",
+        "attachments": [
+          {
+            "id": "F-0001",
+            "name": "12-CT-UBND.pdf"
+          }
+        ]
+      },
+      "metaData": {
+        "contentType": "application/json",
+        "kieuThongDiep": "VOFFICE_JSON"
+      },
+      "matchingRules": {
+        "body": {
+          "$.id": {
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "[A-Za-z0-9._:-]{1,100}"
+              }
+            ]
+          },
+          "$.version": {
+            "matchers": [
+              {
+                "match": "integer"
+              }
+            ]
+          },
+          "$.docNumber": {
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.issuedDate": {
+            "matchers": [
+              {
+                "match": "date",
+                "format": "yyyy-MM-dd"
+              }
+            ]
+          },
+          "$.issuer": {
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.summary": {
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.recipientUnitId": {
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.updatedAt": {
+            "matchers": [
+              {
+                "match": "timestamp",
+                "format": "yyyy-MM-dd'T'HH:mm:ss[.SSS]XXX"
+              }
+            ]
+          },
+          "$.attachments": {
+            "matchers": [
+              {
+                "match": "type",
+                "min": 0
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "3.0.0"
+    },
+    "vt": {
+      "task": "DV-13-11",
+      "nguon": "đối tác giả lập (YC-PT-13)"
+    }
+  }
+}

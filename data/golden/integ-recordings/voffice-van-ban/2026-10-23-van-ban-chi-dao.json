@@ -1,0 +1,77 @@
+{
+  "provider" : "voffice-van-ban",
+  "ghiLuc" : "2026-10-23",
+  "nguon" : "phiên ghi giả lập theo dạng phản hồi vOffice (chưa có môi trường thử thật)",
+  "daChe" : true,
+  "exchanges" : [ {
+    "request" : {
+      "method" : "GET",
+      "path" : "/api/v2/directives",
+      "query" : {
+        "updatedSince" : [ "1970-01-01T00:00:00Z" ],
+        "limit" : [ "200" ]
+      },
+      "headers" : {
+        "Accept" : "application/json",
+        "Authorization" : "Bearer ma-gia-lap"
+      }
+    },
+    "response" : {
+      "status" : 200,
+      "headers" : {
+        "Content-Type" : "application/json; charset=utf-8"
+      },
+      "body" : {
+        "items" : [ {
+          "id" : "VB-2026-0101",
+          "version" : 2,
+          "docNumber" : "15/CT-UBND",
+          "issuedDate" : "2026-10-21",
+          "issuer" : "Uỷ ban nhân dân tỉnh",
+          "summary" : "Chỉ đạo đẩy nhanh giải ngân vốn đầu tư công, đầu mối liên hệ văn phòng, điện thoại 0000970365",
+          "recipientUnitId" : "DV-01",
+          "updatedAt" : "2026-10-21T03:15:00Z",
+          "doKhan" : "KHAN",
+          "attachments" : [ {
+            "id" : "F-0101",
+            "name" : "15-CT-UBND.pdf"
+          } ],
+          "nguoiKy" : "Ngô Thị Nam"
+        }, {
+          "id" : "VB-2026-0102",
+          "version" : 1,
+          "docNumber" : "16/KH-UBND",
+          "issuedDate" : "2026-10-22",
+          "issuer" : "Uỷ ban nhân dân tỉnh",
+          "summary" : "Kế hoạch kiểm tra công tác cải cách hành chính quý IV",
+          "recipientUnitId" : "DV-02",
+          "updatedAt" : "2026-10-22T08:00:00+07:00",
+          "attachments" : [ ]
+        } ],
+        "nextUpdatedSince" : "2026-10-22T01:00:00Z"
+      }
+    }
+  }, {
+    "request" : {
+      "method" : "GET",
+      "path" : "/api/v2/directives",
+      "query" : {
+        "updatedSince" : [ "2026-10-20T01:00:00Z" ],
+        "limit" : [ "200" ]
+      },
+      "headers" : {
+        "Accept" : "application/json",
+        "Authorization" : "Bearer ma-gia-lap"
+      }
+    },
+    "response" : {
+      "status" : 200,
+      "headers" : {
+        "Content-Type" : "application/json; charset=utf-8"
+      },
+      "body" : {
+        "items" : [ ]
+      }
+    }
+  } ]
+}

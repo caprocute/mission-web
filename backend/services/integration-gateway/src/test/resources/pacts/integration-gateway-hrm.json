@@ -1,0 +1,213 @@
+{
+  "consumer": {
+    "name": "integration-gateway"
+  },
+  "provider": {
+    "name": "hrm-nhan-su"
+  },
+  "interactions": [
+    {
+      "description": "kéo trang nhân sự đầu tiên theo con trỏ",
+      "providerStates": [
+        {
+          "name": "HRM có một cán bộ thuộc đơn vị DV-01",
+          "params": {
+            "donVi": "DV-01"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/persons",
+        "query": {
+          "updatedSince": [
+            "1970-01-01T00:00:00Z"
+          ],
+          "limit": [
+            "200"
+          ]
+        },
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer ma-gia-lap"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "items": [
+            {
+              "externalId": "NS-R1",
+              "fullName": "Lê Văn C",
+              "birthDate": "1979-09-02",
+              "orgUnit": "DV-01",
+              "jobTitle": "CV",
+              "updatedAt": "2026-10-20T01:00:00Z"
+            }
+          ],
+          "nextCursor": "c2"
+        },
+        "matchingRules": {
+          "body": {
+            "$.items": {
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.items[*].externalId": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "[A-Za-z0-9._-]{1,64}"
+                }
+              ]
+            },
+            "$.items[*].fullName": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].birthDate": {
+              "matchers": [
+                {
+                  "match": "date",
+                  "format": "yyyy-MM-dd"
+                }
+              ]
+            },
+            "$.items[*].orgUnit": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].jobTitle": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].updatedAt": {
+              "matchers": [
+                {
+                  "match": "timestamp",
+                  "format": "yyyy-MM-dd'T'HH:mm:ss[.SSS]XXX"
+                }
+              ]
+            },
+            "$.nextCursor": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "kéo sau con trỏ cuối trả trang rỗng",
+      "providerStates": [
+        {
+          "name": "HRM không có thay đổi sau con trỏ c2",
+          "params": {
+            "conTro": "c2"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/persons",
+        "query": {
+          "updatedSince": [
+            "c2"
+          ],
+          "limit": [
+            "200"
+          ]
+        },
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer ma-gia-lap"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "items": []
+        }
+      }
+    },
+    {
+      "description": "đọc giá trị chỉ số chuyên môn",
+      "providerStates": [
+        {
+          "name": "HRM có chỉ số CS-1",
+          "params": {
+            "chiSo": "CS-1"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/indicators/CS-1",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer ma-gia-lap"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "value": 2.6,
+          "measuredAt": "2026-10-22T08:00:00+07:00"
+        },
+        "matchingRules": {
+          "body": {
+            "$.value": {
+              "matchers": [
+                {
+                  "match": "number"
+                }
+              ]
+            },
+            "$.measuredAt": {
+              "matchers": [
+                {
+                  "match": "timestamp",
+                  "format": "yyyy-MM-dd'T'HH:mm:ss[.SSS]XXX"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "3.0.0"
+    },
+    "vt": {
+      "task": "DV-13-11",
+      "nguon": "đối tác giả lập (YC-PT-13)"
+    }
+  }
+}
