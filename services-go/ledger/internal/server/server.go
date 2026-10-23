@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"mission/services-go/ledger/internal/auth"
+	"mission/services-go/ledger/internal/lookup"
 	"mission/services-go/ledger/internal/verify"
 
 	"vn.viettel.okrkpi/services-go/vtplatform/otel"
@@ -38,8 +39,10 @@ type Deps struct {
 	LagBounds []float64
 	Gauges    func() map[string]float64
 	Verify    *verify.Service
-	Auth      auth.Verifier
-	Auditor   Auditor
+	// Lookup phục vụ API tra cứu sổ cái (DV-09-05); thiếu thì không mở tuyến.
+	Lookup  *lookup.Service
+	Auth    auth.Verifier
+	Auditor Auditor
 }
 
 // Server quản lý các tuyến HTTP của SVC-09.
@@ -63,6 +66,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /readyz", s.handleReadyz)
 	s.mux.HandleFunc("GET /metrics", s.handleMetrics)
 	s.registerVerifyRoutes()
+	s.registerLedgerRoutes()
 	s.mux.HandleFunc("/", s.handleNotFound)
 }
 

@@ -1490,6 +1490,17 @@ Mã ở `services-go/ledger/internal/server/server.go` (`/metrics`), `internal/v
 3. **Sửa nhóm consumer của KEDA.** `values.yaml` của chart ghi nhóm `ledger-service`, còn mã và DLQ dùng `ledger-ingester`, nên KEDA đo độ trễ sai nhóm. Đã sửa thành `ledger-ingester` (tệp ngoài danh sách được phép sửa của DL-12).
 4. **R2 vẫn chưa làm được, thiếu ba điều kiện.** (a) Chưa có bộ chuyển tiếp từ topic nghiệp vụ sang `sys.ledger.append.v1`: danh mục topic ghi "ledger-ingester chuyển tiếp từ topic nghiệp vụ" nhưng ledger-service mới chỉ đọc `sys.ledger.append.v1`, và chưa ai trong lõi ghi topic này. (b) Chưa có công thức `payload` chuẩn cho từng loại đối tượng để tính lại `payload_hash` từ dữ liệu hiện tại của từng module. (c) Chưa có API tra sổ cái (`listLedgerEntries`, DV-09-05) để bên đối soát đọc bản ghi cuối của một đối tượng. R2 làm được khi có (a) và (c); (b) cần thống nhất cùng người phụ trách từng module.
 
+### Ghi chú và quyết định từ tra cứu sổ cái và bằng chứng bao hàm (DV-09-05, 23/10/2026)
+
+Mã ở `services-go/ledger/internal/lookup` và `internal/server/ledger_api.go`; migration `V5__ledger_entry_chi_muc_tra_cuu.sql`.
+
+1. **Bằng chứng bao hàm có thêm trường `chainLinks` (điểm lệch, cần người phụ trách hợp đồng xem).** Hợp đồng `LedgerInclusionProof` mô tả đường đi Merkle từ lá `SHA-256(0x01 || entry_hash)` của chính bản ghi. Tuy nhiên, theo TL-03 và DV-09-03, lá của cây mức tenant là `entry_hash` cuối của từng chuỗi có bản ghi mới, không phải từng bản ghi. Vì vậy API trả `leafHash` và `tenantPath` của đầu chuỗi đã niêm phong, kèm trường bổ sung `chainLinks` (`seqNo`, `payloadHash`, `metadataHash`, `entryHash` từ bản ghi kế tiếp tới đầu chuỗi) để nối bản ghi lên lá. Lược đồ phản hồi không cấm trường thêm nên kiểm thử hợp đồng vẫn đạt. Hợp đồng nên khai trường này khi được sửa.
+2. **Thêm ba chỉ mục (suy luận).** Khoá chính và `uq_ledger_entry__event` đều có `recorded_month`, nên không tra được theo `id` hay `event_id` khi chưa biết tháng. V5 thêm `ix_ledger_entry__id`, `ix_ledger_entry__event_id` và `ix_ledger_entry__recorded (tenant_id, recorded_at DESC, id DESC)` cho phân trang mới nhất trước. Đổi lại, mỗi lần ghi phải cập nhật thêm ba chỉ mục.
+3. **Khoảng thời gian lọc theo `recorded_at`, mặc định 90 ngày, tối đa 2 năm; `aggregateType` so không phân biệt hoa thường.** Truy vấn đặt `recorded_month = ANY(...)` để cắt tỉa phân vùng tháng. Hợp đồng dùng ví dụ `appraisal_profile`, còn cột lưu chữ hoa.
+4. **Phạm vi đơn vị của `appraiser` chưa nối OPA (giống DV-09-04).** Hiện `appraiser` xem được bản ghi của cả tenant. Bằng chứng bao hàm chỉ dành cho `inspector`, đúng hợp đồng.
+5. **`actor.name` để rỗng.** Sổ cái chỉ giữ mã người thực hiện, nên giao diện (WEB-043) phải tra tên theo mã. `metadata` trả nguyên dạng đã lưu, vì luồng ghi đã chặn khoá C2 ngay khi ghi.
+6. **Tra cứu đọc qua pool chỉ đọc (`READONLY_DATABASE_URL`, mặc định bằng pool chính).** Mỗi lần tra cứu, xem chi tiết hay lấy bằng chứng đều ghi một sự kiện `sys.audit.v1` vào sổ cái.
+
 ### Ghi chú và quyết định từ bộ chuyển tiếp sang sổ cái (DV-09-02 bổ sung, 23/10/2026)
 
 Mã ở `services-go/ledger/internal/forward`. Phần này lấp điều kiện (a) của R2 ở mục DL-12d.

@@ -20,6 +20,7 @@ import (
 	"mission/services-go/ledger/internal/config"
 	"mission/services-go/ledger/internal/forward"
 	"mission/services-go/ledger/internal/ingest"
+	"mission/services-go/ledger/internal/lookup"
 	"mission/services-go/ledger/internal/partition"
 	"mission/services-go/ledger/internal/seal"
 	"mission/services-go/ledger/internal/server"
@@ -146,6 +147,7 @@ func main() {
 		OTel:         otelProvider,
 		Stats:        ing.Stats,
 		Verify:       verifier,
+		Lookup:       &lookup.Service{Pool: roPool, Certs: sealCerts},
 		Auditor:      ing,
 		Lag:          ing.LagHistogram,
 		LagBounds:    ingest.LagBounds,
