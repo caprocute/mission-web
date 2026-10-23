@@ -179,12 +179,8 @@
       ],
       "caPhuDinh": ["Tài khoản không có quyền phê duyệt bị máy chủ từ chối"],
       "cheDoCaoTuoi": true,
-<<<<<<< HEAD
-      "ghiChu": "Theo ma trận 15a: AC-05 soạn và trình OKR đơn vị, AC-04 phê duyệt và trả lại.",
-=======
       "kichBanUat": ["UAT-05"],
-      "ghiChu": "",
->>>>>>> 36f2b08b
+      "ghiChu": "Theo ma trận 15a: AC-05 soạn và trình OKR đơn vị, AC-04 phê duyệt và trả lại.",
       "trangThai": "dang_viet"
     },
     {
@@ -562,14 +558,9 @@
       ],
       "caPhuDinh": ["Người lập lệnh không tự duyệt lệnh của mình"],
       "cheDoCaoTuoi": true,
-<<<<<<< HEAD
+      "kichBanUat": ["UAT-11"],
       "ghiChu": "Giả lập: kho coi mọi thao tác là của một người, nên ca phủ định chạy trên lệnh vừa lập, còn duyệt và khởi chạy dùng kỳ giả lập do người khác lập, duyệt. Hệ thống thật: chạy trọn trên kỳ tháng riêng của lần chạy; thời gian saga ghi vào báo cáo.",
       "trangThai": "dang_viet"
-=======
-      "kichBanUat": ["UAT-11"],
-      "ghiChu": "",
-      "trangThai": "chua_viet"
->>>>>>> 36f2b08b
     },
     {
       "ma": "HT-24",
@@ -590,14 +581,9 @@
       ],
       "caPhuDinh": ["Sau bước ký lô giao diện chỉ cho thử lại, không cho huỷ"],
       "cheDoCaoTuoi": false,
-<<<<<<< HEAD
+      "kichBanUat": ["UAT-11"],
       "ghiChu": "Tài khoản lanhdao (AC-04) tham gia để duyệt lệnh trước khi khởi chạy trên hệ thống thật. Giả lập: duyệt huỷ trên đề nghị huỷ có sẵn do người khác gửi.",
       "trangThai": "dang_viet"
-=======
-      "kichBanUat": ["UAT-11"],
-      "ghiChu": "",
-      "trangThai": "chua_viet"
->>>>>>> 36f2b08b
     },
     {
       "ma": "HT-25",
@@ -623,14 +609,9 @@
       ],
       "caPhuDinh": [],
       "cheDoCaoTuoi": true,
-<<<<<<< HEAD
+      "kichBanUat": ["UAT-12"],
       "ghiChu": "Chế độ cao tuổi rút gọn bước: phiếu tự lưu, không có nút Lưu nháp.",
       "trangThai": "dang_viet"
-=======
-      "kichBanUat": ["UAT-12"],
-      "ghiChu": "",
-      "trangThai": "chua_viet"
->>>>>>> 36f2b08b
     },
     {
       "ma": "HT-26",
@@ -656,14 +637,9 @@
       ],
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
-<<<<<<< HEAD
+      "kichBanUat": ["UAT-13"],
       "ghiChu": "Theo ma trận 15a: AC-07 thẩm định (SCR-0902), AC-05 quản lý trực tiếp ghi mức đề xuất (SCR-0903.de-xuat), không phải AC-07.",
       "trangThai": "dang_viet"
-=======
-      "kichBanUat": ["UAT-13"],
-      "ghiChu": "",
-      "trangThai": "chua_viet"
->>>>>>> 36f2b08b
     },
     {
       "ma": "HT-27",
@@ -690,14 +666,9 @@
       ],
       "caPhuDinh": ["Người đã thẩm định không được quyết định cùng hồ sơ"],
       "cheDoCaoTuoi": false,
-<<<<<<< HEAD
+      "kichBanUat": ["UAT-14"],
       "ghiChu": "Server dev dùng bộ ký giả lập của esign-service. Ca phủ định: giao diện chặn tuyến quyết định với người thẩm định; máy chủ từ chối người đã thẩm định quyết định cùng hồ sơ (chỉ kiểm trên hệ thống thật).",
       "trangThai": "dang_viet"
-=======
-      "kichBanUat": ["UAT-14"],
-      "ghiChu": "Server dev dùng bộ ký giả lập của esign-service.",
-      "trangThai": "chua_viet"
->>>>>>> 36f2b08b
     },
     {
       "ma": "HT-28",
