@@ -1,0 +1,130 @@
+{
+  "mappings": [
+    {
+      "request": {
+        "method": "GET",
+        "urlPath": "/api/v2/documents/detail",
+        "queryParameters": {
+          "id": {
+            "equalTo": "47-BC/BTCĐUK"
+          },
+          "unitId": {
+            "equalTo": "DV-01"
+          }
+        },
+        "headers": {
+          "Authorization": {
+            "equalTo": "Bearer ma-gia-lap"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "id": "47-BC/BTCĐUK",
+          "docNumber": "47-BC/BTCĐUK",
+          "issuedDate": "2026-10-19",
+          "summary": "Báo cáo chuyên đề công tác kiểm tra quý III năm 2026",
+          "signerName": "Trần Thị Bình",
+          "signatureValid": true,
+          "unitId": "DV-01",
+          "fileName": "47-BC.pdf",
+          "mediaType": "application/pdf",
+          "sha256": "f6ccdefa32a8a2973db13b9cc5e0d9079979fa330d0915a55b7aafaac8c6f14e"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "urlPath": "/api/v2/documents/content",
+        "queryParameters": {
+          "id": {
+            "equalTo": "47-BC/BTCĐUK"
+          },
+          "unitId": {
+            "equalTo": "DV-01"
+          }
+        },
+        "headers": {
+          "Authorization": {
+            "equalTo": "Bearer ma-gia-lap"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/pdf"
+        },
+        "base64Body": "JVBERi0xLjQKJSB2YW4gYmFuIGdpYSBsYXAgZGEga3kKJSVFT0YK"
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "urlPath": "/api/v2/documents/detail",
+        "queryParameters": {
+          "id": {
+            "equalTo": "48-BC/BTCĐUK"
+          },
+          "unitId": {
+            "equalTo": "DV-01"
+          }
+        },
+        "headers": {
+          "Authorization": {
+            "equalTo": "Bearer ma-gia-lap"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "id": "48-BC/BTCĐUK",
+          "docNumber": "48-BC/BTCĐUK",
+          "issuedDate": "2026-10-19",
+          "summary": "Báo cáo chuyên đề công tác kiểm tra quý III năm 2026",
+          "signerName": "Trần Thị Bình",
+          "signatureValid": true,
+          "unitId": "DV-01",
+          "fileName": "48-BC.pdf",
+          "mediaType": "application/pdf",
+          "sha256": "f6ccdefa32a8a2973db13b9cc5e0d9079979fa330d0915a55b7aafaac8c6f14e"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "urlPath": "/api/v2/documents/content",
+        "queryParameters": {
+          "id": {
+            "equalTo": "48-BC/BTCĐUK"
+          },
+          "unitId": {
+            "equalTo": "DV-01"
+          }
+        },
+        "headers": {
+          "Authorization": {
+            "equalTo": "Bearer ma-gia-lap"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/pdf"
+        },
+        "base64Body": "JVBERi0xLjQKJSB2YW4gYmFuIGJpIHN1YSBzYXUga2hpIGt5CiUlRU9GCg=="
+      }
+    }
+  ]
+}

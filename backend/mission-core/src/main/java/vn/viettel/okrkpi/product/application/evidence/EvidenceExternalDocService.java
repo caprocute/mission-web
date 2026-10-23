@@ -121,6 +121,7 @@ public class EvidenceExternalDocService {
                 tenant,
                 unit,
                 e.externalDocRef(),
+                evidenceId,
                 actor.personId(),
                 "chuyen-van-ban-" + evidenceId + "-" + next)
             .orElseThrow(

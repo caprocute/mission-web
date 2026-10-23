@@ -83,11 +83,17 @@ public class HttpIssuedDocuments implements IssuedDocuments {
 
   @Override
   public Optional<Transferred> transfer(
-      TenantId tenant, UUID orgUnitId, String ref, UUID requestedBy, String idempotencyKey) {
+      TenantId tenant,
+      UUID orgUnitId,
+      String ref,
+      UUID evidenceId,
+      UUID requestedBy,
+      String idempotencyKey) {
     Map<String, Object> request = new LinkedHashMap<>();
     request.put("tenantId", tenant.value().toString());
     request.put("orgUnitId", orgUnitId.toString());
     request.put("ref", ref);
+    request.put("ownerRefId", evidenceId.toString());
     request.put("requestedBy", requestedBy.toString());
     request.put("connector", CONNECTOR);
     HttpHeaders h = headers(tenant);
@@ -101,6 +107,10 @@ public class HttpIssuedDocuments implements IssuedDocuments {
     }
     try {
       Map<?, ?> doc = body.get("doc") instanceof Map<?, ?> m ? m : Map.of();
+      if (!Boolean.TRUE.equals(body.get("signatureValid"))) {
+        // SVC-13 không chuyển tệp có chữ ký không hợp lệ.
+        return Optional.of(new Transferred(null, 0, null, 0L, null, false, doc(doc)));
+      }
       return Optional.of(
           new Transferred(
               UUID.fromString(string(body.get("objectId"))),
