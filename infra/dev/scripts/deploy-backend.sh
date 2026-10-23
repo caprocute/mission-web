@@ -57,21 +57,21 @@ declare -A JAVA_MODULES=(
 )
 GO_SERVICES=(tenant-registry ledger-service notification-service)
 # web: ảnh SVC-17 (deploy/web/Dockerfile, npm build bên trong ảnh), APISIX phục vụ qua tuyến `web`.
-ALL_SERVICES=(apisix "${!JAVA_MODULES[@]}" "${GO_SERVICES[@]}" web)
+ALL_SERVICES=(apisix "${!JAVA_MODULES[@]}" ${GO_SERVICES[@]+"${GO_SERVICES[@]}"} web)
 
 if [[ $# -gt 0 ]]; then
   SERVICES=("$@")
-  for s in "${SERVICES[@]}"; do
+  for s in ${SERVICES[@]+"${SERVICES[@]}"}; do
     [[ " ${ALL_SERVICES[*]} " == *" ${s} "* ]] || die "service lạ: ${s}"
   done
 else
-  SERVICES=("${ALL_SERVICES[@]}")
+  SERVICES=(${ALL_SERVICES[@]+"${ALL_SERVICES[@]}"})
 fi
-selected() { [[ " ${SERVICES[*]} " == *" $1 "* ]]; }
+selected() { [[ " ${SERVICES[*]-} " == *" $1 "* ]]; }
 
 # IN_MO_DUN=1: chỉ in mô-đun Maven của các service đã chọn (trien-khai-lai.sh dựng jar trên máy trạm) rồi thoát.
 if [[ "${IN_MO_DUN:-0}" == "1" ]]; then
-  for s in "${SERVICES[@]}"; do
+  for s in ${SERVICES[@]+"${SERVICES[@]}"}; do
     [[ -n "${JAVA_MODULES[$s]:-}" ]] && echo "${JAVA_MODULES[$s]}"
   done
   exit 0
@@ -87,7 +87,7 @@ echo "==> Container trước khi áp: $(docker ps -q | wc -l) đang chạy, $(do
 
 # --- (1) jar Java ------------------------------------------------------------
 modules=()
-for s in "${SERVICES[@]}"; do
+for s in ${SERVICES[@]+"${SERVICES[@]}"}; do
   [[ -n "${JAVA_MODULES[$s]:-}" ]] && modules+=("${JAVA_MODULES[$s]}")
 done
 if [[ ${#modules[@]} -gt 0 && "${SKIP_JARS:-0}" != "1" ]]; then
@@ -97,14 +97,14 @@ fi
 
 # --- (2) ảnh -----------------------------------------------------------------
 build=()
-for s in "${SERVICES[@]}"; do
+for s in ${SERVICES[@]+"${SERVICES[@]}"}; do
   [[ "${s}" != "apisix" ]] && build+=("${s}")
 done
 if [[ ${#build[@]} -gt 0 ]]; then
-  echo "==> Dựng ảnh: ${build[*]}"
+  echo "==> Dựng ảnh: ${build[*]-}"
   # Nhãn commit trên ảnh để kiem-tuyen.py và docker inspect biết container chạy mã nào
   revision="$(git -C "${SCRIPT_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-  compose build --build-arg "GIT_REVISION=${revision}" "${build[@]}"
+  compose build --build-arg "GIT_REVISION=${revision}" ${build[@]+"${build[@]}"}
 fi
 selected apisix && compose pull apisix
 
@@ -135,13 +135,13 @@ run_migration_runner() {
   local svc="$1" schemas="$2" s
   local env_args=()
   IFS=, read -r -a list <<<"${schemas}"
-  for s in "${list[@]}"; do
+  for s in ${list[@]+"${list[@]}"}; do
     # Biến MIG_<SCHEMA>_PASSWORD truyền theo tên (compose run -e TÊN), giá trị không lên dòng lệnh.
     export "MIG_${s^^}_PASSWORD=${DB_ROLE_PASSWORD_DEFAULT}"
     env_args+=(-e "MIG_${s^^}_PASSWORD")
   done
   echo "  ${svc}: ${schemas}"
-  compose run --rm --no-deps -T "${env_args[@]}" --entrypoint java "${svc}" \
+  compose run --rm --no-deps -T ${env_args[@]+"${env_args[@]}"} --entrypoint java "${svc}" \
     -cp '/app/BOOT-INF/classes:/app/BOOT-INF/lib/*' vn.viettel.okrkpi.platform.db.migration.MigrationRunner \
     "--db=jdbc:postgresql://postgres:5432/${POSTGRES_DB:-mission}" "--schemas=${schemas}"
 }
@@ -185,13 +185,13 @@ if [[ "${SKIP_MIGRATE:-0}" != "1" ]]; then
 fi
 
 # --- (5) bật service -------------------------------------------------------------
-echo "==> Bật service: ${SERVICES[*]}"
-compose up -d --no-deps "${SERVICES[@]}"
+echo "==> Bật service: ${SERVICES[*]-}"
+compose up -d --no-deps ${SERVICES[@]+"${SERVICES[@]}"}
 
 # --- (6) chờ healthcheck ----------------------------------------------------------
 echo "==> Chờ healthcheck (tối đa 5 phút)"
 deadline=$((SECONDS + 300))
-for s in "${SERVICES[@]}"; do
+for s in ${SERVICES[@]+"${SERVICES[@]}"}; do
   [[ "${s}" == "apisix" ]] && continue
   name="$(compose ps -q "${s}")"
   state=""

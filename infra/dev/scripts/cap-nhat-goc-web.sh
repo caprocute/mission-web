@@ -34,7 +34,7 @@ id="$(kc get clients -r mission -q clientId=mission-web --fields id --format csv
 
 # Ghép danh sách hiện có với gốc mới, giữ thứ tự, bỏ trùng; kcadm nhận mảng JSON qua -s.
 cur="$(kc get "clients/${id}" -r mission --fields redirectUris,webOrigins)"
-read -r redirects origins < <(CUR="${cur}" python3 - "${ORIGINS[@]}" <<'PY'
+read -r redirects origins < <(CUR="${cur}" python3 - ${ORIGINS[@]+"${ORIGINS[@]}"} <<'PY'
 import json, os, sys
 c = json.loads(os.environ["CUR"])
 def merge(old, new):
@@ -49,4 +49,4 @@ print(merge(c.get("redirectUris", []), [o + "/*" for o in new]),
 PY
 )
 kc update "clients/${id}" -r mission -s "redirectUris=${redirects}" -s "webOrigins=${origins}"
-echo "Client mission-web nhận gốc web: ${ORIGINS[*]}"
+echo "Client mission-web nhận gốc web: ${ORIGINS[*]-}"
