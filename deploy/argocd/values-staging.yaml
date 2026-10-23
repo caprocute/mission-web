@@ -1,0 +1,49 @@
+# Bản staging của chart deploy/argocd (INF-21; TL-05 "Môi trường phi sản xuất", TL-04 mục 11.2, OPS-02). Ứng dụng gốc
+# ung-dung-goc-staging.yaml chồng tệp này sau values.yaml. Cùng chart và cùng danh sách service với production, chỉ
+# khác: chỉ CELL-STG, một TTDL, digest lấy từ deploy/environments/staging/digests.yaml, đồng bộ tự động ngay khi
+# digest đổi (không RollingSync, không cửa sổ đóng băng OPS-06), tầng dữ liệu chạy trên máy ảo nên không sinh
+# Application cho các chart dữ liệu. Bản phát hành chỉ được nâng sang production/digests.yaml sau khi staging đạt,
+# tức staging đứng trước đợt 0 của OPS-02.
+instance: staging
+appsetPrefix: okr-stg
+# AppProject riêng (okr-apps-stg, okr-nen-tang-stg) để quyền đồng bộ staging tách khỏi production.
+projectSuffix: -stg
+environment: staging
+sites: [hl]
+# Mọi cell trừ stg do bản production (mgmt) hoặc mgmt-dtw quản lý; kiểm khớp trong tests/chay-kiem-thu.sh.
+cellsExclude: [dtw, g1, g2, g3, g4, hcm, hn, nb, sh]
+rollingSync:
+  enabled: false
+syncWindows: []
+syncWindowsBoSung: []
+# Tầng dữ liệu trên máy ảo (TL-05 "Môi trường phi sản xuất"): không sinh ApplicationSet, tắt trong mọi Application.
+# Địa chỉ PostgreSQL, Kafka, Valkey, OpenSearch, ClickHouse, OpenBao trên máy ảo khai ở deploy/cells/stg/values.yaml.
+servicesTat: [data-pg, kafka, valkey, opensearch, clickhouse, openbao]
+
+# Môi trường tạm theo nhánh cho pull request (templates/moi-truong-pr.yaml): chạy trong cụm staging, namespace
+# pr-<số PR>, hồ sơ compact, dữ liệu tổng hợp (DL-08), xoá khi PR đóng hoặc gỡ nhãn.
+prEnvironments:
+  enabled: true
+  project: okr-pr
+  # Cụm đích: cụm staging (cell-stg-hl).
+  destinationName: cell-stg-hl
+  # Kho mã nguồn có pull request (bộ sinh pullRequest của Argo CD). provider: gitlab hoặc github; token đọc PR lấy
+  # từ Secret trong namespace argocd (tên Secret ở đây, giá trị không bao giờ nằm trong Git).
+  scm:
+    provider: gitlab
+    gitlab:
+      api: https://git.vt.local/
+      project: okr/mission
+      tokenSecret: { name: scm-pr-token, key: token }
+    github:
+      owner: okr
+      repo: mission
+      tokenSecret: { name: scm-pr-token, key: token }
+  # Chỉ PR có nhãn này mới được môi trường tạm (giữ số namespace trong ngân sách của cụm staging).
+  label: moi-truong-tam
+  requeueAfterSeconds: 300
+  # Nhánh của kho GitOps mà pipeline PR (INF-05) ghi tệp digest deploy/environments/pr/digests/pr-<số>.yaml, có
+  # chữ ký của bước vtGitopsBump; chart và values luôn lấy từ nhánh gitops.revision (main) nên chữ ký vẫn kiểm được.
+  digestsRevision: moi-truong-pr
+  # Service ứng dụng dựng trong môi trường tạm; phần còn lại (Keycloak, tầng dữ liệu) dùng chung của staging.
+  services: [mission-core, org-service, workflow-service, scoring-service, web-frontend]

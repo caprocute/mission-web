@@ -1,0 +1,68 @@
+{{- /*
+Khung namespace pr-<số> (INF-21). Namespace là tài nguyên của Application nên khi PR đóng, Argo CD xoá Application
+(finalizer) thì namespace và mọi thứ trong đó bị xoá theo. Nhãn vt.io/du-lieu: tong-hop đánh dấu chỉ dữ liệu tổng hợp
+(SEC-52), Pod Security mức restricted như namespace ứng dụng của cell.
+*/ -}}
+{{- $v := .Values }}
+{{- if not (regexMatch "^[0-9]+$" (toString $v.pr)) }}
+{{- fail "moi-truong-pr-khung: pr phải là số PR" }}
+{{- end }}
+{{- $ns := printf "pr-%v" $v.pr }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    vt.io/moi-truong: pr
+    vt.io/du-lieu: tong-hop
+    pr: {{ $v.pr | quote }}
+    pod-security.kubernetes.io/enforce: restricted
+    istio.io/dataplane-mode: ambient
+  annotations:
+    vt.io/nhanh: {{ $v.branch | quote }}
+    vt.io/commit: {{ $v.sha | quote }}
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ngan-sach
+  namespace: {{ $ns }}
+spec:
+  hard: {{ toYaml $v.quota | nindent 4 }}
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: mac-dinh
+  namespace: {{ $ns }}
+spec:
+  limits:
+    - type: Container
+      default: {{ toYaml $v.limitRange.default | nindent 8 }}
+      defaultRequest: {{ toYaml $v.limitRange.defaultRequest | nindent 8 }}
+---
+# Mặc định từ chối; chỉ cho trong namespace, từ cổng vào staging, DNS và tầng dữ liệu trên máy ảo.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mac-dinh-tu-choi
+  namespace: {{ $ns }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: {}
+        {{- range $v.ingressNamespaces }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ . }} } }
+        {{- end }}
+  egress:
+    - to: [{ podSelector: {} }]
+    - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } } }]
+      ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+    {{- with $v.dataCidrs }}
+    - to:
+        {{- range . }}
+        - ipBlock: { cidr: {{ . }} }
+        {{- end }}
+    {{- end }}

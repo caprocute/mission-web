@@ -1,0 +1,16 @@
+# CELL-STG: môi trường staging (INF-21; TL-05 "Môi trường phi sản xuất", TL-04 mục 11.2). Cùng chart, cùng phiên bản
+# với sản xuất và là điểm dừng bắt buộc của mọi bản phát hành: ảnh đi qua deploy/environments/staging/digests.yaml
+# trước, chỉ được nâng sang production/digests.yaml sau khi staging đạt (OPS-02). Bản staging của chart deploy/argocd
+# (values-staging.yaml, Argo CD instance "staging") quản lý cell này; bản production loại nó qua cellsExclude.
+# releaseWave "-1": đứng trước đợt 0 (CELL-NB) của OPS-02.
+cell:
+  name: stg
+  displayName: CELL-STG
+  sizing: S
+  tenancy: pool
+  # Staging không đo hiệu năng và không cần dự phòng hai TTDL: một TTDL ở Hoà Lạc (suy luận từ TL-05).
+  primarySite: hl
+  standbySite: hl
+  releaseWave: "-1"
+  argocd: staging
+  silos: []

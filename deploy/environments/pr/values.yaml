@@ -1,0 +1,18 @@
+# Values chung của môi trường tạm theo PR (INF-21). Chồng sau values-saas.yaml và sizing/values-sizing-compact.yaml
+# trong Application pr-<số> (deploy/argocd/templates/moi-truong-pr.yaml); Application tự đặt namespace của từng
+# service về pr-<số>. Môi trường tạm chỉ phục vụ hành trình kiểm thử QA-04..07 nên mỗi service một bản, không tự giãn,
+# không GPU; khung namespace (deploy/environments/pr/khung) giới hạn tổng tài nguyên bằng ResourceQuota.
+# Keycloak và tầng dữ liệu dùng chung của staging (máy ảo); mỗi PR dùng CSDL tổng hợp riêng (DL-08), không dữ liệu
+# thật (SEC-52).
+global:
+  featureFlags:
+    aiAssistant: false
+mission-core:
+  autoscaling:
+    keda:
+      minReplicas: 1
+      maxReplicas: 1
+org-service:
+  replicaCount: 1
+  podDisruptionBudget:
+    minAvailable: 0
