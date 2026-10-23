@@ -221,7 +221,7 @@ services:
       PROVISION_CLIENT_SECRET: ${PROVISION_CLIENT_SECRET:-}
       # Gốc web thêm vào redirect URI của client mission-web; thiếu biến thì Keycloak 26 từ chối nhập realm
       # vì "${WEB_ORIGIN}/*" không phải URI hợp lệ.
-      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:4200}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://127.0.0.1:35000}
       KC_HOSTNAME_STRICT: "false"
       KC_PROXY_HEADERS: xforwarded
       TZ: Asia/Ho_Chi_Minh
@@ -693,6 +693,37 @@ services:
     volumes:
       - ./apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
       - ./apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+    networks:
+      - mission-net
+
+  # SVC-17 web: shell và mọi remote phục vụ bằng nginx (deploy/web), không mở cổng riêng mà đi sau APISIX qua
+  # tuyến `web` (/*) của apisix.yaml, nên trình duyệt mở http://<máy>:${APISIX_PORT} và gọi /api cùng nguồn,
+  # không cần CORS. config.json sinh lúc khởi động từ biến dưới đây (deploy/web/40-runtime-config.sh): issuer là
+  # địa chỉ Keycloak trình duyệt thấy (KEYCLOAK_PUBLIC_URL), cùng giá trị APISIX kiểm claim iss. Gốc web
+  # (WEB_ORIGIN) phải là địa chỉ APISIX để Keycloak nhận redirect URI của client mission-web.
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/web/Dockerfile
+    image: mission-dev/web:dev
+    container_name: mission-dev-web
+    restart: unless-stopped
+    profiles: ["backend", "web"]
+    environment:
+      CELL: DEV
+      TENANT: ${WEB_TENANT:-default}
+      API_BASE_URL: /api
+      AUTH_ENABLED: ${WEB_AUTH_ENABLED:-true}
+      AUTH_ISSUER: ${KEYCLOAK_PUBLIC_URL:-http://127.0.0.1:35080}/realms/mission
+      AUTH_CLIENT_ID: mission-web
+      # Máy chủ thật qua APISIX; module chưa có máy chủ giữ giả lập theo WEB_MOCK_API_MODULES (WEB-070).
+      USE_MOCK_API: ${WEB_USE_MOCK_API:-false}
+      MOCK_API_MODULES: ${WEB_MOCK_API_MODULES:-}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     networks:
       - mission-net
 

@@ -54,7 +54,8 @@ declare -A JAVA_MODULES=(
   [search]=services/search
 )
 GO_SERVICES=(tenant-registry ledger-service notification-service)
-ALL_SERVICES=(apisix "${!JAVA_MODULES[@]}" "${GO_SERVICES[@]}")
+# web: ảnh SVC-17 (deploy/web/Dockerfile, npm build bên trong ảnh), APISIX phục vụ qua tuyến `web`.
+ALL_SERVICES=(apisix "${!JAVA_MODULES[@]}" "${GO_SERVICES[@]}" web)
 
 if [[ $# -gt 0 ]]; then
   SERVICES=("$@")

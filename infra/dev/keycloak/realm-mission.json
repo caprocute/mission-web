@@ -372,12 +372,14 @@
       "implicitFlowEnabled": false,
       "redirectUris": [
         "http://localhost:4200/*",
-        "http://localhost:35200/*",
+        "http://localhost:35000/*",
+        "http://127.0.0.1:35000/*",
         "${WEB_ORIGIN:http://localhost:4200}/*"
       ],
       "webOrigins": [
         "http://localhost:4200",
-        "http://localhost:35200",
+        "http://localhost:35000",
+        "http://127.0.0.1:35000",
         "${WEB_ORIGIN:http://localhost:4200}"
       ],
       "attributes": {

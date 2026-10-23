@@ -33,6 +33,7 @@ Toàn bộ cổng host đặt trong dải `35000–35999` và đều cấu hình
 | SoftHSM2 2.6 (khởi tạo token) | `mission-dev-softhsm-init` | không mở cổng | `ESIGN_HSM_PIN`, `ESIGN_HSM_SO_PIN` | `backend` | Token `mission-dev` cho esign-service (DV-10-03), lưu ở `softhsm/tokens` (không commit) |
 | TSA RFC 3161 giả lập | `mission-dev-tsa-mock` | `35350` | `TSA_MOCK_PORT` | `backend` | `openssl ts -reply`; gốc tin cậy xuất ra `softhsm/tsa/ca.pem` |
 | APISIX 3.13 (cổng API dev) | `mission-dev-apisix` | `35000` | `APISIX_PORT` | `backend` | Tuyến theo tiền tố module, kiểm JWT realm `mission` (`apisix/apisix.yaml`, INF-22) |
+| Web SVC-17 (nginx, `deploy/web`) | `mission-dev-web` | không mở, đi sau APISIX `35000` | `WEB_ORIGIN`, `WEB_AUTH_ENABLED`, `WEB_USE_MOCK_API`, `WEB_MOCK_API_MODULES` | `backend`, `web` | Mở `http://127.0.0.1:35000` (qua hầm SSH): shell và remote đi tuyến `web` (`/*`), `/api` cùng nguồn nên không cần CORS; issuer là `KEYCLOAK_PUBLIC_URL`. Keycloak đã nhập realm trước đó thì chạy `scripts/cap-nhat-goc-web.sh` để client `mission-web` nhận gốc này |
 | mission-core (SVC-05) | `mission-dev-mission-core` | `35100` / `35101` | `MISSION_CORE_PORT` / `MISSION_CORE_MGMT_PORT` | `backend` | Cổng quản trị `35101` chỉ mở trên loopback máy chủ |
 | tenant-registry (SVC-03, Go) | `mission-dev-tenant-registry` | `35110` | `TENANT_REGISTRY_PORT` | `backend` | Schema `registry` |
 | org-service (SVC-04) | `mission-dev-org-service` | `35111` | `ORG_SERVICE_PORT` | `backend` | Schema `org` |
