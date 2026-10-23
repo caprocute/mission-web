@@ -4,7 +4,7 @@
 # `set -u` coi mảng rỗng là biến chưa gán ("${x[@]}", "${x[*]}" báo unbound variable; bash 4.4 trở lên thì không).
 # Bash trên máy Mac (3.2) cũng lỗi như vậy. Script chạy được trên máy trạm, không cần máy chủ:
 #
-#   (1) shellcheck mọi infra/dev/scripts/*.sh (SHELLCHECK chỉ đường tới shellcheck, mặc định lệnh trong PATH,
+#   (1) shellcheck mọi infra/dev/scripts/*.sh và postgres/migrate-roles.sh (SHELLCHECK chỉ đường tới shellcheck, mặc định lệnh trong PATH,
 #       không có thì dùng ảnh koalaman/shellcheck:stable);
 #   (2) tìm mở rộng mảng chưa có dạng an toàn: phải viết ${x[@]+"${x[@]}"} hoặc ${x[*]-};
 #   (3) `bash -n` từng script bằng bash 4.2;
@@ -30,7 +30,8 @@ fail() {
 }
 
 scripts=()
-for f in "${SCRIPT_DIR}"/*.sh; do
+# migrate-roles.sh chạy trực tiếp trên máy chủ (trien-khai-lai.sh apply), nên cũng phải qua bash 4.2.
+for f in "${SCRIPT_DIR}"/*.sh "${INFRA_DIR}/postgres/migrate-roles.sh"; do
   scripts+=("${f}")
 done
 

@@ -10,7 +10,8 @@
 #       dựng lại hạ tầng (OPA, kafka-init, giao diện Keycloak, minio…) theo các profile, xoá dịch vụ cũ `connect`;
 #       Trước đó gen-env.sh --bo-sung nối vào .env máy chủ các khoá còn thiếu (bí mật sinh ngẫu nhiên, POSTGRES_*
 #       lấy từ PG_SUPERUSER*, OPA timeout 2s cũ nâng lên 5s), không đè giá trị có sẵn, không in giá trị;
-#   (4) create-topics.sh, them-client-provisioner.sh (bất biến, chạy lại được);
+#   (4) postgres/migrate-roles.sh (schema, tài khoản, tiện ích mới trên volume pg_data cũ), dựng lại opensearch kèm
+#       plugin analysis-icu khi container đang chạy chưa có; create-topics.sh, them-client-provisioner.sh (bất biến);
 #   (5) dựng jar trên máy trạm (mặc định khi có JDK 21 và Node) rồi chép jar lên, hoặc để máy chủ tự dựng;
 #   (6) deploy-backend.sh trên máy chủ cho các service chọn (mặc định APISIX, mission-core, web): dựng ảnh,
 #       migration, bật, chờ healthcheck, nạp kỳ hiện hành;
@@ -306,12 +307,42 @@ build_and_copy_web() {
     remote "rm -rf $(printf '%q' "${DEV_SERVER_REPO_DIR}/frontend/dist-web") && tar -C $(printf '%q' "${DEV_SERVER_REPO_DIR}/frontend") -xf -"
 }
 
+# OpenSearch phải có plugin analysis-icu (search dùng icu_tokenizer, thiếu thì dừng lúc nạp mẫu chỉ mục với lỗi 400).
+# Ảnh mission-dev/opensearch:*-icu dựng từ infra/dev/opensearch; container cũ chạy ảnh chính thức thì không có.
+opensearch_icu() {
+  remote "docker exec mission-dev-opensearch bin/opensearch-plugin list 2>/dev/null | grep -qx analysis-icu"
+}
+
+check_opensearch() {
+  [[ " ${DEV_SERVER_PROFILES} " == *" search "* ]] || return 0
+  echo "==> OpenSearch"
+  if opensearch_icu; then
+    echo "  Đang chạy, có plugin analysis-icu."
+  else
+    echo "  Chưa có plugin analysis-icu (hoặc chưa chạy): apply sẽ dựng lại opensearch kèm ICU (giữ OPENSEARCH_DATA)."
+  fi
+}
+
+ensure_opensearch() {
+  [[ " ${DEV_SERVER_PROFILES} " == *" search "* ]] || return 0
+  echo "==> OpenSearch kèm plugin ICU"
+  if opensearch_icu; then
+    echo "  Đã có analysis-icu."
+    return 0
+  fi
+  remote "cd $(printf '%q' "${NEW_INFRA_DIR}") && docker compose -p ${PROJECT} --profile search up -d --build opensearch"
+  opensearch_icu || die "opensearch vẫn chưa có plugin analysis-icu sau khi dựng lại"
+  echo "  Đã dựng lại, có analysis-icu."
+}
+
 cmd_plan() {
   check_git
   check_compose_profiles
   echo "  Service sẽ triển khai: ${SERVICES[*]:-không có}; dựng jar ở: $(jar_mode); dựng web ở: $(web_mode)"
   check_server
   check_images
+  check_opensearch
+  echo "==> apply chạy postgres/migrate-roles.sh (bất biến: CSDL, schema, tài khoản mig_/svc_/ro_/cdc_, tiện ích) trước khi bật service"
   sync_server plan
 }
 
@@ -327,6 +358,13 @@ cmd_apply() {
   echo "==> Bổ sung khoá còn thiếu vào .env máy chủ (bí mật sinh ngẫu nhiên, không đè giá trị có sẵn, không in)"
   remote_script "" gen-env.sh --bo-sung
   sync_server apply
+  # Schema, tài khoản và tiện ích mới (ví dụ btree_gist, quyền CREATE của mig_flowable) chỉ có trên volume pg_data cũ
+  # sau lần chạy này; script bất biến và đi qua docker exec vào mission-dev-postgres.
+  echo "==> Tài khoản và schema CSDL (postgres/migrate-roles.sh)"
+  remote "cd $(printf '%q' "${NEW_INFRA_DIR}") && ./postgres/migrate-roles.sh" >/dev/null ||
+    die "migrate-roles.sh lỗi; chạy tay trên máy chủ để xem chi tiết"
+  echo "  Xong."
+  ensure_opensearch
   echo "==> Topic Kafka và client provisioner của Keycloak"
   remote_script "" create-topics.sh
   remote_script "" them-client-provisioner.sh
