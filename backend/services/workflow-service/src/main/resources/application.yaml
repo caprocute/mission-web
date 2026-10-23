@@ -110,6 +110,12 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+    # DV-06-11 · G2 "p95 API complete user task": histogram để PrometheusRule tính p95 theo ngưỡng 300 ms / 800 ms.
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 300ms,800ms
 
 mission:
   service:
