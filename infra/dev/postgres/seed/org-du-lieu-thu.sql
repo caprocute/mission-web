@@ -52,6 +52,7 @@ INSERT INTO org.job_title (id, tenant_id, code, name, level, valid_from, created
 SELECT j.id::uuid, 'd0000000-0000-4000-8000-000000000001'::uuid, j.code, j.name, j.level, '2000-01-01'::date, '00000000-0000-0000-0000-000000000000'::uuid, '00000000-0000-0000-0000-000000000000'::uuid
 FROM (VALUES
   ('d0000000-0000-4000-8000-000000000201', 'GIAM-DOC', 'Giám đốc', 1),
+  ('d0000000-0000-4000-8000-000000000205', 'PHO-GIAM-DOC', 'Phó Giám đốc', 2),
   ('d0000000-0000-4000-8000-000000000202', 'TRUONG-PHONG', 'Trưởng phòng', 3),
   ('d0000000-0000-4000-8000-000000000203', 'CHUYEN-VIEN', 'Chuyên viên', 5),
   ('d0000000-0000-4000-8000-000000000204', 'KIEM-TRA-VIEN', 'Kiểm tra viên', 5)
@@ -81,7 +82,13 @@ INSERT INTO seed_person VALUES
   ('d0000000-0000-4000-8000-000000000310', 'duyet2', 'Bùi Thị Duyệt Hai',
    'd0000000-0000-4000-8000-000000000102', 'd0000000-0000-4000-8000-000000000203'),
   ('d0000000-0000-4000-8000-000000000311', 'kiemtra', 'Ngô Văn Kiểm Tra',
-   'd0000000-0000-4000-8000-000000000103', 'd0000000-0000-4000-8000-000000000204');
+   'd0000000-0000-4000-8000-000000000103', 'd0000000-0000-4000-8000-000000000204'),
+  -- Lãnh đạo cấp Sở: phogiamdocso soạn, giamdocso duyệt mục tiêu của Sở để mục tiêu cấp phòng chọn được mục tiêu
+  -- cấp trên đã duyệt (HT-08, HT-09; infra/dev/scripts/seed-okr-mau.py).
+  ('d0000000-0000-4000-8000-000000000312', 'giamdocso', 'Đặng Văn Giám Đốc',
+   'd0000000-0000-4000-8000-000000000100', 'd0000000-0000-4000-8000-000000000201'),
+  ('d0000000-0000-4000-8000-000000000313', 'phogiamdocso', 'Hà Thị Phó Giám Đốc',
+   'd0000000-0000-4000-8000-000000000100', 'd0000000-0000-4000-8000-000000000205');
 
 INSERT INTO org.person (version_id, id, tenant_id, full_name, employment_status, valid_from, created_by, updated_by)
 SELECT md5('person:' || p.id)::uuid, p.id, 'd0000000-0000-4000-8000-000000000001'::uuid, p.full_name, 'DANG_CONG_TAC', '2000-01-01'::date, '00000000-0000-0000-0000-000000000000'::uuid, '00000000-0000-0000-0000-000000000000'::uuid

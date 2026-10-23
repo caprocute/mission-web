@@ -23,5 +23,8 @@ public interface SyncRunStore {
 
   void finish(UUID id, String status, int deadLetters, String reason, Actor actor);
 
+  /** Các lần chạy cùng một lệnh "Đồng bộ ngay" với {@code id}: cùng người gọi, cùng thời điểm bắt đầu (một giao dịch). */
+  List<Run> startedTogether(UUID id);
+
   List<Run> page(String connector, OffsetDateTime beforeStarted, UUID beforeId, int limit);
 }

@@ -51,6 +51,13 @@ public class SyncRunService {
   public record Started(List<UUID> runIds) {
   }
 
+  /**
+   * Tác vụ nền {@code Job} của một lệnh "Đồng bộ ngay" (hoặc chạy lại), mã theo lần chạy đầu tiên: còn lần chạy
+   * {@code DANG_CHAY} thì đang chạy; xong mà có nguồn thành công thì hoàn tất, mọi nguồn lỗi thì thất bại.
+   */
+  public record SyncJobView(UUID id, String status, int progress, String message, OffsetDateTime updatedAt) {
+  }
+
   private final SyncRunStore runs;
   private final SyncScheduleStore schedules;
   private final IntegrationGatewayPort gateway;
@@ -93,6 +100,50 @@ public class SyncRunService {
     Started result = new Started(ids);
     idempotency.complete(actor, idem, 202, result, ids.getFirst().toString());
     return result;
+  }
+
+  /** {@code GET /api/v1/jobs/org-{id}} cho lệnh đồng bộ; rỗng khi {@code id} không phải lần đồng bộ của tenant. */
+  @Transactional(readOnly = true)
+  public Optional<SyncJobView> job(Actor actor, UUID id) {
+    List<Run> group = runs.startedTogether(id);
+    if (group.isEmpty()) {
+      return Optional.empty();
+    }
+    policy.authorize(actor, "listOrgSyncRuns");
+    int total = group.size();
+    int done = 0;
+    int ok = 0;
+    int records = 0;
+    int changes = 0;
+    OffsetDateTime updated = null;
+    List<String> reasons = new ArrayList<>();
+    for (Run r : group) {
+      OffsetDateTime at = r.finishedAt() == null ? r.startedAt() : r.finishedAt();
+      updated = updated == null || at.isAfter(updated) ? at : updated;
+      if ("DANG_CHAY".equals(r.status())) {
+        continue;
+      }
+      done++;
+      if ("LOI".equals(r.status())) {
+        if (r.reason() != null && !reasons.contains(r.reason())) {
+          reasons.add(r.reason());
+        }
+      } else {
+        ok++;
+        records += r.records();
+        changes += r.changes();
+      }
+    }
+    if (done < total) {
+      return Optional.of(new SyncJobView(id, "DANG_CHAY", done * 100 / total,
+          "Đang đồng bộ " + (total - done) + "/" + total + " nguồn.", updated));
+    }
+    if (ok == 0) {
+      return Optional.of(new SyncJobView(id, "THAT_BAI", 100, String.join(" ", reasons), updated));
+    }
+    String message = "Đã đồng bộ " + ok + "/" + total + " nguồn: " + records + " bản ghi, " + changes + " thay đổi."
+        + (ok < total ? " Có " + (total - ok) + " nguồn chưa đồng bộ được, xem lý do trong danh sách lần đồng bộ." : "");
+    return Optional.of(new SyncJobView(id, "HOAN_TAT", 100, message, updated));
   }
 
   @Transactional(readOnly = true)

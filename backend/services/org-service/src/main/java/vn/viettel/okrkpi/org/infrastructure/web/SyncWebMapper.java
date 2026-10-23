@@ -1,5 +1,6 @@
 package vn.viettel.okrkpi.org.infrastructure.web;
 
+import java.net.URI;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
@@ -8,6 +9,7 @@ import vn.viettel.okrkpi.org.application.port.SyncScheduleStore.Schedule;
 import vn.viettel.okrkpi.org.application.sync.DiscrepancyPage;
 import vn.viettel.okrkpi.org.application.sync.DiscrepancyView;
 import vn.viettel.okrkpi.org.application.sync.ResolveResult;
+import vn.viettel.okrkpi.org.application.sync.SyncRunService.SyncJobView;
 import vn.viettel.okrkpi.org.infrastructure.web.model.DiscrepancyResolution;
 import vn.viettel.okrkpi.org.infrastructure.web.model.DiscrepancySeverity;
 import vn.viettel.okrkpi.org.infrastructure.web.model.GetMyOrgProfile401Response;
@@ -116,14 +118,40 @@ final class SyncWebMapper {
   }
 
   /** Phản hồi 202 dạng {@code Job}: tác vụ đồng bộ theo dõi ở danh sách lần chạy. */
+  /** Đường dẫn {@code Location} của tác vụ đồng bộ theo hợp đồng {@code Accepted}: {@code /api/v1/jobs/org-…}. */
+  static URI jobLocation(UUID id) {
+    return URI.create("/api/v1/jobs/" + JobWebMapper.jobId(id));
+  }
+
   static ImportOrgExcel202Response job(UUID id, String status) {
     ImportOrgExcel202Response job = new ImportOrgExcel202Response();
-    job.setId(id.toString());
+    job.setId(JobWebMapper.jobId(id));
     job.setType("ORG_SYNC");
     job.setStatus(ImportOrgExcel202Response.StatusEnum.fromValue(status));
     job.setProgress(0);
     job.setResultLocation("/api/v1/org/sync-runs");
     job.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+    return job;
+  }
+
+  static ImportOrgExcel202Response toJob(SyncJobView v) {
+    ImportOrgExcel202Response job = new ImportOrgExcel202Response();
+    job.setId(JobWebMapper.jobId(v.id()));
+    job.setType("ORG_SYNC");
+    job.setStatus(ImportOrgExcel202Response.StatusEnum.fromValue(v.status()));
+    job.setProgress(v.progress());
+    job.setMessage(v.message());
+    job.setUpdatedAt(v.updatedAt());
+    job.setResultLocation("/api/v1/org/sync-runs");
+    if ("THAT_BAI".equals(v.status())) {
+      GetMyOrgProfile401Response p = new GetMyOrgProfile401Response();
+      p.setType("https://okrkpi.vn/problems/sync-failed");
+      p.setTitle("Chưa đồng bộ được dữ liệu nhân sự");
+      p.setStatus(502);
+      p.setCode("ORG-502-SYNC-FAILED");
+      p.setDetail(v.message());
+      job.setProblem(p);
+    }
     return job;
   }
 }

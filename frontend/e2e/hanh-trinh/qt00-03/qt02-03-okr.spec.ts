@@ -35,14 +35,16 @@ async function soanVaTrinh(page: Page, ten: string, kr: (i: number) => string): 
   const capTren = m.getByRole('combobox', { name: 'Chọn mục tiêu cấp trên' });
   if (await capTren.isVisible()) {
     if (HE_THONG) {
-      // Kỳ thử của hệ thống thật chưa chắc có mục tiêu đã duyệt của đơn vị cấp trên (dev không có tài khoản thử
-      // ở Sở để lập sẵn), khi đó danh sách chỉ có dòng báo trống
+      // Kỳ thử của hệ thống thật chưa chắc có mục tiêu đã duyệt của đơn vị cấp trên (lập sẵn bằng
+      // infra/dev/scripts/seed-okr-mau.py), khi đó danh sách chỉ có dòng báo trống
       await capTren.click();
       const ds2 = page.getByRole('listbox');
       await expect(ds2.getByRole('option').first()).toBeVisible();
       if ((await ds2.getByRole('option', { name: /No results found|Không có/ }).count()) > 0)
         cho('kỳ thử chưa có mục tiêu đã duyệt của đơn vị cấp trên để chọn làm mục tiêu cấp trên');
       await page.keyboard.press('Escape');
+      // Chờ danh sách đóng hẳn: `chon` gặp danh sách đang đóng dở sẽ bấm vào mục đã bị gỡ khỏi trang
+      await expect(ds2).toBeHidden();
     }
     await chon(page, capTren);
   }
@@ -179,8 +181,11 @@ test.describe('QT-02 QT-03 Mục tiêu, OKR và check-in', { tag: '@qa-04' }, ()
           query: { limit: '1' },
         });
         if (!ds.body.items.length) cho('chưa có mục tiêu nào trên dev để thử phê duyệt trái quyền');
+        // Gửi đúng If-Match để máy chủ đi tới bước kiểm quyền (thiếu If-Match bị chặn 428 trước)
+        const mt = await c.can('GET', `okr/objectives/${ds.body.items[0].id}`);
         const kq = await c.goi('POST', `okr/objectives/${ds.body.items[0].id}/approve`, {
           body: {},
+          ifMatch: mt.etag,
         });
         expect(kq.status).toBe(403);
         await c.dong();

@@ -76,6 +76,9 @@ class OrgServicePersonnelSink implements PersonnelSink {
           HttpRequest.newBuilder(URI.create(baseUrl + PATH.formatted(runId)))
               .timeout(timeout)
               .header("Content-Type", "application/json")
+              // Token client credentials không mang claim tenant: org-service đọc tenant đích ở
+              // X-Tenant-Id cho client integration-gateway (okrkpi.tenant.delegating-clients).
+              .header("X-Tenant-Id", tenant.value().toString())
               .POST(HttpRequest.BodyPublishers.ofByteArray(json.writeValueAsBytes(body)));
       if (token.enabled()) {
         req.header("Authorization", "Bearer " + token.bearer());
