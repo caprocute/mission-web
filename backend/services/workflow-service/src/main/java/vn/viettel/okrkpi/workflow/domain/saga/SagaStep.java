@@ -92,6 +92,17 @@ public final class SagaStep {
     finishedAt = now;
   }
 
+  /** Bước có lệnh đang bay được bù trừ như bước đã xong (bù trừ phải idempotent). */
+  void restartWaiting(Instant now) {
+    startedAt = now;
+    lastError = null;
+  }
+
+  void markInFlightForCompensation() {
+    status = SagaStepStatus.XONG;
+    lastError = null;
+  }
+
   void prepareCompensation() {
     attempts = 0;
     lastError = null;

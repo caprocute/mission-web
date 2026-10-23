@@ -190,6 +190,12 @@
       <artifactId>vt-platform-starter</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <!-- DL-12: khung job đối soát R1–R7 (băm bucket, reconcile_run, chỉ số, đếm Kafka). -->
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-reconcile</artifactId>
+      <version>${project.version}</version>
+    </dependency>
 
     <dependency>
       <groupId>com.tngtech.archunit</groupId>

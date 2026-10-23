@@ -55,7 +55,9 @@ import vn.viettel.okrkpi.appraisal.application.profile.port.AppraisalStepEvents;
 import vn.viettel.okrkpi.config.api.RoleHolderApi;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
+import vn.viettel.okrkpi.oversight.application.complaint.ComplaintResolutionService;
 import vn.viettel.okrkpi.oversight.application.complaint.ComplaintService;
+import vn.viettel.okrkpi.oversight.application.port.ComplaintResponseSigner;
 import vn.viettel.okrkpi.oversight.application.port.ComplaintSealer;
 import vn.viettel.okrkpi.oversight.application.port.ComplaintSigner;
 import vn.viettel.okrkpi.oversight.infrastructure.persistence.FieldEncryptorComplaintSealer;
@@ -77,7 +79,8 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
  * {@code _enc} không chứa bản rõ; gửi thiếu AAL2 401; gửi thiếu cấu phần 422 {@code
  * OVERSIGHT-422-NO-TARGET}; gửi 202 chỉ mở yêu cầu ký, hồ sơ vẫn {@code DA_KY_SO}; cổng tài liệu
  * ký; hai EVT-18 đồng thời chỉ một lần chuyển hồ sơ {@code KHIEU_NAI} và đúng một EVT-25; gửi lại
- * 409.
+ * 409. CORE-07-04: yêu cầu và nộp giải trình, kết luận có điều chỉnh trên kỳ đã khoá tạo yêu cầu mở
+ * lại kỳ, ký văn bản trả lời 202 và EVT-18 chuyển {@code DANG_THI_HANH}.
  */
 @SpringBootTest(
     classes = MissionCoreApplication.class,
@@ -174,6 +177,32 @@ class ComplaintApiIT extends ContractConformanceTest {
     }
 
     @Bean
+    ComplaintResponseSigner complaintTestResponseSigner(
+        ObjectProvider<ComplaintResolutionService> resolutions) {
+      return (tenant, id, key, authorization) -> {
+        // Như SVC-10 thật: hỏi tài liệu cần ký trên luồng và kết nối khác ngay trong lời gọi.
+        try {
+          CompletableFuture.supplyAsync(
+                  () -> {
+                    try {
+                      return TenantContext.call(
+                          tenant,
+                          () -> resolutions.getObject().responseSource(tenant, id).orElseThrow());
+                    } catch (Exception e) {
+                      throw new IllegalStateException(e);
+                    }
+                  })
+              .get(30, TimeUnit.SECONDS);
+        } catch (Exception e) {
+          throw new IllegalStateException("Văn bản trả lời cần ký chưa sẵn sàng", e);
+        }
+        UUID sign = UUID.randomUUID();
+        SIGNED.add(sign);
+        return sign;
+      };
+    }
+
+    @Bean
     @Primary
     ComplaintSealer complaintTestSealer() {
       DekService deks = Mockito.mock(DekService.class);
@@ -217,6 +246,7 @@ class ComplaintApiIT extends ContractConformanceTest {
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper json;
   @Autowired private ComplaintService complaints;
+  @Autowired private ComplaintResolutionService resolution;
 
   @Autowired
   @Qualifier("oversightDataSource") private DataSource oversightDataSource;
@@ -457,6 +487,190 @@ class ComplaintApiIT extends ContractConformanceTest {
     assertThat(outbox("notify.message.requested.v1")).isEqualTo(5);
   }
 
+  @Test
+  void giaiTrinhKetLuanVaKyTraLoi() throws Exception {
+    seed();
+    UUID handler = UUID.randomUUID();
+    UUID witness = UUID.randomUUID();
+    UUID decider = UUID.randomUUID();
+    Beans.APPRAISERS.put(unit, List.of(handler));
+    String id = fileFresh();
+    as(handler, "appraiser");
+    MvcResult accepted = perform(write(post(BASE + "/" + id + "/accept"), "{}", etag(id)));
+    assertThat(status(accepted)).as(text(accepted)).isEqualTo(200);
+
+    // Yêu cầu một người giải trình: DANG_GIAI_TRINH.
+    String due = LocalDate.now().plusDays(5).toString();
+    MvcResult requested =
+        perform(
+            write(
+                post(BASE + "/" + id + "/explanation-requests"),
+                json.writeValueAsString(
+                    Map.of(
+                        "parties",
+                        List.of(Map.of("kind", "NGUOI", "id", witness.toString())),
+                        "content",
+                        "Đề nghị giải trình căn cứ trừ hệ số chất lượng.",
+                        "dueDate",
+                        due)),
+                etag(id)));
+    assertThat(status(requested)).as(text(requested)).isEqualTo(200);
+    assertResponseConforms(
+        requested, "/oversight/complaints/{id}/explanation-requests", PathItem.HttpMethod.POST);
+    assertThat(body(requested).get("status").asText()).isEqualTo("DANG_GIAI_TRINH");
+
+    // Người được yêu cầu nộp giải trình: 201, mọi yêu cầu đã trả lời nên CHO_KET_LUAN.
+    as(witness, "member");
+    MvcResult mine = perform(get(BASE + "/" + id + "/responses"));
+    assertThat(status(mine)).as(text(mine)).isEqualTo(200);
+    String requestId = body(mine).at("/items/0/id").asText();
+    MvcResult explained =
+        perform(
+            write(
+                post(BASE + "/" + id + "/explanations"),
+                json.writeValueAsString(
+                    Map.of("requestId", requestId, "content", "Hồ sơ đầu vào gửi muộn 6 ngày.")),
+                etag(id)));
+    assertThat(status(explained)).as(text(explained)).isEqualTo(201);
+    assertResponseConforms(
+        explained, "/oversight/complaints/{id}/explanations", PathItem.HttpMethod.POST);
+    assertThat(statusOf(id)).isEqualTo("CHO_KET_LUAN");
+
+    as(handler, "appraiser");
+    MvcResult all = perform(get(BASE + "/" + id + "/responses?limit=1"));
+    assertThat(status(all)).as(text(all)).isEqualTo(200);
+    assertResponseConforms(all, "/oversight/complaints/{id}/responses", PathItem.HttpMethod.GET);
+    assertThat(body(all).get("items")).hasSize(1);
+    String next = body(all).get("nextCursor").asText();
+    MvcResult page2 = perform(get(BASE + "/" + id + "/responses?limit=1&cursor=" + next));
+    assertThat(body(page2).at("/items/0/recordKind").asText()).isEqualTo("GIAI_TRINH");
+    assertThat(body(page2).at("/items/0/content").asText())
+        .isEqualTo("Hồ sơ đầu vào gửi muộn 6 ngày.");
+
+    // Kết luận có điều chỉnh trên kỳ đã khoá: tạo yêu cầu mở lại kỳ, không sửa hồ sơ.
+    Map<String, Object> conclusion = new LinkedHashMap<>();
+    conclusion.put("outcome", "CHAP_NHAN_MOT_PHAN");
+    conclusion.put(
+        "adjustments",
+        List.of(
+            Map.of(
+                "targetKey",
+                "TONG_DIEM",
+                "oldValue",
+                91.2,
+                "newValue",
+                93,
+                "reason",
+                "Có công văn xác nhận hồ sơ đầu vào gửi muộn.")));
+    conclusion.put("responseText", "Chấp nhận một phần nội dung khiếu nại.");
+    conclusion.put("responseDocRef", "45/TB-UBKT");
+    MvcResult concluded =
+        perform(
+            write(
+                put(BASE + "/" + id + "/conclusion"),
+                json.writeValueAsString(conclusion),
+                etag(id)));
+    assertThat(status(concluded)).as(text(concluded)).isEqualTo(200);
+    assertResponseConforms(
+        concluded, "/oversight/complaints/{id}/conclusion", PathItem.HttpMethod.PUT);
+    JsonNode k = body(concluded);
+    assertThat(k.at("/conclusion/periodLocked").asBoolean()).isTrue();
+    assertThat(k.at("/conclusion/adjustments/0/newValue").decimalValue())
+        .isEqualByComparingTo("93");
+    assertThat(k.get("reopenRequestId").asText()).isNotBlank();
+    assertThat(reopenBasis(k.get("reopenRequestId").asText())).isEqualTo("KHIEU_NAI:" + id);
+    assertThat(profileStatus(fresh)).isEqualTo("KHIEU_NAI");
+
+    // Người xử lý không tự ký; người có thẩm quyền ký 202.
+    as(handler, "decider");
+    MvcResult self = perform(write(post(BASE + "/" + id + "/respond"), "{}", etag(id)));
+    assertThat(status(self)).as(text(self)).isEqualTo(403);
+    as(decider, "decider");
+    int before = Beans.SIGNED.size();
+    MvcResult responded = perform(write(post(BASE + "/" + id + "/respond"), "{}", etag(id)));
+    assertThat(status(responded)).as(text(responded)).isEqualTo(202);
+    assertResponseConforms(
+        responded, "/oversight/complaints/{id}/respond", PathItem.HttpMethod.POST);
+    UUID sign = Beans.SIGNED.get(before);
+    MvcResult source =
+        perform(get("/internal/v1/esign-sources/oversight/" + id + "?purpose=TRA_LOI_KHIEU_NAI"));
+    assertThat(status(source)).as(text(source)).isEqualTo(200);
+    assertThat(body(source).at("/signers/0").asText()).isEqualTo(decider.toString());
+
+    // EVT-18: DA_TRA_LOI rồi DANG_THI_HANH vì có điều chỉnh; lặp lại bỏ qua.
+    assertThat(responseSigned(sign)).isTrue();
+    assertThat(responseSigned(sign)).isFalse();
+    assertThat(statusOf(id)).isEqualTo("DANG_THI_HANH");
+    as(person, "member");
+    MvcResult owner = perform(get(BASE + "/" + id));
+    assertThat(status(owner)).as(text(owner)).isEqualTo(200);
+    assertResponseConforms(owner, "/oversight/complaints/{id}", PathItem.HttpMethod.GET);
+    assertThat(body(owner).get("outcome").asText()).isEqualTo("DIEU_CHINH");
+    MvcResult ownerRecords = perform(get(BASE + "/" + id + "/responses"));
+    assertThat(body(ownerRecords).get("items")).hasSize(1);
+    assertThat(body(ownerRecords).at("/items/0/recordKind").asText()).isEqualTo("KET_LUAN");
+    assertThat(body(ownerRecords).at("/items/0/content").asText())
+        .isEqualTo("Chấp nhận một phần nội dung khiếu nại.");
+    assertThat(plaintextStored(UUID.fromString(id))).isFalse();
+
+    // CORE-07-05: đang thi hành thì không bảo lưu; gợi ý trùng theo hợp đồng.
+    MvcResult reserved =
+        perform(
+            write(
+                post(BASE + "/" + id + "/reserve"),
+                json.writeValueAsString(Map.of("opinion", "Tôi bảo lưu ý kiến.")),
+                etag(id)));
+    assertThat(status(reserved)).as(text(reserved)).isEqualTo(409);
+    as(handler, "appraiser");
+    MvcResult dup = perform(get(BASE + "/" + id + "/duplicate-candidates"));
+    assertThat(status(dup)).as(text(dup)).isEqualTo(200);
+    assertResponseConforms(
+        dup, "/oversight/complaints/{id}/duplicate-candidates", PathItem.HttpMethod.GET);
+
+    // Mở lại kỳ đã thực hiện và khoá lại: tác vụ đóng khiếu nại, chạy lại không đóng lần hai.
+    in(
+        oversightDataSource,
+        oversightTm,
+        jdbc ->
+            jdbc.sql(
+                    "UPDATE oversight.reopen_request SET status = 'DA_THUC_HIEN', executed_at = now(),"
+                        + " relocked_at ="
+                        + " now() WHERE id = ?")
+                .params(UUID.fromString(k.get("reopenRequestId").asText()))
+                .update());
+    assertThat(TenantContext.call(tenant, () -> resolution.closeDue(tenant, 50))).isEqualTo(1);
+    assertThat(TenantContext.call(tenant, () -> resolution.closeDue(tenant, 50))).isZero();
+    assertThat(statusOf(id)).isEqualTo("DONG");
+    assertThat(profileStatus(fresh)).isEqualTo("DA_KY_SO");
+  }
+
+  private boolean responseSigned(UUID signRequest) throws Exception {
+    return TenantContext.call(
+        tenant, () -> resolution.onResponseSigned(tenant, signRequest, Instant.now()));
+  }
+
+  private String statusOf(String id) throws Exception {
+    return in(
+        oversightDataSource,
+        oversightTm,
+        jdbc ->
+            jdbc.sql("SELECT status FROM oversight.complaint WHERE id = ?")
+                .params(UUID.fromString(id))
+                .query(String.class)
+                .single());
+  }
+
+  private String reopenBasis(String reopenId) throws Exception {
+    return in(
+        oversightDataSource,
+        oversightTm,
+        jdbc ->
+            jdbc.sql("SELECT basis_ref FROM oversight.reopen_request WHERE id = ?")
+                .params(UUID.fromString(reopenId))
+                .query(String.class)
+                .single());
+  }
+
   /** Lưu nháp có cấu phần, gửi và nhận EVT-18: khiếu nại MOI. */
   private String fileFresh() throws Exception {
     as(person, "member");
@@ -618,10 +832,12 @@ class ComplaintApiIT extends ContractConformanceTest {
         oversightDataSource,
         oversightTm,
         jdbc -> {
-          jdbc.sql("SELECT oversight.fn_create_period_partitions(?::regclass, ?)")
-              .params("oversight.complaint", BUCKET)
-              .query()
-              .listOfRows();
+          for (String t : List.of("complaint", "complaint_response", "reopen_request")) {
+            jdbc.sql("SELECT oversight.fn_create_period_partitions(?::regclass, ?)")
+                .params("oversight." + t, BUCKET)
+                .query()
+                .listOfRows();
+          }
           return null;
         });
     in(

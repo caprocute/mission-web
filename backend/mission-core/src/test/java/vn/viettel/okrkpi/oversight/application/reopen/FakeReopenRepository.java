@@ -67,6 +67,18 @@ final class FakeReopenRepository implements ReopenRequestRepository {
   }
 
   @Override
+  public boolean relocked(
+      TenantId tenant, ReopenRequest r, java.time.Instant at, int expected, UUID actorId) {
+    ReopenRequest current = rows.get(r.id());
+    if (current == null || current.rowVersion() != expected) {
+      return false;
+    }
+    writes++;
+    rows.put(r.id(), current.relocked(at, expected + 1));
+    return true;
+  }
+
+  @Override
   public void insertApproval(TenantId tenant, ReopenRequest request, Approval approval) {
     approvals.computeIfAbsent(request.id(), k -> new ArrayList<>()).add(approval);
   }

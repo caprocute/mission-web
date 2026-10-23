@@ -43,8 +43,8 @@ public class JdbcTemplateRepository implements TemplateRepository {
             """
             INSERT INTO docgen.template
               (id, tenant_id, form_code, version_no, subject_group_codes, object_key, content_sha256,
-               status, created_by, updated_by)
-            VALUES (?, ?, ?, ?, ?::varchar(16)[], ?, ?, ?, ?, ?)
+               status, created_by, updated_by, manifest_key, manifest_sha256)
+            VALUES (?, ?, ?, ?, ?::varchar(16)[], ?, ?, ?, ?, ?, ?, ?)
             """)
         .param(t.id())
         .param(t.tenantId())
@@ -59,6 +59,8 @@ public class JdbcTemplateRepository implements TemplateRepository {
         .param(t.status().name())
         .param(actor)
         .param(actor)
+        .param(t.manifestKey())
+        .param(t.manifestSha256())
         .update();
   }
 
@@ -73,6 +75,8 @@ public class JdbcTemplateRepository implements TemplateRepository {
         codes,
         rs.getString("object_key"),
         rs.getBytes("content_sha256"),
-        TemplateStatus.valueOf(rs.getString("status")));
+        TemplateStatus.valueOf(rs.getString("status")),
+        rs.getString("manifest_key"),
+        rs.getBytes("manifest_sha256"));
   }
 }

@@ -165,8 +165,10 @@ describe('mock policies – SCR-1501, SCR-1502 (WEB-045)', () => {
       ),
     );
     expect(early['code']).toBe('POLICY-409-NOT-TESTED');
-    const job = await firstValueFrom(api.runTests(ref, v.etag));
+    const { job, location } = await firstValueFrom(api.runTests(ref, v.etag));
     expect(job.id).toBeTruthy();
+    // WEB-072: Location trỏ tới job chung theo jobs.yaml để JobTracker theo dõi
+    expect(location).toBe(`/api/v1/jobs/${job.id}`);
     expect((await firstValueFrom(api.testRuns(ref))).items[0].result).toBe('DANG_CHAY');
     expect((await firstValueFrom(api.testRuns(ref))).items[0].result).toBe('DAT');
     v = await firstValueFrom(api.version(ref));
@@ -259,8 +261,9 @@ describe('mock policies – SCR-1503, SCR-1504 (WEB-046)', () => {
       422,
     );
     mockStepUp();
-    const job = await firstValueFrom(api.approve(ref, v.etag, { comment: 'Đồng ý' }));
+    const { job, location } = await firstValueFrom(api.approve(ref, v.etag, { comment: 'Đồng ý' }));
     expect(job.type).toBe('POLICY_PUBLISH');
+    expect(location).toBe(`/api/v1/jobs/${job.id}`);
     v = await firstValueFrom(api.version(ref));
     v = await firstValueFrom(api.version(ref));
     expect(v.value.status).toBe('DA_PHAT_HANH');

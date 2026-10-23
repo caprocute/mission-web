@@ -13,6 +13,7 @@ import {
   UiPackVersionUpdate,
   UiSduiNode,
 } from '../../lib/models/ui-pack';
+import { startMockJob } from '../mock-jobs';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 import { MOCK_ME, mockSession } from '../mock-session';
 import formsFixture from '../ui-forms/ui-forms.json';
@@ -566,13 +567,14 @@ function createVersion(r: MockRequest): MockResponse {
   return { status: 201, body: structuredClone(v), headers: etag(1) };
 }
 
-function job(type: string): MockResponse {
-  const id = uuid(8500 + Math.floor(Math.random() * 9000));
-  return {
-    status: 202,
-    body: { id, type, status: 'DANG_CHAY', progress: 10 },
-    headers: { Location: `/api/v1/jobs/${id}` },
-  };
+/** 202 + `Location` của job dùng chung; job xong thì bước nền của phiên bản cũng xong. */
+function job(type: string, v: Ver): MockResponse {
+  return startMockJob(type, () => {
+    const p = state.pending.get(v.version);
+    if (!p) return;
+    p.left = 1;
+    settle(v);
+  });
 }
 
 function submit(r: MockRequest): MockResponse {
@@ -584,7 +586,7 @@ function submit(r: MockRequest): MockResponse {
   v.status = 'DANG_KIEM_TRA';
   v.rowVersion++;
   state.pending.set(v.version, { left: 2, to: 'CHECK' });
-  return job('TEST_RUN');
+  return job('TEST_RUN', v);
 }
 
 function publish(r: MockRequest): MockResponse {
@@ -615,7 +617,7 @@ function publish(r: MockRequest): MockResponse {
     return res;
   }
   state.pending.set(v.version, { left: 2, to: 'PUBLISH' });
-  return job('RENDER');
+  return job('RENDER', v);
 }
 
 function reject(r: MockRequest): MockResponse {

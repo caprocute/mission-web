@@ -57,6 +57,10 @@ class OversightTenantIsolationIT extends TenantIsolationCatalogTest {
           Map<String, Object> r = periodRow(tenant, "complaint_response");
           r.put("complaint_id", id(tenant, "complaint"));
           r.put("record_kind", "YEU_CAU");
+          // V6: yêu cầu giải trình phải có bên được yêu cầu và hạn giải trình.
+          r.put("party_kind", "NGUOI");
+          r.put("party_id", id(tenant, "party"));
+          r.put("due_date", java.sql.Date.valueOf("2027-02-01"));
           r.put("responder_id", id(tenant, "responder"));
           r.put("response_enc", new byte[] {2});
           r.put("dek_id", id(tenant, "dek"));
@@ -81,6 +85,15 @@ class OversightTenantIsolationIT extends TenantIsolationCatalogTest {
           r.put("mfa_acr", "aal2");
           r.put("decided_at", AT);
           r.put("sign_request_id", id(tenant, "sign"));
+          return r;
+        });
+    f.put(
+        "oversight.reopen_progress",
+        (tenant, seed) -> {
+          Map<String, Object> r = periodRow(tenant, "reopen_progress");
+          r.put("reopen_request_id", id(tenant, "reopen_request"));
+          r.put("profile_id", id(tenant, "profile-" + seed));
+          r.put("forms_json", jsonb("{}"));
           return r;
         });
     f.put(

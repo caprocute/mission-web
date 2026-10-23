@@ -11,6 +11,7 @@ import vn.viettel.okrkpi.scoring.application.port.ScoreResultStore;
 import vn.viettel.okrkpi.scoring.domain.ComputedScore;
 import vn.viettel.okrkpi.scoring.domain.ScoreBatch;
 import vn.viettel.okrkpi.scoring.domain.ScoreJob;
+import vn.viettel.okrkpi.scoring.domain.ScoreJobKind;
 import vn.viettel.okrkpi.scoring.domain.ScoreStatus;
 
 /**
@@ -38,18 +39,21 @@ public class ScoreRecorder {
 
   /**
    * Ghi một lô. Kết quả trùng kết quả mới nhất của hồ sơ ở băm đầu vào và băm gói thì không ghi và
-   * không phát EVT-10 (tính lại luỹ đẳng), nhưng vẫn tính vào tiến độ tác vụ.
+   * không phát EVT-10 (tính lại luỹ đẳng), nhưng vẫn tính vào tiến độ tác vụ. Lô của tác vụ {@code
+   * KIEM_TRA_TAI_LAP} luôn được ghi để DL-12 R4 so {@code result_hash} với kết quả gốc, và không
+   * phát EVT-10 vì không phải ảnh chụp mới (DV-07-06).
    *
    * @return số tập đầu vào mới ghi
    */
   @Transactional
   public int record(ScoreBatch batch) {
-    Set<UUID> unchanged = results.unchanged(batch);
+    boolean recheck = batch.jobKind() == ScoreJobKind.KIEM_TRA_TAI_LAP;
+    Set<UUID> unchanged = recheck ? Set.of() : results.unchanged(batch);
     List<ComputedScore> fresh =
         batch.items().stream().filter(s -> !unchanged.contains(s.resultId())).toList();
     int newInputs = 0;
     if (!fresh.isEmpty()) {
-      newInputs = append(batch.withItems(fresh));
+      newInputs = append(batch.withItems(fresh), !recheck);
     }
     jobs.progress(
         batch.tenantId(),
@@ -61,9 +65,9 @@ public class ScoreRecorder {
     return newInputs;
   }
 
-  private int append(ScoreBatch batch) {
+  private int append(ScoreBatch batch, boolean publish) {
     ScoreResultStore.Appended appended = results.append(batch);
-    for (ComputedScore score : batch.items()) {
+    for (ComputedScore score : publish ? batch.items() : List.<ComputedScore>of()) {
       if (score.status() == ScoreStatus.OK) {
         Long version = appended.versions().get(score.resultId());
         if (version == null) {

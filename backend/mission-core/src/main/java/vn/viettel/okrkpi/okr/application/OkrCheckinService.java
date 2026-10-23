@@ -91,7 +91,26 @@ public class OkrCheckinService {
       String highlights,
       String blockerNote,
       String channel,
-      boolean confirmLargeChange) {}
+      boolean confirmLargeChange) {
+
+    /** Bản sao với giá trị nguồn máy chủ tin cậy ({@code null} là nhập tay, CORE-01-10). */
+    public CheckinCommand withSource(BigDecimal value, Instant fetchedAt) {
+      return new CheckinCommand(
+          status,
+          this.value,
+          confidence,
+          value,
+          value == null ? null : fetchedAt,
+          overrideReason,
+          highlights,
+          blockerNote,
+          channel,
+          confirmLargeChange);
+    }
+  }
+
+  /** KR có nguồn số liệu mà người gọi được check-in (CORE-01-10). */
+  public record SourceTarget(UUID keyResultId, String dataSource) {}
 
   /** Check-in vừa ghi kèm KR, mục tiêu sau khi tính lại (MSG-03-01). */
   public record CheckinOutcome(CheckinRow checkin, CheckinTarget keyResult, boolean onBehalf) {}
@@ -112,6 +131,19 @@ public class OkrCheckinService {
       return saveDraft(tenant, actor, target, cmd, onBehalf);
     }
     return submit(tenant, actor, target, idempotencyKey, cmd, onBehalf);
+  }
+
+  /**
+   * KR và nguồn số liệu để lấy giá trị gợi ý (CORE-01-10): cùng quyền với check-in (chủ sở hữu hoặc
+   * người được uỷ quyền); rỗng khi KR không gắn nguồn. Chỉ đọc CSDL, lời gọi nguồn nằm ngoài.
+   */
+  @Transactional(transactionManager = TX, readOnly = true)
+  public Optional<SourceTarget> sourceTarget(TenantId tenant, UUID actor, UUID keyResultId) {
+    CheckinTarget target = repository.target(tenant, keyResultId).orElseThrow(NotFound::new);
+    requireCheckinRight(tenant, actor, target);
+    return repository
+        .dataSource(tenant, keyResultId)
+        .map(source -> new SourceTarget(keyResultId, source));
   }
 
   /**
@@ -317,10 +349,11 @@ public class OkrCheckinService {
         && cmd.value() != null
         && cmd.sourceValue().compareTo(cmd.value()) != 0
         && blank(cmd.overrideReason())) {
-      // Ràng buộc ck_kr_checkin__override_reason; thông điệp đầy đủ MSG-03-04 thuộc CORE-01-10.
+      // BR-03-04, ràng buộc ck_kr_checkin__override_reason; MSG-03-04 kèm tên nguồn.
+      String source = repository.dataSource(tenant, target.keyResultId()).orElse("nguồn");
       throw new BusinessException(
           MODULE + "-422-OVERRIDE-REASON-REQUIRED",
-          "Vui lòng ghi lý do khi thay đổi số liệu lấy từ nguồn.",
+          "Vui lòng ghi lý do khi thay đổi số liệu lấy từ " + source + ".",
           List.of(field("overrideReason", "Ghi lý do thay đổi số liệu")));
     }
     if (errors.isEmpty()

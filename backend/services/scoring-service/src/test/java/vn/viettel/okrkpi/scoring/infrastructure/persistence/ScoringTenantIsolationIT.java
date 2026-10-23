@@ -11,8 +11,9 @@ import org.postgresql.util.PGobject;
 import vn.viettel.okrkpi.platform.db.migration.TenantIsolationCatalogTest;
 
 /**
- * Schema {@code scoring} (DV-07-01) ở CSDL pool: RLS và FORCE trên bốn bảng và các bảng kỹ thuật
- * dùng chung, cô lập hai tenant, phân vùng con chặn truy cập trực tiếp và đủ 16 phân vùng băm.
+ * Schema {@code scoring} (DV-07-01) ở CSDL pool: RLS và FORCE trên sáu bảng (gồm hàng đợi lô và
+ * hàng đợi lỗi của DV-07-06) và các bảng kỹ thuật dùng chung, cô lập hai tenant, phân vùng con chặn
+ * truy cập trực tiếp và đủ 16 phân vùng băm.
  */
 class ScoringTenantIsolationIT extends TenantIsolationCatalogTest {
 
@@ -75,6 +76,28 @@ class ScoringTenantIsolationIT extends TenantIsolationCatalogTest {
           r.put("rule_code", "BR-09-01");
           r.put("inputs", jsonb("{}"));
           r.put("output", jsonb("{}"));
+          return r;
+        });
+    f.put(
+        "scoring.score_job_chunk",
+        (tenant, seed) -> {
+          Map<String, Object> r = new LinkedHashMap<>();
+          r.put("id", id(tenant, "score_job_chunk"));
+          r.put("period_bucket", SAMPLE_PERIOD_BUCKET);
+          r.put("score_job_id", id(tenant, "score_job"));
+          r.put("seq", seed);
+          return r;
+        });
+    f.put(
+        "scoring.score_job_error",
+        (tenant, seed) -> {
+          Map<String, Object> r = new LinkedHashMap<>();
+          r.put("id", id(tenant, "score_job_error"));
+          r.put("period_bucket", SAMPLE_PERIOD_BUCKET);
+          r.put("score_job_id", id(tenant, "score_job"));
+          r.put("chunk_seq", seed);
+          r.put("reason_code", "DOC_DAU_VAO_LOI");
+          r.put("attempts", 3);
           return r;
         });
     return f;

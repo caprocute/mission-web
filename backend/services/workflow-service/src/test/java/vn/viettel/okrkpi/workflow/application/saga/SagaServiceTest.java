@@ -43,6 +43,8 @@ class SagaServiceTest {
   private final List<String> journal = new ArrayList<>();
   private final Map<String, Behaviour> behaviour = new HashMap<>();
   private final List<String> calls = new ArrayList<>();
+  private final Map<String, SagaStepHandler.StepReply> polled = new HashMap<>();
+  private final List<Map<String, Object>> polledNotes = new ArrayList<>();
   private SagaService service;
   private boolean pnrOnStep2;
 
@@ -75,6 +77,11 @@ class SagaServiceTest {
           @Override
           public String exclusiveKey(Map<String, Object> parameters) {
             return (String) parameters.get("khoa");
+          }
+
+          @Override
+          public String pointOfNoReturnCode() {
+            return "PERIOD-409-POINT-OF-NO-RETURN";
           }
         };
     List<SagaStepHandler> handlers = List.of(handler("A"), handler("B"), handler("C"));
@@ -121,6 +128,13 @@ class SagaServiceTest {
       @Override
       public void compensate(StepInvocation invocation) {
         calls.add("comp:" + code);
+      }
+
+      @Override
+      public Optional<StepReply> poll(
+          StepInvocation invocation, UUID commandEventId, Instant stepStartedAt) {
+        polledNotes.add(invocation.notes());
+        return Optional.ofNullable(polled.get(code));
       }
     };
   }
@@ -315,6 +329,76 @@ class SagaServiceTest {
     assertThat(repo.get(saga.id()).status()).isEqualTo(SagaStatus.DA_BU_TRU);
     assertThat(calls).containsExactly("exec:A:1", "exec:B:1", "comp:A");
     assertThat(service.onReply(saga.id(), 2, UUID.randomUUID(), true, null)).isFalse();
+  }
+
+  @Test
+  void heldStepWaitsForOperatorNoteThenResumesWaiting() {
+    behaviour.put("B", Behaviour.AWAIT);
+    SagaInstance saga = start(UUID.randomUUID(), "k1");
+    turn(saga.id());
+    assertThatThrownBy(
+            () ->
+                service.annotateWaitingStep(
+                    saga.id(), "B", SagaJournal.Action.CHAY_LAI_LOI, Map.of()))
+        .isInstanceOf(BusinessException.class);
+    turn(saga.id());
+    polled.put("B", SagaStepHandler.StepReply.hold("còn hồ sơ lỗi"));
+    service.reconcileWaiting(saga.id());
+    SagaInstance held = repo.get(saga.id());
+    assertThat(held.status()).isEqualTo(SagaStatus.LOI_CAN_XU_LY);
+    assertThat(held.step(2).lastError()).isEqualTo("còn hồ sơ lỗi");
+    assertThat(journal).contains("CHO_XU_LY:2:false");
+
+    assertThatThrownBy(
+            () ->
+                service.annotateWaitingStep(
+                    saga.id(), "C", SagaJournal.Action.CHAY_LAI_LOI, Map.of("x", "1")))
+        .isInstanceOf(BusinessException.class);
+    service.annotateWaitingStep(
+        saga.id(), "B", SagaJournal.Action.CHAP_NHAN_LOI, Map.of("chapNhan", "có"));
+    SagaInstance resumed = repo.get(saga.id());
+    assertThat(resumed.status()).isEqualTo(SagaStatus.CHO_SU_KIEN);
+    assertThat(resumed.notes()).containsEntry("chapNhan", "có");
+    assertThat(journal).contains("CHAP_NHAN_LOI:2:true");
+    // Bước đang chờ nhận thêm ghi chú mà không đổi trạng thái.
+    service.annotateWaitingStep(saga.id(), "B", SagaJournal.Action.CHAY_LAI_LOI, Map.of("y", 2));
+
+    polled.put("B", SagaStepHandler.StepReply.done());
+    service.reconcileWaiting(saga.id());
+    assertThat(polledNotes.get(polledNotes.size() - 1)).containsKeys("chapNhan", "y");
+    assertThat(engine.woken).contains(saga.id());
+    assertThat(turn(saga.id())).isEqualTo(Next.XONG);
+    assertThatThrownBy(
+            () ->
+                service.annotateWaitingStep(
+                    saga.id(), "C", SagaJournal.Action.CHAY_LAI_LOI, Map.of()))
+        .isInstanceOf(BusinessException.class);
+  }
+
+  @Test
+  void compensationWhileStepWithCompensationIsInFlightUndoesThatStepToo() {
+    behaviour.put("A", Behaviour.AWAIT);
+    SagaInstance saga = start(UUID.randomUUID(), "k1");
+    turn(saga.id());
+    assertThat(repo.get(saga.id()).status()).isEqualTo(SagaStatus.CHO_SU_KIEN);
+    service.control(saga.id(), SagaService.Control.BU_TRU);
+    turn(saga.id());
+    turn(saga.id());
+    assertThat(repo.get(saga.id()).status()).isEqualTo(SagaStatus.DA_BU_TRU);
+    assertThat(calls).containsExactly("exec:A:1", "comp:A");
+  }
+
+  @Test
+  void pointOfNoReturnViolationUsesBlueprintCode() {
+    pnrOnStep2 = true;
+    rebuild();
+    SagaInstance saga = start(UUID.randomUUID(), "k1");
+    turn(saga.id());
+    turn(saga.id());
+    assertThatThrownBy(() -> service.control(saga.id(), SagaService.Control.BU_TRU))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e -> assertThat(e.errorCode().code()).isEqualTo("PERIOD-409-POINT-OF-NO-RETURN"));
   }
 
   @Test

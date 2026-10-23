@@ -17,4 +17,7 @@ public interface IntegrationGatewayPort {
 
   /** Ghi ánh xạ mã ngoài với người; ném {@code OrgConflictException} ORG-409-XREF-EXISTS khi mã đã gắn người khác. */
   void mapXref(UUID tenantId, String connector, String externalId, UUID personId);
+
+  /** Ghi ánh xạ mã ngoài với đơn vị; ném {@code OrgConflictException} ORG-409-XREF-EXISTS khi mã đã gắn đơn vị khác. */
+  void mapUnitXref(UUID tenantId, String connector, String externalId, UUID unitId);
 }

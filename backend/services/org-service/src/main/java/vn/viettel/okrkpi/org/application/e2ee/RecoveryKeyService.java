@@ -167,6 +167,13 @@ public class RecoveryKeyService {
     return log;
   }
 
+  /** Một biên bản khôi phục cho mission-core đối chiếu trước khi nhận khoá bọc khôi phục. */
+  @Transactional(readOnly = true)
+  public StoredRecovery recovery(Actor actor, UUID id) {
+    policy.authorize(actor, "getE2eeRecovery");
+    return store.log(id).orElseThrow(() -> new OrgNotFoundException("Không có biên bản khôi phục này."));
+  }
+
   @Transactional(readOnly = true)
   public Page<StoredRecovery> list(Actor actor, UUID objectId, int limit, String cursor) {
     policy.authorize(actor, "listE2eeRecoveries");

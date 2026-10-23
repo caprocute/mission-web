@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 import vn.viettel.okrkpi.docgen.application.render.RenderService;
 import vn.viettel.okrkpi.docgen.infrastructure.web.api.DossiersApi;
 import vn.viettel.okrkpi.docgen.infrastructure.web.model.CreateDossierMeetingMinutes202Response;
+import vn.viettel.okrkpi.docgen.infrastructure.web.model.DossierDraftFormsRequest;
 import vn.viettel.okrkpi.docgen.infrastructure.web.model.DossierFormCode;
 import vn.viettel.okrkpi.docgen.infrastructure.web.model.DossierRenderJobRequest;
 import vn.viettel.okrkpi.shared.idempotency.Idempotent;
@@ -54,6 +55,30 @@ public class DossierRenderController implements DossiersApi {
         .body(toDto(job));
   }
 
+  /**
+   * {@code POST /api/v1/dossiers/forms} ({@code createDossierDraftForms}, SCR-0904 "Xuất Mẫu 3",
+   * DV-11-03): sinh bản nháp từ danh sách hồ sơ đang chọn, không gắn gói; 202 kèm {@code Location},
+   * kết quả là đường dẫn biểu mẫu ở {@code resultLocation} của tác vụ.
+   */
+  @Override
+  @Idempotent(schema = "docgen")
+  public ResponseEntity<CreateDossierMeetingMinutes202Response> createDossierDraftForms(
+      String idempotencyKey, DossierDraftFormsRequest body) {
+    Job job =
+        service.requestDrafts(
+            new RenderService.DraftCommand(
+                TenantContext.require().value(),
+                CurrentCaller.actor(),
+                body.getFormCode().getValue(),
+                body.getPeriodId(),
+                body.getProfileIds(),
+                Ids.newUuidV7()));
+    return ResponseEntity.status(HttpStatus.ACCEPTED)
+        .location(Jobs.location(job.id()))
+        .header(HttpHeaders.RETRY_AFTER, Long.toString(Jobs.DEFAULT_RETRY_AFTER_SECONDS))
+        .body(toDto(job));
+  }
+
   static CreateDossierMeetingMinutes202Response toDto(Job job) {
     CreateDossierMeetingMinutes202Response dto =
         new CreateDossierMeetingMinutes202Response(
@@ -63,6 +88,9 @@ public class DossierRenderController implements DossiersApi {
     dto.setProgress(job.progress());
     dto.setMessage(job.message());
     dto.setUpdatedAt(job.updatedAt());
+    if (job.resultLocation() != null) {
+      dto.setResultLocation(job.resultLocation());
+    }
     return dto;
   }
 }

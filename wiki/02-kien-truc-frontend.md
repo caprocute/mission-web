@@ -124,11 +124,11 @@ Thứ tự trên có hai ràng buộc kỹ thuật. Thứ nhất, `main.ts` ch�
 
 ## Cờ tính năng phía web (WEB-076)
 
-Tính năng mới được phát hành dần theo tenant bằng cờ tính năng. Khi khởi động, shell gọi `GET /api/v1/config/feature-flags` qua `FeatureFlagService` (thư viện `@vt/api-client`) và nạp lại mỗi khi người dùng đổi phân công. Một cờ chỉ có hiệu lực khi `enabled` bật và thời điểm hiện tại nằm trong khoảng `validFrom`–`validTo` nếu có khai báo. Giao diện dùng cờ theo ba cách: chỉ thị `*vtFeature="'khoa.co'"` để ẩn hoặc hiện một khối, `canMatch: [featureFlagGuard('khoa.co')]` để chặn một tuyến, và trường `flag` của mục menu trong `fe-shell/src/app/layout/nav.ts`.
+Tính năng mới được phát hành dần theo tenant bằng cờ tính năng. Khi khởi động, shell gọi `GET /api/v1/ui/feature-flags` (bản cờ đã tính cho người dùng, `EffectiveFeatureFlagMap`) qua `FeatureFlagService` (thư viện `@vt/api-client`) và nạp lại mỗi khi người dùng đổi phân công. Một cờ chỉ có hiệu lực khi `enabled` bật và thời điểm hiện tại nằm trong khoảng `validFrom`–`validTo` nếu có khai báo. Giao diện dùng cờ theo ba cách: chỉ thị `*vtFeature="'khoa.co'"` để ẩn hoặc hiện một khối, `canMatch: [featureFlagGuard('khoa.co')]` để chặn một tuyến, và trường `flag` của mục menu trong `fe-shell/src/app/layout/nav.ts`.
 
 Mọi lỗi khi nạp cờ (403, lỗi mạng, 5xx) đều được coi là mọi cờ tắt. Nhờ vậy một tính năng chưa phát hành không bao giờ lộ ra chỉ vì máy chủ trả lỗi. Cờ phía web chỉ quyết định ẩn hay hiện; máy chủ vẫn phải tự kiểm cờ ở API.
 
-Hợp đồng hiện tại chỉ cho vai trò quản trị tenant đọc `/config/feature-flags`, nên với các vai trò khác máy chủ thật sẽ trả 403 và web thấy mọi cờ tắt. Phía web vì thế đang chạy với dữ liệu giả lập; khi chạy giả lập, tham số trang `?ff=khoa1,khoa2` bật thêm cờ để thử giao diện. Cần bổ sung hợp đồng một API đọc cờ cho mọi người dùng đã đăng nhập (gợi ý thuộc CORE-08-07) trước khi dùng cờ với máy chủ thật; đây là đề xuất, chưa sửa hợp đồng.
+Hợp đồng đã có `GET /ui/feature-flags` cho mọi người dùng đã đăng nhập; `/config/feature-flags` chỉ dành cho màn hình quản trị cờ. Từ WEB-072 web đọc đường dẫn đúng hợp đồng, nhưng mission-core chưa cài thao tác này nên khi chạy với máy chủ thật mọi cờ tắt cho tới khi backend bổ sung; khi chạy giả lập, tham số trang `?ff=khoa1,khoa2` bật thêm cờ để thử giao diện.
 
 ## Thông báo, tìm kiếm và xử lý lỗi toàn cục (WEB-012)
 

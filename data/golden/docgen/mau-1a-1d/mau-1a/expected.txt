@@ -1,0 +1,15 @@
+# Văn bản kỳ vọng trích từ PDF/A do Gotenberg sinh từ input.json (FormTemplatesIT).
+# Mỗi dòng phải xuất hiện theo đúng thứ tự; khoảng trắng và xuống dòng trong ô bảng được gộp trước khi so.
+# Dòng trống và dòng bắt đầu bằng # bị bỏ qua.
+MẪU GIẢ LẬP – CHỈ DÙNG ĐỂ PHÁT TRIỂN VÀ KIỂM THỬ, KHÔNG CÓ GIÁ TRỊ PHÁP LÝ
+Phiên bản bộ quy tắc: KHOI_DANG phiên bản 2.0.0 Phiên bản mẫu biểu: 1 (0.9.0-gia-lap)
+Mẫu 1A, phiên bản mẫu 1 · Bộ quy tắc đánh giá KHOI_DANG phiên bản 2.0.0
+MẪU 1A
+Bản kiểm điểm tập thể.
+Tập thể: Chi bộ Văn phòng Sở Tư pháp (giả lập)
+Kỳ kiểm điểm: Năm 2026
+Kết quả thực hiện nhiệm vụ của tập thể
+Hoàn thành 18 trên 20 chỉ tiêu của năm.
+Không có đảng viên vi phạm kỷ luật.
+Ngày gửi dự thảo: 01/12/2026
+Ngày tổ chức hội nghị: 15/12/2026

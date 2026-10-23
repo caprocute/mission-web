@@ -1,6 +1,7 @@
 import { Component, computed, effect, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import {
+  JobAccepted,
   PackVersionRef,
   PeriodApi,
   PolicyApi,
@@ -336,7 +337,7 @@ const time = (iso: string | null | undefined) => {
 
     <vt-policy-submit-dialog [(visible)]="showSubmit" (sent)="onSent()" />
     <vt-add-test-case-dialog [(visible)]="showAdd" (created)="onCreated($event.caseCode)" />
-    <vt-approve-policy-dialog [(visible)]="showApprove" (approved)="onApproved()" />
+    <vt-approve-policy-dialog [(visible)]="showApprove" (approved)="onApproved($event)" />
     <vt-reject-policy-dialog [(visible)]="showReject" (rejected)="onRejected()" />
   `,
   styles: `
@@ -842,9 +843,9 @@ export class TestCasePage {
     this.suiteRes.reload();
   }
 
-  protected onApproved() {
+  protected onApproved(accepted: JobAccepted) {
     this.notice.set(null);
-    this.ws.waitPublished((v) => this.published(v));
+    this.ws.waitPublished(accepted, (v) => this.published(v));
   }
 
   protected onRejected() {

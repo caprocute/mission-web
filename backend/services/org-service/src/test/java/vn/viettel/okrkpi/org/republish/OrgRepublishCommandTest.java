@@ -34,6 +34,9 @@ class OrgRepublishCommandTest {
     assertThat(r.allBuckets()).isTrue();
     assertThat(r.asOf()).isNull();
     assertThat(r.operator()).isEqualTo("system");
+    assertThat(r.hashesOnly()).isFalse();
+    assertThat(OrgRepublishCommandArgs.parse(new DefaultApplicationArguments("--tenant=" + UUID.randomUUID(),
+        "--hashes-only")).hashesOnly()).isTrue();
   }
 
   @Test

@@ -8,9 +8,9 @@ import {
   OrgFlow,
   OrgTreeApi,
   OrgUnitDetail,
+  OrgUnitInput,
   OrgUnitLevel,
   OrgUnitType,
-  OrgUnitUpdate,
   fieldErrors,
   toProblem,
 } from '@vt/api-client';
@@ -19,9 +19,13 @@ import { InputTextModule } from 'primeng/inputtext';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+/** Trường có chỗ hiện lỗi riêng trên biểu mẫu; lỗi trường khác gộp vào thông báo chung. */
+const SHOWN = new Set(['name', 'subjectGroupId', 'flows', 'validFrom']);
+
 /**
- * Sửa đơn vị (SCR-0103 nút "Sửa") → `PUT /api/v1/org/units/{id}` kèm `If-Match`. Máy chủ ghi phiên
- * bản mới từ "Hiệu lực từ", không ghi đè (BR-01-06); khối đối tượng bắt buộc (BR-01-05); EVT-14.
+ * Sửa đơn vị (SCR-0103 nút "Sửa") → `PUT /api/v1/org/units/{id}` thân `OrgUnitInput` kèm `If-Match`
+ * theo `rowVersion`. Máy chủ ghi phiên bản mới từ "Hiệu lực từ", không ghi đè (BR-01-06); khối đối
+ * tượng bắt buộc (BR-01-05); EVT-14. Mã đơn vị giữ nguyên (gửi lại mã hiện có).
  */
 @Component({
   selector: 'vt-org-unit-edit',
@@ -56,8 +60,8 @@ const today = () => new Date().toISOString().slice(0, 10);
         <input
           pInputText
           name="ext"
-          [ngModel]="f().externalCode ?? ''"
-          (ngModelChange)="set('externalCode', $event)"
+          [ngModel]="f().nationalCode ?? ''"
+          (ngModelChange)="set('nationalCode', $event)"
         />
       </label>
       <label class="f">
@@ -94,7 +98,7 @@ const today = () => new Date().toISOString().slice(0, 10);
           [ngModel]="f().subjectGroupId"
           (ngModelChange)="set('subjectGroupId', $event)"
         >
-          @for (g of groups.value() ?? []; track g.id) {
+          @for (g of groups.hasValue() ? groups.value() : []; track g.id) {
             <option [value]="g.id">{{ g.name }}</option>
           }
         </select>
@@ -221,12 +225,13 @@ export class OrgUnitEdit {
   protected readonly flows: OrgFlow[] = ['NHA_NUOC', 'DANG'];
   protected readonly groups = rxResource({ stream: () => this.api.subjectGroups() });
 
-  protected readonly f = linkedSignal<OrgUnitUpdate>(() => {
+  protected readonly f = linkedSignal<OrgUnitInput>(() => {
     const u = this.unit();
     return {
+      code: u.code,
       name: u.name,
       shortName: u.shortName,
-      externalCode: u.externalCode,
+      nationalCode: u.nationalCode,
       level: u.level,
       unitType: u.unitType,
       subjectGroupId: u.subjectGroupId,
@@ -239,7 +244,7 @@ export class OrgUnitEdit {
   protected readonly conflict = signal(false);
   protected readonly fe = signal<Record<string, string>>({});
 
-  protected set<K extends keyof OrgUnitUpdate>(key: K, value: OrgUnitUpdate[K]) {
+  protected set<K extends keyof OrgUnitInput>(key: K, value: OrgUnitInput[K]) {
     this.f.update((f) => ({ ...f, [key]: value }));
   }
 
@@ -256,11 +261,11 @@ export class OrgUnitEdit {
     this.error.set(null);
     this.fe.set({});
     this.conflict.set(false);
-    const body: OrgUnitUpdate = {
+    const body: OrgUnitInput = {
       ...f,
       name: f.name.trim(),
       shortName: f.shortName?.trim() || undefined,
-      externalCode: f.externalCode?.trim() || undefined,
+      nationalCode: f.nationalCode?.trim() || undefined,
     };
     this.api.update(this.unit(), body).subscribe({
       next: (r) => {
@@ -272,8 +277,11 @@ export class OrgUnitEdit {
         const p = toProblem(e);
         const fe = fieldErrors(p);
         this.fe.set(fe);
-        this.conflict.set(p.status === 409 && p.code === 'ORG-409-CONFLICT');
-        this.error.set(Object.keys(fe).length ? null : p.title);
+        this.conflict.set(p.status === 409 && p.code === 'ORG-409-VERSION-CONFLICT');
+        const other = Object.entries(fe)
+          .filter(([k]) => !SHOWN.has(k))
+          .map(([, m]) => m);
+        this.error.set(other.length ? other.join(' ') : Object.keys(fe).length ? null : p.title);
       },
     });
   }

@@ -737,6 +737,7 @@ class ComplaintServiceTest {
     final List<String> codes = new ArrayList<>();
     final List<Integer> lockedYears = new ArrayList<>();
     final Map<UUID, Instant> signPending = new HashMap<>();
+    final Map<UUID, UUID> responseSigners = new HashMap<>();
     boolean failUpdate;
     boolean failMark;
 
@@ -790,6 +791,25 @@ class ComplaintServiceTest {
         signPending.put(c.id(), at);
       }
       return true;
+    }
+
+    @Override
+    public boolean markResponseSigner(TenantId tenant, Complaint c, UUID signer) {
+      Complaint cur = rows.get(c.id());
+      if (failMark || cur == null || cur.rowVersion() != c.rowVersion()) {
+        return false;
+      }
+      if (signer == null) {
+        responseSigners.remove(c.id());
+      } else {
+        responseSigners.put(c.id(), signer);
+      }
+      return true;
+    }
+
+    @Override
+    public Optional<UUID> responseSigner(TenantId tenant, UUID id) {
+      return Optional.ofNullable(responseSigners.get(id));
     }
 
     @Override

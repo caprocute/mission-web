@@ -84,6 +84,9 @@ okrkpi:
   tenant:
     claim: ${TENANT_JWT_CLAIM:tenant_id}
     db-setting: ${TENANT_DB_SETTING:app.tenant_id}
+    # Client dịch vụ được uỷ quyền tenant qua X-Tenant-Id (wiki 14 mục 42): evidence-service hỏi cổng
+    # nội bộ bản bọc khoá C3 (CORE-07-06).
+    delegating-clients: ${TENANT_DELEGATING_CLIENTS:evidence-service}
   schema-guard:
     enabled: ${SCHEMA_GUARD_ENABLED:true}
     default-min-version: ${SCHEMA_MIN_VERSION:0.20}

@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.okr.infrastructure.persistence;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Map;
@@ -33,7 +34,9 @@ import vn.viettel.okrkpi.okr.application.OkrReadService;
 import vn.viettel.okrkpi.okr.application.OkrReviewService;
 import vn.viettel.okrkpi.okr.application.OkrRevisionCarryOver;
 import vn.viettel.okrkpi.okr.application.OkrRuleChecker;
+import vn.viettel.okrkpi.okr.application.OkrSourceValueService;
 import vn.viettel.okrkpi.okr.application.OkrSubmitService;
+import vn.viettel.okrkpi.okr.application.port.KrSourceValuePort;
 import vn.viettel.okrkpi.okr.application.port.OkrAiSuggestions;
 import vn.viettel.okrkpi.okr.application.port.OkrApprovalEvents;
 import vn.viettel.okrkpi.okr.application.port.OkrApprovalSignal;
@@ -42,6 +45,7 @@ import vn.viettel.okrkpi.okr.application.port.OkrCheckinDelegatePort;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinEvents;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinExtension;
 import vn.viettel.okrkpi.okr.application.port.OkrSimilarityPort;
+import vn.viettel.okrkpi.okr.infrastructure.client.HttpKrSourceValues;
 import vn.viettel.okrkpi.okr.infrastructure.client.HttpOkrAiSuggestions;
 import vn.viettel.okrkpi.okr.infrastructure.scheduling.OkrCheckinReminderJob;
 import vn.viettel.okrkpi.okr.infrastructure.web.OkrApproveBatchJobs;
@@ -50,9 +54,12 @@ import vn.viettel.okrkpi.okr.infrastructure.web.OkrIdempotency;
 import vn.viettel.okrkpi.policy.api.PolicyQueryApi;
 import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
 import vn.viettel.okrkpi.shared.infrastructure.ai.AiSuggestionClient;
+import vn.viettel.okrkpi.shared.infrastructure.identity.KeycloakAdminClient;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.outbox.ApicurioPayloadSerializer;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
+import vn.viettel.okrkpi.shared.resilience.DependencyUnavailableException;
+import vn.viettel.okrkpi.shared.resilience.ResilientClientFactory;
 import vn.viettel.okrkpi.shared.routing.TenantDirectory;
 
 /**
@@ -174,6 +181,42 @@ public class OkrReadConfiguration {
         delegates::getIfAvailable,
         () -> extensions.orderedStream().toList(),
         okrCheckinEvents);
+  }
+
+  /**
+   * CORE-01-10: số liệu nguồn của KR qua integration-gateway tại {@code
+   * mission.okr.source.base-url} (mặc định {@code mission.integ.base-url}), token dịch vụ từ
+   * Keycloak. Chưa cấu hình thì lấy số liệu nguồn trả {@code OKR-502-SOURCE-UNAVAILABLE} và
+   * check-in là nhập tay. Đệm giá trị đã lấy theo KR và người lấy trong {@code
+   * mission.okr.source.cache-ttl}.
+   */
+  @Bean
+  OkrSourceValueService okrSourceValueService(
+      OkrCheckinService okrCheckinService,
+      ObjectProvider<KrSourceValuePort> override,
+      ObjectProvider<ResilientClientFactory> factory,
+      ObjectProvider<KeycloakAdminClient> keycloak,
+      ObjectProvider<MeterRegistry> meters,
+      @Value("${mission.okr.source.base-url:${mission.integ.base-url:}}") String baseUrl,
+      @Value("${mission.okr.source.cache-ttl:PT30M}") java.time.Duration ttl) {
+    KrSourceValuePort port = override.getIfAvailable();
+    ResilientClientFactory f = factory.getIfAvailable();
+    if (port == null && baseUrl != null && !baseUrl.isBlank() && f != null) {
+      port =
+          new HttpKrSourceValues(
+              f.create(HttpKrSourceValues.INSTANCE, baseUrl),
+              () -> {
+                KeycloakAdminClient k = keycloak.getIfAvailable();
+                if (k == null) {
+                  throw new DependencyUnavailableException(
+                      "keycloak", DependencyUnavailableException.Reason.IO_ERROR, null, null);
+                }
+                return k.serviceToken();
+              },
+              meters.getIfAvailable());
+    }
+    KrSourceValuePort resolved = port;
+    return new OkrSourceValueService(okrCheckinService::sourceTarget, () -> resolved, ttl);
   }
 
   /** CORE-01-09: EVT-02, EVT-21 của check-in ghi {@code okr.outbox_event} cùng giao dịch. */

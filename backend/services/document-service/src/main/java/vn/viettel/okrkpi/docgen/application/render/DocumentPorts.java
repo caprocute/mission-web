@@ -17,6 +17,15 @@ public final class DocumentPorts {
     default byte[] merge(byte[] template, Map<String, String> fields, String footer) {
       return merge(template, fields);
     }
+
+    /**
+     * Trộn theo tag content control (mẫu có kê khai DL-05): điền giá trị, lặp dòng mẫu của bảng,
+     * khoá vùng số liệu, thêm dấu bản nháp và dòng chân trang. Tag có trong mô hình mà mẫu không có
+     * thì bỏ qua (mẫu phiên bản cũ ít trường hơn). Mặc định từ chối: bộ trộn chỉ hỗ trợ chỗ giữ.
+     */
+    default byte[] merge(byte[] template, MergeModel model, String footer) {
+      throw new RejectedDocument("Bộ trộn không hỗ trợ mẫu có tệp kê khai trường.");
+    }
   }
 
   /** Chuyển DOCX sang PDF/A-2b (Gotenberg 8). */

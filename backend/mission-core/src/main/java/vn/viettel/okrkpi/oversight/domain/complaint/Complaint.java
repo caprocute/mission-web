@@ -123,6 +123,51 @@ public record Complaint(
     return copy(ComplaintStatus.DONG, filedAt, responseDeadline, handlerUnitId, signRequestId, h);
   }
 
+  /**
+   * Bước xử lý không đổi phần tiếp nhận (CORE-07-04): {@code DANG_GIAI_TRINH}, {@code
+   * CHO_KET_LUAN}, {@code DA_TRA_LOI}, {@code DANG_THI_HANH} theo {@link ComplaintTransitions}.
+   */
+  public Complaint moved(ComplaintStatus to) {
+    requireMove(to);
+    return copy(to, filedAt, responseDeadline, handlerUnitId, signRequestId, handling);
+  }
+
+  /** Giữ trạng thái, chỉ tăng {@code row_version} (ghi thêm giải trình, kết luận, yêu cầu ký). */
+  public Complaint touched() {
+    return copy(status, filedAt, responseDeadline, handlerUnitId, signRequestId, handling);
+  }
+
+  /**
+   * Mã lại nội dung và đề nghị bằng DEK mới (DEK đã xoay khi ghi ý kiến bảo lưu, mỗi dòng một
+   * {@code dek_id}); giữ trạng thái.
+   */
+  public Complaint resealed(byte[] content, byte[] request, UUID dek) {
+    return new Complaint(
+        id,
+        code,
+        periodId,
+        periodBucket,
+        complainantId,
+        profileId,
+        kind,
+        targetStage,
+        subjectLine,
+        targets,
+        content,
+        request,
+        dek,
+        attachmentIds,
+        reserveOpinion,
+        status,
+        filedAt,
+        responseDeadline,
+        handlerUnitId,
+        signRequestId,
+        createdAt,
+        rowVersion,
+        handling);
+  }
+
   private void requireMove(ComplaintStatus to) {
     if (!ComplaintTransitions.allowed(status, to)) {
       throw new IllegalStateException("Không chuyển được khiếu nại từ " + status + " sang " + to);

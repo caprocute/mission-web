@@ -1,0 +1,45 @@
+{
+  "templateCode": "duyet-phat-hanh-policy-pack",
+  "phienBanChinh": 1,
+  "moTa": "Duyệt phát hành bộ quy tắc chấm điểm (tên mẫu suy luận vì tài liệu quy trình chưa đặt tên): người phê duyệt khác người soạn phê duyệt có ký số; sau khi phê duyệt, lõi khởi chạy saga phát hành và luồng kết thúc khi phiên bản đã phát hành.",
+  "chuSoHuu": "Luồng B6 - nhóm workflow-service (SVC-06)",
+  "truyVet": "QT-15 → SCR-1504 → EVT-18, EVT-13 → MOD-05, SVC-06",
+  "bangQuyetDinh": [],
+  "kiemThu": [
+    "vn.viettel.okrkpi.workflow.template.StageTemplatesFlowTest",
+    "vn.viettel.okrkpi.workflow.template.DuyetPhatHanhPolicyPackFlowTest"
+  ],
+  "kiemThuDmn": [],
+  "bien": {
+    "tenantId": 50,
+    "khoi": 16,
+    "loaiHoSo": 32,
+    "laNguoiDungDau": 20,
+    "donViId": 48,
+    "tieuDe": 780,
+    "phienBanDoiTuong": 40,
+    "keHoachBuoc": 420,
+    "soLanQuaHan": 120,
+    "ketQua": 24,
+    "nguoiTao": 48,
+    "nhomBuoc": 120,
+    "nguoiBuoc": 48,
+    "hanBuoc": 40,
+    "nhacBuoc": 40,
+    "donViChon": 48,
+    "daPhatHanh": 24,
+    "nguoiPheDuyet": 48
+  },
+  "songSongToiDa": {},
+  "thamSo": {
+    "ten": "Duyệt phát hành bộ quy tắc chấm điểm",
+    "buoc": [
+      "PHE_DUYET"
+    ],
+    "hanNgayLamViec": [
+      3
+    ],
+    "nhacTruoc": "P1D_LV",
+    "khiQuaHan": "NHAC_LAI"
+  }
+}

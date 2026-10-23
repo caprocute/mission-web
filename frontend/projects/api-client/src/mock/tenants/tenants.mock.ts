@@ -2,7 +2,6 @@ import { Job } from '../../lib/models/job';
 import {
   CELL_LOAD_THRESHOLD,
   CellLoad,
-  ConfigTenant,
   RegistryTenant,
   TENANT_ONBOARDING_STATUSES,
   TENANT_STATUS_LABEL,
@@ -16,8 +15,8 @@ import {
 import { MAX_PAGE_LIMIT } from '../../lib/paging';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 import fixture from './tenants.json';
-import { StoredTenant, load, resetTenantStore } from './tenant-store';
-import { ONBOARDING_ROUTES } from './onboarding.mock';
+import { StoredTenant, load, resetTenantStore, tenantDetail } from './tenant-store';
+import { ONBOARDING_ROUTES, onboardingView } from './onboarding.mock';
 
 /**
  * Giả lập danh bạ tenant (QT-01, SCR-0101) theo `config.yaml` và `platform.yaml`: danh sách lọc theo
@@ -42,61 +41,6 @@ function row(t: StoredTenant): TenantRow {
     uiPack,
     status: t.status,
     onboardingStep: TENANT_ONBOARDING_STATUSES.includes(t.status) ? (t.onboardingStep ?? 1) : null,
-  };
-}
-
-/** Id phiên bản gói giả lập, ổn định theo tên gói. */
-const packId = (name: string) =>
-  `0192e1c4-5d6e-7f80-9a1b-${[...name]
-    .reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 1e12, 7)
-    .toString()
-    .padStart(12, '0')}`;
-
-/** Tách "tên vX.Y" của UI Pack thành `{ name, version }` theo `ConfigTenant.uiPack`. */
-function uiPackRef(p: string): ConfigTenant['uiPack'] {
-  if (!p) return undefined;
-  const m = /^(.*) v(\d+(?:\.\d+)*)$/.exec(p);
-  return m ? { name: m[1], version: m[2] } : { name: p, version: '' };
-}
-
-function detail(t: StoredTenant): ConfigTenant {
-  const bindings = t.policyPacks.map((p) => {
-    const m = /^(.*) v(\d+(?:\.\d+)*)$/.exec(p);
-    return {
-      flow: p.startsWith('Khối Đảng') ? ('DANG' as const) : ('NHA_NUOC' as const),
-      packVersionId: packId(p),
-      packCode: m ? m[1] : p,
-      version: m ? m[2] : '',
-    };
-  });
-  return {
-    id: t.id,
-    code: t.code,
-    name: t.name,
-    sector: t.sector as ConfigTenant['sector'],
-    onboardingCode: t.onboarding?.onboardingCode,
-    contractRef: t.contractRef,
-    contractValidTo: t.contractValidTo,
-    flows: t.flows,
-    expectedAccounts: t.expectedAccounts,
-    maxAccounts: t.maxAccounts,
-    accountCount: t.accountCount,
-    tenancyModel: t.tenancyModel,
-    cellCode: t.cellCode,
-    domain: t.domain,
-    dataRegion: t.dataRegion,
-    policyBindings: bindings,
-    uiPack: uiPackRef(t.uiPack),
-    statusLog: t.statusLog.map((l, i) => ({
-      id: `${t.id}-log-${t.statusLog.length - i}`,
-      fromStatus: l.from ?? null,
-      toStatus: l.to,
-      reason: l.reason ?? '',
-      changedAt: l.at,
-    })),
-    status: t.status,
-    onboardingStep: TENANT_ONBOARDING_STATUSES.includes(t.status) ? (t.onboardingStep ?? 1) : null,
-    rowVersion: t.rowVersion,
   };
 }
 
@@ -283,7 +227,7 @@ export const TENANTS_MOCK: MockModule = {
       handle: (r) => {
         const t = load().find((x) => x.id === r.pathParams['id']);
         if (!t) return problem(404, 'Không tìm thấy đơn vị triển khai.');
-        return ok(detail(t));
+        return ok(t.onboarding ? onboardingView(t) : tenantDetail(t));
       },
     },
     {

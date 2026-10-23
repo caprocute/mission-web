@@ -42,6 +42,26 @@ public final class TestJwt {
     return token(tenant, subject, roles, acr, unitId, Map.of());
   }
 
+  /** Token tài khoản dịch vụ của client {@code azp} (client credentials), không có claim tenant. */
+  public static String serviceToken(String azp, List<String> roles) {
+    try {
+      JWTClaimsSet claims = new JWTClaimsSet.Builder()
+          .subject(UUID.randomUUID().toString())
+          .issuer("https://kiem-thu.invalid/realms/mission")
+          .issueTime(new Date())
+          .expirationTime(Date.from(Instant.now().plusSeconds(600)))
+          .claim("azp", azp)
+          .claim("preferred_username", "service-account-" + azp)
+          .claim("realm_access", Map.of("roles", roles))
+          .build();
+      SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), claims);
+      jwt.sign(new RSASSASigner(KEYS.getPrivate()));
+      return jwt.serialize();
+    } catch (JOSEException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
   /** Như trên, thêm claim tuỳ ý (ví dụ {@code azp} của client SCIM). */
   public static String token(UUID tenant, UUID subject, List<String> roles, String acr, UUID unitId,
       Map<String, Object> extra) {

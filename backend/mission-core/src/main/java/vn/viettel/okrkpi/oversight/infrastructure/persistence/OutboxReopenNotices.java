@@ -16,13 +16,16 @@ import vn.vtokr.notify.v1.YeuCauThongBao;
  * EVT-21 {@code notify.message.requested.v1} của yêu cầu mở lại kỳ, ghi {@code
  * oversight.outbox_event} cùng giao dịch: báo người được chỉ định có lượt cần duyệt và báo người
  * lập kết quả. Mẫu {@code MO_LAI_KY_CAN_DUYET}, {@code MO_LAI_KY_DA_DUYET}, {@code
- * MO_LAI_KY_BI_TU_CHOI} là suy luận (wiki trang 14). Tham số chỉ có mã yêu cầu và lượt.
+ * MO_LAI_KY_BI_TU_CHOI}, {@code HAU_KIEM_CHUA_HOAN_TAT}, {@code MO_LAI_KY_DA_DONG} (CORE-07-09) là
+ * suy luận (wiki trang 14). Tham số chỉ có mã yêu cầu và lượt.
  */
 public class OutboxReopenNotices implements ReopenNotices {
 
   static final String TEMPLATE_PENDING = "MO_LAI_KY_CAN_DUYET";
   static final String TEMPLATE_APPROVED = "MO_LAI_KY_DA_DUYET";
   static final String TEMPLATE_REJECTED = "MO_LAI_KY_BI_TU_CHOI";
+  static final String TEMPLATE_INCOMPLETE = "HAU_KIEM_CHUA_HOAN_TAT";
+  static final String TEMPLATE_CLOSED = "MO_LAI_KY_DA_DONG";
   static final String DEEP_LINK = "/oversight/mo-lai-ky/";
 
   private final OutboxWriter outbox;
@@ -50,6 +53,22 @@ public class OutboxReopenNotices implements ReopenNotices {
           default -> TEMPLATE_APPROVED;
         };
     send(tenant, r, r.requestedBy(), template, "{\"ma\":\"" + r.code() + "\"}", "BINH_THUONG");
+  }
+
+  @Override
+  public void followUpIncomplete(TenantId tenant, ReopenRequest r, int pendingProfiles) {
+    send(
+        tenant,
+        r,
+        r.requestedBy(),
+        TEMPLATE_INCOMPLETE,
+        "{\"ma\":\"" + r.code() + "\",\"soHoSo\":" + pendingProfiles + "}",
+        "CAO");
+  }
+
+  @Override
+  public void followUpClosed(TenantId tenant, ReopenRequest r, UUID recipient) {
+    send(tenant, r, recipient, TEMPLATE_CLOSED, "{\"ma\":\"" + r.code() + "\"}", "BINH_THUONG");
   }
 
   private void send(

@@ -1,0 +1,38 @@
+{{- /*
+DL-12 · TL-03 "Đối soát và kiểm tra nhất quán" dòng "Tái lập điểm" (R4): cảnh báo của job tính lại mẫu 0,5% kết
+quả đã chốt. Job chạy trong pod scoring-service (lịch Spring, bật bằng biến MISSION_RECONCILE_RECOMPUTE_ENABLED
+và danh sách MISSION_RECONCILE_RECOMPUTE_TENANTS khai qua khoá env của values), chỉ số do vt-reconcile xuất.
+Bật mặc định; tắt bằng reconcile.alerts.enabled=false.
+*/ -}}
+{{- $rc := .Values.reconcile | default dict -}}
+{{- $al := $rc.alerts | default dict -}}
+{{- if ne (toString (dig "enabled" true $al)) "false" }}
+{{- $rb := $al.runbookBase | default "https://runbook.vt.local/okr" }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ .Release.Name }}-doi-soat
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: scoring-service
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: reconcile
+spec:
+  groups:
+    - name: scoring-doi-soat
+      rules:
+        - alert: ScoringTaiLapDiemLech
+          expr: sum(increase(mission_reconcile_runs_total{reconcile="R4_TAI_LAP_DIEM",status="LOI"}[1d])) > 0
+          labels: { severity: warning, doi: tinh-diem }
+          annotations:
+            summary: "Tính lại mẫu điểm đã chốt cho kết quả khác hoặc chưa tính xong trong hạn"
+            description: "Tra scoring.reconcile_run job R4_TAI_LAP_DIEM có status LOI; detail ghi mã kết quả lệch và phiên bản bộ máy tính trước, sau."
+            runbook_url: {{ $rb }}/doi-soat-tai-lap-diem
+        - alert: ScoringTaiLapDiemNgungChay
+          expr: (time() - max(mission_reconcile_last_finished_seconds{reconcile="R4_TAI_LAP_DIEM"})) > 9 * 86400
+          for: 1h
+          labels: { severity: warning, doi: tinh-diem }
+          annotations:
+            summary: "Tính lại mẫu điểm đã chốt chưa có lần nào kết thúc trong 9 ngày"
+            runbook_url: {{ $rb }}/doi-soat-tai-lap-diem
+{{- end }}

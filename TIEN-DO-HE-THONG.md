@@ -12,10 +12,10 @@
 
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
-- **Tổng tiến độ đã gộp `main`**: **308 / 408 task (75.5%)** — Khối lượng quy đổi đã gộp: **357 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **311 / 408 task (76.2%)** (gồm **308** đã gộp `main` + **3** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **5 task** (1 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **92 task**.
+- **Tổng tiến độ đã gộp `main`**: **337 / 408 task (82.6%)** — Khối lượng quy đổi đã gộp: **397.5 / 492.5 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **338 / 408 task (82.8%)** (gồm **337** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **3 task** (0 đang làm, 3 làm một phần).
+- **Chưa bắt đầu**: **67 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -24,27 +24,27 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **68** | 0 | 2 | 2 | **94.4%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **103** | 3 | 2 | 9 | **88.0%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **70** | 0 | 1 | 33 | **67.3%** |
-| **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **12** | 0 | 0 | 1 | **92.3%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **113** | 1 | 1 | 2 | **96.6%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **88** | 0 | 0 | 16 | **84.6%** |
+| **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **13** | 0 | 0 | 0 | **100.0%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **308** | **3** | **5** | **92** | **75.5%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **337** | **1** | **3** | **67** | **82.6%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
 | Mốc triển khai | Tổng task | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tiến độ gộp `main` |
 |---|---:|---:|---:|---:|---:|---:|
 | **M0 – Nền móng phát triển & CSDL** | 60 | **60** | 0 | 0 | 0 | **100.0%** |
-| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **34** | 0 | 0 | 6 | **85.0%** |
+| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **35** | 0 | 0 | 5 | **87.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **86** | 0 | 3 | 31 | **71.7%** |
-| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **61** | 3 | 1 | 7 | **84.7%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **107** | 0 | 2 | 11 | **89.2%** |
+| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **67** | 1 | 0 | 4 | **93.1%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **16** | 0 | 1 | 25 | **38.1%** |
-| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **3** | 0 | 0 | 20 | **13.0%** |
+| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **4** | 0 | 0 | 19 | **17.4%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **1** | 0 | 0 | 3 | **25.0%** |
 
 ### 1.3. Trạng thái 23 task trên Đường găng
@@ -232,7 +232,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-05-11](docs/tasks/CORE-05-11-cong-bo-workflow-bindings.md) | Lớp công bố `/policies/.../workflow-bindings` thuộc MOD-05, gọi API `wf_binding` của workflow-service | S | B2 | 13 | CORE-05-02, DV-06-08 | **Đã gộp main** | Đã gộp main (fcfdd4ab) |
 | [CORE-05-12](docs/tasks/CORE-05-12-ho-so-tap-khach-hang.md) | Hồ sơ tập khách hàng có phiên bản (bản kê, ký, hai người), khung tham số kế thừa có giới hạn, ghim phiên bản hồ sơ vào `policy_binding` | L | B2 | 14 | NEN-044, CORE-05-02, CORE-05-04 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 
-### CORE-01 · MOD-01 okr (13/14 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### CORE-01 · MOD-01 okr (14/14 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -245,13 +245,13 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-01-07](docs/tasks/CORE-01-07-dieu-chinh-muc-tieu.md) | Điều chỉnh mục tiêu giữa kỳ bằng phiên bản mới | S | B2 | 20 | CORE-01-06, NEN-042 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [CORE-01-08](docs/tasks/CORE-01-08-check-in-kr.md) | Check-in KR: bảng chỉ thêm, nháp và gửi idempotent, tính lại giá trị và tiến độ | M | B2 | 13 | CORE-01-02 | **Đã gộp main** | Gộp main 22/10 |
 | [CORE-01-09](docs/tasks/CORE-01-09-co-rui-ro-kr.md) | Cờ rủi ro KR và EVT-02 | S | B2 | 14 | CORE-01-08 | **Đã gộp main** | Gộp main 22/10 |
-| [CORE-01-10](docs/tasks/CORE-01-10-so-lieu-nguon-kr.md) | Lấy số liệu nguồn của KR qua cổng tích hợp, ghi đè có lý do | M | B2 | 14 | CORE-01-08, DV-13-08 | **Chưa bắt đầu** |  |
+| [CORE-01-10](docs/tasks/CORE-01-10-so-lieu-nguon-kr.md) | Lấy số liệu nguồn của KR qua cổng tích hợp, ghi đè có lý do | M | B2 | 14 | CORE-01-08, DV-13-08 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [CORE-01-11](docs/tasks/CORE-01-11-nhac-check-in-han-okr.md) | Nhắc check-in, nhắc trước hạn và quá hạn OKR | S | B2 | 14 | CORE-01-08, DV-12-01 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [CORE-01-12](docs/tasks/CORE-01-12-uy-quyen-check-in.md) | Uỷ quyền check-in thay và chuyển giá trị khi phiên bản mục tiêu mới được duyệt | S | B2 | 21 | CORE-01-08, CORE-01-07, NEN-042 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [CORE-01-13](docs/tasks/CORE-01-13-tro-ly-ai-okr.md) | Trợ lý AI cho OKR qua ai-gateway: soát KR, ghi `ai.suggestion_log`, cờ `content_source` | M | B2 | 18 | CORE-01-04, DV-14-04 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [CORE-01-14](docs/tasks/CORE-01-14-kieu-do-moc.md) | Kiểu đo `MOC` với bảng `okr.kr_milestone`, chiều `TOI_DA`, nhãn tử số và mẫu số cho KR tỷ lệ; ghi ngày đạt và số ngày làm việc chậm | M | B2 | 13 | NEN-044, CORE-01-01, CORE-08-04 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 
-### CORE-02 · MOD-02 task: danh mục, kế hoạch, nhiệm vụ (25/28 đã gộp `main`, 0 chờ gộp, 1 đang làm)
+### CORE-02 · MOD-02 task: danh mục, kế hoạch, nhiệm vụ (26/28 đã gộp `main`, 0 chờ gộp, 1 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -264,7 +264,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-02-07](docs/tasks/CORE-02-07-han-duyet-ke-hoach.md) | Tính hạn duyệt kế hoạch theo lịch ngày làm việc, nhắc trước hạn và quá hạn | S | B3 | 18 | CORE-02-05, CORE-08-04 | **Đã gộp main** | Gộp main 22/10 |
 | [CORE-02-08](docs/tasks/CORE-02-08-gui-duyet-ke-hoach.md) | Gửi duyệt kế hoạch: khoá nội dung, băm SHA-256, BPMN `duyet-ke-hoach`, trả lại | M | B3 | 19 | CORE-02-06, DV-06-03 | **Làm một phần** | Gộp main phần gửi duyệt/trả lại; còn cầu nối duyet-ke-hoach chờ DV-06-03, CORE-01-05 |
 | [CORE-02-09](docs/tasks/CORE-02-09-duyet-ke-hoach-ky-so.md) | Duyệt kế hoạch có ký số (EVT-18 rồi EVT-03), hàng đợi thử lại | L | B3 | 20 | CORE-02-08, DV-10-02 | **Đã gộp main** | Gộp main 2026-10-22 |
-| [CORE-02-10](docs/tasks/CORE-02-10-dieu-chinh-ke-hoach.md) | Điều chỉnh kế hoạch: phiên bản n+1, so sánh, lý do từng thay đổi, giới hạn số lần | L | B3 | 21 | CORE-02-09, CORE-02-12 | **Chưa bắt đầu** |  |
+| [CORE-02-10](docs/tasks/CORE-02-10-dieu-chinh-ke-hoach.md) | Điều chỉnh kế hoạch: phiên bản n+1, so sánh, lý do từng thay đổi, giới hạn số lần | L | B3 | 21 | CORE-02-09, CORE-02-12 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [CORE-02-11](docs/tasks/CORE-02-11-sinh-nhiem-vu-tu-ke-hoach.md) | Consumer EVT-03 sinh, cập nhật, huỷ nhiệm vụ; xác nhận dòng của đơn vị chủ trì khác | M | B3 | 21 | CORE-02-09, CORE-02-13 | **Đã gộp main** | Đã gộp main (fcfdd4ab) |
 | [CORE-02-12](docs/tasks/CORE-02-12-taskapi-cong-bo.md) | `TaskApi` công bố và listener nội bộ cho MOD-04 | S | B3 | 16 | CORE-02-13 | **Đã gộp main** | Gộp main; TaskApi công bố, sự kiện nhiệm vụ |
 | [CORE-02-13](docs/tasks/CORE-02-13-may-trang-thai-nhiem-vu.md) | Máy trạng thái nhiệm vụ khai báo, bảng chuyển trạng thái từ Policy Pack, guard CEL, `task_state_log`, EVT-06 | L | B3 | 15 | CORE-02-02, CORE-05-03, NEN-041, DL-04 | **Đã gộp main** | Gộp main (cherry-pick 0c363cd); máy trạng thái nhiệm vụ, task_state_log, EVT-06 |
@@ -284,20 +284,20 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-02-27](docs/tasks/CORE-02-27-danh-muc-pham-vi-khoi-tinh-he-so.md) | Danh mục bốn cấp kế thừa (thêm `KHOI`, `TINH`), khoảng chỉnh điểm chuẩn so với dòng cha, `coefficient_levels` và `axis_code` trên mục danh mục, kế hoạch, nhiệm vụ | M | B3 | 17 | NEN-044, CORE-02-03, CORE-05-12 | **Đã gộp main** | Đã gộp main (ad623eff) |
 | [CORE-02-28](docs/tasks/CORE-02-28-cay-kpi-che-do-phan-cong.md) | Cây nhiệm vụ nhiều bậc (`node_kind`), điểm thành phần của công việc con, chế độ phân công `MOT_NGUOI_MOT_VIEC` theo tham số hồ sơ | M | B3 | 16 | NEN-044, CORE-02-13, CORE-05-12 | **Đã gộp main** | Đã gộp main (6afcdf05) |
 
-### CORE-03 · MOD-03 product: sản phẩm, minh chứng, nghiệm thu (6/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### CORE-03 · MOD-03 product: sản phẩm, minh chứng, nghiệm thu (8/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [CORE-03-01](docs/tasks/CORE-03-01-schema-product.md) | Migration schema `product` và trigger đóng băng phiên bản minh chứng | M | B3 | 11 | CORE-00-02, NEN-033 | **Đã gộp main** | Migration schema product: deliverable, evidence, acceptance, e2ee_key_wrap |
 | [CORE-03-02](docs/tasks/CORE-03-02-may-trang-thai-minh-chung.md) | Máy trạng thái phiên bản minh chứng và liên động với máy trạng thái nhiệm vụ | M | B3 | 16 | CORE-03-01, CORE-02-13 | **Đã gộp main** | Gộp main; máy trạng thái phiên bản minh chứng, liên động nhiệm vụ |
 | [CORE-03-03](docs/tasks/CORE-03-03-nop-phien-ban-minh-chung.md) | Khai báo sản phẩm, lưu nháp và nộp phiên bản, consumer `evidence.object.stored`, EVT-07 | L | B3 | 17 | CORE-03-02, DV-08-02 | **Đã gộp main** | Gộp main 22/10 |
-| [CORE-03-04](docs/tasks/CORE-03-04-minh-chung-van-ban-voffice.md) | Minh chứng là văn bản đã ban hành trên vOffice, kiểm chữ ký số gốc | M | B3 | 18 | CORE-03-03, DV-13-03 | **Chưa bắt đầu** |  |
-| [CORE-03-05](docs/tasks/CORE-03-05-ocr-goi-y-nhiem-vu.md) | OCR và trích thông tin minh chứng, gợi ý nhiệm vụ khớp | M | B3 | 18 | CORE-03-03, DV-08-05 | **Chưa bắt đầu** |  |
+| [CORE-03-04](docs/tasks/CORE-03-04-minh-chung-van-ban-voffice.md) | Minh chứng là văn bản đã ban hành trên vOffice, kiểm chữ ký số gốc | M | B3 | 18 | CORE-03-03, DV-13-03 | **Đã gộp main** | Đợt 10, main c7d74c17 |
+| [CORE-03-05](docs/tasks/CORE-03-05-ocr-goi-y-nhiem-vu.md) | OCR và trích thông tin minh chứng, gợi ý nhiệm vụ khớp | M | B3 | 18 | CORE-03-03, DV-08-05 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [CORE-03-06](docs/tasks/CORE-03-06-mo-nghiem-thu-toan-ven.md) | Mở nghiệm thu và kiểm toàn vẹn tệp | S | B3 | 18 | CORE-03-03 | **Đã gộp main** | Gộp main 22/10 |
 | [CORE-03-07](docs/tasks/CORE-03-07-nghiem-thu-nam-muc.md) | Nghiệm thu năm mức: AAL2, tách vai trò, nhận xét C2, EVT-08 | L | B3 | 19 | CORE-03-06, NEN-014, NEN-015 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [CORE-03-08](docs/tasks/CORE-03-08-nhac-qua-han-nghiem-thu.md) | Nhắc quá hạn nghiệm thu và nghiệm thu thay theo uỷ quyền | S | B3 | 20 | CORE-03-07, CORE-08-04, CORE-08-16 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 
-### CORE-04 · MOD-04 appraisal: đánh giá, xếp loại (12/13 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### CORE-04 · MOD-04 appraisal: đánh giá, xếp loại (13/13 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -312,10 +312,10 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-04-09](docs/tasks/CORE-04-09-vet-tinh-diem.md) | Tra cứu vết tính điểm, điểm theo luồng, xuất XLSX | S | B4 | 16 | CORE-04-02, DV-07-03 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 | [CORE-04-10](docs/tasks/CORE-04-10-xep-loai-nam.md) | Xếp loại năm: lập từ bốn quý, xử lý thiếu quý, chặn khi còn khiếu nại, tính lại | L | B4 | 20 | CORE-04-08, DV-07-07 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 | [CORE-04-11](docs/tasks/CORE-04-11-co-bo-tri-lai.md) | Cờ "không hoàn thành hai năm liền" và đề xuất bố trí lại sang MOD-02 | S | B4 | 21 | CORE-04-10 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
-| [CORE-04-12](docs/tasks/CORE-04-12-phan-nhom-trien-vong.md) | Phân nhóm triển vọng: lưu nháp, BR-10-07..09, trình tập thể, ký danh sách | M | B4 | 21 | CORE-04-10 | **Chưa bắt đầu** |  |
+| [CORE-04-12](docs/tasks/CORE-04-12-phan-nhom-trien-vong.md) | Phân nhóm triển vọng: lưu nháp, BR-10-07..09, trình tập thể, ký danh sách | M | B4 | 21 | CORE-04-10 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [CORE-04-13](docs/tasks/CORE-04-13-dau-vao-diem-cong-viec-su-viec.md) | Đầu vào `workItems` và `responsibilityScope` trong `inputs`, bảng `appraisal.incident`, bắt buộc lý do khi mức của `rating_proposal` khác mức gợi ý | L | B4 | 18 | NEN-044, CORE-04-06, CORE-02-27, CORE-02-28, CORE-01-14 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 
-### CORE-06 · MOD-06 dossier: kiểm điểm, hồ sơ số (5/8 đã gộp `main`, 3 chờ gộp, 0 đang làm)
+### CORE-06 · MOD-06 dossier: kiểm điểm, hồ sơ số (7/8 đã gộp `main`, 1 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -324,21 +324,21 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-06-03](docs/tasks/CORE-06-03-gop-y-an-danh.md) | Góp ý mã hoá C2 và chế độ ẩn danh qua OPA | S | B4 | 14 | CORE-06-02, NEN-015 | **Đã gộp main** | Đã gộp main (984a7ba1) |
 | [CORE-06-04](docs/tasks/CORE-06-04-ket-thuc-hoi-nghi.md) | Kết thúc hội nghị: biểu quyết, sinh biên bản 202, mục khắc phục | M | B4 | 15 | CORE-06-03, DV-11-01 | **Đã gộp main** | Đã gộp main (984a7ba1) |
 | [CORE-06-05](docs/tasks/CORE-06-05-truong-hop-dac-thu.md) | Phát hiện 13 trường hợp đặc thù theo bảng trong Policy Pack | L | B4 | 14 | CORE-06-01, CORE-05-03, CORE-00-03 | **Đã gộp main** | Đã gộp main (ad623eff) |
-| [CORE-06-06](docs/tasks/CORE-06-06-tao-goi-ho-so.md) | Tạo gói hồ sơ khi có EVT-12, theo dõi job sinh biểu mẫu, sinh lại tệp lỗi | M | B4 | 20 | CORE-06-01, CORE-04-08, DV-11-04 | **Xong, chờ gộp** | Nhánh claude/project-thread-n43ag0: IT 7/7, unit 18, verify toàn bộ xanh phần dossier |
-| [CORE-06-07](docs/tasks/CORE-06-07-ky-khoa-goi.md) | Manifest SHA-256, danh sách kiểm tra, ký gói, khoá `DA_NOP`, phiên bản gói mới khi EVT-22 | M | B4 | 21 | CORE-06-06, DV-10-02 | **Xong, chờ gộp** | Nhánh claude/project-thread-n43ag0: IT 3/3, unit 12, verify toàn bộ xanh phần dossier |
-| [CORE-06-08](docs/tasks/CORE-06-08-xuat-goi-edxml.md) | Xuất gói ZIP có manifest ký và gửi gói con diện Trung ương qua EdXML | M | B4 | 22 | CORE-06-07, DV-13-05 | **Xong, chờ gộp** | Nhánh claude/project-thread-n43ag0: xuất ZIP manifest ký, gửi gói con diện TW qua SVC-13 (mock), migration dossier V4; đã qua build & test |
+| [CORE-06-06](docs/tasks/CORE-06-06-tao-goi-ho-so.md) | Tạo gói hồ sơ khi có EVT-12, theo dõi job sinh biểu mẫu, sinh lại tệp lỗi | M | B4 | 20 | CORE-06-01, CORE-04-08, DV-11-04 | **Đã gộp main** | Đợt 10, main c7d74c17 |
+| [CORE-06-07](docs/tasks/CORE-06-07-ky-khoa-goi.md) | Manifest SHA-256, danh sách kiểm tra, ký gói, khoá `DA_NOP`, phiên bản gói mới khi EVT-22 | M | B4 | 21 | CORE-06-06, DV-10-02 | **Đã gộp main** | Đợt 10, main c7d74c17 |
+| [CORE-06-08](docs/tasks/CORE-06-08-xuat-goi-edxml.md) | Xuất gói ZIP có manifest ký và gửi gói con diện Trung ương qua EdXML | M | B4 | 22 | CORE-06-07, DV-13-05 | **Xong, chờ gộp** | Nhánh claude/project-thread-n43ag0: đã qua build & test (078fa40b) |
 
-### CORE-07 · MOD-07 oversight: khiếu nại, hậu kiểm, cảnh báo (8/12 đã gộp `main`, 0 chờ gộp, 1 đang làm)
+### CORE-07 · MOD-07 oversight: khiếu nại, hậu kiểm, cảnh báo (11/12 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [CORE-07-01](docs/tasks/CORE-07-01-schema-oversight.md) | Migration schema `oversight` | M | B4 | 11 | CORE-00-02, NEN-033 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 | [CORE-07-02](docs/tasks/CORE-07-02-gui-khieu-nai.md) | Khiếu nại: lưu nháp mã hoá, kiểm thời hạn, nộp có ký, chuyển hồ sơ `KHIEU_NAI`, EVT-25 | M | B4 | 20 | CORE-07-01, CORE-04-08 | **Đã gộp main** | Đã gộp main (fcfdd4ab) |
 | [CORE-07-03](docs/tasks/CORE-07-03-tiep-nhan-khieu-nai.md) | Chọn người xử lý qua OPA, máy trạng thái khiếu nại, tiếp nhận, không thụ lý, rút | M | B4 | 21 | CORE-07-02, NEN-040, DV-06-04 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
-| [CORE-07-04](docs/tasks/CORE-07-04-giai-trinh-ket-luan.md) | Yêu cầu giải trình, timer hạn, kết luận, văn bản trả lời có ký, tạo yêu cầu mở lại | L | B4 | 22 | CORE-07-03, DV-07-08, CORE-07-07 | **Chưa bắt đầu** |  |
-| [CORE-07-05](docs/tasks/CORE-07-05-bao-luu-tu-dong.md) | Bảo lưu, tự đóng, nhật ký giải mã, gợi ý khiếu nại trùng | S | B4 | 23 | CORE-07-04, CORE-00-05 | **Chưa bắt đầu** |  |
+| [CORE-07-04](docs/tasks/CORE-07-04-giai-trinh-ket-luan.md) | Yêu cầu giải trình, timer hạn, kết luận, văn bản trả lời có ký, tạo yêu cầu mở lại | L | B4 | 22 | CORE-07-03, DV-07-08, CORE-07-07 | **Đã gộp main** | Đợt 10, main c7d74c17 |
+| [CORE-07-05](docs/tasks/CORE-07-05-bao-luu-tu-dong.md) | Bảo lưu, tự đóng, nhật ký giải mã, gợi ý khiếu nại trùng | S | B4 | 23 | CORE-07-04, CORE-00-05 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [CORE-07-06](docs/tasks/CORE-07-06-ma-hoa-dau-cuoi-c3.md) | Mã hoá đầu cuối C3 phía máy chủ: lưu bản mã, khoá công khai người nhận, bọc khoá, phục hồi tổ chức Shamir | L | B4 | 21 | CORE-07-02, NEN-015, NEN-042 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
-| [CORE-07-07](docs/tasks/CORE-07-07-yeu-cau-mo-lai.md) | Yêu cầu mở lại kỳ và mô phỏng ảnh hưởng | M | B4 | 18 | CORE-07-01, DV-07-08 | **Làm một phần** | Phần lõi đã gộp main (8d459e44); mô phỏng chờ DV-07-08 |
+| [CORE-07-07](docs/tasks/CORE-07-07-yeu-cau-mo-lai.md) | Yêu cầu mở lại kỳ và mô phỏng ảnh hưởng | M | B4 | 18 | CORE-07-01, DV-07-08 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [CORE-07-08](docs/tasks/CORE-07-08-bon-mat-phe-duyet.md) | Bốn mắt: chọn hai người duyệt qua OPA, phê duyệt có step-up và ký số, EVT-22 | M | B4 | 19 | CORE-07-07, NEN-040, DV-10-02, DV-06-04 | **Đã gộp main** | Đã gộp main (984a7ba1) |
 | [CORE-07-09](docs/tasks/CORE-07-09-dieu-phoi-tinh-lai.md) | Điều phối tính lại, sinh lại, ký lại sau EVT-22; hậu kiểm có bằng chứng sổ cái | M | B4 | 20 | CORE-07-08, CORE-08-06, DV-09-05 | **Chưa bắt đầu** |  |
 | [CORE-07-10](docs/tasks/CORE-07-10-tiep-nhan-canh-bao.md) | Cảnh báo bất thường: consumer EVT-20, chống trùng, gộp, hành động tự động, cờ chặn minh chứng | M | B4 | 12 | CORE-07-01, DV-15-07 | **Đã gộp main** | Đã gộp main (ad623eff) |
@@ -392,33 +392,33 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-04-07](docs/tasks/DV-04-07-doi-soat-nhan-su.md) | Đối soát nhân sự: khớp người bằng HMAC và ngày sinh, bảng lệch, phân loại, API giải quyết | L | B5 | 12 | DV-04-04, DV-13-06 | **Đã gộp main** | Đã gộp main (8b84e3a) |
 | [DV-04-08](docs/tasks/DV-04-08-org-republish.md) | Lệnh phát lại sự kiện tổ chức (`org-republish`) cho bên nhận bị lệch | S | B5 | 12 | DV-04-03, NEN-022 | **Đã gộp main** | Đã gộp main (nhánh B1 7dca3d2) |
 
-### DV-06 · SVC-06 workflow-service (Flowable) (5/12 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-06 · SVC-06 workflow-service (Flowable) (9/12 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-06-01](docs/tasks/DV-06-01-khung-flowable.md) | Khung Flowable 7 nhúng Spring Boot, CSDL `flowable`, lịch sử mức audit, tách API và async executor | L | B6 | 9 | NEN-019 | **Đã gộp main** | Đã gộp main (9e7c761): khung workflow-service Flowable 7.2, tinh chỉnh PostgreSQL, Helm API/Executor + KEDA |
 | [DV-06-02](docs/tasks/DV-06-02-hop-viec.md) | `wf_template`, `wf_binding`, `wf_task_projection`; API hộp việc, hoàn thành, hoàn thành hàng loạt | M | B6 | 10 | DV-06-01 | **Đã gộp main** | Gộp main 22/10 |
 | [DV-06-03](docs/tasks/DV-06-03-bpmn-duyet-phan-1.md) | Mẫu BPMN luồng duyệt phần 1: OKR, kế hoạch, đề nghị gia hạn, kèm DMN chọn cấp duyệt, kiểm thử và linter | L | B6 | 11 | DV-06-02 | **Đã gộp main** | Gộp main 22/10 |
-| [DV-06-04](docs/tasks/DV-06-04-bpmn-duyet-phan-2.md) | Mẫu BPMN luồng duyệt phần 2: hồ sơ đánh giá, khiếu nại, mở lại kỳ, phát hành Policy Pack | L | B6 | 12 | DV-06-03 | **Chưa bắt đầu** |  |
+| [DV-06-04](docs/tasks/DV-06-04-bpmn-duyet-phan-2.md) | Mẫu BPMN luồng duyệt phần 2: hồ sơ đánh giá, khiếu nại, mở lại kỳ, phát hành Policy Pack | L | B6 | 12 | DV-06-03 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [DV-06-05](docs/tasks/DV-06-05-khung-saga.md) | Khung saga tầng 3: bước, bù trừ, trạng thái bền, 202 và theo dõi | L | B6 | 10 | DV-06-01 | **Đã gộp main** | Đã gộp main (nhánh B6 fad5653) |
-| [DV-06-06](docs/tasks/DV-06-06-saga-chot-ky.md) | Saga chốt kỳ: tiền điều kiện, khoá, tính điểm, sinh biểu mẫu, ký lô, niêm phong, lập hồ sơ | L | B6 | 19 | DV-06-05, CORE-08-05, DV-07-06, DV-11-04, DV-10-06, DV-09-03 | **Chưa bắt đầu** |  |
-| [DV-06-07](docs/tasks/DV-06-07-bu-tru-chot-ky.md) | Bù trừ saga chốt kỳ, chạy lại hồ sơ lỗi, kiểm tất định bằng chạy lại mẫu | L | B6 | 20 | DV-06-06 | **Chưa bắt đầu** |  |
+| [DV-06-06](docs/tasks/DV-06-06-saga-chot-ky.md) | Saga chốt kỳ: tiền điều kiện, khoá, tính điểm, sinh biểu mẫu, ký lô, niêm phong, lập hồ sơ | L | B6 | 19 | DV-06-05, CORE-08-05, DV-07-06, DV-11-04, DV-10-06, DV-09-03 | **Đã gộp main** | Đợt 10, main c7d74c17 |
+| [DV-06-07](docs/tasks/DV-06-07-bu-tru-chot-ky.md) | Bù trừ saga chốt kỳ, chạy lại hồ sơ lỗi, kiểm tất định bằng chạy lại mẫu | L | B6 | 20 | DV-06-06 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [DV-06-08](docs/tasks/DV-06-08-api-wf-binding.md) | API `wf_binding`: lưu, linter tham số, mô phỏng trên engine thử | M | B6 | 12 | DV-06-03 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 | [DV-06-09](docs/tasks/DV-06-09-mau-luong-noi-bo.md) | Mẫu luồng nội bộ (BS-01): mở rộng `wf_template`, `wf_template_rollout`, linter, saga phát hành cuốn chiếu | L | B6 | 13 | DV-06-08 | **Chưa bắt đầu** |  |
 | [DV-06-10](docs/tasks/DV-06-10-giam-sat-tien-trinh.md) | API giám sát tiến trình theo mẫu (BS-01): chuyển người xử lý, gia hạn, sơ đồ | M | B6 | 11 | DV-06-02 | **Chưa bắt đầu** |  |
 | [DV-06-11](docs/tasks/DV-06-11-chieu-lich-su-g2.md) | Chiếu lịch sử tiến trình sang kho phân tích và chỉ số giám sát G2 | M | B6 | 11 | DV-06-02, DV-15-01 | **Chưa bắt đầu** |  |
-| [DV-06-12](docs/tasks/DV-06-12-mau-duyet-kep-chi-huy.md) | Mẫu BPMN duyệt kép chỉ huy và cấp uỷ (`duyet-kep-chi-huy-cap-uy`) | M | B6 | 13 | DV-06-04 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
+| [DV-06-12](docs/tasks/DV-06-12-mau-duyet-kep-chi-huy.md) | Mẫu BPMN duyệt kép chỉ huy và cấp uỷ (`duyet-kep-chi-huy-cap-uy`) | M | B6 | 13 | DV-06-04 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 
-### DV-07 · SVC-07 scoring-service (6/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-07 · SVC-07 scoring-service (8/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-07-01](docs/tasks/DV-07-01-khung-scoring.md) | Khung service và migration schema `scoring` | M | B4 | 9 | NEN-019, NEN-033 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DV-07-02](docs/tasks/DV-07-02-nap-policy-pack.md) | Nạp Policy Pack, biên dịch sẵn CEL và DMN, đệm theo phiên bản | M | B4 | 14 | DV-07-01, NEN-041, CORE-05-03 | **Đã gộp main** | Đã gộp main (ad623eff) |
 | [DV-07-03](docs/tasks/DV-07-03-chuoi-tinh-diem.md) | Chuỗi tính A, B, C, KPI nhóm, điểm và `score_trace` | L | B4 | 15 | DV-07-02 | **Đã gộp main** | Đã gộp main (fcfdd4ab) |
-| [DV-07-04](docs/tasks/DV-07-04-tinh-dan-su-kien.md) | Tính dần theo sự kiện EVT-06, EVT-08, EVT-13, EVT-22, phát EVT-10 | M | B4 | 16 | DV-07-03, NEN-012 | **Chưa bắt đầu** |  |
+| [DV-07-04](docs/tasks/DV-07-04-tinh-dan-su-kien.md) | Tính dần theo sự kiện EVT-06, EVT-08, EVT-13, EVT-22, phát EVT-10 | M | B4 | 16 | DV-07-03, NEN-012 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [DV-07-05](docs/tasks/DV-07-05-dmn-xep-loai.md) | DMN xếp loại, câu giải thích, snapshot có `input_hash`; luồng Đảng và Nhà nước song song | L | B4 | 16 | DV-07-03 | **Đã gộp main** | Đã gộp main (fcfdd4ab) |
-| [DV-07-06](docs/tasks/DV-07-06-tinh-lai-hang-loat.md) | Tính lại hàng loạt cuối kỳ: chia lô, worker co giãn, đọc `inputs`, hàng đợi lỗi (NFR-06) | L | B4 | 18 | DV-07-05, CORE-04-06 | **Chưa bắt đầu** |  |
+| [DV-07-06](docs/tasks/DV-07-06-tinh-lai-hang-loat.md) | Tính lại hàng loạt cuối kỳ: chia lô, worker co giãn, đọc `inputs`, hàng đợi lỗi (NFR-06) | L | B4 | 18 | DV-07-05, CORE-04-06 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [DV-07-07](docs/tasks/DV-07-07-snapshot-nam.md) | Snapshot năm (băm của các băm quý) và DMN năm | M | B4 | 17 | DV-07-05 | **Đã gộp main** | Đã gộp main (fcfdd4ab) |
 | [DV-07-08](docs/tasks/DV-07-08-mo-phong-xem-truoc.md) | API mô phỏng và xem trước với phiên bản Policy Pack gốc | M | B4 | 17 | DV-07-05 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 
@@ -433,15 +433,15 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-08-05](docs/tasks/DV-08-05-ocr-qua-ai.md) | Gọi OCR qua ai-gateway cho minh chứng | S | B3 | 12 | DV-08-02, DV-14-05, DV-08-04 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 | [DV-08-06](docs/tasks/DV-08-06-xem-truoc-tep-minh-chung.md) | Xem trước tệp minh chứng (`getFilePreview`) qua Gotenberg, chỉ tệp đã quét sạch | S | B3 | 12 | DV-08-04, DV-11-01 | **Đã gộp main** | Gộp main; xem trước minh chứng theo trang, PDFBox đã duyệt (YC-PT-18) |
 
-### DV-09 · SVC-09 ledger-service (Go) (1/5 đã gộp `main`, 0 chờ gộp, 1 đang làm)
+### DV-09 · SVC-09 ledger-service (Go) (5/5 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-09-01](docs/tasks/DV-09-01-khung-ledger-migration.md) | Khung service và migration CSDL `ledger` chỉ ghi thêm | M | B6 | 7 | NEN-017 | **Đã gộp main** | Đã gộp main (40e7b32): khung SVC-09 ledger-service Go, schema sổ cái bất biến và phân vùng 2 tầng |
-| [DV-09-02](docs/tasks/DV-09-02-ghi-chuoi-bam.md) | Consumer ghi chuỗi băm 64 phân vùng theo tenant, chuẩn hoá RFC 8785 | L | B6 | 8 | DV-09-01 | **Đang làm** | Đã commit & gộp main WIP (74f2130, skip QA): đã xong canon.go RFC 8785 JCS + 6 golden vectors + ingest.go 64 phân vùng |
-| [DV-09-03](docs/tasks/DV-09-03-niem-phong-merkle.md) | Niêm phong Merkle hai cấp mỗi giờ, dấu thời gian RFC 3161, ký qua esign, EVT-19, bản neo | L | B6 | 11 | DV-09-02, DV-10-03 | **Chưa bắt đầu** |  |
-| [DV-09-04](docs/tasks/DV-09-04-kiem-tra-toan-ven.md) | Kiểm tra toàn vẹn định kỳ, chỉ ra bản ghi bị phá, phát EVT-20 | M | B6 | 12 | DV-09-03 | **Chưa bắt đầu** |  |
-| [DV-09-05](docs/tasks/DV-09-05-tra-cuu-xuat-bang-chung.md) | API tra cứu, xuất bằng chứng có ký và công cụ kiểm chứng độc lập `ledger-verify` | L | B6 | 12 | DV-09-03 | **Chưa bắt đầu** |  |
+| [DV-09-02](docs/tasks/DV-09-02-ghi-chuoi-bam.md) | Consumer ghi chuỗi băm 64 phân vùng theo tenant, chuẩn hoá RFC 8785 | L | B6 | 8 | DV-09-01 | **Đã gộp main** | Đợt 10, main c7d74c17 |
+| [DV-09-03](docs/tasks/DV-09-03-niem-phong-merkle.md) | Niêm phong Merkle hai cấp mỗi giờ, dấu thời gian RFC 3161, ký qua esign, EVT-19, bản neo | L | B6 | 11 | DV-09-02, DV-10-03 | **Đã gộp main** | Đợt 10, main c7d74c17 |
+| [DV-09-04](docs/tasks/DV-09-04-kiem-tra-toan-ven.md) | Kiểm tra toàn vẹn định kỳ, chỉ ra bản ghi bị phá, phát EVT-20 | M | B6 | 12 | DV-09-03 | **Đã gộp main** | Đợt 10, main c7d74c17 |
+| [DV-09-05](docs/tasks/DV-09-05-tra-cuu-xuat-bang-chung.md) | API tra cứu, xuất bằng chứng có ký và công cụ kiểm chứng độc lập `ledger-verify` | L | B6 | 12 | DV-09-03 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 
 ### DV-10 · SVC-10 esign-service (2/6 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -454,13 +454,13 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-10-05](docs/tasks/DV-10-05-ban-co-yeu-cach-ly.md) | Nhà cung cấp Ban Cơ yếu cho bản cách ly qua `CryptoProvider` | M | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần thư viện Ban Cơ yếu |
 | [DV-10-06](docs/tasks/DV-10-06-ky-lo-quyet-dinh.md) | Ký lô 100.000 phiếu trong 4 giờ: phiên ký một lần xác nhận, worker co giãn | M | B6 | 11 | DV-10-03 | **Chưa bắt đầu** |  |
 
-### DV-11 · SVC-11 document-service (2/4 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-11 · SVC-11 document-service (4/4 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-11-01](docs/tasks/DV-11-01-khung-docgen-gotenberg.md) | Khung service, migration schema `docgen`, Gotenberg, job sinh 202 | M | B6 | 9 | NEN-019, NEN-033 | **Đã gộp main** | Dịch vụ sinh tài liệu: docx4j, Gotenberg PDF/A-2b, veraPDF, S3 |
-| [DV-11-02](docs/tasks/DV-11-02-mau-1a-1d.md) | Mẫu 1A, 1B, 1C, 1D bằng docx4j | M | B6 | 10 | DV-11-01, DL-05 | **Chưa bắt đầu** |  |
-| [DV-11-03](docs/tasks/DV-11-03-mau-2-mau-3-bang-diem.md) | Mẫu 2, Mẫu 3, bảng chấm điểm | M | B6 | 10 | DV-11-01, DL-05 | **Chưa bắt đầu** |  |
+| [DV-11-02](docs/tasks/DV-11-02-mau-1a-1d.md) | Mẫu 1A, 1B, 1C, 1D bằng docx4j | M | B6 | 10 | DV-11-01, DL-05 | **Đã gộp main** | Đợt 10, main c7d74c17 |
+| [DV-11-03](docs/tasks/DV-11-03-mau-2-mau-3-bang-diem.md) | Mẫu 2, Mẫu 3, bảng chấm điểm | M | B6 | 10 | DV-11-01, DL-05 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [DV-11-04](docs/tasks/DV-11-04-goi-ho-so-pdfa.md) | Gói hồ sơ PDF/A có tem, phiên bản mẫu theo Policy Pack, EVT-17 | M | B6 | 11 | DV-11-02, DV-11-03 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 
 ### DV-12 · SVC-12 notification-service (Go) (5/5 đã gộp `main`, 0 chờ gộp, 0 đang làm)
@@ -473,19 +473,19 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-12-04](docs/tasks/DV-12-04-thong-bao-hang-loat.md) | Thông báo hàng loạt cuối kỳ chia theo tenant, giới hạn tốc độ theo kênh | S | B7 | 9 | DV-12-03 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DV-12-05](docs/tasks/DV-12-05-thiet-bi-day-tuy-chon-kenh.md) | Đăng ký thiết bị nhận thông báo đẩy và tuỳ chọn kênh: bảng `notify`, API | S | B7 | 8 | DV-12-01, NEN-043 | **Đã gộp main** | Gộp main; notification-service Go |
 
-### DV-13 · SVC-13 integration-gateway (2/11 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-13 · SVC-13 integration-gateway (8/11 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-13-01](docs/tasks/DV-13-01-khung-camel-acl.md) | Khung Camel, migration schema `integ`, khung lớp chống ô nhiễm, `mapping_xref`, dead letter | L | B5 | 9 | NEN-019, NEN-033 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
-| [DV-13-02](docs/tasks/DV-13-02-cloudevents-jws-mtls.md) | CloudEvents ra ngoài có JWS và mTLS | M | B5 | 10 | DV-13-01 | **Chưa bắt đầu** |  |
+| [DV-13-02](docs/tasks/DV-13-02-cloudevents-jws-mtls.md) | CloudEvents ra ngoài có JWS và mTLS | M | B5 | 10 | DV-13-01 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [DV-13-03](docs/tasks/DV-13-03-ket-noi-voffice.md) | Bộ kết nối vOffice: văn bản chỉ đạo đến (EVT-24) và văn bản đã ban hành | L | B5 | 10 | DV-13-01 | **Đã gộp main** | Đợt 8–9, main ff7be5b8 |
 | [DV-13-04](docs/tasks/DV-13-04-ket-noi-ioffice.md) | Bộ kết nối iOffice | M | B5 | 11 | DV-13-03 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần môi trường thử iOffice |
-| [DV-13-05](docs/tasks/DV-13-05-truc-lien-thong-edxml.md) | Trục liên thông văn bản quốc gia (EdXML, X-Road) | L | B5 | 10 | DV-13-01 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần kết nối thử Trục |
-| [DV-13-06](docs/tasks/DV-13-06-lgsp-ndxp-cbccvc.md) | LGSP, NDXP và CSDL cán bộ, công chức, viên chức (đồng bộ đêm, `sync_cursor`) | L | B5 | 10 | DV-13-01 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần kết nối thử NDXP |
-| [DV-13-07](docs/tasks/DV-13-07-csdl-dang-vien.md) | CSDL đảng viên | M | B5 | 11 | DV-13-06 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần kết nối thử |
-| [DV-13-08](docs/tasks/DV-13-08-hrm-so-lieu-kr.md) | HRM và số liệu nguồn cho KR | M | B5 | 10 | DV-13-01 | **Chưa bắt đầu** |  |
-| [DV-13-09](docs/tasks/DV-13-09-ban-neo-chia-se-xep-loai.md) | Gửi bản neo sổ cái cho bên thứ ba và chia sẻ quyết định xếp loại ra ngoài | M | B5 | 12 | DV-13-02, DV-09-03 | **Chưa bắt đầu** |  |
+| [DV-13-05](docs/tasks/DV-13-05-truc-lien-thong-edxml.md) | Trục liên thông văn bản quốc gia (EdXML, X-Road) | L | B5 | 10 | DV-13-01 | **Đã gộp main** | Đợt 10, main c7d74c17 |
+| [DV-13-06](docs/tasks/DV-13-06-lgsp-ndxp-cbccvc.md) | LGSP, NDXP và CSDL cán bộ, công chức, viên chức (đồng bộ đêm, `sync_cursor`) | L | B5 | 10 | DV-13-01 | **Đã gộp main** | Đợt 10, main c7d74c17 |
+| [DV-13-07](docs/tasks/DV-13-07-csdl-dang-vien.md) | CSDL đảng viên | M | B5 | 11 | DV-13-06 | **Đã gộp main** | Đợt 10, main c7d74c17 |
+| [DV-13-08](docs/tasks/DV-13-08-hrm-so-lieu-kr.md) | HRM và số liệu nguồn cho KR | M | B5 | 10 | DV-13-01 | **Đã gộp main** | Đợt 10, main c7d74c17 |
+| [DV-13-09](docs/tasks/DV-13-09-ban-neo-chia-se-xep-loai.md) | Gửi bản neo sổ cái cho bên thứ ba và chia sẻ quyết định xếp loại ra ngoài | M | B5 | 12 | DV-13-02, DV-09-03 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [DV-13-10](docs/tasks/DV-13-10-goi-chuyen-ho-so-lien-cell.md) | Gói chuyển hồ sơ cán bộ liên cell có ký số | M | B5 | 11 | DV-13-02, DV-10-01 | **Chưa bắt đầu** |  |
 | [DV-13-11](docs/tasks/DV-13-11-pact-he-ngoai.md) | Kiểm thử hợp đồng Pact với từng hệ ngoài bằng đối tác giả lập | M | B5 | 11 | DV-13-03, QA-02 | **Chưa bắt đầu** |  |
 
@@ -524,7 +524,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-16-01](docs/tasks/DV-16-01-chi-muc-opensearch.md) | Chỉ mục OpenSearch, alias lọc theo tenant, indexer consumer EVT-04, EVT-24 | M | B7 | 8 | INF-11, NEN-012 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DV-16-02](docs/tasks/DV-16-02-api-tim-kiem.md) | API tìm kiếm toàn cục, kiểm quyền lại ở lõi trước khi trả chi tiết | M | B7 | 11 | DV-16-01, CORE-00-02, NEN-013, NEN-014 | **Đã gộp main** | Gộp main 2026-10-22 |
 
-### DL · Dữ liệu, nội dung nghiệp vụ và chuyển đổi (12/13 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DL · Dữ liệu, nội dung nghiệp vụ và chuyển đổi (13/13 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -536,7 +536,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DL-06](docs/tasks/DL-06-ui-pack-mac-dinh.md) | UI Pack mặc định, bộ token người cao tuổi, danh mục công việc mẫu theo khối | M | B11 | 18 | CORE-08-11, CORE-02-04 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DL-07](docs/tasks/DL-07-du-lieu-khoi-tao.md) | Dữ liệu khởi tạo: 9 khối đối tượng, lịch nghỉ lễ quốc gia, danh mục chức danh | S | B11 | 13 | DV-04-01, CORE-08-04 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DL-08](docs/tasks/DL-08-sinh-du-lieu-thu-tai.md) | Bộ sinh dữ liệu thử quy mô (1,2 triệu hồ sơ một cell) cho kiểm thử hiệu năng | M | B9 | 13 | CORE-04-01, CORE-02-02, DV-04-01, CORE-03-01 | **Đã gộp main** | Gộp main 22/10 |
-| [DL-12](docs/tasks/DL-12-job-doi-soat.md) | Job đối soát R1–R8 và bốn job kiểm tra sổ cái | L | B11 | 14 | CORE-04-02, DV-09-04, DV-15-02 | **Chưa bắt đầu** |  |
+| [DL-12](docs/tasks/DL-12-job-doi-soat.md) | Job đối soát R1–R8 và bốn job kiểm tra sổ cái | L | B11 | 14 | CORE-04-02, DV-09-04, DV-15-02 | **Đã gộp main** | Đợt 10, main c7d74c17 |
 | [DL-13](docs/tasks/DL-13-luu-giu-xoa-mat-ma.md) | Lưu giữ, lưu trữ lạnh, giữ pháp lý, xoá bằng mật mã theo bảy lớp lưu giữ | M | B11 | 13 | NEN-015, INF-18, CORE-08-07 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DL-14](docs/tasks/DL-14-xoay-vong-dek-kek.md) | Xoay vòng DEK định kỳ và bọc lại khoá theo KEK mới | M | B11 | 7 | NEN-015, INF-13 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DL-15](docs/tasks/DL-15-an-danh-hoa-phi-san-xuat.md) | Tác vụ ẩn danh hoá dữ liệu cho môi trường phi sản xuất (`anonymize`) | M | B11 | 14 | NEN-015, DL-08, NEN-005, NEN-006 | **Đã gộp main** | Gộp main 2026-10-22 |
@@ -985,8 +985,12 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 00:50 | Điều phối | `CORE-05-11` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (fcfdd4ab) |
 | 23/10/2026 00:50 | Điều phối | `WEB-070` | Chuyển trạng thái sang **Làm một phần** — Công tắc giả lập và kịch bản e2e đã gộp main (fcfdd4ab); chạy với máy chủ thật chờ QA-03 |
 | 23/10/2026 02:34 | Điều phối | `CORE-05-10`, `DV-06-08`, `CORE-05-12`, `CORE-04-13`, `DV-11-04`, `CORE-02-17`, `DV-13-01`, `DV-13-03`, `DV-08-05`, `CORE-04-09`, `CORE-04-10`, `CORE-04-11`, `DV-07-08`, `CORE-07-03`, `CORE-07-06`, `CORE-02-24` | Chuyển trạng thái sang **Đã gộp main** — Đợt 8–9, main ff7be5b8 |
-| 23/10/2026 03:16 | B2 backend | `CORE-06-06` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-n43ag0: IT 7/7, unit 18, verify toàn bộ xanh phần dossier |
-| 23/10/2026 03:16 | B2 backend | `CORE-06-07` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-n43ag0: IT 3/3, unit 12, verify toàn bộ xanh phần dossier |
-| 23/10/2026 03:22 | B2 backend | `CORE-06-08` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-n43ag0: đang thực hiện |
-| 23/10/2026 05:25 | B2 backend | `CORE-06-08` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-n43ag0: xuất ZIP manifest ký, gửi gói con diện TW qua SVC-13 (mock), migration dossier V4; đã qua build & test |
+| 23/10/2026 02:40 | B4 | `CORE-04-12` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: đã qua build & test; migration appraisal V6__appraisal_danh_sach_phan_nhom.sql |
+| 23/10/2026 02:40 | B4 | `DV-07-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: đã qua build & test (verify scoring-service 197 unit + 20 IT, helm lint); chưa đo tải (YC-PT-19) |
+| 23/10/2026 02:40 | B4 | `DV-07-06` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: đã qua build & test (verify scoring-service 197 unit + 20 IT, helm lint); chưa đo tải (YC-PT-19) |
+| 23/10/2026 03:18 | B1 (Claude) | `DV-06-06` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: saga CHOT_KY 6 bước theo TL-02a, cổng cho SVC-07/11/10/09 và lệnh nội bộ MOD-08; verify workflow-service xanh |
+| 23/10/2026 03:33 | B1 (Claude) | `DV-06-07` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b1-nen-mong-backend-8pacfm: bù trừ saga chốt kỳ trên khung saga |
+| 23/10/2026 03:49 | B1 (Claude) | `DV-06-07` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: bù trừ saga chốt kỳ, chạy lại hồ sơ lỗi, kiểm tất định; verify xanh (175 unit, 38 IT) |
+| 23/10/2026 05:49 | Điều phối | `DV-09-02`, `DV-09-03`, `DV-09-04`, `DV-09-05`, `DL-12`, `CORE-07-07`, `CORE-01-10`, `DV-13-05`, `DV-13-06`, `DV-13-07`, `DV-13-08`, `CORE-03-04`, `CORE-03-05`, `CORE-02-10`, `CORE-04-12`, `DV-07-04`, `DV-07-06`, `DV-11-02`, `DV-11-03`, `DV-13-02`, `DV-13-09`, `CORE-07-04`, `CORE-07-05`, `CORE-06-06`, `CORE-06-07`, `DV-06-04`, `DV-06-06`, `DV-06-07`, `DV-06-12` | Chuyển trạng thái sang **Đã gộp main** — Đợt 10, main c7d74c17 |
+| 23/10/2026 06:24 | B2 backend | `CORE-06-08` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-n43ag0: đã qua build & test (078fa40b) |
 <!-- PROGRESS_LOG_END -->

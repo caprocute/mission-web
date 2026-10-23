@@ -37,6 +37,7 @@ public class JdbcPlanRepository implements PlanRepository {
 
   private static final UUID MIN_UUID = new UUID(0, 0);
   private static final TypeReference<List<Assignee>> ASSIGNEES = new TypeReference<>() {};
+  private static final TypeReference<List<RemovedItem>> REMOVED = new TypeReference<>() {};
 
   private static final String PLAN_COLS =
       "p.id, p.period_id, p.period_bucket, p.plan_type, p.owner_unit_id, p.owner_person_id,"
@@ -533,6 +534,88 @@ public class JdbcPlanRepository implements PlanRepository {
     } catch (JsonProcessingException e) {
       throw new IllegalStateException("co_assignees không hợp lệ", e);
     }
+  }
+
+  @Override
+  public void insertAdjustment(
+      TenantId tenant,
+      PlanRow plan,
+      UUID versionId,
+      int versionNo,
+      String changeReason,
+      List<ItemRow> items,
+      UUID actor) {
+    jdbc.sql(
+            "INSERT INTO task.plan_version (id, created_by, updated_by, period_id, period_bucket,"
+                + " plan_id, version_no, status, change_reason) VALUES (?, ?, ?, ?, ?, ?, ?,"
+                + " 'NHAP', ?)")
+        .params(
+            versionId,
+            actor,
+            actor,
+            plan.periodId(),
+            plan.periodBucket(),
+            plan.id(),
+            versionNo,
+            changeReason)
+        .update();
+    VersionRow created =
+        new VersionRow(
+            versionId,
+            plan.id(),
+            versionNo,
+            PlanVersionStatus.NHAP,
+            false,
+            null,
+            null,
+            null,
+            null,
+            changeReason,
+            0,
+            0);
+    replaceItems(tenant, plan, created, items, actor);
+    jdbc.sql(
+            "UPDATE task.plan SET current_version_id = ?, row_version = row_version + 1,"
+                + " updated_by = ?, updated_at = now() WHERE period_bucket = ? AND tenant_id = ?"
+                + " AND id = ?")
+        .params(versionId, actor, plan.periodBucket(), tenant.value(), plan.id())
+        .update();
+  }
+
+  @Override
+  public List<RemovedItem> removedItems(TenantId tenant, int periodBucket, UUID versionId) {
+    String value =
+        jdbc.sql(
+                "SELECT removed_items::text FROM task.plan_version WHERE period_bucket = ?"
+                    + " AND tenant_id = ? AND id = ?")
+            .params(periodBucket, tenant.value(), versionId)
+            .query(String.class)
+            .optional()
+            .orElse(null);
+    if (value == null) {
+      return List.of();
+    }
+    try {
+      return List.copyOf(json.readValue(value, REMOVED));
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException("removed_items không hợp lệ", e);
+    }
+  }
+
+  @Override
+  public void replaceRemovedItems(
+      TenantId tenant, PlanRow plan, VersionRow version, List<RemovedItem> removed) {
+    String value;
+    try {
+      value = removed.isEmpty() ? null : json.writeValueAsString(removed);
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException("Không ghi được removed_items", e);
+    }
+    jdbc.sql(
+            "UPDATE task.plan_version SET removed_items = ?::jsonb WHERE period_bucket = ?"
+                + " AND tenant_id = ? AND id = ?")
+        .params(value, plan.periodBucket(), tenant.value(), version.id())
+        .update();
   }
 
   private String write(List<Assignee> value) {

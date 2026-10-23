@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.integ.application.port;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import vn.viettel.okrkpi.integ.domain.EntityType;
@@ -10,6 +11,16 @@ import vn.viettel.okrkpi.shared.kernel.TenantId;
 public interface MappingXrefs {
 
   record Mapping(UUID id, String externalId, UUID internalId, LocalDate validFrom) {}
+
+  /** Ánh xạ kèm kết nối giữ nó. */
+  record Located(UUID connectorId, Mapping mapping) {}
+
+  /**
+   * Ánh xạ của mã nội bộ còn hiệu lực ngày {@code on} trên mọi kết nối của tenant, mới nhất trước
+   * (số liệu nguồn của KR không biết trước kết nối nào giữ chỉ số).
+   */
+  List<Located> byInternalAnyConnector(
+      TenantId tenant, EntityType type, UUID internalId, LocalDate on);
 
   /** Ánh xạ của mã ngoài còn hiệu lực ngày {@code on}. */
   Optional<Mapping> byExternal(

@@ -1,0 +1,44 @@
+{
+  "ten_don_vi": "Chi bộ Văn phòng Sở Tư pháp (giả lập)",
+  "ten_ky": "Năm 2026",
+  "ho_ten": "Nguyễn Văn An",
+  "chuc_danh": "Chuyên viên",
+  "policy_version": "2.0.0",
+  "bang_nhiem_vu": [
+    {
+      "ten_nhiem_vu": "Tham mưu kế hoạch công tác năm",
+      "nhom_nhiem_vu": "Thường xuyên",
+      "chi_so_so_luong": 1,
+      "chi_so_chat_luong": 0.95,
+      "chi_so_tien_do": 1,
+      "kpi_nhiem_vu": 0.9833
+    },
+    {
+      "ten_nhiem_vu": "Rà soát văn bản quy phạm",
+      "nhom_nhiem_vu": "Then chốt",
+      "chi_so_so_luong": 0.9,
+      "chi_so_chat_luong": 0.8,
+      "chi_so_tien_do": 0.75,
+      "kpi_nhiem_vu": 0.8167
+    }
+  ],
+  "bang_diem_nhom": [
+    {
+      "ten_nhom": "Nhiệm vụ thường xuyên",
+      "kpi_nhom": 0.9125,
+      "diem_toi_da_nhom": 50,
+      "diem_nhom": 45.6
+    },
+    {
+      "ten_nhom": "Nhiệm vụ then chốt",
+      "kpi_nhom": 0.837,
+      "diem_toi_da_nhom": 50,
+      "diem_nhom": 41.7
+    }
+  ],
+  "tong_diem": 87.3,
+  "ty_le_viec_vuot": 0.125,
+  "ty_le_muc_tieu": 0.9,
+  "ma_anh_chup": "SNAP-2026-0001",
+  "bam_dau_vao": "3f2a9c1b0a77e1d4c5b6a7980f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6"
+}

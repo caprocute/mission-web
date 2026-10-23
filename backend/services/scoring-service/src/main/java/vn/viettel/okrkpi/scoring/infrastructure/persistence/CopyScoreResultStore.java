@@ -62,7 +62,8 @@ public class CopyScoreResultStore implements ScoreResultStore {
       "SELECT DISTINCT ON (profile_id, flow) profile_id, flow, input_hash, policy_content_hash,"
           + " status FROM "
           + SCHEMA
-          + ".score_result WHERE period_bucket = ? AND tenant_id = ? AND profile_id = ANY (?)"
+          + ".score_result r WHERE period_bucket = ? AND tenant_id = ? AND profile_id = ANY (?)"
+          + JdbcStoredScores.NOT_RECHECK
           + " ORDER BY profile_id, flow, computed_at DESC, id DESC";
 
   @Override
