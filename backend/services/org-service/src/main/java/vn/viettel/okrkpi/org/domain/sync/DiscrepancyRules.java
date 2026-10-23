@@ -71,7 +71,8 @@ public final class DiscrepancyRules {
   /** So trạng thái nguồn với trạng thái đang dùng của cùng một người. */
   public static List<Finding> compare(PersonState source, PersonState current, LocalDate today) {
     List<Finding> out = new ArrayList<>();
-    if (!Objects.equals(source.employmentStatus(), current.employmentStatus())) {
+    // Nguồn không quản lý trạng thái công tác (CSDL đảng viên, DV-13-07) gửi rỗng: không so.
+    if (source.employmentStatus() != null && !Objects.equals(source.employmentStatus(), current.employmentStatus())) {
       boolean terminal = TERMINAL_STATUSES.contains(source.employmentStatus());
       out.add(new Finding(DiscrepancyField.EMPLOYMENT_STATUS, Severity.VUA,
           terminal ? SuggestedAction.KET_THUC_PHAN_CONG : SuggestedAction.LAY_THEO_NGUON,

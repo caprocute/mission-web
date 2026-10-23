@@ -100,4 +100,11 @@ class DiscrepancyRulesTest {
     assertThat(f.action()).isEqualTo(SuggestedAction.DOI_SOAT_THU_CONG);
     assertThat(DiscrepancyField.ofCode("org_unit_id")).isEqualTo(DiscrepancyField.ORG_UNIT);
   }
+
+  @Test
+  void sourceWithoutEmploymentStatusIsNotCompared() {
+    Post p = post(UNIT_A, TITLE, "CHINH", false, TODAY.minusYears(1));
+    assertThat(DiscrepancyRules.compare(state(null, true, p), state("DANG_CONG_TAC", true, p), TODAY)).isEmpty();
+  }
+
 }
