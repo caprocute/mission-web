@@ -1,0 +1,81 @@
+# Bảng nhóm tenant của kế hoạch đưa vào sử dụng (VH-08). Đây là phần DỮ LIỆU của kế hoạch: khi có danh sách
+# tenant, lịch kỳ đánh giá và cam kết thật của khách hàng, chỉ thay tệp này; quy trình trong
+# ke-hoach-mo-rong.md giữ nguyên. Mọi tenant dưới đây là tenant HƯ CẤU để diễn tập.
+# Kiểm bằng: python3 docs/van-hanh/dua_vao_su_dung.py kiem-tra
+# Không ghi mật khẩu, token, địa chỉ máy chủ hay tên người thật vào tệp này.
+
+phien_ban: 1
+lap_ngay: 2026-10-23
+
+# Cell đích lấy theo deploy/cells/<tên>/cell.yaml (hạng định cỡ, mô hình); sức chứa theo GD-01 trong
+# deploy/capacity/assumptions.yaml. Ngưỡng rà soát thêm cell OPS-23: 80% sức chứa.
+nguong_ra_soat_cell: 0.8
+
+# Cửa sổ đóng băng OPS-06 (TL-04 mục 11.3): ngày 24 tháng cuối quý tới hết ngày 10 tháng đầu quý sau,
+# và 20/1 tới 05/2 hằng năm. Công cụ tự sinh theo năm; khai báo thêm ngày nghỉ lễ của khách hàng ở đây.
+ngay_nghi_them: []
+
+nhom:
+  - ma: N0
+    ten: Tenant thí điểm (đợt 2)
+    ky_dau: 2027-Q2            # kỳ đánh giá đầu tiên tenant dùng hệ, luôn bắt đầu từ đầu kỳ
+    dieu_kien_truoc: []        # nhóm đầu, không phụ thuộc nhóm trước
+    tenant:
+      - {ma: so-thu-nghiem, ten: Sở Thử nghiệm, cell: g4, mo_hinh: bridge, tai_khoan: 3000}
+
+  - ma: N-THU
+    ten: Nhóm thử của buổi diễn tập (chỉ trên staging)
+    chi_dien_tap: true         # không tính vào lịch sản xuất
+    ky_dau: 2027-Q1
+    dieu_kien_truoc: []
+    tenant:
+      - {ma: huyen-thu-nghiem-mot, ten: Huyện Thử nghiệm Một, cell: sh, mo_hinh: pool, tai_khoan: 40,
+         du_lieu: dien-tap/huyen-thu-nghiem-mot}
+      - {ma: tinh-thu-nghiem-hai, ten: Tỉnh Thử nghiệm Hai, cell: g1, mo_hinh: bridge, tai_khoan: 60,
+         du_lieu: dien-tap/tinh-thu-nghiem-hai}
+
+  - ma: N1
+    ten: Nhóm 1, mở rộng đầu tiên sau thí điểm (đợt 3)
+    ky_dau: 2027-Q4
+    dieu_kien_truoc: [N0]
+    tenant:
+      - {ma: tinh-gia-lap-01, ten: Tỉnh Giả lập 01, cell: g4, mo_hinh: bridge, tai_khoan: 60000}
+      - {ma: tinh-gia-lap-02, ten: Tỉnh Giả lập 02, cell: g4, mo_hinh: bridge, tai_khoan: 80000}
+      - {ma: don-vi-nho-01, ten: Đơn vị nhỏ Giả lập 01, cell: sh, mo_hinh: pool, tai_khoan: 5000}
+      - {ma: don-vi-nho-02, ten: Đơn vị nhỏ Giả lập 02, cell: sh, mo_hinh: pool, tai_khoan: 5000}
+      - {ma: don-vi-nho-03, ten: Đơn vị nhỏ Giả lập 03, cell: sh, mo_hinh: pool, tai_khoan: 4000}
+
+  - ma: N2
+    ten: Nhóm 2, mở cell nhóm tỉnh đợt phát hành 2
+    ky_dau: 2028-Q1
+    dieu_kien_truoc: [N1]
+    tenant:
+      - {ma: tinh-gia-lap-03, ten: Tỉnh Giả lập 03, cell: g1, mo_hinh: bridge, tai_khoan: 120000}
+      - {ma: tinh-gia-lap-04, ten: Tỉnh Giả lập 04, cell: g1, mo_hinh: bridge, tai_khoan: 150000}
+      - {ma: tinh-gia-lap-05, ten: Tỉnh Giả lập 05, cell: g2, mo_hinh: bridge, tai_khoan: 110000}
+      - {ma: tinh-gia-lap-06, ten: Tỉnh Giả lập 06, cell: g2, mo_hinh: bridge, tai_khoan: 90000}
+
+  - ma: N3
+    ten: Nhóm 3, cell nhóm tỉnh còn lại và đơn vị nhỏ
+    ky_dau: 2028-Q2
+    dieu_kien_truoc: [N2]
+    tenant:
+      - {ma: tinh-gia-lap-07, ten: Tỉnh Giả lập 07, cell: g3, mo_hinh: bridge, tai_khoan: 130000}
+      - {ma: tinh-gia-lap-08, ten: Tỉnh Giả lập 08, cell: g3, mo_hinh: bridge, tai_khoan: 140000}
+      - {ma: don-vi-nho-04, ten: Đơn vị nhỏ Giả lập 04, cell: sh, mo_hinh: pool, tai_khoan: 6000}
+      - {ma: don-vi-nho-05, ten: Đơn vị nhỏ Giả lập 05, cell: sh, mo_hinh: pool, tai_khoan: 7000}
+
+  - ma: N4
+    ten: Nhóm 4, tenant lớn hạng L thứ nhất
+    ky_dau: 2028-Q3
+    dieu_kien_truoc: [N3]
+    tenant:
+      - {ma: thanh-pho-gia-lap-a, ten: Thành phố Giả lập A, cell: hn, mo_hinh: silo, tai_khoan: 900000}
+
+  - ma: N5
+    ten: Nhóm 5, tenant lớn hạng L thứ hai và hạ tầng riêng khối Đảng
+    ky_dau: 2028-Q4
+    dieu_kien_truoc: [N4]
+    tenant:
+      - {ma: thanh-pho-gia-lap-b, ten: Thành phố Giả lập B, cell: hcm, mo_hinh: silo, tai_khoan: 1100000}
+      - {ma: khoi-dang-gia-lap, ten: Khối Đảng Giả lập, cell: dtw, mo_hinh: silo, tai_khoan: 200000}
