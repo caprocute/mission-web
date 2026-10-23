@@ -1,0 +1,37 @@
+# INF-26 · Không cài chart này bằng Argo CD: vtctl dựng từng Job bằng `helm template -s templates/<job>.yaml`
+# rồi `kubectl create -f -` (Job dùng generateName, mỗi lần chạy là một Job mới).
+namespace: ""
+
+serviceAccount:
+  name: outbox-replay
+
+image:
+  repository: harbor.invalid/mission/outbox-replay
+  tag: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+
+# Người chạy và lý do, ghi vào sys.audit.v1 của outbox-replay (bắt buộc khi confirm=true).
+operator: ""
+reason: ""
+
+outboxReplay:
+  enabled: false
+  schema: ""
+  tenant: ""
+  from: ""
+  to: ""
+  eventId: ""
+  aggregateId: ""
+  eventType: ""
+  topic: ""
+  consumer: ""
+  rateLimit: 500
+  batchSize: 500
+  afterCreatedAt: ""
+  afterId: ""
+  confirm: false
+  # Secret do External Secrets đồng bộ, chứa thông tin nối CSDL và Kafka của cell dưới dạng biến môi trường.
+  envFromSecret: ""
+  activeDeadlineSeconds: 14400
+  ttlSecondsAfterFinished: 86400

@@ -77,6 +77,8 @@ Thông điệp job "Cấp phát lỗi ở bước cấp chứng chỉ bảo mậ
 | `CONFIG-422-RPO-EXCEEDED` | Bản sao dự phòng của cell trễ quá 15 phút | Kiểm `cnpg_pg_replication_lag` của cell, chờ bắt kịp rồi kích hoạt lại; trễ dưới ngưỡng chỉ ghi cảnh báo vào nhật ký trạng thái |
 | `CONFIG-409-TENANT-STATE` | Tenant không ở `DANG_CAU_HINH`, `SAN_SANG` hoặc `TAM_NGUNG` | Kiểm trạng thái; đang cấp phát thì chờ saga xong |
 
+Bằng vtctl (INF-26), sau khi khắc phục mục chưa đạt: `vtctl -e <môi trường> tenant activate <tenant-id> --reason "<số văn bản>" --confirm` (cũng dùng để kích hoạt lại tenant `TAM_NGUNG` khi gia hạn); `vtctl -e <môi trường> tenant status <tenant-id>` để kiểm trạng thái.
+
 Kiểm chứng sau kích hoạt: tenant `DANG_VAN_HANH`, nhật ký trạng thái có lý do kích hoạt, outbox có EVT-21 `TENANT_ACTIVATED`.
 
 ## 6. Quay lui
