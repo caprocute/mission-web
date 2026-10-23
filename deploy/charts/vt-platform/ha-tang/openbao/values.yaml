@@ -72,6 +72,14 @@ placement:
 audit:
   file: /openbao/audit/audit.log
   stdout: true
+  # Thiết bị socket (TCP, JSON từng dòng, giá trị nhạy cảm đã HMAC) gửi thẳng tới bộ thu tcplog/openbao của otel-siem
+  # (chart otel-collector, khoá siem.openbao) để chuẩn hoá ECS sang sys.siem.v1 (SEC-43, INF-19). Thiết bị tệp vẫn là
+  # bản lưu chính: OpenBao chỉ từ chối yêu cầu khi mọi thiết bị đều ghi lỗi, nên SIEM gián đoạn không chặn OpenBao.
+  # writeTimeout giữ ngắn để kết nối treo không làm chậm từng yêu cầu quá lâu.
+  socket:
+    enabled: true
+    address: otel-siem.observability.svc:54525
+    writeTimeout: 2s
 
 # Đường mount và cấu hình chung mà deploy/openbao/cau-hinh.sh dùng; giữ đồng bộ với tên ở các chart khác.
 cell:

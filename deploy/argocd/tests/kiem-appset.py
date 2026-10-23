@@ -94,8 +94,15 @@ def main():
     chart = yaml.safe_load(open(os.path.join(DEPLOY, "charts", "vt-platform", "Chart.yaml"), encoding="utf-8"))
     deps = {d["name"] for d in chart["dependencies"]}
     svc = [s["name"] for s in values["services"]]
-    if set(svc) != deps or len(svc) != len(deps):
-        sai(f"services khác dependency vt-platform: {sorted(set(svc) ^ deps)}")
+    # Service có khoá chart dùng chart riêng ngoài vt-platform (security-cell, INF-19), không trùng dependency.
+    trong = [s["name"] for s in values["services"] if not s.get("chart")]
+    if set(trong) != deps or len(trong) != len(deps):
+        sai(f"services khác dependency vt-platform: {sorted(set(trong) ^ deps)}")
+    for s in values["services"]:
+        if s.get("chart") and (s["name"] in deps or not os.path.isfile(os.path.join(DEPLOY, s["chart"], "Chart.yaml"))):
+            sai(f"{s['name']}: chart riêng {s['chart']} thiếu Chart.yaml hoặc trùng dependency vt-platform")
+        if s["namespace"] not in values["projects"][s["project"]]["namespaces"]:
+            sai(f"{s['name']}: namespace {s['namespace']} không thuộc project {s['project']}")
     for s in values["services"]:
         if s["project"] not in values["projects"]:
             sai(f"{s['name']}: project {s['project']} chưa khai")
@@ -132,7 +139,8 @@ def main():
                 if a["metadata"]["labels"]["wave"] not in dot_co_buoc:
                     sai(f"{a['metadata']['name']}: wave {a['metadata']['labels']['wave']} không thuộc bước RollingSync")
                 if site == sites[0] and t == "g4":
-                    tham_so.append({"ten": a["metadata"]["name"], "helm": a["spec"]["source"]["helm"]})
+                    tham_so.append({"ten": a["metadata"]["name"], "helm": a["spec"]["source"]["helm"],
+                                    "path": a["spec"]["source"]["path"]})
     mong = len(cell_dung) * len(values["sites"]) * len(svc)
     ten = [a["metadata"]["name"] for a in apps]
     if len(apps) != mong:

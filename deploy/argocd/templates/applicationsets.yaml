@@ -7,7 +7,7 @@ trên nhãn wave. Biểu thức của Argo CD (dạng ngoặc nhọn kép) đư�
 {{- $L := "{{" }}
 {{- $root := trimSuffix "/" $v.gitops.root }}
 {{- $tatCa := list }}
-{{- range $v.services }}{{ $tatCa = append $tatCa .name }}{{ end }}
+{{- range $v.services }}{{ if not .chart }}{{ $tatCa = append $tatCa .name }}{{ end }}{{ end }}
 {{- range $s := $v.services }}
 {{- if not (hasKey $v.projects $s.project) }}
 {{- fail (printf "vt-gitops: service %s dùng project %s chưa khai trong projects" $s.name $s.project) }}
@@ -72,14 +72,22 @@ spec:
       source:
         repoURL: {{ $v.gitops.repoURL }}
         targetRevision: {{ $v.gitops.revision }}
-        {{- if $v.chartRieng }}
+        {{- if $s.chart }}
+        path: {{ $root }}/{{ $s.chart }}
+        {{- else if $v.chartRieng }}
         path: {{ $root }}/{{ default (printf "charts/%s" $s.name) $s.path }}
         {{- else }}
         path: {{ $root }}/{{ $v.platformChart.path }}
         {{- end }}
         helm:
           ignoreMissingValueFiles: true
-          {{- if not $v.chartRieng }}
+          {{- if $s.chart }}
+          {{- $len := len (splitList "/" (trimSuffix "/" $s.chart)) }}
+          {{- $ve := repeat $len "../" }}
+          valueFiles:
+            - '{{ $ve }}cells/{{ $L }} .cell.name }}/{{ $s.name }}.yaml'
+            - '{{ $ve }}cells/{{ $L }} .cell.name }}/{{ $s.name }}-{{ $L }} .site }}.yaml'
+          {{- else if not $v.chartRieng }}
           valueFiles:
             {{- range $v.platformChart.valueFiles }}
             - '{{ replace "{{ .model }}" $v.deploymentModel . }}'
@@ -91,7 +99,9 @@ spec:
               site: '{{ $L }} .site }}'
               siteRole: '{{ $L }} if eq .site .cell.primarySite }}primary{{ $L }} else }}standby{{ $L }} end }}'
               sizing: '{{ $L }} .cell.sizing }}'
-            {{- if $v.chartRieng }}
+            {{- if $s.chart }}
+            cell: '{{ $L }} .cell.name }}'
+            {{- else if $v.chartRieng }}
             {{- if $v.namespaceTheoCell }}
             namespace: '{{ $s.namespace }}-{{ $L }} .cell.name }}'
             {{- end }}

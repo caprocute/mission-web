@@ -10,6 +10,14 @@ destinations:
   - { name: sms,     fqdn: sms-gw.vt-provider.vn, ports: [443] }
   - { name: email,   fqdn: smtp.vt-provider.vn, ports: [587] }
 
+# Đích SOC (SEC-43, SEC-50; INF-19): webhook gọi người trực SOC cho cảnh báo Falco mức Critical (Falcosidekick đi qua
+# gateway bằng HTTPS_PROXY). Tên máy là giá trị của môi trường, khai theo cell; mặc định là tên giữ chỗ. Luồng ECS sang
+# Kafka của SOC không qua gateway: siem-soc-forwarder chạy ngay trong namespace egress (chart otel-collector, khoá
+# siem.soc) với CiliumNetworkPolicy riêng. Để fqdn trống thì không mở đích này.
+soc:
+  fqdn: soc-webhook.soc.vt.local
+  ports: [443]
+
 gateway:
   name: egress-gateway
   replicas: 3
@@ -28,8 +36,9 @@ gateway:
     requests: { cpu: 250m, memory: 256Mi }
     limits: { cpu: "1", memory: 256Mi }
 
-# Namespace được gọi egress gateway (vùng ứng dụng và bảo mật; không có vùng dữ liệu).
-callerNamespaces: [core, identity, platform, workers, analytics, secure]
+# Namespace được gọi egress gateway (vùng ứng dụng và bảo mật; không có vùng dữ liệu). platform-privileged: chỉ
+# Falcosidekick gọi webhook SOC (INF-19; NetworkPolicy phía nguồn ở chart security-cell giới hạn đúng pod đó).
+callerNamespaces: [core, identity, platform, workers, analytics, secure, platform-privileged]
 
 # Chặn ra Internet cho mọi pod ngoài namespace egress (CiliumClusterwideNetworkPolicy, egressDeny). Dải nội bộ được
 # phép (cụm quản trị, Ceph RGW, mạng HSM…) khai theo cell; giữ trống ở mặc định.

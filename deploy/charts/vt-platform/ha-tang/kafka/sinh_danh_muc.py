@@ -30,7 +30,17 @@ NGHIEP_VU_THAP = {"policy.pack.published.v1", "oversight.complaint.filed.v1",
                   "config.uipack.published.v1", "ledger.seal.created.v1"}
 SO_CAI = {"sys.ledger.append.v1"}
 HE_THONG = {"sys.audit.v1", "iam.auth.event.v1", "sys.evidence.object.stored.v1", "sys.tenant.provisioned.v1",
-            "evidence.object.scanned.v1"}
+            "evidence.object.scanned.v1"} | {"sys.security.runtime.v1", "sys.siem.v1"}
+
+# Topic hạ tầng an ninh không nằm trong hợp đồng sự kiện (mang JSON/OTLP, không có lược đồ Avro, không đăng ký
+# Apicurio): TL-04 mục 10.3 (SEC-50, cảnh báo Falco qua Falcosidekick vào sys.security.runtime.v1) và SEC-43 (luồng
+# nhật ký an ninh chuẩn hoá ECS tới SIEM qua sys.siem.v1). TL-04 không nêu số phân vùng và thời gian giữ; xếp vào nhóm
+# hệ thống cùng sys.audit.v1 (suy luận). Bên tiêu thụ: otel-siem đọc sys.security.runtime.v1, chặng ra SOC
+# (siem-soc-forwarder, cùng tài khoản siem-forwarder) đọc sys.siem.v1 (INF-19).
+TOPIC_AN_NINH = [
+    {"topic": "sys.security.runtime.v1", "consumers": ["SIEM"]},
+    {"topic": "sys.siem.v1", "consumers": ["SIEM"]},
+]
 
 # Mã bên tiêu thụ trong catalog → tài khoản Kafka (cũng là nhóm tiêu thụ và hậu tố <consumer>). Module của
 # mission-core dùng chung một tài khoản; bên ngoài cell (analytics-national qua MirrorMaker, INF-18) bỏ qua.
@@ -43,6 +53,9 @@ TAI_KHOAN = {
     "org_replica": "mission-core", "audit-archiver": "audit-archiver", "SIEM": "siem-forwarder",
 }
 NGOAI_CELL = {"analytics-national", "SVC-03"}
+# Bên tiêu thụ không có tài khoản Kafka riêng: OPA chạy cùng pod với service (TL-04, SEC-57) và nhận gói chính sách
+# qua bundle, không đọc topic (suy luận; EVT-27 ghi OPA là bên tiêu thụ, CORE-08-16).
+KHONG_TAI_KHOAN = {"OPA"}
 
 # Topic bên phát ghi thẳng (không qua outbox, catalog "nonOutboxTopics" và TL-04 mục 10.3 cho sys.audit.v1).
 GHI_TRUC_TIEP = {
@@ -53,6 +66,8 @@ GHI_TRUC_TIEP = {
     # SEC-57, TL-04 mục 10.3: chỉ Fluent Bit và tài khoản audit-writer được ghi sys.audit.v1.
     "fluent-bit": ["sys.audit.v1"],
     "audit-writer": ["sys.audit.v1"],
+    # INF-19: otel-siem ghi cảnh báo Falco đã chuẩn hoá và luồng ECS cho SIEM.
+    "siem-forwarder": ["sys.security.runtime.v1", "sys.siem.v1"],
 }
 CHI_GHI_KIEM_TOAN = {"fluent-bit", "audit-writer"}
 
@@ -65,7 +80,7 @@ def doc(p):
 def tai_khoan(ma):
     if ma.startswith("MOD-"):
         return "mission-core"
-    if ma in NGOAI_CELL:
+    if ma in NGOAI_CELL or ma in KHONG_TAI_KHOAN:
         return None
     if ma not in TAI_KHOAN:
         raise SystemExit(f"bên tiêu thụ chưa ánh xạ tài khoản Kafka: {ma}")
@@ -92,12 +107,12 @@ def sinh():
     cat = doc(os.path.join(EVENTS, "catalog.yaml"))
     src = doc(os.path.join(EVENTS, "outbox-sources.yaml"))
     topics, cap_loi, doc_quyen = [], [], {}
-    for e in cat["events"] + cat["technicalTopics"]:
+    for e in cat["events"] + cat["technicalTopics"] + TOPIC_AN_NINH:
         ky_thuat = "code" not in e
         t = {"ten": e["topic"], "nhom": nhom(e["topic"], e["consumers"], ky_thuat)}
         if "code" in e:
             t["ma"] = e["code"]
-        if ky_thuat:
+        if ky_thuat and "partitions" in e:
             t["phanVung"] = e["partitions"]
             t["luuGiu"] = e["retention"]
         if e["topic"].startswith("org.") and not ky_thuat:
@@ -148,6 +163,9 @@ def ten_kieu(sch):
                 ns = x.get("namespace", ns)
                 dinh_nghia.add(f"{ns}.{x['name']}" if ns and "." not in x["name"] else x["name"])
             for k, v in x.items():
+                # Ký hiệu enum, bí danh, giá trị mặc định là dữ liệu, không phải tên kiểu.
+                if k in ("symbols", "aliases", "default", "doc"):
+                    continue
                 if k in ("type", "items", "values") and isinstance(v, str) and v not in nguyen_thuy:
                     dung.add(v if "." in v or not ns else f"{ns}.{v}")
                 duyet(v, ns)

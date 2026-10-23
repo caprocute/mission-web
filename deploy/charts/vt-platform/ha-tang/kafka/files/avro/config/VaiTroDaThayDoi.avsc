@@ -1,0 +1,21 @@
+{
+  "type": "record",
+  "name": "VaiTroDaThayDoi",
+  "namespace": "vn.vtokr.config.v1",
+  "doc": "EVT-27 · config.access.changed.v1 · MOD-08 phát khi cấp, duyệt, từ chối, thu hồi hoặc hết hạn vai trò (config.role_binding) và khi tạo, thu hồi, hết hạn uỷ quyền (config.delegation) theo WEB-058 (CORE-08-16). Bộ đồng bộ realm role Keycloak và dữ liệu OPA đọc lại bản ghi theo refId; sự kiện không mang lý do.",
+  "fields": [
+    {"name": "change", "type": {"type": "enum", "name": "AccessChange", "symbols": ["CAP_VAI_TRO", "DUYET_VAI_TRO", "TU_CHOI_VAI_TRO", "THU_HOI_VAI_TRO", "HET_HAN_VAI_TRO", "TAO_UY_QUYEN", "THU_HOI_UY_QUYEN", "HET_HAN_UY_QUYEN"]}, "doc": "Loại thay đổi (trùng AccessEventKind của config.yaml)"},
+    {"name": "refId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "config.role_binding.id hoặc config.delegation.id"},
+    {"name": "personId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Người được cấp vai trò hoặc người nhận uỷ quyền"},
+    {"name": "roleCode", "type": ["null", "string"], "default": null, "doc": "Vai trò khi thay đổi vai trò"},
+    {"name": "delegationKind", "type": ["null", "string"], "default": null, "doc": "DUYET_THAY, NGHIEM_THU_THAY, CHECK_IN_THAY khi thay đổi uỷ quyền"},
+    {"name": "delegatorId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null, "doc": "Người uỷ quyền"},
+    {"name": "orgUnitId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Đơn vị phạm vi"},
+    {"name": "scope", "type": ["null", "string"], "default": null, "doc": "DON_VI hoặc DON_VI_VA_CAP_DUOI"},
+    {"name": "flow", "type": ["null", "string"], "default": null, "doc": "Giới hạn theo luồng"},
+    {"name": "validFrom", "type": {"type": "long", "logicalType": "timestamp-millis"}, "doc": "Bắt đầu hiệu lực sau thay đổi"},
+    {"name": "validTo", "type": {"type": "long", "logicalType": "timestamp-millis"}, "doc": "Hết hiệu lực sau thay đổi"},
+    {"name": "effective", "type": "boolean", "doc": "Bản ghi đang trao quyền ngay sau thay đổi"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}

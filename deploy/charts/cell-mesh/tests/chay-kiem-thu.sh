@@ -40,7 +40,15 @@ assert (c["provisioner"], c["volumeBindingMode"], c["reclaimPolicy"]) == ("rbd.c
 assert c["parameters"]["imageFeatures"] == "layering,exclusive-lock,object-map,fast-diff" and c["parameters"]["encrypted"] == "true"
 assert c["parameters"]["encryptionKMSID"] == "openbao-kms" and c["parameters"]["csi.storage.k8s.io/fstype"] == "ext4"
 cnp = [x for x in e if x["kind"] == "CiliumNetworkPolicy"][0]
-assert cnp["metadata"]["namespace"] == "egress" and len([r for r in cnp["spec"]["egress"] if "toFQDNs" in r]) == 8
+assert cnp["metadata"]["namespace"] == "egress" and len([r for r in cnp["spec"]["egress"] if "toFQDNs" in r]) == 9
+# INF-19: đích SOC (tên giữ chỗ từ values) ở cả Cilium lẫn Envoy; Falcosidekick (platform-privileged) gọi được gateway.
+assert {"matchName": "soc-webhook.soc.vt.local"} in [f for r in cnp["spec"]["egress"] for f in r.get("toFQDNs", [])]
+env = [x for x in e if x["kind"] == "ConfigMap"][0]["data"]["envoy.yaml"]
+assert '"soc-webhook.soc.vt.local:443"' in env
+npi = [x for x in e if x["kind"] == "NetworkPolicy"][0]["spec"]["ingress"][0]["from"][0]["namespaceSelector"]
+assert "platform-privileged" in npi["matchExpressions"][0]["values"]
+ap = [x for x in e if x["kind"] == "AuthorizationPolicy"][0]["spec"]["rules"][0]["from"][0]["source"]["namespaces"]
+assert "platform-privileged" in ap
 ccnp = [x for x in e if x["kind"] == "CiliumClusterwideNetworkPolicy"][0]["spec"]
 assert ccnp["egressDeny"] == [{"toEntities": ["world"]}]
 dep = [x for x in e if x["kind"] == "Deployment"][0]["spec"]["template"]["spec"]
