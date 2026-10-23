@@ -4,6 +4,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +65,21 @@ class ConfigTenantIsolationIT extends TenantIsolationCatalogTest {
           row.put("updated_by", ACTOR);
           return row;
         },
+        "config.period_reopen",
+        (tenantId, seed) -> {
+          // Thời điểm tất định, open_until sau opened_at (ck_period_reopen__open_until); kỳ cha là
+          // dòng config.period đã sinh cho cùng tenant.
+          Instant opened = Instant.parse("2027-04-01T01:00:00Z").plusSeconds(seed);
+          Map<String, Object> row = new LinkedHashMap<>();
+          row.put("id", UUID.nameUUIDFromBytes(("reopen-" + tenantId + seed).getBytes()));
+          row.put("created_by", ACTOR);
+          row.put("updated_by", ACTOR);
+          row.put("period_id", periodOf(tenantId));
+          row.put("scope", "TOAN_KY");
+          row.put("opened_at", Timestamp.from(opened));
+          row.put("open_until", Timestamp.from(opened.plusSeconds(7 * 24 * 3600)));
+          return row;
+        },
         "config.saved_filter",
         (tenantId, seed) -> {
           Map<String, Object> row = new LinkedHashMap<>();
@@ -105,6 +122,24 @@ class ConfigTenantIsolationIT extends TenantIsolationCatalogTest {
       throw new IllegalStateException(e);
     }
     return json;
+  }
+
+  private UUID periodOf(UUID tenantId) {
+    try (Connection admin =
+            DriverManager.getConnection(jdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+        PreparedStatement st =
+            admin.prepareStatement(
+                "SELECT id FROM config.period WHERE tenant_id = ? ORDER BY id LIMIT 1")) {
+      st.setObject(1, tenantId);
+      try (var rs = st.executeQuery()) {
+        if (!rs.next()) {
+          throw new IllegalStateException("Chưa có kỳ mẫu cho tenant " + tenantId);
+        }
+        return rs.getObject(1, UUID.class);
+      }
+    } catch (SQLException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   private static UUID seededPack(UUID tenantId) {
