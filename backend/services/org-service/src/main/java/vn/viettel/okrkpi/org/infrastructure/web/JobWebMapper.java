@@ -1,6 +1,8 @@
 package vn.viettel.okrkpi.org.infrastructure.web;
 
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import vn.viettel.okrkpi.org.application.orgimport.ImportColumns;
 import vn.viettel.okrkpi.org.application.orgimport.ImportError;
 import vn.viettel.okrkpi.org.application.orgimport.OrgImportService.ImportJobView;
@@ -26,12 +28,33 @@ final class JobWebMapper {
       ImportColumns.LEVEL, "level",
       ImportColumns.VALID_FROM, "validFrom");
 
+  /** Tiền tố mã tác vụ của SVC-04: cổng cell định tuyến {@code /api/v1/jobs/org-…} về đây (wiki 14 mục DV-01-04). */
+  static final String JOB_PREFIX = "org-";
+
   private JobWebMapper() {
+  }
+
+  /** {@code org-<uuid>}. */
+  static String jobId(UUID id) {
+    return JOB_PREFIX + id;
+  }
+
+  /** Đọc mã {@code org-<uuid>}; vẫn nhận UUID trần của tác vụ tạo trước khi có tiền tố. */
+  static Optional<UUID> parseJobId(String jobId) {
+    String raw = jobId != null && jobId.startsWith(JOB_PREFIX) ? jobId.substring(JOB_PREFIX.length()) : jobId;
+    if (raw == null || raw.length() != 36) {
+      return Optional.empty();
+    }
+    try {
+      return Optional.of(UUID.fromString(raw));
+    } catch (IllegalArgumentException e) {
+      return Optional.empty();
+    }
   }
 
   static ImportOrgExcel202Response toDto(ImportJobView v) {
     ImportOrgExcel202Response job = new ImportOrgExcel202Response();
-    job.setId(v.id().toString());
+    job.setId(jobId(v.id()));
     job.setType(v.type());
     job.setStatus(ImportOrgExcel202Response.StatusEnum.fromValue(v.status()));
     job.setProgress(v.progress());
