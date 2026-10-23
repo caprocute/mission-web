@@ -33,9 +33,11 @@ public record HrmProperties(Boolean enabled, Map<String, Profile> connectors) {
       List<String> required,
       Duration period,
       Duration requestTimeout,
-      Integer batchSize) {
+      Integer batchSize,
+      Trigger trigger) {
 
     public Profile {
+      trigger = trigger == null ? Trigger.POLL : trigger;
       fields = fields == null ? Map.of() : Map.copyOf(fields);
       values = values == null ? Map.of() : Map.copyOf(values);
       required = required == null ? List.of("externalId", "fullName") : List.copyOf(required);
@@ -43,6 +45,16 @@ public record HrmProperties(Boolean enabled, Map<String, Profile> connectors) {
       requestTimeout = requestTimeout == null ? Duration.ofSeconds(10) : requestTimeout;
       batchSize = batchSize == null || batchSize < 1 ? 500 : batchSize;
     }
+  }
+
+  /**
+   * Cách kéo nhân sự: {@code POLL} kéo một trang mỗi chu kỳ {@code period}; {@code RUN} chỉ kéo
+   * trong lần đồng bộ (DV-13-06: lịch đêm {@code connector.schedule_cron}, "Đồng bộ ngay", chạy lại
+   * thư chết), mỗi lần kéo hết trang từ con trỏ, như CSDL quốc gia CBCCVC qua NDXP.
+   */
+  public enum Trigger {
+    POLL,
+    RUN
   }
 
   /** Kéo nhân sự qua REST: {@code GET <endpoint><path>?<cursorParam>=..&<limitParam>=..}. */

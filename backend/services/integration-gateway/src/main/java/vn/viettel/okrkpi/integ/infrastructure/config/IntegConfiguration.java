@@ -3,6 +3,7 @@ package vn.viettel.okrkpi.integ.infrastructure.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.net.http.HttpClient;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -39,6 +40,7 @@ import vn.viettel.okrkpi.integ.application.OutboundPipeline;
 import vn.viettel.okrkpi.integ.application.OutboundSender;
 import vn.viettel.okrkpi.integ.application.PullService;
 import vn.viettel.okrkpi.integ.application.SyncCursorService;
+import vn.viettel.okrkpi.integ.application.SyncRunService;
 import vn.viettel.okrkpi.integ.application.Translators;
 import vn.viettel.okrkpi.integ.application.port.CanonicalEventSink;
 import vn.viettel.okrkpi.integ.application.port.ConnectorSecrets;
@@ -46,28 +48,36 @@ import vn.viettel.okrkpi.integ.application.port.Connectors;
 import vn.viettel.okrkpi.integ.application.port.DeadLetters;
 import vn.viettel.okrkpi.integ.application.port.EvidenceObjects;
 import vn.viettel.okrkpi.integ.application.port.InboxMessages;
+import vn.viettel.okrkpi.integ.application.port.KtxhValues;
 import vn.viettel.okrkpi.integ.application.port.MappingXrefs;
 import vn.viettel.okrkpi.integ.application.port.OutboundMessages;
 import vn.viettel.okrkpi.integ.application.port.PayloadCipher;
+import vn.viettel.okrkpi.integ.application.port.PersonnelSink;
 import vn.viettel.okrkpi.integ.application.port.SyncCursors;
+import vn.viettel.okrkpi.integ.application.port.SyncRuns;
 import vn.viettel.okrkpi.integ.domain.RetrySchedule;
 import vn.viettel.okrkpi.integ.infrastructure.camel.CompositeRoutes;
 import vn.viettel.okrkpi.integ.infrastructure.camel.DeadLetterRoute;
 import vn.viettel.okrkpi.integ.infrastructure.camel.InboxIdempotentRepository;
+import vn.viettel.okrkpi.integ.infrastructure.camel.MicrometerRunMetrics;
 import vn.viettel.okrkpi.integ.infrastructure.camel.OutboundDispatchRoute;
 import vn.viettel.okrkpi.integ.infrastructure.camel.OutboundEventRoute;
 import vn.viettel.okrkpi.integ.infrastructure.camel.PollingConnectorRoute;
 import vn.viettel.okrkpi.integ.infrastructure.camel.RouteSettings;
+import vn.viettel.okrkpi.integ.infrastructure.camel.SyncRunRoute;
 import vn.viettel.okrkpi.integ.infrastructure.crypto.FieldEncryptorPayloadCipher;
 import vn.viettel.okrkpi.integ.infrastructure.events.OutboxCanonicalEventSink;
 import vn.viettel.okrkpi.integ.infrastructure.evidence.HttpEvidenceObjects;
 import vn.viettel.okrkpi.integ.infrastructure.hrm.HrmConfiguration.HrmBeans;
+import vn.viettel.okrkpi.integ.infrastructure.lgsp.LgspConfiguration.LgspBeans;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcConnectors;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcDeadLetters;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcInboxMessages;
+import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcKtxhValues;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcMappingXrefs;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcOutboundMessages;
 import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcSyncCursors;
+import vn.viettel.okrkpi.integ.infrastructure.persistence.JdbcSyncRuns;
 import vn.viettel.okrkpi.integ.infrastructure.secrets.FileConnectorSecrets;
 import vn.viettel.okrkpi.integ.infrastructure.truc.TrucConfiguration.TrucBeans;
 import vn.viettel.okrkpi.integ.infrastructure.truc.TrucEdxmlComposer;
@@ -113,6 +123,16 @@ public class IntegConfiguration {
   @Bean
   OutboundMessages integOutboundMessages(JdbcClient jdbc) {
     return new JdbcOutboundMessages(jdbc);
+  }
+
+  @Bean
+  SyncRuns integSyncRuns(JdbcClient jdbc) {
+    return new JdbcSyncRuns(jdbc);
+  }
+
+  @Bean
+  KtxhValues integKtxhValues(JdbcClient jdbc) {
+    return new JdbcKtxhValues(jdbc);
   }
 
   /** Bộ mã hoá NEN-015 lấy lúc dùng, để cấu hình tắt mã hoá (kiểm thử) vẫn khởi động được. */
@@ -168,23 +188,35 @@ public class IntegConfiguration {
       ObjectProvider<InboundConnector> connectors,
       ObjectProvider<VOfficeBeans> voffice,
       ObjectProvider<HrmBeans> hrm,
-      ObjectProvider<TrucBeans> truc) {
-    return new Translators(inboundConnectors(connectors, voffice, hrm, truc), Map.of());
+      ObjectProvider<TrucBeans> truc,
+      ObjectProvider<LgspBeans> lgsp) {
+    List<InboundConnector> all =
+        new ArrayList<>(inboundConnectors(connectors, voffice, hrm, truc, lgsp));
+    all.addAll(runSources(hrm));
+    return new Translators(all, Map.of());
+  }
+
+  /** Bộ kéo chỉ chạy trong lần đồng bộ (DV-13-06), không có route kéo theo chu kỳ. */
+  static List<InboundConnector> runSources(ObjectProvider<HrmBeans> hrm) {
+    HrmBeans h = hrm.getIfAvailable();
+    return h == null ? List.of() : h.runSources();
   }
 
   /**
    * Bộ kết nối vào khai báo thẳng là bean cộng với các bộ kiểu vOffice dựng theo danh sách mã và
-   * các bộ HRM dựng theo hồ sơ (DV-13-08) và các bộ Trục liên thông (DV-13-05).
+   * các bộ HRM dựng theo hồ sơ (DV-13-08), các bộ Trục liên thông (DV-13-05) và LGSP (DV-13-06).
    */
   static List<InboundConnector> inboundConnectors(
       ObjectProvider<InboundConnector> connectors,
       ObjectProvider<VOfficeBeans> voffice,
       ObjectProvider<HrmBeans> hrm,
-      ObjectProvider<TrucBeans> truc) {
+      ObjectProvider<TrucBeans> truc,
+      ObjectProvider<LgspBeans> lgsp) {
     List<InboundConnector> all = new ArrayList<>(connectors.orderedStream().toList());
     voffice.ifAvailable(v -> all.addAll(v.connectors()));
     hrm.ifAvailable(h -> all.addAll(h.connectors()));
     truc.ifAvailable(t -> all.addAll(t.connectors()));
+    lgsp.ifAvailable(l -> all.addAll(l.connectors()));
     return all;
   }
 
@@ -201,6 +233,7 @@ public class IntegConfiguration {
       MappingXrefs xrefs,
       ObjectProvider<IndicatorSource> sources,
       ObjectProvider<HrmBeans> hrm,
+      ObjectProvider<LgspBeans> lgsp,
       TransactionTemplate integTransactions,
       ObjectProvider<Clock> clock,
       ExecutorService integSourceExecutor,
@@ -208,6 +241,7 @@ public class IntegConfiguration {
       @Value("${okrkpi.integ.kr-source.breaker-open:PT30S}") Duration open) {
     List<IndicatorSource> all = new ArrayList<>(sources.orderedStream().toList());
     hrm.ifAvailable(h -> all.addAll(h.indicators()));
+    lgsp.ifAvailable(l -> all.addAll(l.indicators()));
     CircuitBreakerRegistry breakers =
         CircuitBreakerRegistry.of(
             CircuitBreakerConfig.custom()
@@ -360,6 +394,54 @@ public class IntegConfiguration {
     return new PullService(connectors, cursors, integTransactions);
   }
 
+  /** Lần đồng bộ kéo hết trang cho org-service (DV-13-06); lô cuối đóng lần chạy ở SVC-04. */
+  @Bean
+  SyncRunService integSyncRunService(
+      Connectors connectors,
+      SyncRuns runs,
+      DeadLetterService deadLetters,
+      PullService pulls,
+      InboundPipeline pipeline,
+      ObjectProvider<HrmBeans> hrm,
+      ObjectProvider<PersonnelSink> sink,
+      ObjectProvider<MeterRegistry> meters,
+      TransactionTemplate integTransactions,
+      ObjectProvider<Clock> clock,
+      @Value("${okrkpi.integ.sync-run.max-pages:5000}") int maxPages,
+      @Value("${okrkpi.integ.sync-run.fetch-attempts:3}") int fetchAttempts,
+      @Value("${okrkpi.integ.sync-run.fetch-backoff:PT2S}") Duration fetchBackoff,
+      @Value("${okrkpi.integ.sync-run.process-attempts:3}") int processAttempts,
+      @Value("${okrkpi.integ.sync-run.lease-seconds:300}") int leaseSeconds) {
+    MeterRegistry registry = meters.getIfAvailable();
+    return new SyncRunService(
+        connectors,
+        runs,
+        deadLetters,
+        pulls,
+        pipeline,
+        runSources(hrm),
+        (tenant, code, runId, status, dead, reason) ->
+            sink.ifAvailable(s -> s.close(tenant, code, runId, dead, reason)),
+        registry == null ? null : new MicrometerRunMetrics(registry),
+        integTransactions,
+        clock.getIfAvailable(Clock::systemUTC),
+        new SyncRunService.Settings(
+            maxPages, fetchAttempts, fetchBackoff, processAttempts, leaseSeconds));
+  }
+
+  @Bean
+  @ConditionalOnProperty(
+      prefix = "okrkpi.integ.sync-run",
+      name = "enabled",
+      havingValue = "true",
+      matchIfMissing = true)
+  RoutesBuilder integSyncRunRoute(
+      SyncRunService runs,
+      @Value("${okrkpi.integ.sync-run.period:PT10S}") Duration period,
+      @Value("${okrkpi.integ.sync-run.batch:4}") int batch) {
+    return new SyncRunRoute(runs, period, batch);
+  }
+
   @Bean
   InboxIdempotentRepository integIdempotentRepository(InboundPipeline pipeline) {
     return new InboxIdempotentRepository(pipeline);
@@ -383,11 +465,12 @@ public class IntegConfiguration {
       ObjectProvider<VOfficeBeans> voffice,
       ObjectProvider<HrmBeans> hrm,
       ObjectProvider<TrucBeans> truc,
+      ObjectProvider<LgspBeans> lgsp,
       PullService pulls,
       InboundPipeline pipeline,
       InboxIdempotentRepository idempotent) {
     return new CompositeRoutes(
-        inboundConnectors(connectors, voffice, hrm, truc).stream()
+        inboundConnectors(connectors, voffice, hrm, truc, lgsp).stream()
             .map(source -> new PollingConnectorRoute(settings, source, pulls, pipeline, idempotent))
             .toList());
   }

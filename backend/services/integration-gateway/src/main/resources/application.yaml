@@ -117,6 +117,21 @@ okrkpi:
         token-url: ${INTEG_TOKEN_URL:}
         client-id: ${INTEG_CLIENT_ID:integration-gateway}
         client-secret: ${INTEG_CLIENT_SECRET:}
+    # DV-13-06: lần đồng bộ kéo hết trang cho org-service (CSDL CBCCVC qua NDXP, hồ sơ HRM có
+    # trigger: RUN): lịch đêm ở connector.schedule_cron, "Đồng bộ ngay" và chạy lại thư chết.
+    sync-run:
+      enabled: ${INTEG_SYNC_RUN_ENABLED:true}
+      period: ${INTEG_SYNC_RUN_PERIOD:PT10S}
+      max-pages: ${INTEG_SYNC_RUN_MAX_PAGES:5000}
+      fetch-attempts: ${INTEG_SYNC_RUN_FETCH_ATTEMPTS:3}
+      fetch-backoff: ${INTEG_SYNC_RUN_FETCH_BACKOFF:PT2S}
+      lease-seconds: ${INTEG_SYNC_RUN_LEASE_SECONDS:300}
+    # DV-13-06: chỉ tiêu KT-XH qua LGSP tỉnh, bộ (BR-16-05 cờ da_cong_bo).
+    lgsp:
+      enabled: ${INTEG_LGSP_ENABLED:true}
+      codes: ${INTEG_LGSP_CODES:LGSP}
+      path: ${INTEG_LGSP_PATH:/api/chi-tieu-ktxh}
+      period: ${INTEG_LGSP_PERIOD:PT15M}
     # DV-13-05: Trục liên thông văn bản quốc gia qua X-Road. inbound-codes là kết nối kéo văn bản
     # đến, outbound-codes là nơi nhận văn bản gửi ra (BTC_TW, VPTW); địa chỉ, mã thành viên X-Road
     # và mã cơ quan nằm ở endpoint của kết nối. Tắt ở Deployment chính khi chạy values-truc.yaml.
