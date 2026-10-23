@@ -1,0 +1,117 @@
+{{- /*
+Sao lưu theo thời điểm của mỗi cụm (INF-17, TL-04 mục 8.2): ObjectStore của plugin Barman Cloud tới bucket
+bk-cell-<mã>-pg của kho sao lưu ceph-sn-bk, ScheduledBackup bản nền hằng ngày, khoá S3 của cell nạp từ OpenBao qua ESO
+và đường mạng của instance tới kho sao lưu. Cụm khai plugin trong clusters.yaml (isWALArchiver).
+*/}}
+{{- $root := . }}
+{{- $v := .Values }}
+{{- $b := $v.backup }}
+{{- if $b.enabled }}
+{{- $cell := required "data-pg: sao lưu cần global.cell để đặt bucket và khoá" $v.global.cell | lower }}
+{{- $bucket := $b.bucket | default (printf "bk-cell-%s-pg" $cell) }}
+{{- $cums := fromYaml (include "data-pg.clusters" .) }}
+{{- $nsDung := dict }}
+{{- range $ten, $c := $cums }}{{ $_ := set $nsDung (include "data-pg.ns" (dict "root" $root "zone" $c.zone)) true }}{{ end }}
+{{- range $ns, $_ := $nsDung }}
+{{- if $v.externalSecrets.enabled }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $b.credentials.secretName }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "data-pg.labels" $root | nindent 4 }}
+spec:
+  refreshInterval: {{ $v.externalSecrets.refreshInterval }}
+  secretStoreRef:
+    kind: {{ $v.externalSecrets.secretStore.kind }}
+    name: {{ $v.externalSecrets.secretStore.name }}
+  target:
+    name: {{ $b.credentials.secretName }}
+    creationPolicy: Owner
+  data:
+    {{- range $k := list "ACCESS_KEY_ID" "ACCESS_SECRET_KEY" }}
+    - secretKey: {{ $k }}
+      remoteRef: { key: {{ $b.credentials.path | default (printf "kv/cell-%s/backup/pg" $cell) }}, property: {{ $k }} }
+    {{- end }}
+{{- end }}
+{{- with $b.egressTo }}
+---
+# Instance (sidecar Barman Cloud trong pod) đẩy WAL và bản nền ra kho sao lưu.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pg-sao-luu
+  namespace: {{ $ns }}
+  labels:
+    {{- include "data-pg.labels" $root | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { cnpg.io/podRole: instance }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        {{- toYaml . | nindent 8 }}
+      ports: [{ port: {{ $b.egressPort }}, protocol: TCP }]
+{{- end }}
+{{- end }}
+{{- range $ten, $c := $cums }}
+{{- $ns := include "data-pg.ns" (dict "root" $root "zone" $c.zone) }}
+---
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: {{ $b.objectStorePrefix }}-{{ $ten }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "data-pg.labels" $root | nindent 4 }}
+spec:
+  retentionPolicy: {{ $b.retentionPolicy | quote }}
+  configuration:
+    destinationPath: s3://{{ $bucket }}/{{ $ten }}
+    endpointURL: {{ $b.endpoint }}
+    {{- with $b.endpointCA }}
+    endpointCA:
+      name: {{ .name }}
+      key: {{ .key }}
+    {{- end }}
+    s3Credentials:
+      accessKeyId: { name: {{ $b.credentials.secretName }}, key: ACCESS_KEY_ID }
+      secretAccessKey: { name: {{ $b.credentials.secretName }}, key: ACCESS_SECRET_KEY }
+    wal:
+      compression: {{ $b.wal.compression }}
+      {{- with $b.wal.encryption }}
+      encryption: {{ . }}
+      {{- end }}
+      maxParallel: {{ $b.wal.maxParallel }}
+    data:
+      compression: {{ $b.data.compression }}
+      {{- with $b.data.encryption }}
+      encryption: {{ . }}
+      {{- end }}
+      jobs: {{ $b.data.jobs }}
+      immediateCheckpoint: {{ $b.data.immediateCheckpoint }}
+  instanceSidecarConfiguration:
+    resources:
+      {{- toYaml $b.sidecar.resources | nindent 6 }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: {{ $ten }}-daily
+  namespace: {{ $ns }}
+  labels:
+    {{- include "data-pg.labels" $root | nindent 4 }}
+    vt.io/sao-luu: nen-hang-ngay
+spec:
+  schedule: {{ $b.schedule | quote }}
+  backupOwnerReference: self
+  cluster:
+    name: {{ $ten }}
+  method: plugin
+  target: {{ $b.target }}
+  pluginConfiguration:
+    name: {{ $b.plugin }}
+{{- end }}
+{{- end }}

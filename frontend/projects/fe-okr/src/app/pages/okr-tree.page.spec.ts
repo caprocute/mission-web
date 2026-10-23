@@ -1,6 +1,7 @@
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { HttpResponse, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import { of } from 'rxjs';
 import {
   DEFAULT_RUNTIME_CONFIG,
   MOCK_API_OPTIONS,
@@ -134,5 +135,31 @@ describe('OkrTreePage (SCR-0201)', () => {
     expect(el.querySelector('.seg')).toBeNull();
     expect(buttons(el)).not.toContain('Xuất mẫu');
     expect(el.querySelector('vt-objective-node')).not.toBeNull();
+  });
+
+  it('máy chủ trả thân rỗng: hiện lỗi kèm nút Thử lại, không treo ở "Đang tải"', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([{ path: '', component: OkrTreePage }]),
+        provideHttpClient(
+          withInterceptors([
+            (req, next) =>
+              req.url.includes('/okr/tree')
+                ? of(new HttpResponse({ status: 200, body: null }))
+                : next(req),
+          ]),
+        ),
+        { provide: RUNTIME_CONFIG, useValue: DEFAULT_RUNTIME_CONFIG },
+        { provide: OKR_CAN, useValue: () => true },
+      ],
+    });
+    await TestBed.inject(Router).navigateByUrl('/');
+    const fixture = TestBed.createComponent(OkrTreePage);
+    fixture.autoDetectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    await until(el, '.msg');
+    expect(text(el)).toContain('Chưa nhận được dữ liệu cây mục tiêu');
+    expect(text(el)).not.toContain('Đang tải');
+    expect(buttons(el)).toContain('Thử lại');
   });
 });

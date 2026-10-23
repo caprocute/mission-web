@@ -2,9 +2,11 @@ package vn.viettel.okrkpi.product.application.evidence;
 
 import java.io.Serial;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.transaction.annotation.Transactional;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRepository;
@@ -65,6 +67,48 @@ public class EvidenceReviewService {
   /** Cho phép người nhận uỷ quyền nghiệm thu thay mở nghiệm thu (CORE-03-08). */
   public void setAuthority(ReviewerAuthority authority) {
     this.authority = Objects.requireNonNull(authority, "authority");
+  }
+
+  public static final String SOAN = "SCR-0701.soan";
+  public static final String NOP = "SCR-0701.nop";
+  public static final String MO = "SCR-0703.mo";
+  public static final String XAC_NHAN = "SCR-0703.xac-nhan";
+  public static final String BO_SUNG_TU_CHOI = "SCR-0703.bo-sung-tu-choi";
+
+  /**
+   * Thao tác người gọi được làm trên phiên bản minh chứng ({@code permittedActions}, YC-PT-21),
+   * cùng điều kiện của dịch vụ: soạn và nộp khi người gọi chủ trì nhiệm vụ đang nhận minh chứng và
+   * phiên bản còn {@code NHAP} ({@link EvidenceSubmissionService}); mở nghiệm thu khi đủ tư cách
+   * người nghiệm thu hoặc nghiệm thu thay ({@link ReviewerAuthority}) và phiên bản đã nộp; xác
+   * nhận, yêu cầu bổ sung hoặc từ chối khi đang nghiệm thu. Không xét toàn vẹn tệp (kiểm khi mở).
+   */
+  @Transactional(value = TX, readOnly = true)
+  public Set<String> permittedOn(TenantId tenant, VersionView v, UUID me) {
+    Set<String> out = new LinkedHashSet<>();
+    TaskSummary task = me == null ? null : tasks.find(tenant, v.taskId()).orElse(null);
+    if (task == null) {
+      return out;
+    }
+    EvidenceStatus status = EvidenceStatus.valueOf(v.status());
+    if (status == EvidenceStatus.NHAP
+        && me.equals(task.leadAssigneeId())
+        && EvidenceSubmissionService.EVIDENCE_STATES.contains(task.status())) {
+      out.add(SOAN);
+      out.add(NOP);
+    }
+    if (status == EvidenceStatus.DA_NOP || status == EvidenceStatus.DANG_NGHIEM_THU) {
+      try {
+        authority.resolve(tenant, task, me, v.submittedBy());
+        out.add(MO);
+        if (status == EvidenceStatus.DANG_NGHIEM_THU) {
+          out.add(XAC_NHAN);
+          out.add(BO_SUNG_TU_CHOI);
+        }
+      } catch (EvidenceRuleViolation ex) {
+        // Không đủ tư cách người nghiệm thu: không thêm thao tác nghiệm thu.
+      }
+    }
+    return out;
   }
 
   /** Toàn vẹn không bảo đảm (MSG-07-13); cảnh báo đã ghi trong giao dịch riêng. */

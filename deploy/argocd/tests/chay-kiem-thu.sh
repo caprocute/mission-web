@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Kiểm thử tĩnh kho GitOps (INF-04): helm lint, render chart deploy/argocd, kubeconform -strict với schema CRD của
 # Argo CD 3.1 và Argo Rollouts 1.8 (tests/crd-schemas, sinh bằng vt-platform/ci/tao-schema-crd.py), mô phỏng bộ sinh
-# ApplicationSet (tests/kiem-appset.py), render thử nguồn Helm của từng Application ở CELL-G4, Rollout canary của
+# ApplicationSet (tests/kiem-appset.py), render thử nguồn Helm của từng Application ở CELL-G4, bản staging và môi
+# trường tạm theo PR (INF-21), Rollout canary của
 # mission-core, kiểm thử đơn vị script sinh lịch đóng băng. Cần helm, kubeconform, python3 + PyYAML, jsonschema.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -41,10 +42,11 @@ for ten, s in p.items():
     assert all(", sync, " not in pol or "release-manager" in pol for r in s["roles"] for pol in r["policies"])
 EOF
 
-# Render thử nguồn Helm của từng Application ở CELL-G4 (giống repo-server của Argo CD: valueFiles bỏ tệp thiếu,
-# valuesObject, parameters). Digest của production còn rỗng nên thay bằng digest giả cho bước này.
+# Render thử nguồn Helm của từng Application ở một cell mẫu (giống repo-server của Argo CD: valueFiles bỏ tệp thiếu,
+# valuesObject, parameters). Digest của môi trường còn rỗng nên thay bằng digest giả cho bước này.
+render_apps() {  # $1 tệp tham số do kiem-appset.py xuất, $2 nhãn
 cd "$GOC/deploy/charts/vt-platform"
-python3 - "$W/ts.json" "$W" <<'EOF'
+python3 - "$1" "$W" <<'EOF'
 import json, os, sys, yaml
 ts, w = json.load(open(sys.argv[1])), sys.argv[2]
 with open(f"{w}/lenh", "w") as out:
@@ -75,8 +77,58 @@ while IFS=$'\t' read -r ten chart args; do
     LOI_RENDER=$((LOI_RENDER+1)); echo "    $ten: $(tail -1 "$W/loi-app")"
   fi
 done < "$W/lenh"
-[ "$LOI_RENDER" = 0 ] && ok "render nguồn Helm của $SO Application ở CELL-G4" || hong "render $LOI_RENDER/$SO Application"
+[ "$LOI_RENDER" = 0 ] && ok "render nguồn Helm của $SO Application ở $2" || hong "render $LOI_RENDER/$SO Application ở $2"
 cd "$GOC/deploy/argocd"
+}
+render_apps "$W/ts.json" CELL-G4
+
+# INF-21 · Bản staging: chỉ CELL-STG một TTDL, không tầng dữ liệu trong cụm, đồng bộ tự động, AppProject riêng; môi
+# trường tạm theo PR (ApplicationSet pullRequest, namespace pr-<số>, finalizer dọn khi PR đóng).
+helm lint . -f values-staging.yaml >/dev/null 2>&1 && ok "helm lint staging" || hong "helm lint staging"
+helm template t . -f values-staging.yaml > "$W/stg.yaml" 2>"$W/loi" && ok "render values-staging.yaml" || { hong "render staging"; cat "$W/loi"; }
+kc "$W/stg.yaml" > "$W/kc" 2>&1 && ok "kubeconform staging ($(tail -1 "$W/kc"))" || { hong "kubeconform staging"; head -20 "$W/kc"; }
+kc ung-dung-goc-staging.yaml > "$W/kc" 2>&1 && ok "kubeconform ứng dụng gốc staging" || { hong "kubeconform ứng dụng gốc staging"; cat "$W/kc"; }
+KIEM_PR_XUAT="$W/pr.json" python3 tests/kiem-appset.py "$W/stg.yaml" --values values-staging.yaml --xuat "$W/ts-stg.json" \
+  > "$W/appset" 2>&1 && ok "bộ sinh staging: $(tail -1 "$W/appset")" || { hong "bộ sinh staging"; cat "$W/appset"; }
+python3 - "$W/stg.yaml" "$W/goc.yaml" <<'EOF' && ok "staging tách AppProject và tên ApplicationSet khỏi production" || hong "staging trùng production"
+import sys, yaml
+ten = lambda f: {(d["kind"], d["metadata"]["name"]) for d in yaml.safe_load_all(open(f)) if d}
+s, g = ten(sys.argv[1]), ten(sys.argv[2])
+assert not (s & g), s & g
+p = {d["metadata"]["name"]: d["spec"] for d in yaml.safe_load_all(open(sys.argv[1])) if d and d["kind"] == "AppProject"}
+assert set(p) == {"okr-apps-stg", "okr-nen-tang-stg", "okr-pr"}, set(p)
+assert p["okr-pr"]["clusterResourceWhitelist"] == [{"group": "", "kind": "Namespace"}]
+assert [d["namespace"] for d in p["okr-pr"]["destinations"]] == ["pr-*"]
+assert all(not x.get("syncWindows") for x in p.values())
+EOF
+render_apps "$W/ts-stg.json" CELL-STG
+# Application pr-123 dựng với tệp digest mẫu: chart khung và vt-platform, mọi tài nguyên nằm trong pr-123.
+python3 - "$W/pr.json" "$W" "$GOC/deploy" <<'EOF' > "$W/lenh-pr"
+import json, sys, yaml
+src, w, d = json.load(open(sys.argv[1])), sys.argv[2], sys.argv[3]
+yaml.safe_dump(src[0]["helm"]["valuesObject"], open(f"{w}/khung.yaml", "w"))
+yaml.safe_dump(src[1]["helm"]["valuesObject"], open(f"{w}/pr-vo.yaml", "w"))
+f = " ".join(f"-f {d}/charts/vt-platform/{x}" for x in src[1]["helm"]["valueFiles"])
+s = " ".join(f"--set {p['name']}={p['value']}" for p in src[1]["helm"]["parameters"])
+print(f"{f} -f {w}/pr-vo.yaml {s}")
+EOF
+# shellcheck disable=SC2046
+if helm template k "$GOC/deploy/environments/pr/khung" -f "$W/khung.yaml" > "$W/pr-app.yaml" 2>"$W/loi" \
+   && helm template pr-123 "$GOC/deploy/charts/vt-platform" -n pr-123 $(cat "$W/lenh-pr") >> "$W/pr-app.yaml" 2>>"$W/loi"; then
+  ok "render Application pr-123 (khung + vt-platform)"
+  kc "$W/pr-app.yaml" > "$W/kc" 2>&1 && ok "kubeconform pr-123 ($(tail -1 "$W/kc"))" || { hong "kubeconform pr-123"; head -20 "$W/kc"; }
+  python3 - "$W/pr-app.yaml" <<'EOF' && ok "pr-123: mọi tài nguyên trong namespace pr-123, nhãn dữ liệu tổng hợp, không RBAC" || hong "pr-123 lọt namespace"
+import sys, yaml
+ds = [d for d in yaml.safe_load_all(open(sys.argv[1])) if d]
+ns = [d for d in ds if d["kind"] == "Namespace"]
+assert len(ns) == 1 and ns[0]["metadata"]["name"] == "pr-123" and ns[0]["metadata"]["labels"]["vt.io/du-lieu"] == "tong-hop"
+lot = [(d["kind"], d["metadata"]["name"]) for d in ds if d["kind"] != "Namespace" and d["metadata"].get("namespace") != "pr-123"]
+assert not lot, lot
+assert not any(d["apiVersion"].startswith("rbac.authorization.k8s.io") for d in ds)
+EOF
+else
+  hong "render Application pr-123"; tail -5 "$W/loi"
+fi
 
 # Rollout canary của mission-core theo mẫu TL-04: 5 → phân tích SLI → 25 → 50 → 100, APISIX, abort giữ 600 s.
 helm template m "$GOC/deploy/charts/mission-core" --set global.cell=g4 > "$W/mc.yaml" 2>"$W/loi" || cat "$W/loi"

@@ -2,13 +2,21 @@
 apisix:
   node_listen: 9080
   enable_admin: false
+  # Máy chủ dev và container không bật IPv6.
+  enable_ipv6: false
 deployment:
   role: data_plane
   role_data_plane:
     config_provider: yaml
+# Biến môi trường mà apisix.yaml đọc bằng ${{...}} phải được khai cho tiến trình worker của nginx.
+nginx_config:
+  envs:
+    - KEYCLOAK_PUBLIC_ISSUER
 plugins:
   - cors
+  - fault-injection
   - limit-count
+  - openid-connect
   - proxy-rewrite
   - request-id
   - opentelemetry

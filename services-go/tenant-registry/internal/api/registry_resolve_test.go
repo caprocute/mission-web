@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -202,6 +203,9 @@ func TestResolveMisdirectedAfterCellMove(t *testing.T) {
 
 // Mất CSDL: tenant có trong đệm vẫn phân giải được, tenant chưa có trong đệm nhận 503 + Retry-After: 30.
 func TestResolveDatabaseDown(t *testing.T) {
+	if os.Getenv("REGISTRY_TEST_PG_DSN") != "" {
+		t.Skip("cần Testcontainers để dựng và dừng một CSDL riêng")
+	}
 	ctx := context.Background()
 	own, err := startPG(ctx, true)
 	if err != nil {

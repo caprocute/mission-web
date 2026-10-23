@@ -66,6 +66,10 @@ public final class WorkflowTestDatabase {
     registry.add("flowable.async-executor-activate", () -> "false");
     registry.add("flowable.check-process-definitions", () -> "false");
     registry.add("management.server.port", () -> "0");
+    // Giao dịch mặc định 5 s của vt-platform-starter (TL-01) dễ hết hạn khi cả bộ IT chạy chung
+    // trên máy kiểm thử chậm (kích hoạt ràng buộc chép nhiều bảng): chỉ nới ở kiểm thử, không đo
+    // hiệu năng ở đây (YC-PT-19); production giữ 5 s.
+    registry.add("spring.transaction.default-timeout", () -> "30s");
     registry.add("okrkpi.inbox.listener-auto-startup", () -> "false");
     registry.add("springdoc.api-docs.enabled", () -> "true");
     registry.add(

@@ -1,0 +1,155 @@
+{{- /*
+Môi trường tạm theo nhánh cho pull request (INF-21; TL-05 "Môi trường phi sản xuất"). Chỉ bật ở bản staging
+(values-staging.yaml). Bộ sinh pullRequest tạo một Application pr-<số> cho mỗi PR mở có nhãn prEnvironments.label,
+ghép với tệp digest deploy/environments/pr/digests/pr-<số>.yaml mà pipeline PR ghi (chưa có tệp thì chưa có
+Application). Application có finalizer nên khi PR đóng, gộp hoặc gỡ nhãn, bộ sinh bỏ phần tử, Argo CD xoá Application
+cùng toàn bộ tài nguyên, kể cả Namespace do chart khung tạo: namespace pr-<số> tự được dọn.
+Dữ liệu chỉ là dữ liệu tổng hợp (DL-08), không bao giờ dữ liệu thật (SEC-52).
+*/ -}}
+{{- $v := .Values }}
+{{- $p := $v.prEnvironments }}
+{{- if $p.enabled }}
+{{- $L := "{{" }}
+{{- $root := trimSuffix "/" $v.gitops.root }}
+{{- $ns := printf "pr-%s .number }}" $L }}
+{{- $tatCa := list }}
+{{- range $v.services }}{{ $tatCa = append $tatCa .name }}{{ end }}
+{{- range $p.services }}
+{{- if not (has . $tatCa) }}
+{{- fail (printf "vt-gitops: prEnvironments.services có %s không thuộc services" .) }}
+{{- end }}
+{{- end }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: {{ $p.project }}
+  namespace: {{ $v.argocdNamespace }}
+  labels:
+    app.kubernetes.io/part-of: vt-gitops
+spec:
+  description: "Môi trường tạm theo nhánh cho pull request, chỉ dữ liệu tổng hợp"
+  sourceRepos: [{{ $v.gitops.repoURL | quote }}]
+  {{- with (index $v.projects "okr-apps").signatureKeys }}
+  signatureKeys:
+    {{- range . }}
+    - keyID: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  destinations:
+    - { name: {{ $p.destinationName | quote }}, namespace: "pr-*" }
+  # Chỉ Namespace của chính môi trường tạm; không ClusterRole, không CRD, không webhook.
+  clusterResourceWhitelist:
+    - { group: "", kind: Namespace }
+  namespaceResourceBlacklist:
+    - { group: "rbac.authorization.k8s.io", kind: "*" }
+  roles:
+    - name: {{ $v.releaseManagers.role }}
+      description: Quản lý phát hành, người duy nhất được đồng bộ tay
+      policies:
+        - p, proj:{{ $p.project }}:{{ $v.releaseManagers.role }}, applications, sync, {{ $p.project }}/*, allow
+        - p, proj:{{ $p.project }}:{{ $v.releaseManagers.role }}, applications, get, {{ $p.project }}/*, allow
+      groups: {{ toJson $v.releaseManagers.groups }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: {{ $v.appsetPrefix }}-pr
+  namespace: {{ $v.argocdNamespace }}
+  labels:
+    app.kubernetes.io/part-of: vt-gitops
+    vt.io/moi-truong: pr
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - pullRequest:
+              requeueAfterSeconds: {{ $p.requeueAfterSeconds }}
+              {{- if eq $p.scm.provider "gitlab" }}
+              gitlab:
+                api: {{ $p.scm.gitlab.api }}
+                project: {{ $p.scm.gitlab.project | quote }}
+                pullRequestState: opened
+                labels: [{{ $p.label | quote }}]
+                tokenRef: { secretName: {{ $p.scm.gitlab.tokenSecret.name }}, key: {{ $p.scm.gitlab.tokenSecret.key }} }
+              {{- else if eq $p.scm.provider "github" }}
+              github:
+                owner: {{ $p.scm.github.owner }}
+                repo: {{ $p.scm.github.repo }}
+                labels: [{{ $p.label | quote }}]
+                tokenRef: { secretName: {{ $p.scm.github.tokenSecret.name }}, key: {{ $p.scm.github.tokenSecret.key }} }
+              {{- else }}
+              {{- fail "vt-gitops: prEnvironments.scm.provider chỉ nhận gitlab hoặc github" }}
+              {{- end }}
+          - git:
+              repoURL: {{ $v.gitops.repoURL }}
+              revision: {{ $p.digestsRevision }}
+              pathParamPrefix: digests
+              files:
+                - path: '{{ $root }}/environments/pr/digests/pr-{{ $L }} .number }}.yaml'
+  template:
+    metadata:
+      name: '{{ $ns }}'
+      labels:
+        vt.io/moi-truong: pr
+        pr: '{{ $L }} .number }}'
+      finalizers: [resources-finalizer.argocd.argoproj.io]
+    spec:
+      project: {{ $p.project }}
+      sources:
+        # Khung namespace: Namespace, ResourceQuota, LimitRange, NetworkPolicy mặc định từ chối.
+        - repoURL: {{ $v.gitops.repoURL }}
+          targetRevision: {{ $v.gitops.revision }}
+          path: {{ $root }}/environments/pr/khung
+          helm:
+            valuesObject:
+              pr: '{{ $L }} .number }}'
+              branch: '{{ $L }} .branch_slug }}'
+              sha: '{{ $L }} .head_short_sha }}'
+        - repoURL: {{ $v.gitops.repoURL }}
+          targetRevision: {{ $v.gitops.revision }}
+          path: {{ $root }}/{{ $v.platformChart.path }}
+          helm:
+            ignoreMissingValueFiles: true
+            valueFiles:
+              - values-{{ $v.deploymentModel }}.yaml
+              - sizing/values-sizing-compact.yaml
+              - ../../environments/pr/values.yaml
+            valuesObject:
+              global:
+                cell: '{{ $ns }}'
+                site: {{ first $v.sites }}
+                siteRole: primary
+                sizing: compact
+              {{- range $tatCa }}
+              {{- if has . $p.services }}
+              {{ . }}: { enabled: true, namespace: '{{ $ns }}' }
+              {{- else }}
+              {{ . }}: { enabled: false }
+              {{- end }}
+              {{- end }}
+            {{- $ts := list }}
+            {{- range $s := $v.services }}
+            {{- if and $s.image (has $s.name $p.services) }}
+            {{- $anh := printf "(index .images %q)" $s.name }}
+            {{- $ts = append $ts (dict "name" (printf "%s.%s" $s.name $s.image.repository) "value" (printf "%s %s.repository }}" $L $anh)) }}
+            {{- $ts = append $ts (dict "name" (printf "%s.%s" $s.name $s.image.digest) "value" (printf (default "%s" $s.imageFormat) (printf "%s %s.digest }}" $L $anh))) }}
+            {{- end }}
+            {{- end }}
+            {{- with $ts }}
+            parameters:
+              {{- range . }}
+              - name: {{ .name }}
+                value: '{{ .value }}'
+              {{- end }}
+            {{- end }}
+      destination:
+        name: {{ $p.destinationName }}
+        namespace: '{{ $ns }}'
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: {{ toJson $v.syncPolicy.syncOptions }}
+        retry: {{ toJson $v.syncPolicy.retry }}
+{{- end }}

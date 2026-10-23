@@ -1,0 +1,59 @@
+# INF-25 · Bộ điều khiển suy giảm ba mức. Cài vào namespace của cổng (edge), cùng chỗ với ConfigMap
+# apisix-degrade-levels mà chart api-gateway dựng (đặt degrade.controller.external=true ở api-gateway để
+# chart đó chỉ dựng bộ plugin từng mức, không chạy bộ điều khiển Python cũ).
+cell: ""
+
+image:
+  repository: harbor.invalid/mission/degrade-controller
+  tag: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+
+port: 8080
+# Mức nền khai trong Git (0..3).
+baseLevel: 0
+# Chống dao động: chỉ hạ mức khi điều kiện đã hết liên tục bấy lâu (suy luận, TL-04 không nêu số).
+holdDown: 10m
+pin:
+  # Ghim tay không nêu hạn thì lấy hạn mặc định; không ghim quá maxTTL.
+  defaultTTL: 1h
+  maxTTL: 24h
+# Mức ≥ 2 kéo dài quá thời gian này thì thông báo nâng SEV-2 (OPS-13).
+escalateAfter: 15m
+# Cảnh báo cháy không được Alertmanager gửi lại quá thời gian này thì coi như đã hết (lớn hơn repeat_interval).
+alertStaleAfter: 1h
+reconcileInterval: 1m
+tickInterval: 15s
+# Ánh xạ tên cảnh báo sang mức cho luật không mang nhãn degrade_level, ví dụ { MissionCoreSaturated: 1 }.
+alertLevels: {}
+
+# Namespace có ApisixPluginConfig gắn nhãn vt.io/degrade-managed=true.
+gatewayNamespaces: [edge]
+# Namespace có ScaledObject của tác vụ nền gắn nhãn vt.io/degrade-pause-from=<mức>; rỗng thì không tạm dừng gì.
+jobNamespaces: []
+levelsConfigMap: apisix-degrade-levels
+
+# Secret (ExternalSecret từ OpenBao) chứa bearer token mà Alertmanager và vtctl gửi kèm.
+webhookToken:
+  secretName: apisix-degrade-webhook
+  key: token
+
+# Kênh trực: URL nhận thông báo JSON (notification-service hoặc cầu nối chat); rỗng thì chỉ ghi nhật ký.
+notify:
+  url: ""
+  tokenSecret:
+    name: ""
+    key: token
+  # Namespace đích để mở NetworkPolicy egress.
+  namespace: ""
+  port: 8080
+
+alertmanagerNamespace: observability
+# CIDR của API server cho NetworkPolicy egress (lấy từ values môi trường).
+apiServerCIDRs: []
+
+podMonitor: true
+
+resources:
+  requests: { cpu: 20m, memory: 32Mi }
+  limits: { cpu: 200m, memory: 64Mi }

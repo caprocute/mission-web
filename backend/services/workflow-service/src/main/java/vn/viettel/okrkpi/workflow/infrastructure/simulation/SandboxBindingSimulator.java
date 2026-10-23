@@ -420,7 +420,10 @@ public class SandboxBindingSimulator
           .deploy(catalog);
       FlowableApprovalProcesses processes =
           new FlowableApprovalProcesses(
-              engine.getRuntimeService(), engine.getHistoryService(), null) {
+              engine.getRuntimeService(),
+              engine.getHistoryService(),
+              engine.getTaskService(),
+              null) {
             @Override
             public void lockStart(UUID tenantId, String templateCode, BusinessKey businessKey) {
               // Engine thử chạy tuần tự, không cần khoá tư vấn của PostgreSQL.

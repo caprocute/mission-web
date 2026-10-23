@@ -9,6 +9,7 @@ trên nhãn wave. Biểu thức của Argo CD (dạng ngoặc nhọn kép) đư�
 {{- $tatCa := list }}
 {{- range $v.services }}{{ if not .chart }}{{ $tatCa = append $tatCa .name }}{{ end }}{{ end }}
 {{- range $s := $v.services }}
+{{- if not (has $s.name $v.servicesTat) }}
 {{- if not (hasKey $v.projects $s.project) }}
 {{- fail (printf "vt-gitops: service %s dùng project %s chưa khai trong projects" $s.name $s.project) }}
 {{- end }}
@@ -16,7 +17,7 @@ trên nhãn wave. Biểu thức của Argo CD (dạng ngoặc nhọn kép) đư�
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: okr-{{ $s.name }}
+  name: {{ $v.appsetPrefix }}-{{ $s.name }}
   namespace: {{ $v.argocdNamespace }}
   labels:
     app.kubernetes.io/part-of: vt-gitops
@@ -68,7 +69,7 @@ spec:
         site: '{{ $L }} .site }}'
         vt.io/service: {{ $s.name }}
     spec:
-      project: {{ $s.project }}
+      project: {{ $s.project }}{{ $v.projectSuffix }}
       source:
         repoURL: {{ $v.gitops.repoURL }}
         targetRevision: {{ $v.gitops.revision }}
@@ -130,6 +131,14 @@ spec:
         {{- if not $v.rollingSync.enabled }}
         automated: { prune: true, selfHeal: true }
         {{- end }}
+        {{- if $v.ignoreDifferences }}
+        syncOptions: {{ toJson (append $v.syncPolicy.syncOptions "RespectIgnoreDifferences=true") }}
+        {{- else }}
         syncOptions: {{ toJson $v.syncPolicy.syncOptions }}
+        {{- end }}
         retry: {{ toJson $v.syncPolicy.retry }}
+      {{- with $v.ignoreDifferences }}
+      ignoreDifferences: {{ toJson . }}
+      {{- end }}
+{{- end }}
 {{- end }}

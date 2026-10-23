@@ -1,0 +1,41 @@
+# Chart backup-cell (INF-17) trên kind: kho sao lưu là container RGW zone sn của kiem-thu-kho-doi-tuong.sh
+# (172.18.0.51, HTTP) đóng vai ceph-sn-bk; ảnh công cụ dựng cục bộ từ deploy/charts/backup-cell/anh và nạp bằng
+# nap-anh.sh; không OpenBao/ESO (Secret bk-sn-s3-pg, bk-sn-s3-k8s, etcd-age-recipient tạo tay), không Pushgateway,
+# không Velero (chưa cài máy chủ Velero trên kind). Chỉ cụm pg-core như values-kind-data-pg.yaml.
+cell: kind
+image:
+  repository: localhost/mission/backup-tools
+  tag: dev
+  pullPolicy: Never
+choPhepKhongDigest: true
+khoSaoLuu:
+  endpoint: http://172.18.0.51:8080
+  region: cell-kind-zg
+  caBundle: null
+  egressTo: [{ ipBlock: { cidr: 172.18.0.51/32 } }]
+  egressPort: 8080
+externalSecrets: { enabled: false }
+cums:
+  - { ten: pg-core, namespace: data-pg, kichThuoc: 2Gi }
+restoreCheck:
+  postgresImage:
+    repository: ghcr.io/cloudnative-pg/postgresql
+    tag: 17.6-minimal-bookworm
+    digest: sha256:d45d7a78ec14e80476974c6b123bf929ddb5908f4f4581c275bbe85e61fb93bc
+  storageClass: standard
+  nodeSelector: null
+  tolerations: []
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 512Mi }
+  choSanSangGiay: 900
+  activeDeadlineSeconds: 1800
+  kiemTra: { soCai: {} }
+giuDaiHan:
+  cumNam: []
+etcd:
+  tamGioiHan: 1Gi
+velero:
+  enabled: false
+canhBao:
+  enabled: false

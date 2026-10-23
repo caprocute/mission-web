@@ -1,0 +1,111 @@
+# Kiểm thử luật cảnh báo của backup-cell bằng promtool (chay-kiem-thu.sh dựng canh-bao.rules.yaml từ PrometheusRule
+# render với cell=g4). Thời gian tính từ 0 (1970-01-01), nên giá trị dấu thời gian là số giây kể từ lúc bắt đầu.
+rule_files: [canh-bao.rules.yaml]
+evaluation_interval: 1m
+tests:
+  # Bản nền của pg-core dừng ở thời điểm 0; pg-ledger có bản nền mới liên tục.
+  - interval: 5m
+    input_series:
+      - series: 'barman_cloud_cloudnative_pg_io_last_available_backup_timestamp{namespace="data-pg",pod="pg-core-1"}'
+        values: '0x400'
+      - series: 'barman_cloud_cloudnative_pg_io_last_available_backup_timestamp{namespace="secure-data",pod="pg-ledger-1"}'
+        values: '0+300x400'
+      - series: 'backup_restore_check_last_run_timestamp_seconds{cell="g4",cluster="pg-core"}'
+        values: '0+300x400'
+    alert_rule_test:
+      - { eval_time: 25h, alertname: BackupMissing, exp_alerts: [] }
+      - eval_time: 27h
+        alertname: BackupMissing
+        exp_alerts:
+          - exp_labels: { severity: critical, vt_ly_do: ban-nen, namespace: data-pg, cluster: pg-core }
+            exp_annotations:
+              summary: "data-pg/pg-core: không có bản nền mới trong 26 giờ"
+              description: "Bản nền mới nhất trên kho sao lưu đã cũ hơn 26 giờ (lịch 01:30 hằng ngày). Xem ops/runbooks/sao-luu-postgresql.md mục 3."
+  # WAL: primary pg-core-1 không lưu trữ được 400 giây; standby pg-core-2 luôn có số giây lớn (không lưu trữ) nhưng
+  # không được tính. pg-flowable chỉ có standby trễ, primary bình thường.
+  - interval: 1m
+    input_series:
+      - series: 'cnpg_pg_stat_archiver_seconds_since_last_archival{namespace="data-pg",pod="pg-core-1"}'
+        values: '100 200 400 400 400 400 400 400'
+      - series: 'cnpg_pg_replication_in_recovery{namespace="data-pg",pod="pg-core-1"}'
+        values: '0x8'
+      - series: 'cnpg_pg_stat_archiver_seconds_since_last_archival{namespace="data-pg",pod="pg-core-2"}'
+        values: '9000x8'
+      - series: 'cnpg_pg_replication_in_recovery{namespace="data-pg",pod="pg-core-2"}'
+        values: '1x8'
+      - series: 'cnpg_pg_stat_archiver_seconds_since_last_archival{namespace="data-pg",pod="pg-flowable-1"}'
+        values: '30x8'
+      - series: 'cnpg_pg_replication_in_recovery{namespace="data-pg",pod="pg-flowable-1"}'
+        values: '0x8'
+      - series: 'cnpg_pg_stat_archiver_seconds_since_last_archival{namespace="data-pg",pod="pg-flowable-2"}'
+        values: '9000x8'
+      - series: 'cnpg_pg_replication_in_recovery{namespace="data-pg",pod="pg-flowable-2"}'
+        values: '1x8'
+      - series: 'backup_restore_check_last_run_timestamp_seconds{cell="g4",cluster="pg-core"}'
+        values: '0+60x8'
+    alert_rule_test:
+      - { eval_time: 3m, alertname: BackupMissing, exp_alerts: [] }
+      - eval_time: 5m
+        alertname: BackupMissing
+        exp_alerts:
+          - exp_labels: { severity: critical, vt_ly_do: wal, namespace: data-pg, cluster: pg-core }
+            exp_annotations:
+              summary: "data-pg/pg-core: WAL chưa lưu trữ quá 300 giây"
+              description: "Primary không đẩy được WAL ra kho sao lưu (archive_timeout 60 s), RPO khi khôi phục từ sao lưu đang vượt 5 phút. Xem ops/runbooks/sao-luu-postgresql.md mục 3."
+  # Khôi phục thử: lần thành công cuối ở thời điểm 0, các lần sau hỏng (bản nền bị làm hỏng); RestoreCheckFailed báo
+  # ngay, RestoreCheckStale báo sau 8 ngày.
+  - interval: 5m
+    input_series:
+      - series: 'backup_restore_check_last_success_timestamp_seconds{cell="g4",cluster="pg-core",job="restore-check"}'
+        values: '0x2600'
+      - series: 'backup_restore_check_last_run_timestamp_seconds{cell="g4",cluster="pg-core",job="restore-check"}'
+        values: '0+300x2600'
+      - series: 'backup_restore_check_success{cell="g4",cluster="pg-core",job="restore-check"}'
+        values: '1 0x2599'
+    alert_rule_test:
+      - { eval_time: 3m, alertname: RestoreCheckFailed, exp_alerts: [] }
+      - eval_time: 40m
+        alertname: RestoreCheckFailed
+        exp_alerts:
+          - exp_labels: { severity: critical, cell: g4, cluster: pg-core }
+            exp_annotations:
+              summary: "Cell g4: khôi phục thử cụm pg-core không đạt"
+              description: "Bản nền hoặc WAL không khôi phục được, hoặc truy vấn kiểm sau khôi phục báo lỗi. Xem nhật ký Job restore-check và ops/runbooks/sao-luu-postgresql.md mục 4."
+      - { eval_time: 7d, alertname: RestoreCheckStale, exp_alerts: [] }
+      - eval_time: 8d12h
+        alertname: RestoreCheckStale
+        exp_alerts:
+          - exp_labels: { severity: warning, cell: g4, cluster: pg-core }
+            exp_annotations:
+              summary: "Cell g4, cụm pg-core: không có lần khôi phục thử thành công trong 8 ngày"
+              description: "Nguyên tắc 0 lỗi khi kiểm tra khôi phục (3-2-1-1-0) không còn bằng chứng mới. Xem ops/runbooks/sao-luu-postgresql.md mục 4."
+  # Không có chỉ số restore-check nào của cell (CronJob không chạy hoặc không có Pushgateway).
+  - interval: 1h
+    input_series:
+      - series: 'up{job="khac"}'
+        values: '1x80'
+    alert_rule_test:
+      - { eval_time: 1d, alertname: RestoreCheckStale, exp_alerts: [] }
+      - eval_time: 3d
+        alertname: RestoreCheckStale
+        exp_alerts:
+          - exp_labels: { severity: warning, cell: g4 }
+            exp_annotations:
+              summary: "Cell g4: không có chỉ số khôi phục thử"
+              description: "CronJob restore-check không chạy hoặc không đẩy được chỉ số lên Pushgateway trong 2 ngày."
+  # etcd: lần thành công cuối ở thời điểm 0.
+  - interval: 5m
+    input_series:
+      - series: 'backup_etcd_snapshot_last_success_timestamp_seconds{cell="g4",node="m1",job="etcd-snapshot"}'
+        values: '0x200'
+      - series: 'backup_restore_check_last_run_timestamp_seconds{cell="g4",cluster="pg-core"}'
+        values: '0+300x200'
+    alert_rule_test:
+      - { eval_time: 6h, alertname: EtcdSnapshotMissing, exp_alerts: [] }
+      - eval_time: 8h
+        alertname: EtcdSnapshotMissing
+        exp_alerts:
+          - exp_labels: { severity: warning, cell: g4 }
+            exp_annotations:
+              summary: "Cell g4: không có snapshot etcd trong 7 giờ"
+              description: "CronJob chup-etcd trong kube-system lỗi. Xem ops/runbooks/sao-luu-kubernetes.md."

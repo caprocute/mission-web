@@ -1,0 +1,248 @@
+{{- /* Khôi phục thử hằng ngày (files/restore-check.sh) và giữ dài hạn (files/giu-dai-han.sh) trong namespace cách ly.
+Tên ConfigMap mang băm nội dung script để CronJob đổi theo khi script đổi. */}}
+{{- $v := .Values }}
+{{- $r := $v.restoreCheck }}
+{{- $g := $v.giuDaiHan }}
+{{- if or $r.enabled $g.enabled }}
+{{- $ns := $r.namespace }}
+{{- if ne $g.namespace $ns }}{{ fail "backup-cell: giuDaiHan.namespace phải trùng restoreCheck.namespace" }}{{ end }}
+{{- $data := dict }}
+{{- range $t := list "chung.sh" "restore-check.sh" "kiem-tra.sql" "kiem-so-cai.sql" "giu-dai-han.sh" }}
+{{- $_ := set $data $t ($.Files.Get (printf "files/%s" $t)) }}
+{{- end }}
+{{- $bam := toJson $data | sha256sum | trunc 10 }}
+{{- $cums := list }}{{ range $v.cums }}{{ $cums = append $cums (printf "%s:%s" .ten .namespace) }}{{ end }}
+{{- if not $cums }}{{ fail "backup-cell: cums rỗng" }}{{ end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-cell-script-{{ $bam }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+data:
+  {{- range $k := keys $data | sortAlpha }}
+  {{ $k }}: {{ index $data $k | quote }}
+  {{- end }}
+{{- if $v.externalSecrets.enabled }}
+---
+{{ include "bk.externalSecret" (dict "root" . "ten" $v.pg.credentials.secretName "ns" $ns "khoa" (include "bk.khoa" (dict "root" . "path" $v.pg.credentials.path "loai" "pg"))) }}
+{{- end }}
+{{- if $r.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: restore-check
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+---
+# Chỉ trong namespace cách ly: dựng, theo dõi, xoá cụm tạm và ObjectStore chỉ đọc, exec psql vào pod của cụm tạm.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: restore-check
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [postgresql.cnpg.io]
+    resources: [clusters]
+    verbs: [get, list, watch, create, patch, delete]
+  - apiGroups: [barmancloud.cnpg.io]
+    resources: [objectstores]
+    verbs: [get, create, patch, delete]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list]
+  - apiGroups: [""]
+    resources: [pods/exec]
+    verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: restore-check
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: restore-check }
+subjects: [{ kind: ServiceAccount, name: restore-check, namespace: {{ $ns }} }]
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: restore-check
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+spec:
+  schedule: {{ $r.schedule | quote }}
+  timeZone: {{ $v.timeZone }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 7
+  jobTemplate:
+    spec:
+      # Khôi phục tốn kém: không tự chạy lại; lần hỏng hiện ở chỉ số và cảnh báo RestoreCheckFailed.
+      backoffLimit: 0
+      activeDeadlineSeconds: {{ $r.activeDeadlineSeconds }}
+      template:
+        metadata:
+          labels:
+            vt.io/thanh-phan: sao-luu-job
+            vt.io/goi-api: "true"
+            {{- include "bk.labels" . | nindent 12 }}
+        spec:
+          serviceAccountName: restore-check
+          automountServiceAccountToken: true
+          restartPolicy: Never
+          securityContext:
+            {{- include "bk.podSecCtx" . | nindent 12 }}
+          containers:
+            - name: restore-check
+              image: {{ include "bk.anh" . }}
+              imagePullPolicy: {{ $v.image.pullPolicy }}
+              command: [bash, /cfg/restore-check.sh]
+              env:
+                {{- include "bk.envS3" . | nindent 16 }}
+                - { name: NS, value: {{ $ns }} }
+                - { name: CUMS, value: {{ join " " $cums | quote }} }
+                - { name: LECH_NGAY, value: {{ $r.lechNgay | quote }} }
+                - { name: LUI_GIAY, value: {{ $r.luiGiay | quote }} }
+                - { name: BUCKET, value: {{ include "bk.bucketPg" . | quote }} }
+                - { name: PLUGIN, value: {{ $v.pg.plugin | quote }} }
+                - { name: CRED_SECRET, value: {{ $v.pg.credentials.secretName | quote }} }
+                - { name: CA_SECRET, value: {{ ($v.khoSaoLuu.caBundle | default dict).secret | default "" | quote }} }
+                - { name: CA_KEY, value: {{ ($v.khoSaoLuu.caBundle | default dict).key | default "" | quote }} }
+                {{- $pi := $r.postgresImage }}
+                {{- if not (regexMatch "^sha256:[a-f0-9]{64}$" (toString $pi.digest)) }}{{ fail "backup-cell: ảnh PostgreSQL phải ghim digest sha256 (SEC-55)" }}{{ end }}
+                - { name: IMAGE_PG, value: "{{ $pi.repository }}:{{ $pi.tag }}@{{ $pi.digest }}" }
+                - { name: STORAGE_CLASS, value: {{ $r.storageClass | quote }} }
+                {{- $kt := list }}{{ range $v.cums }}{{ $kt = append $kt (printf "%s=%s" .ten .kichThuoc) }}{{ end }}
+                - { name: KICH_THUOC, value: {{ join " " $kt | quote }} }
+                - { name: CHO_GIAY, value: {{ $r.choSanSangGiay | quote }} }
+                - { name: KIEM_FK, value: {{ $r.kiemTra.khoaNgoai | quote }} }
+                - { name: NGUONG_DONG, value: {{ $r.kiemTra.nguongDong | quote }} }
+                - { name: TI_LE, value: {{ $r.kiemTra.tiLeToiThieu | quote }} }
+                {{- $sc := list }}{{ range $k, $db := $r.kiemTra.soCai }}{{ $sc = append $sc (printf "%s=%s" $k $db) }}{{ end }}
+                - { name: SO_CAI, value: {{ join " " $sc | quote }} }
+                - { name: RESOURCES, value: {{ toJson $r.resources | quote }} }
+                - { name: NODE_SELECTOR, value: {{ toJson ($r.nodeSelector | default dict) | quote }} }
+                - { name: TOLERATIONS, value: {{ toJson ($r.tolerations | default list) | quote }} }
+              resources:
+                {{- toYaml $r.resourcesJob | nindent 16 }}
+              securityContext:
+                {{- include "bk.secCtx" . | nindent 16 }}
+              volumeMounts:
+                - { name: cfg, mountPath: /cfg }
+                - { name: tmp, mountPath: /tmp }
+          volumes:
+            - { name: cfg, configMap: { name: backup-cell-script-{{ $bam }} } }
+            - { name: tmp, emptyDir: { sizeLimit: 64Mi } }
+{{- end }}
+{{- if $g.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: giu-dai-han
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+{{- $nsCum := dict }}{{ range $v.cums }}{{ $_ := set $nsCum .namespace true }}{{ end }}
+{{- range $n, $_ := $nsCum }}
+---
+# Đọc Backup của CNPG trong namespace có cụm (lấy backupId, beginWal, endWal của bản nền mới nhất).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: giu-dai-han-doc-backup
+  namespace: {{ $n }}
+  labels:
+    {{- include "bk.labels" $ | nindent 4 }}
+rules:
+  - apiGroups: [postgresql.cnpg.io]
+    resources: [backups]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: giu-dai-han-doc-backup
+  namespace: {{ $n }}
+  labels:
+    {{- include "bk.labels" $ | nindent 4 }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: giu-dai-han-doc-backup }
+subjects: [{ kind: ServiceAccount, name: giu-dai-han, namespace: {{ $ns }} }]
+{{- end }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: giu-dai-han
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+spec:
+  schedule: {{ $g.schedule | quote }}
+  timeZone: {{ $v.timeZone }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: {{ $g.activeDeadlineSeconds }}
+      template:
+        metadata:
+          labels:
+            vt.io/thanh-phan: sao-luu-job
+            vt.io/goi-api: "true"
+            vt.io/ra-kho-sao-luu: "true"
+            {{- include "bk.labels" . | nindent 12 }}
+        spec:
+          serviceAccountName: giu-dai-han
+          automountServiceAccountToken: true
+          restartPolicy: Never
+          securityContext:
+            {{- include "bk.podSecCtx" . | nindent 12 }}
+          containers:
+            - name: giu-dai-han
+              image: {{ include "bk.anh" . }}
+              imagePullPolicy: {{ $v.image.pullPolicy }}
+              command: [bash, /cfg/giu-dai-han.sh]
+              env:
+                {{- include "bk.envS3" . | nindent 16 }}
+                - { name: CUMS, value: {{ join " " $cums | quote }} }
+                - { name: CUM_NAM, value: {{ join " " $g.cumNam | quote }} }
+                - { name: GIU_THANG, value: {{ $g.giuThang | quote }} }
+                - { name: GIU_NAM_NAM, value: {{ $g.giuNamNam | quote }} }
+                - { name: BUCKET, value: {{ include "bk.bucketPg" . | quote }} }
+                - { name: AWS_ACCESS_KEY_ID, valueFrom: { secretKeyRef: { name: {{ $v.pg.credentials.secretName }}, key: ACCESS_KEY_ID } } }
+                - { name: AWS_SECRET_ACCESS_KEY, valueFrom: { secretKeyRef: { name: {{ $v.pg.credentials.secretName }}, key: ACCESS_SECRET_KEY } } }
+              resources:
+                requests: { cpu: 100m, memory: 128Mi }
+                limits: { cpu: "1", memory: 512Mi }
+              securityContext:
+                {{- include "bk.secCtx" . | nindent 16 }}
+              volumeMounts:
+                - { name: cfg, mountPath: /cfg }
+                - { name: tmp, mountPath: /tmp }
+                {{- with $v.khoSaoLuu.caBundle }}
+                - { name: ca, mountPath: /ca }
+                {{- end }}
+          volumes:
+            - { name: cfg, configMap: { name: backup-cell-script-{{ $bam }} } }
+            - { name: tmp, emptyDir: { sizeLimit: 256Mi } }
+            {{- with $v.khoSaoLuu.caBundle }}
+            - { name: ca, secret: { secretName: {{ .secret }} } }
+            {{- end }}
+{{- end }}
+{{- end }}

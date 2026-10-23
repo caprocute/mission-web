@@ -250,6 +250,12 @@ func registryFake(w http.ResponseWriter, r *http.Request, c call) {
 		}
 		w.Header().Set("ETag", `"6"`)
 		_ = json.NewEncoder(w).Encode(map[string]any{"id": tenantID, "status": "DANG_VAN_HANH"})
+	case r.Method == "POST" && c.Path == "/api/v1/config/tenants/"+tenantID+"/suspend":
+		if c.IfMatch != `"5"` {
+			problem(w, 428, "COMMON-428-PRECONDITION-REQUIRED")
+			return
+		}
+		problem(w, 409, "CONFIG-409-TENANT-STATE")
 	case r.Method == "GET" && c.Path == "/api/v1/registry/cells?limit=200":
 		_ = json.NewEncoder(w).Encode(map[string]any{"items": []map[string]any{{"id": cellID, "code": "CELL-NB", "status": "HOAT_DONG", "apiBaseUrl": "http://cell-nb.invalid"}}})
 	case r.Method == "POST" && c.Path == "/api/v1/registry/tenants/"+tenantID+"/move":
@@ -309,6 +315,26 @@ func TestKichHoatLaiTenantBuocLenVaKiemToan(t *testing.T) {
 	st, err := os.Stat(filepath.Join(e.dir, "tokens", "staging.json"))
 	if err != nil || st.Mode().Perm() != 0o600 {
 		t.Fatalf("tệp token: %v %v", st, err)
+	}
+}
+
+// Tạm ngừng tenant gọi suspendConfigTenant với If-Match, khoá, aal2 và lý do; lỗi máy chủ thành kiểm toán THAT_BAI.
+func TestTamNgungTenant(t *testing.T) {
+	e := newEnv(t, registryFake, nil, nil)
+	if code, _, _ := e.vtctl("tenant", "suspend", tenantID, "--confirm"); code != 2 {
+		t.Fatal("thiếu --reason phải là lỗi dùng lệnh")
+	}
+	code, _, errs := e.vtctl("tenant", "suspend", tenantID, "--reason", "Sự cố an ninh, công văn 88/CV", "--confirm")
+	if code != 1 || !strings.Contains(errs, "CONFIG-409-TENANT-STATE") {
+		t.Fatalf("mã %d: %s", code, errs)
+	}
+	w := e.reg.writes()
+	if len(w) != 1 || w[0].Path != "/api/v1/config/tenants/"+tenantID+"/suspend" || w[0].IfMatch != `"5"` || w[0].ACR != "aal2" ||
+		w[0].Body["reason"] != "Sự cố an ninh, công văn 88/CV" {
+		t.Fatalf("lời gọi ghi: %+v", w)
+	}
+	if rs := e.audits(); len(rs) != 1 || rs[0].Command != "tenant suspend" || rs[0].Outcome != audit.OutcomeFailed {
+		t.Fatalf("kiểm toán: %+v", rs)
 	}
 }
 
@@ -561,8 +587,17 @@ func TestMucSuyGiam(t *testing.T) {
 	if got[len(got)-1].Body["level"] != nil {
 		t.Fatalf("clear phải gửi level null: %+v", got[len(got)-1])
 	}
+	if code, _, _ := e.vtctl("--cell", "hn", "degrade", "pin", "2", "--for", "25h", "--reason", "quá hạn", "--confirm"); code != 2 {
+		t.Fatal("ghim quá 24h phải bị từ chối")
+	}
+	if code, _, errs := e.vtctl("--cell", "hn", "degrade", "pin", "2", "--for", "45m", "--reason", "chốt kỳ đêm nay", "--confirm"); code != 0 {
+		t.Fatalf("pin: %s", errs)
+	}
+	if p := got[len(got)-1]; p.Body["level"] != float64(2) || p.Body["ttl"] != "45m0s" {
+		t.Fatalf("pin phải gửi level và ttl: %+v", p)
+	}
 	rs := e.audits()
-	if len(rs) != 2 || rs[0].Command != "degrade set" || rs[1].Command != "degrade clear" {
+	if len(rs) != 3 || rs[0].Command != "degrade set" || rs[1].Command != "degrade clear" || rs[2].Command != "degrade pin" {
 		t.Fatalf("kiểm toán: %+v", rs)
 	}
 }

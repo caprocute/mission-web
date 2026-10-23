@@ -1,0 +1,10 @@
+# Mẫu tệp digest của một môi trường tạm (INF-21). Pipeline PR (INF-05) dựng và ký ảnh của nhánh rồi ghi
+# deploy/environments/pr/digests/pr-<số PR>.yaml lên nhánh moi-truong-pr của kho GitOps bằng bước vtGitopsBump
+# (commit có chữ ký); khi PR đóng, pipeline xoá tệp. Tệp mẫu này không khớp mẫu pr-*.yaml nên không sinh Application;
+# tests/chay-kiem-thu.sh dùng nó để render thử. Digest dưới đây là giá trị giả, không phải ảnh thật.
+images:
+  mission-core: { repository: harbor.vt.local/okr-pr/mission-core, digest: "sha256:1111111111111111111111111111111111111111111111111111111111111111" }
+  org-service: { repository: harbor.vt.local/okr-pr/org-service, digest: "sha256:1111111111111111111111111111111111111111111111111111111111111111" }
+  workflow-service: { repository: harbor.vt.local/okr-pr/workflow-service, digest: "sha256:1111111111111111111111111111111111111111111111111111111111111111" }
+  scoring-service: { repository: harbor.vt.local/okr-pr/scoring-service, digest: "sha256:1111111111111111111111111111111111111111111111111111111111111111" }
+  web-frontend: { repository: harbor.vt.local/okr-pr/web-frontend, digest: "sha256:1111111111111111111111111111111111111111111111111111111111111111" }

@@ -298,6 +298,7 @@ export function directiveTasks(): TaskSummary[] {
       dueDate: '2026-11-06',
       progress: 35,
       assignerName: MOCK_ME.name,
+      permittedActions: ['SCR-1601.nhac', 'SCR-1601.giao-lai'],
       unitName: 'Văn phòng Đảng uỷ',
       taskGroup: 'THEN_CHOT',
       workingDaysLeft: -6,
@@ -311,6 +312,7 @@ export function directiveTasks(): TaskSummary[] {
       dueDate: '2026-11-10',
       progress: 60,
       assignerName: 'Phạm Quang Huy',
+      permittedActions: ['SCR-1601.nhac'],
       unitName: 'Đảng bộ cơ sở số 2',
       taskGroup: 'THUONG_XUYEN',
       workingDaysLeft: -4,
@@ -324,6 +326,7 @@ export function directiveTasks(): TaskSummary[] {
       dueDate: '2026-11-13',
       progress: 50,
       assignerName: MOCK_ME.name,
+      permittedActions: ['SCR-1601.nhac', 'SCR-1601.giao-lai'],
       unitName: 'Đảng bộ cơ sở số 1',
       taskGroup: 'THEN_CHOT',
       workingDaysLeft: -1,
@@ -337,6 +340,7 @@ export function directiveTasks(): TaskSummary[] {
       dueDate: '2026-11-18',
       progress: 70,
       assignerName: MOCK_ME.name,
+      permittedActions: ['SCR-1601.nhac', 'SCR-1601.giao-lai'],
       unitName: 'Ban Tuyên giáo',
       taskGroup: 'THEN_CHOT',
       workingDaysLeft: 2,
@@ -350,6 +354,7 @@ export function directiveTasks(): TaskSummary[] {
       dueDate: '2026-11-20',
       progress: 80,
       assignerName: MOCK_ME.name,
+      permittedActions: ['SCR-1601.nhac', 'SCR-1601.giao-lai'],
       unitName: 'Ban Tổ chức',
       taskGroup: 'THUONG_XUYEN',
       workingDaysLeft: 4,
@@ -357,7 +362,10 @@ export function directiveTasks(): TaskSummary[] {
   ];
 }
 
-/** Việc do người khác giao: lãnh đạo không có quyền giao lại (403 của OPA, BR-16-07). */
+/**
+ * Việc do người khác giao: lãnh đạo không giao lại được (BR-16-07). Máy chủ không đưa
+ * `SCR-1601.giao-lai` vào `permittedActions` nên giao diện ẩn nút; gọi thẳng API vẫn nhận 403 của OPA.
+ */
 export const NOT_MY_ASSIGNMENT = 't-cd-02';
 
 export function weeklySummary(): AiSuggestion {

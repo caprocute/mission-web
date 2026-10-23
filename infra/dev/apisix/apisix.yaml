@@ -1,26 +1,178 @@
-# Định tuyến dev của SVC-01: /api/v1/* → mission-core (chạy trên máy dev hoặc container sau này),
-# còn lại → web (nginx của SVC-17). Giới hạn tốc độ minh hoạ theo TL-04 "Cắt tải và giới hạn tốc độ".
+# Cổng API dev SVC-01 (INF-22): định tuyến theo tiền tố module tới service sở hữu, theo cùng bảng tuyến với
+# deploy/charts/api-gateway/values.yaml (DV-01-01, DV-01-04), rút gọn cho một máy: không Coraza, không vt-claims,
+# giới hạn tốc độ theo địa chỉ nguồn. Service chạy trong mạng compose mission-dev, gọi bằng tên dịch vụ.
+#
+# Xác thực: openid-connect chỉ kiểm bearer token (bearer_only) bằng JWKS của realm mission qua đường nội bộ
+# keycloak:8080; claim iss phải khớp issuer công khai KEYCLOAK_PUBLIC_ISSUER (địa chỉ trình duyệt dùng để đăng
+# nhập), vì discovery nội bộ báo issuer keycloak:8080. Không token, sai chữ ký, sai issuer, hết hạn: 401.
+# Tuyến hẹp (priority 20) thắng tuyến tiền tố (priority 0); tuyến có tham số giữa đường dẫn lọc thêm bằng vars.
 upstreams:
-  - id: mission-core
-    type: roundrobin
-    nodes:
-      "host.docker.internal:35100": 1
-  - id: web
-    type: roundrobin
-    nodes:
-      "web:8080": 1
-routes:
-  - id: api
-    uri: /api/v1/*
-    upstream_id: mission-core
+  - { id: mission-core, type: roundrobin, nodes: { "mission-core:8080": 1 }, timeout: { connect: 2, send: 10, read: 10 } }
+  - { id: tenant-registry, type: roundrobin, nodes: { "tenant-registry:8080": 1 }, timeout: { connect: 2, send: 10, read: 10 } }
+  - { id: org-service, type: roundrobin, nodes: { "org-service:8080": 1 }, timeout: { connect: 2, send: 10, read: 10 } }
+  - { id: workflow-service, type: roundrobin, nodes: { "workflow-service:8080": 1 }, timeout: { connect: 2, send: 10, read: 10 } }
+  - { id: scoring-service, type: roundrobin, nodes: { "scoring-service:8080": 1 }, timeout: { connect: 2, send: 10, read: 10 } }
+  - { id: document-service, type: roundrobin, nodes: { "document-service:8080": 1 }, timeout: { connect: 2, send: 10, read: 10 } }
+  - { id: evidence-service, type: roundrobin, nodes: { "evidence-service:8080": 1 }, timeout: { connect: 2, send: 60, read: 60 } }
+  - { id: esign-service, type: roundrobin, nodes: { "esign-service:8080": 1 }, timeout: { connect: 2, send: 10, read: 10 } }
+  - { id: analytics-api, type: roundrobin, nodes: { "analytics-api:8080": 1 }, timeout: { connect: 2, send: 10, read: 30 } }
+  - { id: search, type: roundrobin, nodes: { "search:8080": 1 }, timeout: { connect: 2, send: 10, read: 10 } }
+  - { id: ledger-service, type: roundrobin, nodes: { "ledger-service:8080": 1 }, timeout: { connect: 2, send: 10, read: 10 } }
+  - { id: notification-service, type: roundrobin, nodes: { "notification-service:8080": 1 }, timeout: { connect: 2, send: 10, read: 10 } }
+  # Luồng SSE thông báo giữ kết nối lâu.
+  - { id: notification-stream, type: roundrobin, nodes: { "notification-service:8080": 1 }, timeout: { connect: 2, send: 10, read: 3600 } }
+  - { id: keycloak, type: roundrobin, nodes: { "keycloak:8080": 1 }, timeout: { connect: 2, send: 10, read: 10 } }
+  - { id: web, type: roundrobin, nodes: { "web:8080": 1 } }
+
+plugin_configs:
+  - id: protected-api
     plugins:
+      openid-connect:
+        discovery: http://keycloak:8080/realms/mission/.well-known/openid-configuration
+        bearer_only: true
+        use_jwks: true
+        client_id: mission-web
+        # APISIX 3.13 bắt buộc client_secret kể cả khi bearer_only; giá trị không được dùng (client mission-web
+        # là client công khai PKCE), nên không phải bí mật.
+        client_secret: bearer-only
+        set_userinfo_header: false
+        token_signing_alg_values_expected: RS256
+        accept_unsupported_alg: false
+        claim_validator:
+          issuer:
+            valid_issuers: ["${{KEYCLOAK_PUBLIC_ISSUER}}"]
       request-id: { header_name: X-Request-Id }
+      # Minh hoạ TL-04 "Cắt tải và giới hạn tốc độ": 600 request mỗi 60 giây theo địa chỉ nguồn, đếm chung mọi
+      # tuyến (group) thay cho khoá tenant và người dùng của vt-claims ở cụm thật.
       limit-count:
         count: 600
         time_window: 60
         key_type: var
         key: remote_addr
+        group: vt-user
         rejected_code: 429
+
+routes:
+  # SVC-05 mission-core: MOD-01..MOD-08 và /jobs/{id} không tiền tố.
+  - id: mission-core
+    uris:
+      - /api/v1/okr*
+      - /api/v1/tasks*
+      - /api/v1/plans*
+      - /api/v1/catalog*
+      - /api/v1/products*
+      - /api/v1/evidences*
+      - /api/v1/appraisals*
+      - /api/v1/policies*
+      - /api/v1/dossiers*
+      - /api/v1/oversight*
+      - /api/v1/config*
+      - /api/v1/periods*
+      - /api/v1/ui*
+      - /api/v1/jobs*
+    priority: 0
+    upstream_id: mission-core
+    plugin_config_id: protected-api
+  # SVC-07 scoring-service: xem trước, truy vết, mô phỏng, tính lại điểm.
+  - id: scoring-preview
+    uri: /api/v1/appraisals/score-preview
+    methods: [POST]
+    priority: 20
+    upstream_id: scoring-service
+    plugin_config_id: protected-api
+  - id: scoring-profile
+    uri: /api/v1/appraisals/profiles/*
+    vars: [["uri", "~~", "^/api/v1/appraisals/profiles/[^/]+/(score-trace|simulate|recompute)$"]]
+    priority: 20
+    upstream_id: scoring-service
+    plugin_config_id: protected-api
+  # SVC-11 document-service: sinh biểu mẫu và lệnh dựng tệp; các đường dẫn /dossiers khác thuộc MOD-06.
+  - id: document-render
+    uris: [/api/v1/dossiers/render-jobs, /api/v1/dossiers/forms, /api/v1/dossiers/forms/preview]
+    methods: [POST]
+    priority: 20
+    upstream_id: document-service
+    plugin_config_id: protected-api
+  # SVC-09 ledger-service: sổ cái và bằng chứng tra cứu của oversight.
+  - id: ledger
+    uris: [/api/v1/ledger*, /api/v1/oversight/ledger/proofs]
+    priority: 20
+    upstream_id: ledger-service
+    plugin_config_id: protected-api
+  - id: esign
+    uri: /api/v1/esign*
+    upstream_id: esign-service
+    plugin_config_id: protected-api
+  - id: org
+    uri: /api/v1/org*
+    upstream_id: org-service
+    plugin_config_id: protected-api
+  - id: workflow
+    uri: /api/v1/workflow*
+    upstream_id: workflow-service
+    plugin_config_id: protected-api
+  - id: files
+    uri: /api/v1/files*
+    upstream_id: evidence-service
+    plugin_config_id: protected-api
+  # Tác vụ dài của service khác SVC-05 (wiki 14 DV-01-04 ý 7): mã tác vụ mang tiền tố của service tạo ra nó.
+  - { id: jobs-org, uri: /api/v1/jobs/*, vars: [["uri", "~~", "^/api/v1/jobs/org-[^/]+$"]], priority: 20, upstream_id: org-service, plugin_config_id: protected-api }
+  - { id: jobs-workflow, uri: /api/v1/jobs/*, vars: [["uri", "~~", "^/api/v1/jobs/wf-[^/]+$"]], priority: 20, upstream_id: workflow-service, plugin_config_id: protected-api }
+  - { id: jobs-scoring, uri: /api/v1/jobs/*, vars: [["uri", "~~", "^/api/v1/jobs/score-[^/]+$"]], priority: 20, upstream_id: scoring-service, plugin_config_id: protected-api }
+  - { id: jobs-document, uri: /api/v1/jobs/*, vars: [["uri", "~~", "^/api/v1/jobs/doc-[^/]+$"]], priority: 20, upstream_id: document-service, plugin_config_id: protected-api }
+  - { id: jobs-ledger, uri: /api/v1/jobs/*, vars: [["uri", "~~", "^/api/v1/jobs/ledger-[^/]+$"]], priority: 20, upstream_id: ledger-service, plugin_config_id: protected-api }
+  - { id: jobs-analytics, uri: /api/v1/jobs/*, vars: [["uri", "~~", "^/api/v1/jobs/ana-[^/]+$"]], priority: 20, upstream_id: analytics-api, plugin_config_id: protected-api }
+  - id: notifications
+    uri: /api/v1/notifications*
+    upstream_id: notification-service
+    plugin_config_id: protected-api
+  - id: notifications-stream
+    uri: /api/v1/notifications/stream
+    methods: [GET]
+    priority: 20
+    upstream_id: notification-stream
+    plugin_config_id: protected-api
+  - id: search
+    uris: [/api/v1/search, /api/v1/search/*]
+    upstream_id: search
+    plugin_config_id: protected-api
+  - id: analytics
+    uri: /api/v1/analytics*
+    upstream_id: analytics-api
+    plugin_config_id: protected-api
+  # SPI REST mission-iam trong Keycloak (DV-02-08): kiểm JWT như mọi API rồi đổi đường dẫn sang realm mission.
+  - id: iam-mission-iam
+    uri: /api/v1/iam/*
+    upstream_id: keycloak
+    plugin_config_id: protected-api
+    plugins:
+      proxy-rewrite:
+        regex_uri: ["^/api/v1/iam/(.*)$", "/realms/mission/mission-iam/$1"]
+  # SVC-03 tenant-registry: ở cụm thật nằm ở APISIX lớp toàn cục (DV-01-04); dev chỉ có một cổng nên đặt ở đây,
+  # priority 20 để /api/v1/config/tenants thắng tiền tố /api/v1/config của mission-core.
+  - id: tenant-registry
+    uris: [/api/v1/registry*, /api/v1/config/tenants*]
+    priority: 20
+    upstream_id: tenant-registry
+    plugin_config_id: protected-api
+  # Thao tác chỉ cho client nội bộ (DV-01-03) không ra cổng: trả 404 Problem Details trước khi kiểm token.
+  - id: internal-only
+    uris:
+      - /api/v1/appraisals/inputs*
+      - /api/v1/config/dashboard-defs*
+      - /api/v1/esign/seals
+      - /api/v1/workflow/sagas/period-close*
+      - /api/v1/ai/ocr
+      - /api/v1/policies/resolve
+      - /api/v1/tasks/visibility-check
+    priority: 100
+    upstream_id: mission-core
+    plugins:
+      fault-injection:
+        abort:
+          http_status: 404
+          body: '{"type":"about:blank","title":"Không tìm thấy","status":404}'
+          headers: { Content-Type: application/problem+json }
   - id: web
     uri: /*
     upstream_id: web

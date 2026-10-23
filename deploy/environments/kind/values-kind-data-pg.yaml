@@ -34,3 +34,15 @@ grantsJob:
     repository: ghcr.io/cloudnative-pg/postgresql
     digest: sha256:d45d7a78ec14e80476974c6b123bf929ddb5908f4f4581c275bbe85e61fb93bc
 monitoring: { enablePodMonitor: false }
+# Sao lưu (INF-17) tới RGW zone sn trên kind đóng vai kho sao lưu (HTTP, không SSE): Secret bk-sn-s3-pg tạo tay.
+backup:
+  endpoint: http://172.18.0.51:8080
+  endpointCA: null
+  wal: { compression: zstd, encryption: "", maxParallel: 2 }
+  data: { compression: lz4, encryption: "", jobs: 1, immediateCheckpoint: true }
+  sidecar:
+    resources:
+      requests: { cpu: 50m, memory: 64Mi }
+      limits: { cpu: 500m, memory: 256Mi }
+  egressTo: [{ ipBlock: { cidr: 172.18.0.51/32 } }]
+  egressPort: 8080

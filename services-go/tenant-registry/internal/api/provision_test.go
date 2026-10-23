@@ -87,6 +87,14 @@ func (f *sagaFixture) activate(t *testing.T, tok string, id uuid.UUID, version i
 	return rec
 }
 
+func (f *sagaFixture) suspend(t *testing.T, tok string, id uuid.UUID, version int, body string) *httpRec {
+	t.Helper()
+	rec := f.do(t, http.MethodPost, "/api/v1/config/tenants/"+id.String()+"/suspend", tok, []byte(body),
+		map[string]string{"Idempotency-Key": uuid.NewString(), "If-Match": fmt.Sprintf(`"%d"`, version), "Content-Type": "application/json"})
+	conform(t, configYAML, "/config/tenants/{id}/suspend", "post", rec)
+	return rec
+}
+
 func (f *sagaFixture) get(t *testing.T, id uuid.UUID) cfgTenant {
 	t.Helper()
 	rec := f.do(t, http.MethodGet, "/api/v1/config/tenants/"+id.String(), adminToken(), nil, nil)
@@ -237,6 +245,42 @@ func TestProvisionAndActivate(t *testing.T) {
 	// EVT-21: thư cấp phát xong và thư kích hoạt cho đầu mối.
 	if n := outboxTopic(t, v.ID, "notify.message.requested.v1"); n != 2 {
 		t.Fatalf("EVT-21: %d", n)
+	}
+
+	// Tạm ngừng (INF-26): lý do bắt buộc, AAL2, chỉ quản trị nền tảng, chỉ từ DANG_VAN_HANH; vận hành lại bằng activate.
+	const lyDo = `{"reason":"Hết hạn hợp đồng số 45/HĐ"}`
+	body := []byte(lyDo)
+	if err := specs.ValidateRequest(configYAML, "/config/tenants/{id}/suspend", "post", "application/json", body); err != nil {
+		t.Fatalf("thân yêu cầu lệch hợp đồng: %v", err)
+	}
+	expectProblem(t, f.suspend(t, adminToken(), v.ID, act.RowVersion, `{"reason":"  "}`), 422, "")
+	expectProblem(t, f.suspend(t, aal1Admin(), v.ID, act.RowVersion, lyDo), 401, "COMMON-401-STEP-UP")
+	expectProblem(t, f.suspend(t, tenantAdminToken(v.Code), v.ID, act.RowVersion, lyDo), 403, "")
+	expectProblem(t, f.suspend(t, adminToken(), v.ID, act.RowVersion+1, lyDo), 409, "CONFIG-409-VERSION-CONFLICT")
+	before := outboxTopic(t, v.ID, "registry.tenant.changed.v1")
+	rec = f.suspend(t, adminToken(), v.ID, act.RowVersion, lyDo)
+	if rec.Code != 200 {
+		t.Fatalf("tạm ngừng: %d %s", rec.Code, rec.Body.String())
+	}
+	var sus struct {
+		Status     string `json:"status"`
+		RowVersion int    `json:"rowVersion"`
+		StatusLog  []struct {
+			ToStatus string `json:"toStatus"`
+			Reason   string `json:"reason"`
+		} `json:"statusLog"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &sus)
+	if sus.Status != "TAM_NGUNG" || sus.StatusLog[0].ToStatus != "TAM_NGUNG" || !strings.Contains(sus.StatusLog[0].Reason, "45/HĐ") ||
+		rec.Header().Get("ETag") != fmt.Sprintf(`"%d"`, sus.RowVersion) {
+		t.Fatalf("sau tạm ngừng: %s", rec.Body.String())
+	}
+	if n := outboxTopic(t, v.ID, "registry.tenant.changed.v1"); n != before+1 {
+		t.Fatalf("phải phát đúng một registry.tenant.changed.v1, có %d", n-before)
+	}
+	expectProblem(t, f.suspend(t, adminToken(), v.ID, sus.RowVersion, lyDo), 409, "CONFIG-409-TENANT-STATE")
+	if rec = f.activate(t, adminToken(), v.ID, sus.RowVersion, ""); rec.Code != 200 || decode[cfgTenant](t, rec).Status != "DANG_VAN_HANH" {
+		t.Fatalf("vận hành lại sau tạm ngừng: %d %s", rec.Code, rec.Body.String())
 	}
 }
 

@@ -32,4 +32,11 @@ public interface ApprovalProcesses {
       BusinessKey businessKey,
       UUID initiatorId,
       Map<String, Object> variables);
+
+  /**
+   * Kết thúc các tiến trình đang chạy của đối tượng còn chờ người duyệt (có việc người dùng mở),
+   * khi lõi đã tự quyết định hoặc người lập rút lại. Tiến trình đang ở bước gọi lại lõi thì để
+   * nguyên vì nó tự kết thúc. Trả số tiến trình đã kết thúc; gọi lặp không lỗi.
+   */
+  int cancelWaiting(UUID tenantId, String templateCode, BusinessKey businessKey, String reason);
 }

@@ -365,7 +365,8 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
     StringBuilder sql =
         new StringBuilder("SELECT t.")
             .append(JdbcTaskLifecycleRepository.COLUMNS.replace(", ", ", t."))
-            .append(", t.is_restricted, (SELECT coalesce(a.person_id, a.org_unit_id)")
+            .append(", t.is_restricted, t.org_unit_id AS task_org_unit_id,")
+            .append(" (SELECT coalesce(a.person_id, a.org_unit_id)")
             .append(" FROM task.task_assignee a WHERE a.period_bucket = t.period_bucket")
             .append(" AND a.tenant_id = t.tenant_id AND a.task_id = t.id AND a.role = 'CHU_TRI'")
             .append(" AND a.removed_at IS NULL AND a.recorded_to = 'infinity'")
@@ -415,7 +416,8 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
                 new UnitTaskRow(
                     JdbcTaskLifecycleRepository.task(rs, i),
                     rs.getObject("lead_id", UUID.class),
-                    rs.getBoolean("is_restricted")))
+                    rs.getBoolean("is_restricted"),
+                    rs.getObject("task_org_unit_id", UUID.class)))
         .list();
   }
 

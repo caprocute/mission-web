@@ -1,0 +1,237 @@
+{
+  "consumer": {
+    "name": "mission-core"
+  },
+  "provider": {
+    "name": "workflow-service"
+  },
+  "interactions": [
+    {
+      "description": "khởi tạo luồng duyệt kế hoạch quý",
+      "providerStates": [
+        {
+          "name": "tenant có đơn vị trình kế hoạch trong bản sao cây tổ chức",
+          "params": {
+            "tenantId": "01927a02-0000-7000-8000-00000000c701",
+            "unitId": "01927a02-0000-7000-8000-00000000c702"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/internal/v1/workflow/approvals",
+        "headers": {
+          "Authorization": "Bearer token-dich-vu-mission-core",
+          "X-Tenant-Id": "01927a02-0000-7000-8000-00000000c701",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "template": "duyet-ke-hoach-quy",
+          "businessId": "01927a02-0000-7000-8000-00000000c703",
+          "objectVersion": 2,
+          "planVersionNo": 1,
+          "subjectUnitId": "01927a02-0000-7000-8000-00000000c702",
+          "flow": "DANG",
+          "headOfUnit": false,
+          "initiatorId": "01927a02-0000-7000-8000-00000000c709",
+          "periodId": "01927a02-0000-7000-8000-00000000c70a",
+          "title": "Kế hoạch công tác Quý IV/2026"
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer .+$"
+                }
+              ]
+            }
+          },
+          "body": {
+            "$.businessId": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.initiatorId": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.periodId": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.objectVersion": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.planVersionNo": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.title": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "processInstanceId": "7d3c1f2a-0000-11f1-8000-000000000001",
+          "created": true
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "kết thúc luồng duyệt kế hoạch còn chờ người duyệt",
+      "providerStates": [
+        {
+          "name": "kế hoạch đang chờ duyệt trong luồng",
+          "params": {
+            "tenantId": "01927a02-0000-7000-8000-00000000c704",
+            "unitId": "01927a02-0000-7000-8000-00000000c705",
+            "planId": "01927a02-0000-7000-8000-00000000c706"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/internal/v1/workflow/approvals/cancel",
+        "headers": {
+          "Authorization": "Bearer token-dich-vu-mission-core",
+          "X-Tenant-Id": "01927a02-0000-7000-8000-00000000c704",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "template": "duyet-ke-hoach-quy",
+          "businessId": "01927a02-0000-7000-8000-00000000c706",
+          "reason": "Người trình rút lại kế hoạch"
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer .+$"
+                }
+              ]
+            }
+          },
+          "body": {
+            "$.reason": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "cancelled": 1
+        },
+        "matchingRules": {
+          "body": {
+            "$.cancelled": {
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "tham số luồng chưa lưu cho loại quy trình",
+      "providerStates": [
+        {
+          "name": "phiên bản Policy Pack chưa lưu tham số luồng",
+          "params": {
+            "tenantId": "01927a02-0000-7000-8000-00000000c707",
+            "policyPackVersionId": "01927a02-0000-7000-8000-00000000c708"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/internal/v1/workflow/bindings/DANH_GIA",
+        "query": {
+          "policyPackVersionId": [
+            "01927a02-0000-7000-8000-00000000c708"
+          ]
+        },
+        "headers": {
+          "Authorization": "Bearer token-dich-vu-mission-core",
+          "X-Tenant-Id": "01927a02-0000-7000-8000-00000000c707",
+          "Accept": "application/json"
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer .+$"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "response": {
+        "status": 404
+      }
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  }
+}

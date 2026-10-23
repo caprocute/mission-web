@@ -18,7 +18,9 @@ argocdNamespace: argocd
 # Chỉ cell có cell.argocd bằng giá trị này mới sinh Application.
 instance: mgmt
 # Cell do Argo CD khác quản lý (cell.argocd khác instance), bỏ khỏi bộ sinh; kiểm khớp trong tests/chay-kiem-thu.sh.
-cellsExclude: [dtw]
+cellsExclude: [dtw, stg]
+# Tiền tố tên ApplicationSet (okr-<service>); bản staging của chart dùng okr-stg để hai bản cùng chạy trên cụm quản trị.
+appsetPrefix: okr
 # Môi trường lấy digest ảnh: deploy/environments/<environment>/digests.yaml (INF-05 vtGitopsBump ghi tệp này).
 environment: production
 # Mô hình phân phối: tệp values-<mô hình>.yaml của vt-platform (saas, private, airgap).
@@ -42,6 +44,17 @@ rollingSync:
 syncPolicy:
   syncOptions: ["ServerSideApply=true", "PruneLast=true"]
   retry: { limit: 3, backoff: { duration: 30s, factor: 2, maxDuration: 5m } }
+
+# INF-25 · Ngoại lệ có kiểm soát của GitOps (wiki 12): bộ điều khiển suy giảm ghi lúc chạy nhãn mức và bộ plugin
+# trên ApisixPluginConfig, chú thích tạm dừng trên ScaledObject của tác vụ nền không gấp. Argo CD bỏ qua đúng các
+# trường này khi so lệch và khi đồng bộ (RespectIgnoreDifferences), nên đồng bộ lại không xoá mức đang áp dụng.
+ignoreDifferences:
+  - group: apisix.apache.org
+    kind: ApisixPluginConfig
+    jqPathExpressions: ['.metadata.labels["vt.io/degrade-level"]', '.spec.plugins']
+  - group: keda.sh
+    kind: ScaledObject
+    jqPathExpressions: ['.metadata.annotations["autoscaling.keda.sh/paused"]', '.metadata.annotations["vt.io/degrade-paused-by"]']
 
 # Nguồn chart: chart cha vt-platform (INF-02) bật đúng một service mỗi Application, để giữ nguyên thứ tự chồng
 # values mô hình → hồ sơ → cell → digest mà CI của INF-02 đã kiểm. Tệp chưa có (hồ sơ định cỡ của INF-03, values
@@ -146,6 +159,16 @@ services:
   # Bảo mật nền của cell (INF-19, SEC-26/43/50/52): chart riêng vì chạy DaemonSet đặc quyền và RBAC cấp cụm, không
   # thuộc mô hình phân phối của vt-platform. Cùng nhãn đợt (wave) theo cell như mọi Application của cell.
   - { name: security-cell, project: okr-nen-tang, namespace: platform-privileged, chart: charts/security-cell }
+
+# Service không triển khai ở môi trường này: không sinh ApplicationSet, và vẫn đặt enabled: false trong Application
+# của service khác. Production để trống; staging liệt kê tầng dữ liệu chạy trên máy ảo (values-staging.yaml).
+servicesTat: []
+# Hậu tố tên AppProject (khoá của projects); bản staging dùng -stg để hai bản cùng chạy trên cụm quản trị.
+projectSuffix: ""
+
+# Môi trường tạm theo nhánh cho pull request (INF-21, templates/moi-truong-pr.yaml): chỉ bật ở bản staging.
+prEnvironments:
+  enabled: false
 
 # Chỉ dùng trên kind (deploy/environments/kind/values-kind-gitops.yaml): thay chart cha bằng chart riêng của từng
 # service và đặt namespace theo cell để hai cell giả lập cùng chạy trên một cụm.
