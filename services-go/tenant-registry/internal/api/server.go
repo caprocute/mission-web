@@ -29,6 +29,8 @@ type Deps struct {
 	Verifier     auth.Verifier
 	StepUpMaxAge time.Duration
 	Now          func() time.Time
+	// INF-20: client dịch vụ (claim azp) được đọc listCells không cần step-up.
+	CellReaderClients []string
 	// DV-03-02: phân giải có đệm và cookie định tuyến.
 	Resolver     *resolve.Service
 	Cookies      *routecookie.Signer

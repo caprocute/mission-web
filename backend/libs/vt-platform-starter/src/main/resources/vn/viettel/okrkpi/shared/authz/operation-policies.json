@@ -5874,12 +5874,13 @@
         "SCR-0102"
       ],
       "roles": [
-        "platform_admin"
+        "platform_admin",
+        "service_client"
       ],
       "scope": "N",
       "aal": 2,
       "fourEyes": false,
-      "source": "TL-01 SVC-03 (API chính); TL-03 `registry.cell`"
+      "source": "TL-01 SVC-03 (API chính); TL-03 `registry.cell`; TL-04 \"GeoDNS và định tuyến tenant tới cell\" (dns-sync, INF-20)"
     },
     {
       "operationId": "listComplainableProfiles",
