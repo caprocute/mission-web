@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
+import vn.viettel.okrkpi.config.api.PeriodReopenApi;
 import vn.viettel.okrkpi.config.api.PeriodReopenExpiredEvent;
 import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
 import vn.viettel.okrkpi.config.application.port.PeriodRelockSaga;
@@ -34,7 +35,7 @@ import vn.viettel.okrkpi.shared.kernel.TenantId;
  *   <li>Khoá lại xong: kỳ về {@code DA_KHOA} (nguyên nhân {@code KHOA_LAI}), EVT-09 qua outbox.
  * </ul>
  */
-public class PeriodReopenService {
+public class PeriodReopenService implements PeriodReopenApi {
 
   static final String TX = "configTransactionManager";
 
@@ -152,6 +153,16 @@ public class PeriodReopenService {
     }
     relock(r, actorId);
     return true;
+  }
+
+  /** MOD-07 báo hậu kiểm xong trước hạn (CORE-07-09); chưa nhận EVT-22 thì không làm gì. */
+  @Override
+  @Transactional(TX)
+  public boolean finishEarly(TenantId tenantId, UUID reopenRequestId, UUID actorId) {
+    if (reopens.findById(tenantId, reopenRequestId).isEmpty()) {
+      return false;
+    }
+    return finish(tenantId, reopenRequestId, actorId);
   }
 
   /**

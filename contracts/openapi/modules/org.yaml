@@ -1294,7 +1294,9 @@ paths:
       summary: Khoá phục hồi của tổ chức đang hiệu lực
       description: >-
         Mỗi khoá nội dung C3 luôn được bọc thêm cho khoá phục hồi của tenant (ADR-27). Người gửi lấy khoá công
-        khai phục hồi ở đây; `id` là mã người nhận đại diện dùng trong bản bọc. Chưa khai báo trả 404.
+        khai phục hồi ở đây; `id` là mã người nhận đại diện dùng trong bản bọc. Chưa khai báo trả 404. Tài khoản
+        dịch vụ (`service_client`, tenant trong `X-Tenant-Id`) của mission-core đọc để đồng bộ cấu hình tenant
+        `e2ee.recovery-key`.
       responses:
         '200':
           description: Khoá phục hồi đang hiệu lực.
@@ -1310,7 +1312,7 @@ paths:
         qt: [QT-05]
         scr: [SCR-0501]
         owner: SVC-04
-        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector, service_client]
         scope: Tn
         source: 'TL-01 "Khôi phục khi mất khoá"; TL-04 SEC-25'
 
@@ -1429,6 +1431,35 @@ paths:
         scope: Tn
         aal: 2
         source: 'TL-01 "Khôi phục khi mất khoá"; TL-04 SEC-25'
+
+  /org/e2ee/recoveries/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Khoá mã hoá đầu cuối]
+      operationId: getE2eeRecovery
+      summary: Một biên bản khôi phục khoá (đối chiếu nội bộ)
+      description: >-
+        mission-core đọc biên bản khôi phục để đối chiếu trước khi nhận khoá bọc khôi phục
+        (`restoreTaskSecretKeyWrap`, `restoreEvidenceKeyWrap`). Chỉ tài khoản dịch vụ (`service_client`,
+        tenant trong `X-Tenant-Id`); người dùng xem nhật ký qua `listE2eeRecoveries`.
+      responses:
+        '200':
+          description: Biên bản khôi phục.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecoveryRecord' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05, QT-07]
+        scr: [SCR-0103]
+        owner: SVC-04
+        roles: [service_client]
+        scope: Tn
+        source: 'TL-01 "Khôi phục khi mất khoá" (mọi lần khôi phục ghi sổ cái)'
 
 components:
   securitySchemes:

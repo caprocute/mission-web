@@ -25,6 +25,8 @@ public interface RecoveryKeyStore {
   /** Nhật ký mới nhất trước; {@code after} là (thời điểm ghi, mã) của dòng cuối trang trước. */
   List<StoredRecovery> logs(UUID objectId, Instant afterAt, UUID afterId, int limit);
 
+  Optional<StoredRecovery> log(UUID id);
+
   record StoredRecoveryKey(UUID id, String keyAlg, byte[] spki, byte[] fingerprint, int threshold,
       List<UUID> custodianIds, String ceremonyRef, String status, Instant validFrom, Instant validTo,
       int sigKeyVersion, byte[] signature, Instant signedAt, int rowVersion) {

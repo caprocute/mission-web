@@ -5,10 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
-/** Bản ghi con trỏ và bộ lọc của cổng khiếu nại, mở lại kỳ (CORE-07-02, CORE-07-03). */
+/** Bản ghi con trỏ và bộ lọc của cổng khiếu nại, mở lại kỳ (CORE-07-02, CORE-07-03, CORE-07-11). */
 class OversightPortRecordTest {
 
   @Test
@@ -25,5 +26,14 @@ class OversightPortRecordTest {
     assertThat(loc.awaitingFor()).isNull();
     assertThat(loc.periodId()).isEqualTo(ky);
     assertThat(loc.everything()).isFalse();
+  }
+
+  @Test
+  void doiTuongCanhBaoKhongCoNguoiThiRong() {
+    UUID donVi = UUID.randomUUID();
+    UUID nguoi = UUID.randomUUID();
+    assertThat(new AlertSubjects.Subject(donVi, null, "Phòng A").people()).isEmpty();
+    assertThat(new AlertSubjects.Subject(donVi, Set.of(nguoi), "Phòng A").people())
+        .containsExactly(nguoi);
   }
 }

@@ -201,6 +201,17 @@ class E2eeDirectoryApiIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.threshold").value(3))
         .andExpect(jsonPath("$.status").value("HIEU_LUC"))
         .andReturn();
+    // mission-core đồng bộ khoá phục hồi bằng token dịch vụ, tenant trong X-Tenant-Id (wiki 14 mục 42).
+    String service = "Bearer " + TestJwt.serviceToken("mission-core", List.of("service_client"));
+    MvcResult bySvc = mvc.perform(get("/api/v1/org/e2ee/recovery-key").header(HttpHeaders.AUTHORIZATION, service)
+        .header("X-Tenant-Id", tenant.toString())).andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(newKey.path("id").asText())).andReturn();
+    assertThat(ContractValidator.validate(bySvc).getMessages()).isEmpty();
+    mvc.perform(get("/api/v1/org/e2ee/recovery-key").header(HttpHeaders.AUTHORIZATION, service))
+        .andExpect(status().isForbidden());
+    mvc.perform(get("/api/v1/org/e2ee/recovery-key").header(HttpHeaders.AUTHORIZATION,
+        "Bearer " + TestJwt.serviceToken("client-la", List.of("service_client")))
+        .header("X-Tenant-Id", tenant.toString())).andExpect(status().isForbidden());
     JsonNode k = json.readTree(current.getResponse().getContentAsString());
     String canonical = String.join("|", "v1", tenant.toString(), "RECOVERY_KEY", k.path("id").asText(), "",
         "ECDH-P256", k.path("fingerprint").asText(), Instant.parse(k.path("validFrom").asText()).toString(), "");
@@ -225,11 +236,24 @@ class E2eeDirectoryApiIT extends IntegrationTestBase {
             custodians.subList(0, 3))), admin, List.of("tenant_admin"), "aal2")
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.errors[0].field").value("newKeyFingerprint"));
-    call(post("/api/v1/org/e2ee/recoveries").header("Idempotency-Key", UUID.randomUUID().toString())
+    MvcResult recorded = call(post("/api/v1/org/e2ee/recoveries")
+        .header("Idempotency-Key", UUID.randomUUID().toString())
         .contentType(MediaType.APPLICATION_JSON).content(recovery(newKey, object, other, fp,
             custodians.subList(1, 4))), admin, List.of("tenant_admin"), "aal2")
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.recordedBy").value(admin.toString()));
+        .andExpect(jsonPath("$.recordedBy").value(admin.toString())).andReturn();
+    String recoveryId = json.readTree(recorded.getResponse().getContentAsString()).path("id").asText();
+    // mission-core đối chiếu biên bản trước khi nhận khoá bọc khôi phục; người dùng không gọi được.
+    MvcResult one = mvc.perform(get("/api/v1/org/e2ee/recoveries/" + recoveryId)
+        .header(HttpHeaders.AUTHORIZATION, service).header("X-Tenant-Id", tenant.toString()))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.objectId").value(object.toString()))
+        .andExpect(jsonPath("$.newKeyFingerprint").value(fp)).andReturn();
+    assertThat(ContractValidator.validate(one).getMessages()).isEmpty();
+    call(get("/api/v1/org/e2ee/recoveries/" + recoveryId), admin, List.of("tenant_admin"), "aal2")
+        .andExpect(status().isForbidden());
+    mvc.perform(get("/api/v1/org/e2ee/recoveries/" + UUID.randomUUID())
+        .header(HttpHeaders.AUTHORIZATION, service).header("X-Tenant-Id", tenant.toString()))
+        .andExpect(status().isNotFound());
     call(post("/api/v1/org/e2ee/recoveries").header("Idempotency-Key", UUID.randomUUID().toString())
         .contentType(MediaType.APPLICATION_JSON).content(recovery(newKey, UUID.randomUUID(), other, fp,
             custodians.subList(2, 5))), admin, List.of("tenant_admin"), "aal2")

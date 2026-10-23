@@ -45,6 +45,7 @@ import vn.viettel.okrkpi.contract.products.model.EvidenceDuplicateMatch;
 import vn.viettel.okrkpi.contract.products.model.EvidenceKeyWrap;
 import vn.viettel.okrkpi.contract.products.model.EvidenceKeyWrapBatchInput;
 import vn.viettel.okrkpi.contract.products.model.EvidenceList;
+import vn.viettel.okrkpi.contract.products.model.EvidenceRecoveryWrapRequest;
 import vn.viettel.okrkpi.contract.products.model.EvidenceReturnRequest;
 import vn.viettel.okrkpi.contract.products.model.EvidenceSourceType;
 import vn.viettel.okrkpi.contract.products.model.EvidenceSubmit;
@@ -371,6 +372,39 @@ public class EvidenceController {
             .map(EvidenceController::keyWrap)
             .orElse(null));
     return ETags.ok(dto, v.version().rowVersion());
+  }
+
+  @PostMapping("/evidences/{id}/versions/{v}/recovery-wraps")
+  @Idempotent
+  @RequiresPermission(
+      operationId = "restoreEvidenceKeyWrap",
+      module = MODULE,
+      resourceType = "evidence")
+  public ResponseEntity<EvidenceVersion> restoreEvidenceKeyWrap(
+      @PathVariable("id") UUID id,
+      @PathVariable("v") int versionNo,
+      @RequestBody EvidenceRecoveryWrapRequest body) {
+    TenantId tenant = TenantContext.require();
+    EvidenceActor actor = actor();
+    EvidenceKeyWrap w = body == null ? null : body.getKeyWrap();
+    EvidenceKeyWrapService.WrapInput input =
+        w == null
+            ? null
+            : new EvidenceKeyWrapService.WrapInput(
+                w.getRecipientId(),
+                w.getWrappedKey(),
+                w.getAlg() == null ? null : w.getAlg().getValue());
+    VersionDetail v =
+        found(
+            () ->
+                keyWraps.restore(
+                    tenant,
+                    id,
+                    versionNo,
+                    body == null ? null : body.getRecoveryId(),
+                    input,
+                    actor));
+    return ETags.ok(version(v), v.version().rowVersion());
   }
 
   private static EvidenceKeyWrap keyWrap(EvidenceKeyWraps.StoredWrap w) {
