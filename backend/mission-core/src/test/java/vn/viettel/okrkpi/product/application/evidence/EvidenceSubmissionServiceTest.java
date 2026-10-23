@@ -175,7 +175,7 @@ class EvidenceSubmissionServiceTest {
   }
 
   private static DraftInput draft(List<FileInput> files) {
-    return new DraftInput("TAI_LEN", null, files, false, null, null, null, null, null);
+    return new DraftInput("TAI_LEN", null, files, false, null, null, null, null, null, List.of());
   }
 
   // ---------------------------------------------------------------- sản phẩm
@@ -352,11 +352,12 @@ class EvidenceSubmissionServiceTest {
                 " ",
                 List.of(new FileInput(objectId, null, "Dùng chung cho hai nhiệm vụ cùng kỳ")),
                 true,
-                null,
+                UUID.randomUUID(),
                 "12/BC",
                 LocalDate.of(2027, 1, 5),
                 "Trích yếu",
-                "Ghi chú"),
+                "Ghi chú",
+                List.of("taskId", "docNumber", "docNumber")),
             MEMBER);
     assertThat(saved.version().id()).isEqualTo(versionId);
     var empty = service.updateDraft(TENANT, evidenceId, 1, 1, draft(null), MEMBER);

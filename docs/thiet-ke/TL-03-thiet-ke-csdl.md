@@ -1,6 +1,6 @@
 ---
 title: "Thiết kế cơ sở dữ liệu và cơ chế đồng bộ dữ liệu"
-subtitle: "Nền tảng đánh giá cán bộ theo OKR và KPI · Mã tài liệu TL-03 · Phiên bản 1.0 · 10/2026"
+subtitle: "Nền tảng đánh giá cán bộ theo OKR và KPI · Mã tài liệu TL-03 · Phiên bản 1.1 · 10/2026"
 toc-title: "Mục lục"
 ---
 
@@ -13,6 +13,7 @@ toc-title: "Mục lục"
 | 0.1 | 12/10/2026 | Nhóm kiến trúc dữ liệu | Khung tài liệu, quy ước đặt tên, danh mục schema theo baseline |
 | 0.5 | 16/10/2026 | Nhóm kiến trúc dữ liệu | Thiết kế chi tiết 20 schema, cơ chế đồng bộ, lược đồ sự kiện |
 | 1.0 | 19/10/2026 | Nhóm kiến trúc dữ liệu | Hoàn thiện mã hoá theo lớp, hiệu năng, di trú từ Oracle/vOffice, bảng truy vết checklist |
+| 1.1 | 23/10/2026 | Nhóm kiến trúc dữ liệu | Cập nhật theo thực tế triển khai đợt 1: phụ lục cuối ghi điểm lệch, bổ sung và quyết định; chỉ tiêu hiệu năng chỉ ghi lại theo YC-PT-19 |
 
 ## Tài liệu liên quan {-}
 
@@ -4599,6 +4600,8 @@ Thay đổi lược đồ theo mô hình mở rộng rồi thu hẹp (expand and
 
 ## Di trú từ hệ hiện tại theo mẫu Strangler Fig
 
+> Cập nhật 23/10/2026: mục này không áp dụng, vì Mission được phát triển như một ứng dụng mới và không di trú dữ liệu từ hệ hiện tại (ADR-20 không áp dụng, xem TL-01 Phụ lục D). Nội dung dưới đây chỉ còn giá trị tham khảo.
+
 Hệ hiện tại chạy trên Oracle, dùng chung schema `VOFFICE` với vOffice và có 17 điểm ghép nối ở mức bảng dữ liệu: đọc trực tiếp `VHR_ORG` (32 tệp mã nguồn) và `VHR_EMPLOYEE` (30 tệp) cho tổ chức và nhân sự, kiểm token qua `USER_TOKENS`, ghi thẳng vào `NOTIFICATION` và `SMS_MASTER` để gửi thông báo, cùng các điểm đọc ghi khác vào bảng của vOffice; ngoài ra có 23 bảng mới của chức năng OKR, KPI được tạo trong schema `VOFFICE` (tiêu chí A2, K3, K4 đều chưa đạt). Di trú theo ADR-20 làm từng bước, không có ngày "chuyển đổi toàn bộ".
 
 ![Hình 15.1. Các giai đoạn di trú theo mẫu Strangler Fig](db-strangler.png){width=16cm}
@@ -4688,3 +4691,61 @@ Bảng sau liên kết các tiêu chí của bảng kiểm trong bản đánh gi
 | L11 | Mô hình dữ liệu chuẩn dùng chung | Chưa đạt: mô hình theo bảng vOffice | CDM, URN định danh, CloudEvents, lược đồ Avro có quản lý tương thích | 3, 11 |
 
 Bảng truy vết cho thấy mỗi tiêu chí chưa đạt liên quan tới dữ liệu đều có ít nhất một cơ chế cụ thể, có bảng hoặc cấu hình kiểm chứng được, trong tài liệu này. Việc nghiệm thu từng tiêu chí dựa trên các bài kiểm tra tự động đã nêu ở chương tương ứng: kiểm tra quyền và RLS (A2, K5), kiểm tra chú thích phân loại và cấu hình CDC sinh tự động (E5, A5), kiểm tra bất biến bằng trigger (A6, I5), kiểm tra toàn vẹn sổ cái (I1, I2), đối soát tái lập (I6) và kiểm tra truy vấn as-of (I7).
+
+# Phụ lục. Cập nhật sau triển khai đợt 1 (10/2026) {-}
+
+Phụ lục này ghi lại các bảng, cột, ràng buộc và cơ chế đồng bộ mà migration trên nhánh `main` (ngày 23/10/2026) đã hiện thực khác với TL-03 phiên bản 1.0. Theo baseline mục 12, TL-03 được thêm bảng mới nhưng không đổi tên bảng đã có; mọi thay đổi dưới đây tuân thủ quy tắc đó. Tên migration được nêu để người đọc tra lại mã; trạng thái ghi theo cùng quy ước với Phụ lục D của TL-01. Các thay đổi mà BS-02 (ADR-32) và BS-03 (ADR-33) đã đề nghị cho TL-03 cũng được tập hợp ở đây, vì hai tài liệu bổ sung đó nay đã nhập vào TL-01 Phụ lục F và G.
+
+## Quy ước chung đã chốt khi hiện thực {-}
+
+Một số quy ước được áp dụng đồng loạt cho mọi schema. Chúng không đổi mô hình dữ liệu của TL-03 nhưng làm rõ những chỗ TL-03 để ngỏ, nên người viết migration mới phải theo.
+
+| Chủ đề | TL-03 ghi | Hiện thực trên main | Trạng thái |
+|---|---|---|---|
+| Khoá của bảng phân vùng theo kỳ | Khoá chính `id` | Khoá chính, khoá duy nhất và khoá ngoại của bảng phân vùng theo kỳ đều gồm `(period_bucket, tenant_id, …)` ở mọi mô hình thuê bao; mọi chỉ mục bắt đầu bằng `tenant_id` | Đã chốt (NEN-004) |
+| Tên chính sách RLS | Không quy định | `rls_<bảng>__tenant`, điều kiện dùng `nullif(current_setting(...), '')` để phiên thiếu ngữ cảnh không thấy dòng nào | Đã chốt |
+| Chỉ mục duy nhất một phần | Tên tự do | Tiền tố `ix_` và hậu tố `_p`, kiểm bằng lint NEN-030 | Đã chốt |
+| Cột thời gian hiệu lực | `valid_to`, `recorded_to` cho phép NULL | `NOT NULL DEFAULT 'infinity'` | Đã chốt |
+| Bảng outbox | Cột `headers jsonb` | Giữ các cột của TL-03 (`aggregate_id`, `aggregate_version`, `event_key`, `schema_version`, `created_at`, khoá `(id, created_at)`), đổi `headers` thành `ce_headers`; biểu thức kiểm tên topic nới để nhận topic bốn đoạn | Đã chốt |
+| Sự kiện nội bộ mission-core | Ghi outbox | Bảng xuất bản sự kiện của Spring Modulith (Event Publication Registry), không đi ra Kafka | Đã chốt |
+| Chặn ghi dữ liệu kỳ đã khoá | Ở tầng ứng dụng | Thêm bảng chiếu `period_state` và hàm `fn_guard_period_write` trong từng schema `okr`, `task`, `product`, `appraisal`, áp cho cả `DELETE`; chỉ cho ghi khi mang mã yêu cầu mở lại hợp lệ | Theo mã, chờ xác nhận |
+| Thời hạn câu lệnh | Không quy định | `statement_timeout` 5 giây cho vai trò `svc_`, 60 giây cho job báo cáo | Đã chốt |
+| Bảo trì phân vùng | pg_partman | Mỗi schema có hàm `<schema>.fn_run_partition_maintenance()`; phân vùng `okr` tạo khi mở kỳ; thông báo phân vùng theo ngày bằng PL/pgSQL, giữ 90 ngày | Theo mã |
+| Số cụm PostgreSQL mỗi cell lớn | Năm cụm | Sáu cụm theo TL-04, TL-05; tên CSDL `td_<mã>`; Pooler tên `<cụm>-pooler-rw` | Đã chốt |
+| Khoá đệm Valkey | `{tenant}:{module}:` (baseline) | `t:<tenant>:<module>:...` theo TL-03 | Đã chốt |
+
+## Bảng và cột bổ sung theo schema {-}
+
+Bảng dưới liệt kê những gì đã được thêm. Cột "Lý do" giải thích vì sao TL-03 phiên bản 1.0 chưa có chỗ cho dữ liệu đó; phần lớn đến từ hợp đồng API (ADR-32) đòi những trường mà bảng chưa có, hoặc từ các điểm cắm DC-01 đến DC-06 của ADR-33.
+
+| Schema | Bảng, cột bổ sung | Lý do | Trạng thái |
+|---|---|---|---|
+| `registry` | `tenant_onboarding`, `job`, `tenant_status_log` | Saga cấp phát và chuyển cell chạy trong tenant-registry; lưu vết trạng thái tenant | Theo mã |
+| `org` | `sync_run`, `sync_schedule`, `import_job`, `scim_resource`, `recovery_key` | Đồng bộ nhân sự theo lô, nhập Excel, SCIM trên org-service, khoá phục hồi C3 (Shamir 3 trên 5) | Theo mã |
+| `okr` | Cột `progress`, `progress_pct`, `checkin_frequency`; `kr_checkin_delegate`; kiểu đo `MOC`, chiều `TOI_DA`, bảng `kr_milestone`; `ai_content_trace` | Check-in thay, kiểu đo mốc (DC-04), lưu vết nội dung AI | Theo mã (DC-04 theo BS-03) |
+| `okr` | `key_result.target_value`, `due_date` cho phép NULL khi nháp | KR nháp chưa đủ thông tin | Theo mã |
+| `task` | `catalog_import_job`, `plan_item_confirmation`, `task_secret_content`, `e2ee_key_wrap` | Nhập danh mục, xác nhận người chủ trì khi sinh nhiệm vụ từ kế hoạch, nội dung mật C3 | Theo mã |
+| `task` | `coefficient_levels`, `axis_code`, `score_adjust_min`, `score_adjust_max`, giá trị `scope` mới (`KHOI`, `TINH`); `node_kind`, `component_score`; `task_blocker.origin`, `rule_code` | Điểm cắm DC-01, DC-02, DC-06 của ADR-33 | Theo BS-03 |
+| `task` | `plan_item.product_name` (C1, `varchar(255)`, cho phép NULL) | Hợp đồng có `productName` | Đã chốt 23/10/2026, chờ hiện thực |
+| `product` | `evidence_version_file` (tối đa 20 tệp mỗi phiên bản), `evidence_object` (bản chiếu của SVC-08), cột `evidence.reviewer_id`, `is_duplicate_suspect`, `duplicate_of_id` | Nhiều tệp mỗi phiên bản (BS-02), hàng chờ nghiệm thu, nghi trùng | Theo mã |
+| `product` | `acceptance.on_behalf_of uuid` (C1) và `delegation_id uuid`, cùng trường tương ứng trong `products.yaml` | Hiển thị nhãn "nghiệm thu thay" | Đã chốt 23/10/2026, chờ hiện thực |
+| `flowable` | `wf_binding.policy_pack_version_id`, đưa vào khoá duy nhất (`tenant_id`, `policy_pack_version_id`, `process_kind`, `subject_group_id`, `flow`, `period_type`) | Tham số luồng được soạn và phát hành theo phiên bản Policy Pack | Đã chốt 23/10/2026, chờ hiện thực |
+| `evidence` | `upload_session`, `ocr_text` (mã hoá C2) | Tải tệp nhiều phần qua service; lưu văn bản OCR | Theo mã, chờ người phụ trách CSDL |
+| `appraisal` | `self_assessment.reason_enc`, `appraisal_profile.is_self_assessment_missing`, `return_count`, bảng `incident`; ràng buộc lý do khi mức đề xuất khác mức gợi ý | Tự đánh giá, trả lại có giới hạn, sự việc (DC-05) | Theo mã |
+| `config` | `period_lock_order.planned_lock_at`, `period_reopen`, `delegation`, `user_preference`, `saved_filter`; cột `expiry_emitted_at` ở bảng vai trò và uỷ quyền; `ui_pack_version.forms_json`, `plugins_json`; `form_schema.last_test_run`; cột `container`, `since`, `mobile`, `loaded_at` của registry component | Lệnh khoá kỳ, mở lại hậu kiểm, quản trị vai trò (EVT-27), cá nhân hoá, UI Pack | Theo mã |
+| `policy` | Ba bảng và một cột của hồ sơ tập khách hàng | ADR-33 | Theo BS-03 |
+| `oversight` | Khiếu nại cho lưu nháp (bỏ NOT NULL, thay bằng CHECK), cột `code`, `reserve_opinion`, `sign_request_id`; `alert_action` sáu giá trị, cột `is_active`, `verdict` | Lưu nháp khiếu nại, xử lý cảnh báo | Theo mã, chờ xác nhận |
+| `notify` | `push_device`, `channel_pref_meta`, `bulk_job` | Thông báo đẩy, gửi hàng loạt | Đã chốt |
+| `flowable` | `wf_task_batch`, `wf_holiday_calendar`, schema `org_replica` trong CSDL của workflow-service | Duyệt hàng loạt, phân giải cấp duyệt | Theo mã; consumer đổ dữ liệu chưa có |
+| `ledger` | `chain_head.is_locked`, `locked_reason` | Khoá chuỗi khi chuyển cell | Theo mã |
+| `esign` | Mở rộng `sign_request.purpose` với `KHIEU_NAI` | Ký quyết định giải quyết khiếu nại | Đã chốt |
+
+## Đồng bộ dữ liệu và kho phân tích {-}
+
+Cơ chế đồng bộ ở chương "Cơ chế đồng bộ dữ liệu" được giữ, với các điều chỉnh sau. Debezium chạy một connector mỗi CSDL cho outbox, `snapshot.mode = no_data`, và một connector phân tích riêng mỗi CSDL với slot `dbz_cdc_<db>` và publication `pub_analytics`. Mã người trong luồng phân tích được giả danh bằng SMT `TenantPseudonymize` dùng HMAC theo tenant, thay cho `column.mask.hash` của TL-03, để cùng một người ở hai tenant có mã giả danh khác nhau. Bảng nguồn phân tích dùng `REPLICA IDENTITY FULL`.
+
+Kho ClickHouse có thư mục migration riêng `analytics/clickhouse/migrations` (V005 đến V013). Cube đọc qua view `cube_*` khai báo `SQL SECURITY INVOKER` thay vì đọc thẳng bảng fact, vì ClickHouse 25.8 từ chối tạo pre-aggregation khi tài khoản chỉ có quyền theo cột; row policy theo `SQL_tenant_id` vẫn áp lên bảng bên dưới. Job phát hiện bất thường dùng tài khoản `<db>_anomaly_job` có quyền ghi riêng vào `anomaly_out` và `anomaly_run`. Chỉ mục tìm kiếm OpenSearch theo tên `t_<tenant>_task_v<n>` kèm alias, ghép tài liệu từ nhiều sự kiện bằng `scripted_upsert` với phiên bản theo nhóm trường, khác cách dùng external version của TL-03.
+
+## Câu hỏi mở cho người phụ trách TL-03 {-}
+
+Ngày 23/10/2026, người phụ trách đã chấp nhận phương án mặc định cho ba điểm trước đây còn mở: thêm cột phiên bản Policy Pack vào khoá duy nhất của `wf_binding`; thêm `plan_item.product_name`; thêm `acceptance.on_behalf_of` và `delegation_id` (bảng ở trên). Ba điểm này chờ task backend hiện thực bằng migration. Các việc sau vẫn cần quyết định trước khi phát hành TL-03 phiên bản tiếp theo. Thứ nhất, lược đồ EVT-10 thiếu luồng và câu giải thích, EVT-17 thiếu `packageId`, EVT-18 thiếu băm tệp đã ký, EVT-22 thiếu `openUntil` và phạm vi, EVT-24 thiếu đơn vị nhận. Thứ hai, verdict quét mã độc dùng bốn giá trị `CLEAN`, `INFECTED`, `UNSCANNABLE`, `ERROR`, cần sửa danh mục của TL-03. Thứ ba, bộ sinh dữ liệu thử tải DL-08 ghi chỉ mục mù 32 byte với khoá khác, trong khi mã Java cắt 16 byte theo ADR-30; dữ liệu nạp được nhưng tra cứu theo chỉ mục mù sẽ không khớp.

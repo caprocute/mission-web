@@ -1,0 +1,50 @@
+{
+  "ten_don_vi": "Đảng bộ Sở Tư pháp (giả lập)",
+  "ten_ky": "Năm 2026",
+  "nguoi_ky": "Phạm Văn Dũng",
+  "danh_sach_xep_loai": [
+    {
+      "thu_tu_don_vi": 2,
+      "ten_don_vi": "Phòng Hành chính tư pháp",
+      "ho_ten": "Võ Thị Hoa",
+      "chuc_danh": "Chuyên viên",
+      "muc_tu_de_xuat": "HTNV",
+      "muc_tham_dinh": "HTNV",
+      "muc_de_xuat": "HTNV",
+      "muc_quyet_dinh": "HTNV",
+      "ket_qua_bieu_quyet": "10/12 tán thành"
+    },
+    {
+      "thu_tu_don_vi": 1,
+      "ten_don_vi": "Văn phòng Sở",
+      "ho_ten": "Trần Thị Bình",
+      "chuc_danh": "Phó Chánh Văn phòng",
+      "muc_tu_de_xuat": "HTXSNV",
+      "muc_tham_dinh": "HTTNV",
+      "muc_de_xuat": "HTTNV",
+      "muc_quyet_dinh": "HTTNV",
+      "giai_trinh_khac_muc": "Chưa đủ thành tích nổi bật để xếp xuất sắc.",
+      "ket_qua_bieu_quyet": "11/12 tán thành"
+    },
+    {
+      "thu_tu_don_vi": 1,
+      "ten_don_vi": "Văn phòng Sở",
+      "ho_ten": "Nguyễn Văn An",
+      "chuc_danh": "Chuyên viên",
+      "muc_tu_de_xuat": "HTXSNV",
+      "muc_tham_dinh": "HTXSNV",
+      "muc_de_xuat": "HTXSNV",
+      "muc_quyet_dinh": "HTXSNV",
+      "ket_qua_bieu_quyet": "12/12 tán thành"
+    },
+    {
+      "thu_tu_don_vi": 1,
+      "ten_don_vi": "Văn phòng Sở",
+      "ho_ten": "Lê Văn Cường",
+      "chuc_danh": "Nhân viên",
+      "muc_tham_dinh": "HTNV",
+      "muc_quyet_dinh": "HTNV",
+      "y_kien_bao_luu": "Đề nghị xem xét lại kết quả quý III."
+    }
+  ]
+}

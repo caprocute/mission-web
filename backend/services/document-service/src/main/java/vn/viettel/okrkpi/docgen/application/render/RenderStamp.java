@@ -12,6 +12,9 @@ import java.util.UUID;
  * trang in trên mọi trang (người đọc thấy) và siêu dữ liệu XMP (máy đọc, đối chiếu khi ký gói).
  *
  * @param inputSha256 băm SHA-256 của dữ liệu đã chuẩn hoá ({@code render_job.input_sha256})
+ * @param reopenRequestId yêu cầu mở lại kỳ của lần sinh lại (DV-11-03, BR-13-08); {@code null} là
+ *     lần sinh thường
+ * @param draft bản nháp ngoài gói hồ sơ (DV-11-03)
  */
 public record RenderStamp(
     String policyPackCode,
@@ -19,7 +22,9 @@ public record RenderStamp(
     String formCode,
     int templateVersion,
     UUID packageId,
-    byte[] inputSha256) {
+    byte[] inputSha256,
+    UUID reopenRequestId,
+    boolean draft) {
 
   /** Tên các thuộc tính XMP của tem, theo thứ tự ghi. */
   public static final String POLICY_PACK = "policyPack";
@@ -29,11 +34,35 @@ public record RenderStamp(
   public static final String TEMPLATE_VERSION = "templateVersion";
   public static final String PACKAGE_ID = "packageId";
   public static final String INPUT_SHA256 = "inputSha256";
+  public static final String REOPEN_REQUEST_ID = "reopenRequestId";
+  public static final String DRAFT = "draft";
+
+  /** Chữ in kèm chân trang của bản nháp. */
+  public static final String DRAFT_LABEL = "Bản nháp";
 
   public RenderStamp {
     Objects.requireNonNull(formCode, "formCode");
     Objects.requireNonNull(inputSha256, "inputSha256");
     inputSha256 = inputSha256.clone();
+  }
+
+  /** Tem của lần sinh chính thức thường. */
+  public RenderStamp(
+      String policyPackCode,
+      String policyPackVersion,
+      String formCode,
+      int templateVersion,
+      UUID packageId,
+      byte[] inputSha256) {
+    this(
+        policyPackCode,
+        policyPackVersion,
+        formCode,
+        templateVersion,
+        packageId,
+        inputSha256,
+        null,
+        false);
   }
 
   @Override
@@ -50,6 +79,8 @@ public record RenderStamp(
     out.put(TEMPLATE_VERSION, Integer.toString(templateVersion));
     out.put(PACKAGE_ID, packageId == null ? "" : packageId.toString());
     out.put(INPUT_SHA256, HexFormat.of().formatHex(inputSha256));
+    out.put(REOPEN_REQUEST_ID, reopenRequestId == null ? "" : reopenRequestId.toString());
+    out.put(DRAFT, Boolean.toString(draft));
     return out;
   }
 
@@ -65,6 +96,12 @@ public record RenderStamp(
       if (policyPackVersion != null && !policyPackVersion.isBlank()) {
         text.append(" phiên bản ").append(policyPackVersion);
       }
+    }
+    if (reopenRequestId != null) {
+      text.append(" · Sinh lại sau khi mở lại kỳ");
+    }
+    if (draft) {
+      text.append(" · ").append(DRAFT_LABEL);
     }
     return text.toString();
   }

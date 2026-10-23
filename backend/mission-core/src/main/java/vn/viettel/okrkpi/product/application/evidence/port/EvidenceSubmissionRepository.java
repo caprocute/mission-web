@@ -123,7 +123,8 @@ public interface EvidenceSubmissionRepository {
       boolean hasE2ee,
       boolean duplicateSuspect,
       UUID duplicateOfId,
-      String reuseJustification) {}
+      String reuseJustification,
+      List<String> aiFieldsEdited) {}
 
   /** Bản chiếu đối tượng SVC-08 ({@code product.evidence_object}). */
   record StoredObject(
@@ -195,6 +196,9 @@ public interface EvidenceSubmissionRepository {
 
   /** Ghi trường nháp (không tăng {@code row_version}; máy trạng thái tăng ở cùng lệnh). */
   void writeDraftDetails(TenantId tenant, int periodBucket, UUID versionId, DraftDetails details);
+
+  /** Ô do AI điền mà người nộp đã sửa (CORE-03-05, BR-07-09); rỗng khi không có. */
+  List<String> aiFieldsEdited(TenantId tenant, int periodBucket, UUID versionId);
 
   /** Thay toàn bộ tệp của phiên bản nháp. */
   void replaceFiles(

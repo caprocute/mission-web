@@ -38,6 +38,15 @@ class DossierVoteIsolationTest {
     rule.check(CLASSES);
   }
 
+  /**
+   * Thao tác đọc của {@code DossierProfilesApi} mà CORE-06-06 dùng để lập gói (tên không bắt đầu
+   * bằng {@code find}); accessor của record trả về là đọc. Riêng {@code lock} (CORE-06-07, QT-11
+   * bước 13) là lệnh ghi duy nhất được phép: khi gói đã nộp, MOD-04 tự chuyển hồ sơ {@code
+   * DA_KY_SO} sang {@code DA_KHOA}, không chạm mức đề xuất hay mức quyết định.
+   */
+  private static final java.util.Set<String> READS =
+      java.util.Set.of("anyDecided", "unitProfiles", "undecidedPersons", "lock");
+
   @Test
   void mod06ChiGoiThaoTacDocCuaAppraisalApi() {
     ArchRule rule =
@@ -52,7 +61,9 @@ class DossierVoteIsolationTest {
                         call.getTargetOwner()
                                 .getPackageName()
                                 .startsWith("vn.viettel.okrkpi.appraisal")
-                            && !call.getName().startsWith("find")))
+                            && !call.getTargetOwner().isRecord()
+                            && !call.getName().startsWith("find")
+                            && !READS.contains(call.getName())))
             .because("BR-11-07: MOD-06 chỉ đọc kết quả của MOD-04");
     rule.check(CLASSES);
   }

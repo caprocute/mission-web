@@ -111,7 +111,7 @@ class DelayRiskService:
                     if f is None:
                         self.stats["khong_du_lieu"] += 1
                     else:
-                        self.stats[self._sink.put(tenant, task, f, today)] += 1
+                        self.stats[self._sink.put(tenant, task, f, today, got.latest_progress_id)] += 1
                 except (CalendarError, SinkError) as e:
                     self.stats["loi"] += 1
                     log.error("chưa ghi được dự báo cho nhiệm vụ %s: %s", task, e)

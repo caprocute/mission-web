@@ -1,7 +1,6 @@
 package vn.viettel.okrkpi.workflow.infrastructure.saga;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -72,19 +71,21 @@ public class FlowableSagaEngine implements SagaEngine {
 
   @Override
   public boolean wake(UUID sagaId) {
-    // Khoá nghiệp vụ chỉ nằm trên dòng thể hiện tiến trình; nút chờ là execution con không mang
-    // khoá,
-    // nên tìm thể hiện trước rồi lọc execution con theo nút chờ (DV-06-09 phát hiện).
-    List<Execution> waiting = new ArrayList<>();
-    for (ProcessInstance instance :
-        runtime.createProcessInstanceQuery().processInstanceBusinessKey("SAGA:" + sagaId).list()) {
-      waiting.addAll(
-          runtime
-              .createExecutionQuery()
-              .processInstanceId(instance.getId())
-              .activityId(WAIT_ACTIVITY)
-              .list());
+    // Nút chờ nằm ở execution con, mà execution con không mang business key: tìm tiến trình trước.
+    ProcessInstance process =
+        runtime
+            .createProcessInstanceQuery()
+            .processInstanceBusinessKey("SAGA:" + sagaId)
+            .singleResult();
+    if (process == null) {
+      return false;
     }
+    List<Execution> waiting =
+        runtime
+            .createExecutionQuery()
+            .processInstanceId(process.getId())
+            .activityId(WAIT_ACTIVITY)
+            .list();
     for (Execution execution : waiting) {
       runtime.trigger(execution.getId());
     }
@@ -119,13 +120,20 @@ public class FlowableSagaEngine implements SagaEngine {
 
   /** Saga đang dừng ở nút chờ: mã saga và tenant, để quét đối chiếu. */
   public Map<UUID, UUID> waitingSagas(int max) {
+    return waitingSagas(0, max);
+  }
+
+  /** Một trang saga đang dừng ở nút chờ, xếp theo mã execution để quét lần lượt hết các trang. */
+  public Map<UUID, UUID> waitingSagas(int first, int max) {
     Map<UUID, UUID> out = new java.util.LinkedHashMap<>();
     for (Execution execution :
         runtime
             .createExecutionQuery()
             .processDefinitionKey(PROCESS_KEY)
             .activityId(WAIT_ACTIVITY)
-            .listPage(0, max)) {
+            .orderByProcessInstanceId()
+            .asc()
+            .listPage(first, max)) {
       Object sagaId = runtime.getVariable(execution.getId(), VAR_SAGA_ID);
       if (sagaId != null && execution.getTenantId() != null) {
         out.put(UUID.fromString(sagaId.toString()), UUID.fromString(execution.getTenantId()));

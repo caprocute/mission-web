@@ -22,6 +22,7 @@ public class SagaWorker {
 
   private static final Logger LOG = LoggerFactory.getLogger(SagaWorker.class);
   private static final Duration CONFLICT_BACKOFF = Duration.ofSeconds(1);
+  private static final int MAX_RECONCILE_PAGES = 64;
 
   private final FlowableSagaEngine engine;
   private final SagaService service;
@@ -45,12 +46,19 @@ public class SagaWorker {
 
   @Scheduled(fixedDelayString = "${okrkpi.saga.worker.reconcile-interval:5s}")
   public void reconcile() {
-    for (Map.Entry<UUID, UUID> waiting : engine.waitingSagas(batchSize).entrySet()) {
-      try {
-        TenantContext.run(
-            TenantId.of(waiting.getValue()), () -> service.reconcileWaiting(waiting.getKey()));
-      } catch (RuntimeException e) {
-        LOG.warn("Đối chiếu saga {} lỗi: {}", waiting.getKey(), e.toString());
+    // Quét hết các trang: saga chờ người vận hành nằm lâu ở nút chờ không được che saga khác.
+    for (int first = 0; first < MAX_RECONCILE_PAGES * batchSize; first += batchSize) {
+      Map<UUID, UUID> page = engine.waitingSagas(first, batchSize);
+      for (Map.Entry<UUID, UUID> waiting : page.entrySet()) {
+        try {
+          TenantContext.run(
+              TenantId.of(waiting.getValue()), () -> service.reconcileWaiting(waiting.getKey()));
+        } catch (RuntimeException e) {
+          LOG.warn("Đối chiếu saga {} lỗi: {}", waiting.getKey(), e.toString());
+        }
+      }
+      if (page.size() < batchSize) {
+        return;
       }
     }
   }

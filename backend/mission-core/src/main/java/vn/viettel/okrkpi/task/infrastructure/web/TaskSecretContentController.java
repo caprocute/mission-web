@@ -24,6 +24,7 @@ import vn.viettel.okrkpi.contract.tasks.model.TaskKeyWrap;
 import vn.viettel.okrkpi.contract.tasks.model.TaskSecretContent;
 import vn.viettel.okrkpi.contract.tasks.model.TaskSecretContentInput;
 import vn.viettel.okrkpi.contract.tasks.model.TaskSecretContentMeta;
+import vn.viettel.okrkpi.contract.tasks.model.TaskSecretRecoveryWrapRequest;
 import vn.viettel.okrkpi.contract.tasks.model.TaskSecretShareRequest;
 import vn.viettel.okrkpi.shared.authz.RequiresPermission;
 import vn.viettel.okrkpi.shared.etag.ETags;
@@ -126,6 +127,30 @@ public class TaskSecretContentController {
               guard.share(secrets.authz(tenant, id));
               return secrets.share(tenant, id, wraps, actor);
             });
+    return ResponseEntity.ok(meta(m));
+  }
+
+  @PostMapping("/{id}/secret-content/recovery-wraps")
+  @Idempotent
+  @RequiresPermission(
+      operationId = "restoreTaskSecretKeyWrap",
+      module = "tasks",
+      resourceType = "task")
+  public ResponseEntity<TaskSecretContentMeta> restoreTaskSecretKeyWrap(
+      @PathVariable("id") UUID id, @RequestBody TaskSecretRecoveryWrapRequest body) {
+    TenantId tenant = TenantContext.require();
+    TaskActor actor = callers.current();
+    List<WrapInput> wrap =
+        inputs(body == null || body.getKeyWrap() == null ? null : List.of(body.getKeyWrap()));
+    Meta m =
+        found(
+            () ->
+                secrets.restore(
+                    tenant,
+                    id,
+                    body == null ? null : body.getRecoveryId(),
+                    wrap == null ? null : wrap.get(0),
+                    actor));
     return ResponseEntity.ok(meta(m));
   }
 

@@ -296,7 +296,7 @@
             <configuration>
               <inputSpec>${contract.dir}/modules/platform.yaml</inputSpec>
               <generatorName>spring</generatorName>
-              <openapiNormalizer>FILTER=operationId:startPeriodCloseSaga</openapiNormalizer>
+              <openapiNormalizer>FILTER=operationId:startPeriodCloseSaga|controlPeriodCloseSaga</openapiNormalizer>
               <apiPackage>vn.viettel.okrkpi.workflow.infrastructure.web.saga.api</apiPackage>
               <modelPackage>vn.viettel.okrkpi.workflow.infrastructure.web.saga.model</modelPackage>
               <generateSupportingFiles>false</generateSupportingFiles>

@@ -304,7 +304,29 @@ class PlanApprovalIT extends ContractConformanceTest {
                 .params(v2, AUTHOR, AUTHOR, period, BUCKET, UUID.fromString(id))
                 .update());
     TestTaskCallers.reset();
-    assertThat(perform(save(id, 2, "\"0\"", lines(3))).getResponse().getStatus()).isEqualTo(200);
+    // Điều chỉnh (CORE-02-10): dòng mới ghi lý do, dòng của phiên bản 1 bỏ kèm lý do.
+    List<Map<String, Object>> adjusted = lines(3);
+    adjusted.forEach(l -> l.put("changeReason", "Thay theo chỉ đạo mới"));
+    List<Map<String, Object>> removed =
+        inTask(
+            jdbc ->
+                jdbc
+                    .sql("SELECT id FROM task.plan_item WHERE plan_version_id = ?")
+                    .params(v1)
+                    .query(UUID.class)
+                    .list()
+                    .stream()
+                    .map(
+                        item ->
+                            Map.<String, Object>of(
+                                "originItemId", item, "changeReason", "Không còn phù hợp"))
+                    .toList());
+    MockHttpServletRequestBuilder saveV2 =
+        put("/api/v1/plans/" + id + "/versions/2")
+            .header("If-Match", "\"0\"")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(json.writeValueAsString(Map.of("items", adjusted, "removedItems", removed)));
+    assertThat(perform(saveV2).getResponse().getStatus()).isEqualTo(200);
     score(v2);
     assertThat(perform(submit(id, 2, "\"1\"")).getResponse().getStatus()).isEqualTo(200);
     UUID signRequest2 = UUID.randomUUID();

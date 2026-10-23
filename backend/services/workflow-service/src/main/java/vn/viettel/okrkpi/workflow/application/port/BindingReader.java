@@ -13,4 +13,13 @@ public interface BindingReader {
    * luồng. Rỗng khi tenant chưa cấu hình.
    */
   Optional<ApprovalParams> find(UUID tenantId, String processKind, ApprovalFlow flow);
+
+  /**
+   * {@code params_json} thô của dòng được chọn theo cùng thứ tự ưu tiên (mẫu phần 2 đọc các khoá
+   * {@code cap[].buoc}, {@code bo_qua_khi}, {@code nhac_truoc}, {@code khi_qua_han}, {@code
+   * nguoi_thay}, {@code so_lan_tra_lai}). Rỗng khi tenant chưa cấu hình.
+   */
+  default Optional<String> rawParams(UUID tenantId, String processKind, ApprovalFlow flow) {
+    return Optional.empty();
+  }
 }

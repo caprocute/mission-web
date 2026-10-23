@@ -15,6 +15,14 @@ import vn.viettel.okrkpi.shared.kernel.TenantId;
  */
 public interface OkrCheckinRepository {
 
+  /**
+   * Nguồn số liệu khai trên KR ({@code okr.key_result.data_source}, CORE-01-10); rỗng khi KR không
+   * có hoặc không gắn nguồn.
+   */
+  default Optional<String> dataSource(TenantId tenant, UUID keyResultId) {
+    return Optional.empty();
+  }
+
   /** KR kèm mục tiêu chứa nó, đủ để kiểm BR-03-01 và quyền check-in. */
   record CheckinTarget(
       UUID keyResultId,

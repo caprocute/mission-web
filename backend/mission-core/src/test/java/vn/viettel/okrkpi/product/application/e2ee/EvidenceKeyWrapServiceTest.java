@@ -12,8 +12,10 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import vn.viettel.okrkpi.product.application.e2ee.EvidenceKeyWrapService.WrapInput;
 import vn.viettel.okrkpi.product.application.e2ee.port.EvidenceKeyWraps;
 import vn.viettel.okrkpi.product.application.e2ee.port.EvidenceKeyWraps.RecoveryKeys.RecoveryKey;
+import vn.viettel.okrkpi.product.application.e2ee.port.EvidenceKeyWraps.RecoveryRecords;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceActor;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceSubmissionService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceSubmissionService.VersionDetail;
@@ -28,6 +31,7 @@ import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRep
 import vn.viettel.okrkpi.shared.audit.AuditEvent;
 import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
+import vn.viettel.okrkpi.shared.resilience.DependencyUnavailableException;
 import vn.viettel.okrkpi.task.api.TaskApi;
 import vn.viettel.okrkpi.task.api.TaskSummary;
 
@@ -51,13 +55,20 @@ class EvidenceKeyWrapServiceTest {
   final FakeWraps wraps = new FakeWraps();
   final List<AuditEvent> audits = new ArrayList<>();
   Optional<RecoveryKey> recovery = Optional.of(new RecoveryKey(List.of(RECOVERY_FP), RECOVERY));
+  final Map<UUID, RecoveryRecords.Recovery> records = new HashMap<>();
   EvidenceKeyWrapService service;
 
   @BeforeEach
   void setUp() {
     service =
         new EvidenceKeyWrapService(
-            versions, wraps, t -> recovery, tasks, audits::add, Clock.fixed(NOW, ZoneOffset.UTC));
+            versions,
+            wraps,
+            t -> recovery,
+            (t, id) -> Optional.ofNullable(records.get(id)),
+            tasks,
+            audits::add,
+            Clock.fixed(NOW, ZoneOffset.UTC));
     when(tasks.find(TENANT, taskId))
         .thenReturn(
             Optional.of(
@@ -137,6 +148,74 @@ class EvidenceKeyWrapServiceTest {
   }
 
   @Test
+  void napKhoaBocKhoiPhucTheoBienBan() {
+    service.add(TENANT, evidenceId, 1, List.of(w(LEAD), w(RECOVERY)), as(LEAD));
+    EvidenceActor admin = new EvidenceActor(OUTSIDER, java.util.Set.of("tenant_admin"));
+    UUID ok = UUID.randomUUID();
+    records.put(ok, new RecoveryRecords.Recovery("EVIDENCE_FILE", versionId, LEAD, NOW));
+    UUID stale = UUID.randomUUID();
+    records.put(
+        stale,
+        new RecoveryRecords.Recovery(
+            "EVIDENCE_FILE", versionId, LEAD, NOW.minus(java.time.Duration.ofHours(25))));
+    UUID other = UUID.randomUUID();
+    records.put(other, new RecoveryRecords.Recovery("TASK_CONTENT", versionId, LEAD, NOW));
+    UUID forAcceptor = UUID.randomUUID();
+    records.put(
+        forAcceptor, new RecoveryRecords.Recovery("EVIDENCE_FILE", versionId, ACCEPTOR, NOW));
+
+    WrapInput fresh =
+        new WrapInput(LEAD, Base64.getEncoder().encodeToString(new byte[] {9, 9}), "RSA-OAEP-256");
+    service.restore(TENANT, evidenceId, 1, ok, fresh, admin);
+    assertThat(wraps.rows).hasSize(2);
+    assertThat(wraps.rows.stream().filter(r -> r.recipientId().equals(LEAD)).toList())
+        .singleElement()
+        .satisfies(r -> assertThat(r.wrappedKey()).containsExactly(9, 9));
+    assertThat(audits.get(audits.size() - 1).toString()).contains("KHOI_PHUC_KHOA_MINH_CHUNG_MAT");
+
+    for (UUID bad : List.of(stale, other, UUID.randomUUID())) {
+      assertThatThrownBy(() -> service.restore(TENANT, evidenceId, 1, bad, fresh, admin))
+          .isInstanceOf(BusinessException.class)
+          .satisfies(t -> assertThat(code(t)).isEqualTo("COMMON-422-VALIDATION"));
+    }
+    assertThatThrownBy(() -> service.restore(TENANT, evidenceId, 1, null, fresh, admin))
+        .isInstanceOf(BusinessException.class);
+    assertThatThrownBy(() -> service.restore(TENANT, evidenceId, 1, ok, null, admin))
+        .isInstanceOf(BusinessException.class);
+    assertThatThrownBy(() -> service.restore(TENANT, evidenceId, 1, ok, w(RECOVERY), admin))
+        .isInstanceOf(BusinessException.class);
+    // Người nhận chưa từng có bản bọc trên phiên bản thì không nạp qua khôi phục.
+    assertThatThrownBy(
+            () -> service.restore(TENANT, evidenceId, 1, forAcceptor, w(ACCEPTOR), admin))
+        .isInstanceOf(BusinessException.class)
+        .satisfies(t -> assertThat(code(t)).isEqualTo("COMMON-403-OUT-OF-SCOPE"));
+  }
+
+  @Test
+  void khongCoSvc04ThiNapKhoiPhucBao503VaKhoaCuVanTinhLaPhucHoi() {
+    service.add(TENANT, evidenceId, 1, List.of(w(LEAD), w(RECOVERY)), as(LEAD));
+    // Thay khoá phục hồi: người nhận đại diện mới, vân tay cũ vẫn giữ trong cấu hình.
+    recovery =
+        Optional.of(new RecoveryKey(List.of("cd".repeat(32), RECOVERY_FP), UUID.randomUUID()));
+    service.add(TENANT, evidenceId, 1, List.of(w(ACCEPTOR)), as(LEAD));
+    assertThat(wraps.rows).hasSize(3);
+
+    EvidenceKeyWrapService noOrg =
+        new EvidenceKeyWrapService(
+            versions, wraps, t -> recovery, tasks, audits::add, Clock.fixed(NOW, ZoneOffset.UTC));
+    assertThatThrownBy(
+            () ->
+                noOrg.restore(
+                    TENANT,
+                    evidenceId,
+                    1,
+                    UUID.randomUUID(),
+                    w(LEAD),
+                    new EvidenceActor(OUTSIDER, java.util.Set.of("tenant_admin"))))
+        .isInstanceOf(DependencyUnavailableException.class);
+  }
+
+  @Test
   void thieuKhoaPhucHoiHoacChuaCauHinh422() {
     assertThatThrownBy(() -> service.add(TENANT, evidenceId, 1, List.of(w(LEAD)), as(LEAD)))
         .satisfies(t -> assertThat(code(t)).isEqualTo("COMMON-422-VALIDATION"));
@@ -187,6 +266,13 @@ class EvidenceKeyWrapServiceTest {
   static final class FakeWraps implements EvidenceKeyWraps {
 
     final List<StoredWrap> rows = new ArrayList<>();
+
+    @Override
+    public FileAccess fileAccess(TenantId tenant, UUID objectId, UUID personId) {
+      return new FileAccess(
+          !rows.isEmpty(),
+          rows.stream().anyMatch(r -> r.active() && r.recipientId().equals(personId)));
+    }
 
     @Override
     public List<StoredWrap> of(TenantId tenant, UUID versionId) {

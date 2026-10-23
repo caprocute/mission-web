@@ -45,6 +45,11 @@
     </dependency>
     <dependency>
       <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-reconcile</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
       <artifactId>vt-db-migration</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -208,6 +213,35 @@
               <openapiNormalizer>FILTER=operationId:getAppraisalScoreTrace|recomputeAppraisalProfile|previewAppraisalTaskScore|simulateAppraisalScore</openapiNormalizer>
               <apiPackage>vn.viettel.okrkpi.scoring.infrastructure.web.api</apiPackage>
               <modelPackage>vn.viettel.okrkpi.scoring.infrastructure.web.model</modelPackage>
+              <generateSupportingFiles>false</generateSupportingFiles>
+              <generateApiTests>false</generateApiTests>
+              <generateModelTests>false</generateModelTests>
+              <generateApiDocumentation>false</generateApiDocumentation>
+              <generateModelDocumentation>false</generateModelDocumentation>
+              <configOptions>
+                <interfaceOnly>true</interfaceOnly>
+                <useSpringBoot3>true</useSpringBoot3>
+                <useTags>false</useTags>
+                <openApiNullable>false</openApiNullable>
+                <annotationLibrary>none</annotationLibrary>
+                <documentationProvider>none</documentationProvider>
+                <useBeanValidation>true</useBeanValidation>
+                <skipDefaultInterface>true</skipDefaultInterface>
+              </configOptions>
+            </configuration>
+          </execution>
+          <!-- DV-07-06: getJob của jobs.yaml để theo dõi tác vụ tính (Location của 202). -->
+          <execution>
+            <id>jobs-api</id>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <configuration>
+              <inputSpec>${contract.dir}/modules/jobs.yaml</inputSpec>
+              <generatorName>spring</generatorName>
+              <openapiNormalizer>FILTER=operationId:getJob</openapiNormalizer>
+              <apiPackage>vn.viettel.okrkpi.scoring.infrastructure.web.jobs.api</apiPackage>
+              <modelPackage>vn.viettel.okrkpi.scoring.infrastructure.web.jobs.model</modelPackage>
               <generateSupportingFiles>false</generateSupportingFiles>
               <generateApiTests>false</generateApiTests>
               <generateModelTests>false</generateModelTests>

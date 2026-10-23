@@ -1,9 +1,15 @@
 package vn.viettel.okrkpi.workflow.infrastructure.saga;
 
+import java.net.URI;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.springframework.http.ProblemDetail;
+import vn.viettel.okrkpi.shared.error.ErrorCatalog;
+import vn.viettel.okrkpi.shared.error.ErrorCode;
 import vn.viettel.okrkpi.shared.job.Job;
 import vn.viettel.okrkpi.shared.job.JobSource;
 import vn.viettel.okrkpi.shared.job.JobStatus;
@@ -12,6 +18,8 @@ import vn.viettel.okrkpi.shared.kernel.ActorId;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.workflow.application.saga.SagaService;
 import vn.viettel.okrkpi.workflow.domain.saga.SagaInstance;
+import vn.viettel.okrkpi.workflow.domain.saga.SagaStep;
+import vn.viettel.okrkpi.workflow.domain.saga.SagaStepStatus;
 import vn.viettel.okrkpi.workflow.domain.saga.SagaType;
 
 /**
@@ -20,6 +28,11 @@ import vn.viettel.okrkpi.workflow.domain.saga.SagaType;
  * DANG_CHAY}; bù trừ xong là {@code THAT_BAI}.
  */
 public class SagaJobSource implements JobSource {
+
+  /** Lỗi của bước bị từ chối theo nghiệp vụ: "MÃ-LỖI: mô tả" ({@code StepResult.Rejected}). */
+  private static final Pattern REJECTION = Pattern.compile("^([A-Z]+-\\d{3}-[A-Z0-9-]+): (.+)$");
+
+  private static final ErrorCatalog ERRORS = ErrorCatalog.standard();
 
   private final SagaService sagas;
 
@@ -64,8 +77,39 @@ public class SagaJobSource implements JobSource {
         status == JobStatus.THAT_BAI ? null : progress,
         message(saga),
         null,
-        null,
+        status == JobStatus.THAT_BAI ? problem(saga) : null,
         at.atOffset(ZoneOffset.UTC));
+  }
+
+  /**
+   * Problem của saga đã bù trừ xong: mã của bước bị từ chối theo nghiệp vụ (ví dụ {@code
+   * PERIOD-422-PRECONDITION} của bước tiền điều kiện chốt kỳ, MSG-08-02); bù trừ vì lỗi kỹ thuật
+   * không có Problem.
+   */
+  static ProblemDetail problem(SagaInstance saga) {
+    for (SagaStep step : saga.steps()) {
+      if (step.status() != SagaStepStatus.LOI || step.lastError() == null) {
+        continue;
+      }
+      Matcher m = REJECTION.matcher(step.lastError());
+      if (!m.matches()) {
+        continue;
+      }
+      Optional<ErrorCode> code = ERRORS.find(m.group(1));
+      if (code.isEmpty()) {
+        continue;
+      }
+      ProblemDetail pd = ProblemDetail.forStatus(code.get().status());
+      pd.setType(URI.create(code.get().type()));
+      pd.setTitle(code.get().title());
+      pd.setDetail(m.group(2));
+      pd.setProperty("code", code.get().code());
+      if (code.get().msg() != null) {
+        pd.setProperty("msg", code.get().msg());
+      }
+      return pd;
+    }
+    return null;
   }
 
   static String type(SagaType type) {

@@ -18,6 +18,7 @@ import vn.viettel.okrkpi.workflow.application.WorkflowNotFoundException;
 import vn.viettel.okrkpi.workflow.infrastructure.web.binding.InternalBindingController;
 import vn.viettel.okrkpi.workflow.infrastructure.web.model.WorkflowBatchCompletion;
 import vn.viettel.okrkpi.workflow.infrastructure.web.monitor.WorkflowMonitorController;
+import vn.viettel.okrkpi.workflow.infrastructure.web.saga.SagaController;
 import vn.viettel.okrkpi.workflow.infrastructure.web.template.InternalTemplateReleaseController;
 import vn.viettel.okrkpi.workflow.infrastructure.web.template.WorkflowTemplateController;
 
@@ -37,7 +38,8 @@ import vn.viettel.okrkpi.workflow.infrastructure.web.template.WorkflowTemplateCo
       InternalBindingController.class,
       WorkflowTemplateController.class,
       InternalTemplateReleaseController.class,
-      WorkflowMonitorController.class
+      WorkflowMonitorController.class,
+      SagaController.class
     })
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class WorkflowProblemAdvice {

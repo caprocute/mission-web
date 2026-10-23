@@ -1,14 +1,17 @@
 """Ghi kết quả về `task.task.delay_risk` qua cổng nội bộ của MOD-02, không ghi thẳng schema `task` (TL-03 chương 2).
 
-Operation đề xuất (chưa có trong `tasks.yaml`, chờ người phụ trách hợp đồng duyệt, CORE-02 hiện thực; wiki/14):
-`PUT /api/v1/tasks/{taskId}/delay-risk`, client dịch vụ cộng `X-Tenant-Id`, có `Idempotency-Key`. MOD-02 chỉ nhận
-khi `basedOnReportedAt` không cũ hơn giá trị đã lưu, ngược lại trả 409; vì vậy phát lại EVT-05 cũ không làm lùi giá trị.
-Thân là dữ liệu để giao diện dựng MSG-06-02 ({n}, {m}), không có câu tự do."""
+Operation `setTaskDelayRisk` của `tasks.yaml` (CORE-02-26): `PUT /api/v1/tasks/{id}/delay-risk`, token client
+dịch vụ cộng `X-Tenant-Id`, có `Idempotency-Key`. Thân `TaskDelayRiskInput`: `level`, `neededWorkingDays`,
+`explanation` (≤ 1000 ký tự), `computedAt`, `basedOnProgressId` (tuỳ chọn). MOD-02 trả 409
+`TASK-409-STALE-DELAY-RISK` khi `computedAt` cũ hơn dự báo đang lưu. Dự báo luôn tính lại từ toàn bộ lịch sử tiến
+độ trong kho, nên phát lại EVT-05 cũ cho đúng giá trị hiện hành chứ không làm lùi. `explanation` là câu MSG-06-02
+dựng sẵn với {n}, {m} (wiki/14, CORE-02-26 điểm 4)."""
 
 from __future__ import annotations
 
 import datetime as dt
 import uuid
+from collections.abc import Callable
 from typing import Any
 
 import httpx
@@ -23,27 +26,50 @@ class SinkError(RuntimeError):
     pass
 
 
-def body(f: Forecast, today: dt.date) -> dict[str, Any]:
-    return {
+def needed_days(f: Forecast) -> int:
+    """n gửi đi; nhịp bằng 0 thì không tính được n, gửi m + 1 làm cận dưới (suy luận) để vẫn hiện mức Cao."""
+    return f.needed_days if f.needed_days is not None else f.remaining_days + 1
+
+
+def explanation(f: Forecast) -> str:
+    """Câu hiển thị theo MSG-06-02 (TL-02a), không có mã kỹ thuật."""
+    m = f.remaining_days
+    if f.needed_days is None:
+        return f"Nhiệm vụ có nguy cơ trễ hạn cao: chưa ghi nhận tiến độ trong thời gian gần đây, còn {m} ngày."
+    n = f.needed_days
+    if f.level == "CAO":
+        return f"Nhiệm vụ có nguy cơ trễ hạn cao: cần khoảng {n} ngày làm việc, còn {m} ngày."
+    if f.level == "VUA":
+        return f"Nhiệm vụ có nguy cơ trễ hạn: cần khoảng {n} ngày làm việc, còn {m} ngày."
+    if f.remaining <= 0:
+        return "Nhiệm vụ đã đủ khối lượng, không có nguy cơ trễ hạn."
+    return f"Tiến độ hiện tại đủ để hoàn thành đúng hạn: cần khoảng {n} ngày làm việc, còn {m} ngày."
+
+
+def body(f: Forecast, computed_at: dt.datetime, progress_id: str | None = None) -> dict[str, Any]:
+    b: dict[str, Any] = {
         "level": f.level,
-        "neededWorkingDays": f.needed_days,
-        "remainingWorkingDays": f.remaining_days,
-        "pace": f.pace,
-        "unit": f.unit,
-        "remainingQuantity": f.remaining,
-        "asOf": today.isoformat(),
-        "basedOnReportedAt": f.based_on.isoformat(timespec="milliseconds") if f.based_on else None,
+        "neededWorkingDays": needed_days(f),
+        "explanation": explanation(f),
+        "computedAt": computed_at.astimezone(dt.UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
     }
+    if progress_id:
+        b["basedOnProgressId"] = progress_id
+    return b
 
 
 class DelayRiskSink:
-    def __init__(self, http: httpx.Client, base_url: str, token: ServiceToken) -> None:
+    def __init__(self, http: httpx.Client, base_url: str, token: ServiceToken,
+                 now: Callable[[], dt.datetime] | None = None) -> None:
         self._http, self._base, self._token = http, base_url, token
+        self._now = now or (lambda: dt.datetime.now(dt.UTC))
 
-    def put(self, tenant: str, task_id: str, f: Forecast, today: dt.date) -> str:
-        """Trả 'ghi', 'cu' (409: đã có giá trị mới hơn) hoặc 'khong_co' (404); lỗi khác ném SinkError để thử lại."""
-        b = body(f, today)
-        key = uuid.uuid5(NS, f"{tenant}:{task_id}:{b['basedOnReportedAt']}:{b['asOf']}:{f.level}:{f.needed_days}")
+    def put(self, tenant: str, task_id: str, f: Forecast, today: dt.date, progress_id: str | None = None) -> str:
+        """Trả 'ghi', 'cu' (409: có dự báo mới hơn hoặc nhiệm vụ đã đóng), 'khong_co' (404); lỗi khác ném SinkError."""
+        b = body(f, self._now(), progress_id)
+        # Khoá theo đúng thân gửi (kể cả computedAt): máy chủ từ chối dùng lại khoá cho thân khác.
+        key = uuid.uuid5(
+            NS, f"{tenant}:{task_id}:{b['computedAt']}:{progress_id}:{f.level}:{b['neededWorkingDays']}")
         r = self._http.put(f"{self._base}/api/v1/tasks/{task_id}/delay-risk", json=b,
                            headers={"Authorization": f"Bearer {self._token.get()}", "X-Tenant-Id": tenant,
                                     "Idempotency-Key": str(key)})

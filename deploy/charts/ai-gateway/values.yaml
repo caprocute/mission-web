@@ -34,6 +34,10 @@ thanhPhan:
     python:
       workers: 2
     nodePool: secure
+    # DV-08-05: ocrEvidenceObject đọc tệp minh chứng qua cổng nội bộ của evidence-service (chỉ trong mesh).
+    env:
+      - name: OBJECT_BASE_URL
+        value: http://evidence-service.platform.svc:8080/internal/v1/ocr-objects
     networkPolicy:
       ingressFrom:
         - namespace: core
@@ -41,10 +45,21 @@ thanhPhan:
             app.kubernetes.io/name: mission-core
           ports:
             - port: 8080
+        # Worker quét của evidence-service gửi việc đọc chữ (DV-08-05).
+        - namespace: workers
+          podLabels:
+            app.kubernetes.io/name: evidence-scan-worker
+          ports:
+            - port: 8080
         - namespace: observability
           ports:
             - port: 8081
       egressTo:
+        - namespace: platform
+          podLabels:
+            app.kubernetes.io/name: evidence-service
+          ports:
+            - port: 8080
         - namespace: secure
           podLabels:
             app.kubernetes.io/name: vllm

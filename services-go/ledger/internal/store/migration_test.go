@@ -210,9 +210,9 @@ func TestMigrationNamingAndClassificationLint(t *testing.T) {
 }
 
 // TestImmutabilityPrivilegesAndRoleMatrix kiểm chứng:
-// - UPDATE, DELETE, TRUNCATE bằng svc_ledger, ro_ledger, cdc_ledger và mig_ledger trên
-//   ledger_entry, cell_seal, merkle_seal, anchor_receipt đều bị từ chối với mã lỗi 42501.
-// - Ma trận phân quyền đọc/ghi của từng role đúng chuẩn SEC-06 / TL-03 §12.2.
+//   - UPDATE, DELETE, TRUNCATE bằng svc_ledger, ro_ledger, cdc_ledger và mig_ledger trên
+//     ledger_entry, cell_seal, merkle_seal, anchor_receipt đều bị từ chối với mã lỗi 42501.
+//   - Ma trận phân quyền đọc/ghi của từng role đúng chuẩn SEC-06 / TL-03 §12.2.
 func TestImmutabilityPrivilegesAndRoleMatrix(t *testing.T) {
 	ctx := context.Background()
 

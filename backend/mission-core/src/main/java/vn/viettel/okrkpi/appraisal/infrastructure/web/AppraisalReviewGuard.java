@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.appraisal.infrastructure.web;
 
 import org.springframework.stereotype.Component;
+import vn.viettel.okrkpi.appraisal.application.prospect.ProspectBoardResource;
 import vn.viettel.okrkpi.appraisal.application.review.ReviewParticipants;
 import vn.viettel.okrkpi.shared.authz.RequiresPermission;
 import vn.viettel.okrkpi.shared.authz.StepUpRequiredException;
@@ -34,6 +35,30 @@ public class AppraisalReviewGuard {
   /** Lập đề xuất bố trí lại trên hồ sơ năm (SCR-1001, CORE-04-11). */
   @RequiresPermission(action = "SCR-1001.bo-tri-lai", resourceType = ReviewParticipants.TYPE)
   public void reassign(ReviewParticipants resource) {
+    // Kiểm ở PermissionInterceptor.
+  }
+
+  /** Xem danh sách phân nhóm của đơn vị (SCR-1002, CORE-04-12; dữ liệu C2, BR-10-10). */
+  @RequiresPermission(
+      action = "SCR-1002.xem",
+      resourceType = ProspectBoardResource.TYPE,
+      classification = "C2")
+  public void viewProspects(ProspectBoardResource resource) {
+    // Kiểm ở PermissionInterceptor.
+  }
+
+  /** Xếp nhóm, lưu nháp (SCR-1002). */
+  @RequiresPermission(
+      action = "SCR-1002.xep-nhom",
+      resourceType = ProspectBoardResource.TYPE,
+      classification = "C2")
+  public void arrangeProspects(ProspectBoardResource resource) {
+    // Kiểm ở PermissionInterceptor.
+  }
+
+  /** Trình tập thể lãnh đạo (SCR-1002). */
+  @RequiresPermission(action = "SCR-1002.trinh", resourceType = ProspectBoardResource.TYPE)
+  public void submitProspects(ProspectBoardResource resource) {
     // Kiểm ở PermissionInterceptor.
   }
 

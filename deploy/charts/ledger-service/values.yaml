@@ -33,7 +33,7 @@ autoscaling:
         name: ledger-append
         metadata:
           bootstrapServers: kafka-cell-kafka-bootstrap.data-kafka.svc:9093
-          consumerGroup: ledger-service
+          consumerGroup: ledger-ingester
           topic: sys.ledger.append.v1
           lagThreshold: '2000'
           activationLagThreshold: '500'

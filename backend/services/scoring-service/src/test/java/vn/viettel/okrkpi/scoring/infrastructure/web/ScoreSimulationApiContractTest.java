@@ -125,6 +125,7 @@ class ScoreSimulationApiContractTest {
     when(store.latest(PROFILE)).thenReturn(Optional.of(sample()));
     when(store.latestWithTask(TASK)).thenReturn(Optional.of(sample()));
     when(cache.cached(any())).thenReturn(Optional.of(policy));
+    when(cache.original(any(), any(), any())).thenReturn(policy);
     when(opa.decide(any())).thenReturn(new OpaDecision(true, Set.of(), Set.of(), "r1", false));
 
     MvcResult sim =
@@ -162,6 +163,7 @@ class ScoreSimulationApiContractTest {
   void ngoaiMienThi422KhongCoThi404TuChoiThi403() throws Exception {
     when(store.latest(PROFILE)).thenReturn(Optional.of(sample()));
     when(cache.cached(any())).thenReturn(Optional.of(policy));
+    when(cache.original(any(), any(), any())).thenReturn(policy);
     when(opa.decide(any())).thenReturn(new OpaDecision(true, Set.of(), Set.of(), "r1", false));
     MvcResult bad =
         call(
@@ -256,7 +258,9 @@ class ScoreSimulationApiContractTest {
         policy.pinned().versionId(),
         policy.contentHash(),
         "2.1.0",
-        input.document().json());
+        input.document().json(),
+        20271,
+        UUID.randomUUID());
   }
 
   private static void assertContract(MvcResult result) throws Exception {

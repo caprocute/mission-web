@@ -35,7 +35,8 @@ public class VOfficeConfiguration {
       ObjectProvider<ObjectMapper> mapper,
       @Value("${okrkpi.integ.voffice.codes:VOFFICE}") List<String> codes,
       @Value("${okrkpi.integ.voffice.period:PT30S}") Duration period,
-      @Value("${okrkpi.integ.voffice.request-timeout:PT5S}") Duration timeout) {
+      @Value("${okrkpi.integ.voffice.request-timeout:PT5S}") Duration timeout,
+      @Value("${okrkpi.integ.voffice.max-file-bytes:52428800}") long maxFileBytes) {
     ObjectMapper json = mapper.getIfAvailable(ObjectMapper::new);
     VOfficeClient client =
         new VOfficeClient(
@@ -52,7 +53,7 @@ public class VOfficeConfiguration {
             .map(c -> (InboundConnector) new VOfficeConnector(c, client, period, translator))
             .toList(),
         codes.stream()
-            .map(c -> (IssuedDocumentSource) new VOfficeIssuedDocuments(c, client))
+            .map(c -> (IssuedDocumentSource) new VOfficeIssuedDocuments(c, client, maxFileBytes))
             .toList());
   }
 }

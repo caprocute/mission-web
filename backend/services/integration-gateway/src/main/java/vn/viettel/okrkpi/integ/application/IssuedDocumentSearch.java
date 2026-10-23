@@ -49,7 +49,8 @@ public class IssuedDocumentSearch {
     this.clock = Objects.requireNonNull(clock, "clock");
   }
 
-  private record Target(Connector connector, String externalUnit) {}
+  /** Kết nối đang bật của tenant, nguồn tra cứu và mã đơn vị phía ngoài đã ánh xạ. */
+  public record Target(Connector connector, IssuedDocumentSource source, String externalUnit) {}
 
   public Result search(
       TenantId tenant, String connectorCode, UUID orgUnitId, String q, int limit, String cursor) {
@@ -60,6 +61,27 @@ public class IssuedDocumentSearch {
     if (q != null && q.length() > 200) {
       throw new IllegalArgumentException("Từ khoá tối đa 200 ký tự");
     }
+    java.util.Optional<Target> target = target(tenant, connectorCode, orgUnitId);
+    if (target.isEmpty()) {
+      return new Result(java.util.List.of(), null);
+    }
+    try {
+      return target
+          .get()
+          .source()
+          .search(target.get().connector(), target.get().externalUnit(), q, limit, cursor);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /**
+   * Kết nối, nguồn và đơn vị phía ngoài của {@code orgUnitId}; rỗng khi đơn vị chưa ánh xạ.
+   *
+   * @throws NoSuchElementException khi chưa có nguồn cho mã kết nối hoặc tenant chưa bật kết nối
+   */
+  public java.util.Optional<Target> target(TenantId tenant, String connectorCode, UUID orgUnitId) {
+    Objects.requireNonNull(orgUnitId, "orgUnitId");
     IssuedDocumentSource source = sources.get(connectorCode);
     if (source == null) {
       throw new NoSuchElementException("Chưa có nguồn tra cứu cho kết nối " + connectorCode);
@@ -81,17 +103,13 @@ public class IssuedDocumentSearch {
                                           "Tenant chưa bật kết nối " + connectorCode));
                       return new Target(
                           c,
+                          source,
                           mappings
                               .externalOf(tenant, c.id(), EntityType.DON_VI, orgUnitId, today)
                               .orElse(null));
                     }));
-    if (target == null || target.externalUnit() == null) {
-      return new Result(java.util.List.of(), null);
-    }
-    try {
-      return source.search(target.connector(), target.externalUnit(), q, limit, cursor);
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
+    return target == null || target.externalUnit() == null
+        ? java.util.Optional.empty()
+        : java.util.Optional.of(target);
   }
 }

@@ -22,7 +22,7 @@ import vn.viettel.okrkpi.org.infrastructure.tenant.TenantContextHolder;
  * mở endpoint):
  * <pre>
  * --tenant=&lt;uuid&gt; [--entity=unit|assignment|person ...] [--bucket=0..255 ...] [--as-of=ISO-8601]
- * [--dry-run] [--operator=&lt;mã tài khoản hoặc tên&gt;]
+ * [--dry-run] [--hashes-only] [--operator=&lt;mã tài khoản hoặc tên&gt;]
  * </pre>
  * {@code --entity}, {@code --bucket} lặp lại hoặc phân tách bằng dấu phẩy. Mã thoát 0 khi thành công, 2 khi tham số
  * sai, 1 khi lỗi chạy.
