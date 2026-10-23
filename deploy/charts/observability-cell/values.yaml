@@ -13,6 +13,30 @@ suyGiam:
     refreshInterval: 1h
 # Dải địa chỉ của Loki, Tempo, Ceph S3 ở cụm quản trị (giá trị của môi trường).
 egressCIDRs: []
+# Đường cảnh báo lên Alertmanager của cụm quản trị (INF-15, TL-04 mục 10.5, OPS-13): Prometheus của cell gửi mọi
+# cảnh báo (trừ mức điều khiển nội bộ) tới đó để định tuyến tới tuyến trực. Giá trị của môi trường, theo site của cell
+# (cells/<cell>/values-<site>.yaml: mgmt-hl hay mgmt-sn); bật mà để trống diaChi thì chart dừng render.
+canhBaoQuanTri:
+  enabled: true
+  # host:port của các bản Alertmanager cụm quản trị (Prometheus gửi tới từng bản, Alertmanager tự khử trùng).
+  diaChi: []
+  # Dải địa chỉ cho NetworkPolicy; rỗng thì dùng egressCIDRs.
+  cidrs: []
+  scheme: https
+  pathPrefix: /
+  timeout: 10s
+  # Secret do chart sinh, kube-prometheus-stack đọc qua additionalAlertManagerConfigsSecret (cùng tên ở dưới).
+  secretCauHinh: prometheus-alertmanager-quan-tri
+  # Nhãn severity không gửi lên: control là cảnh báo kích hoạt bộ điều khiển suy giảm (rules/suy-giam.yaml).
+  boQuaMucDo: [control]
+  tls:
+    # Chứng chỉ khách mTLS của cell (ca.crt, tls.crt, tls.key) từ OpenBao qua ESO; rỗng path:
+    # kv/cell-<cell>/observability/alertmanager-quan-tri (suy luận theo quy ước kv/cell-<mã>/...).
+    secretName: alertmanager-quan-tri-tls
+    path: ""
+    serverName: ""
+    secretStore: { kind: ClusterSecretStore, name: openbao-cell }
+    refreshInterval: 1h
 
 kube-prometheus-stack:
   fullnameOverride: kps
@@ -85,6 +109,9 @@ kube-prometheus-stack:
       scrapeNativeHistograms: true
       externalLabels: { cell: g4 }
       replicaExternalLabelName: prometheus_replica
+      # INF-15: Alertmanager cụm quản trị (templates/canh-bao-quan-tri.yaml); tắt canhBaoQuanTri thì đặt secrets: [].
+      additionalAlertManagerConfigsSecret: { name: prometheus-alertmanager-quan-tri, key: alertmanagers.yaml, optional: true }
+      secrets: [alertmanager-quan-tri-tls]
       # Nhận mọi ServiceMonitor, PodMonitor, PrometheusRule do vt-service sinh, không lọc theo nhãn release.
       serviceMonitorSelectorNilUsesHelmValues: false
       podMonitorSelectorNilUsesHelmValues: false

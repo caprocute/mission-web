@@ -4,6 +4,8 @@ cell: kind
 # Alertmanager của cell (INF-25) dùng ảnh quay.io và Secret từ ESO: tắt trên kind, chart api-gateway ở kind chạy
 # chế độ standalone không có bộ điều khiển suy giảm.
 suyGiam: { enabled: false }
+# kind không có cụm quản trị: Prometheus chỉ gửi Alertmanager trong cell (nếu bật).
+canhBaoQuanTri: { enabled: false }
 kube-prometheus-stack:
   alertmanager: { enabled: false }
   defaultRules: { create: false }
@@ -29,6 +31,7 @@ kube-prometheus-stack:
       nodeSelector: null
       tolerations: []
       thanos: null
+      secrets: []
 fluent-bit:
   env:
     - { name: CELL, value: kind }
