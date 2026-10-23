@@ -117,6 +117,17 @@ okrkpi:
         token-url: ${INTEG_TOKEN_URL:}
         client-id: ${INTEG_CLIENT_ID:integration-gateway}
         client-secret: ${INTEG_CLIENT_SECRET:}
+    # DV-13-05: Trục liên thông văn bản quốc gia qua X-Road. inbound-codes là kết nối kéo văn bản
+    # đến, outbound-codes là nơi nhận văn bản gửi ra (BTC_TW, VPTW); địa chỉ, mã thành viên X-Road
+    # và mã cơ quan nằm ở endpoint của kết nối. Tắt ở Deployment chính khi chạy values-truc.yaml.
+    truc:
+      enabled: ${INTEG_TRUC_ENABLED:true}
+      inbound-codes: ${INTEG_TRUC_INBOUND_CODES:TRUC}
+      outbound-codes: ${INTEG_TRUC_OUTBOUND_CODES:BTC_TW,VPTW}
+      period: ${INTEG_TRUC_PERIOD:PT1M}
+      request-timeout: ${INTEG_TRUC_REQUEST_TIMEOUT:PT30S}
+      max-bytes: ${INTEG_TRUC_MAX_BYTES:31457280}
+      transfer-max-bytes: ${INTEG_TRUC_TRANSFER_MAX_BYTES:20971520}
     route:
       max-redeliveries: ${INTEG_MAX_REDELIVERIES:5}
       redelivery-delay: ${INTEG_REDELIVERY_DELAY:PT2S}
@@ -135,6 +146,9 @@ okrkpi:
         enabled: ${INTEG_DISPATCH_ENABLED:true}
         period: ${INTEG_DISPATCH_PERIOD:PT5S}
         batch: ${INTEG_DISPATCH_BATCH:100}
+        # DV-13-05: worker chỉ gửi (include) hoặc bỏ qua (exclude) các mã kết nối này.
+        include-codes: ${INTEG_DISPATCH_INCLUDE_CODES:}
+        exclude-codes: ${INTEG_DISPATCH_EXCLUDE_CODES:}
       consumer:
         enabled: ${INTEG_OUTBOUND_CONSUMER_ENABLED:true}
 

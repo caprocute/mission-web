@@ -39,6 +39,45 @@ public class JdbcOutboundMessages implements OutboundMessages {
   }
 
   @Override
+  public Optional<Tracked> bySource(TenantId tenant, UUID sourceEventId) {
+    return jdbc.sql(
+            "SELECT id, connector_id, status, attempts, next_attempt_at, ack_ref, updated_at"
+                + " FROM integ.outbound_message WHERE tenant_id = ? AND source_event_id = ?"
+                + " ORDER BY created_at DESC LIMIT 1")
+        .params(tenant.value(), sourceEventId)
+        .query(
+            (rs, i) -> {
+              Timestamp next = rs.getTimestamp(5);
+              return new Tracked(
+                  rs.getObject(1, UUID.class),
+                  rs.getObject(2, UUID.class),
+                  OutboundStatus.valueOf(rs.getString(3)),
+                  rs.getInt(4),
+                  next == null ? null : next.toInstant(),
+                  rs.getString(6),
+                  rs.getTimestamp(7).toInstant());
+            })
+        .optional();
+  }
+
+  @Override
+  public List<Due> due(int limit, java.util.Set<String> codes, boolean include) {
+    if (codes.isEmpty() && !include) {
+      return due(limit);
+    }
+    return jdbc.sql(
+            "SELECT tenant_id, created_day, id FROM integ.fn_thu_ra_den_han_theo_ma(?, ?, ?)")
+        .params(limit, codes.toArray(String[]::new), include)
+        .query(
+            (rs, i) ->
+                new Due(
+                    rs.getObject(1, UUID.class),
+                    rs.getDate(2).toLocalDate(),
+                    rs.getObject(3, UUID.class)))
+        .list();
+  }
+
+  @Override
   public void insert(
       TenantId tenant,
       UUID id,
