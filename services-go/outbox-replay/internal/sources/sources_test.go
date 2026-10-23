@@ -24,11 +24,11 @@ func TestOutboxSourcesMatchesCatalog(t *testing.T) {
 	if len(cat.Events) != 27 {
 		t.Fatalf("expected 27 business events in catalog.yaml, got %d", len(cat.Events))
 	}
-	if len(cat.TechnicalTopics) != 10 {
-		t.Fatalf("expected 10 technical topics in catalog.yaml, got %d", len(cat.TechnicalTopics))
+	if len(cat.TechnicalTopics) != 11 {
+		t.Fatalf("expected 11 technical topics in catalog.yaml, got %d", len(cat.TechnicalTopics))
 	}
-	if len(reg.Sources) != 18 {
-		t.Fatalf("expected 18 outbox schemas in outbox-sources.yaml, got %d", len(reg.Sources))
+	if len(reg.Sources) != 19 {
+		t.Fatalf("expected 19 outbox schemas in outbox-sources.yaml, got %d", len(reg.Sources))
 	}
 
 	// Verify TL-03 L4234 table.include.list for tenant_data matches the 13 tenant schemas

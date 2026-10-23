@@ -21,6 +21,7 @@ import {
   TaskBlocker,
   TaskRegistration,
   TaskRegistrationDecision,
+  TaskSource,
   TaskStatus,
   TaskSummary,
 } from './models/task';
@@ -266,17 +267,26 @@ export class TaskApi {
 
   /**
    * Nhiệm vụ của đơn vị trong phạm vi (`GET /tasks`, listUnitTasks): bảng điều hành SCR-1601 dùng với
-   * `overdue` và `includeSubunits` cho khối "Cần chỉ đạo ngay".
+   * `overdue` và `includeSubunits` cho khối "Cần chỉ đạo ngay"; hàng chờ duyệt của người giao việc
+   * dùng `status: ['NHAP'], source: 'DANG_KY'` (đăng ký, QT-05 bước 3) và `pendingChangeRequest`
+   * (đề nghị gia hạn, điều chỉnh chờ duyệt).
    */
   unitTasks(
     query: {
       overdue?: boolean;
       includeSubunits?: boolean;
       period?: string | null;
+      status?: TaskStatus[];
+      source?: TaskSource;
+      pendingChangeRequest?: boolean;
       limit?: number;
     } = {},
   ): Observable<CursorPage<TaskSummary>> {
     let params = new HttpParams().set('limit', Math.min(query.limit ?? 20, MAX_PAGE_LIMIT));
+    if (query.status?.length) params = params.set('status', query.status.join(','));
+    if (query.source) params = params.set('source', query.source);
+    if (query.pendingChangeRequest !== undefined)
+      params = params.set('pendingChangeRequest', query.pendingChangeRequest);
     if (query.overdue) params = params.set('overdue', true);
     if (query.includeSubunits) params = params.set('includeSubunits', true);
     if (query.period) params = params.set('period', query.period);

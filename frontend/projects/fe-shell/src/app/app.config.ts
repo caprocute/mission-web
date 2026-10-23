@@ -147,7 +147,8 @@ export function buildAppConfig(
           return firstValueFrom(cells.resolve(tenant)).then(() => undefined);
         });
       }),
-      // Cờ tính năng (WEB-076): nạp khi khởi động và nạp lại khi đổi phân công; lỗi thì mọi cờ tắt
+      // Cờ tính năng (WEB-076): nạp khi khởi động và nạp lại khi đổi phân công; lỗi thì mọi cờ tắt.
+      // Như registry, chờ phiên có token rồi mới gọi để `/ui/feature-flags` không bị 401 ở cổng API.
       provideAppInitializer(() => {
         const flags = inject(FeatureFlagService);
         const session = inject(SessionService);
@@ -159,11 +160,10 @@ export function buildAppConfig(
             void flags.load();
           }
         });
-        // Chờ phiên sẵn sàng: gọi trước khi có token chỉ nhận 401 (trình duyệt ghi lỗi tải tài nguyên); chưa
-        // đăng nhập thì trình duyệt đang chuyển sang Keycloak, cờ nạp ở lần tải trang sau đăng nhập
-        return session.ready.then(() =>
-          cfg.auth.enabled && !session.isAuthenticated() ? undefined : flags.load(),
-        );
+        return session.ready.then(() => {
+          if (cfg.auth.enabled && !session.isAuthenticated()) return;
+          return flags.load();
+        });
       }),
     ],
   };

@@ -193,7 +193,7 @@ monitoring:
 # backup-cell chép sang dai-han/.
 backup:
   enabled: true
-  # Plugin barman-cloud.cloudnative-pg.io (plugin-barman-cloud v0.15) phải cài cùng CNPG trong cnpg-system.
+  # Plugin barman-cloud.cloudnative-pg.io (plugin-barman-cloud v0.15.1) phải cài cùng CNPG trong cnpg-system.
   plugin: barman-cloud.cloudnative-pg.io
   # Tên ObjectStore: <tiền tố>-<cụm> (TL-04: bk-sn-pg-core).
   objectStorePrefix: bk-sn
@@ -208,7 +208,10 @@ backup:
     path: ""          # rỗng: kv/cell-<global.cell>/backup/pg
   retentionPolicy: 35d
   wal: { compression: zstd, encryption: AES256, maxParallel: 8 }
-  # Bản nền: CRD ObjectStore chỉ nhận bzip2, gzip, lz4, snappy (không có zstd như mẫu TL-04, wiki 14); chọn lz4.
+  # Nén: CRD ObjectStore của plugin v0.15.1 nhận WAL bzip2, gzip, lz4, snappy, xz, zstd; bản nền bzip2, gzip, lz4,
+  # snappy (không có zstd như mẫu TL-04, wiki 14), chọn lz4. Kiểm bằng kubeconform phải đặt schema ghim
+  # vt-platform/ci/crd-schemas (sinh từ CRD v0.15.1) trước kho datree: kho datree còn giữ CRD cũ (v0.6) chưa có lz4
+  # cho bản nền nên báo sai 6 ObjectStore.
   data: { compression: lz4, encryption: AES256, jobs: 4, immediateCheckpoint: false }
   sidecar:
     resources:

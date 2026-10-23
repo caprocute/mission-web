@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Kiểm tĩnh chart observability-cell (INF-14): lint, render, kubeconform -strict, fluent-bit --dry-run cho cấu hình
-# của cụm thật và kind, kiểm thử redact.lua bằng bộ dòng mẫu (JWT, CCCD, số điện thoại, email). Cần docker.
+# của cụm thật và kind, kiểm thử redact.lua bằng bộ dòng mẫu (JWT, CCCD, số điện thoại, email), đường cảnh báo lên
+# Alertmanager cụm quản trị (promtool, amtool). Cần docker, helm, kubeconform, promtool, amtool.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT=$(mktemp -d); trap 'rm -rf "$OUT"' EXIT
@@ -12,7 +13,7 @@ hong(){ echo "  [HỎNG] $*"; truot=$((truot+1)); }
 helm dependency build . >/dev/null
 helm lint . >/dev/null && ok "helm lint" || hong "helm lint"
 for ten in mac-dinh kind; do
-  args=(); [ "$ten" = kind ] && args=(-f tests/values-kind.yaml)
+  args=(-f tests/values-ci.yaml); [ "$ten" = kind ] && args=(-f tests/values-kind.yaml)
   helm template oc . -n observability "${args[@]}" > "$OUT/$ten.yaml" && ok "render $ten" || hong "render $ten"
   # CRD của Prometheus Operator lớn và đã có schema chính thức; kubeconform bỏ qua kind CustomResourceDefinition.
   kubeconform -strict -summary -skip CustomResourceDefinition -schema-location default -schema-location "$CRD" "$OUT/$ten.yaml" > "$OUT/kc" 2>&1 \
@@ -67,5 +68,44 @@ for t in rules/tests/*.test.yaml; do
 done
 n=$(grep -A2 "^kind: PrometheusRule" "$OUT/mac-dinh.yaml" | grep -c "name: vt-" || true)
 [ "$n" -ge 3 ] && ok "chart sinh $n PrometheusRule từ rules/*.yaml" || hong "PrometheusRule: $n"
+echo "== Đường cảnh báo lên Alertmanager cụm quản trị (INF-15)"
+helm template oc . -n observability > /dev/null 2>"$OUT/loi" && hong "render không dừng khi canhBaoQuanTri.diaChi trống" \
+  || { grep -q "canhBaoQuanTri.diaChi trống" "$OUT/loi" && ok "render dừng khi chưa khai địa chỉ Alertmanager cụm quản trị"; }
+python3 - "$OUT/mac-dinh.yaml" "$OUT" <<'PY' > "$OUT/kq" || true
+import sys, yaml
+docs = [d for d in yaml.safe_load_all(open(sys.argv[1])) if d]
+def ok(c, s): print(("[ĐẠT] " if c else "[HỎNG] ") + s)
+sec = next(d for d in docs if d["kind"] == "Secret" and d["metadata"]["name"] == "prometheus-alertmanager-quan-tri")
+prom = next(d for d in docs if d["kind"] == "Prometheus")["spec"]
+ok(prom.get("additionalAlertManagerConfigs", {}).get("name") == "prometheus-alertmanager-quan-tri"
+   and "alertmanager-quan-tri-tls" in prom.get("secrets", []), "Prometheus đọc khối alertmanagers và gắn chứng chỉ mTLS")
+ok(prom["alerting"]["alertmanagers"][0]["name"] == "kps-alertmanager", "vẫn gửi Alertmanager trong cell (suy giảm)")
+am = yaml.safe_load(sec["stringData"]["alertmanagers.yaml"])
+ok(am[0]["static_configs"][0]["targets"] == ["alertmanager-0.quan-tri.invalid:9443", "alertmanager-1.quan-tri.invalid:9443"]
+   and am[0]["scheme"] == "https" and "cert_file" in am[0]["tls_config"], "địa chỉ lấy từ values, https kèm chứng chỉ khách")
+ok(am[0]["alert_relabel_configs"][0] == {"source_labels": ["severity"], "regex": "control", "action": "drop"},
+   "cảnh báo điều khiển suy giảm (severity=control) không lên cụm quản trị")
+np = next(d for d in docs if d["kind"] == "NetworkPolicy" and d["metadata"]["name"] == "prometheus-to-mgmt-alertmanager")
+ok(np["spec"]["egress"][0]["ports"] == [{"protocol": "TCP", "port": 9443}], "NetworkPolicy mở đúng cổng Alertmanager cụm quản trị")
+# Ghép thành cấu hình Prometheus có chứng chỉ giả để promtool kiểm cú pháp và tệp tham chiếu.
+d = sys.argv[2] + "/am"
+import os; os.makedirs(d, exist_ok=True)
+for f in ("ca.crt", "tls.crt", "tls.key"): open(f"{d}/{f}", "w").write("x")
+txt = sec["stringData"]["alertmanagers.yaml"].replace("/etc/prometheus/secrets/alertmanager-quan-tri-tls", d)
+yaml.safe_dump({"global": {"external_labels": {"cell": "g4"}}, "alerting": {"alertmanagers": yaml.safe_load(txt)}},
+               open(sys.argv[2] + "/prometheus.yml", "w"))
+PY
+sed 's/^/  /' "$OUT/kq"; dat=$((dat + $(grep -c '^\[ĐẠT\]' "$OUT/kq" || true))); truot=$((truot + $(grep -c '^\[HỎNG\]' "$OUT/kq" || true)))
+promtool check config --syntax-only "$OUT/prometheus.yml" > "$OUT/pt" 2>&1 && ok "promtool check config khối alertmanagers" || { hong "promtool check config"; cat "$OUT/pt"; }
+# Định tuyến ở cụm quản trị cho cảnh báo từ luật của cell (nhãn cell do external_labels gắn).
+AMC=../observability-mgmt/alertmanager/alertmanager.yaml
+for ca in "goi-truc,dba,nhan-tin-sre alertname=OutboxBacklog severity=critical doi=sre-dba cell=g4" \
+          "goi-truc,soc alertname=LedgerChainBroken severity=critical doi=soc cell=g4" \
+          "nhan-tin-sre alertname=CephSyncBehind severity=warning doi=sre-luu-tru cell=g4" \
+          "goi-truc alertname=SLOReadLatencyBurn severity=critical slo=read-latency cell=g4"; do
+  set -- $ca; mong=$1; shift
+  thuc=$(amtool config routes test --config.file=$AMC "$@" 2>&1 | tail -1)
+  [ "$thuc" = "$mong" ] && ok "cụm quản trị định tuyến $1 → $thuc" || hong "$* → $thuc (mong đợi $mong)"
+done
 echo "Tổng: $dat đạt, $truot hỏng"
 [ "$truot" -eq 0 ]

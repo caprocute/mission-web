@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -55,6 +56,7 @@ import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
 import vn.viettel.okrkpi.okr.application.port.OkrApprovalStarter;
 import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
+import vn.viettel.okrkpi.replica.api.OrgTree;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 
@@ -103,6 +105,9 @@ class OkrComposeApiIT extends ContractConformanceTest {
 
   /** Cây tổ chức giả: mặc định không có quan hệ cấp trên, cấp dưới. */
   @MockitoBean private OrgDirectoryApi orgDirectory;
+
+  /** Danh bạ tên người, tên đơn vị từ org_replica; mặc định không biết tên nào. */
+  @MockitoBean private vn.viettel.okrkpi.config.api.AccessDirectory names;
 
   /** Cổng đọc gợi ý của SVC-14 (CORE-01-13); mặc định không có gợi ý nào. */
   @MockitoBean private vn.viettel.okrkpi.okr.application.port.OkrAiSuggestions aiSuggestions;
@@ -454,11 +459,23 @@ class OkrComposeApiIT extends ContractConformanceTest {
   @Test
   void ngucanhSoanKhopHopDong() throws Exception {
     create(UNIT, period, "Mục tiêu để đếm", 1, "Bổ sung theo chỉ đạo");
+    when(orgDirectory.parentOf(tenant, OrgTree.CHUYEN_MON, UNIT))
+        .thenReturn(Optional.of(OTHER_UNIT));
+    when(orgDirectory.headsOf(eq(tenant), eq(OTHER_UNIT), any())).thenReturn(List.of(VERIFIER));
+    when(names.unitNames(eq(tenant), any()))
+        .thenReturn(Map.of(UNIT, "Phòng Kế hoạch", OTHER_UNIT, "Sở Nội vụ"));
+    when(names.personNames(eq(tenant), any()))
+        .thenReturn(Map.of(ACTOR, "Nguyễn Văn An", VERIFIER, "Trần Thị Bình"));
     MvcResult r = perform(get("/api/v1/okr/compose-context").param("period", period.toString()));
     assertThat(r.getResponse().getStatus()).isEqualTo(200);
     JsonNode body = body(r);
     assertThat(body.at("/unit/id").asText()).isEqualTo(UNIT.toString());
     assertThat(body.at("/me/id").asText()).isEqualTo(ACTOR.toString());
+    // tên hiển thị không được rỗng (QA-03): đơn vị, người soạn, người xác nhận, đơn vị cấp trên
+    assertThat(body.at("/unit/name").asText()).isEqualTo("Phòng Kế hoạch");
+    assertThat(body.at("/me/name").asText()).isEqualTo("Nguyễn Văn An");
+    assertThat(body.at("/verifiers/0/name").asText()).isEqualTo("Trần Thị Bình");
+    assertThat(body.at("/parentOptions/0/unitName").asText()).isEqualTo("Sở Nội vụ");
     assertThat(body.get("existingCount").asInt()).isPositive();
     assertThat(body.at("/policy/recommendedMax").asInt()).isEqualTo(3);
     assertThat(body.at("/policy/rules")).hasSize(14);

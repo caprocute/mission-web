@@ -54,7 +54,9 @@ public interface TaskDraftRepository {
       Set<String> statuses,
       UUID keyResultId,
       Boolean overdue,
-      String q) {}
+      String q,
+      String source,
+      Boolean pendingChangeRequest) {}
 
   /** Một dòng danh sách đơn vị: nhiệm vụ, chủ trì và cờ hạn chế. */
   /** {@code orgUnitId} là {@code task.task.org_unit_id} (đơn vị của nhiệm vụ). */

@@ -397,6 +397,16 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
       sql.append(" AND t.is_overdue = ?");
       params.add(f.overdue());
     }
+    if (f.source() != null) {
+      sql.append(" AND t.source = ?");
+      params.add(f.source());
+    }
+    if (f.pendingChangeRequest() != null) {
+      sql.append(f.pendingChangeRequest() ? " AND" : " AND NOT")
+          .append(" EXISTS (SELECT 1 FROM task.task_change_request r")
+          .append(" WHERE r.period_bucket = t.period_bucket AND r.tenant_id = t.tenant_id")
+          .append(" AND r.task_id = t.id AND r.status = 'CHO_DUYET')");
+    }
     if (f.q() != null && !f.q().isBlank()) {
       sql.append(" AND (t.title ILIKE ? OR t.code ILIKE ?) AND NOT t.is_restricted");
       String like = "%" + f.q().strip().replace("%", "\\%").replace("_", "\\_") + "%";

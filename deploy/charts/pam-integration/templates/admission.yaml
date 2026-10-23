@@ -7,6 +7,7 @@
 {{- if eq .kind "User" }}{{ $users = append $users .name }}{{ else if eq .kind "Group" }}{{ $groups = append $groups .name }}{{ end }}
 {{- end }}
 {{- $ann := "object.metadata.annotations" }}
+{{- $tkm := include "pam.taiKhoanMay" . | fromJson }}
 {{- $coAnn := printf "has(%s)" $ann }}
 # Chính sách nhập cho binding đặc quyền (INF-27; TL-04 mục 9.3 SEC-29, SEC-42). ValidatingAdmissionPolicy là API gốc
 # của Kubernetes (GA từ 1.30), chạy trong API server, không cần webhook ngoài. Mọi lần tạo hay sửa RoleBinding,
@@ -81,9 +82,13 @@ spec:
         oldObject.metadata.annotations['{{ $k.capLuc }}'] == {{ $ann }}['{{ $k.capLuc }}'])
       message: "Không được đổi {{ $k.capLuc }} của binding PAM (gia hạn phải mở yêu cầu mới)"
     - expression: >-
-        has(object.subjects) && size(object.subjects) == 1 && object.subjects[0].kind == 'User' &&
-        object.subjects[0].name.startsWith('oidc:')
-      message: "Binding PAM phải gán cho đúng một người dùng OIDC (oidc:<tên>), không cho nhóm hay ServiceAccount"
+        has(object.subjects) && size(object.subjects) == 1 &&
+        ((object.subjects[0].kind == 'User' && object.subjects[0].name.startsWith('oidc:'))
+        {{- if $tkm.namespace }} ||
+         (object.subjects[0].kind == 'ServiceAccount' && has(object.subjects[0].namespace) &&
+          object.subjects[0].namespace == '{{ $tkm.namespace }}' && object.subjects[0].name == '{{ $tkm.tienTo }}' + object.roleRef.name)
+        {{- end }})
+      message: "Binding PAM phải gán cho đúng một người dùng OIDC (oidc:<tên>){{ if $tkm.namespace }} hoặc đúng ServiceAccount {{ $tkm.namespace }}/{{ $tkm.tienTo }}<vai trò> của mục tiêu kubectl Warpgate{{ end }}; không cho nhóm"
     - expression: >-
         size(variables.duyet) >= variables.canDuyet && variables.duyet.all(a, variables.duyet.filter(b, b == a).size() == 1)
       message: "Không đủ người duyệt khác nhau (platform-admin cần {{ index $hd.soNguoiDuyet "platform-admin" }})"
@@ -111,4 +116,56 @@ metadata:
 spec:
   policyName: vt-pam-binding-co-thoi-han
   validationActions: {{ toJson $v.admission.validationActions }}
+{{- if $tkm.namespace }}
+---
+# ServiceAccount {{ $tkm.namespace }}/{{ $tkm.tienTo }}<vai trò> chỉ có quyền khi broker gán binding PAM có thời hạn. Mọi binding khác
+# (vai trò nào cũng vậy, kể cả view) tới các ServiceAccount này bị từ chối: chúng là thông tin đăng nhập dùng chung
+# của Warpgate, binding thường trực là cửa sau (pam-quet-rbac cũng báo).
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: vt-pam-tai-khoan-warpgate
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+  annotations: { vt.io/sec: "SEC-29, SEC-42" }
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["rbac.authorization.k8s.io"]
+        apiVersions: ["*"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["rolebindings", "clusterrolebindings"]
+  matchConditions:
+    - name: co-tai-khoan-warpgate
+      expression: >-
+        has(object.subjects) && object.subjects.exists(s, s.kind == 'ServiceAccount' && has(s.namespace) &&
+        s.namespace == '{{ $tkm.namespace }}' && s.name in {{ include "pam.tenTaiKhoanMay" . }})
+  validations:
+    - expression: >-
+        request.userInfo.username in {{ toJson $users }}{{ if $groups }} || request.userInfo.groups.exists(g, g in {{ toJson $groups }}){{ end }}
+      message: "ServiceAccount mục tiêu kubectl của Warpgate chỉ nhận binding do broker PAM tạo"
+      reason: Forbidden
+    - expression: >-
+        object.roleRef.kind == 'ClusterRole' && object.roleRef.name in {{ toJson $hd.vaiTroPam }} &&
+        size(object.subjects) == 1 && object.subjects[0].name == '{{ $tkm.tienTo }}' + object.roleRef.name
+      message: "ServiceAccount {{ $tkm.tienTo }}<vai trò> chỉ được gán đúng vai trò PAM cùng tên, một chủ thể duy nhất"
+      reason: Forbidden
+    {{- range $nk, $nv := $hd.nhan }}
+    - expression: >-
+        has(object.metadata.labels) && '{{ $nk }}' in object.metadata.labels && object.metadata.labels['{{ $nk }}'] == '{{ $nv }}'
+      message: "Binding tới ServiceAccount của Warpgate phải là binding PAM (nhãn {{ $nk }}={{ $nv }})"
+      reason: Forbidden
+    {{- end }}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: vt-pam-tai-khoan-warpgate
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+spec:
+  policyName: vt-pam-tai-khoan-warpgate
+  validationActions: {{ toJson $v.admission.validationActions }}
+{{- end }}
 {{- end }}

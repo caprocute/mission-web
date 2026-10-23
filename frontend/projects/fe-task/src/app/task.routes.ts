@@ -6,6 +6,8 @@ const MY_TASKS = screenKeys('SCR-0503');
 const ASSIGN = screenKeys('SCR-0501');
 const CATALOG = screenKeys('SCR-0401');
 const SOURCE_DOCS = screenKeys('SCR-0502');
+/** Hàng chờ duyệt: đăng ký nhiệm vụ (QT-05 bước 3) và đề nghị gia hạn, điều chỉnh (SCR-0601). */
+const APPROVALS = ['SCR-0501.giao', 'SCR-0601.duyet-de-nghi'] as const;
 
 /**
  * Trang đầu `/tasks` là SCR-0503 của `member`. Vai trò không có SCR-0503 nhưng có màn hình khác của
@@ -51,6 +53,12 @@ export const TASK_ROUTES: Routes = [
     canActivate: [permissionGuard(...SOURCE_DOCS)],
     loadComponent: () => import('./pages/from-document.page').then((m) => m.FromDocumentPage),
     title: 'Tạo nhiệm vụ từ văn bản',
+  },
+  {
+    path: 'approvals',
+    canActivate: [permissionGuard(...APPROVALS)],
+    loadComponent: () => import('./pages/approvals.page').then((m) => m.ApprovalsPage),
+    title: 'Chờ duyệt',
   },
   {
     path: 'assign',

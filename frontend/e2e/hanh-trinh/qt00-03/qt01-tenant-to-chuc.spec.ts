@@ -15,7 +15,7 @@ interface DonVi {
   children?: DonVi[];
 }
 
-/** Tìm đơn vị theo tên trong cây trả về của `getOrgTree`. */
+/** Tìm đơn vị theo tên trong cây `roots` trả về của `getOrgTree` (`OrgTree`). */
 function timDonVi(ds: DonVi[], ten: string): DonVi | undefined {
   for (const d of ds) {
     if (d.name === ten) return d;
@@ -165,7 +165,9 @@ test.describe('QT-01 Khởi tạo tenant và tổ chức', { tag: '@qa-04' }, ()
     const nut = cay.getByRole('treeitem', { level: 2 }).first();
     if (HE_THONG && (await nut.count()) === 0)
       cho('cây tổ chức trên dev chưa có đơn vị cấp dưới (seed tổ chức)');
-    const goc = (await nut.innerText()).trim().split('\n')[0];
+    const hienTai = (await nut.innerText()).trim().split('\n')[0];
+    // Lần chạy trước trả tên cũ từ ngày mai, nên trong ngày tên còn hậu tố E2E: bỏ hậu tố để tên không dài thêm
+    const goc = hienTai.replace(/( E2E \d+)+$/, '');
     const moi = `${goc} E2E ${dau()}`;
     await nut.click();
     await kiemAxe(page, 'cây tổ chức');
@@ -188,16 +190,15 @@ test.describe('QT-01 Khởi tạo tenant và tổ chức', { tag: '@qa-04' }, ()
       );
     };
     const tu = new Date(Date.now() - 5_000);
-    await doiTen(goc, moi, `E2E-${dau()}/QĐ`);
+    await doiTen(hienTai, moi, `E2E-${dau()}/QĐ`);
     await expect(cay.getByRole('treeitem', { name: moi })).toBeVisible();
     const lichSu = m.getByRole('region', { name: 'Lịch sử thay đổi' });
     await expect(lichSu.getByText(/· Đổi tên/).first()).toBeVisible();
 
     await chiHeThong('EVT-14 org.unit.changed.v1 và lịch sử qua listOrgUnitHistory', async () => {
       const c = await api(s, 'quantri');
-      const cayApi = await c.can<DonVi[] | { items: DonVi[] }>('GET', 'org/units/tree');
-      const ds = Array.isArray(cayApi.body) ? cayApi.body : cayApi.body.items;
-      const dv = timDonVi(ds, moi);
+      const cayApi = await c.can<{ roots: DonVi[] }>('GET', 'org/units/tree');
+      const dv = timDonVi(cayApi.body.roots, moi);
       expect(dv, 'đơn vị sau đổi tên có trong getOrgTree').toBeTruthy();
       const ls = await c.can<{ items: unknown[] } | unknown[]>(
         'GET',
@@ -215,11 +216,17 @@ test.describe('QT-01 Khởi tạo tenant và tổ chức', { tag: '@qa-04' }, ()
 
     // Ca phủ định: lưu bản sửa khi đơn vị đã được người khác cập nhật → 409 và mời tải lại
     await chiHeThong('sửa đơn vị với phiên bản cũ nhận 409 và được mời tải lại', async () => {
-      const vung = m.getByRole('region', { name: moi });
+      // Vùng chi tiết đơn vị đang chọn; tiêu đề vùng là tên viết tắt khi có, nên không lọc theo tên đơn vị
+      const chiTiet = m
+        .getByRole('region')
+        .filter({ has: page.getByRole('button', { name: 'Sửa', exact: true }) })
+        .filter({ has: page.getByRole('term').filter({ hasText: 'Mã đơn vị' }) });
+      const tieuDe = (await chiTiet.getByRole('heading', { level: 2 }).innerText()).trim();
+      const vung = m.getByRole('region', { name: tieuDe, exact: true });
       await vung.getByRole('button', { name: 'Sửa' }).click();
       const c = await api(s, 'quantri');
-      const cayApi = await c.can<DonVi[] | { items: DonVi[] }>('GET', 'org/units/tree');
-      const dv = timDonVi(Array.isArray(cayApi.body) ? cayApi.body : cayApi.body.items, moi)!;
+      const cayApi = await c.can<{ roots: DonVi[] }>('GET', 'org/units/tree');
+      const dv = timDonVi(cayApi.body.roots, moi)!;
       const hien = await c.can<Record<string, unknown>>('GET', `org/units/${dv.id}`);
       await c.can('PUT', `org/units/${dv.id}`, {
         ifMatch: hien.etag,
@@ -231,11 +238,15 @@ test.describe('QT-01 Khởi tạo tenant và tổ chức', { tag: '@qa-04' }, ()
       const bao = vung.getByRole('alert');
       await expect(bao.getByRole('button', { name: 'Tải lại' })).toBeVisible();
       await bao.getByRole('button', { name: 'Tải lại' }).click();
+      // Phản hồi 409 của bước này là chủ ý; trình duyệt vẫn ghi lỗi tải tài nguyên vào console
+      const i = s.loi.findIndex((l) => /status of 409/.test(l));
+      if (i >= 0) s.loi.splice(i, 1);
     });
 
     // Dọn: trả lại tên cũ bằng quyết định đổi tên có hiệu lực từ ngày mai (một đơn vị không đổi tên hai
     // lần trong cùng ngày hiệu lực); lịch sử vẫn giữ dấu vết của lần chạy
-    const maiDate = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+    // Ngày mai theo giờ Việt Nam (ngày hiệu lực của máy chủ), không theo UTC của máy chạy kiểm thử
+    const maiDate = new Date(Date.now() + 7 * 3_600_000 + 86_400_000).toISOString().slice(0, 10);
     await doiTen(moi, goc, `E2E-${dau()}/QĐ-HOAN`, maiDate);
   });
 
@@ -249,6 +260,28 @@ test.describe('QT-01 Khởi tạo tenant và tổ chức', { tag: '@qa-04' }, ()
 
     // Đồng bộ ngay (`startOrgSyncRun` 202): trang báo kết quả bằng nhãn nghiệp vụ
     await m.getByRole('button', { name: 'Đồng bộ ngay' }).click();
+    if (HE_THONG) {
+      // Lần chạy dừng ở LOI khi org-service chưa nối được integration-gateway hay nguồn nhân sự: ghi chờ kèm lý do
+      // của máy chủ thay cho chờ hết hạn nhãn "Đã đồng bộ"
+      const c = await api(s, 'quantri');
+      let moiNhat: { status: string; reason?: string } | undefined;
+      await expect
+        .poll(
+          async () => {
+            const ds = await c.can<{ items: { status: string; reason?: string }[] }>(
+              'GET',
+              'org/sync-runs?limit=1',
+            );
+            moiNhat = ds.body.items[0];
+            return moiNhat?.status;
+          },
+          { timeout: 120_000 },
+        )
+        .not.toBe('DANG_CHAY');
+      await c.dong();
+      if (moiNhat?.status === 'LOI')
+        cho(`đồng bộ nhân sự trên hệ thống thật lỗi: ${moiNhat.reason ?? ''}`);
+    }
     await expect(m.getByRole('status').filter({ hasText: /Đã đồng bộ/ })).toBeVisible({
       timeout: HE_THONG ? 120_000 : 10_000,
     });

@@ -1,0 +1,92 @@
+{{- /* INF-15: Prometheus của cell gửi cảnh báo tới Alertmanager của cụm quản trị (TL-04 mục 10.5), nơi định tuyến tới
+tuyến trực theo OPS-13 (observability-mgmt/alertmanager/alertmanager.yaml). Địa chỉ là giá trị của môi trường (values
+theo cell và site), không ghi trong chart. Prometheus Operator nối khối alertmanagers này sau Alertmanager trong cell. */ -}}
+{{- $c := .Values.canhBaoQuanTri }}
+{{- if $c.enabled }}
+{{- if not $c.diaChi }}
+{{- fail "observability-cell: canhBaoQuanTri.diaChi trống; khai host:port Alertmanager của cụm quản trị trong values theo site của cell (cells/<cell>/values-<site>.yaml), hoặc đặt canhBaoQuanTri.enabled=false" }}
+{{- end }}
+{{- $tls := printf "/etc/prometheus/secrets/%s" $c.tls.secretName }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $c.secretCauHinh }}
+  namespace: observability
+stringData:
+  alertmanagers.yaml: |
+    - scheme: {{ $c.scheme }}
+      path_prefix: {{ $c.pathPrefix }}
+      api_version: v2
+      timeout: {{ $c.timeout }}
+      {{- if eq $c.scheme "https" }}
+      # mTLS: Alertmanager cụm quản trị chỉ nhận cảnh báo từ cell có chứng chỉ do CA nội bộ cấp (zero trust).
+      tls_config:
+        ca_file: {{ $tls }}/ca.crt
+        cert_file: {{ $tls }}/tls.crt
+        key_file: {{ $tls }}/tls.key
+        {{- with $c.tls.serverName }}
+        server_name: {{ . }}
+        {{- end }}
+      {{- end }}
+      static_configs:
+        - targets:
+            {{- range $c.diaChi }}
+            - {{ . | quote }}
+            {{- end }}
+      {{- with $c.boQuaMucDo }}
+      # Cảnh báo chỉ để điều khiển trong cell (bộ điều khiển suy giảm tự báo kênh trực) không lên cụm quản trị.
+      alert_relabel_configs:
+        - source_labels: [severity]
+          regex: {{ join "|" . }}
+          action: drop
+      {{- end }}
+{{- if eq $c.scheme "https" }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $c.tls.secretName }}
+  namespace: observability
+spec:
+  refreshInterval: {{ $c.tls.refreshInterval }}
+  secretStoreRef:
+    kind: {{ $c.tls.secretStore.kind }}
+    name: {{ $c.tls.secretStore.name }}
+  target:
+    name: {{ $c.tls.secretName }}
+    creationPolicy: Owner
+  data:
+    {{- range list "ca.crt" "tls.crt" "tls.key" }}
+    - secretKey: {{ . }}
+      remoteRef:
+        key: {{ $c.tls.path | default (printf "kv/cell-%s/observability/alertmanager-quan-tri" $.Values.cell) }}
+        property: {{ . }}
+    {{- end }}
+{{- end }}
+---
+# Prometheus ra Alertmanager cụm quản trị (dải địa chỉ của môi trường; rỗng thì dùng egressCIDRs).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: prometheus-to-mgmt-alertmanager
+  namespace: observability
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: prometheus }
+  policyTypes: ["Egress"]
+  egress:
+    {{- $cidr := $c.cidrs | default $.Values.egressCIDRs }}
+    {{- if not $cidr }}
+    {{- fail "observability-cell: canhBaoQuanTri.cidrs và egressCIDRs đều trống; NetworkPolicy không mở được đường tới Alertmanager cụm quản trị" }}
+    {{- end }}
+    - to:
+        {{- range $cidr }}
+        - ipBlock: { cidr: {{ . }} }
+        {{- end }}
+      ports:
+        {{- $cong := dict }}
+        {{- range $c.diaChi }}{{ $_ := set $cong (last (splitList ":" .)) true }}{{ end }}
+        {{- range $p, $_ := $cong }}
+        - { protocol: TCP, port: {{ $p | int }} }
+        {{- end }}
+{{- end }}

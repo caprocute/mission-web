@@ -9,3 +9,6 @@ image:
 holdDown: 2m
 jobNamespaces: [workers]
 podMonitor: false
+# Kind không có OpenBao cho ESO: Secret token tạo tay theo ops/runbooks/suy-giam-ba-muc.md.
+webhookToken:
+  externalSecret: { enabled: false }

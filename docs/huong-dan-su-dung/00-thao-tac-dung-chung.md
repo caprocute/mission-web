@@ -28,7 +28,7 @@ Trang chủ là nơi đồng chí bắt đầu mỗi ngày làm việc. Trang ch
 
 Các thành phần chính của màn hình gồm:
 
-- **Danh mục bên trái:** các phân hệ mà vai trò được dùng, như Việc của tôi, Mục tiêu và OKR, Kế hoạch quý, Minh chứng, Đánh giá và xếp loại. Phân hệ nào vai trò không có quyền thì không hiện.
+- **Danh mục bên trái:** các phân hệ mà vai trò được dùng, như Việc của tôi, Mục tiêu, OKR, Kế hoạch quý, Minh chứng, Đánh giá, xếp loại. Phân hệ nào vai trò không có quyền thì không hiện. Tương tự, trên từng màn hình chỉ có những thẻ, liên kết và nút mà đồng chí được dùng; vì vậy màn hình của đồng chí có thể ít nút hơn ảnh minh hoạ trong tài liệu của vai trò khác. Nếu một nút có hiện nhưng mờ đi, không bấm được, thì nguyên nhân là điều kiện nghiệp vụ chưa đủ (ví dụ kỳ đã khoá, hồ sơ chưa đủ thông tin), chứ không phải đồng chí thiếu quyền.
 - **Ô tìm kiếm** trên thanh trên cùng: gõ tên nhiệm vụ hoặc số hiệu văn bản để tìm nhanh.
 - **Biểu tượng chuông:** số trên chuông là số thông báo chưa đọc. Bấm vào chuông để xem và đánh dấu đã đọc.
 - **Nút Chữ lớn:** bật chế độ Đảng viên cao tuổi (xem mục 6).

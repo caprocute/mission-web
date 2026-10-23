@@ -9,20 +9,20 @@ import { totp } from './totp';
 export const PASSWORD = process.env.KC_TEST_USER_PASSWORD ?? '';
 export const OTP_SECRET = process.env.KC_TEST_OTP_SECRET ?? '';
 
-/** Bước TOTP (30 giây) đã dùng gần nhất của từng tài khoản trong tiến trình kiểm thử này. */
-const buocDaDung = new Map<string, number>();
+/** Bước 30 giây của mã OTP đã dùng gần nhất theo tài khoản. */
+const buocOtpDaDung = new Map<string, number>();
 
 /**
- * Mã OTP chưa dùng của tài khoản. Realm giữ mặc định không cho dùng lại một mã (otpPolicyCodeReusable): nhập lại mã
- * cũ trong cùng bước 30 giây bị coi là sai, và vài lần sai liền khoá tạm tài khoản (chống dò mật khẩu), làm mọi ca
- * sau của tài khoản đó hỏng. Hành trình đăng nhập cùng tài khoản nhiều lần liên tiếp nên chờ sang bước mới.
+ * Mã OTP chưa dùng của tài khoản: Keycloak từ chối mã đã dùng trong cùng bước 30 giây (chống phát lại), nên
+ * hai lần đăng nhập liền nhau của một tài khoản thì lần sau chờ sang bước mới thay vì nhập lại mã cũ.
  */
-async function otpMoi(page: Page, username: string): Promise<string> {
+async function maOtpMoi(username: string): Promise<string> {
   const buoc = () => Math.floor(Date.now() / 30_000);
-  const cu = buocDaDung.get(username);
-  if (cu !== undefined && buoc() <= cu)
-    await page.waitForTimeout((cu + 1) * 30_000 - Date.now() + 500);
-  buocDaDung.set(username, buoc());
+  const truoc = buocOtpDaDung.get(username);
+  if (truoc !== undefined && buoc() <= truoc) {
+    await new Promise((r) => setTimeout(r, (truoc + 1) * 30_000 - Date.now() + 250));
+  }
+  buocOtpDaDung.set(username, buoc());
   return totp(OTP_SECRET);
 }
 
@@ -36,7 +36,7 @@ export async function completeKeycloak(page: Page, username: string) {
     const otp = page.locator('#otp');
     await expect(user.or(page.locator('#password')).or(otp).first()).toBeVisible();
     if (await otp.isVisible()) {
-      await otp.fill(await otpMoi(page, username));
+      await otp.fill(await maOtpMoi(username));
     } else {
       if (await user.isVisible()) await user.fill(username);
       await page.locator('#password').fill(PASSWORD);
@@ -54,7 +54,7 @@ export async function completePopup(popup: Page, username: string) {
     const otp = popup.locator('#otp');
     const pwd = popup.locator('#password');
     await expect(pwd.or(otp).first()).toBeVisible();
-    if (await otp.isVisible()) await otp.fill(await otpMoi(popup, username));
+    if (await otp.isVisible()) await otp.fill(await maOtpMoi(username));
     else {
       if (await popup.locator('#username').isVisible())
         await popup.locator('#username').fill(username);

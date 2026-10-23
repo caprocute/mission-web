@@ -85,6 +85,9 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
   ],
   template: `
     <a routerLink="/tasks" class="back">← Việc của tôi</a>
+    @if (can('SCR-0501.giao') || can('SCR-0601.duyet-de-nghi')) {
+      <a routerLink="/tasks/approvals" class="back approvals">Chờ duyệt</a>
+    }
     @if (loaded.error()) {
       <p-message severity="error" styleClass="msg">
         <span>{{ loadError() }}</span>
@@ -646,6 +649,9 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
     .back {
       text-decoration: none;
       color: color-mix(in srgb, var(--vt-color-primary) 82%, black);
+    }
+    .approvals {
+      margin-left: 16px;
     }
     .head {
       display: flex;

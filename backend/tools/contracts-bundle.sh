@@ -27,7 +27,9 @@ MODULES=(
 if [[ "${1:-}" == "--if-missing" ]]; then
   all_present=true
   for m in "${MODULES[@]}"; do
-    if [[ ! -f "${DIST_DIR}/${m}.yaml" ]]; then
+    # Thiếu tệp gộp, hoặc có tệp nguồn trong contracts/openapi mới hơn tệp gộp (bản dist cũ còn lại sau git pull
+    # làm mã sinh thiếu trường mới và mission-core không biên dịch được): gộp lại.
+    if [[ ! -f "${DIST_DIR}/${m}.yaml" ]] || [[ -n "$(find "${CONTRACTS_DIR}/openapi" -name '*.yaml' -newer "${DIST_DIR}/${m}.yaml" -print -quit)" ]]; then
       all_present=false
       break
     fi

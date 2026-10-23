@@ -41,8 +41,8 @@ spec:
   podSelector:
     matchLabels: { app.kubernetes.io/name: warpgate }
   policyTypes: ["Ingress", "Egress"]
-  {{- with $w.nguonCIDRs }}
   ingress:
+    {{- with $w.nguonCIDRs }}
     - from:
         {{- range . }}
         - ipBlock: { cidr: {{ . }} }
@@ -51,9 +51,13 @@ spec:
         {{- range $ten, $cong := $w.cong }}
         - { protocol: TCP, port: {{ $cong | int }} }
         {{- end }}
-  {{- else }}
-  ingress: []
-  {{- end }}
+    {{- end }}
+    # CronJob warpgate-lam-moi đổi username mục tiêu psql qua API quản trị (chỉ cổng HTTPS).
+    - from:
+        - podSelector:
+            matchLabels: { app.kubernetes.io/name: warpgate-lam-moi }
+      ports:
+        - { protocol: TCP, port: {{ $w.cong.http | int }} }
   egress:
     - to:
         - namespaceSelector:
@@ -196,11 +200,11 @@ data:
   vai-tro.json: |
     {{- $vt := list }}
     {{- range $nhom, $ds := $w.sso.roleMappings }}{{ $vt = concat $vt $ds }}{{ end }}
-    {{- range $w.mucTieu }}{{ $vt = concat $vt .vaiTro }}{{ end }}
+    {{- range (include "pam.mucTieuWarpgate" . | fromJsonArray) }}{{ $vt = concat $vt .vaiTro }}{{ end }}
     {{- $vt | uniq | sortAlpha | toPrettyJson | nindent 4 }}
   muc-tieu.json: |
     {{- $mt := list }}
-    {{- range $w.mucTieu }}
+    {{- range (include "pam.mucTieuWarpgate" . | fromJsonArray) }}
     {{- $t := dict "name" .name "description" (default "" .description) "options" .options
          "ticket_requests_disabled" true "ticket_require_approval" false "require_approval" false }}
     {{- $mt = append $mt (dict "target" $t "roles" .vaiTro) }}

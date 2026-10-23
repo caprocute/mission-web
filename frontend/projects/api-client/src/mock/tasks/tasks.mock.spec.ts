@@ -143,6 +143,29 @@ describe('mock tasks – SCR-0503', () => {
     expect(bad.status).toBe(422);
   });
 
+  it('hàng chờ duyệt của người giao: đăng ký NHAP nguồn DANG_KY và đề nghị CHO_DUYET', async () => {
+    const { api, catalog } = setup();
+    const ci = (await firstValueFrom(catalog.items({ applicableToMe: true }))).items[0];
+    const due = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
+    const reg = await firstValueFrom(
+      api.register({ catalogItemId: ci.id, quantity: 1, proposedDueDate: due }),
+    );
+    const queue = await firstValueFrom(api.unitTasks({ status: ['NHAP'], source: 'DANG_KY' }));
+    expect(queue.items.map((x) => x.id)).toEqual([reg.id]);
+    expect((await firstValueFrom(api.unitTasks({ pendingChangeRequest: true }))).items).toEqual([]);
+    const t = await firstValueFrom(api.detail(ID_157));
+    await firstValueFrom(
+      api.submitChangeRequest(t, {
+        type: 'GIA_HAN',
+        newDueDate: new Date(Date.parse(t.dueDate) + 7 * 86_400_000).toISOString().slice(0, 10),
+        causeClaimed: 'KHACH_QUAN',
+        reason: '4 hồ sơ chờ kết quả thẩm tra lý lịch từ địa phương',
+      }),
+    );
+    const pending = await firstValueFrom(api.unitTasks({ pendingChangeRequest: true }));
+    expect(pending.items.map((x) => x.id)).toEqual([ID_157]);
+  });
+
   it('xuất Excel trả 202 kèm Location của tác vụ', async () => {
     const { api } = setup();
     const job = await firstValueFrom(api.exportMyTasks({ filter: 'CHAM' }));

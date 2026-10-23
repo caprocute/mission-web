@@ -1,0 +1,5 @@
+# Giá trị render mặc định trong kiểm thử (INF-15): địa chỉ giả .invalid thay cho giá trị của môi trường.
+canhBaoQuanTri:
+  diaChi: ["alertmanager-0.quan-tri.invalid:9443", "alertmanager-1.quan-tri.invalid:9443"]
+  cidrs: [192.0.2.0/24]
+  tls: { serverName: alertmanager.quan-tri.invalid }

@@ -1,19 +1,15 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Tạo trước phân vùng theo kỳ (period_bucket) cho mọi bảng nghiệp vụ trên CSDL dev (NEN-033, TL-03 "Phân vùng").
-#
-# Bảng nghiệp vụ phân vùng LIST theo period_bucket (năm*10 + quý, năm*10 cho dữ liệu năm) và không có phân vùng
-# mặc định, nên chèn vào kỳ chưa có phân vùng lỗi "no partition of relation ... found for row". Hiện chưa có tác
-# vụ nào gọi fn_create_period_partitions khi tạo kỳ (ghi trong data/seed/e2e/README.md), nên CSDL dev mới dựng
-# không ghi được kế hoạch, nhiệm vụ hay hồ sơ nào. Script gọi hàm đó của từng schema cho mọi bảng cha phân vùng
-# theo period_bucket, cho các năm NAM_TU..NAM_DEN (mặc định 2020, năm nhỏ nhất ràng buộc ck_period__bucket cho
-# phép và là dải hành trình khoá kỳ QA-06 dùng, đến năm sau). Gọi lại an toàn.
+# Tạo phân vùng LIST theo period_bucket cho mọi bảng theo kỳ (okr, task, product, appraisal, dossier,
+# oversight, scoring) ứng với các kỳ đã có trong config.period, bằng hàm chuẩn <schema>.fn_create_period_partitions
+# (NEN-033). Thiếu phân vùng thì mọi lệnh ghi theo kỳ (tạo nhiệm vụ, kế hoạch, mục tiêu...) lỗi 500
+# "no partition of relation ... found for row". Từ CORE-08-02 (bản sửa 23/10/2026), mission-core tự tạo
+# phân vùng khi tạo kỳ và scoring-service khi mở tác vụ tính đầu tiên của quý; script này chỉ còn dùng để
+# bù cho kỳ đã tạo trước bản sửa. Chạy lại an toàn.
 #
 #   ./infra/dev/scripts/tao-phan-vung-ky.sh
-#   NAM_TU=2024 NAM_DEN=2027 ./infra/dev/scripts/tao-phan-vung-ky.sh
 # =============================================================================
 set -euo pipefail
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="${SCRIPT_DIR}/../.env"
 if [[ -f "${ENV_FILE}" ]]; then
@@ -22,35 +18,31 @@ if [[ -f "${ENV_FILE}" ]]; then
   source "${ENV_FILE}"
   set +a
 fi
-nam="$(date +%Y)"
-NAM_TU="${NAM_TU:-2020}"
-NAM_DEN="${NAM_DEN:-$((nam + 1))}"
-
-docker exec -i mission-dev-postgres psql -v ON_ERROR_STOP=1 -q -At \
-  -U "${POSTGRES_USER:-mission_admin}" -d "${POSTGRES_DB:-mission}" \
-  -v nam_tu="${NAM_TU}" -v nam_den="${NAM_DEN}" <<'SQL'
-SELECT set_config('tpv.nam_tu', :'nam_tu', false), set_config('tpv.nam_den', :'nam_den', false) \g /dev/null
+docker exec -i -e PGPASSWORD="${POSTGRES_PASSWORD:?Cần POSTGRES_PASSWORD trong infra/dev/.env}" \
+  "${POSTGRES_CONTAINER:-mission-dev-postgres}" psql -q -v ON_ERROR_STOP=1 -h 127.0.0.1 \
+  -U "${POSTGRES_USER:-mission_admin}" -d "${POSTGRES_DB:-mission}" <<'SQL'
 DO $$
 DECLARE
   r record;
   b int;
-  moi int;
-  tao int := 0;
+  n int := 0;
 BEGIN
-  FOR r IN
-    SELECT n.nspname AS sch, c.oid::regclass AS bang
-      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-     WHERE c.relkind = 'p' AND NOT c.relispartition
-       AND pg_get_partkeydef(c.oid) = 'LIST (period_bucket)'
-       AND EXISTS (SELECT 1 FROM pg_proc p WHERE p.pronamespace = n.oid AND p.proname = 'fn_create_period_partitions')
-     ORDER BY 1, 2
-  LOOP
-    FOR b IN SELECT y * 10 + q FROM generate_series(current_setting('tpv.nam_tu')::int, current_setting('tpv.nam_den')::int) y, generate_series(0, 4) q LOOP
-      EXECUTE format('SELECT %I.fn_create_period_partitions($1, $2)', r.sch) INTO STRICT moi USING r.bang, b;
-      tao := tao + moi;
+  FOR b IN SELECT DISTINCT period_bucket FROM config.period LOOP
+    FOR r IN
+      SELECT ns.nspname AS sch, c.oid::regclass AS tbl
+      FROM pg_class c
+      JOIN pg_namespace ns ON ns.oid = c.relnamespace
+      JOIN pg_partitioned_table pt ON pt.partrelid = c.oid
+      JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = pt.partattrs[0]
+      WHERE NOT c.relispartition AND pt.partstrat = 'l' AND a.attname = 'period_bucket'
+        AND EXISTS (SELECT 1 FROM pg_proc p WHERE p.pronamespace = ns.oid AND p.proname = 'fn_create_period_partitions')
+      ORDER BY 1, 2
+    LOOP
+      EXECUTE format('SELECT %I.fn_create_period_partitions(%L::regclass, %s)', r.sch, r.tbl::text, b);
+      n := n + 1;
     END LOOP;
   END LOOP;
-  RAISE NOTICE 'đã tạo % phân vùng mới', tao;
+  RAISE NOTICE 'Đã bảo đảm % cặp (bảng, kỳ) có phân vùng', n;
 END
 $$;
 SQL

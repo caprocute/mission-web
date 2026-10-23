@@ -1,0 +1,152 @@
+{{- /* INF-15: điểm vào TLS cho Prometheus các cell gửi cảnh báo tới Alertmanager của cụm quản trị (TL-04 mục 10.5).
+ghostunnel kết thúc mTLS (chỉ nhận chứng chỉ khách do CA của cell ký, CA khách từ OpenBao qua ESO) rồi chuyển tới
+Service alertmanager trong cụm; Alertmanager và Thanos Ruler giữ nguyên HTTP nội bộ. Host, dải địa chỉ cell và
+cách lộ Service là giá trị của môi trường. */ -}}
+{{- $am := .Values.alertmanager }}
+{{- $g := $am.congCell }}
+{{- if and $am.enabled $g.enabled }}
+{{- if not $g.host }}{{ fail "observability-mgmt: alertmanager.congCell.host trống; khai tên DNS mà Prometheus các cell gọi (SAN của chứng chỉ máy chủ) trong values của môi trường" }}{{ end }}
+{{- if not $g.cidrs }}{{ fail "observability-mgmt: alertmanager.congCell.cidrs trống; khai dải địa chỉ của Prometheus các cell để NetworkPolicy chỉ mở cho chúng" }}{{ end }}
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $g.tls.secretName }}
+  namespace: observability
+spec:
+  refreshInterval: {{ $g.tls.refreshInterval }}
+  secretStoreRef:
+    kind: {{ $g.tls.secretStore.kind }}
+    name: {{ $g.tls.secretStore.name }}
+  target:
+    name: {{ $g.tls.secretName }}
+    creationPolicy: Owner
+  data:
+    {{- range list "tls.crt" "tls.key" "ca.crt" }}
+    - secretKey: {{ . }}
+      remoteRef:
+        key: {{ $g.tls.path }}
+        property: {{ . }}
+    {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager-cong-cell
+  namespace: observability
+  labels: { app.kubernetes.io/name: alertmanager-cong-cell, app.kubernetes.io/part-of: vt-observability }
+spec:
+  replicas: {{ $g.replicas | int }}
+  selector: { matchLabels: { app.kubernetes.io/name: alertmanager-cong-cell } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: alertmanager-cong-cell, app.kubernetes.io/part-of: vt-observability }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "obs.podSec" . | nindent 8 }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector: { matchLabels: { app.kubernetes.io/name: alertmanager-cong-cell } }
+      containers:
+        - name: ghostunnel
+          image: {{ include "obs.image" (list $g.image "alertmanager.congCell") }}
+          args:
+            - server
+            - --listen=0.0.0.0:{{ $g.port }}
+            - --target=alertmanager.observability.svc:9093
+            # Đích không phải localhost (Service trong cụm).
+            - --unsafe-target
+            - --cert=/etc/ghostunnel/tls/tls.crt
+            - --key=/etc/ghostunnel/tls/tls.key
+            - --cacert=/etc/ghostunnel/tls/ca.crt
+            # Nạp lại chứng chỉ khi ESO làm mới Secret.
+            - --timed-reload=1h
+            - --status=http://0.0.0.0:6060
+            {{- $cp := $g.choPhep }}
+            {{- if not (or $cp.ou $cp.dns $cp.uri) }}{{ fail "observability-mgmt: alertmanager.congCell.choPhep trống; CA nội bộ chung cho mọi dịch vụ nên phải lọc theo OU, DNS hoặc URI của chứng chỉ Prometheus các cell" }}{{ end }}
+            {{- range $cp.ou }}
+            - --allow-ou={{ . }}
+            {{- end }}
+            {{- range $cp.dns }}
+            - --allow-dns={{ . }}
+            {{- end }}
+            {{- range $cp.uri }}
+            - --allow-uri={{ . }}
+            {{- end }}
+          ports:
+            - { name: https, containerPort: {{ $g.port }} }
+            - { name: status, containerPort: 6060 }
+          readinessProbe: { httpGet: { path: /_status, port: status } }
+          livenessProbe: { httpGet: { path: /_status, port: status }, periodSeconds: 20 }
+          resources:
+            requests: { cpu: 50m, memory: 32Mi }
+            limits: { cpu: 500m, memory: 64Mi }
+          securityContext:
+            {{- include "obs.secCtx" . | nindent 12 }}
+          volumeMounts:
+            - { name: tls, mountPath: /etc/ghostunnel/tls, readOnly: true }
+      volumes:
+        - name: tls
+          secret: { secretName: {{ $g.tls.secretName }} }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: alertmanager-cong-cell
+  namespace: observability
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app.kubernetes.io/name: alertmanager-cong-cell } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager-cong-cell
+  namespace: observability
+  annotations:
+    # Tên DNS mà Prometheus các cell gọi (canhBaoQuanTri.diaChi phía cell), để đối chiếu khi khai bản ghi DNS.
+    vt.io/ten-dns: {{ $g.host | quote }}
+    {{- with $g.service.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  type: {{ $g.service.type }}
+  {{- if and (eq $g.service.type "LoadBalancer") $g.service.loadBalancerIP }}
+  loadBalancerIP: {{ $g.service.loadBalancerIP }}
+  {{- end }}
+  {{- if ne $g.service.type "ClusterIP" }}
+  # Giữ địa chỉ nguồn của cell để NetworkPolicy lọc theo cidrs.
+  externalTrafficPolicy: Local
+  {{- end }}
+  selector: { app.kubernetes.io/name: alertmanager-cong-cell }
+  ports: [{ name: https, port: {{ $g.port }}, targetPort: https }]
+---
+# Chỉ Prometheus các cell (cidrs) vào được cổng; cổng chỉ ra Alertmanager và DNS.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: alertmanager-cong-cell
+  namespace: observability
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: alertmanager-cong-cell }
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        {{- range $g.cidrs }}
+        - ipBlock: { cidr: {{ . }} }
+        {{- end }}
+      ports: [{ protocol: TCP, port: {{ $g.port }} }]
+    # kubelet thăm dò /_status.
+    - ports: [{ protocol: TCP, port: 6060 }]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: alertmanager } }
+      ports: [{ protocol: TCP, port: 9093 }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
+{{- end }}

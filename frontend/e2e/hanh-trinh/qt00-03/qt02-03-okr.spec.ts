@@ -33,7 +33,19 @@ async function soanVaTrinh(page: Page, ten: string, kr: (i: number) => string): 
   await page.keyboard.press('Escape');
   await expect(ds).toBeHidden();
   const capTren = m.getByRole('combobox', { name: 'Chọn mục tiêu cấp trên' });
-  if (await capTren.isVisible()) await chon(page, capTren);
+  if (await capTren.isVisible()) {
+    if (HE_THONG) {
+      // Kỳ thử của hệ thống thật chưa chắc có mục tiêu đã duyệt của đơn vị cấp trên (dev không có tài khoản thử
+      // ở Sở để lập sẵn), khi đó danh sách chỉ có dòng báo trống
+      await capTren.click();
+      const ds2 = page.getByRole('listbox');
+      await expect(ds2.getByRole('option').first()).toBeVisible();
+      if ((await ds2.getByRole('option', { name: /No results found|Không có/ }).count()) > 0)
+        cho('kỳ thử chưa có mục tiêu đã duyệt của đơn vị cấp trên để chọn làm mục tiêu cấp trên');
+      await page.keyboard.press('Escape');
+    }
+    await chon(page, capTren);
+  }
   await m.getByRole('textbox', { name: 'Tên mục tiêu' }).fill(ten);
   const lyDo = m.getByRole('textbox', { name: /^Lý do vượt/ });
   if (await lyDo.isVisible()) await lyDo.fill('Kiểm thử đầu cuối luồng lập OKR');

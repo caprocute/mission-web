@@ -35,57 +35,63 @@ Chạy ở chế độ giả lập: `npx playwright test -c e2e/hanh-trinh/qt04-
 
 ## Chạy thật QA-05 và QA-06 trên bộ hạ tầng dev
 
-Ngày 23/10/2026 (B4) hai bộ hành trình được chạy thật trên bộ compose dev dựng trong máy làm việc. Lời gọi API của
-kịch bản khớp hợp đồng; mã người dùng Keycloak của tài khoản thử trùng mã cán bộ của
-`infra/dev/postgres/seed/org-du-lieu-thu.sql`, nên kịch bản dùng `sub` làm mã người giao và người chủ trì là đúng.
-Các bước dưới đây là những gì môi trường cần để hành trình chạy tới phần nghiệp vụ.
+Ngày 23/10/2026 (B4) hai bộ hành trình được chạy thật trên bộ compose dev dựng trong máy làm việc, theo trình tự
+chung ở mục dưới. Lời gọi API của kịch bản khớp hợp đồng. Ngoài trình tự đó, hai bộ này cần thêm:
 
-### Trình tự chuẩn bị
+- **clamd cho minh chứng.** Compose có dịch vụ `clamav` và evidence-service bật quét (`EVIDENCE_SCAN_ENABLED`);
+  thiếu clamd thì tệp tải lên mãi chờ quét, HT-20 và HT-21 không qua được.
+- **Chính sách OPA thật.** OPA gắn `backend/opa/okrkpi`; bản khởi tạo `infra/dev/opa/policies` chỉ từ chối mặc định.
+- **Cán bộ thử là đảng viên.** Luồng Đảng chỉ lập hồ sơ cho đảng viên, luồng Nhà nước còn giữ trạng thái chưa lập
+  (wiki trang 14 mục 59(e)), nên `org-du-lieu-thu.sql` đặt `is_party_member` cho năm tài khoản thuộc diện đánh giá.
 
-1. Bật profile `core`, `security`, `events`, chạy `create-topics.sh`, rồi `deploy-backend.sh` cho apisix,
-   mission-core, org-service, workflow-service, scoring-service, evidence-service, tenant-registry và
-   notification-service (clamav bật kèm evidence-service).
-2. `infra/dev/scripts/dang-ky-luoc-do.sh`: đăng ký lược đồ Avro vào Apicurio (compose không có Job của chart).
-   Lượt hai đăng ký dạng lớp sinh mã, vì bộ ghi tra lược đồ theo nội dung lớp (xem "Khoảng trống" bên dưới).
-3. `infra/dev/scripts/tao-phan-vung-ky.sh`: tạo trước phân vùng theo kỳ từ năm 2020 đến năm sau.
-4. `infra/dev/scripts/seed-org.sh`: nạp tổ chức thử (năm tài khoản là đảng viên), cell và tenant thử của
-   tenant-registry, rồi phát lại sang `org_replica` của mission-core và workflow-service.
-5. `data/seed/ui-pack/nap_ui_pack.py` với token của `quantri` (và `quantri2` để phát hành): không có UI Pack đã
-   phát hành thì `GET /ui/layouts/home` trả 404 và trang chủ ghi lỗi.
-6. Đặt `KEYCLOAK_PUBLIC_URL=http://localhost:35080` trong `infra/dev/.env` rồi tạo lại apisix và các service.
-   Thư viện OIDC của web chỉ cho phép `http` với `localhost` (`requireHttps: remoteOnly`), nên issuer dạng
-   `http://127.0.0.1:...` làm đăng nhập dừng ngay; `E2E_KC_URL` phải trùng từng ký tự với giá trị này.
-7. `npm run e2e:prepare`, rồi `E2E_MODE=he-thong E2E_APISIX_URL=http://127.0.0.1:35000
-   E2E_KC_URL=http://localhost:35080 npx playwright test -c e2e/playwright.config.ts --grep "@qa-05|@qa-06"`
-   (kèm `KC_TEST_USER_PASSWORD`, `KC_TEST_OTP_SECRET`).
+Sửa ở kịch bản và web trong lượt này: token được bắt qua `page.route` ở endpoint token (Chrome bỏ thân phản hồi khi
+trang chuyển tuyến ngay sau khi đổi mã); hành trình kế hoạch (HT-11, HT-12) dùng kỳ quý, vì máy chủ lấy kỳ quý
+hiện hành khi màn hình kế hoạch không chọn kỳ; hành trình khoá kỳ tạo kỳ trong năm 2020..2024, vì máy chủ không
+nhận kỳ trước năm 2020 (`ck_period__bucket`); web không gọi làm mới token khi chưa có refresh token (trước đây 401
+lúc chưa đăng nhập xong làm Keycloak trả 400 và web báo hết phiên).
 
-### Sửa ở kịch bản và web trong lượt này
+Khoảng trống phía máy chủ còn chặn hành trình (ghi ngày 23/10/2026):
 
-- Realm không cho dùng lại một mã OTP; kịch bản đăng nhập cùng tài khoản nhiều lần trong 30 giây nên mã thứ hai bị
-  coi là sai, vài lần sai làm Keycloak khoá tạm tài khoản. `dang-nhap-keycloak.ts` chờ sang bước TOTP mới.
-- Token được bắt qua `page.route` ở endpoint token thay vì đọc thân phản hồi, vì Chrome bỏ thân phản hồi khi trang
-  chuyển tuyến ngay sau đổi mã.
-- Web gọi làm mới token khi nhận 401 trước lúc đăng nhập xong (chưa có refresh token), Keycloak trả 400 và web báo
-  hết phiên. `SessionService.handleUnauthorized` bỏ qua khi chưa có refresh token; shell chỉ nạp cờ tính năng sau
-  khi phiên sẵn sàng.
-- Hành trình kế hoạch (HT-11, HT-12) dùng kỳ quý, vì máy chủ lấy kỳ quý hiện hành khi màn hình kế hoạch không chọn
-  kỳ. Hành trình khoá kỳ tạo kỳ trong năm 2020..2024, vì máy chủ không nhận kỳ trước năm 2020.
+- `GET /catalog/items` gắn chức năng `SCR-0503.xem`, mà ma trận chỉ cấp cho `member` phạm vi bản thân trong khi mục
+  danh mục không có người sở hữu; OPA trả `out_of_scope` cho cả cán bộ lẫn quản lý, nên HT-11 và HT-13 dừng ở bước
+  chọn mục danh mục.
+- `GET /periods` gắn `SCR-0801.xem` (màn hình cấu hình kỳ), nên vai trò `member` bị từ chối dù ma trận API cho phép.
+- Chưa có API tạo Policy Pack (hợp đồng chỉ có tạo phiên bản cho gói đã có, `importPack` không có nơi gọi), nên
+  HT-25 đến HT-27 vẫn ghi "Chờ".
+- esign-service và document-service tự tạo `outbox_event` ở V1, trùng migration chung V0_x mà `MigrationRunner`
+  thêm vào, nên hai service không triển khai được và ký số (HT-27) trả 503.
+- Compose chưa có kafka-ui, nên bước kiểm sự kiện ghi "Chờ".
 
-### Khoảng trống phía máy chủ còn chặn hành trình
+## Dựng đủ hệ thống thật trên một máy để chạy QA-03, QA-04
 
-- **Chưa có tác vụ tạo phân vùng khi tạo kỳ.** Bảng nghiệp vụ phân vùng theo `period_bucket` không có phân vùng
-  mặc định, và không mã nào gọi `fn_create_period_partitions` khi tạo kỳ; ghi kế hoạch hay nhiệm vụ vào kỳ mới
-  lỗi 500. Dev tạm dùng `tao-phan-vung-ky.sh`.
-- **Danh mục áp dụng bị từ chối với mọi vai trò.** `GET /catalog/items` gắn chức năng `SCR-0503.xem`, mà ma trận
-  chỉ cấp cho `member` phạm vi bản thân, trong khi mục danh mục không có người sở hữu; OPA trả `out_of_scope` cho
-  cả cán bộ lẫn quản lý. HT-11 và HT-13 (giao việc từ kế hoạch, chọn mục danh mục) dừng ở đây.
-- **Cán bộ không xem được danh sách kỳ.** `GET /periods` gắn `SCR-0801.xem` (màn hình cấu hình kỳ), nên vai trò
-  `member` bị từ chối dù ma trận API cho phép.
-- **Lược đồ Avro lệch giữa tệp .avsc và lớp sinh mã.** Chart đăng ký tệp .avsc có tham chiếu, còn bộ ghi tra theo
-  nội dung lớp sinh mã (`avro.java.string`, kiểu lồng viết liền) với AUTO_REGISTER tắt, nên mọi bộ ghi Avro báo
-  "Could not resolve artifact reference by content" ở cụm mới. Dev tạm đăng ký thêm dạng lớp.
-- **Chưa có API tạo Policy Pack.** Hợp đồng chỉ có tạo phiên bản cho gói đã tồn tại; `importPack` không có nơi
-  gọi. Không dựng được gói cho luồng Đảng nên HT-25 đến HT-27 vẫn ghi "chờ".
-- **esign-service và document-service không chạy được migration qua `MigrationRunner`.** Hai service tự tạo
-  `outbox_event` ở V1, trùng migration chung V0_x; deploy-backend dừng ở hai service này nên ký số (HT-27) trả 503.
-- Compose chưa có kafka-ui, nên bước kiểm sự kiện ghi "chờ".
+Ngày 23/10/2026 (B1) bộ QA-04 (`hanh-trinh/qt00-03/`) và hành trình mẫu QA-03 (`qt04-07/ht17-cap-nhat-tien-do.spec.ts`)
+đã chạy ở chế độ `E2E_MODE=he-thong` trên hạ tầng `infra/dev` dựng trong một container sạch, với mission-core,
+org-service, tenant-registry, integration-gateway, notification-service, OPA (`OPA_ENABLED=true`), Keycloak và
+APISIX thật. Trình tự dưới đây dùng chung cho server dev và máy trạm; các bước nạp dữ liệu đều chạy lại được.
+
+1. Dựng theo `infra/dev/README.md` mục 3.2: `gen-env.sh`, bật hạ tầng, `deploy-backend.sh` (bước seed của nó
+   đăng ký lược đồ Avro, nạp tổ chức và tenant thử, chạy `org-republish`, tạo kỳ hiện hành và phân vùng theo kỳ),
+   rồi nạp UI Pack mặc định. `seed-org.sh` nạp thêm phân công kiêm nhiệm thứ hai của `quanly` (HT-02) và thư viện
+   căn cứ thử `okr.basis` (bản này chưa có API ghi căn cứ, thiếu thì không soạn được mục tiêu).
+2. Realm `mission` đã nhập trước ngày 23/10/2026 thiếu quyền Admin API của client `org-service` (vai trò
+   `view-users`, `manage-users` của `realm-management`, mapper đưa vai trò đó vào token) và chính sách thuộc tính
+   `ADMIN_EDIT`, nên chọn phân công (`PUT /org/me/context`) trả 503. Keycloak chỉ nhập realm ở lần đầu, nên realm
+   cũ cần thêm ba mục này bằng `kcadm.sh` hoặc dựng lại realm từ `infra/dev/keycloak/realm-mission.json`.
+3. Trong `frontend/`: `npm run e2e:prepare`, rồi chạy với các biến dưới đây.
+
+| Biến | Giá trị | Ghi chú |
+|---|---|---|
+| `E2E_MODE` | `he-thong` | Hoặc chạy `npm run e2e:he-thong` |
+| `E2E_APISIX_URL` | `http://127.0.0.1:35000` | APISIX dev, trực tiếp hoặc qua hầm SSH |
+| `E2E_KC_URL` | trùng từng ký tự `KEYCLOAK_PUBLIC_URL` | Mặc định `http://127.0.0.1:35080`; web nhận Keycloak http ở `127.0.0.1` như `localhost` |
+| `KC_TEST_USER_PASSWORD`, `KC_TEST_OTP_SECRET` | giá trị trong `infra/dev/.env` của chính hạ tầng | Không ghi vào repo |
+| `E2E_KAFKA_UI_URL`, `E2E_KAFKA_CLUSTER` | để trống | Compose dev chưa có kafka-ui, ca kiểm sự kiện ghi "Chờ" |
+
+Mã OTP của một tài khoản không dùng lại được trong cùng bước 30 giây, nên kịch bản đăng nhập chờ sang bước mới khi
+một tài khoản đăng nhập hai lần liền nhau; nhập sai nhiều lần làm Keycloak khoá tạm tài khoản thử dùng chung. Tuỳ
+chọn chữ lớn lưu theo người dùng ở máy chủ, nên một lần chạy có thể bắt đầu ở chế độ cao tuổi do lần trước để lại.
+
+Kết quả lượt chạy cuối ngày 23/10/2026: HT-01, HT-02, HT-05 (ca phủ định), HT-06 và hai ca HT-17 đạt. HT-03,
+HT-04 và HT-05 (ca khởi tạo tenant) bỏ qua theo thiết kế của bộ; HT-07 ghi "Chờ" vì org-service chưa gửi token
+dịch vụ khi gọi integration-gateway và dev chưa có nguồn nhân sự giả lập; HT-08 và HT-09 ghi "Chờ" vì kỳ thử chưa có
+mục tiêu đã duyệt của đơn vị cấp trên (realm dev không có tài khoản thử ở cấp Sở để lập sẵn).

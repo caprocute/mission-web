@@ -24,6 +24,12 @@ const REALM = JSON.parse(
 ) as { users: { username: string; realmRoles: string[] }[] };
 
 /** Tài khoản thử của realm dev và vai trò tối thiểu mỗi hành trình cần (docs/phan-quyen/ma-tran.json). */
+/**
+ * Tài khoản thử có từ hai phân công trên hệ thống thật (phân công kiêm nhiệm của `quanly` trong
+ * `infra/dev/postgres/seed/org-du-lieu-thu.sql`, cho HT-02): sau đăng nhập web mở hộp chọn phân công (SCR-0001).
+ */
+const NHIEU_PHAN_CONG: readonly string[] = ['quanly'];
+
 export const TAI_KHOAN = {
   /** platform_admin: khởi tạo, cấp phát, kích hoạt tenant (SCR-0101, SCR-0102). */
   nentang: ['platform_admin'],
@@ -110,6 +116,10 @@ export class Phien {
         /(^|&)otp=/.test(r.postData() ?? '')
       )
         this.daHoiOtp.add(user);
+      // Dự phòng khi không đọc được thân phản hồi token (trình duyệt bỏ thân khi trang chuyển hướng ngay sau đó):
+      // lấy token từ tiêu đề Authorization của lời gọi API
+      const bearer = /^Bearer (.+)$/.exec(r.headers()['authorization'] ?? '');
+      if (bearer && r.url().includes('/api/v1/')) m.token = bearer[1];
     });
     m.page.on('console', (msg) => {
       if (msg.type() === 'error' && m.page.url().startsWith(origin)) this.loi.push(msg.text());
@@ -156,6 +166,7 @@ export class Phien {
     this.mo.set(user, m);
     await m.page.goto(url);
     await completeKeycloak(m.page, user);
+    if (NHIEU_PHAN_CONG.includes(user)) await chonPhanCongChinh(m.page);
     const here = new URL(m.page.url());
     if (here.pathname + here.search !== url) await spaGoto(m.page, url);
     return m.page;
@@ -200,6 +211,21 @@ export class Phien {
     this.mo.clear();
     this.chungMo = null;
   }
+}
+
+/**
+ * Vào làm việc bằng phân công chính ở hộp chọn phân công, để các hành trình khác chạy cùng đơn vị dù lần trước
+ * (HT-02) đã chọn phân công kiêm nhiệm; HT-02 tự mở lại hộp bằng nút "Đổi phân công".
+ */
+async function chonPhanCongChinh(page: Page) {
+  const hop = page.getByRole('dialog', { name: 'Chọn phân công làm việc' });
+  await hop.waitFor({ state: 'visible', timeout: 15_000 });
+  await hop
+    .getByRole('radio', { name: /Phân công chính/ })
+    .first()
+    .check();
+  await hop.getByRole('button', { name: 'Vào làm việc' }).click();
+  await expect(hop).toBeHidden();
 }
 
 /** Chuyển tuyến trong SPA (router Angular nghe `popstate`), không tải lại trang nên token còn. */

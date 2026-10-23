@@ -50,6 +50,8 @@ import vn.viettel.okrkpi.config.infrastructure.web.ConfigIdempotency;
 import vn.viettel.okrkpi.config.infrastructure.web.RequestModule;
 import vn.viettel.okrkpi.events.EventTopics;
 import vn.viettel.okrkpi.shared.authz.AuthzProblemHandler;
+import vn.viettel.okrkpi.shared.datasource.ModuleName;
+import vn.viettel.okrkpi.shared.datasource.ReadWriteRoutingDataSource;
 import vn.viettel.okrkpi.shared.inbox.InboxEndpoint;
 import vn.viettel.okrkpi.shared.inbox.InboxEnvelope;
 import vn.viettel.okrkpi.shared.inbox.InboxMessageProcessor;
@@ -106,7 +108,8 @@ public class PeriodConfiguration {
       ObjectProvider<PeriodCalendarPort> calendar,
       PeriodStateCache periodStateCache,
       JdbcPeriodReopenRepository periodReopenRepository,
-      @Qualifier("configTransactionManager") PlatformTransactionManager tm) {
+      @Qualifier("configTransactionManager") PlatformTransactionManager tm,
+      @Qualifier("moduleDataSources") ObjectProvider<Map<ModuleName, ReadWriteRoutingDataSource>> moduleDataSources) {
     TransactionTemplate reads = new TransactionTemplate(tm);
     reads.setReadOnly(true);
     PeriodConfigService service =
@@ -120,6 +123,10 @@ public class PeriodConfiguration {
             reads);
     service.setCallerModule(new RequestModule());
     service.setReopens(periodReopenRepository);
+    Map<ModuleName, ReadWriteRoutingDataSource> modules = moduleDataSources.getIfAvailable();
+    if (modules != null) {
+      service.setPartitions(new ModulePeriodPartitions(modules));
+    }
     return service;
   }
 

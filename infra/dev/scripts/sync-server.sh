@@ -42,6 +42,9 @@ DEV_SERVER_SSH_PORT="${DEV_SERVER_SSH_PORT:-2222}"
 DEV_SERVER_USER="${DEV_SERVER_USER:-provision}"
 DEV_SERVER_INFRA_DIR="${DEV_SERVER_INFRA_DIR:-}"
 DEV_SERVER_PROFILES="${DEV_SERVER_PROFILES:-core security events}"
+# .env của máy chủ dùng để so khoá và dựng cấu hình kiểm tra; mặc định <DEV_SERVER_INFRA_DIR>/.env.
+# trien-khai-lai.sh đặt biến này về .env của thư mục cũ khi thư mục mới chưa có .env (chuyển bố cục).
+SYNC_SERVER_ENV="${SYNC_SERVER_ENV:-${DEV_SERVER_INFRA_DIR}/.env}"
 # Dịch vụ cũ trên máy chủ được thay bằng dịch vụ của repo (cũ=mới): máy chủ từng chạy Debezium dưới tên
 # dịch vụ `connect` (container mission-dev-connect-1, cổng 35083). apply dừng và xoá container cũ ngay
 # trước `up` để dịch vụ mới nhận cổng; sync_preflight.py chặn nếu container cũ còn dữ liệu có tên.
@@ -80,7 +83,7 @@ with_pass() {
 }
 
 remote() {
-  with_pass ssh "${SSH_OPTS[@]}" "${TARGET}" "$@"
+  with_pass ssh ${SSH_OPTS[@]+"${SSH_OPTS[@]}"} "${TARGET}" "$@"
 }
 
 profile_args() {
@@ -101,8 +104,8 @@ check_env_keys() {
   echo "==> So khoá .env của máy chủ với infra/dev/.env.example"
   local expected remote_keys missing
   expected="$(grep -E '^[A-Z0-9_]+=' "${INFRA_DIR}/.env.example" | cut -d= -f1 | sort -u)"
-  remote_keys="$(remote "grep -E '^[A-Z0-9_]+=' $(printf '%q' "${DEV_SERVER_INFRA_DIR}/.env") | cut -d= -f1 | sort -u" || true)"
-  [[ -n "${remote_keys}" ]] || die "không đọc được ${DEV_SERVER_INFRA_DIR}/.env trên máy chủ"
+  remote_keys="$(remote "grep -E '^[A-Z0-9_]+=' $(printf '%q' "${SYNC_SERVER_ENV}") | cut -d= -f1 | sort -u" || true)"
+  [[ -n "${remote_keys}" ]] || die "không đọc được ${SYNC_SERVER_ENV} trên máy chủ"
   missing="$(comm -23 <(printf '%s\n' "${expected}") <(printf '%s\n' "${remote_keys}"))"
   if [[ -n "${missing}" ]]; then
     echo "  Khoá còn thiếu trên máy chủ (bổ sung giá trị thật trước khi apply; mặc định của compose sẽ được dùng):"
@@ -116,7 +119,7 @@ check_env_keys() {
 
 # Trạng thái container trên máy chủ cho sync_preflight.py: mounts và cổng, không có biến môi trường.
 server_state() {
-  with_pass ssh "${SSH_OPTS[@]}" "${TARGET}" 'bash -s' <<'REMOTE'
+  with_pass ssh ${SSH_OPTS[@]+"${SSH_OPTS[@]}"} "${TARGET}" 'bash -s' <<'REMOTE'
 ids="$(docker ps -aq --filter label=com.docker.compose.project=mission-dev)"
 if [ -n "${ids}" ]; then
   # shellcheck disable=SC2086
@@ -137,7 +140,7 @@ preflight() {
   command -v python3 >/dev/null 2>&1 || { echo "  Máy trạm thiếu python3; không kiểm được."; return 1; }
   local work rc=0
   work="$(mktemp -d)"
-  remote "grep -E '^(DEV_HOST|[A-Z0-9_]+_(DATA|PORT|BIND|HOST))=' $(printf '%q' "${DEV_SERVER_INFRA_DIR}/.env")" \
+  remote "grep -E '^(DEV_HOST|[A-Z0-9_]+_(DATA|PORT|BIND|HOST))=' $(printf '%q' "${SYNC_SERVER_ENV}")" \
     >"${work}/server-public.env" || true
   cut -d= -f1 "${work}/server-public.env" | sort -u >"${work}/keys"
   grep -E '^[A-Z0-9_]+=' "${INFRA_DIR}/.env.example" \
@@ -174,12 +177,12 @@ copy_files() {
     done
     [[ "${dry}" == "yes" ]] && args+=(--dry-run)
     echo "==> Chép infra/dev (commit ${commit}) bằng rsync$([[ "${dry}" == "yes" ]] && echo ' (thử, không ghi)')"
-    with_pass rsync "${args[@]}" -e "ssh ${SSH_OPTS[*]}" "${INFRA_DIR}/" "${TARGET}:${DEV_SERVER_INFRA_DIR}/"
+    with_pass rsync ${args[@]+"${args[@]}"} -e "ssh ${SSH_OPTS[*]-}" "${INFRA_DIR}/" "${TARGET}:${DEV_SERVER_INFRA_DIR}/"
     local d sib=(-rlptzv)
     [[ "${dry}" == "yes" ]] && sib+=(--dry-run)
-    for d in "${SIBLING_DIRS[@]}"; do
+    for d in ${SIBLING_DIRS[@]+"${SIBLING_DIRS[@]}"}; do
       echo "==> Chép infra/${d} sang $(dirname "${DEV_SERVER_INFRA_DIR}")/${d}"
-      with_pass rsync "${sib[@]}" -e "ssh ${SSH_OPTS[*]}" \
+      with_pass rsync ${sib[@]+"${sib[@]}"} -e "ssh ${SSH_OPTS[*]-}" \
         "${INFRA_DIR}/../${d}/" "${TARGET}:$(dirname "${DEV_SERVER_INFRA_DIR}")/${d}/"
     done
   else
@@ -188,7 +191,7 @@ copy_files() {
     parent="$(dirname "${DEV_SERVER_INFRA_DIR}")"
     if [[ "${dry}" == "yes" ]]; then
       (cd "${INFRA_DIR}" && git ls-files)
-      for d in "${SIBLING_DIRS[@]}"; do
+      for d in ${SIBLING_DIRS[@]+"${SIBLING_DIRS[@]}"}; do
         (cd "${INFRA_DIR}/.." && git ls-files -- "${d}")
       done
       return 0
@@ -196,7 +199,7 @@ copy_files() {
     # git ls-files in đường dẫn tương đối với thư mục hiện tại; tar của macOS và GNU đều nhận --null -T.
     (cd "${INFRA_DIR}" && git ls-files -z | tar --null -T - -cf -) \
       | remote "mkdir -p $(printf '%q' "${DEV_SERVER_INFRA_DIR}") && tar -C $(printf '%q' "${DEV_SERVER_INFRA_DIR}") -xf -"
-    for d in "${SIBLING_DIRS[@]}"; do
+    for d in ${SIBLING_DIRS[@]+"${SIBLING_DIRS[@]}"}; do
       (cd "${INFRA_DIR}/.." && git ls-files -z -- "${d}" | tar --null -T - -cf -) \
         | remote "tar -C $(printf '%q' "${parent}") -xf -"
     done
@@ -223,7 +226,11 @@ cmd_plan() {
   echo "==> Commit đang áp trên máy chủ: $(remote "cat $(printf '%q' "${DEV_SERVER_INFRA_DIR}/.repo-commit") 2>/dev/null" || echo 'chưa ghi')"
   copy_files yes
   echo "==> Kiểm compose config trên máy chủ (bản hiện có, trước khi chép)"
-  remote "$(compose_cmd) config -q" && echo "  Hợp lệ."
+  if remote "test -f $(printf '%q' "${DEV_SERVER_INFRA_DIR}/.env")"; then
+    remote "$(compose_cmd) config -q" && echo "  Hợp lệ."
+  else
+    echo "  Chưa có ${DEV_SERVER_INFRA_DIR}/.env (lần chuyển bố cục đầu tiên); bỏ qua."
+  fi
 }
 
 cmd_apply() {

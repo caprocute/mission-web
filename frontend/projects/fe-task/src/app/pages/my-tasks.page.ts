@@ -129,6 +129,9 @@ export function readSavedFilters(
             (onClick)="exportExcel()"
           />
         }
+        @if (can('SCR-0501.giao') || can('SCR-0601.duyet-de-nghi')) {
+          <a routerLink="/tasks/approvals" class="p-button p-component p-button-outlined">Chờ duyệt</a>
+        }
         @if (can('SCR-0503.dang-ky')) {
           <p-button label="Đăng ký nhiệm vụ" icon="pi pi-plus" (onClick)="focusRegistration()" />
         }

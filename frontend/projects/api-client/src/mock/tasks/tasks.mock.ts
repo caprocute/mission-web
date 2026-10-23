@@ -216,6 +216,31 @@ const QUICK_FILTERS: MyTasksQuickFilter[] = [
   'HOAN_THANH',
 ];
 
+/**
+ * Hàng chờ duyệt của người giao việc trên `GET /tasks` (listUnitTasks): đăng ký `NHAP` nguồn
+ * `DANG_KY` (QT-05 bước 3) và nhiệm vụ có đề nghị `CHO_DUYET` (SCR-0601 "Duyệt đề nghị"). Bộ giả
+ * lập analytics giữ phần còn lại của tuyến này (bảng điều hành SCR-1601) và chuyển sang đây khi
+ * request có `source` hoặc `pendingChangeRequest`.
+ */
+export function unitQueue(params: HttpParams): MockResponse {
+  const limit = Math.min(Number(params.get('limit') ?? 20) || 20, MAX_PAGE_LIMIT);
+  const status = params.get('status')?.split(',').filter(Boolean);
+  const source = params.get('source');
+  const pending = params.get('pendingChangeRequest');
+  const items = tasks()
+    .filter((t) => !status?.length || status.includes(t.status))
+    .filter((t) => !source || t.source === source)
+    .filter(
+      (t) =>
+        pending === null ||
+        t.changeRequests.some((c) => c.status === 'CHO_DUYET') === (pending === 'true'),
+    )
+    .map(toSummary)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.code.localeCompare(b.code))
+    .slice(0, limit);
+  return ok({ items, nextCursor: null });
+}
+
 function myTasks(params: HttpParams): MockResponse {
   const limit = Math.min(Number(params.get('limit') ?? 20) || 20, MAX_PAGE_LIMIT);
   const offset = Number(params.get('cursor') ?? 0) || 0;

@@ -45,7 +45,7 @@ while read -r topic policy; do
   [[ "${policy}" != "-" ]] && extra_args+=(--config "cleanup.policy=${policy}")
   echo "  + ${topic}"
   kafka_topics_cmd --create --if-not-exists --topic "${topic}" --partitions "${PARTITIONS}" \
-    --replication-factor 1 "${extra_args[@]}" >/dev/null
+    --replication-factor 1 ${extra_args[@]+"${extra_args[@]}"} >/dev/null
   tao=$((tao + 1))
 done < "${TOPICS_FILE}"
 

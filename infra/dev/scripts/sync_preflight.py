@@ -132,8 +132,14 @@ def main(argv):
             dest = m.get("Destination")
             kind = m.get("Type")
             current = m.get("Name") if kind == "volume" else (m.get("Source") or "").rstrip("/")
-            is_data = kind == "volume" or current.startswith(server_dir + "/data/")
             planned = mounts.get(dest)
+            # Dữ liệu: volume, thư mục dưới <...>/data/ (kể cả thư mục infra cũ khi chuyển bố cục), hoặc điểm gắn
+            # mà cấu hình mới dùng volume (biến *_DATA chưa đặt).
+            is_data = (
+                kind == "volume"
+                or "/data/" in current + "/"
+                or (planned is not None and planned[0] == "volume")
+            )
             if planned is None and kind == "volume" and ANON.match(current or "") and dest in c["image_volumes"]:
                 notes.append(
                     f"Dịch vụ {c['service']}: volume ẩn danh {dest} (VOLUME của ảnh) được compose kế thừa khi dựng lại."

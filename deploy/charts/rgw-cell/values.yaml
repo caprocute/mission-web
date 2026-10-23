@@ -59,6 +59,13 @@ buckets:
     versioning: true
     khoa: { mode: GOVERNANCE, years: 1 }
     vongDoi: { huyMultipartSauNgay: 1 }
+  # Bản ghi phiên Warpgate (INF-27; SEC-42 lưu 1 năm không sửa xoá được): pam-cell-<mã>, khoá COMPLIANCE 365 ngày.
+  pam-ghi-phien:
+    theoTenant: false
+    ma: pam
+    versioning: true
+    khoa: { mode: COMPLIANCE, days: 365 }
+    vongDoi: { huyMultipartSauNgay: 1 }
 
 # Người dùng S3 (uid RGW do khoi-tao-multisite.sh tạo, khoá ở OpenBao <duongDan>/<uid>). quyen: bucket → thao tác
 # (doc: GetObject, GetObjectVersion; ghi: PutObject và đặt hạn giữ theo đối tượng; liet-ke: ListBucket; xoa-danh-dau:
@@ -94,6 +101,11 @@ nguoiDung:
     namespace: ""
     quyen:
       transfer: [doc, ghi, liet-ke]
+  # CronJob warpgate-ghi-phien của chart pam-integration (INF-27): chỉ ghi và liệt kê, không đọc lại, không xoá.
+  pam-ghi-phien:
+    namespace: pam
+    quyen:
+      pam-ghi-phien: [ghi, liet-ke]
 # Tài khoản quản trị kho (chủ mọi bucket); khoá chỉ Job của chart này đọc.
 quanTri:
   uid: ""             # rỗng: kho-quan-tri-cell-<mã>

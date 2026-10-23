@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -478,37 +481,68 @@ public class UiPackPublishService implements UiPackCompatibilityApi {
    */
   @Transactional(transactionManager = UiPackService.TX, readOnly = true)
   public Optional<Home> home(TenantId tenantId, Viewer viewer) {
-    return current(tenantId)
-        .map(
-            c -> {
-              Map<String, Object> ctx =
-                  Map.of(
-                      "user",
-                      Map.of(
-                          "id", viewer.userId().toString(),
-                          "roles", viewer.roles(),
-                          "tenant", tenantId.value().toString(),
-                          "unitId", viewer.unitId() == null ? "" : viewer.unitId()));
-              JsonNode home = c.body().path("layouts").path("home");
-              JsonNode layout = home.isObject() ? filter(home, ctx) : null;
-              boolean reduced =
-                  viewer.elderly()
-                      && c.body()
-                          .path("modes")
-                          .path("elderly")
-                          .path("flags")
-                          .path("reducedSteps")
-                          .asBoolean(false);
-              return new Home(
-                  viewer.elderly() ? "elderly" : "default",
-                  c.version().version(),
-                  c.body().path("requires").path("registry").asText(),
-                  layout == null
-                      ? json.createObjectNode().put("component", "vt.layout.grid")
-                      : layout,
-                  reduced,
-                  c.etag());
-            });
+    Map<String, Object> ctx =
+        Map.of(
+            "user",
+            Map.of(
+                "id", viewer.userId().toString(),
+                "roles", viewer.roles(),
+                "tenant", tenantId.value().toString(),
+                "unitId", viewer.unitId() == null ? "" : viewer.unitId()));
+    Optional<Current> current = current(tenantId);
+    if (current.isEmpty()) {
+      // Tenant chưa phát hành UI Pack (tenant mới, dev): hợp đồng getHomeLayout không có 404, nên
+      // trả bố cục của nội dung khởi đầu mặc định (cùng nội dung createUiPackVersion nhân bản).
+      return Optional.of(defaultHome(ctx, viewer));
+    }
+    Current c = current.get();
+    JsonNode home = c.body().path("layouts").path("home");
+    JsonNode layout = home.isObject() ? filter(home, ctx) : null;
+    boolean reduced =
+        viewer.elderly()
+            && c.body()
+                .path("modes")
+                .path("elderly")
+                .path("flags")
+                .path("reducedSteps")
+                .asBoolean(false);
+    return Optional.of(
+        new Home(
+            viewer.elderly() ? "elderly" : "default",
+            c.version().version(),
+            c.body().path("requires").path("registry").asText(),
+            layout == null ? json.createObjectNode().put("component", "vt.layout.grid") : layout,
+            reduced,
+            c.etag()));
+  }
+
+  /** Phiên bản báo cho trang chủ dựng từ nội dung khởi đầu khi tenant chưa có UI Pack hiện hành. */
+  static final String DEFAULT_HOME_VERSION = "0.0.0";
+
+  private Home defaultHome(Map<String, Object> ctx, Viewer viewer) {
+    JsonNode d = defaultContent();
+    JsonNode home = d.path("layouts").path("home");
+    JsonNode layout = home.isObject() ? filter(home, ctx) : null;
+    return new Home(
+        viewer.elderly() ? "elderly" : "default",
+        DEFAULT_HOME_VERSION,
+        d.path("componentRegistryVersion").asText(),
+        layout == null ? json.createObjectNode().put("component", "vt.layout.grid") : layout,
+        false,
+        "mac-dinh-"
+            + HexFormat.of().formatHex(sha256(d.toString().getBytes(StandardCharsets.UTF_8))));
+  }
+
+  private JsonNode defaultContent() {
+    try (InputStream in = UiPackService.class.getResourceAsStream(UiPackService.DEFAULT_CONTENT)) {
+      if (in == null) {
+        throw new IllegalStateException(
+            "Thiếu nội dung UI Pack khởi đầu " + UiPackService.DEFAULT_CONTENT);
+      }
+      return json.readTree(in);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
   }
 
   /**
