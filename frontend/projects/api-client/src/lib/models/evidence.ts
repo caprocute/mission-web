@@ -311,12 +311,15 @@ export interface ScorePreviewInput {
   taskId: string;
   evidenceVersionId?: string;
   qualityLevel: QualityLevel;
-  revisionCause?: 'CHU_QUAN' | 'KHACH_QUAN' | 'KHONG_CO';
+  /** Mức chỉnh sửa theo mức B (`RevisionCause`), như khi xác nhận nghiệm thu. */
+  revisionCause?: EvidenceRevisionCause;
+  /** Chỉnh sửa do nguyên nhân khách quan (ảnh hưởng cách tính C). */
+  isObjectiveRevision?: boolean;
 }
 
 export interface ScorePreview {
   a: number;
-  b: number;
+  b: QualityLevel;
   c: number;
   kpi: number;
   policyVersion?: string;

@@ -292,6 +292,16 @@ public class PeriodConfigService implements PeriodApi {
 
   @Override
   @Transactional(transactionManager = TX, readOnly = true)
+  public Optional<PeriodSnapshot> findCovering(TenantId tenantId, String kind, LocalDate day) {
+    Objects.requireNonNull(tenantId, "tenantId");
+    Objects.requireNonNull(day, "day");
+    return periods.covering(tenantId, PeriodKind.valueOf(kind), day).stream()
+        .max(Comparator.comparing(Period::startDate))
+        .map(PeriodConfigService::snapshot);
+  }
+
+  @Override
+  @Transactional(transactionManager = TX, readOnly = true)
   public Optional<PeriodSnapshot> findById(TenantId tenantId, PeriodId periodId) {
     Objects.requireNonNull(tenantId, "tenantId");
     Objects.requireNonNull(periodId, "periodId");

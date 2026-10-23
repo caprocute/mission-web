@@ -227,4 +227,14 @@ class AssignmentRulesTest {
     assertThat(TaskCodes.sequenceOf(20264, "NV-2026-Q4-x")).isZero();
     assertThatThrownBy(() -> TaskCodes.code(20264, 0)).isInstanceOf(IllegalArgumentException.class);
   }
+
+  @Test
+  void dangKyPhaiDuocDuyetTruocKhiGiao() {
+    TaskDraftSpec s = spec("DANG_KY", LEAD, List.of(), null, null);
+    assertThat(passed(AssignmentRules.check(s, ctx(true))).get("BR-05-08")).isFalse();
+    Context ok = new Context(START, END, true, ACCEPTOR, List.of("hỗ trợ"), true);
+    assertThat(passed(AssignmentRules.check(s, ok)).get("BR-05-08")).isTrue();
+    assertThat(passed(AssignmentRules.check(spec("KE_HOACH", LEAD, List.of(), null, null), ok)))
+        .doesNotContainKey("BR-05-08");
+  }
 }

@@ -20,6 +20,8 @@ import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.outbox.ApicurioPayloadSerializer;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
 import vn.viettel.okrkpi.task.application.TaskApiService;
+import vn.viettel.okrkpi.task.application.assign.TaskAssignService;
+import vn.viettel.okrkpi.task.application.assign.TaskDraftService;
 import vn.viettel.okrkpi.task.application.lifecycle.CelGuardEvaluator;
 import vn.viettel.okrkpi.task.application.lifecycle.PolicyBackedTransitionTableProvider;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskDelayRiskService;
@@ -91,9 +93,22 @@ public class TaskLifecycleConfiguration {
 
   @Bean
   TaskApiService taskApiService(
+      @Qualifier("taskDataSource") DataSource dataSource,
       JdbcTaskLifecycleRepository taskLifecycleRepository,
-      TaskTransitionService taskTransitionService) {
-    return new TaskApiService(taskLifecycleRepository, taskTransitionService);
+      TaskTransitionService taskTransitionService,
+      ObjectProvider<ObjectMapper> json,
+      ObjectProvider<TaskDraftService> taskDraftService,
+      ObjectProvider<TaskAssignService> taskAssignService) {
+    TaskApiService service =
+        new TaskApiService(
+            taskLifecycleRepository,
+            taskTransitionService,
+            taskDraftService::getIfAvailable,
+            taskAssignService::getIfAvailable);
+    service.setScoringReads(
+        new JdbcTaskScoringReads(
+            JdbcClient.create(dataSource), json.getIfAvailable(ObjectMapper::new)));
+    return service;
   }
 
   @Bean

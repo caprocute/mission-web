@@ -127,6 +127,12 @@ public class DocgenConfiguration {
     return new VeraPdfValidator();
   }
 
+  @Bean
+  @ConditionalOnMissingBean(DocumentPorts.PdfStamper.class)
+  DocumentPorts.PdfStamper pdfStamper() {
+    return new PdfBoxStamper();
+  }
+
   @Bean(destroyMethod = "close")
   @ConditionalOnMissingBean
   S3Client docgenS3(DocgenProperties properties) {
@@ -174,6 +180,7 @@ public class DocgenConfiguration {
       DocumentPorts.DocxMerger merger,
       DocumentPorts.PdfConverter converter,
       DocumentPorts.PdfaValidator validator,
+      DocumentPorts.PdfStamper stamper,
       DocumentPorts.ObjectStore store,
       RenderEvents events,
       RenderMetrics metrics,
@@ -189,6 +196,7 @@ public class DocgenConfiguration {
         merger,
         converter,
         validator,
+        stamper,
         store,
         events,
         metrics,
@@ -225,13 +233,14 @@ public class DocgenConfiguration {
       return scanner;
     }
 
-    @Bean
+    @Bean(destroyMethod = "close")
     RenderWorker renderWorker(
         PendingJobScanner scanner,
         RenderService service,
         DocgenProperties properties,
-        @Value("${okrkpi.docgen.worker.batch-size:20}") int batchSize) {
-      return new RenderWorker(scanner, service, batchSize, properties.lease());
+        @Value("${okrkpi.docgen.worker.batch-size:20}") int batchSize,
+        @Value("${okrkpi.docgen.worker.concurrency:2}") int concurrency) {
+      return new RenderWorker(scanner, service, batchSize, properties.lease(), concurrency);
     }
   }
 }

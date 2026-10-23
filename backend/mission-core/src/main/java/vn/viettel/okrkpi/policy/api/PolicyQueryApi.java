@@ -57,6 +57,80 @@ public interface PolicyQueryApi {
   }
 
   /**
+   * Khai báo {@code inputs} của phiên bản gói (BS-03 DC-01, DC-03), theo thứ tự khai báo; gói viết
+   * dạng ánh xạ tên → khai báo hay dạng mảng đều trả về cùng một dạng. Rỗng khi gói không khai báo
+   * hoặc không có phiên bản (CORE-04-13 dùng để chỉ đọc danh sách mà gói cần).
+   */
+  default List<InputDeclaration> inputs(TenantId tenantId, UUID versionId) {
+    return List.of();
+  }
+
+  /** Một đầu vào khai báo của gói ({@code PolicyInputDeclaration} của hợp đồng). */
+  record InputDeclaration(String name, String type, String source) {
+
+    public InputDeclaration {
+      Objects.requireNonNull(name, "name");
+    }
+  }
+
+  /**
+   * Phiên bản hồ sơ tập khách hàng ghim cùng gói áp cho tổ hợp tenant, kỳ, luồng, khối, đơn vị
+   * (CORE-05-12, BS-03 ADR-33) kèm cờ sáu điểm cắm DC-01..DC-06. Rỗng khi gắn của kỳ không ghim hồ
+   * sơ: bên gọi dùng {@link PluginPoints#DEFAULTS}, giữ đúng hành vi hiện tại.
+   */
+  default Optional<ResolvedProfile> customerProfile(
+      TenantId tenantId, PeriodId periodId, String flow, UUID subjectGroupId, UUID orgUnitId) {
+    return Optional.empty();
+  }
+
+  /**
+   * Cờ sáu điểm cắm của lõi ({@code CustomerProfilePluginPoints}): vắng là tắt, chế độ phân công
+   * vắng là {@code CHU_TRI_PHOI_HOP}.
+   */
+  record PluginPoints(
+      boolean workItemScore,
+      boolean boundedInheritance,
+      boolean responsibilityScope,
+      boolean milestoneMetric,
+      boolean classificationChain,
+      String assignmentMode) {
+
+    public static final String DEFAULT_ASSIGNMENT_MODE = "CHU_TRI_PHOI_HOP";
+    public static final PluginPoints DEFAULTS =
+        new PluginPoints(false, false, false, false, false, DEFAULT_ASSIGNMENT_MODE);
+
+    public PluginPoints {
+      assignmentMode = assignmentMode == null ? DEFAULT_ASSIGNMENT_MODE : assignmentMode;
+    }
+  }
+
+  /**
+   * Hồ sơ đã phân giải: phiên bản đã phát hành, băm nội dung, bản đồ thành phần ({@code components}
+   * của bản kê) và cờ điểm cắm.
+   */
+  record ResolvedProfile(
+      UUID profileId,
+      String code,
+      UUID versionId,
+      String version,
+      String contentHash,
+      Map<String, Object> components,
+      PluginPoints pluginPoints) {
+
+    public ResolvedProfile {
+      Objects.requireNonNull(profileId, "profileId");
+      Objects.requireNonNull(code, "code");
+      Objects.requireNonNull(versionId, "versionId");
+      Objects.requireNonNull(version, "version");
+      components =
+          components == null
+              ? Map.of()
+              : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(components));
+      pluginPoints = pluginPoints == null ? PluginPoints.DEFAULTS : pluginPoints;
+    }
+  }
+
+  /**
    * Kết quả phân giải: gói, phiên bản, băm nội dung và khoá gói đã ký để bên gọi kiểm toàn vẹn
    * trước khi dùng (X-PP-09).
    */

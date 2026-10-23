@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import vn.viettel.okrkpi.appraisal.domain.selfassessment.SelfAssessmentForm;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
@@ -27,6 +28,14 @@ public interface ScoringInputRepository {
 
   /** Đánh dấu đầu vào của các người được giao trong kỳ đã đổi; trả số hồ sơ được đánh dấu. */
   int markChanged(TenantId tenant, UUID periodId, Collection<UUID> personIds, Instant at);
+
+  /** Khoá của một hồ sơ để đọc tiếp việc lá (CORE-04-13); rỗng khi không có trong tenant. */
+  default Optional<ProfileKey> profileKey(TenantId tenant, UUID profileId) {
+    return Optional.empty();
+  }
+
+  /** Hồ sơ, người, kỳ và phiên bản gói đã ghim. */
+  record ProfileKey(UUID profileId, UUID personId, UUID periodId, UUID policyPackVersionId) {}
 
   /**
    * Đầu vào của một hồ sơ. Tiêu chí chung lấy kết quả thẩm định, chưa thẩm định thì lấy kết quả tự

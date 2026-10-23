@@ -140,9 +140,10 @@ interface Attached {
                 <span class="num" aria-hidden="true">2</span> Kết quả, hình thức
               </h2>
               <div class="field">
-                <label for="kn-profile">Kết quả bị khiếu nại (bắt buộc)</label>
+                <label for="kn-profile" id="kn-profile-l">Kết quả bị khiếu nại (bắt buộc)</label>
                 <p-select
                   inputId="kn-profile"
+                  ariaLabelledBy="kn-profile-l"
                   [options]="eligibleList()"
                   optionLabel="text"
                   optionValue="value"

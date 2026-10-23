@@ -14,8 +14,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.Br;
 import org.docx4j.wml.ObjectFactory;
@@ -47,9 +51,11 @@ import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
 import vn.viettel.okrkpi.contract.test.application.OpenApiConformanceEngine;
 import vn.viettel.okrkpi.contract.test.domain.ContractViolation;
+import vn.viettel.okrkpi.docgen.application.render.DocumentPorts.TransientFailure;
 import vn.viettel.okrkpi.docgen.application.render.Hashes;
 import vn.viettel.okrkpi.docgen.application.render.RenderInputPort;
 import vn.viettel.okrkpi.docgen.application.render.RenderService;
+import vn.viettel.okrkpi.docgen.application.render.RenderStamp;
 import vn.viettel.okrkpi.docgen.domain.render.RenderJob;
 import vn.viettel.okrkpi.docgen.domain.render.RenderJobStatus;
 import vn.viettel.okrkpi.docgen.domain.render.Template;
@@ -85,6 +91,9 @@ class DocgenFlowIT extends ContractConformanceTest {
 
   static final Map<UUID, List<RenderInputPort.FormRef>> PACKAGES = new ConcurrentHashMap<>();
   static final Map<UUID, byte[]> DATA = new ConcurrentHashMap<>();
+
+  /** Biểu mẫu mà cổng MOD-06 giả lập lỗi tạm thời khi lấy dữ liệu (DV-11-04). */
+  static final Set<UUID> FAILING = ConcurrentHashMap.newKeySet();
 
   @Container
   static final PostgreSQLContainer<?> POSTGRES =
@@ -140,6 +149,9 @@ class DocgenFlowIT extends ContractConformanceTest {
 
         @Override
         public Optional<FormData> data(UUID tenantId, UUID formInstanceId) {
+          if (FAILING.contains(formInstanceId)) {
+            throw new TransientFailure("Mô-đun hồ sơ tạm thời không trả lời", null);
+          }
           return Optional.ofNullable(DATA.get(formInstanceId))
               .map(d -> new FormData(formInstanceId, "MAU_3", d));
         }
@@ -154,13 +166,18 @@ class DocgenFlowIT extends ContractConformanceTest {
   @Autowired private S3Client s3;
 
   private static boolean seeded;
+  private static UUID templateV1;
+  private static UUID templateV2;
 
   @BeforeAll
   static void reset() {
     seeded = false;
   }
 
-  /** Mẫu thử tối giản hai trang có chỗ giữ, tải lên bucket templates và đăng ký phiên bản 1. */
+  /**
+   * Mẫu thử tối giản hai trang có chỗ giữ, tải lên bucket templates: phiên bản 1 đã ngừng (kỳ cũ),
+   * phiên bản 2 đang hiệu lực.
+   */
   private void seedTemplate() throws Exception {
     if (seeded) {
       return;
@@ -170,9 +187,16 @@ class DocgenFlowIT extends ContractConformanceTest {
         s3.createBucket(b -> b.bucket(bucket));
       }
     }
+    templateV1 = registerTemplate(1, "PHIẾU ĐÁNH GIÁ, XẾP LOẠI CHẤT LƯỢNG", TemplateStatus.NGUNG);
+    templateV2 =
+        registerTemplate(2, "PHIẾU ĐÁNH GIÁ, XẾP LOẠI CHẤT LƯỢNG CÁN BỘ", TemplateStatus.HIEU_LUC);
+    seeded = true;
+  }
+
+  private UUID registerTemplate(int version, String title, TemplateStatus status) throws Exception {
     WordprocessingMLPackage pkg = WordprocessingMLPackage.createPackage();
     var main = pkg.getMainDocumentPart();
-    main.addStyledParagraphOfText("Title", "PHIẾU ĐÁNH GIÁ, XẾP LOẠI CHẤT LƯỢNG");
+    main.addStyledParagraphOfText("Title", title);
     main.addParagraphOfText("Họ và tên: ${canBo.hoTen}");
     main.addParagraphOfText("Chức vụ: ${canBo.chucVu}");
     main.addParagraphOfText("Tự đánh giá: ${tuDanhGia}");
@@ -188,24 +212,19 @@ class DocgenFlowIT extends ContractConformanceTest {
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     pkg.save(out);
     byte[] docx = out.toByteArray();
+    String key = "MAU_3/v" + version + ".docx";
     s3.putObject(
-        b -> b.bucket("templates").key("MAU_3/v1.docx"),
+        b -> b.bucket("templates").key(key),
         software.amazon.awssdk.core.sync.RequestBody.fromBytes(docx));
+    UUID id = UUID.randomUUID();
     TenantContext.run(
         TenantId.of(TENANT),
         () ->
             templates.insert(
                 new Template(
-                    UUID.randomUUID(),
-                    TENANT,
-                    "MAU_3",
-                    1,
-                    List.of(),
-                    "MAU_3/v1.docx",
-                    Hashes.sha256(docx),
-                    TemplateStatus.HIEU_LUC),
+                    id, TENANT, "MAU_3", version, List.of(), key, Hashes.sha256(docx), status),
                 APPRAISER));
-    seeded = true;
+    return id;
   }
 
   private static UUID dossierPackage(String hoTen) {
@@ -222,6 +241,80 @@ class DocgenFlowIT extends ContractConformanceTest {
         packageId,
         List.of(new RenderInputPort.FormRef(formId, "MAU_3", null, Hashes.sha256(json))));
     return packageId;
+  }
+
+  /** Gói hồ sơ {@code size} phiếu Mẫu 3 của kỳ có Policy Pack {@code PP-DANG 1.3.0}. */
+  private static UUID dossierPackage(int size, Integer templateVersion) {
+    UUID packageId = UUID.randomUUID();
+    List<RenderInputPort.FormRef> forms = new java.util.ArrayList<>();
+    for (int i = 1; i <= size; i++) {
+      UUID formId = UUID.randomUUID();
+      byte[] json =
+          ("{\"canBo\":{\"hoTen\":\"Cán bộ số "
+                  + i
+                  + "\",\"chucVu\":\"Chuyên viên\"},\"tuDanhGia\":\"Hoàn thành tốt nhiệm vụ\","
+                  + "\"xepLoai\":\"Hoàn thành tốt nhiệm vụ\"}")
+              .getBytes(StandardCharsets.UTF_8);
+      DATA.put(formId, json);
+      forms.add(
+          new RenderInputPort.FormRef(
+              formId, "MAU_3", null, Hashes.sha256(json), templateVersion, "PP-DANG", "1.3.0"));
+    }
+    PACKAGES.put(packageId, List.copyOf(forms));
+    return packageId;
+  }
+
+  /** Sinh mọi tác vụ đang chờ của một lệnh với {@code threads} luồng; trả số phiếu mỗi giây. */
+  private double processAll(UUID requestId, int threads) throws Exception {
+    List<RenderJob> parts = TenantContext.call(TenantId.of(TENANT), () -> service.parts(requestId));
+    ExecutorService pool = Executors.newFixedThreadPool(threads);
+    long started = System.nanoTime();
+    try {
+      boolean pending = true;
+      while (pending) {
+        List<Future<RenderJobStatus>> running = new java.util.ArrayList<>();
+        for (RenderJob part : parts) {
+          running.add(
+              pool.submit(
+                  () ->
+                      TenantContext.call(
+                          TenantId.of(TENANT), () -> service.processOnce(part.id()))));
+        }
+        for (Future<RenderJobStatus> f : running) {
+          f.get();
+        }
+        pending =
+            TenantContext.call(TenantId.of(TENANT), () -> service.parts(requestId)).stream()
+                .anyMatch(p -> p.status() == RenderJobStatus.CHO);
+      }
+    } finally {
+      pool.shutdown();
+    }
+    double seconds = (System.nanoTime() - started) / 1e9;
+    return parts.size() / seconds;
+  }
+
+  private List<Map<String, Object>> outputsOf(UUID requestId) {
+    return jdbc.sql(
+            """
+            SELECT j.form_instance_id, j.template_id, j.package_id, j.policy_pack_code,
+                   o.object_key, o.pdf_sha256, o.pdfa_validated
+              FROM docgen.render_job j JOIN docgen.render_output o ON o.render_job_id = j.id
+             WHERE j.request_id = ?
+            """)
+        .param(requestId)
+        .query()
+        .listOfRows();
+  }
+
+  private long eventsOf(UUID requestId) {
+    return jdbc.sql(
+            "SELECT count(*) FROM docgen.outbox_event WHERE topic = ? AND aggregate_id IN"
+                + " (SELECT id FROM docgen.render_job WHERE request_id = ?)")
+        .param("dossier.form.generated.v1")
+        .param(requestId)
+        .query(Long.class)
+        .single();
   }
 
   private static MockHttpServletRequestBuilder as(MockHttpServletRequestBuilder r, String role) {
@@ -381,6 +474,122 @@ class DocgenFlowIT extends ContractConformanceTest {
     mvc.perform(as(get("/api/v1/jobs/" + requestId), "appraiser"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("THAT_BAI"));
+  }
+
+  /**
+   * DV-11-04: gói 20 hồ sơ sinh đủ 20 tệp đạt PDF/A có tem đọc được từ XMP và đủ 20 EVT-17; một tệp
+   * lỗi tạm thời quá số lần thử thì {@code LOI}, MOD-06 gửi lệnh sinh lại chỉ tệp đó và tệp được
+   * sinh riêng.
+   */
+  @Test
+  void packageOfTwentyIsStampedAndFailedFileIsRegeneratedAlone() throws Exception {
+    seedTemplate();
+    process(idOf(requestRender(dossierPackage("Khởi động"), UUID.randomUUID().toString())));
+    UUID packageId = dossierPackage(20, 2);
+    List<RenderInputPort.FormRef> forms = PACKAGES.get(packageId);
+    UUID failing = forms.get(7).formInstanceId();
+    FAILING.add(failing);
+    UUID requestId = idOf(requestRender(packageId, UUID.randomUUID().toString()));
+
+    double rate = processAll(requestId, 2);
+    System.out.printf("DV-11-04 đo: gói 20 phiếu, 2 luồng, %.2f phiếu/giây%n", rate);
+
+    List<Map<String, Object>> outputs = outputsOf(requestId);
+    assertThat(outputs).hasSize(19);
+    assertThat(eventsOf(requestId)).isEqualTo(19);
+    String error =
+        jdbc.sql("SELECT error FROM docgen.render_job WHERE request_id = ? AND status = 'LOI'")
+            .param(requestId)
+            .query(String.class)
+            .single();
+    assertThat(error).contains("tạm thời");
+    for (Map<String, Object> row : outputs) {
+      assertThat(row.get("pdfa_validated")).isEqualTo(true);
+      assertThat(row.get("package_id")).isEqualTo(packageId);
+      assertThat(row.get("template_id")).isEqualTo(templateV2);
+      byte[] stored =
+          s3.getObjectAsBytes(b -> b.bucket("dossier").key((String) row.get("object_key")))
+              .asByteArray();
+      assertThat(Hashes.sha256(stored)).isEqualTo((byte[]) row.get("pdf_sha256"));
+      Map<String, String> stamp = PdfBoxStamper.read(stored).orElseThrow();
+      UUID formId = (UUID) row.get("form_instance_id");
+      byte[] input =
+          forms.stream()
+              .filter(f -> f.formInstanceId().equals(formId))
+              .findFirst()
+              .orElseThrow()
+              .dataSnapshotHash();
+      assertThat(stamp)
+          .containsEntry(RenderStamp.POLICY_PACK, "PP-DANG")
+          .containsEntry(RenderStamp.POLICY_PACK_VERSION, "1.3.0")
+          .containsEntry(RenderStamp.FORM_CODE, "MAU_3")
+          .containsEntry(RenderStamp.TEMPLATE_VERSION, "2")
+          .containsEntry(RenderStamp.PACKAGE_ID, packageId.toString())
+          .containsEntry(RenderStamp.INPUT_SHA256, java.util.HexFormat.of().formatHex(input));
+    }
+    byte[] first =
+        s3.getObjectAsBytes(b -> b.bucket("dossier").key((String) outputs.get(0).get("object_key")))
+            .asByteArray();
+    assertThat(new VeraPdfValidator().validate(first).compliant()).isTrue();
+    try (org.apache.pdfbox.pdmodel.PDDocument doc = org.apache.pdfbox.Loader.loadPDF(first)) {
+      assertThat(new org.apache.pdfbox.text.PDFTextStripper().getText(doc))
+          .contains("Mẫu 3, phiên bản mẫu 2")
+          .contains("PP-DANG phiên bản 1.3.0");
+    }
+
+    // MOD-06 sinh lại chỉ tệp lỗi: lệnh mới chỉ chứa biểu mẫu đó.
+    FAILING.remove(failing);
+    UUID retryPackage = UUID.randomUUID();
+    PACKAGES.put(
+        retryPackage, forms.stream().filter(f -> f.formInstanceId().equals(failing)).toList());
+    UUID retry = idOf(requestRender(retryPackage, UUID.randomUUID().toString()));
+    assertThat(process(retry)).isEqualTo(RenderJobStatus.XONG);
+    assertThat(outputsOf(retry))
+        .singleElement()
+        .satisfies(row -> assertThat(row.get("form_instance_id")).isEqualTo(failing));
+    assertThat(eventsOf(retry)).isEqualTo(1);
+  }
+
+  /** DV-11-04: kỳ cũ ghim mẫu phiên bản 1 (đã ngừng) vẫn sinh bằng mẫu đó dù đã có phiên bản 2. */
+  @Test
+  void oldPeriodUsesItsPinnedTemplateVersion() throws Exception {
+    seedTemplate();
+    UUID oldPeriod = dossierPackage(1, 1);
+    UUID current = dossierPackage(1, null);
+    UUID oldRequest = idOf(requestRender(oldPeriod, UUID.randomUUID().toString()));
+    UUID currentRequest = idOf(requestRender(current, UUID.randomUUID().toString()));
+    assertThat(process(oldRequest)).isEqualTo(RenderJobStatus.XONG);
+    assertThat(process(currentRequest)).isEqualTo(RenderJobStatus.XONG);
+
+    Map<String, Object> old = outputsOf(oldRequest).get(0);
+    assertThat(old.get("template_id")).isEqualTo(templateV1);
+    byte[] oldPdf =
+        s3.getObjectAsBytes(b -> b.bucket("dossier").key((String) old.get("object_key")))
+            .asByteArray();
+    assertThat(PdfBoxStamper.read(oldPdf).orElseThrow())
+        .containsEntry(RenderStamp.TEMPLATE_VERSION, "1");
+    try (org.apache.pdfbox.pdmodel.PDDocument doc = org.apache.pdfbox.Loader.loadPDF(oldPdf)) {
+      assertThat(new org.apache.pdfbox.text.PDFTextStripper().getText(doc))
+          .doesNotContain("CHẤT LƯỢNG CÁN BỘ");
+    }
+    assertThat(outputsOf(currentRequest).get(0).get("template_id")).isEqualTo(templateV2);
+  }
+
+  /**
+   * Đo thông lượng cục bộ theo số luồng tới một Gotenberg (DV-11-04). Chỉ in số đo để ghi báo cáo;
+   * không đặt ngưỡng vì máy kiểm thử khác cụm thật (giai đoạn này chỉ ghi nhận hiệu năng).
+   */
+  @Test
+  void localThroughputByThreads() throws Exception {
+    seedTemplate();
+    process(idOf(requestRender(dossierPackage("Khởi động"), UUID.randomUUID().toString())));
+    for (int threads : new int[] {1, 2, 4}) {
+      UUID request = idOf(requestRender(dossierPackage(12, null), UUID.randomUUID().toString()));
+      double rate = processAll(request, threads);
+      assertThat(outputsOf(request)).hasSize(12);
+      System.out.printf(
+          "DV-11-04 đo: 12 phiếu, %d luồng, một Gotenberg, %.2f phiếu/giây%n", threads, rate);
+    }
   }
 
   @Test

@@ -400,7 +400,8 @@ public class JdbcPolicyPackRepository implements PolicyPackRepository {
   @Override
   public List<PolicyBinding> bindings(TenantId tenant, UUID versionId) {
     return jdbc.sql(
-            "SELECT id, period_id, flow, subject_group_id, org_unit_id, is_frozen"
+            "SELECT id, period_id, flow, subject_group_id, org_unit_id, is_frozen,"
+                + " customer_profile_version_id"
                 + " FROM policy.policy_binding WHERE tenant_id = ? AND policy_pack_version_id = ?"
                 + " ORDER BY id")
         .param(tenant.value())
@@ -413,7 +414,8 @@ public class JdbcPolicyPackRepository implements PolicyPackRepository {
                     rs.getString("flow"),
                     rs.getObject("subject_group_id", UUID.class),
                     rs.getObject("org_unit_id", UUID.class),
-                    rs.getBoolean("is_frozen")))
+                    rs.getBoolean("is_frozen"),
+                    rs.getObject("customer_profile_version_id", UUID.class)))
         .list();
   }
 

@@ -253,7 +253,7 @@ components:
     EsignPurpose:
       description: Mốc pháp lý của yêu cầu ký (`esign.sign_request.purpose`).
       type: string
-      enum: [TU_DANH_GIA, THAM_DINH, QUYET_DINH, BIEN_BAN, GOI_HO_SO, PHE_DUYET_MO_LAI, PHAT_HANH_POLICY]
+      enum: [TU_DANH_GIA, THAM_DINH, QUYET_DINH, BIEN_BAN, GOI_HO_SO, PHE_DUYET_MO_LAI, PHAT_HANH_POLICY, KHIEU_NAI]
     EsignProvider:
       description: Nhà cung cấp chữ ký số (`esign.sign_request.provider`).
       type: string

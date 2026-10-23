@@ -25,7 +25,7 @@ export class ReopenApi {
 
   list(filter: ReopenRequestFilter = {}): Observable<ReopenRequest[]> {
     let params = new HttpParams().set('limit', MAX_PAGE_LIMIT);
-    if (filter.periodId) params = params.set('periodId', filter.periodId);
+    if (filter.periodId) params = params.set('period', filter.periodId);
     if (filter.status?.length) params = params.set('status', filter.status.join(','));
     if (filter.awaitingMyApproval) params = params.set('awaitingMyApproval', true);
     return this.http

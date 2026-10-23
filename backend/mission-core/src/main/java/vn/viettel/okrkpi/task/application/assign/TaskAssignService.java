@@ -70,6 +70,7 @@ public class TaskAssignService {
           "BR-05-02", "acceptorId",
           "BR-05-03", "productName",
           "BR-05-04", "planItemId",
+          "BR-05-08", "source",
           "BR-05-09", "basis",
           "BR-04-03", "title");
 
@@ -292,6 +293,24 @@ public class TaskAssignService {
     return done;
   }
 
+  /**
+   * Giao nhiệm vụ cán bộ đăng ký khi người quản lý trực tiếp duyệt (CORE-02-17): cùng các quy tắc
+   * chặn của {@link #assignTask}, BR-05-08 coi là đạt; chạy ASSIGN rồi ghi EVT-04, EVT-21. Người
+   * gọi đã kiểm khoá kỳ trong cùng giao dịch.
+   */
+  Assigned assignRegistration(TenantId tenant, UUID taskId, long expected, TaskActor actor) {
+    DraftRow draft = repository.findDraft(tenant, taskId).orElseThrow(NoSuchElementException::new);
+    TaskDraftService.requireDraft(draft, expected);
+    PeriodSnapshot period = drafts.period(tenant, draft.periodId());
+    requirePassed(
+        rules(tenant, draft.spec(), period, draft.periodBucket(), draft.assignerId(), true));
+    List<AssigneeRow> assignees = repository.assignees(tenant, draft.periodBucket(), taskId);
+    requireMode(tenant, draft, assignees);
+    requireKeyResult(tenant, draft.spec());
+    requireActive(tenant, draft.spec().leadPersonId());
+    return doAssign(tenant, draft, assignees, null, expected, actor);
+  }
+
   private void requireMode(TenantId tenant, DraftRow draft, List<AssigneeRow> assignees) {
     TaskTreeService tree = drafts.tree();
     if (tree != null) {
@@ -426,6 +445,16 @@ public class TaskAssignService {
 
   private List<CheckItem> rules(
       TenantId tenant, TaskDraftSpec spec, PeriodSnapshot period, int bucket, UUID assigner) {
+    return rules(tenant, spec, period, bucket, assigner, false);
+  }
+
+  private List<CheckItem> rules(
+      TenantId tenant,
+      TaskDraftSpec spec,
+      PeriodSnapshot period,
+      int bucket,
+      UUID assigner,
+      boolean registrationApproved) {
     boolean planApproved =
         spec.planItemId() != null && repository.planItemApproved(tenant, bucket, spec.planItemId());
     return AssignmentRules.check(
@@ -435,7 +464,8 @@ public class TaskAssignService {
             period.endDate(),
             planApproved,
             assigner,
-            vagueWords.apply(tenant)));
+            vagueWords.apply(tenant),
+            registrationApproved));
   }
 
   static void requirePassed(List<CheckItem> items) {
