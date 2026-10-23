@@ -258,7 +258,7 @@ public class VneidIdentityProvider extends OIDCIdentityProvider {
       TOKEN_ANSWERED.set(false);
       TOKEN_ATTEMPTED.set(false);
       try {
-        Response r = super.authResponse(state, authorizationCode, error, errorDescription);
+        Response r = super.authResponse(state, authorizationCode, null, errorDescription);
         if (TOKEN_ANSWERED.get()) {
           breaker.success();
           return r;
