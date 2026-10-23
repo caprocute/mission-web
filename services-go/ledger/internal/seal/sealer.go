@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -99,7 +100,11 @@ type Sealer struct {
 	Now       func() time.Time
 
 	outbox *outbox.Writer
+	last   atomic.Int64
 }
+
+// LastSealed là thời điểm (Unix giây) niêm phong gần nhất thành công của tiến trình; 0 nếu chưa có.
+func (s *Sealer) LastSealed() int64 { return s.last.Load() }
 
 func (s *Sealer) now() time.Time {
 	if s.Now != nil {
@@ -295,6 +300,7 @@ func (s *Sealer) SealWindow(ctx context.Context, windowEnd time.Time, kind strin
 		res.Tenants = append(res.Tenants, ts)
 	}
 	if len(res.Tenants) == 0 {
+		s.last.Store(s.now().Unix()) // cửa sổ không có bản ghi mới vẫn là một lượt niêm phong đúng hạn
 		return res, nil
 	}
 	cellLeaves := make([][32]byte, len(res.Tenants))
@@ -332,6 +338,7 @@ func (s *Sealer) SealWindow(ctx context.Context, windowEnd time.Time, kind strin
 		return nil, err
 	}
 	s.count("ledger.seal.cell_seals_total")
+	s.last.Store(s.now().Unix())
 	return res, nil
 }
 

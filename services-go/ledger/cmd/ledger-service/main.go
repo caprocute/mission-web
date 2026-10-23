@@ -107,6 +107,7 @@ func main() {
 	verifier := &verify.Service{Pool: pool, Cell: cfg.CellCode, OTel: otelProvider, Log: log,
 		Engine: &verify.Engine{Pool: pool, Workers: cfg.VerifyWorker, Certs: sealCerts}}
 	verifySched := &verify.Scheduler{Service: verifier}
+	var lastSeal func() int64
 	if cfg.SealEnabled {
 		sealer, anchorer, err := sealers()
 		if err != nil {
@@ -114,6 +115,7 @@ func main() {
 			os.Exit(1)
 		}
 		sealer.AfterSeal = verifySched.AfterSeal
+		lastSeal = sealer.LastSealed
 		go func() { _ = sealer.Run(ctx, *sealer.Schedule, cfg.SealGrace) }()
 		go anchorer.Run(ctx, func(msg string, args ...any) { log.Error(msg, args...) })
 	}
@@ -127,6 +129,15 @@ func main() {
 		Stats:        ing.Stats,
 		Verify:       verifier,
 		Auditor:      ing,
+		Lag:          ing.LagHistogram,
+		LagBounds:    ingest.LagBounds,
+		Gauges: func() map[string]float64 {
+			g := map[string]float64{"ledger.verify.last_finished_seconds": float64(verifier.LastFinished())}
+			if lastSeal != nil {
+				g["ledger.seal.last_sealed_seconds"] = float64(lastSeal())
+			}
+			return g
+		},
 	}
 	if cfg.JWKSURL != "" || strings.EqualFold(os.Getenv("AUTH_ENABLED"), "false") {
 		deps.Auth = auth.NewJWKSVerifier(auth.JWKSConfig{JWKSURL: cfg.JWKSURL, Issuers: cfg.Issuers, Audience: cfg.Audience})

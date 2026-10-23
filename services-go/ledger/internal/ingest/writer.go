@@ -579,9 +579,18 @@ type stats struct {
 	lagMs   []float64
 	total   int64
 	byChain map[int16]int64
+	// Histogram độ trễ (giây) cho vt_ledger_lag_seconds (luật LedgerLagHigh, SLO-LEDGER 30 giây).
+	lagBuckets []uint64
+	lagSum     float64
+	lagCount   uint64
 }
 
-func newStats() *stats { return &stats{started: time.Now(), byChain: map[int16]int64{}} }
+// LagBounds là cận trên các bucket histogram độ trễ ghi sổ cái (giây).
+var LagBounds = []float64{0.5, 1, 2.5, 5, 10, 30, 60, 120}
+
+func newStats() *stats {
+	return &stats{started: time.Now(), byChain: map[int16]int64{}, lagBuckets: make([]uint64, len(LagBounds))}
+}
 
 func (s *stats) observe(_ uuid.UUID, chain int16, n int, recordedAt time.Time, evs []EventInput) {
 	s.mu.Lock()
@@ -589,7 +598,15 @@ func (s *stats) observe(_ uuid.UUID, chain int16, n int, recordedAt time.Time, e
 	s.total += int64(n)
 	s.byChain[chain] += int64(n)
 	for _, ev := range evs {
-		s.lagMs = append(s.lagMs, float64(recordedAt.Sub(ev.OccurredAt).Microseconds())/1000)
+		lag := recordedAt.Sub(ev.OccurredAt).Seconds()
+		s.lagMs = append(s.lagMs, lag*1000)
+		s.lagSum += lag
+		s.lagCount++
+		for i, b := range LagBounds {
+			if lag <= b {
+				s.lagBuckets[i]++
+			}
+		}
 	}
 	if over := len(s.lagMs) - 4096; over > 0 {
 		s.lagMs = s.lagMs[over:]
@@ -611,6 +628,14 @@ func (ing *Ingester) Stats() map[string]float64 {
 		out[fmt.Sprintf("ledger.ingest.chain.%02d.entries_per_second", c)] = float64(n) / elapsed
 	}
 	return out
+}
+
+// LagHistogram trả histogram tích luỹ độ trễ: số mẫu ≤ từng cận của LagBounds, tổng và số mẫu.
+func (ing *Ingester) LagHistogram() ([]uint64, float64, uint64) {
+	s := ing.stats
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]uint64(nil), s.lagBuckets...), s.lagSum, s.lagCount
 }
 
 func p99(samples []float64) float64 {

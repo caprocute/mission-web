@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -91,6 +92,8 @@ type Service struct {
 	Log    *slog.Logger
 	// MaxConcurrent giới hạn số lần kiểm tra chạy đồng thời (mặc định 2).
 	MaxConcurrent int
+
+	lastFinished atomic.Int64
 
 	once   sync.Once
 	sem    chan struct{}
@@ -207,6 +210,9 @@ func (s *Service) Create(ctx context.Context, req Request, requestedBy *uuid.UUI
 	return run, false, nil
 }
 
+// LastFinished là thời điểm (Unix giây) lần kiểm tra gần nhất kết thúc thành công; 0 nếu chưa có.
+func (s *Service) LastFinished() int64 { return s.lastFinished.Load() }
+
 // Wait chờ các lần kiểm tra đang chạy nền (dùng khi dừng dịch vụ và trong kiểm thử).
 func (s *Service) Wait() { s.wg.Wait() }
 
@@ -299,7 +305,9 @@ func (s *Service) Execute(ctx context.Context, id uuid.UUID, req Request) {
 	}
 	if err := s.finish(ctx, id, req, rep, time.Since(started)); err != nil {
 		s.log().Error("không ghi được kết quả kiểm tra toàn vẹn", "verify_run_id", id, "err", err)
+		return
 	}
+	s.lastFinished.Store(time.Now().Unix())
 }
 
 func (s *Service) finish(ctx context.Context, id uuid.UUID, req Request, rep *Report, took time.Duration) error {
@@ -366,7 +374,7 @@ func (s *Service) finish(ctx context.Context, id uuid.UUID, req Request, rep *Re
 	}
 	if rep.Mismatches > 0 {
 		s.count("ledger.verify.mismatches_total", int64(rep.Mismatches))
-		s.count("ledger.verify.chain_broken_total", 1)
+		s.count("ledger.verify.failures_total", 1)
 		// Cảnh báo nghiêm trọng cho SOC: nhật ký kiểm toán mức lỗi, không chứa dữ liệu nghiệp vụ.
 		s.log().Error("SOC: phát hiện phá vỡ toàn vẹn sổ cái", "audit", true, "verify_run_id", id,
 			"tenant_id", req.TenantID, "kind", req.Kind, "mismatches", rep.Mismatches, "reason", rep.First.Reason,

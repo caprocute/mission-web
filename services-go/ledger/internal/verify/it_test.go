@@ -214,8 +214,8 @@ func TestSuaTrucTiepBiPhatHien(t *testing.T) {
 	if n := e.count(t, `SELECT count(*) FROM ledger.chain_head WHERE tenant_id = $1 AND is_locked`, tn); n != 1 {
 		t.Fatalf("số chuỗi bị khoá = %d", n)
 	}
-	if got := e.otel.CounterValue("ledger.verify.chain_broken_total"); got != 1 {
-		t.Fatalf("chain_broken_total = %d", got)
+	if got := e.otel.CounterValue("ledger.verify.failures_total"); got != 1 {
+		t.Fatalf("failures_total = %d", got)
 	}
 	// Chuỗi bị khoá không nhận ghi mới.
 	agg := uuid.New()
