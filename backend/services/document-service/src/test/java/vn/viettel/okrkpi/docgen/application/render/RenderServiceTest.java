@@ -185,7 +185,7 @@ class RenderServiceTest {
     form("{\"hoTen\":\"Trần Thị B\"}");
     UUID requestId = UUID.randomUUID();
     Job job = request(requestId);
-    assertThat(job.id()).isEqualTo(requestId.toString());
+    assertThat(job.id()).isEqualTo("doc-" + requestId);
     assertThat(job.type()).isEqualTo("RENDER");
     assertThat(job.status()).isEqualTo(JobStatus.CHO);
     assertThat(job.progress()).isZero();
