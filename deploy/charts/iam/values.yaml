@@ -79,12 +79,34 @@ realm:
   # Độ ưu tiên khoá ký ES256 sinh trong realm; xoay khoá bằng cách thêm khoá có độ ưu tiên cao hơn.
   signingKeyPriority: 200
 
+  # DV-02-04: VNeID qua môi giới danh tính. Mặc định trỏ IdP giả lập (không có VNeID thật trong repo); môi trường
+  # thử, production đặt địa chỉ, client theo hồ sơ tích hợp VNeID ở deploy/environments/<môi-trường>/iam/.
+  # Đổi giả lập sang VNeID thật chỉ đổi các giá trị này và bí mật trong OpenBao, không đổi mã.
+  vneid:
+    enabled: false
+    issuer: https://vneid-gia-lap.example.invalid
+    authorizationUrl: https://vneid-gia-lap.example.invalid/authorize
+    tokenUrl: https://vneid-gia-lap.example.invalid/token
+    jwksUrl: https://vneid-gia-lap.example.invalid/jwks
+    clientId: mission
+    # client_secret_post | client_secret_basic | client_secret_jwt | private_key_jwt (theo đặc tả VNeID)
+    clientAuthMethod: client_secret_post
+    scope: openid
+    # Tên claim chưa có tài liệu chính thức (suy luận, wiki/14).
+    levelClaim: muc_dinh_danh
+    nationalIdClaim: so_dinh_danh
+    breaker:
+      failures: 5
+      openSeconds: 30
+
 secrets:
   # Secret Kubernetes chứa bí mật cho Job, do External Secrets đồng bộ từ OpenBao (SEC-10, SEC-11).
   name: iam-realm-import
   keys:
     configCliClientSecret: config-cli-client-secret
     apisixClientSecret: apisix-gateway-client-secret
+    vneidClientSecret: vneid-client-secret
+    iamBrokerClientSecret: iam-broker-client-secret
 
 externalSecret:
   enabled: true
@@ -99,6 +121,12 @@ externalSecret:
       property: config-cli-client-secret
     apisixClientSecret:
       key: iam/apisix-gateway
+      property: client-secret
+    vneidClientSecret:
+      key: iam/vneid
+      property: client-secret
+    iamBrokerClientSecret:
+      key: iam/iam-broker
       property: client-secret
 
 job:
@@ -148,6 +176,18 @@ mayChu:
     - { name: KC_CACHE, value: ispn }
     - { name: KC_CACHE_STACK, value: kubernetes }
     - { name: KC_PROXY_HEADERS, value: xforwarded }
+    # DV-02-04: môi giới VNeID gọi cổng nội bộ org-service bằng tài khoản dịch vụ mission-iam-broker.
+    - { name: MISSION_ORG_SERVICE_URL, value: "http://org-service.identity.svc.cluster.local" }
+    - { name: MISSION_IAM_BROKER_TOKEN_URL, value: "http://localhost:8080/realms/okrkpi/protocol/openid-connect/token" }
+    - { name: MISSION_IAM_BROKER_CLIENT_ID, value: mission-iam-broker }
+  # DV-02-04: khoá HMAC liên kết VNeID và secret tài khoản dịch vụ, từ OpenBao (không có giá trị trong repo).
+  externalSecret:
+    enabled: true
+    data:
+      - { secretKey: MISSION_VNEID_LINK_KEY, remoteRef: { key: iam/vneid, property: link-key } }
+      - { secretKey: MISSION_IAM_BROKER_CLIENT_SECRET, remoteRef: { key: iam/iam-broker, property: client-secret } }
+  envFrom:
+    - secretRef: { name: keycloak-secrets }
   probes:
     startup: { path: /health/started, port: mgmt, periodSeconds: 5, failureThreshold: 36 }
     liveness: { path: /health/live, port: mgmt }
@@ -168,6 +208,9 @@ mayChu:
     egressTo:
       - { namespace: data-pg, podLabels: { cnpg.io/poolerName: pg-iam-pooler-rw }, ports: [{ port: 5432 }] }
       - { namespace: identity, podLabels: { app.kubernetes.io/name: keycloak }, ports: [{ port: 7800 }] }
+      # DV-02-04: tra người theo số định danh ở org-service; gọi VNeID ra ngoài qua egress gateway của cell.
+      - { namespace: identity, podLabels: { app.kubernetes.io/name: org-service }, ports: [{ port: 8080 }] }
+      - { namespace: egress, podLabels: { app.kubernetes.io/name: egress-gateway }, ports: [{ port: 443 }], internet: true }
 
 # DV-02-06: consumer EVT-16 đồng bộ người dùng sang Keycloak (backend/services/iam/user-sync).
 userSync:

@@ -46,6 +46,14 @@ localizationTexts:
     accountTemporarilyDisabledMessage: Tài khoản tạm khoá do đăng nhập sai nhiều lần.
     # Khoá cố định sau 20 lần sai trong 24 giờ (TL-04 SEC-14): chỉ quản trị mở khoá.
     accountPermanentlyDisabledMessage: Tài khoản đã bị khoá do đăng nhập sai nhiều lần. Đồng chí liên hệ quản trị đơn vị để được mở khoá.
+    # DV-02-04 · MSG-00-03 (VNeID mức 1, BR-00-03)
+    vneidLevelMessage: Tài khoản VNeID của đồng chí chưa ở mức 2. Vui lòng nâng mức tài khoản hoặc dùng tài khoản cơ quan.
+    # DV-02-04 · MSG-00-04 (VNeID quá thời gian, lỗi hoặc bộ ngắt mạch đang mở)
+    vneidUnavailableMessage: Dịch vụ VNeID đang gián đoạn. Đồng chí có thể đăng nhập bằng tài khoản cơ quan.
+    # DV-02-04 · TL-02a QT-00: không khớp hồ sơ thì không tự tạo tài khoản, hướng tới quản trị tenant (chưa có mã MSG)
+    vneidNotLinkedMessage: Chưa tìm thấy hồ sơ cán bộ khớp với tài khoản VNeID của đồng chí. Đồng chí liên hệ quản trị đơn vị để được liên kết tài khoản.
+    # DV-02-04 · BR-00-04: liên kết trùng bị từ chối, chuyển quản trị tenant xử lý (chưa có mã MSG)
+    vneidAlreadyLinkedMessage: Hồ sơ cán bộ hoặc tài khoản VNeID này đã được liên kết với một danh tính khác. Đồng chí liên hệ quản trị đơn vị để được xử lý.
 
 # ---------------------------------------------------------------------------
 # Token và phiên (TL-04 SEC-16; TL-01 SVC-02; TL-02a QT-00). Xem điểm lệch ở wiki/14.
@@ -124,6 +132,10 @@ enabledEventTypes:
   - IDENTITY_PROVIDER_LOGIN
   - IDENTITY_PROVIDER_LOGIN_ERROR
   - IDENTITY_PROVIDER_LINK_ACCOUNT
+  # DV-02-04: kiểm toán liên kết danh tính VNeID (từ chối mức 1, không khớp, liên kết trùng BR-00-04).
+  - IDENTITY_PROVIDER_LINK_ACCOUNT_ERROR
+  - FEDERATED_IDENTITY_LINK
+  - FEDERATED_IDENTITY_LINK_ERROR
 adminEventsEnabled: true
 adminEventsDetailsEnabled: false
 
@@ -310,6 +322,76 @@ authenticationFlows:
         requirement: REQUIRED
         priority: 20
         authenticatorFlow: false
+  # DV-02-04 · QT-00 bước 3: luồng sau môi giới VNeID. Nhà cung cấp mission-vneid đã kiểm mức tài khoản, khớp người
+  # qua org-service và chặn liên kết trùng; bước mission-vneid-link chỉ gắn danh tính vào người đã khớp (không có bước
+  # tạo tài khoản) và đặt bậc xác thực 2 (VNeID mức 2 coi như đạt MFA, TL-04).
+  - alias: mission-vneid-first-login
+    description: Đăng nhập VNeID lần đầu, gắn vào người đã có (DV-02-04)
+    providerId: basic-flow
+    topLevel: true
+    builtIn: false
+    authenticationExecutions:
+      - authenticator: mission-vneid-link
+        requirement: REQUIRED
+        priority: 10
+        authenticatorFlow: false
+  - alias: mission-vneid-post-login
+    description: Đăng nhập VNeID đã liên kết, đặt bậc xác thực 2 (DV-02-04)
+    providerId: basic-flow
+    topLevel: true
+    builtIn: false
+    authenticationExecutions:
+      - authenticator: mission-vneid-link
+        requirement: REQUIRED
+        priority: 10
+        authenticatorFlow: false
+
+# ---------------------------------------------------------------------------
+# DV-02-04 · VNeID qua môi giới danh tính (TL-01 bảng bộ kết nối: OIDC Authorization Code + PKCE, state, nonce; L03).
+#   Keycloak tự kiểm state (chống CSRF) và nonce trong id_token; PKCE S256 bật ở cấu hình. Không lưu token VNeID
+#   (storeToken false), không nhập hồ sơ ghi đè (syncMode IMPORT), không tin thư điện tử.
+#   Tên claim mức tài khoản và số định danh chưa có tài liệu chính thức (suy luận, wiki/14): để biến.
+#   client secret VNeID lấy từ OpenBao qua Secret của Job; khoá liên kết HMAC và tài khoản dịch vụ gọi org-service
+#   nằm trong Secret của pod Keycloak (MISSION_VNEID_LINK_KEY, MISSION_IAM_BROKER_CLIENT_SECRET), không trong mẫu.
+#   Tenant để so khớp lấy từ tham số tenant_id của yêu cầu xác thực (ứng dụng gửi sau resolveTenantCell).
+# ---------------------------------------------------------------------------
+identityProviders:
+  - alias: vneid
+    providerId: mission-vneid
+    displayName: VNeID
+    enabled: $(env:MISSION_VNEID_ENABLED)
+    trustEmail: false
+    storeToken: false
+    addReadTokenRoleOnCreate: false
+    linkOnly: false
+    hideOnLogin: false
+    firstBrokerLoginFlowAlias: mission-vneid-first-login
+    postBrokerLoginFlowAlias: mission-vneid-post-login
+    config:
+      issuer: $(env:MISSION_VNEID_ISSUER)
+      authorizationUrl: $(env:MISSION_VNEID_AUTHORIZATION_URL)
+      tokenUrl: $(env:MISSION_VNEID_TOKEN_URL)
+      jwksUrl: $(env:MISSION_VNEID_JWKS_URL)
+      useJwksUrl: "true"
+      validateSignature: "true"
+      clientId: $(env:MISSION_VNEID_CLIENT_ID)
+      clientSecret: $(env:MISSION_VNEID_CLIENT_SECRET)
+      clientAuthMethod: $(env:MISSION_VNEID_CLIENT_AUTH_METHOD)
+      pkceEnabled: "true"
+      pkceMethod: S256
+      defaultScope: $(env:MISSION_VNEID_SCOPE)
+      disableUserInfo: "true"
+      disableNonce: "false"
+      syncMode: IMPORT
+      backchannelSupported: "false"
+      missionLevelClaim: $(env:MISSION_VNEID_LEVEL_CLAIM)
+      missionNationalIdClaim: $(env:MISSION_VNEID_NATIONAL_ID_CLAIM)
+      missionRequiredLevel: "2"
+      missionTenantParam: tenant_id
+      # QT-00: ngắt sau 10 giây; mở mạch sau 5 lần lỗi liên tiếp trong 30 giây.
+      missionTimeoutMillis: "10000"
+      missionBreakerFailures: $(env:MISSION_VNEID_BREAKER_FAILURES)
+      missionBreakerOpenSeconds: $(env:MISSION_VNEID_BREAKER_OPEN_SECONDS)
 
 # Khoá ký ES256 (P-256). Khoá sinh trong Keycloak của cell, xoay vòng bằng cách thêm khoá ưu tiên cao hơn.
 components:
@@ -357,6 +439,10 @@ roles:
       description: AC-10 Cơ quan kiểm tra, giám sát
     - name: ai_readonly
       description: AC-12 Trợ lý AI (chỉ đọc)
+    # Vai trò dịch vụ (không thuộc ma trận AC, không gán cho người): tài khoản dịch vụ môi giới VNeID gọi
+    # cổng nội bộ tra người theo số định danh của org-service (DV-02-04).
+    - name: svc_iam
+      description: Dịch vụ môi giới danh tính của Keycloak gọi cổng nội bộ org-service
 
 # ---------------------------------------------------------------------------
 # DV-02-02 · QT-00 bước 7: client scope mang claim ngữ cảnh (tenant_id, tenant, cell, unit_id,
@@ -450,6 +536,29 @@ clients:
     optionalClientScopes:
       - organization
 
+  # DV-02-04: tài khoản dịch vụ của chính Keycloak gọi org-service khi liên kết VNeID (client credentials).
+  - clientId: mission-iam-broker
+    name: Môi giới danh tính VNeID gọi org-service (SVC-02)
+    protocol: openid-connect
+    enabled: true
+    publicClient: false
+    clientAuthenticatorType: client-secret
+    secret: $(env:MISSION_IAM_BROKER_CLIENT_SECRET)
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+    # Token chỉ mang svc_iam: tài khoản dịch vụ không có vai trò nào khác.
+    fullScopeAllowed: true
+    redirectUris: []
+    webOrigins: []
+    attributes:
+      oauth2.device.authorization.grant.enabled: "false"
+      oidc.ciba.grant.enabled: "false"
+      access.token.signed.response.alg: ES256
+    defaultClientScopes:
+      - roles
+
   # Cổng APISIX (SVC-01) chỉ kiểm token (introspection, JWKS); không phát token cho người dùng.
   - clientId: apisix-gateway
     name: Cổng API (SVC-01), chỉ kiểm token
@@ -469,3 +578,11 @@ clients:
     attributes:
       oauth2.device.authorization.grant.enabled: "false"
       oidc.ciba.grant.enabled: "false"
+
+# DV-02-04: vai trò của tài khoản dịch vụ mission-iam-broker (không phải tài khoản người, không có mật khẩu).
+users:
+  - username: service-account-mission-iam-broker
+    enabled: true
+    serviceAccountClientId: mission-iam-broker
+    realmRoles:
+      - svc_iam
