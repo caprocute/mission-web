@@ -1,0 +1,105 @@
+{{- $v := .Values }}
+{{- if not $v.cell }}
+{{- fail "cell là bắt buộc (nhãn trong nhật ký và thông báo kênh trực)" }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: degrade-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "degrade-controller.labels" . | nindent 4 }}
+spec:
+  # Một bản, Recreate: trạng thái cảnh báo nằm trong bộ nhớ, không để hai bản cùng ghi. Khởi động lại thì đọc
+  # mức đang ghi trên ApisixPluginConfig và Alertmanager gửi lại cảnh báo theo repeat_interval.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: { app.kubernetes.io/name: degrade-controller }
+  template:
+    metadata:
+      labels:
+        {{- include "degrade-controller.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: degrade-controller
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: controller
+          image: {{ include "degrade-controller.image" . | quote }}
+          imagePullPolicy: {{ $v.image.pullPolicy }}
+          env:
+            - { name: CELL, value: {{ $v.cell | quote }} }
+            - { name: PORT, value: {{ $v.port | quote }} }
+            - { name: BASE_LEVEL, value: {{ $v.baseLevel | quote }} }
+            - { name: HOLD_DOWN, value: {{ $v.holdDown | quote }} }
+            - { name: PIN_DEFAULT_TTL, value: {{ $v.pin.defaultTTL | quote }} }
+            - { name: PIN_MAX_TTL, value: {{ $v.pin.maxTTL | quote }} }
+            - { name: ESCALATE_AFTER, value: {{ $v.escalateAfter | quote }} }
+            - { name: ALERT_STALE_AFTER, value: {{ $v.alertStaleAfter | quote }} }
+            - { name: RECONCILE_INTERVAL, value: {{ $v.reconcileInterval | quote }} }
+            - { name: TICK_INTERVAL, value: {{ $v.tickInterval | quote }} }
+            - { name: GATEWAY_NAMESPACES, value: {{ join "," $v.gatewayNamespaces | quote }} }
+            - { name: JOB_NAMESPACES, value: {{ join "," $v.jobNamespaces | quote }} }
+            - { name: LEVELS_DIR, value: /etc/vt-degrade }
+            - { name: WEBHOOK_TOKEN_FILE, value: /var/run/vt-degrade/token }
+            {{- with $v.alertLevels }}
+            {{- $pairs := list }}
+            {{- range $name, $lv := . }}{{ $pairs = append $pairs (printf "%s=%v" $name $lv) }}{{ end }}
+            - { name: ALERT_LEVELS, value: {{ join "," $pairs | quote }} }
+            {{- end }}
+            {{- with $v.notify.url }}
+            - { name: NOTIFY_URL, value: {{ . | quote }} }
+            {{- end }}
+            {{- if $v.notify.tokenSecret.name }}
+            - { name: NOTIFY_TOKEN_FILE, value: /var/run/vt-notify/token }
+            {{- end }}
+          ports:
+            - { name: http, containerPort: {{ $v.port | int }} }
+          resources:
+            {{- toYaml $v.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+          volumeMounts:
+            - { name: levels, mountPath: /etc/vt-degrade, readOnly: true }
+            - { name: token, mountPath: /var/run/vt-degrade, readOnly: true }
+            {{- if $v.notify.tokenSecret.name }}
+            - { name: notify-token, mountPath: /var/run/vt-notify, readOnly: true }
+            {{- end }}
+      volumes:
+        - name: levels
+          configMap: { name: {{ $v.levelsConfigMap }} }
+        - name: token
+          secret:
+            secretName: {{ $v.webhookToken.secretName }}
+            items: [{ key: {{ $v.webhookToken.key }}, path: token }]
+        {{- if $v.notify.tokenSecret.name }}
+        - name: notify-token
+          secret:
+            secretName: {{ $v.notify.tokenSecret.name }}
+            items: [{ key: {{ $v.notify.tokenSecret.key }}, path: token }]
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: degrade-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "degrade-controller.labels" . | nindent 4 }}
+spec:
+  selector: { app.kubernetes.io/name: degrade-controller }
+  ports:
+    - { name: http, port: {{ $v.port | int }}, targetPort: http }

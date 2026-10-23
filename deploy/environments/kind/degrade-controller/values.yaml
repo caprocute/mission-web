@@ -1,0 +1,11 @@
+# INF-25 · Giá trị chart degrade-controller cho cụm kind (dev). Dùng khi api-gateway chạy chế độ controller với
+# degrade.controller.external=true; ở chế độ standalone mặc định của kind thì không cài chart này.
+cell: kind-dev
+image:
+  repository: localhost/mission/degrade-controller
+  tag: dev
+  pullPolicy: Never
+# Rút ngắn chống dao động để thử hạ mức trên kind; môi trường dùng chung giữ mặc định 10 phút.
+holdDown: 2m
+jobNamespaces: [workers]
+podMonitor: false
