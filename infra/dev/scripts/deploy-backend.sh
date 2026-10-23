@@ -143,7 +143,9 @@ done
 declare -A RUNNER_SCHEMAS=(
   [mission-core]="keyring,modulith,config,policy,okr,task,product,appraisal,dossier,oversight,org_replica"
   [scoring-service]=scoring
+  [document-service]=docgen
   [evidence-service]=evidence
+  [esign-service]=esign
   [integration-gateway]=integ
 )
 run_migration_runner() {
@@ -190,9 +192,10 @@ if [[ "${SKIP_MIGRATE:-0}" != "1" ]]; then
     compose run --rm --no-deps -T -e SPRING_PROFILES_ACTIVE=migrate \
       -e ORG_DB_URL="jdbc:postgresql://postgres:5432/${POSTGRES_DB:-mission}?currentSchema=org" org-service
   fi
-  # workflow-service (flowable), document-service (docgen) và esign-service (esign) tự chạy Flyway lúc khởi động
-  # bằng mig_<schema> (docker-compose.yml): migration của hai schema sau tự tạo outbox, inbox, idempotency nên
-  # không chạy chung với phần V0_x của MigrationRunner (trùng bảng outbox_event).
+  # docgen và esign là schema tự chứa (migration riêng tự tạo outbox, inbox, idempotency): MigrationRunner chỉ áp
+  # thư mục riêng của service và gỡ phần V0_x đã lỡ áp ở lần triển khai cũ (DatabaseLayout.SELF_CONTAINED_SCHEMAS),
+  # nên Flyway của service lúc khởi động (docker-compose.yml) không còn gì để áp. workflow-service (flowable) tự
+  # chạy Flyway lúc khởi động bằng mig_flowable.
   selected tenant-registry && run_go_migration "${POSTGRES_DB:-mission}" \
     "${REPO_ROOT}/services-go/tenant-registry/db/migration/registry" registry.tenant
   selected ledger-service && run_go_migration ledger \

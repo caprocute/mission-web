@@ -58,6 +58,23 @@ public enum DatabaseLayout {
     return !TECHNICAL_SCHEMAS.contains(schema);
   }
 
+  /**
+   * Schema nghiệp vụ tự chứa: migration riêng của service tự tạo {@code outbox_event}, {@code
+   * inbox_*}, {@code idempotency_key} (phân vùng DEFAULT, không cần pg_partman) và Flyway của chính
+   * service cũng áp được, nên {@code MigrationRunner} không thêm phần dùng chung V0_x cho các
+   * schema này; thêm vào thì trùng bảng {@code outbox_event} (org-service V4, workflow-service V3,
+   * document-service V1, esign-service V1).
+   */
+  public static final List<String> SELF_CONTAINED_SCHEMAS =
+      List.of("org", "flowable", "docgen", "esign");
+
+  /**
+   * {@code true} khi schema tự tạo bảng kỹ thuật dùng chung, xem {@link #SELF_CONTAINED_SCHEMAS}.
+   */
+  public static boolean isSelfContained(String schema) {
+    return SELF_CONTAINED_SCHEMAS.contains(schema);
+  }
+
   private final String code;
   private final List<String> schemas;
 

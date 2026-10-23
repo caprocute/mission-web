@@ -854,7 +854,8 @@ services:
     environment:
       <<: *backend-java-env
       # Schema tự chứa outbox, inbox, idempotency (phân vùng DEFAULT), không dùng phần chung V0_x của
-      # vt-db-migration, nên tự chạy Flyway lúc khởi động bằng mig_docgen như workflow-service.
+      # vt-db-migration. deploy-backend.sh áp trước bằng MigrationRunner (chỉ thư mục riêng); Flyway lúc khởi động
+      # bằng mig_docgen giữ lại cho lần bật service riêng lẻ, cùng thư mục nên không trùng.
       FLYWAY_ENABLED: "true"
       SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-mission}
       SPRING_FLYWAY_USER: mig_docgen
@@ -899,7 +900,8 @@ services:
     environment:
       <<: *backend-java-env
       # Schema tự chứa outbox, inbox, idempotency (phân vùng DEFAULT), không dùng phần chung V0_x của
-      # vt-db-migration, nên tự chạy Flyway lúc khởi động bằng mig_esign như workflow-service.
+      # vt-db-migration. deploy-backend.sh áp trước bằng MigrationRunner (chỉ thư mục riêng); Flyway lúc khởi động
+      # bằng mig_esign giữ lại cho lần bật service riêng lẻ, cùng thư mục nên không trùng.
       FLYWAY_ENABLED: "true"
       SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-mission}
       SPRING_FLYWAY_USER: mig_esign

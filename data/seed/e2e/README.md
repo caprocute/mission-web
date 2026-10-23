@@ -58,8 +58,10 @@ Khoảng trống phía máy chủ còn chặn hành trình (ghi ngày 23/10/2026
 - `GET /periods` gắn `SCR-0801.xem` (màn hình cấu hình kỳ), nên vai trò `member` bị từ chối dù ma trận API cho phép.
 - Chưa có API tạo Policy Pack (hợp đồng chỉ có tạo phiên bản cho gói đã có, `importPack` không có nơi gọi), nên
   HT-25 đến HT-27 vẫn ghi "Chờ".
-- esign-service và document-service tự tạo `outbox_event` ở V1, trùng migration chung V0_x mà `MigrationRunner`
-  thêm vào, nên hai service không triển khai được và ký số (HT-27) trả 503.
+- ~~esign-service và document-service tự tạo `outbox_event` ở V1, trùng migration chung V0_x mà `MigrationRunner`
+  thêm vào, nên hai service không triển khai được và ký số (HT-27) trả 503.~~ Đã sửa: `MigrationRunner` coi `esign`,
+  `docgen` là schema tự chứa (chỉ áp thư mục riêng) và gỡ phần V0_x đã lỡ áp khi bảng dùng chung còn rỗng; chạy
+  lại `deploy-backend.sh` để áp (xem `backend/libs/vt-db-migration/README.md`).
 - Compose chưa có kafka-ui, nên bước kiểm sự kiện ghi "Chờ".
 
 ## Dựng đủ hệ thống thật trên một máy để chạy QA-03, QA-04
