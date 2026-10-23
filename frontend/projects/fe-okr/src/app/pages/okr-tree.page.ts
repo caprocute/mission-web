@@ -38,7 +38,7 @@ import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
-import { map } from 'rxjs';
+import { TimeoutError, map, timeout } from 'rxjs';
 import { OKR_CAN } from '../okr-permissions';
 import {
   confidenceSeverity,
@@ -60,6 +60,14 @@ const VIEWS: { value: OkrTreeView; label: string }[] = [
   { value: 'table', label: 'Bảng' },
   { value: 'map', label: 'Bản đồ liên kết' },
 ];
+
+/** Chờ cây mục tiêu tối đa 20 giây; quá hạn thì hiện lỗi kèm "Thử lại" thay vì treo "Đang tải". */
+const TREE_TIMEOUT_MS = 20_000;
+const TEXT_TREE_TIMEOUT =
+  'Hệ thống phản hồi chậm nên chưa tải được cây mục tiêu. Đồng chí bấm "Thử lại" sau ít phút.';
+const TEXT_TREE_EMPTY = 'Chưa nhận được dữ liệu cây mục tiêu. Đồng chí bấm "Thử lại" sau ít phút.';
+class EmptyTreeError extends Error {}
+
 /** Chiều cao cố định một dòng của chế độ Bảng, để ảo hoá bằng CDK (chỉ dựng dòng đang thấy). */
 const ROW_HEIGHT = 52;
 
@@ -604,14 +612,27 @@ export class OkrTreePage {
     () => ({ period: this.query().period, unit: this.query().unit }),
     { equal: (a, b) => a.period === b.period && a.unit === b.unit },
   );
+  // Máy chủ không trả lời hoặc trả thân rỗng thì chuyển sang trạng thái lỗi có nút "Thử lại",
+  // không để màn hình treo ở "Đang tải" (YC-PT-10)
   protected readonly tree = rxResource({
     params: () => this.treeQuery(),
-    stream: ({ params }) => this.api.tree(params),
+    stream: ({ params }) =>
+      this.api.tree(params).pipe(
+        timeout(TREE_TIMEOUT_MS),
+        map((t) => {
+          if (!t?.objectives) throw new EmptyTreeError();
+          return t;
+        }),
+      ),
   });
   protected readonly data = computed(() => (this.tree.hasValue() ? this.tree.value() : null));
-  protected readonly loadError = computed(() =>
-    this.tree.error() ? this.problems.describe(this.tree.error()).message : '',
-  );
+  protected readonly loadError = computed(() => {
+    const e = this.tree.error();
+    if (!e) return '';
+    if (e instanceof TimeoutError) return TEXT_TREE_TIMEOUT;
+    if (e instanceof EmptyTreeError) return TEXT_TREE_EMPTY;
+    return this.problems.describe(e).message;
+  });
 
   protected readonly index = computed(() => indexTree(this.data()?.objectives ?? []));
   protected readonly rows = computed(() => tableRows(this.index()));

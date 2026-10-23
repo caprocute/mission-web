@@ -123,14 +123,16 @@ const fmtSize = (n?: number | null) =>
               [disabled]="!!busy()"
               (onClick)="save()"
             />
-            <p-button
-              label="Nộp để nghiệm thu"
-              icon="pi pi-send"
-              [loading]="busy() === 'submit'"
-              [disabled]="!!busy() || blockers().length > 0"
-              [attr.aria-describedby]="blockers().length ? 'submit-why' : null"
-              (onClick)="submit()"
-            />
+            @if (can('SCR-0701.nop')) {
+              <p-button
+                label="Nộp để nghiệm thu"
+                icon="pi pi-send"
+                [loading]="busy() === 'submit'"
+                [disabled]="!!busy() || blockers().length > 0"
+                [attr.aria-describedby]="blockers().length ? 'submit-why' : null"
+                (onClick)="submit()"
+              />
+            }
           </div>
         }
       </header>
@@ -151,7 +153,7 @@ const fmtSize = (n?: number | null) =>
         @if (!isLead()) {
           <p class="msg warn">Chỉ người chủ trì nhiệm vụ nộp được minh chứng.</p>
         }
-      } @else if (blockers().length && !busy()) {
+      } @else if (can('SCR-0701.nop') && blockers().length && !busy()) {
         <p class="msg info" id="submit-why">Để nộp: {{ blockers().join('; ') }}.</p>
       }
 
@@ -732,7 +734,6 @@ export class EvidenceSubmitPage {
   /** Điều kiện nộp hiển thị sẵn (máy chủ vẫn kiểm lại BR-07-02 … BR-07-04). */
   protected readonly blockers = computed(() => {
     const out: string[] = [];
-    if (!this.can('SCR-0701.nop')) out.push('cần quyền nộp minh chứng');
     const f = this.file();
     if (this.source() === 'VAN_BAN_HE_THONG' ? !this.doc() : !f) {
       out.push(this.source() === 'VAN_BAN_HE_THONG' ? 'chọn văn bản' : 'tải tệp minh chứng');
@@ -897,7 +898,7 @@ export class EvidenceSubmitPage {
   }
 
   protected async submit() {
-    if (this.blockers().length) return;
+    if (!this.can('SCR-0701.nop') || this.blockers().length) return;
     this.busy.set('submit');
     this.reset();
     try {

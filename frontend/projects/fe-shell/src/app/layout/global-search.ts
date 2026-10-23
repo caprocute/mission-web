@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { SearchApi, SearchResult, SearchResultType } from '@vt/api-client';
+import { PermissionService } from '@vt/auth';
 import { Subscription } from 'rxjs';
 import { safeInternalLink } from './relative-time';
 
@@ -42,13 +43,14 @@ const DEBOUNCE_MS = 300;
 /**
  * Ô tìm kiếm toàn cục trên thanh trên (SVC-16 `GET /api/v1/search`): gõ từ 2 ký tự thì gợi ý, mũi tên
  * lên xuống chọn, Enter mở, Esc đóng. Theo mẫu combobox của WAI-ARIA. Máy chủ kiểm quyền và lọc kết
- * quả; nếu tài khoản không được dùng tìm kiếm (403) thì ô tự ẩn trong phiên.
+ * quả. Vai trò không có quyền gọi tìm kiếm theo ma trận API thì không hiện ô (YC-PT-21); máy chủ vẫn
+ * trả 403 thì ô tự ẩn trong phiên.
  */
 @Component({
   selector: 'vt-global-search',
   host: {
     '(document:click)': 'onDocumentClick($event)',
-    '[hidden]': 'forbidden()',
+    '[hidden]': 'forbidden() || !allowed()',
     '[class.mobile-open]': 'mobileOpen()',
   },
   template: `
@@ -288,6 +290,8 @@ const DEBOUNCE_MS = 300;
 })
 export class GlobalSearch {
   private readonly api = inject(SearchApi);
+  private readonly permissions = inject(PermissionService);
+  protected readonly allowed = computed(() => this.permissions.canApi('search', 'GET'));
   private readonly router = inject(Router);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 

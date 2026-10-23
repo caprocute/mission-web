@@ -149,7 +149,22 @@ export class SessionService {
     inject(DestroyRef).onDestroy(() => clearTimeout(this.downgradeTimer));
   }
 
+  private markReady!: () => void;
+  /**
+   * Xong khi `init()` đã nạp xong người dùng (đăng nhập OIDC hoặc người dùng giả lập). Lời gọi API
+   * lúc khởi động cần token (ví dụ khám phá cell) chờ mốc này thay vì chạy song song với `init()`.
+   */
+  readonly ready = new Promise<void>((resolve) => (this.markReady = resolve));
+
   async init(): Promise<void> {
+    try {
+      await this.initSession();
+    } finally {
+      this.markReady();
+    }
+  }
+
+  private async initSession(): Promise<void> {
     if (!this.cfg.auth.enabled) {
       this._user.set({
         ...DEV_USER,

@@ -31,6 +31,7 @@ import {
   cellNumber,
   resultRows,
 } from '@vt/api-client';
+import { permittedOn } from '@vt/auth';
 import { MenuItem } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -317,7 +318,8 @@ interface Kpi {
                       [ariaLabel]="'Nhắc việc ' + t.title"
                     />
                   }
-                  @if (can('SCR-1601.giao-lai')) {
+                  <!-- Chỉ người giao việc mới giao lại được (BR-16-07): theo thao tác máy chủ cho phép -->
+                  @if (can('SCR-1601.giao-lai') && permittedOn(t, 'SCR-1601.giao-lai')) {
                     <p-button
                       label="Giao lại"
                       size="small"
@@ -473,6 +475,7 @@ export class LeaderDashboardPage {
   private readonly periodApi = inject(PeriodApi);
   private readonly orgApi = inject(OrgApi);
   protected readonly can = inject(DASHBOARD_CAN);
+  protected readonly permittedOn = permittedOn;
   protected readonly M = MEASURE;
 
   protected readonly periodsRes = rxResource({

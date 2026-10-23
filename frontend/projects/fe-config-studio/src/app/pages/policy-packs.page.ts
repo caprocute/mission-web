@@ -10,6 +10,9 @@ import {
   policyVersionLabel,
 } from '@vt/api-client';
 import { FLOW_LABEL, fmtDate } from '../studio-ui';
+import { POLICY_KEYS } from '../studio-layout';
+import { STUDIO_ACCESS } from '../studio-permissions';
+import { POLICY_TABS } from './policy/policy-tabs';
 
 /**
  * Trang đầu Config Studio (QT-15): danh sách Policy Pack của tenant cùng các phiên bản, mở một phiên
@@ -76,16 +79,21 @@ import { FLOW_LABEL, fmtDate } from '../studio-ui';
                 <td>{{ date(v.effectiveFrom) }}</td>
                 <td>{{ v.changeNote ?? '—' }}</td>
                 <td class="act">
-                  <a class="btn-link" [routerLink]="['goi', p.id, v.version, 'cong-thuc']">
-                    {{ editable(v) ? 'Mở để soạn' : 'Xem' }}
-                    <span class="sr-only">phiên bản {{ vlabel(v.version) }}</span>
-                  </a>
-                  <a
-                    class="btn-link secondary"
-                    [routerLink]="['goi', p.id, v.version, 'luong-duyet']"
-                  >
-                    Luồng duyệt động
-                  </a>
+                  <!-- Mở thẻ đầu tiên người dùng được xem; chỉ hiện liên kết mà vai trò vào được -->
+                  @if (canOpen()) {
+                    <a class="btn-link" [routerLink]="['goi', p.id, v.version]">
+                      {{ editable(v) && canAuthor() ? 'Mở để soạn' : 'Xem' }}
+                      <span class="sr-only">phiên bản {{ vlabel(v.version) }}</span>
+                    </a>
+                  }
+                  @if (canWorkflow()) {
+                    <a
+                      class="btn-link secondary"
+                      [routerLink]="['goi', p.id, v.version, 'luong-duyet']"
+                    >
+                      Luồng duyệt động
+                    </a>
+                  }
                 </td>
               </tr>
             }
@@ -240,6 +248,14 @@ import { FLOW_LABEL, fmtDate } from '../studio-ui';
 })
 export class PolicyPacksPage {
   private readonly api = inject(PolicyApi);
+  private readonly access = inject(STUDIO_ACCESS);
+  /** YC-PT-21: liên kết theo đúng guard của tuyến phiên bản và từng thẻ (`POLICY_TABS`). */
+  protected readonly canOpen = () =>
+    POLICY_KEYS.some((k) => this.access.can(k)) &&
+    POLICY_TABS.some((t) => t.keys.some((k) => this.access.can(k)));
+  protected readonly canWorkflow = () => this.access.can('SCR-1504.cau-hinh');
+  protected readonly canAuthor = () =>
+    this.access.author('SCR-1501.soan') || this.access.author('SCR-1502.soan');
   protected readonly packs = rxResource({ stream: () => this.api.packs() });
   protected readonly flow = FLOW_LABEL;
   protected readonly statusLabel = POLICY_VERSION_STATUS_LABEL;
