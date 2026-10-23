@@ -18,9 +18,12 @@ Dashboard ngân sách lỗi theo cell: phần ngân sách đã tiêu, các sự 
 
 ## Các bước
 
-1. Quản lý phát hành ghi chú vào CAB tuần ([OPS-19](../ops/ops-19-hoi-dong-thay-doi.md)): cell tạm dừng thay đổi thường tới đầu tháng sau.
-2. Chỉ cho phát hành bản sửa lỗi và vá an ninh tới cell đó (theo OPS-02, giữ đợt của cell).
-3. Rà các sự cố đã tiêu ngân sách; hạng mục khắc phục phải có người và hạn.
+Quy tắc và cách CAB xử lý nằm ở `ops/van-hanh/hoi-dong-thay-doi.md` mục 2 (quy tắc ngân sách lỗi); ở đây chỉ là việc phải làm khi cảnh báo cháy.
+
+1. Quản lý thay đổi chuyển mọi phiếu thay đổi thường của cell sang "hoãn" tới hết tháng và báo người đề xuất; ghi vào chương trình CAB tuần kế tiếp ([OPS-19](../ops/ops-19-hoi-dong-thay-doi.md)).
+2. Chỉ cho phát hành bản sửa lỗi và vá an ninh tới cell đó (theo OPS-02, giữ đợt của cell); tính năng mới chờ sang tháng.
+3. Đầu tháng, cảnh báo dùng cửa sổ trượt 14 ngày nên có thể còn cháy do lỗi của tháng trước: đối chiếu dashboard SLO theo tháng lịch trước khi giữ quyết định tạm dừng.
+4. Rà các sự cố đã tiêu ngân sách; hạng mục khắc phục phải có người và hạn (`ops/van-hanh/mau-phan-tich-sau-su-co.md`).
 
 ## Lệnh vtctl và lệnh tương đương
 
@@ -42,4 +45,4 @@ Ngân sách tháng đã hết: báo chủ sản phẩm và trưởng ca SRE.
 
 ## Liên quan
 
-[OPS-19](../ops/ops-19-hoi-dong-thay-doi.md), [OPS-02](../ops/ops-02-phat-hanh-theo-dot-cell.md), [slo-availability](slo-availability.md).
+[OPS-19](../ops/ops-19-hoi-dong-thay-doi.md), [OPS-02](../ops/ops-02-phat-hanh-theo-dot-cell.md), [slo-availability](slo-availability.md), `ops/van-hanh/hoi-dong-thay-doi.md`.

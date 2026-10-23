@@ -47,7 +47,7 @@ Bảng theo TL-04 mục 11.1. Cột "Sổ tay chi tiết" là sổ tay thành ph
 
 | Tên (`runbook_url`) | Tệp | Cảnh báo | Nội dung |
 |---|---|---|---|
-| `slo-availability` | [canh-bao](canh-bao/slo-availability.md) | SLOAvailabilityFastBurn, SLOAvailabilitySlowBurn | Tiêu ngân sách lỗi khả dụng (SLO-AVL) |
+| `slo-availability` | [canh-bao](canh-bao/slo-availability.md) | SLOAvailabilityFastBurn, SLOAvailabilitySlowBurn, CNPGClusterNotHealthy | Tiêu ngân sách lỗi khả dụng (SLO-AVL); cụm PostgreSQL mất primary |
 | `slo-latency` | [canh-bao](canh-bao/slo-latency.md) | SLOReadLatencyBurn, SLOWriteLatencyBurn | Request đọc, ghi chậm quá ngưỡng (SLO-READ, SLO-WRITE) |
 | `scoring-lag` | [canh-bao](canh-bao/scoring-lag.md) | ScoringLagHigh | Độ trễ tính điểm (SLO-SCORE) |
 | `kafka-lag` | [canh-bao](canh-bao/kafka-lag.md) | KafkaConsumerLagGrowing | Lag consumer Kafka tăng liên tục |

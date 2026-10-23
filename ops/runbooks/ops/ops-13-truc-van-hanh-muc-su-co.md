@@ -65,4 +65,4 @@ Như mục "Các bước"; không liên lạc được cấp 2 trong 15 phút v�
 
 ## Liên quan
 
-[Danh mục sổ tay](../README.md), [OPS-14](ops-14-runbook.md), [OPS-18](ops-18-dien-tap-khoi-phuc.md).
+[Danh mục sổ tay](../README.md), [OPS-14](ops-14-runbook.md), [OPS-18](ops-18-dien-tap-khoi-phuc.md); quy trình chi tiết của ca trực, mức sự cố, vai trò IC và mẫu thông báo: `ops/van-hanh/truc-van-hanh.md`, `ops/van-hanh/muc-su-co.md`, `ops/van-hanh/mau-thong-bao-su-co.md`, `ops/van-hanh/mau-phan-tich-sau-su-co.md`.
