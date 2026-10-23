@@ -1,0 +1,22 @@
+# Ứng dụng gốc của bản staging (INF-21): cùng chart deploy/argocd, chồng values-staging.yaml. Chạy trên Argo CD của
+# cụm quản trị cạnh ứng dụng gốc vt-gitops của production; tên AppProject, ApplicationSet có hậu tố/tiền tố riêng nên
+# hai bản không đè nhau. Sinh ApplicationSet okr-stg-<service> cho CELL-STG và okr-stg-pr cho môi trường tạm theo PR.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vt-gitops-staging
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://git.vt.local/okr/gitops.git
+    targetRevision: main
+    path: deploy/argocd
+    helm:
+      valueFiles: [values.yaml, values-staging.yaml]
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["ServerSideApply=true"]

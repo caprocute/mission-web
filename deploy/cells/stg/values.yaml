@@ -1,0 +1,35 @@
+# Values riêng của CELL-STG (INF-21). Chồng sau values-saas.yaml và sizing/values-sizing-s.yaml: TL-05 khuyến nghị
+# staging dùng hồ sơ S ở mức minReplicas, không GPU, tầng dữ liệu trên máy ảo. Hồ sơ S giữ nguyên số minReplicas;
+# tệp này hạ maxReplicas về bằng minReplicas để staging không tự giãn (staging không đo hiệu năng, cỡ cố định
+# khoảng 22 node, 330 vCPU, 1,4 TiB ở mọi bậc QM). Kích thước và địa chỉ riêng của staging chỉ nằm ở đây, nên
+# dựng trên tài nguyên thật chỉ đổi tệp này.
+#
+# Tầng dữ liệu (PostgreSQL, Kafka, Valkey, OpenSearch, ClickHouse, OpenBao) chạy trên máy ảo ngoài cụm nên bản staging
+# của deploy/argocd không sinh Application cho các chart đó (servicesTat trong deploy/argocd/values-staging.yaml).
+# Dữ liệu: chỉ dữ liệu tổng hợp (DL-08) hoặc dữ liệu đã che, không bao giờ nạp dữ liệu thật (SEC-52).
+global:
+  cell: stg
+  topology:
+    zones: [hl-a]
+  # Không GPU: trợ lý AI dùng mô hình nhỏ trên CPU khi cần thử (TL-05 "Môi trường phi sản xuất").
+  featureFlags:
+    aiAssistant: false
+api-gateway:
+  cell: stg
+  apisix:
+    autoscaling:
+      minReplicas: 3
+      maxReplicas: 3
+cell-base:
+  cell: stg
+observability-cell:
+  cell: stg
+ai-gateway:
+  thanhPhan:
+    vllm:
+      enabled: false
+mission-core:
+  autoscaling:
+    keda:
+      minReplicas: 3
+      maxReplicas: 3

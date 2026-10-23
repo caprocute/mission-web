@@ -18,7 +18,9 @@ argocdNamespace: argocd
 # Chỉ cell có cell.argocd bằng giá trị này mới sinh Application.
 instance: mgmt
 # Cell do Argo CD khác quản lý (cell.argocd khác instance), bỏ khỏi bộ sinh; kiểm khớp trong tests/chay-kiem-thu.sh.
-cellsExclude: [dtw]
+cellsExclude: [dtw, stg]
+# Tiền tố tên ApplicationSet (okr-<service>); bản staging của chart dùng okr-stg để hai bản cùng chạy trên cụm quản trị.
+appsetPrefix: okr
 # Môi trường lấy digest ảnh: deploy/environments/<environment>/digests.yaml (INF-05 vtGitopsBump ghi tệp này).
 environment: production
 # Mô hình phân phối: tệp values-<mô hình>.yaml của vt-platform (saas, private, airgap).
@@ -151,6 +153,16 @@ services:
   - { name: opensearch, project: okr-nen-tang, namespace: data-search }
   - { name: clickhouse, project: okr-nen-tang, namespace: data-search }
   - { name: openbao, project: okr-nen-tang, namespace: secure-data }
+
+# Service không triển khai ở môi trường này: không sinh ApplicationSet, và vẫn đặt enabled: false trong Application
+# của service khác. Production để trống; staging liệt kê tầng dữ liệu chạy trên máy ảo (values-staging.yaml).
+servicesTat: []
+# Hậu tố tên AppProject (khoá của projects); bản staging dùng -stg để hai bản cùng chạy trên cụm quản trị.
+projectSuffix: ""
+
+# Môi trường tạm theo nhánh cho pull request (INF-21, templates/moi-truong-pr.yaml): chỉ bật ở bản staging.
+prEnvironments:
+  enabled: false
 
 # Chỉ dùng trên kind (deploy/environments/kind/values-kind-gitops.yaml): thay chart cha bằng chart riêng của từng
 # service và đặt namespace theo cell để hai cell giả lập cùng chạy trên một cụm.
