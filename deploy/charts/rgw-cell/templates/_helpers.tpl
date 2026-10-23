@@ -44,10 +44,15 @@ những thao tác này chỉ chủ bucket (tài khoản quản trị kho) làm �
 {{- if eq . "doc" }}{{ $doiTuong = concat $doiTuong (list "s3:GetObject" "s3:GetObjectVersion" "s3:GetObjectRetention" "s3:GetObjectLegalHold") }}
 {{- else if eq . "ghi" }}{{ $doiTuong = concat $doiTuong (list "s3:PutObject" "s3:AbortMultipartUpload" "s3:ListMultipartUploadParts") }}
 {{- if $b.khoa }}{{ $doiTuong = concat $doiTuong (list "s3:PutObjectRetention" "s3:PutObjectLegalHold") }}{{ end }}
+{{- else if eq . "xoa-danh-dau" }}
+{{- /* Chỉ DeleteObject không kèm mã phiên bản: bucket có versioning nhận delete marker, phiên bản đã khoá vẫn còn tới khi
+vòng đời donPhienBanCuSauNgay dọn sau hạn khoá (kho snapshot OpenSearch tự xoá bản cũ, INF-18). */}}
+{{- if not $b.versioning }}{{ fail (printf "rgw-cell: quyền xoa-danh-dau cần versioning trên bucket %s" $.b) }}{{ end }}
+{{- $doiTuong = concat $doiTuong (list "s3:DeleteObject") }}
 {{- else if eq . "xoa-tam" }}
 {{- if $b.khoa }}{{ fail (printf "rgw-cell: quyền xoa-tam không dùng được trên bucket có Object Lock %s" $.b) }}{{ end }}
 {{- $doiTuong = concat $doiTuong (list "s3:DeleteObject") }}
-{{- else if ne . "liet-ke" }}{{ fail (printf "rgw-cell: quyền %q không hợp lệ (doc, ghi, liet-ke, xoa-tam)" .) }}
+{{- else if ne . "liet-ke" }}{{ fail (printf "rgw-cell: quyền %q không hợp lệ (doc, ghi, liet-ke, xoa-tam, xoa-danh-dau)" .) }}
 {{- end -}}
 {{- end -}}
 {{- if $doiTuong -}}
@@ -79,6 +84,13 @@ kho (chủ bucket), không ai khác có quyền xoá. sauNgay phải lớn hơn 
 {{- if and $b.khoa (le (int $d.sauNgay) (int (include "rgw.ngayKhoa" $b.khoa))) }}{{ fail (printf "rgw-cell: bucket %s dọn sau %v ngày không dài hơn hạn khoá" $.b $d.sauNgay) }}{{ end -}}
 {{- $luat = append $luat (dict "ID" (printf "don-%d" $i) "Status" "Enabled" "Filter" (dict "Prefix" ($d.tienTo | default "")) "Expiration" (dict "Days" (int $d.sauNgay)) "NoncurrentVersionExpiration" (dict "NoncurrentDays" 1)) -}}
 {{- end -}}
-{{- if $v.don }}{{ $luat = append $luat (dict "ID" "don-marker" "Status" "Enabled" "Filter" (dict "Prefix" "") "Expiration" (dict "ExpiredObjectDeleteMarker" true)) }}{{ end -}}
+{{- /* donPhienBanCuSauNgay: chỉ dọn phiên bản cũ (sau khi bị ghi đè hoặc nhận delete marker) khi Object Lock đã hết, không
+bao giờ hết hạn phiên bản hiện tại: snapshot gia tăng dùng lại tệp của bản trước nên tuổi tệp không nói lên tệp còn
+cần hay không (INF-18). */ -}}
+{{- with $v.donPhienBanCuSauNgay }}
+{{- if and $b.khoa (le (int .) (int (include "rgw.ngayKhoa" $b.khoa))) }}{{ fail (printf "rgw-cell: bucket %s dọn phiên bản cũ sau %v ngày không dài hơn hạn khoá" $.b .) }}{{ end -}}
+{{- $luat = append $luat (dict "ID" "don-phien-ban-cu" "Status" "Enabled" "Filter" (dict "Prefix" "") "NoncurrentVersionExpiration" (dict "NoncurrentDays" (int .))) -}}
+{{- end -}}
+{{- if or $v.don $v.donPhienBanCuSauNgay }}{{ $luat = append $luat (dict "ID" "don-marker" "Status" "Enabled" "Filter" (dict "Prefix" "") "Expiration" (dict "ExpiredObjectDeleteMarker" true)) }}{{ end -}}
 {{- if $luat }}{{ dict "Rules" $luat | toJson }}{{ end -}}
 {{- end -}}

@@ -21,3 +21,8 @@ seccompProfile: { type: RuntimeDefault }
 allowPrivilegeEscalation: false
 capabilities: { drop: [ALL] }
 {{- end -}}
+{{/* URL gốc của bản sao lưu ClickHouse trên kho sao lưu: <endpoint>/<bucket>/ (bucket rỗng: bk-cell-<mã>-ch). */}}
+{{- define "clickhouse.urlSaoLuu" -}}
+{{- $b := .Values.saoLuu.bucket | default (printf "bk-cell-%s-ch" (required "clickhouse: saoLuu cần global.cell" .Values.global.cell | lower)) -}}
+{{ trimSuffix "/" .Values.saoLuu.endpoint }}/{{ $b }}/
+{{- end -}}

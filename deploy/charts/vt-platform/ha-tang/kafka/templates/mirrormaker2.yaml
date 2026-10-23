@@ -1,0 +1,173 @@
+{{- /* MirrorMaker 2 một chiều (INF-18, TL-04 mục 8.3). vaiTro dich: CR KafkaMirrorMaker2 kéo từ cụm nguồn, KafkaUser
+của MM2 trên cụm đích (ghi topic nhân bản, topic nội bộ của MM2 và Connect, đặt offset nhóm tiêu thụ), Secret CA và
+chứng thư khách của cụm nguồn từ OpenBao, NetworkPolicy ra cụm nguồn. vaiTro nguon: KafkaUser chỉ đọc cho MM2 phía
+kia. offset-syncs ghi ở cụm đích để MM2 không cần quyền ghi trên cụm chủ động. */}}
+{{- $v := .Values }}
+{{- $m := $v.mirrorMaker2 }}
+{{- if not (has $m.vaiTro (list "" "nguon" "dich")) }}{{ fail (printf "kafka: mirrorMaker2.vaiTro %q không hợp lệ (nguon, dich)" $m.vaiTro) }}{{ end }}
+{{- if eq $m.vaiTro "nguon" }}
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: {{ $m.nguoiDungNguon }}
+  namespace: {{ $v.namespace }}
+  labels:
+    strimzi.io/cluster: {{ $v.cluster }}
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  authentication:
+    type: tls
+  authorization:
+    type: simple
+    acls:
+      # Đọc mọi topic khớp mẫu (lọc theo topicsPattern ở MM2), đọc cấu hình topic và vị trí nhóm tiêu thụ để đồng bộ
+      # offset; không có quyền ghi nào trên cụm chủ động.
+      - resource: { type: topic, name: "*", patternType: literal }
+        operations: [Read, Describe, DescribeConfigs]
+      - resource: { type: group, name: "*", patternType: literal }
+        operations: [Describe]
+      - resource: { type: cluster }
+        operations: [Describe]
+{{- end }}
+{{- if eq $m.vaiTro "dich" }}
+{{- $nguon := $m.nguon }}
+{{- $bs := required "kafka: mirrorMaker2.nguon.bootstrapServers cần cho vaiTro dich" $nguon.bootstrapServers }}
+{{- $cell := required "kafka: mirrorMaker2 cần global.cell" $v.global.cell | lower }}
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: {{ $m.dich.user }}
+  namespace: {{ $v.namespace }}
+  labels:
+    strimzi.io/cluster: {{ $v.cluster }}
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  authentication:
+    type: tls
+  authorization:
+    type: simple
+    acls:
+      # Topic nhân bản giữ nguyên tên (IdentityReplicationPolicy) và topic nội bộ của MM2 (heartbeats,
+      # <alias>.checkpoints.internal, mm2-offset-syncs.<alias>.internal) cùng của Connect (<ten>-*).
+      - resource: { type: topic, name: "*", patternType: literal }
+        operations: [Read, Write, Create, Describe, DescribeConfigs, AlterConfigs]
+      # Đặt offset nhóm tiêu thụ đã đồng bộ (sync.group.offsets) và nhóm của Connect.
+      - resource: { type: group, name: "*", patternType: literal }
+        operations: [Read, Describe]
+      - resource: { type: cluster }
+        operations: [Describe, DescribeConfigs]
+{{- if $v.connect.externalSecrets.enabled }}
+{{- $duongDan := $nguon.openbaoPath | default (printf "kv/cell-%s/kafka/mm2-nguon" $cell) }}
+{{- range $s := list (dict "ten" $nguon.caSecret "khoa" (list "ca.crt")) (dict "ten" $nguon.userSecret "khoa" (list "user.crt" "user.key")) }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $s.ten }}
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" $ | nindent 4 }}
+spec:
+  refreshInterval: {{ $v.connect.externalSecrets.refreshInterval }}
+  secretStoreRef:
+    kind: {{ $v.connect.externalSecrets.secretStore.kind }}
+    name: {{ $v.connect.externalSecrets.secretStore.name }}
+  target:
+    name: {{ $s.ten }}
+    creationPolicy: Owner
+  data:
+    {{- range $k := $s.khoa }}
+    - secretKey: {{ $k }}
+      remoteRef: { key: {{ $duongDan }}, property: {{ $k }} }
+    {{- end }}
+{{- end }}
+{{- end }}
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaMirrorMaker2
+metadata:
+  name: {{ $m.ten }}
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  version: {{ $v.kafkaVersion }}
+  image: {{ include "kafka.anh" $v.image }}
+  replicas: {{ $m.replicas }}
+  target:
+    alias: {{ $m.dich.alias }}
+    bootstrapServers: {{ $v.cluster }}-kafka-bootstrap.{{ $v.namespace }}.svc:9093
+    groupId: {{ $m.ten }}
+    configStorageTopic: {{ $m.ten }}-config
+    statusStorageTopic: {{ $m.ten }}-status
+    offsetStorageTopic: {{ $m.ten }}-offset
+    tls:
+      trustedCertificates:
+        - secretName: {{ $v.cluster }}-cluster-ca-cert
+          pattern: "*.crt"
+    authentication:
+      type: tls
+      certificateAndKey: { secretName: {{ $m.dich.user }}, certificate: user.crt, key: user.key }
+    config:
+      config.storage.replication.factor: 3
+      offset.storage.replication.factor: 3
+      status.storage.replication.factor: 3
+  mirrors:
+    - source:
+        alias: {{ $nguon.alias }}
+        bootstrapServers: {{ $bs }}
+        tls:
+          trustedCertificates:
+            - secretName: {{ $nguon.caSecret }}
+              pattern: "*.crt"
+        authentication:
+          type: tls
+          certificateAndKey: { secretName: {{ $nguon.userSecret }}, certificate: user.crt, key: user.key }
+      topicsPattern: {{ $m.topicsPattern | quote }}
+      topicsExcludePattern: {{ $m.topicsExcludePattern | quote }}
+      groupsPattern: {{ $m.groupsPattern | quote }}
+      sourceConnector:
+        tasksMax: {{ $m.sourceTasksMax }}
+        config:
+          replication.policy.class: org.apache.kafka.connect.mirror.IdentityReplicationPolicy
+          replication.factor: 3
+          offset-syncs.topic.replication.factor: 3
+          offset-syncs.topic.location: target
+          sync.topic.acls.enabled: "false"
+          refresh.topics.interval.seconds: 60
+      checkpointConnector:
+        tasksMax: {{ $m.checkpointTasksMax }}
+        config:
+          replication.policy.class: org.apache.kafka.connect.mirror.IdentityReplicationPolicy
+          checkpoints.topic.replication.factor: 3
+          offset-syncs.topic.location: target
+          sync.group.offsets.enabled: "true"
+          sync.group.offsets.interval.seconds: {{ $m.dongBoOffsetGiay }}
+          emit.checkpoints.interval.seconds: {{ $m.dongBoOffsetGiay }}
+  resources:
+    {{- toYaml $m.resources | nindent 4 }}
+---
+# MM2 ra broker cụm đích (cùng namespace) và broker cụm nguồn ở TTDL kia.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mm2-ra
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { strimzi.io/cluster: {{ $m.ten }}, strimzi.io/kind: KafkaMirrorMaker2 }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { strimzi.io/cluster: {{ $v.cluster }}, strimzi.io/broker-role: "true" } }
+      ports: [{ port: 9093, protocol: TCP }]
+    {{- with $m.egressTo }}
+    - to:
+        {{- toYaml . | nindent 8 }}
+      ports: [{ port: 9093, protocol: TCP }]
+    {{- end }}
+{{- end }}

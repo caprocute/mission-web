@@ -469,6 +469,32 @@ Bẫy và quyết định đã gặp:
 - Để sau: plugin KMS của OpenBao trên ảnh node (kube-apiserver cần plugin KMS v2 chạy trên master để `EncryptionConfiguration` dùng được Transit; thuộc dựng ảnh node, INF-08); ảnh otelcol tự dựng bằng OCB có `avro_log_encoding` để bật `siem.avro.enabled` (thuộc INF-05, INF-14); ExternalSecret chép Secret `siem-forwarder-kafka` (Strimzi sinh trong `data-kafka`) sang `observability` và, khi bật chặng ra SOC, sang `egress` chưa có trong repo; hệ thống PAM thật.
 - Chưa chạy trên kind (máy agent không đủ đĩa): `kubectl exec` → Falco → `sys.security.runtime.v1`, bản ghi `RequestResponse` của `pods/exec`, kube-bench trên kind và số FAIL thật, `view-app` bị từ chối Secret, Job thăm dò báo 0 luồng; kịch bản ở `deploy/environments/kind/kiem-thu-an-ninh.sh`. Đã kiểm tĩnh: `helm lint`, `helm template`, `kubeconform -strict`, Kyverno, promtool, `falco --validate` và `--dry-run`, otelcol validate và chạy thật bộ xử lý ECS, unittest.
 
+## Sao lưu phần 2: Kafka, minh chứng, kho dẫn xuất, OpenBao, Git, Harbor (INF-18)
+
+Phần 2 phủ các dòng còn lại của bảng lịch sao lưu TL-04 chương 8. Mỗi dòng có cấu hình dạng mã và một cách kiểm tra tự động, trừ đối soát offset Kafka (khoảng trống ghi ở wiki 14). Bảng dưới cho biết dòng nào nằm ở đâu.
+
+| Dòng của bảng lịch | Cơ chế đã làm | Nơi cấu hình | Kiểm tra tự động |
+|---|---|---|---|
+| Kafka | MirrorMaker 2 `mm2-hl-to-sn` chạy ở phía Nam, nguồn chỉ cấp người dùng chỉ đọc | `vt-platform/ha-tang/kafka`, khối `mirrorMaker2` | Chưa có (cần số liệu MM2) |
+| Giữ outbox 72 giờ | pg_partman `retention = '3 days'` có sẵn; `outbox-replay --from-safe-point` | `V0_20__outbox_event.sql`, `services-go/outbox-replay` | Kiểm thử tích hợp PostgreSQL thật và kfake |
+| Minh chứng, biểu mẫu ký | `rclone sync --backup-dir` 00:30 sang `bk-cell-<mã>-ev` | `backup-cell` khối `minhChung`, `rgw-cell` | Kiểm mẫu 1.000 đối tượng lúc 06:00 |
+| OpenSearch | Repo `bk-sn`, chính sách `daily-to-sn` | `vt-platform/ha-tang/opensearch` khối `snapshot` | Khôi phục thử thứ bảy |
+| ClickHouse | `BACKUP` đầy đủ chủ nhật, gia tăng ngày khác, 01:30 | `vt-platform/ha-tang/clickhouse` khối `saoLuu`, `backup-cell` khối `clickhouse` | Khôi phục thử ngày 1 hằng tháng |
+| OpenBao | Snapshot Raft phút 07 mỗi giờ | `vt-platform/ha-tang/openbao` khối `saoLuuRaft`, `deploy/openbao` | Cảnh báo quá 2 giờ; khôi phục thử hằng quý làm tay (cần HSM) |
+| Kho Git | Gương mỗi 15 phút, bundle 03:15 | `backup-cell` khối `git` | Clone thử chủ nhật |
+| Harbor | Nhân bản theo sự kiện đẩy ảnh | `deploy/clusters/mgmt/harbor/cau-hinh.yaml`, `cau-hinh-sn.yaml` | Kéo thử theo digest 07:30 |
+| Valkey | Không sao lưu (bộ nhớ đệm, khoá chống trùng, bộ đếm) | Ghi trong `ops/runbooks/sao-luu-opensearch-clickhouse.md` mục 5 | Không áp dụng |
+
+Kho sao lưu có thêm bốn bucket `bk-cell-<mã>-ev`, `-os`, `-bao`, `-git`, mỗi bucket một khoá riêng ở `kv/cell-<mã>/backup/<loại>`. Có năm điều cần biết khi sửa phần này.
+
+1. **Kho snapshot OpenSearch cần quyền xoá dạng delete marker.** OpenSearch tự xoá tệp của bản hết hạn. Vì vậy `rgw-cell` có thêm quyền `xoa-danh-dau`: chỉ `DeleteObject` không kèm mã phiên bản, nên trên bucket versioning chỉ tạo delete marker, còn phiên bản đã khoá thì giữ tới hết hạn. Vòng đời của bucket này dùng `donPhienBanCuSauNgay`, chỉ dọn phiên bản cũ. Không được đặt hết hạn theo tuổi cho phiên bản hiện tại, vì bản gia tăng dùng lại tệp của bản cũ.
+2. **Chính sách bucket theo tenant giới hạn liệt kê ở `t/`.** rclone đồng bộ `nguon:<bucket>/t` chứ không đồng bộ gốc bucket, vì tài khoản chỉ đọc chỉ được `ListBucket` với tiền tố `t/`.
+3. **Kiểm mẫu đi qua PgBouncer chế độ transaction.** Truy vấn mẫu nằm trong một giao dịch `BEGIN READ ONLY`, ngữ cảnh tenant đặt bằng `SET LOCAL app.tenant_id`, nên RLS lọc đúng tenant mà không rò ngữ cảnh sang kết nối khác. Namespace `sao-luu` được thêm vào danh sách `ro` của `pg-platform` trong `data-pg`.
+4. **Khoá S3 của ClickHouse không nằm trong câu lệnh.** Tập hợp có tên `bk_sn` đọc khoá bằng `from_env` từ biến môi trường của pod. Biến này lấy từ Secret ESO `bk-sn-s3-ch`. Người dùng `sao_luu` chỉ có `BACKUP` trên CSDL thật và toàn quyền trên CSDL tạm `analytics_khoi_phuc_thu`.
+5. **Mọi job mới chạy trong namespace `sao-luu`.** Namespace này default-deny, mỗi job có một NetworkPolicy ra đúng đích của nó. Ảnh `backup-tools` 0.2.0 có thêm `rclone`, `git`, `gzip`. Snapshot Raft là ngoại lệ: nó chạy ở `secure-data`, với initContainer ảnh OpenBao và container tải lên dùng ảnh `backup-tools`.
+
+Kiểm thử tĩnh chạy bằng `deploy/charts/backup-cell/tests/chay-kiem-thu.sh`, nay phủ cả opensearch, clickhouse, openbao và kafka. Kiểm thử script chạy bằng `kiem-thu-script.sh`, dùng rclone thật với remote cục bộ, PostgreSQL thật có RLS và vai trò `ro_evidence`, git thật, cùng HTTP giả cho ClickHouse, OpenSearch và Harbor. Kiểm thử script có một ca sửa có chủ đích một bản sao và xoá một bản khác để chứng minh job kiểm mẫu phát hiện được. Chưa chạy trên kind và chưa diễn tập DR (YC-PT-19). Runbook: `ops/runbooks/sao-luu-kafka.md`, `sao-luu-minh-chung.md`, `sao-luu-opensearch-clickhouse.md`, `sao-luu-openbao.md`, `sao-luu-git-harbor.md`.
+
 ## Lộ trình theo TL-04
 
 TL-04 chia lộ trình thành các đợt. Đợt 0a kéo dài 2 tuần, xử lý ngay các lỗ hổng S01 đến S05, S07, S08 và S11 của hệ cũ: gitleaks, xoay vòng bí mật, OpenBao tối thiểu, sửa CORS và cookie, bỏ token khỏi URL và log, rồi kiểm tra lại. Đợt 0b kéo dài 6 tuần: chart `vt-service`, đặt APISIX trước hệ cũ để sinh `traceparent`, dựng OTel, Tempo, Prometheus, Fluent Bit và cụm quản trị Argo CD, Harbor, Grafana, với mục tiêu có trace xuyên bốn tầng. Đợt 0c kéo dài 6 tuần: Resilience4j, cổng chất lượng Jenkins, Kyverno chế độ Enforce, Flyway và thử tải 500 người dùng đồng thời với p95 dưới 3 giây.

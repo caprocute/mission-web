@@ -1,0 +1,58 @@
+{{- /* Namespace sao-luu của các job sao lưu kho ngoài PostgreSQL (INF-18): Pod Security restricted, default-deny, DNS;
+luồng ra riêng từng job ở bk.mangJob. */}}
+{{- $v := .Values }}
+{{- if or $v.minhChung.enabled $v.clickhouse.enabled $v.opensearch.enabled $v.git.enabled $v.harbor.enabled }}
+{{- $ns := $v.saoLuu.namespace }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+    vt.io/security-zone: data
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+{{- if and $v.cilium $v.harbor.enabled }}
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: goi-kube-apiserver
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+spec:
+  description: Job kéo thử Harbor đọc danh sách pod của cụm.
+  endpointSelector:
+    matchExpressions:
+      - { key: k8s:vt.io/goi-api, operator: In, values: ["true"] }
+  egress:
+    - toEntities: [kube-apiserver]
+{{- end }}
+{{- end }}

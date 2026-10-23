@@ -133,3 +133,23 @@ hsmPorts: [1792]
 extraInitContainers: []
 extraVolumes: []
 extraVolumeMounts: []
+# Snapshot Raft mỗi giờ sang kho sao lưu phía Nam (INF-18, TL-04 mục 8.10: giữ 90 ngày, Object Lock 90 ngày, bucket
+# bk-cell-<mã>-bao). Vai trò auth kubernetes sao-luu-raft do deploy/openbao/cau-hinh.sh tạo. anhTaiLen: ảnh backup-tools
+# của chart backup-cell (aws-cli, gzip, curl); khoá S3 ở kv/cell-<mã>/backup/bao, không có quyền xoá.
+saoLuuRaft:
+  enabled: true
+  schedule: "7 * * * *"
+  bucket: ""                 # rỗng: bk-cell-<global.cell>-bao
+  credentials: { secretName: bk-sn-s3-bao, path: "" }
+  khoSaoLuu:
+    endpoint: https://s3-bk.sn.vt.local
+    region: sn-bk
+    caBundle: { secret: vt-noi-bo-ca, key: ca.crt }
+    egressTo: []
+    egressPort: 443
+  pushgateway: ""
+  tamGioiHan: 2Gi
+  anhTaiLen:
+    repository: harbor.vt.local/platform/backup-tools
+    tag: 0.2.0
+    digest: ""

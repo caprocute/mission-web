@@ -1,0 +1,41 @@
+{{- /* Khôi phục thử snapshot OpenSearch hằng tuần (INF-18, TL-04 bảng lịch sao lưu); snapshot do chính sách daily-to-sn
+của chart opensearch tạo. */}}
+{{- $v := .Values }}
+{{- $o := $v.opensearch }}
+{{- if $o.enabled }}
+{{- $ns := $v.saoLuu.namespace }}
+{{- $data := dict "chung.sh" (.Files.Get "files/chung.sh") "khoi-phuc-thu-opensearch.sh" (.Files.Get "files/khoi-phuc-thu-opensearch.sh") }}
+{{- $cfg := printf "opensearch-%s" (toJson $data | sha256sum | trunc 10) }}
+{{- $kp := $o.khoiPhucThu }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $cfg }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+data:
+  {{- range $k := keys $data | sortAlpha }}
+  {{ $k }}: {{ index $data $k | quote }}
+  {{- end }}
+{{- if $v.externalSecrets.enabled }}
+---
+{{ include "bk.externalSecretMot" (dict "root" . "ten" $o.password.secretName "ns" $ns "khoa" $o.password.path) }}
+{{- end }}
+{{- $env := list
+  (dict "name" "OS_URL" "value" $o.url)
+  (dict "name" "OS_USER" "value" $o.user)
+  (dict "name" "OS_PASSWORD_FILE" "value" "/os/password")
+  (dict "name" "OS_CA" "value" (printf "/ca-os/%s" $o.caSecret.key))
+  (dict "name" "OS_REPO" "value" $o.repository)
+  (dict "name" "MAU" "value" (join " " $o.nhom))
+  (dict "name" "NGUONG_TAI_LIEU" "value" (toString $kp.nguongTaiLieu))
+  (dict "name" "TI_LE" "value" (toString $kp.tiLe))
+  (dict "name" "LECH_TUAN" "value" (toString $kp.lechTuan)) }}
+{{- $mounts := list (dict "name" "os" "mountPath" "/os" "readOnly" true) (dict "name" "ca-os" "mountPath" "/ca-os" "readOnly" true) }}
+{{- $vols := list (dict "name" "os" "secret" (dict "secretName" $o.password.secretName)) (dict "name" "ca-os" "secret" (dict "secretName" $o.caSecret.name)) }}
+---
+{{ include "bk.cronJobSaoLuu" (dict "root" . "ten" "khoi-phuc-thu-opensearch" "cfg" $cfg "schedule" $kp.schedule "deadline" $kp.activeDeadlineSeconds "script" "khoi-phuc-thu-opensearch.sh" "env" $env "mounts" $mounts "volumes" $vols) }}
+---
+{{ include "bk.mangJob" (dict "root" . "ten" "khoi-phuc-thu-opensearch" "dich" (list (dict "to" $o.egressTo "ports" (list 9200)))) }}
+{{- end }}

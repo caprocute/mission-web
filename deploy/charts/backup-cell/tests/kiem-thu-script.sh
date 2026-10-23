@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# Kiểm thử ba script của backup-cell (INF-17) với kubectl, aws, curl, etcdctl, etcdutl giả lập và PostgreSQL thật:
+# Kiểm thử script của backup-cell (INF-17, INF-18) với kubectl, aws, curl, etcdctl, etcdutl giả lập, rclone, git và
+# PostgreSQL thật:
 #   - restore-check.sh: chọn cụm theo luân phiên, dựng ObjectStore chỉ đọc và cụm tạm đúng mốc PITR, truy vấn kiểm
 #     (kiem-tra.sql, kiem-so-cai.sql) chạy thật trên PostgreSQL; dữ liệu mồ côi khoá ngoại, mất dòng, chuỗi băm đứt,
 #     Job khôi phục hỏng đều cho backup_restore_check_success 0 và mã thoát khác 0; cụm tạm luôn bị xoá.
 #   - giu-dai-han.sh: chỉ chạy ngày cuối tháng; chép đúng bản nền và đoạn WAL, hạn giữ 12 tháng hoặc 10 năm cuối năm.
 #   - chup-etcd.sh: mã hoá bằng age thật, giải mã lại khớp snapshot, tệp rõ bị xoá, recipient sai thì dừng.
-# Cần: bash, jq, age, psql và một cụm PostgreSQL trống được phép tạo CSDL (PGHOST, PGPORT, PGUSER siêu người dùng).
+#   - INF-18: sao-luu-minh-chung.sh (rclone thật, remote cục bộ), kiem-mau-minh-chung.sh (RLS và ro_evidence thật, phát
+#     hiện bản sao bị sửa, bị mất), sao-luu-clickhouse.sh, khoi-phuc-thu-clickhouse.sh, khoi-phuc-thu-opensearch.sh
+#     (HTTP giả), sao-luu-git.sh (git thật, kho file://), kiem-keo-harbor.sh (registry giả, digest thật).
+# Cần: bash, jq, age, rclone, git, psql và một cụm PostgreSQL trống được phép tạo CSDL (PGHOST, PGPORT, PGUSER siêu người dùng).
 # Dùng: PGHOST=127.0.0.1 PGPORT=54330 PGUSER=postgres deploy/charts/backup-cell/tests/kiem-thu-script.sh
 set -euo pipefail
 GOC=$(cd "$(dirname "$0")/.." && pwd)
@@ -35,6 +39,7 @@ case " $* " in
   *" get cluster "*) [ "${GIA_LAP_SAN_SANG:-True}" = True ] && echo True ;;
   *" get jobs "*) [ "${GIA_LAP_JOB_HONG:-0}" = 1 ] && echo 1; true ;;
   *" get backups.postgresql.cnpg.io "*) cat "$GL/backups.json" ;;
+  *" get pods -A -o json "*) cat "$GIA_LAP_PODS" ;;
   *" delete "*) ;;
   *) echo "kubectl giả: lệnh lạ $*" >&2; exit 2 ;;
 esac
@@ -52,16 +57,26 @@ if [ "$lenh" = s3api ] && [ "$con" = list-objects-v2 ]; then
   grep -F -- "$tien_to" "$GL/kho.txt" | awk -v p="$tien_to" -v d="$phan_cach" 'index($0, p) == 1 { r = substr($0, length(p) + 1); if (d == "" || index(r, d) == 0) print }' \
     | jq -R . | jq -s '{Contents: map({Key: .})}'
 elif [ "$lenh" = s3 ] && [ "$con" = cp ]; then
-  case $1 in s3://*) echo "$1 $2" >> "$GL/chep.log" ;; *) cp "$1" "$GL/kho/$(basename "$2")"; echo "$2" >> "$GL/day.log" ;; esac
+  # Bỏ tham số tuỳ chọn (--only-show-errors). s3:// sang s3:// ghi chep.log; s3:// về tệp cục bộ đọc từ $GL/s3/.
+  while [ "${1#--}" != "$1" ]; do shift; done
+  case $1 in
+    s3://*) case $2 in s3://*) echo "$1 $2" >> "$GL/chep.log" ;; *) [ -f "$GL/s3/${1#s3://}" ] && cp "$GL/s3/${1#s3://}" "$2" ;; esac ;;
+    *) cp "$1" "$GL/kho/$(basename "$2")"; echo "$2" >> "$GL/day.log" ;;
+  esac
 elif [ "$lenh" = s3api ] && [ "$con" = put-object-retention ]; then
   while [ $# -gt 0 ]; do case $1 in --key) k=$2; shift ;; --retention) r=$2; shift ;; esac; shift; done
   echo "$k $r" >> "$GL/han.log"
 else echo "aws giả: lệnh lạ" >&2; exit 2; fi
 EOF
+# curl giả: URL Pushgateway ghi chỉ số vào $GL/chi-so-<nhóm>; URL khác chuyển cho $GL/curl-gia.sh (ClickHouse,
+# OpenSearch, Harbor giả của từng ca kiểm thử INF-18).
 cat > "$W/bin/curl" <<'EOF'
 #!/usr/bin/env bash
 for a in "$@"; do u=$a; done
-cat > "$GL/chi-so-$(echo "${u#*/metrics/}" | tr '/' '_')"
+case $u in
+  */metrics/*) cat > "$GL/chi-so-$(echo "${u#*/metrics/}" | tr '/' '_')" ;;
+  *) exec bash "$GL/curl-gia.sh" "$@" ;;
+esac
 EOF
 cat > "$W/bin/etcdctl" <<'EOF'
 #!/usr/bin/env bash
@@ -75,6 +90,7 @@ echo "etcdutl $*" >> "$GL/etcd.log"; echo "| HASH | REVISION |"
 EOF
 chmod +x "$W"/bin/*
 moi() { rm -f "$GL"/*.log "$GL"/apply.yaml "$GL"/chi-so-*; }
+mkdir -p "$GL/s3"
 
 echo "== Dữ liệu kiểm thử trên PostgreSQL $PGHOST:$PGPORT"
 for db in bkt_td bkt_ledger; do psql -X -q -d postgres -c "DROP DATABASE IF EXISTS $db" -c "CREATE DATABASE $db"; done
@@ -248,6 +264,209 @@ moi
 if NODE_NAME=master-1 TAM=$W/tam RECIPIENT_FILE=$W/sai ETCD_ENDPOINTS=x PKI=/pki BUCKET=b PREFIX=etcd bash "$CFG/chup-etcd.sh" > "$W/etcd.out" 2>&1; then
   loi "recipient sai: không dừng"
 else kiem "recipient sai: dừng trước khi chụp, chỉ số 0" bash -c "[ ! -s '$GL/etcd.log' ] && grep -q '^backup_etcd_snapshot_success 0$' '$GL/chi-so-job_etcd-snapshot_cell_g4_node_master-1'"; fi
+
+# ======================================================================== INF-18
+echo "== sao-luu-minh-chung.sh (rclone thật, remote cục bộ)"
+# Nguồn: hai tệp minh chứng khoá theo băm của tenant A; đích là thư mục $GL/s3 (aws giả đọc lại khi kiểm mẫu).
+TA=11111111-1111-4111-8111-111111111111 TB=22222222-2222-4222-8222-222222222222
+mkdir -p "$W/nguon"
+dat_tep() { # <bucket> <tenant> <nội dung> → in khoá và băm
+  local bam; bam=$(printf '%s' "$3" | sha256sum | cut -d' ' -f1)
+  mkdir -p "$W/nguon/$1/t/$2/sha256/${bam:0:2}"; printf '%s' "$3" > "$W/nguon/$1/t/$2/sha256/${bam:0:2}/$bam"
+  echo "t/$2/sha256/${bam:0:2}/$bam $bam ${#3}"
+}
+read -r K1 B1 C1 < <(dat_tep ev-cell-g4 "$TA" "bien-ban-hop-chi-bo-thang-9")
+read -r K2 B2 C2 < <(dat_tep ev-cell-g4 "$TA" "bao-cao-ket-qua-quy-3")
+read -r K3 B3 C3 < <(dat_tep ev-cell-g4 "$TB" "minh-chung-tenant-b")
+read -r K4 _ _ < <(dat_tep ds-cell-g4 "$TA" "bieu-mau-da-ky")
+export RCLONE_CONFIG_NGUON_TYPE=alias RCLONE_CONFIG_NGUON_REMOTE=$W/nguon RCLONE_CONFIG_DICH_TYPE=alias RCLONE_CONFIG_DICH_REMOTE=$GL/s3
+MC=(env BUCKETS="ev-cell-g4:t ds-cell-g4:t" BUCKET_DICH=bk-cell-g4-ev RCLONE_THAM_SO="--transfers 4")
+moi
+if "${MC[@]}" bash "$CFG/sao-luu-minh-chung.sh" > "$W/mc.out" 2>&1; then ok "sao lưu ngày lần đầu đạt"; else loi "sao lưu ngày"; cat "$W/mc.out"; fi
+kiem "bản sao giữ nguyên khoá theo băm dưới hien-tai/<bucket>/" cmp -s "$W/nguon/ev-cell-g4/$K1" "$GL/s3/bk-cell-g4-ev/hien-tai/ev-cell-g4/$K1"
+kiem "biểu mẫu ký cũng được sao lưu" test -f "$GL/s3/bk-cell-g4-ev/hien-tai/ds-cell-g4/$K4"
+kiem "chỉ số đồng bộ đạt cho cả hai bucket" bash -c "grep -q '^backup_evidence_sync_success{bucket=\"ev-cell-g4\"} 1$' '$GL/chi-so-job_sao-luu-minh-chung_cell_g4' && grep -q '^backup_evidence_sync_success{bucket=\"ds-cell-g4\"} 1$' '$GL/chi-so-job_sao-luu-minh-chung_cell_g4'"
+# Nguồn bị sửa nội dung (đổi kích thước) dưới cùng khoá: --immutable không ghi đè bản sao, job lỗi.
+cp "$W/nguon/ev-cell-g4/$K2" "$W/k2.goc"; printf 'da-bi-sua' >> "$W/nguon/ev-cell-g4/$K2"
+moi
+if "${MC[@]}" bash "$CFG/sao-luu-minh-chung.sh" > "$W/mc.out" 2>&1; then loi "nguồn bị sửa: job không báo lỗi"
+else kiem "nguồn bị sửa: job lỗi, bản sao giữ nội dung cũ, chỉ số 0" bash -c "cmp -s '$W/k2.goc' '$GL/s3/bk-cell-g4-ev/hien-tai/ev-cell-g4/$K2' && grep -q '^backup_evidence_sync_success{bucket=\"ev-cell-g4\"} 0$' '$GL/chi-so-job_sao-luu-minh-chung_cell_g4'"; fi
+cp "$W/k2.goc" "$W/nguon/ev-cell-g4/$K2"
+# Tệp mất ở nguồn: bản sao dời sang thay-the/<ngày>/ thay vì mất (trên kho thật khoá không có quyền xoá nên bước dời
+# lỗi và bản sao ở hien-tai giữ nguyên).
+mv "$W/nguon/ev-cell-g4/$K3" "$W/k3.goc"
+moi
+"${MC[@]}" bash "$CFG/sao-luu-minh-chung.sh" > "$W/mc.out" 2>&1 || true
+kiem "tệp mất ở nguồn được giữ ở thay-the/2026-10-23/" test -f "$GL/s3/bk-cell-g4-ev/thay-the/2026-10-23/ev-cell-g4/$K3"
+mkdir -p "$(dirname "$GL/s3/bk-cell-g4-ev/hien-tai/ev-cell-g4/$K3")"; cp "$W/k3.goc" "$GL/s3/bk-cell-g4-ev/hien-tai/ev-cell-g4/$K3"
+mv "$W/k3.goc" "$W/nguon/ev-cell-g4/$K3"
+unset RCLONE_CONFIG_NGUON_TYPE RCLONE_CONFIG_NGUON_REMOTE RCLONE_CONFIG_DICH_TYPE RCLONE_CONFIG_DICH_REMOTE
+
+echo "== kiem-mau-minh-chung.sh (PostgreSQL thật, RLS, ro_evidence)"
+psql -X -q -d postgres -c "DROP DATABASE IF EXISTS bkt_ev" -c "CREATE DATABASE bkt_ev"
+psql -X -q -d postgres -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ro_evidence') THEN CREATE ROLE ro_evidence LOGIN NOBYPASSRLS; END IF; END \$\$"
+psql -X -q -v ON_ERROR_STOP=1 -d bkt_ev -v ta="$TA" -v tb="$TB" -v k1="$K1" -v k2="$K2" -v k3="$K3" -v b1="$B1" -v b2="$B2" -v b3="$B3" \
+  -v c1="$C1" -v c2="$C2" -v c3="$C3" <<'SQL'
+CREATE SCHEMA evidence;
+CREATE TABLE evidence.object_version (id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL DEFAULT nullif(current_setting('app.tenant_id', true), '')::uuid,
+  sha256 bytea NOT NULL, size_bytes bigint NOT NULL, bucket varchar(63) NOT NULL, object_key varchar(512) NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now());
+ALTER TABLE evidence.object_version ENABLE ROW LEVEL SECURITY;
+CREATE POLICY p_tenant ON evidence.object_version USING (tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid);
+GRANT USAGE ON SCHEMA evidence TO ro_evidence;
+GRANT SELECT ON evidence.object_version TO ro_evidence;
+INSERT INTO evidence.object_version (tenant_id, sha256, size_bytes, bucket, object_key, created_at) VALUES
+  (:'ta', decode(:'b1', 'hex'), :c1, 'ev-cell-g4', :'k1', '2026-10-20'),
+  (:'ta', decode(:'b2', 'hex'), :c2, 'ev-cell-g4', :'k2', '2026-10-21'),
+  (:'tb', decode(:'b3', 'hex'), :c3, 'ev-cell-g4', :'k3', '2026-10-21'),
+  -- tạo trong ngày kiểm: chưa qua lần sao lưu đêm, không được chọn
+  (:'ta', decode(:'b1', 'hex'), :c1, 'ev-cell-g4', 't/chua-sao-luu', '2026-10-23 03:00');
+SQL
+KM=(env TENANTS="$TA,$TB" SO_MAU=10 BUCKET_DICH=bk-cell-g4-ev TAM="$W/tam" PGDATABASE=bkt_ev PGUSER=ro_evidence)
+moi
+if "${KM[@]}" bash "$CFG/kiem-mau-minh-chung.sh" > "$W/km.out" 2>&1; then ok "kiểm mẫu bản sao còn nguyên: đạt"; else loi "kiểm mẫu bản sao còn nguyên"; cat "$W/km.out"; fi
+kiem "  kiểm đúng 3 đối tượng của hai tenant (RLS theo app.tenant_id, bỏ đối tượng tạo trong ngày)" grep -q '^backup_evidence_sample_checked 3$' "$GL/chi-so-job_kiem-mau-minh-chung_cell_g4"
+kiem "  có last_success" grep -q '^backup_evidence_sample_last_success_timestamp_seconds 1792706400$' "$GL/chi-so-job_kiem-mau-minh-chung_cell_g4"
+# Sửa có chủ đích một bản sao (cùng kích thước), xoá một bản sao khác.
+printf 'X' | dd of="$GL/s3/bk-cell-g4-ev/hien-tai/ev-cell-g4/$K1" bs=1 seek=0 conv=notrunc status=none
+rm "$GL/s3/bk-cell-g4-ev/hien-tai/ev-cell-g4/$K3"
+moi
+if "${KM[@]}" bash "$CFG/kiem-mau-minh-chung.sh" > "$W/km.out" 2>&1; then loi "bản sao bị sửa: job không báo lỗi"
+else kiem "bản sao bị sửa và bị mất: job lỗi, lệch 1, thiếu 1, không có last_success" bash -c "grep -q '^backup_evidence_sample_mismatch 1$' '$GL/chi-so-job_kiem-mau-minh-chung_cell_g4' && grep -q '^backup_evidence_sample_missing 1$' '$GL/chi-so-job_kiem-mau-minh-chung_cell_g4' && ! grep -q last_success '$GL/chi-so-job_kiem-mau-minh-chung_cell_g4' && grep -q 'LỆCH: ev-cell-g4/$K1' '$W/km.out'"; fi
+moi
+if env TENANTS="$TA" SO_MAU=1 BUCKET_DICH=bk-cell-g4-ev TAM="$W/tam" PGDATABASE=bkt_ev PGUSER=ro_evidence bash "$CFG/kiem-mau-minh-chung.sh" > "$W/km.out" 2>&1 \
+   || grep -q '^backup_evidence_sample_checked 1$' "$GL/chi-so-job_kiem-mau-minh-chung_cell_g4"; then ok "SO_MAU=1 với một tenant: kiểm đúng 1 đối tượng"
+else loi "SO_MAU=1"; cat "$W/km.out"; fi
+psql -X -q -d postgres -c "DROP DATABASE IF EXISTS bkt_ev"
+
+echo "== sao-luu-clickhouse.sh, khoi-phuc-thu-clickhouse.sh (HTTP giả)"
+echo "mat-khau" > "$W/mk"
+export CH_URL=https://ch.gia:8443 CH_USER=sao_luu CH_PASSWORD_FILE=$W/mk POLL_GIAY=0
+# ClickHouse giả: ghi câu lệnh vào ch.log; BACKUP/RESTORE trả mã tác vụ; trạng thái theo GIA_LAP_CH_TT; số dòng theo
+# $GL/ch-<csdl>.tsv.
+cat > "$GL/curl-gia.sh" <<'X'
+q=$(cat); echo "$q" >> "$GL/ch.log"
+case $q in
+  BACKUP*) printf 'b-1\tCREATING_BACKUP\n' ;;
+  RESTORE*) printf 'r-1\tRESTORING\n' ;;
+  "SELECT status"*) printf '%s\t\n' "${GIA_LAP_CH_TT:-BACKUP_CREATED}" ;;
+  "SELECT name, total_rows"*) db=$(sed -n "s/.*database = '\([a-z_]*\)'.*/\1/p" <<<"$q"); cat "$GL/ch-$db.tsv" ;;
+esac
+X
+printf '%s\n' "full-2026-10-11/.backup" "full-2026-10-18/data/x" "full-2026-10-18/.backup" "incr-2026-10-19/.backup" "full-2026-10-25/data/y" > "$GL/kho.txt"
+CHB=(env BUCKET=bk-cell-g4-ch)
+moi
+if "${CHB[@]}" NGAY=2026-10-21 bash "$CFG/sao-luu-clickhouse.sh" > "$W/ch.out" 2>&1; then ok "thứ tư: sao lưu gia tăng đạt"; else loi "sao lưu gia tăng"; cat "$W/ch.out"; fi
+kiem "  BACKUP incr-2026-10-21 nền full-2026-10-18, ON CLUSTER, async, zstd" grep -qF "BACKUP DATABASE analytics ON CLUSTER 'analytics' TO S3(bk_sn, 'incr-2026-10-21') SETTINGS async = 1, compression_method = 'zstd', base_backup = S3(bk_sn, 'full-2026-10-18') FORMAT TSV" "$GL/ch.log"
+kiem "  theo dõi system.backups theo mã tác vụ" grep -qF "SELECT status, error FROM system.backups WHERE id = 'b-1'" "$GL/ch.log"
+kiem "  chỉ số gia tăng đạt" grep -q '^backup_clickhouse_success{loai="incr"} 1$' "$GL/chi-so-job_sao-luu-clickhouse_cell_g4"
+moi
+"${CHB[@]}" NGAY=2026-10-25 bash "$CFG/sao-luu-clickhouse.sh" > "$W/ch.out" 2>&1 || true
+kiem "chủ nhật: bản đầy đủ full-2026-10-25 không nền" bash -c "grep -qF \"TO S3(bk_sn, 'full-2026-10-25') SETTINGS async = 1, compression_method = 'zstd' FORMAT TSV\" '$GL/ch.log'"
+moi
+"${CHB[@]}" NGAY=2026-10-26 bash "$CFG/sao-luu-clickhouse.sh" > "$W/ch.out" 2>&1 || true
+kiem "bản đầy đủ chủ nhật chưa xong (.backup chưa có) và bản cũ quá 6 ngày: làm bản đầy đủ" grep -qF "TO S3(bk_sn, 'full-2026-10-26')" "$GL/ch.log"
+moi
+if GIA_LAP_CH_TT=BACKUP_FAILED "${CHB[@]}" NGAY=2026-10-21 bash "$CFG/sao-luu-clickhouse.sh" > "$W/ch.out" 2>&1; then loi "BACKUP_FAILED: job không báo lỗi"
+else kiem "BACKUP_FAILED: job lỗi, chỉ số 0" grep -q '^backup_clickhouse_success{loai="incr"} 0$' "$GL/chi-so-job_sao-luu-clickhouse_cell_g4"; fi
+printf 'su_kien\t50000\nnho\t10\n' > "$GL/ch-analytics.tsv"; printf 'su_kien\t48000\nnho\t0\n' > "$GL/ch-analytics_khoi_phuc_thu.tsv"
+moi
+if GIA_LAP_CH_TT=RESTORED "${CHB[@]}" bash "$CFG/khoi-phuc-thu-clickhouse.sh" > "$W/ch.out" 2>&1; then ok "khôi phục thử ClickHouse đạt"; else loi "khôi phục thử ClickHouse"; cat "$W/ch.out"; fi
+kiem "  RESTORE bản mới nhất incr-2026-10-19 vào analytics_khoi_phuc_thu" grep -qF "RESTORE DATABASE analytics AS analytics_khoi_phuc_thu ON CLUSTER 'analytics' FROM S3(bk_sn, 'incr-2026-10-19')" "$GL/ch.log"
+kiem "  CSDL tạm bị xoá sau cùng" bash -c "tail -1 '$GL/ch.log' | grep -qF 'DROP DATABASE IF EXISTS analytics_khoi_phuc_thu'"
+printf 'su_kien\t1000\n' > "$GL/ch-analytics_khoi_phuc_thu.tsv"
+moi
+if GIA_LAP_CH_TT=RESTORED "${CHB[@]}" bash "$CFG/khoi-phuc-thu-clickhouse.sh" > "$W/ch.out" 2>&1; then loi "thiếu dòng sau khôi phục: không báo lỗi"
+else kiem "thiếu dòng và thiếu bảng sau khôi phục: lỗi, chỉ số 0, vẫn xoá CSDL tạm" bash -c "grep -q '^backup_clickhouse_restore_check_success 0$' '$GL/chi-so-job_khoi-phuc-thu-clickhouse_cell_g4' && grep -q 'thiếu bảng nho' '$W/ch.out' && tail -1 '$GL/ch.log' | grep -q DROP"; fi
+
+echo "== khoi-phuc-thu-opensearch.sh (HTTP giả)"
+export OS_URL=https://os.gia:9200 OS_USER=sao-luu OS_PASSWORD_FILE=$W/mk
+cat > "$GL/curl-gia.sh" <<'X'
+m=GET body=""
+while [ $# -gt 1 ]; do case $1 in -X) m=$2; shift ;; --data-binary) body=$2; shift ;; esac; shift; done
+p=${1#"$OS_URL"}; echo "$m $p $body" >> "$GL/os.log"
+case "$m $p" in
+  "GET /_snapshot/bk-sn/_all") echo '{"snapshots":[{"snapshot":"daily-to-sn-cu","state":"SUCCESS","start_time_in_millis":1},{"snapshot":"daily-to-sn-moi","state":"SUCCESS","start_time_in_millis":5},{"snapshot":"daily-to-sn-hong","state":"FAILED","start_time_in_millis":9}]}' ;;
+  "GET /_snapshot/bk-sn/daily-to-sn-moi") echo '{"snapshots":[{"indices":["okr-2026","okr-2025","org-don-vi","mission-2026"]}]}' ;;
+  "POST /_snapshot/bk-sn/daily-to-sn-moi/_restore"*) echo "{\"snapshot\":{\"shards\":{\"failed\":${GIA_LAP_OS_HONG:-0}}}}" ;;
+  "GET /_cat/count/"*) i=${p#/_cat/count/}; i=${i%%\?*}; echo "[{\"count\":\"$(cat "$GL/os-$i" 2>/dev/null || echo 0)\"}]" ;;
+  DELETE*) echo '{"acknowledged":true}' ;;
+  *) exit 22 ;;
+esac
+X
+for i in okr-2026 okr-2025; do echo 5000 > "$GL/os-$i"; echo 5000 > "$GL/os-khoi-phuc-thu-$i"; done
+# 2026-10-23: ngày 20749, tuần 2964, 2964 mod 4 = 0 → nhóm thứ nhất; LECH_TUAN=1 → okr-*.
+moi
+if LECH_TUAN=1 bash "$CFG/khoi-phuc-thu-opensearch.sh" > "$W/os.out" 2>&1; then ok "khôi phục thử OpenSearch đạt"; else loi "khôi phục thử OpenSearch"; cat "$W/os.out"; fi
+# shellcheck disable=SC2016  # $1 là chuỗi thay thế của OpenSearch, không phải biến shell
+kiem "  chọn snapshot SUCCESS mới nhất, chỉ nhóm okr-* theo tuần, đổi tên khoi-phuc-thu-, 0 bản sao" grep -qF 'POST /_snapshot/bk-sn/daily-to-sn-moi/_restore?wait_for_completion=true {"indices":"okr-2025,okr-2026","rename_pattern":"(.+)","rename_replacement":"khoi-phuc-thu-$1","include_global_state":false,"include_aliases":false,"index_settings":{"index.number_of_replicas":0}}' "$GL/os.log"
+kiem "  xoá chỉ mục tạm sau cùng" bash -c "tail -1 '$GL/os.log' | grep -qF 'DELETE /khoi-phuc-thu-okr-2025,khoi-phuc-thu-okr-2026?ignore_unavailable=true'"
+kiem "  chỉ số đạt" grep -q '^backup_opensearch_restore_check_success 1$' "$GL/chi-so-job_khoi-phuc-thu-opensearch_cell_g4"
+echo 100 > "$GL/os-khoi-phuc-thu-okr-2026"
+moi
+if LECH_TUAN=1 bash "$CFG/khoi-phuc-thu-opensearch.sh" > "$W/os.out" 2>&1; then loi "thiếu tài liệu sau khôi phục: không báo lỗi"
+else kiem "thiếu tài liệu sau khôi phục: lỗi, chỉ số 0, vẫn xoá chỉ mục tạm" bash -c "grep -q '^backup_opensearch_restore_check_success 0$' '$GL/chi-so-job_khoi-phuc-thu-opensearch_cell_g4' && tail -1 '$GL/os.log' | grep -q '^DELETE'"; fi
+moi
+if GIA_LAP_OS_HONG=1 LECH_TUAN=1 bash "$CFG/khoi-phuc-thu-opensearch.sh" > "$W/os.out" 2>&1; then loi "shard khôi phục hỏng: không báo lỗi"
+else ok "shard khôi phục hỏng: lỗi"; fi
+
+echo "== sao-luu-git.sh (git thật, kho file://)"
+G=$W/git; mkdir -p "$G/nguon/okr" "$G/guong/okr"
+git init -q --bare "$G/nguon/okr/gitops.git"; git init -q --bare "$G/guong/okr/gitops.git"
+git clone -q "$G/nguon/okr/gitops.git" "$G/lam" 2>/dev/null
+git -C "$G/lam" -c user.name=t -c user.email=t@t commit -q --allow-empty -m "khởi tạo"
+git -C "$G/lam" tag v1; git -C "$G/lam" push -q origin HEAD:refs/heads/main v1
+GT=(env GIT_NGUON="file://$G/nguon" GIT_GUONG="file://$G/guong" KHO=okr/gitops BUCKET=bk-cell-g4-git TAM="$W/tam")
+refs_cua() { git -C "$1" for-each-ref --format='%(objectname) %(refname)' | sort; }
+moi
+if "${GT[@]}" CHE_DO=guong bash "$CFG/sao-luu-git.sh" > "$W/git.out" 2>&1; then ok "đẩy gương đạt"; else loi "đẩy gương"; cat "$W/git.out"; fi
+kiem "  gương có đủ nhánh và thẻ như kho gốc" bash -c "[ \"\$(git -C '$G/guong/okr/gitops.git' for-each-ref --format='%(objectname) %(refname)' | sort)\" = \"\$(git -C '$G/nguon/okr/gitops.git' for-each-ref --format='%(objectname) %(refname)' | sort)\" ]"
+moi
+if "${GT[@]}" CHE_DO=bundle NGAY=2026-10-25 bash "$CFG/sao-luu-git.sh" > "$W/git.out" 2>&1; then ok "chủ nhật: bundle và clone thử đạt"; else loi "bundle chủ nhật"; cat "$W/git.out"; fi
+kiem "  đẩy s3://bk-cell-g4-git/bundle/okr/gitops/2026-10-25.bundle" grep -qx "s3://bk-cell-g4-git/bundle/okr/gitops/2026-10-25.bundle" "$GL/day.log"
+kiem "  bundle đẩy lên là bundle hợp lệ" git -C "$G/nguon/okr/gitops.git" bundle verify -q "$GL/kho/2026-10-25.bundle"
+kiem "  có chỉ số clone thử" grep -q '^backup_git_clone_check_last_success_timestamp_seconds{kho="okr/gitops"}' "$GL/chi-so-job_sao-luu-git-bundle_cell_g4"
+kiem "  thư mục tạm sạch" bash -c "[ -z \"\$(ls -A '$W/tam')\" ]"
+git -C "$G/lam" -c user.name=t -c user.email=t@t commit -q --allow-empty -m "mới"; git -C "$G/lam" push -q origin HEAD:refs/heads/main
+moi
+if "${GT[@]}" CHE_DO=bundle NGAY=2026-10-25 GIT_GUONG="file://$G/guong" bash "$CFG/sao-luu-git.sh" > "$W/git.out" 2>&1; then loi "gương cũ hơn kho gốc: clone thử không báo lỗi"
+else kiem "gương tụt sau kho gốc: clone thử chủ nhật báo lỗi" grep -q "clone thử từ gương okr/gitops không khớp" "$W/git.out"; fi
+moi
+if "${GT[@]}" CHE_DO=guong GIT_NGUON="file://$G/khong-co" bash "$CFG/sao-luu-git.sh" > "$W/git.out" 2>&1; then loi "kho nguồn không tồn tại: không báo lỗi"
+else kiem "kho nguồn không clone được: lỗi, chỉ số 0" grep -q '^backup_git_success{kho="okr/gitops",che_do="guong"} 0$' "$GL/chi-so-job_sao-luu-git-guong_cell_g4"; fi
+
+echo "== kiem-keo-harbor.sh (registry giả, digest thật)"
+mkdir -p "$GL/harbor"
+m1='{"schemaVersion":2,"mediaType":"application/vnd.oci.image.manifest.v1+json","layers":[]}'
+m2='{"schemaVersion":2,"mediaType":"application/vnd.oci.image.index.v1+json","manifests":[]}'
+d1=sha256:$(printf '%s' "$m1" | sha256sum | cut -d' ' -f1) d2=sha256:$(printf '%s' "$m2" | sha256sum | cut -d' ' -f1)
+d3=sha256:$(printf '%064d' 3)
+printf '%s' "$m1" > "$GL/harbor/$d1"; printf '%s' "$m2" > "$GL/harbor/$d2"
+cat > "$W/pods.json" <<J
+{"items":[
+ {"status":{"containerStatuses":[{"imageID":"harbor.vt.local/okr/task-service@$d1"},{"imageID":"docker-pullable://harbor.vt.local/platform/backup-tools@$d2"}]}},
+ {"status":{"initContainerStatuses":[{"imageID":"harbor.vt.local/okr/task-service@$d1"}],"containerStatuses":[{"imageID":"harbor.vt.local/dockerhub/library/nginx@$d3"}]}}
+]}
+J
+export GIA_LAP_PODS=$W/pods.json
+cat > "$GL/curl-gia.sh" <<'X'
+for a in "$@"; do u=$a; done
+o=""; while [ $# -gt 0 ]; do [ "$1" = -o ] && o=$2; shift; done
+echo "$u" >> "$GL/harbor.log"
+dg=${u##*/manifests/}
+[ -f "$GL/harbor/$dg" ] || exit 22
+cp "$GL/harbor/$dg" "$o"
+X
+HB=(env REGISTRY_GOC=harbor.vt.local HARBOR_SN=https://harbor-sn.vt.local "HARBOR_USER=robot\$pull-cell-g4-sn" "HARBOR_PASSWORD_FILE=$W/mk")
+moi
+if "${HB[@]}" bash "$CFG/kiem-keo-harbor.sh" > "$W/hb.out" 2>&1; then ok "kéo thử harbor-sn đạt"; else loi "kéo thử harbor-sn"; cat "$W/hb.out"; fi
+kiem "  hai digest riêng biệt của project được nhân bản, bỏ ảnh proxy-cache dockerhub" bash -c "[ \$(wc -l < '$GL/harbor.log') = 2 ] && ! grep -q dockerhub '$GL/harbor.log' && grep -qx 'https://harbor-sn.vt.local/v2/okr/task-service/manifests/$d1' '$GL/harbor.log'"
+kiem "  chỉ số đạt" grep -q '^backup_harbor_pull_check_checked 2$' "$GL/chi-so-job_kiem-keo-harbor_cell_g4"
+rm "$GL/harbor/$d2"; printf 'sai' > "$GL/harbor/$d1"
+moi
+if "${HB[@]}" bash "$CFG/kiem-keo-harbor.sh" > "$W/hb.out" 2>&1; then loi "ảnh thiếu, sai digest: không báo lỗi"
+else kiem "ảnh thiếu ở harbor-sn và nội dung sai digest: lỗi, failed 2" grep -q '^backup_harbor_pull_check_failed 2$' "$GL/chi-so-job_kiem-keo-harbor_cell_g4"; fi
 
 for db in bkt_td bkt_ledger; do psql -X -q -d postgres -c "DROP DATABASE IF EXISTS $db"; done
 echo; echo "Tổng: $dat đạt, $hong hỏng"
