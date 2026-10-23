@@ -68,6 +68,11 @@ x-backend-java-env: &backend-java-env
 # Service backend và APISIX chỉ thuộc profile backend, không thuộc `all`: ảnh Java cần jar dựng trước
 # (deploy-backend.sh), nên `docker compose --profile all up` của hạ tầng không kéo theo chúng.
 # Cổng quản trị 8081 chỉ mở trong mạng compose; compose kiểm readiness bằng curl trong container.
+# Bộ nhớ: Dockerfile.java đặt -XX:MaxRAMPercentage=70, không có giới hạn container thì mỗi JVM tính 70% RAM của cả
+# máy, mười service tranh nhau và bị OOM trên máy 16 GB. Mỗi service Java có mem_limit và -Xmx riêng qua .env
+# (<SERVICE>_MEM_LIMIT, <SERVICE>_XMX; service nhỏ dùng chung JAVA_MEM_LIMIT, JAVA_XMX); -Xmx thắng
+# MaxRAMPercentage, phần chênh giữa mem_limit và -Xmx dành cho metaspace, luồng, bộ đệm ngoài heap.
+# ExitOnOutOfMemoryError để container khởi động lại (restart: unless-stopped) thay vì treo nửa sống.
 x-backend-java: &backend-java
   restart: unless-stopped
   profiles: ["backend"]
@@ -776,8 +781,10 @@ services:
       dockerfile: ../../infra/dev/backend/Dockerfile.java
     image: mission-dev/mission-core:dev
     container_name: mission-dev-mission-core
+    mem_limit: ${MISSION_CORE_MEM_LIMIT:-1536m}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${MISSION_CORE_XMX:-1g} -XX:+ExitOnOutOfMemoryError"
       SERVICE_NAME: mission-core
       AUTH_ENABLED: ${MISSION_CORE_AUTH_ENABLED:-true}
       # Đối chiếu cel-js khi chạy kiểm thử Policy Pack (CORE-05-07, BR-15-07); thiếu thì lần chạy luôn "Chưa đạt".
@@ -808,8 +815,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/org-service:dev
     container_name: mission-dev-org-service
+    mem_limit: ${ORG_SERVICE_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${ORG_SERVICE_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       PORT: "8080"
       ORG_DB_URL: jdbc:postgresql://pgbouncer:6432/${POSTGRES_DB:-mission}?currentSchema=org&prepareThreshold=0
       ORG_DB_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-}
@@ -831,8 +840,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/workflow-service:dev
     container_name: mission-dev-workflow-service
+    mem_limit: ${WORKFLOW_SERVICE_MEM_LIMIT:-1g}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${WORKFLOW_SERVICE_XMX:-640m} -XX:+ExitOnOutOfMemoryError"
       DB_NAME: flowable
       CORE_BASE_URL: http://mission-core:8080/api/v1
       # Flyway của chính service (schema flowable) chạy lúc khởi động bằng mig_flowable, nối thẳng PostgreSQL
@@ -852,8 +863,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/scoring-service:dev
     container_name: mission-dev-scoring-service
+    mem_limit: ${SCORING_SERVICE_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${SCORING_SERVICE_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       MISSION_CORE_URL: http://mission-core:8080
     ports:
       - "${SCORING_SERVICE_PORT:-35113}:8080"
@@ -866,8 +879,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/document-service:dev
     container_name: mission-dev-document-service
+    mem_limit: ${DOCUMENT_SERVICE_MEM_LIMIT:-1g}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${DOCUMENT_SERVICE_XMX:-640m} -XX:+ExitOnOutOfMemoryError"
       # Schema tự chứa outbox, inbox, idempotency (phân vùng DEFAULT), không dùng phần chung V0_x của
       # vt-db-migration. deploy-backend.sh áp trước bằng MigrationRunner (chỉ thư mục riêng); Flyway lúc khởi động
       # bằng mig_docgen giữ lại cho lần bật service riêng lẻ, cùng thư mục nên không trùng.
@@ -892,8 +907,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/evidence-service:dev
     container_name: mission-dev-evidence-service
+    mem_limit: ${EVIDENCE_SERVICE_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${EVIDENCE_SERVICE_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       GOTENBERG_URL: http://gotenberg:3000
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY: ${MINIO_ROOT_USER:-}
@@ -912,8 +929,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/esign-service:dev
     container_name: mission-dev-esign-service
+    mem_limit: ${ESIGN_SERVICE_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${ESIGN_SERVICE_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       # Schema tự chứa outbox, inbox, idempotency (phân vùng DEFAULT), không dùng phần chung V0_x của
       # vt-db-migration. deploy-backend.sh áp trước bằng MigrationRunner (chỉ thư mục riêng); Flyway lúc khởi động
       # bằng mig_esign giữ lại cho lần bật service riêng lẻ, cùng thư mục nên không trùng.
@@ -933,8 +952,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/integration-gateway:dev
     container_name: mission-dev-integration-gateway
+    mem_limit: ${INTEGRATION_GATEWAY_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${INTEGRATION_GATEWAY_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
     ports:
       - "${INTEGRATION_GATEWAY_PORT:-35117}:8080"
 
@@ -946,8 +967,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/analytics-api:dev
     container_name: mission-dev-analytics-api
+    mem_limit: ${ANALYTICS_API_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${ANALYTICS_API_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       OPA_URL: http://opa:8181
       MISSION_CORE_URL: http://mission-core:8080
       ANALYTICS_CLICKHOUSE_URL: http://clickhouse:8123
@@ -974,8 +997,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/search:dev
     container_name: mission-dev-search
+    mem_limit: ${SEARCH_SERVICE_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${SEARCH_SERVICE_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       OPA_URL: http://opa:8181
       OPENSEARCH_URL: http://opensearch:9200
     ports:
