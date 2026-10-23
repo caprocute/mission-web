@@ -13,10 +13,10 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **360 / 408 task (88.2%)** — Khối lượng quy đổi đã gộp: **426.5 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **360 / 408 task (88.2%)** (gồm **360** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **361 / 408 task (88.5%)** (gồm **360** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **14 task** (10 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **34 task**.
-- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
+- **Chưa bắt đầu**: **33 task**.
+- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: `QA-16`).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
 
@@ -28,11 +28,11 @@
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **104** | 0 | 0 | 0 | **100.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **13** | 0 | 0 | 0 | **100.0%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 9 | 3 | **57.1%** |
-| **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **1** | 0 | 3 | 12 | **6.2%** |
+| **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **1** | 1 | 3 | 11 | **6.2%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **360** | **0** | **14** | **34** | **88.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **360** | **1** | **14** | **33** | **88.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -45,13 +45,13 @@
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **17** | 0 | 13 | 12 | **40.5%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **4** | 0 | 0 | 19 | **17.4%** |
-| **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **1** | 0 | 0 | 3 | **25.0%** |
+| **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **1** | 1 | 0 | 2 | **25.0%** |
 
 ### 1.3. Trạng thái 23 task trên Đường găng
 
 Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 
-✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → ✅ `CORE-00-01` → ✅ `CORE-00-02` → ✅ `CORE-05-01` → ✅ `CORE-05-02` → ✅ `CORE-05-03` → ✅ `CORE-08-13` → ✅ `CORE-08-14` → ✅ `CORE-04-04` → ✅ `CORE-04-05` → ✅ `CORE-04-07` → ✅ `CORE-04-08` → ✅ `CORE-04-10` → ⏳ `QA-06` → ⏳ `QA-07` → ⏳ `QA-16` → ⏳ `VH-08`
+✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → ✅ `CORE-00-01` → ✅ `CORE-00-02` → ✅ `CORE-05-01` → ✅ `CORE-05-02` → ✅ `CORE-05-03` → ✅ `CORE-08-13` → ✅ `CORE-08-14` → ✅ `CORE-04-04` → ✅ `CORE-04-05` → ✅ `CORE-04-07` → ✅ `CORE-04-08` → ✅ `CORE-04-10` → ⏳ `QA-06` → ⏳ `QA-07` → 🔄 **`QA-16`** (Xong, chờ gộp) → ⏳ `VH-08`
 
 ---
 
@@ -575,7 +575,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [INF-27](docs/tasks/INF-27-quan-ly-truy-cap-dac-quyen.md) | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | B8 | 3 | INF-13 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần giải pháp PAM |
 | [INF-28](docs/tasks/INF-28-cum-cho-am-ttdl-hai.md) | Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite | L | B8 | 9 | INF-11, INF-18, INF-20, INF-04, INF-08, INF-09, INF-17 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần TTDL thứ hai |
 
-### QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng (1/16 đã gộp `main`, 0 chờ gộp, 3 đang làm)
+### QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng (1/16 đã gộp `main`, 1 chờ gộp, 3 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -594,7 +594,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [QA-13](docs/tasks/QA-13-asvs-zap.md) | Kiểm thử ATTT: OWASP ASVS 4.0.3 mức 2 (L3 cho xác thực, phiên, mật mã) và OWASP ZAP toàn hệ thống | L | B9 | 12 | QA-03 | **Đang làm** | Giao B4 |
 | [QA-14](docs/tasks/QA-14-thu-hong-dr-01-09.md) | Thử hỏng PERF-07 và diễn tập khôi phục DR-01..DR-09 | L | B9 | 15 | INF-17, QA-08 | **Chưa bắt đầu** |  |
 | [QA-15](docs/tasks/QA-15-dr-chuyen-vung.md) | Diễn tập khôi phục DR-10..DR-16, chuyển vùng giữa hai trung tâm dữ liệu | L | B9 | 16 | QA-14, INF-18, INF-20 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần TTDL thứ hai |
-| [QA-16](docs/tasks/QA-16-uat-tenant-thi-diem.md) | Kiểm thử chấp nhận nghiệp vụ: tenant thí điểm chạy trọn một kỳ đánh giá | L | B9 | 24 | QA-07 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần tenant và người dùng thật |
+| [QA-16](docs/tasks/QA-16-uat-tenant-thi-diem.md) | Kiểm thử chấp nhận nghiệp vụ: tenant thí điểm chạy trọn một kỳ đánh giá | L | B9 | 24 | QA-07 | **Xong, chờ gộp** | Nhánh claude/project-thread-z7s8x3: phần chuẩn bị UAT (kế hoạch, 18 kịch bản, dữ liệu mẫu hư cấu khớp 5/5 bộ tính tham chiếu, checklist AC-01..AC-10, mẫu biên bản, kichBanUat trong danh mục hành trình); chưa chạy với người dùng thật |
 
 ### MOB · SVC-18 mobile-app (Flutter) (0/10 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -1016,4 +1016,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 12:20 | Điều phối (main) | `INF-18` | Chuyển trạng thái sang **Đang làm** — Giao B7 |
 | 23/10/2026 12:25 | Điều phối (main) | `INF-23` | Chuyển trạng thái sang **Đang làm** — Giao B1 |
 | 23/10/2026 12:39 | Điều phối (main) | `INF-20` | Chuyển trạng thái sang **Đang làm** — Giao B1 |
+| 23/10/2026 12:55 | B9 | `QA-16` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: phần chuẩn bị UAT (kế hoạch, 18 kịch bản, dữ liệu mẫu hư cấu khớp 5/5 bộ tính tham chiếu, checklist AC-01..AC-10, mẫu biên bản, kichBanUat trong danh mục hành trình); chưa chạy với người dùng thật |
 <!-- PROGRESS_LOG_END -->

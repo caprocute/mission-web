@@ -1,0 +1,73 @@
+# Kết quả xếp loại quý mong đợi của năm cán bộ hư cấu trong kỳ UAT (QA-16), luồng Đảng,
+# gói khoi-dang/quy-dinh-moi (bản giả lập theo YC-PT-14). Định dạng bo_ca_mau của TL-01 để chạy được
+# bằng bộ tính tham chiếu data/golden/chay_ca_mau.py: python3 -I docs/uat/so-thu-nghiem/kiem_ket_qua_mong_doi.py
+#
+# Kỳ vọng do tổ UAT tính tay theo Phụ lục 3 (KPI nhiệm vụ = (A + B + C) / 3; A = số lượng được nghiệm thu
+# chia kế hoạch, tối đa 1; B = mức chất lượng khi nghiệm thu; C = 1 - 0,05 x số ngày làm việc chậm do chủ
+# quan; điểm = 30 x KPI bình quân nhóm thường xuyên + 70 x KPI bình quân nhóm then chốt, làm tròn một chữ
+# số thập phân, nửa lên) rồi mới đối chiếu với bộ tính, không lấy kết quả của bộ tính làm kỳ vọng.
+# Dữ liệu hoàn toàn hư cấu (SEC-52), không lấy từ hồ sơ thật.
+bo_ca_mau: uat-so-thu-nghiem-quy
+goi: khoi-dang/quy-dinh-moi
+gia_lap: true
+nguoi_ky: null
+yeu_cau_dat: 1.0
+trang_thai_ky: NHAP
+
+mac_dinh:
+  nhiem_vu: {ke_hoach: 10, so_luong_duyet: 10, muc_chat_luong: 1.0, so_lan_chinh_sua: 0,
+             ngay_lam_viec_cham_chu_quan: 0, ngay_lich_cham_chu_quan: 0, diem_chuan: 10, khong_hoan_thanh_chu_quan: false}
+  QUY: {ty_le_O: 1.0, ty_le_dap_ung_tieu_chi_chung: 1.0, giai_phap_dot_pha_da_kiem_chung: true, loai_tru: false,
+        la_nguoi_dung_dau: false, tap_the_dat_05_chi_tieu: true, tap_the_dat_tat_ca_O: true, ty_le_don_vi_khtnv: 0.0,
+        giu_chuc_vu: false, xep_loai_nha_nuoc: ""}
+
+ca:
+  - id: UAT-Q-KIEMTRA
+    loai: QUY
+    mo_ta: "Ngô Văn Kiểm Tra: bốn nhiệm vụ đạt đủ chất lượng, hai nhiệm vụ vượt kế hoạch (12/10), có giải pháp đột phá đã kiểm chứng"
+    legal_ref: "QĐ Điều 11; PL 3; BR-09-07"
+    source: UAT
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN}, {nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THEN_CHOT, so_luong_duyet: 12}, {nhom: THEN_CHOT}]
+    # KPI cả bốn nhiệm vụ = 1; điểm 30 + 70 = 100; vượt 2/4 = 50% >= 30%
+    mong_doi: {diem: 100.0, ty_le_vuot: 0.5, muc_tieu_chi_chung: THUC_HIEN_TOT, xep_loai: HTXSNV, muc_cuoi: HTXSNV}
+  - id: UAT-Q-QUANLY
+    loai: QUY
+    mo_ta: "Trần Thị Quản Lý: đủ điểm mức xuất sắc nhưng chỉ một trong bốn nhiệm vụ vượt kế hoạch, hệ thống hạ một mức và nêu lý do"
+    legal_ref: "QĐ Điều 11; PL 6 §12; BR-09-10"
+    source: UAT
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, muc_chat_luong: 0.75}, {nhom: THUONG_XUYEN}, {nhom: THEN_CHOT, so_luong_duyet: 12}, {nhom: THEN_CHOT}]
+    # Thường xuyên: (1 + 0,75 + 1)/3 = 0,9167 và 1, bình quân 0,9583 x 30 = 28,75; then chốt 70; điểm 98,75 -> 98,8
+    # Vượt 1/4 = 25% < 30% nên không đạt mức xuất sắc, xuống Hoàn thành tốt
+    mong_doi: {diem: 98.8, ty_le_vuot: 0.25, xep_loai: HTTNV, muc_cuoi: HTTNV, ha_muc: true, dieu_kien_thieu: [dat_ty_le_vuot]}
+  - id: UAT-Q-THAMDINH
+    loai: QUY
+    mo_ta: "Phạm Thị Thẩm Định: hai nhiệm vụ nghiệm thu mức chất lượng khá (0,75), tiêu chí chung đáp ứng 95%, chưa có giải pháp đột phá"
+    legal_ref: "QĐ Điều 10, Điều 11; PL 3; BR-09-05; BR-09-08"
+    source: UAT
+    dau_vao:
+      ty_le_dap_ung_tieu_chi_chung: 0.95
+      giai_phap_dot_pha_da_kiem_chung: false
+      nhiem_vu: [{nhom: THUONG_XUYEN, muc_chat_luong: 0.75}, {nhom: THEN_CHOT, muc_chat_luong: 0.75}]
+    # KPI mỗi nhiệm vụ (1 + 0,75 + 1)/3 = 0,91667; điểm 100 x 0,91667 = 91,667 -> 91,7; tiêu chí chung Đảm bảo
+    mong_doi: {diem: 91.7, ty_le_vuot: 0.0, muc_tieu_chi_chung: DAM_BAO, xep_loai: HTTNV, muc_cuoi: HTTNV}
+  - id: UAT-Q-CANBO
+    loai: QUY
+    mo_ta: "Nguyễn Văn Cán Bộ: hai nhiệm vụ chỉ được nghiệm thu 8/10 sản phẩm ở mức chất lượng trung bình (0,5); cán bộ này gửi khiếu nại ở kịch bản 15"
+    legal_ref: "QĐ Điều 11; PL 3; BR-09-09"
+    source: UAT
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 8, muc_chat_luong: 0.5}, {nhom: THEN_CHOT, so_luong_duyet: 8, muc_chat_luong: 0.5}]
+    # KPI mỗi nhiệm vụ (0,8 + 0,5 + 1)/3 = 0,76667; điểm 76,667 -> 76,7
+    mong_doi: {diem: 76.7, ty_le_vuot: 0.0, xep_loai: HTNV, muc_cuoi: HTNV}
+  - id: UAT-Q-LANHDAO
+    loai: QUY
+    mo_ta: "Lê Văn Lãnh Đạo (người đứng đầu): hai nhiệm vụ vượt kế hoạch, tập thể đạt chỉ tiêu, không đơn vị phụ trách nào xếp loại Không hoàn thành"
+    legal_ref: "QĐ khoản 14.3.3; BR-09-07; BR-09-13"
+    source: UAT
+    dau_vao:
+      la_nguoi_dung_dau: true
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THEN_CHOT, so_luong_duyet: 12}]
+    # KPI = 1; điểm 100; vượt 2/2 = 100%; quy tắc người đứng đầu không kích hoạt
+    mong_doi: {diem: 100.0, ty_le_vuot: 1.0, xep_loai: HTXSNV, nguoi_dung_dau: false, muc_cuoi: HTXSNV}
