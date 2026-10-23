@@ -118,6 +118,6 @@ docker compose up -d --build postgres pgbouncer
 Tệp `keycloak/realm-mission.json` tạo sẵn:
 - **Realm**: `mission`
 - **Client SPA (PKCE)**: `mission-web` (`redirectUris`: `http://localhost:4200/*`)
-- **Client dịch vụ**: `mission-core`
+- **Client dịch vụ**: `mission-core`; `org-service` (tài khoản dịch vụ, vai trò `svc_org_service`, bí mật `ORG_SERVICE_CLIENT_SECRET`)
 - **Các vai trò chuẩn**: `SYS_ADMIN`, `LANH_DAO_DON_VI`, `THU_TRUONG_CO_QUAN`, `CHUYEN_VIEN_THAM_MUU`, `CAN_BO`, `HOI_DONG_THAM_DINH`, `KIEM_TRA_GIAM_SAT`
 - **Protocol mappers**: tự động gắn `tenant_id`, `org_path`, `roles` vào access token và ID token.

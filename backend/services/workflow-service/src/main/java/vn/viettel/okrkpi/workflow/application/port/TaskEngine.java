@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.workflow.application.port;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import vn.viettel.okrkpi.workflow.domain.Approver;
@@ -24,6 +25,14 @@ public interface TaskEngine {
    *     khoá lạc quan
    */
   Completion complete(OpenTask task, Approver approver, Decision decision, String comment);
+
+  /**
+   * Người đã duyệt nhánh còn lại của cùng lượt duyệt kép chỉ huy và cấp uỷ chứa user task
+   * (DV-06-12); rỗng (không phải danh sách rỗng) khi user task không thuộc mẫu duyệt kép.
+   */
+  default Optional<List<UUID>> otherBranchApprovers(UUID tenantId, String taskId) {
+    return Optional.empty();
+  }
 
   /**
    * Kết quả hoàn thành.

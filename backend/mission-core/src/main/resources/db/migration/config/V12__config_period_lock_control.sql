@@ -121,7 +121,7 @@ CREATE TABLE ${flyway:defaultSchema}.period_lock_command (
     finished_at timestamptz,
     CONSTRAINT pk_period_lock_command PRIMARY KEY (id),
     CONSTRAINT fk_period_lock_command__period_lock_order FOREIGN KEY (lock_order_id) REFERENCES ${flyway:defaultSchema}.period_lock_order (id),
-    CONSTRAINT ck_period_lock_command__command CHECK (command IN ('TAM_DUNG', 'TIEP_TUC', 'CHAY_LAI_LOI', 'BU_TRU')),
+    CONSTRAINT ck_period_lock_command__command CHECK (command IN ('TAM_DUNG', 'TIEP_TUC', 'CHAY_LAI_LOI', 'CHAP_NHAN_LOI', 'BU_TRU')),
     CONSTRAINT ck_period_lock_command__status CHECK (status IN ('CHO', 'DANG_CHAY', 'HOAN_TAT', 'THAT_BAI'))
 );
 CREATE INDEX ix_period_lock_command__pending ON ${flyway:defaultSchema}.period_lock_command (tenant_id, created_at)
@@ -134,8 +134,8 @@ COMMENT ON COLUMN ${flyway:defaultSchema}.period_lock_command.created_by IS '{"c
 COMMENT ON COLUMN ${flyway:defaultSchema}.period_lock_command.updated_at IS '{"cls": "C1", "desc": "Thời điểm cập nhật gần nhất"}';
 COMMENT ON COLUMN ${flyway:defaultSchema}.period_lock_command.lock_order_id IS '{"cls": "C1", "desc": "Lệnh khoá kỳ"}';
 COMMENT ON COLUMN ${flyway:defaultSchema}.period_lock_command.saga_id IS '{"cls": "C1", "desc": "Saga chốt kỳ (flowable.saga_instance.id)"}';
-COMMENT ON COLUMN ${flyway:defaultSchema}.period_lock_command.command IS '{"cls": "C1", "desc": "Lệnh: TAM_DUNG, TIEP_TUC, CHAY_LAI_LOI, BU_TRU"}';
-COMMENT ON COLUMN ${flyway:defaultSchema}.period_lock_command.payload IS '{"cls": "C1", "desc": "Tham số lệnh (danh sách hồ sơ chạy lại, ghi chú)"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.period_lock_command.command IS '{"cls": "C1", "desc": "Lệnh: TAM_DUNG, TIEP_TUC, CHAY_LAI_LOI, CHAP_NHAN_LOI, BU_TRU"}';
+COMMENT ON COLUMN ${flyway:defaultSchema}.period_lock_command.payload IS '{"cls": "C1", "desc": "Tham số lệnh (danh sách hồ sơ chạy lại, ghi chú, người đề nghị huỷ với BU_TRU)"}';
 COMMENT ON COLUMN ${flyway:defaultSchema}.period_lock_command.status IS '{"cls": "C1", "desc": "Trạng thái tác vụ: CHO, DANG_CHAY, HOAN_TAT, THAT_BAI"}';
 COMMENT ON COLUMN ${flyway:defaultSchema}.period_lock_command.delivered_at IS '{"cls": "C1", "desc": "Thời điểm SVC-06 nhận lệnh"}';
 COMMENT ON COLUMN ${flyway:defaultSchema}.period_lock_command.finished_at IS '{"cls": "C1", "desc": "Thời điểm tác vụ kết thúc"}';

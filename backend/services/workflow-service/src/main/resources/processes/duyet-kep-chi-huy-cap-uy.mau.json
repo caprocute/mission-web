@@ -1,0 +1,80 @@
+{
+  "templateCode": "duyet-kep-chi-huy-cap-uy",
+  "phienBanChinh": 1,
+  "moTa": "Duyệt kép chỉ huy và cấp uỷ cho lực lượng vũ trang: luồng cha gọi mẫu này ở bước duyệt; chỉ huy và cấp uỷ cùng duyệt song song, hồ sơ chỉ đi tiếp khi cả hai đã duyệt, một bên trả lại thì cả lượt duyệt quay về người trình và việc của bên kia được huỷ. Mỗi nhánh có hạn theo ngày làm việc, nhắc trước một ngày, quá hạn chuyển người được uỷ quyền của nhánh đó, ký số tuỳ chọn. Một người không được duyệt cả hai nhánh, người trình không được duyệt.",
+  "chuSoHuu": "Luồng B6 - nhóm workflow-service (SVC-06)",
+  "truyVet": "ADR-04 → QT-15 → SCR-1504 → completeWorkflowTask (platform.yaml, SCR-0203) → EVT-18, EVT-21 → SVC-06; BR-15-11, BR-15-12",
+  "bangQuyetDinh": [],
+  "kiemThu": [
+    "vn.viettel.okrkpi.workflow.template.DuyetKepChiHuyCapUyFlowTest"
+  ],
+  "kiemThuDmn": [],
+  "bien": {
+    "tenantId": 50,
+    "khoi": 16,
+    "donViId": 48,
+    "tieuDe": 780,
+    "keHoachKep": 260,
+    "soLanQuaHanKep": 60,
+    "nhom_chiHuy": 120,
+    "nguoi_chiHuy": 48,
+    "han_chiHuy": 40,
+    "nhac_chiHuy": 40,
+    "canKy_chiHuy": 20,
+    "daKy_chiHuy": 20,
+    "nhom_capUy": 120,
+    "nguoi_capUy": 48,
+    "han_capUy": 40,
+    "nhac_capUy": 40,
+    "canKy_capUy": 20,
+    "daKy_capUy": 20,
+    "decision": 16
+  },
+  "songSongToiDa": {},
+  "thamSo": {
+    "ten": "Duyệt kép chỉ huy và cấp uỷ",
+    "loaiNghiepVu": "DUYET_KEP_CHI_HUY_CAP_UY",
+    "soCapToiThieu": 2,
+    "soCapToiDa": 2,
+    "kySoBatBuoc": [],
+    "boQuaDuoc": [],
+    "buoc": [
+      "CHI_HUY",
+      "CAP_UY"
+    ],
+    "capMacDinh": [
+      {
+        "buoc": "CHI_HUY",
+        "vai_tro": "leader",
+        "pham_vi": "DON_VI_TRUC_TIEP",
+        "han_ngay_lam_viec": 3,
+        "ky_so": false
+      },
+      {
+        "buoc": "CAP_UY",
+        "vai_tro": "leader",
+        "pham_vi": "CAP_UY_CO_THAM_QUYEN",
+        "han_ngay_lam_viec": 3,
+        "ky_so": false
+      }
+    ],
+    "mienGiaTri": {
+      "vai_tro": "Vai trò hệ thống của ràng buộc ck_role_binding__role_code",
+      "pham_vi": [
+        "DON_VI_TRUC_TIEP",
+        "CAP_TREN_TRUC_TIEP",
+        "QUAN_LY_TRUC_TIEP",
+        "CAP_UY_CO_THAM_QUYEN"
+      ],
+      "han_ngay_lam_viec": [
+        1,
+        15
+      ],
+      "ky_so": "true hoặc false",
+      "allowDelegation": "true hoặc false",
+      "nguoi_thay": "Mã người được uỷ quyền theo nhánh CHI_HUY, CAP_UY"
+    },
+    "nhacTruoc": "P1D_LV",
+    "khiQuaHan": "CHUYEN_CAP_PHO_UY_QUYEN"
+  }
+}

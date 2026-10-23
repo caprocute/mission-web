@@ -1,6 +1,6 @@
 ---
 title: "Định cỡ hệ thống theo các quy mô triển khai"
-subtitle: "Nền tảng đánh giá cán bộ theo OKR và KPI · Mã tài liệu TL-05 · Phiên bản 1.0 · 10/2026"
+subtitle: "Nền tảng đánh giá cán bộ theo OKR và KPI · Mã tài liệu TL-05 · Phiên bản 1.1 · 10/2026"
 toc-title: "Mục lục"
 ---
 
@@ -11,6 +11,7 @@ toc-title: "Mục lục"
 | Phiên bản | Ngày | Người thực hiện | Nội dung thay đổi |
 |---|---|---|---|
 | 1.0 | 19/10/2026 | Nhóm kiến trúc hạ tầng và vận hành | Bản đầu tiên: mô hình tải, bốn hồ sơ năng lực cell, năm bậc quy mô triển khai, ngưỡng nâng bậc, kế hoạch kiểm chứng |
+| 1.1 | 23/10/2026 | Nhóm kiến trúc hạ tầng và vận hành | Cập nhật theo thực tế triển khai đợt 1: phụ lục cuối ghi điểm lệch, bổ sung và quyết định; chỉ tiêu hiệu năng chỉ ghi lại theo YC-PT-19 |
 
 ## Tài liệu liên quan {-}
 
@@ -892,3 +893,11 @@ Khối `nodePools` được Cluster API và Cluster Autoscaler đọc để đ�
 | Lộ trình đợt 1 đến đợt 3 | Dựng cell đầu tiên, mở rộng, quy mô quốc gia | Mục 3.1, 8.5 |
 | TL-04 mục 2.1 | Hồ sơ năng lực `compact`, `S`, `M`, `L` | Chương 3, 4, 5, phụ lục A |
 | TL-04 mục 4.4 | Tổng hợp tài nguyên theo hạng cell | Mục 8.1 (thay thế bảng sơ bộ cho hạng M và S) |
+
+# Phụ lục C. Cập nhật sau triển khai đợt 1 (10/2026) {-}
+
+Phụ lục này ghi lại quan hệ giữa bảng định cỡ của TL-05 và những gì đợt triển khai đầu (tính đến ngày 23/10/2026) đã dùng. Trong quá trình làm task hạ tầng mẫu, luồng điều phối đã chốt rằng số node của từng hồ sơ cell lấy theo bảng định cỡ của TL-05 khi TL-04 và TL-05 khác nhau (INF-03). Số cụm PostgreSQL của cell lớn là sáu, khớp TL-04 và TL-05, còn TL-03 ghi năm cụm; TL-03 sẽ được sửa ở phiên bản sau.
+
+Quy mô định cỡ được dùng thống nhất trong kế hoạch triển khai là 6,5 triệu tài khoản và 300.000 người dùng đồng thời, như NFR-01 trong quy định của repo. Baseline và TL-01 vẫn ghi 6 triệu tài khoản ở nhiều chỗ; các con số dẫn xuất của TL-01 (ký số, tải minh chứng) không được tính lại trong đợt này (suy luận: mức chênh khoảng 8 phần trăm nằm trong biên dự phòng của bảng định cỡ, cần người phụ trách xác nhận).
+
+Theo YC-PT-19, giai đoạn hiện tại chỉ tập trung phát triển, nên các phép hiệu chuẩn ở chương "Kiểm chứng và hiệu chuẩn bảng định cỡ" chưa được thực hiện. Hệ số trên mỗi pod trong bảng định cỡ (ví dụ mission-core 3 bản sao tối thiểu, 4 vCPU và 8 GiB mỗi bản sao) được giữ nguyên như thiết kế cho tới khi có số đo ở tải cao. Một số con số đo trên dữ liệu vàng ở máy phát triển, như document-service khoảng 4,8 phiếu mỗi giây mỗi pod, chỉ được ghi chú và không dùng để điều chỉnh bảng.

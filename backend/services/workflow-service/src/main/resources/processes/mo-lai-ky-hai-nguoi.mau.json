@@ -1,0 +1,49 @@
+{
+  "templateCode": "mo-lai-ky-hai-nguoi",
+  "phienBanChinh": 1,
+  "moTa": "Duyệt mở lại kỳ đã khoá bởi hai người: người duyệt thứ nhất khác người thứ hai và khác người tạo yêu cầu, chưa tham gia hồ sơ bị mở; mỗi lượt có xác thực tăng cường và ký số, hạn 2 ngày làm việc; đơn vị thiếu người duyệt thứ hai thì chọn ở cấp trên, không bao giờ hạ xuống một người.",
+  "chuSoHuu": "Luồng B6 - nhóm workflow-service (SVC-06)",
+  "truyVet": "QT-13 → SCR-1302 → EVT-18 → MOD-07, SVC-06",
+  "bangQuyetDinh": [],
+  "kiemThu": [
+    "vn.viettel.okrkpi.workflow.template.StageTemplatesFlowTest",
+    "vn.viettel.okrkpi.workflow.template.MoLaiKyHaiNguoiFlowTest"
+  ],
+  "kiemThuDmn": [],
+  "bien": {
+    "tenantId": 50,
+    "khoi": 16,
+    "loaiHoSo": 32,
+    "laNguoiDungDau": 20,
+    "donViId": 48,
+    "tieuDe": 780,
+    "phienBanDoiTuong": 40,
+    "keHoachBuoc": 420,
+    "soLanQuaHan": 120,
+    "ketQua": 24,
+    "nguoiTao": 48,
+    "nhomBuoc": 120,
+    "nguoiBuoc": 48,
+    "hanBuoc": 40,
+    "nhacBuoc": 40,
+    "donViChon": 48,
+    "hoSoId": 48,
+    "thamGiaHoSo": 420,
+    "nguoiDuyet1": 48,
+    "nguoiDuyet2": 48
+  },
+  "songSongToiDa": {},
+  "thamSo": {
+    "ten": "Mở lại kỳ hai người duyệt",
+    "buoc": [
+      "DUYET_LAN_1",
+      "DUYET_LAN_2"
+    ],
+    "hanNgayLamViec": [
+      2,
+      2
+    ],
+    "nhacTruoc": "P1D_LV",
+    "khiQuaHan": "CHUYEN_CAP_TREN"
+  }
+}

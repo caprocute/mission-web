@@ -45,6 +45,7 @@ import vn.viettel.okrkpi.shared.resilience.DependencyUnavailableException;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 import vn.viettel.okrkpi.shared.tenant.TenantDataSourceTransactionManager;
 import vn.viettel.okrkpi.shared.tenant.TenantProperties;
+import vn.vtokr.task.v1.KeHoachDaDuyet;
 import vn.vtokr.task.v1.NhiemVuDaGiao;
 import vn.vtokr.task.v1.TienDoDaCapNhat;
 
@@ -105,7 +106,7 @@ class TaskLedgerReconcileIT {
             1.0,
             100,
             Duration.ofHours(1));
-    for (String table : List.of("task", "task_progress")) {
+    for (String table : List.of("task", "task_progress", "plan", "plan_version", "plan_item")) {
       jdbc.queryForList(
           "SELECT task.fn_create_period_partitions(?::regclass, ?)", "task." + table, BUCKET);
     }
@@ -212,6 +213,70 @@ class TaskLedgerReconcileIT {
     assertThat(run.detail()).contains("\"reason\": \"SO_CAI_KHONG_PHAN_HOI\"");
   }
 
+  @Test
+  void keHoachDaDuyetKhopVaChuSoHuuBiSuaThiLech() {
+    UUID unit = UUID.randomUUID();
+    UUID plan = UUID.randomUUID();
+    UUID version = UUID.randomUUID();
+    inTenant(
+        () -> {
+          jdbc.update(
+              "INSERT INTO task.plan (id, created_by, updated_by, period_id, period_bucket,"
+                  + " plan_type, owner_unit_id) VALUES (?, ?, ?, ?, ?, 'TAP_THE', ?)",
+              plan,
+              ACTOR,
+              ACTOR,
+              PERIOD,
+              BUCKET,
+              unit);
+          jdbc.update(
+              "INSERT INTO task.plan_version (id, created_by, updated_by, period_id, period_bucket,"
+                  + " plan_id, version_no, status, approved_by, approved_at)"
+                  + " VALUES (?, ?, ?, ?, ?, ?, 1, 'DA_DUYET', ?, now())",
+              version,
+              ACTOR,
+              ACTOR,
+              PERIOD,
+              BUCKET,
+              plan,
+              ACTOR);
+          return null;
+        });
+    KeHoachDaDuyet approved =
+        KeHoachDaDuyet.newBuilder()
+            .setPlanId(plan)
+            .setPlanVersionId(version)
+            .setVersionNo(1)
+            .setPeriodId(PERIOD)
+            .setOwnerType("TAP_THE")
+            .setOwnerId(unit)
+            .setItemCount(0)
+            .setApprovedBy(ACTOR)
+            .setSupersededVersionId(null)
+            .setAggregateVersion(1)
+            .build();
+    record(plan, approved, FROM.plusSeconds(30), true);
+    reconciler.run(DAY, FROM, TO, List.of(tenant));
+    assertThat(run().status()).isEqualTo(RunStatus.KHOP);
+
+    var pg = MissionCoreTestDatabase.container();
+    new JdbcTemplate(
+            new org.springframework.jdbc.datasource.DriverManagerDataSource(
+                pg.getJdbcUrl(), pg.getUsername(), pg.getPassword()))
+        .update("UPDATE task.plan SET owner_unit_id = ? WHERE id = ?", UUID.randomUUID(), plan);
+    LocalDate next = DAY.plusDays(1);
+    // Lần chạy của ngày khác (mã lần chạy khác) trên cùng cửa sổ dữ liệu.
+    reconciler.run(next, FROM, TO, List.of(tenant));
+    ReconcileRun again =
+        inTenant(
+            () ->
+                new JdbcReconcileRunStore(jdbc, "task")
+                    .find(LedgerSourceReconciler.runId("task", tenant.value(), next))
+                    .orElseThrow());
+    assertThat(again.status()).isEqualTo(RunStatus.LOI);
+    assertThat(again.detail()).contains("task.plan.approved.v1.ownerId");
+  }
+
   // ---------------------------------------------------------------- hỗ trợ
 
   private UUID task(String title, int version) {
@@ -292,7 +357,11 @@ class TaskLedgerReconcileIT {
     UUID id = UUID.randomUUID();
     byte[] avro = avro(payload);
     String topic =
-        payload instanceof NhiemVuDaGiao ? TaskLedgerSource.ASSIGNED : TaskLedgerSource.PROGRESSED;
+        payload instanceof NhiemVuDaGiao
+            ? TaskLedgerSource.ASSIGNED
+            : payload instanceof KeHoachDaDuyet
+                ? TaskLedgerSource.PLAN_APPROVED
+                : TaskLedgerSource.PROGRESSED;
     inTenant(
         () ->
             jdbc.update(

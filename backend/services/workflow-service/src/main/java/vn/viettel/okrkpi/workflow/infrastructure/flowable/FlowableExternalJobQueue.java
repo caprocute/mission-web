@@ -118,6 +118,14 @@ public class FlowableExternalJobQueue implements ExternalJobQueue {
   }
 
   @Override
+  public void complete(CallbackJob job, String workerId, java.util.Map<String, Object> variables) {
+    management
+        .createExternalWorkerCompletionBuilder(job.jobId(), workerId)
+        .variables(variables)
+        .complete();
+  }
+
+  @Override
   public void fail(
       CallbackJob job, String workerId, String message, int retriesLeft, Duration retryAfter) {
     management
