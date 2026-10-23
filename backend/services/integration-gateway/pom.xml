@@ -47,9 +47,9 @@
     <dependency>
       <groupId>org.apache.camel.springboot</groupId>
       <artifactId>camel-spring-boot-starter</artifactId>
+      <!-- Hệ thống ghi nhật ký bằng Log4j2 (vt-platform-starter); Camel kéo spring-boot-starter-logging (Logback,
+           log4j-to-slf4j) làm jar không chạy được: "log4j-slf4j2-impl cannot be present with log4j-to-slf4j". -->
       <exclusions>
-        <!-- Ghi nhật ký bằng Log4j2 của vt-platform-starter; logback kèm theo làm ứng dụng không khởi động
-             (log4j-slf4j2-impl cannot be present with log4j-to-slf4j) -->
         <exclusion>
           <groupId>org.springframework.boot</groupId>
           <artifactId>spring-boot-starter-logging</artifactId>

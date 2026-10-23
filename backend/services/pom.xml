@@ -32,17 +32,22 @@
     <module>integration-gateway</module>
   </modules>
 
+  <!-- Jar chạy được (classifier exec, giữ jar thường làm artifact chính như mission-core) cho ảnh dev
+       infra/dev/backend/Dockerfile.java; thiếu bước này thì ảnh không dựng được ("không thấy jar Spring Boot"). -->
   <build>
     <plugins>
-      <!-- Jar chạy được (BOOT-INF, tách lớp) cho Dockerfile của từng service và ảnh dev infra/dev/backend/Dockerfile.java;
-           thiếu bước này `java -Djarmode=layertools` báo "no main manifest attribute". Bỏ qua mô-đun packaging pom. -->
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <classifier>exec</classifier>
+        </configuration>
         <executions>
           <execution>
             <id>repackage</id>
-            <goals><goal>repackage</goal></goals>
+            <goals>
+              <goal>repackage</goal>
+            </goals>
           </execution>
         </executions>
       </plugin>

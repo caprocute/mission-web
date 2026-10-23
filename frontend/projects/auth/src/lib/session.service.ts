@@ -70,8 +70,6 @@ export const AAL2_ROLES: readonly VtRole[] = [
 /** TL-02 QT-00: phiên AAL2 hạ về AAL1 sau 15 phút kể từ lần MFA gần nhất. */
 export const AAL2_TTL_MS = 15 * 60_000;
 const CONTEXT_KEY = 'vt.assignment';
-/** Issuer http trên địa chỉ vòng lặp (đường hầm tới Keycloak dev); thư viện OIDC chỉ tự miễn HTTPS cho localhost. */
-const LOOPBACK_HTTP = /^http:\/\/(127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/i;
 
 const DEV_USER: VtUser = {
   id: 'dev-user',
@@ -180,9 +178,6 @@ export class SessionService {
     const back = this.cfg.auth.redirectUri ?? location.origin + '/';
     this.oauth.configure({
       issuer: this.cfg.auth.issuer,
-      // Keycloak dev qua đường hầm ở địa chỉ vòng lặp 127.0.0.1 hay [::1] dùng http như localhost (RFC 8252 mục 8.3);
-      // mọi máy chủ khác vẫn bắt buộc HTTPS
-      requireHttps: LOOPBACK_HTTP.test(this.cfg.auth.issuer ?? '') ? false : 'remoteOnly',
       clientId: this.cfg.auth.clientId,
       responseType: 'code',
       scope: this.cfg.auth.scope,
@@ -194,6 +189,10 @@ export class SessionService {
       sessionChecksEnabled: false,
       showDebugInformation: false,
       clearHashAfterLogin: true,
+      // Thư viện chỉ miễn HTTPS cho `http://localhost` ('remoteOnly'); Keycloak dev qua hầm SSH là
+      // `http://127.0.0.1:35080` (KEYCLOAK_PUBLIC_URL) nên miễn cho mọi địa chỉ vòng lặp, còn lại bắt HTTPS trừ khi
+      // config.json đặt `auth.allowHttp` (server dev nội bộ truy cập bằng địa chỉ IP, chưa có TLS).
+      requireHttps: !(this.cfg.auth.allowHttp || isLoopbackHttp(this.cfg.auth.issuer)),
       // state + nonce + PKCE S256 do thư viện sinh và kiểm (SEC-17)
     });
     this.oauth.events.subscribe((e) => {
@@ -511,5 +510,18 @@ function clearSessionItem(key: string): void {
     globalThis.sessionStorage?.removeItem(key);
   } catch {
     /* bỏ qua */
+  }
+}
+
+/** `http://` tới máy cục bộ (localhost, 127.0.0.0/8, ::1): được dùng không TLS như `remoteOnly` của thư viện. */
+export function isLoopbackHttp(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return (
+      u.protocol === 'http:' &&
+      (u.hostname === 'localhost' || /^127(\.\d{1,3}){3}$/.test(u.hostname) || u.hostname === '[::1]')
+    );
+  } catch {
+    return false;
   }
 }

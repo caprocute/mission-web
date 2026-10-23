@@ -7,6 +7,10 @@ cell-base:
   cell: ci
 observability-cell:
   cell: ci
+  # Địa chỉ giả .invalid thay cho Alertmanager cụm quản trị của môi trường (INF-15).
+  canhBaoQuanTri:
+    diaChi: ["alertmanager.quan-tri.invalid:9443"]
+    cidrs: [192.0.2.0/24]
 # OpenBao (INF-13): ảnh tự dựng chưa có digest thật, tổng kiểm plugin và CA giả chỉ để render.
 openbao:
   image: { digest: "sha256:0000000000000000000000000000000000000000000000000000000000000000" }

@@ -1,7 +1,7 @@
 -- Thư viện căn cứ thử (okr.basis, MOD-01, BR-02-02) của tenant thử d0000000-0000-4000-8000-000000000001 cho dev:
 -- bản này chưa có API ghi căn cứ (chỉ listOkrBases), nên khung soạn mục tiêu (SCR-0202) trên hệ thống thật không có
 -- lựa chọn "Căn cứ" bắt buộc nếu không nạp sẵn. Chỉ dữ liệu giả lập; chạy lại không sinh bản ghi trùng. Nạp bởi
--- scripts/seed-org.sh khi schema okr đã migrate.
+-- scripts/seed-org.sh sau migration okr của mission-core.
 INSERT INTO okr.basis (id, tenant_id, created_by, updated_by, basis_kind, doc_number, title, issued_by_unit_id,
                        issued_on, valid_from)
 VALUES ('d0000000-0000-4000-8000-0000000b0001', 'd0000000-0000-4000-8000-000000000001',

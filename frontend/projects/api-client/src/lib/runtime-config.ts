@@ -23,6 +23,11 @@ export interface RuntimeConfig {
      * `<vt-okr-app>` (WEB-013) đặt bằng địa chỉ trang của cổng đang nhúng.
      */
     redirectUri?: string;
+    /**
+     * Cho phép issuer chạy HTTP ở máy chủ khác `localhost` (chỉ dev nội bộ, như server dev truy cập bằng
+     * địa chỉ IP); mặc định thư viện OIDC chỉ nhận HTTP cho `localhost`. Production luôn để trống.
+     */
+    allowHttp?: boolean;
   };
   /** Bật dữ liệu giả lập cho mọi module khi mission-core chưa sẵn sàng. */
   useMockApi: boolean;

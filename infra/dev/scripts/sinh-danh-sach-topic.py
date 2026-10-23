@@ -19,9 +19,7 @@ DANH_MUC = GOC / "deploy/charts/vt-platform/ha-tang/kafka/files/danh-muc.yaml"
 DICH = GOC / "infra/dev/kafka/topics.txt"
 
 # Topic có trong mã nhưng chưa có trong contracts/events (cần bổ sung hợp đồng); giữ ở dev để luồng chạy được.
-NGOAI_DANH_MUC = {
-    "config.wftemplate.published.v1": "-",  # workflow-service OutboxTemplateEventPublisher
-}
+NGOAI_DANH_MUC: dict[str, str] = {}
 
 
 def sinh() -> str:

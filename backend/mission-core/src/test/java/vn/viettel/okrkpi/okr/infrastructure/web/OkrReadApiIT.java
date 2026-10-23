@@ -10,6 +10,7 @@ import io.swagger.v3.oas.models.PathItem;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -225,6 +226,43 @@ class OkrReadApiIT extends ContractConformanceTest {
                 .getResponse()
                 .getStatus())
         .isEqualTo(404);
+  }
+
+  /**
+   * Bỏ {@code period}: hợp đồng lấy kỳ đang MO. Tenant có cả kỳ quý đã khoá và kỳ tháng đang mở
+   * cùng bao trùm hôm nay thì lấy kỳ đang mở; tenant chưa có kỳ nào (server dev mới) thì 404.
+   */
+  @Test
+  void cayMucTieuKhongTruyenKyLayKyDangMo() throws Exception {
+    TenantId t = TenantId.of(UUID.randomUUID());
+    LocalDate today = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+    int quarter = (today.getMonthValue() - 1) / 3;
+    LocalDate qStart = LocalDate.of(today.getYear(), quarter * 3 + 1, 1);
+    int bucket = today.getYear() * 10 + quarter + 1;
+    UUID locked = UUID.randomUUID();
+    UUID open = UUID.randomUUID();
+    insertPeriod(t, locked, "QUY", qStart, qStart.plusMonths(3).minusDays(1), "DA_KHOA", bucket);
+    insertPeriod(
+        t,
+        open,
+        "THANG",
+        today.withDayOfMonth(1),
+        today.withDayOfMonth(today.lengthOfMonth()),
+        "MO",
+        bucket);
+    MvcResult r =
+        TenantContext.call(
+            t,
+            () -> mvc.perform(get("/api/v1/okr/tree").param("unit", UNIT.toString())).andReturn());
+    assertThat(r.getResponse().getStatus()).isEqualTo(200);
+    assertThat(body(r).at("/period/id").asText()).isEqualTo(open.toString());
+
+    TenantId empty = TenantId.of(UUID.randomUUID());
+    MvcResult none =
+        TenantContext.call(
+            empty,
+            () -> mvc.perform(get("/api/v1/okr/tree").param("unit", UNIT.toString())).andReturn());
+    assertThat(none.getResponse().getStatus()).isEqualTo(404);
   }
 
   @Test
@@ -542,6 +580,12 @@ class OkrReadApiIT extends ContractConformanceTest {
   }
 
   private void insertPeriod(TenantId t, UUID id) throws Exception {
+    insertPeriod(t, id, "QUY", LocalDate.of(2027, 1, 1), LocalDate.of(2027, 3, 31), "MO", BUCKET);
+  }
+
+  private void insertPeriod(
+      TenantId t, UUID id, String kind, LocalDate start, LocalDate end, String status, int bucket)
+      throws Exception {
     JdbcClient jdbc = JdbcClient.create(configDataSource);
     TenantContext.call(
         t,
@@ -551,11 +595,23 @@ class OkrReadApiIT extends ContractConformanceTest {
                     s ->
                         jdbc.sql(
                                 "INSERT INTO config.period (id, code, name, kind, flow,"
-                                    + " start_date, end_date, period_bucket, status, created_by,"
-                                    + " updated_by) VALUES (?, ?, 'Quý I năm 2027', 'QUY',"
-                                    + " 'NHA_NUOC', DATE '2027-01-01', DATE '2027-03-31', ?,"
-                                    + " 'MO', ?, ?)")
-                            .params(id, "Q1-" + id.toString().substring(0, 8), BUCKET, ACTOR, ACTOR)
+                                    + " start_date, end_date, period_bucket, status, locked_at,"
+                                    + " created_by, updated_by) VALUES (?, ?, 'Quý I năm 2027', ?,"
+                                    + " 'NHA_NUOC', ?, ?, ?, ?, ?, ?, ?)")
+                            .params(
+                                id,
+                                kind + "-" + id.toString().substring(0, 8),
+                                kind,
+                                start,
+                                end,
+                                bucket,
+                                status,
+                                // ck_period__locked: kỳ đã khoá phải có thời điểm khoá.
+                                "DA_KHOA".equals(status)
+                                    ? java.sql.Timestamp.from(java.time.Instant.now())
+                                    : null,
+                                ACTOR,
+                                ACTOR)
                             .update()));
   }
 

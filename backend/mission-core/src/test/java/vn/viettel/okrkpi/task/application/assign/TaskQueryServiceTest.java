@@ -90,6 +90,22 @@ class TaskQueryServiceTest {
   }
 
   @Test
+  void hangChoDuyetChuyenNguonVaDeNghiXuongKhoDuLieu() {
+    service.listUnitTasks(
+        TENANT,
+        new TaskQueryService.UnitQuery(
+            UNIT, null, Set.of("NHAP"), null, null, false, null, "DANG_KY", true),
+        MANAGER,
+        null,
+        21);
+    ArgumentCaptor<UnitFilter> filter = ArgumentCaptor.forClass(UnitFilter.class);
+    verify(f.repo).listUnitTasks(eq(TENANT), eq(20264), filter.capture(), eq(null), eq(21));
+    assertThat(filter.getValue().source()).isEqualTo("DANG_KY");
+    assertThat(filter.getValue().pendingChangeRequest()).isTrue();
+    assertThat(filter.getValue().statuses()).containsExactly("NHAP");
+  }
+
+  @Test
   void viecCuaDonViTheoKyChiRoVaThieuDonVi() {
     UUID other = UUID.randomUUID();
     when(f.periods.findById(TENANT, PeriodId.of(other))).thenReturn(Optional.empty());

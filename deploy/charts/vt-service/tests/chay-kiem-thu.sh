@@ -81,6 +81,12 @@ assert not [d for d in docs if d["kind"] == "HorizontalPodAutoscaler"]
 print("không sinh HPA riêng bên cạnh ScaledObject (mỗi workload một bộ co giãn)")
 PY
 
+# INF-25: nhãn tạm dừng tác vụ nền của bộ điều khiển suy giảm chỉ có khi khai degradePauseFrom.
+helm template t "$VD" -f "$VD/values-keda-kafka.yaml" --set autoscaling.keda.degradePauseFrom=2 > "$OUT/tam-dung.yaml" \
+  && grep -q 'vt.io/degrade-pause-from: "2"' "$OUT/tam-dung.yaml" \
+  && ! grep -q 'vt.io/degrade-pause-from' "$OUT/values-keda-kafka.out.yaml" \
+  && ok "ScaledObject gắn vt.io/degrade-pause-from khi khai autoscaling.keda.degradePauseFrom" \
+  || hong "nhãn vt.io/degrade-pause-from"
 echo "== Các ca phải thất bại"
 phai_hong() { # $1 mô tả, $2 mẫu thông báo, còn lại là tham số helm
   local mota=$1 mau=$2; shift 2
@@ -93,6 +99,7 @@ phai_hong "ảnh dạng tag trong repository" "không được chứa digest" --
 phai_hong "bật đồng thời HPA và ScaledObject" "không được bật đồng thời" --set autoscaling.keda.enabled=true
 phai_hong "requests.memory khác limits.memory" "requests.memory" --set resources.requests.memory=2Gi
 phai_hong "nodePool lạ" "nodePool" --set nodePool=gpu-x
+phai_hong "degradePauseFrom ngoài 1..3" "degradePauseFrom" -f "$VD/values-keda-kafka.yaml" --set autoscaling.keda.degradePauseFrom=5
 
 echo
 echo "Tổng: $dat đạt, $truot hỏng"

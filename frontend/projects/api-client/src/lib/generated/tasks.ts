@@ -2637,6 +2637,10 @@ export interface operations {
         status?: string;
         kr?: components['schemas']['Uuid'];
         overdue?: boolean;
+        /** @description Lọc theo nguồn nhiệm vụ. Hàng đăng ký chờ duyệt của người giao việc dùng `status=NHAP&source=DANG_KY` (QT-05 bước 3, SCR-0501 đường vào menu "Nhiệm vụ"). */
+        source?: components['schemas']['TaskSource'];
+        /** @description Chỉ nhiệm vụ có đề nghị gia hạn, điều chỉnh đang `CHO_DUYET` (SCR-0601 "Duyệt đề nghị"; TL-02 QT-08 bước 0 cần người duyệt xử lý hết đề nghị tồn đọng trước khi khoá kỳ). */
+        pendingChangeRequest?: boolean;
         /** @description Gồm cả đơn vị cấp dưới (lãnh đạo, giám sát). */
         includeSubunits?: boolean;
         /** @description Từ khoá tìm kiếm, không phân biệt dấu. */

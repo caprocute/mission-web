@@ -64,6 +64,13 @@ describe('tuyến fe-task theo ma trận phân quyền', () => {
     expect(check(['inspector'], 'catalog', '/tasks/catalog')).toBe('/khong-co-quyen');
   });
 
+  it('Chờ duyệt cho người giao việc và lãnh đạo duyệt đề nghị, không cho cán bộ', () => {
+    expect(check(['manager'], 'approvals', '/tasks/approvals')).toBe('true');
+    expect(check(['leader'], 'approvals', '/tasks/approvals')).toBe('true');
+    expect(check(['member'], 'approvals', '/tasks/approvals')).toBe('/khong-co-quyen');
+    expect(check(['inspector'], 'approvals', '/tasks/approvals')).toBe('/khong-co-quyen');
+  });
+
   it('Văn bản đến (SCR-0502) chỉ cho manager', () => {
     expect(check(['manager'], 'documents', '/tasks/documents')).toBe('true');
     expect(check(['manager'], 'documents/:id', '/tasks/documents/1')).toBe('true');

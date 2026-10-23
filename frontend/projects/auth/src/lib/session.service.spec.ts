@@ -5,7 +5,7 @@ import { Subject, of, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Assignment, DEFAULT_RUNTIME_CONFIG, OrgApi, RUNTIME_CONFIG } from '@vt/api-client';
 import { MSG_00_06, MSG_00_07, TEXT_SESSION_EXPIRED } from './messages';
-import { AAL2_TTL_MS, SessionService, requiresAal2 } from './session.service';
+import { AAL2_TTL_MS, SessionService, isLoopbackHttp, requiresAal2 } from './session.service';
 
 /** WEB-006: phiên OIDC, chọn phân công khi kiêm nhiệm, bước lên AAL2 (QT-00, BR-00-01, BR-00-02). */
 const A = (id: string, roles: string[], kind: Assignment['kind'] = 'KIEM_NHIEM'): Assignment =>
@@ -50,7 +50,6 @@ function setup(
     authEnabled?: boolean;
     meError?: unknown;
     redirectUri?: string;
-    issuer?: string;
   } = {},
 ) {
   sessionStorage.clear();
@@ -77,7 +76,6 @@ function setup(
             ...DEFAULT_RUNTIME_CONFIG.auth,
             enabled: !!opts.authEnabled,
             redirectUri: opts.redirectUri,
-            ...(opts.issuer ? { issuer: opts.issuer } : {}),
           },
         },
       },
@@ -257,24 +255,6 @@ describe('SessionService: OIDC (auth.enabled = true, Keycloak giả lập)', () 
     );
   });
 
-  it('Keycloak http ở địa chỉ vòng lặp 127.0.0.1 được nhận như localhost; máy chủ khác vẫn bắt buộc HTTPS', async () => {
-    const hamDev = setup({ authEnabled: true, issuer: 'http://127.0.0.1:35080/realms/mission' });
-    hamDev.oauth.hasValidAccessToken.mockReturnValue(false);
-    void hamDev.session.init();
-    await flush();
-    expect(hamDev.oauth.configure).toHaveBeenCalledWith(
-      expect.objectContaining({ requireHttps: false }),
-    );
-    TestBed.resetTestingModule();
-    const xa = setup({ authEnabled: true, issuer: 'http://127.0.0.1.example.vn/realms/mission' });
-    xa.oauth.hasValidAccessToken.mockReturnValue(false);
-    void xa.session.init();
-    await flush();
-    expect(xa.oauth.configure).toHaveBeenCalledWith(
-      expect.objectContaining({ requireHttps: 'remoteOnly' }),
-    );
-  });
-
   it('sau callback quay lại đường dẫn trong state, bỏ tham số iss; không nhận đường dẫn ngoài nguồn', async () => {
     const { session, oauth } = setup({ authEnabled: true });
     history.replaceState(null, '', '/?iss=http%3A%2F%2Fidp');
@@ -375,5 +355,17 @@ describe('SessionService: OIDC (auth.enabled = true, Keycloak giả lập)', () 
     session.logout();
     expect(oauth.logOut).toHaveBeenCalled();
     expect(sessionStorage.getItem('vt.assignment')).toBeNull();
+  });
+});
+
+describe('isLoopbackHttp: issuer HTTP chỉ được miễn TLS trên máy cục bộ', () => {
+  it('miễn cho localhost, 127.x, ::1 (Keycloak dev qua hầm SSH), không miễn địa chỉ khác', () => {
+    expect(isLoopbackHttp('http://127.0.0.1:35080/realms/mission')).toBe(true);
+    expect(isLoopbackHttp('http://localhost:35080/realms/mission')).toBe(true);
+    expect(isLoopbackHttp('http://[::1]:8080/realms/mission')).toBe(true);
+    expect(isLoopbackHttp('http://10.0.0.5:35080/realms/mission')).toBe(false);
+    expect(isLoopbackHttp('http://127.0.0.1.example.vn/realms/mission')).toBe(false);
+    expect(isLoopbackHttp('https://sso.example.vn/realms/mission')).toBe(false);
+    expect(isLoopbackHttp('')).toBe(false);
   });
 });

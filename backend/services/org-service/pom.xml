@@ -157,14 +157,19 @@
       </resource>
     </resources>
     <plugins>
-      <!-- Jar chạy được (BOOT-INF) cho ảnh dev infra/dev/backend/Dockerfile.java và ảnh triển khai -->
+      <!-- Jar chạy được cho ảnh dev (infra/dev/backend/Dockerfile.java), như services/pom.xml. -->
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <classifier>exec</classifier>
+        </configuration>
         <executions>
           <execution>
             <id>repackage</id>
-            <goals><goal>repackage</goal></goals>
+            <goals>
+              <goal>repackage</goal>
+            </goals>
           </execution>
         </executions>
       </plugin>

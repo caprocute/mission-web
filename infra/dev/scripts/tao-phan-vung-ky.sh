@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Tạo phân vùng theo kỳ cho mọi bảng phân vùng LIST (period_bucket) của CSDL dev (NEN-033, wiki trang 17):
-# gọi <schema>.fn_create_period_partitions(bảng cha, bucket) cho các bucket của năm nay và năm sau
-# (năm × 10 cho dữ liệu năm, năm × 10 + quý). Bản này chưa có bước tự tạo phân vùng khi mở kỳ, nên thiếu
-# phân vùng thì mọi lệnh ghi của kỳ (nhiệm vụ, mục tiêu…) lỗi "no partition of relation". Hàm gọi lại không
-# lỗi, chạy lại không tạo trùng. Chỉ dùng dev.
+# Tạo phân vùng LIST theo period_bucket cho mọi bảng theo kỳ (okr, task, product, appraisal, dossier,
+# oversight, scoring) ứng với các kỳ đã có trong config.period, bằng hàm chuẩn <schema>.fn_create_period_partitions
+# (NEN-033). Thiếu phân vùng thì mọi lệnh ghi theo kỳ (tạo nhiệm vụ, kế hoạch, mục tiêu...) lỗi 500
+# "no partition of relation ... found for row". Bản dev tạm thay cho job tạo trước phân vùng khi tạo kỳ
+# (CORE-08-02 mới phát PeriodOpenedEvent, chưa có bên nhận nào tạo phân vùng). Chạy lại an toàn.
 #
-#   infra/dev/scripts/tao-phan-vung-ky.sh            # năm nay và năm sau
-#   NAM="2026 2027 2028" infra/dev/scripts/tao-phan-vung-ky.sh
+#   ./infra/dev/scripts/tao-phan-vung-ky.sh
 # =============================================================================
 set -euo pipefail
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="${SCRIPT_DIR}/../.env"
 if [[ -f "${ENV_FILE}" ]]; then
@@ -19,45 +17,31 @@ if [[ -f "${ENV_FILE}" ]]; then
   source "${ENV_FILE}"
   set +a
 fi
-PG_SUPERUSER="${POSTGRES_USER:-mission_admin}"
-PG_SUPERPASS="${POSTGRES_PASSWORD:?Cần POSTGRES_PASSWORD trong infra/dev/.env}"
-PG_DB="${POSTGRES_DB:-mission}"
-POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-mission-dev-postgres}"
-NAM="${NAM:-$(date +%Y) $(($(date +%Y) + 1))}"
-
-buckets=()
-for y in ${NAM}; do
-  for q in 0 1 2 3 4; do buckets+=("$((y * 10 + q))"); done
-done
-list="$(IFS=,; echo "${buckets[*]}")"
-
-docker exec -i -e PGPASSWORD="${PG_SUPERPASS}" "${POSTGRES_CONTAINER}" \
-  psql -q -v ON_ERROR_STOP=1 --username "${PG_SUPERUSER}" --dbname "${PG_DB}" <<SQL
-DO \$\$
+docker exec -i -e PGPASSWORD="${POSTGRES_PASSWORD:?Cần POSTGRES_PASSWORD trong infra/dev/.env}" \
+  "${POSTGRES_CONTAINER:-mission-dev-postgres}" psql -q -v ON_ERROR_STOP=1 -h 127.0.0.1 \
+  -U "${POSTGRES_USER:-mission_admin}" -d "${POSTGRES_DB:-mission}" <<'SQL'
+DO $$
 DECLARE
   r record;
   b int;
-  n int;
-  tong int := 0;
-  bang int := 0;
+  n int := 0;
 BEGIN
-  -- Bảng cha phân vùng LIST theo period_bucket ở schema có hàm tạo phân vùng của NEN-033
-  FOR r IN
-    SELECT nsp.nspname AS sch, p.oid::regclass AS parent
-    FROM pg_class p
-    JOIN pg_namespace nsp ON nsp.oid = p.relnamespace
-    JOIN pg_partitioned_table pt ON pt.partrelid = p.oid
-    JOIN pg_attribute a ON a.attrelid = p.oid AND a.attnum = pt.partattrs[0] AND a.attname = 'period_bucket'
-    WHERE p.relkind = 'p' AND NOT p.relispartition
-      AND to_regprocedure(format('%I.fn_create_period_partitions(regclass,integer,integer)', nsp.nspname)) IS NOT NULL
-  LOOP
-    bang := bang + 1;
-    FOREACH b IN ARRAY ARRAY[${list}] LOOP
-      EXECUTE format('SELECT %I.fn_create_period_partitions(%L::regclass, %s)', r.sch, r.parent, b) INTO n;
-      tong := tong + n;
+  FOR b IN SELECT DISTINCT period_bucket FROM config.period LOOP
+    FOR r IN
+      SELECT ns.nspname AS sch, c.oid::regclass AS tbl
+      FROM pg_class c
+      JOIN pg_namespace ns ON ns.oid = c.relnamespace
+      JOIN pg_partitioned_table pt ON pt.partrelid = c.oid
+      JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = pt.partattrs[0]
+      WHERE NOT c.relispartition AND pt.partstrat = 'l' AND a.attname = 'period_bucket'
+        AND EXISTS (SELECT 1 FROM pg_proc p WHERE p.pronamespace = ns.oid AND p.proname = 'fn_create_period_partitions')
+      ORDER BY 1, 2
+    LOOP
+      EXECUTE format('SELECT %I.fn_create_period_partitions(%L::regclass, %s)', r.sch, r.tbl::text, b);
+      n := n + 1;
     END LOOP;
   END LOOP;
-  RAISE NOTICE '% phân vùng mới cho % bảng, bucket ${list}', tong, bang;
+  RAISE NOTICE 'Đã bảo đảm % cặp (bảng, kỳ) có phân vùng', n;
 END
-\$\$;
+$$;
 SQL

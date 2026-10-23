@@ -12,6 +12,7 @@ import type {
 import type { TaskSummary } from '../../lib/models/task';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 import { MOCK_ME } from '../mock-session';
+import { unitQueue } from '../tasks/tasks.mock';
 import {
   CURRENT_PERIOD,
   HOANG_SCORE_ID,
@@ -424,6 +425,9 @@ function trace(req: MockRequest): MockResponse {
 
 // ── Việc cần chỉ đạo (MOD-02) ──
 function unitTasks(req: MockRequest): MockResponse {
+  if (req.params.has('source') || req.params.has('pendingChangeRequest')) {
+    return unitQueue(req.params);
+  }
   const overdue = req.params.get('overdue') === 'true';
   const limit = Math.min(Number(req.params.get('limit') ?? 20), 200);
   const items = tasks

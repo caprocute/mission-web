@@ -33,13 +33,16 @@ for m in $(printf '%s' "${MOCK_API_MODULES:-}" | tr ',' ' '); do
     echo "Bỏ qua module giả lập không hợp lệ: $m" >&2
   fi
 done
+# AUTH_ALLOW_HTTP=true: issuer HTTP ngoài localhost (chỉ server dev nội bộ chưa có TLS); production không đặt.
+ALLOW_HTTP_JSON=""
+[ "${AUTH_ALLOW_HTTP:-false}" = "true" ] && ALLOW_HTTP_JSON=', "allowHttp": true'
 cat > $OUT/config.json <<JSON
 {
   "cell": "${CELL:-DEV}",
   "tenant": "${TENANT:-default}",
   "apiBaseUrl": "${API_BASE_URL:-/api}",
   "uiPackBaseUrl": "${UI_PACK_BASE_URL:-/ui-packs}",
-  "auth": { "enabled": ${AUTH_ENABLED:-false}, "issuer": "${AUTH_ISSUER:-}", "clientId": "${AUTH_CLIENT_ID:-mission-web}", "scope": "openid profile email" },
+  "auth": { "enabled": ${AUTH_ENABLED:-false}, "issuer": "${AUTH_ISSUER:-}", "clientId": "${AUTH_CLIENT_ID:-mission-web}", "scope": "openid profile email"$ALLOW_HTTP_JSON },
   "useMockApi": ${USE_MOCK_API:-true},
   "mockApiModules": [ $MOCK_MODULES_JSON ],
   "telemetry": { "faroUrl": "$FARO", "sampleRatio": ${RATIO:-0.1} },

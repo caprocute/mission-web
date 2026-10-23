@@ -61,26 +61,15 @@ Ngày 23/10/2026 (B1) bộ QA-04 (`hanh-trinh/qt00-03/`) và hành trình mẫu 
 org-service, tenant-registry, integration-gateway, notification-service, OPA (`OPA_ENABLED=true`), Keycloak và
 APISIX thật. Trình tự dưới đây dùng chung cho server dev và máy trạm; các bước nạp dữ liệu đều chạy lại được.
 
-1. `infra/dev/scripts/gen-env.sh` sinh `infra/dev/.env`: khoá bí mật để `<FILL_IN>` được sinh ngẫu nhiên, khoá
-   `*_B64` (khoá AES-256 của tenant-registry) là base64 của 32 byte, địa chỉ và client id của hệ ngoài để rỗng.
-2. Bật hạ tầng `docker compose --profile core --profile security --profile events up -d`, rồi
-   `infra/dev/scripts/dang-ky-luoc-do.sh` đăng ký lược đồ Avro vào Apicurio như Job `apicurio-dang-ky` của cụm.
-   Thiếu bước này thì mọi lệnh ghi có phát sự kiện trả 500 vì producer không tự đăng ký lược đồ.
-3. `infra/dev/scripts/deploy-backend.sh mission-core org-service tenant-registry integration-gateway
-   notification-service apisix` dựng, migrate và bật các service.
-4. `infra/dev/scripts/seed-org.sh` nạp tổ chức thử (kể cả phân công kiêm nhiệm thứ hai của `quanly` cho HT-02) và
-   nơi đặt của tenant thử trong tenant-registry (cell `CELL-DEV` có gốc API rỗng để web giữ APISIX dev), cùng
-   thư viện căn cứ thử `okr.basis` (bản này chưa có API ghi căn cứ, thiếu thì không soạn được mục tiêu). Sau đó
-   chạy `org-republish` của org-service cho tenant thử (`ops/runbooks/org-republish.md`) để mission-core có bản sao
-   tổ chức.
-5. `infra/dev/scripts/tao-phan-vung-ky.sh` tạo phân vùng theo kỳ của năm nay và năm sau cho mọi bảng
-   `period_bucket`; bản này chưa tự tạo phân vùng khi mở kỳ, nên thiếu bước này thì tạo nhiệm vụ, mục tiêu lỗi 500.
-6. Nạp UI Pack mặc định bằng `data/seed/ui-pack/nap_ui_pack.py` với token của `quantri` và `quantri2` (bốn mắt).
-7. Realm `mission` đã nhập trước ngày 23/10/2026 thiếu quyền Admin API của client `org-service` (vai trò
+1. Dựng theo `infra/dev/README.md` mục 3.2: `gen-env.sh`, bật hạ tầng, `deploy-backend.sh` (bước seed của nó
+   đăng ký lược đồ Avro, nạp tổ chức và tenant thử, chạy `org-republish`, tạo kỳ hiện hành và phân vùng theo kỳ),
+   rồi nạp UI Pack mặc định. `seed-org.sh` nạp thêm phân công kiêm nhiệm thứ hai của `quanly` (HT-02) và thư viện
+   căn cứ thử `okr.basis` (bản này chưa có API ghi căn cứ, thiếu thì không soạn được mục tiêu).
+2. Realm `mission` đã nhập trước ngày 23/10/2026 thiếu quyền Admin API của client `org-service` (vai trò
    `view-users`, `manage-users` của `realm-management`, mapper đưa vai trò đó vào token) và chính sách thuộc tính
    `ADMIN_EDIT`, nên chọn phân công (`PUT /org/me/context`) trả 503. Keycloak chỉ nhập realm ở lần đầu, nên realm
    cũ cần thêm ba mục này bằng `kcadm.sh` hoặc dựng lại realm từ `infra/dev/keycloak/realm-mission.json`.
-8. Trong `frontend/`: `npm run e2e:prepare`, rồi chạy với các biến dưới đây.
+3. Trong `frontend/`: `npm run e2e:prepare`, rồi chạy với các biến dưới đây.
 
 | Biến | Giá trị | Ghi chú |
 |---|---|---|
@@ -93,3 +82,8 @@ APISIX thật. Trình tự dưới đây dùng chung cho server dev và máy tr�
 Mã OTP của một tài khoản không dùng lại được trong cùng bước 30 giây, nên kịch bản đăng nhập chờ sang bước mới khi
 một tài khoản đăng nhập hai lần liền nhau; nhập sai nhiều lần làm Keycloak khoá tạm tài khoản thử dùng chung. Tuỳ
 chọn chữ lớn lưu theo người dùng ở máy chủ, nên một lần chạy có thể bắt đầu ở chế độ cao tuổi do lần trước để lại.
+
+Kết quả lượt chạy cuối ngày 23/10/2026: HT-01, HT-02, HT-05 (ca phủ định), HT-06 và hai ca HT-17 đạt. HT-03,
+HT-04 và HT-05 (ca khởi tạo tenant) bỏ qua theo thiết kế của bộ; HT-07 ghi "Chờ" vì org-service chưa gửi token
+dịch vụ khi gọi integration-gateway và dev chưa có nguồn nhân sự giả lập; HT-08 và HT-09 ghi "Chờ" vì kỳ thử chưa có
+mục tiêu đã duyệt của đơn vị cấp trên (realm dev không có tài khoản thử ở cấp Sở để lập sẵn).
