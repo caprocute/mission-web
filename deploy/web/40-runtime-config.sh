@@ -23,6 +23,16 @@ done
 # WEB-011: FARO_URL (nên cùng nguồn, ví dụ /faro/collect) và TELEMETRY_SAMPLE_RATIO (0..1, mặc định 0.1).
 FARO=$(printf '%s' "${FARO_URL:-}" | sed -nE 's#^((https?://[A-Za-z0-9.:-]+)?/[A-Za-z0-9._/-]*)$#\1#p')
 RATIO=$(printf '%s' "${TELEMETRY_SAMPLE_RATIO:-0.1}" | sed -nE 's#^(0(\.[0-9]+)?|1(\.0+)?)$#\1#p')
+# WEB-070: MOCK_API_MODULES="dossiers oversight tasks/source-docs" giữ giả lập cho các module chưa có máy
+# chủ khi USE_MOCK_API=false. Chỉ nhận tiền tố đường dẫn chữ thường, số, '-' và '/'.
+MOCK_MODULES_JSON=""
+for m in $(printf '%s' "${MOCK_API_MODULES:-}" | tr ',' ' '); do
+  if printf '%s' "$m" | grep -Eq '^[a-z0-9*][a-z0-9*/-]{0,63}$'; then
+    MOCK_MODULES_JSON="$MOCK_MODULES_JSON${MOCK_MODULES_JSON:+, }\"$m\""
+  else
+    echo "Bỏ qua module giả lập không hợp lệ: $m" >&2
+  fi
+done
 cat > $OUT/config.json <<JSON
 {
   "cell": "${CELL:-DEV}",
@@ -31,6 +41,7 @@ cat > $OUT/config.json <<JSON
   "uiPackBaseUrl": "${UI_PACK_BASE_URL:-/ui-packs}",
   "auth": { "enabled": ${AUTH_ENABLED:-false}, "issuer": "${AUTH_ISSUER:-}", "clientId": "${AUTH_CLIENT_ID:-mission-web}", "scope": "openid profile email" },
   "useMockApi": ${USE_MOCK_API:-true},
+  "mockApiModules": [ $MOCK_MODULES_JSON ],
   "telemetry": { "faroUrl": "$FARO", "sampleRatio": ${RATIO:-0.1} },
   "uiPackPublicKeys": { $UI_PACK_KEYS_JSON }
 }

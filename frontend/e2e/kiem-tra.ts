@@ -93,7 +93,13 @@ export async function checkChild(
   const parent = parentOf(child.url);
   const allowed = parent && canAny(roles, parent.routeKeys) && canAny(roles, child.keys);
   const target = allowed ? child.url : FORBIDDEN;
-  const path = await visit(page, child.url);
+  let path = await visit(page, child.url);
+  // Tuyến chuyển tiếp tới tuyến con được phép đầu tiên (ví dụ gói chính sách mở thẳng thẻ đầu tiên
+  // người dùng được dùng): coi là "vào" như ở `checkSection`
+  const redirectedChild = ALL_CHILDREN.find(
+    (c) => c !== child && c.pattern.test(path) && path.startsWith(child.url + '/'),
+  );
+  if (allowed && redirectedChild && canAny(roles, redirectedChild.keys)) path = child.url;
   record(info, {
     vaiTro: label,
     tuyen: child.url,

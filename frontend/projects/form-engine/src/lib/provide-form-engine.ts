@@ -8,6 +8,7 @@ import {
   VtTextField,
   VtTextareaField,
 } from './fields/field-types';
+import { VtFormSection } from './fields/field-section';
 import { VtFormFieldWrapper, VtFormSectionWrapper } from './fields/field-wrapper';
 
 /** Ánh xạ tên widget của UI Pack sang kiểu trường Formly đã đăng ký. */
@@ -69,6 +70,8 @@ export function formEngineProviders(): Provider {
       { name: 'vt-date', component: VtDateField, wrappers: ['vt-field'] },
       { name: 'vt-catalog', component: VtCatalogField, wrappers: ['vt-field'] },
       { name: 'vt-checkbox', component: VtCheckboxField },
+      // nhóm trường của ui.sections, dựng dần khi biểu mẫu lớn
+      { name: 'vt-section-group', component: VtFormSection },
     ],
     validationMessages: VALIDATION_MESSAGES,
   });

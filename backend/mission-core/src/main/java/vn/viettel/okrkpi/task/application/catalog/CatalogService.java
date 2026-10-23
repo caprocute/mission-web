@@ -84,16 +84,28 @@ public class CatalogService {
   private final CatalogPolicy policy;
   private final PeriodApi periods;
   private final OrgDirectoryApi directory;
+  private final CoefficientTypes coefficients;
 
   public CatalogService(
       CatalogRepository repository,
       CatalogPolicy policy,
       PeriodApi periods,
       OrgDirectoryApi directory) {
+    this(repository, policy, periods, directory, new CoefficientTypes(null));
+  }
+
+  /** Như trên, kèm loại hệ số của Policy Pack để kiểm mức hệ số (CORE-02-27). */
+  public CatalogService(
+      CatalogRepository repository,
+      CatalogPolicy policy,
+      PeriodApi periods,
+      OrgDirectoryApi directory,
+      CoefficientTypes coefficients) {
     this.repository = Objects.requireNonNull(repository, "repository");
     this.policy = Objects.requireNonNull(policy, "policy");
     this.periods = Objects.requireNonNull(periods, "periods");
     this.directory = Objects.requireNonNull(directory, "directory");
+    this.coefficients = Objects.requireNonNull(coefficients, "coefficients");
   }
 
   // ---------------------------------------------------------------- đọc
@@ -226,6 +238,7 @@ public class CatalogService {
     if (repository.findItemByCode(tenant, target.id(), code).isPresent()) {
       throw duplicateCode(code);
     }
+    requireInheritedScore(tenant, target, code, draft);
     CatalogItem item = CatalogItem.create(Ids.newUuidV7(), target.id(), code, draft);
     try {
       repository.insertItem(tenant, actor, item);
@@ -275,6 +288,7 @@ public class CatalogService {
     if (copy.isPresent()) {
       return revise(tenant, actor, target, copy.get(), code, draft, true);
     }
+    requireInheritedScore(tenant, target, code, draft);
     CatalogItem item = CatalogItem.create(Ids.newUuidV7(), target.id(), code, draft);
     try {
       repository.insertItem(tenant, actor, item);
@@ -356,6 +370,7 @@ public class CatalogService {
         && repository.findItemByCode(tenant, target.id(), code).isPresent()) {
       throw duplicateCode(code);
     }
+    requireInheritedScore(tenant, target, code, draft);
     CatalogItem next = current.revise(code, draft);
     boolean ok;
     try {
@@ -423,7 +438,44 @@ public class CatalogService {
     } catch (CatalogViolationException e) {
       throw invalid(e);
     }
+    List<CatalogViolationException.Violation> errors =
+        undeclaredLevels(tenant, draft.scoring().coefficientLevels());
+    if (!errors.isEmpty()) {
+      throw invalid(new CatalogViolationException(errors));
+    }
     return draft;
+  }
+
+  /** BS-03 DC-01: mã loại và mức hệ số phải có trong gói của kỳ đang mở. */
+  List<CatalogViolationException.Violation> undeclaredLevels(
+      TenantId tenant, Map<String, String> levels) {
+    if (levels.isEmpty()) {
+      return List.of();
+    }
+    UUID period = periods.findCurrent(tenant).map(p -> p.id().value()).orElse(null);
+    return CatalogRules.declaredLevels(levels, coefficients.declared(tenant, period));
+  }
+
+  /**
+   * Dòng kế thừa (cùng mã với một mục của danh mục cấp trên) chỉ được chỉnh điểm chuẩn trong khung
+   * của dòng cha (BS-03 DC-02).
+   */
+  private void requireInheritedScore(
+      TenantId tenant, WorkCatalog target, String code, CatalogItemDraft draft) {
+    if (target.parentId() == null) {
+      return;
+    }
+    repository.visibleItems(tenant, target.parentId()).stream()
+        .map(VisibleItem::item)
+        .filter(i -> i.code().equals(code))
+        .findFirst()
+        .map(p -> CatalogRules.adjustViolation(p.baseScore(), p.scoring(), draft.baseScore()))
+        .ifPresent(
+            message -> {
+              throw invalid(
+                  new CatalogViolationException(
+                      List.of(new CatalogViolationException.Violation("baseScore", message))));
+            });
   }
 
   private List<ItemView> describe(TenantId tenant, List<VisibleItem> items, WorkCatalog catalog) {
