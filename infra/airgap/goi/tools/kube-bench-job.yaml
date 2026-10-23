@@ -1,0 +1,23 @@
+# Job kube-bench (CIS Kubernetes Benchmark) cho bộ kiểm tra sau cài đặt (INF-23). kiem-tra-sau-cai.sh thay ANH_KUBE_BENCH
+# bằng ảnh theo digest trong Harbor nội bộ (tham số --anh-kube-bench).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kube-bench
+  namespace: kube-system
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      hostPID: true
+      restartPolicy: Never
+      containers:
+        - name: kube-bench
+          image: ANH_KUBE_BENCH
+          command: ["kube-bench", "run", "--targets", "node,policies"]
+          volumeMounts:
+            - { name: var-lib-kubelet, mountPath: /var/lib/kubelet, readOnly: true }
+            - { name: etc-kubernetes, mountPath: /etc/kubernetes, readOnly: true }
+      volumes:
+        - { name: var-lib-kubelet, hostPath: { path: /var/lib/kubelet } }
+        - { name: etc-kubernetes, hostPath: { path: /etc/kubernetes } }
