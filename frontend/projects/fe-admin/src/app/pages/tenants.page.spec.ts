@@ -7,6 +7,7 @@ import {
   RUNTIME_CONFIG,
   idempotencyInterceptor,
   mockApiInterceptor,
+  resetMockApi,
 } from '@vt/api-client';
 import { ADMIN_CAN } from '../admin-permissions';
 import { TenantsPage } from './tenants.page';
@@ -45,6 +46,9 @@ const text = (el: Element | null) => el?.textContent?.replace(/\s+/g, ' ').trim(
 const names = (el: HTMLElement) => [...el.querySelectorAll('.tbl tbody .name')].map(text);
 
 describe('TenantsPage (SCR-0101)', () => {
+  // kho tenant giả lập dùng chung giữa các tệp kiểm thử (trình khởi tạo thêm đơn vị, chạy tác vụ khởi tạo)
+  beforeEach(() => resetMockApi());
+
   it('thẻ tổng quan, bảng 8 dòng, trạng thái khởi tạo n/6, MSG-01-01 và MSG-01-02', async () => {
     const el = (await render()).nativeElement as HTMLElement;
     expect(text(el.querySelector('.cards'))).toContain('tối đa 5.000 đơn vị');
