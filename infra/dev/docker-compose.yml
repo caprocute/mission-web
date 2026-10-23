@@ -837,6 +837,12 @@ services:
       # "Đồng bộ ngay" (SCR-0104) gửi lệnh tới cổng tích hợp kèm token dịch vụ của client org-service
       # (svc_org_service, cùng cấu hình Keycloak ở trên); thiếu địa chỉ thì lần chạy kết thúc LOI ngay (HT-07)
       OKRKPI_ORG_INTEGRATION_GATEWAY_URL: http://integration-gateway:8080
+      # Mã hoá phong bì C2 (số định danh, ngày sinh, liên hệ) bằng FieldEncryptor của NEN-015 qua OpenBao Transit,
+      # DEK ở keyring.dek; thiếu cấu hình thì nhập nhân sự có C2 trả 503 (HT-07). KEK mỗi tenant tự tạo ở dev.
+      OKRKPI_CRYPTO_OPENBAOBASEURL: http://openbao:8200
+      OKRKPI_CRYPTO_TOKENFILE: /run/secrets/openbao_token
+      OKRKPI_CRYPTO_AUTOCREATEKEK: "true"
+    secrets: [openbao_token]
     ports:
       - "${ORG_SERVICE_PORT:-35111}:8080"
 

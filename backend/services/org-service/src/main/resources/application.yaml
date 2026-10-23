@@ -3,6 +3,25 @@
 spring:
   application:
     name: org-service
+  # org-service có sẵn tenant, lỗi, phân quyền, outbox của mình; từ vt-platform-starter chỉ dùng mã hoá trường C2
+  # (CryptoAutoConfiguration của NEN-015), các cấu hình tự động khác của starter tắt hết.
+  autoconfigure:
+    exclude:
+      - vn.viettel.okrkpi.shared.error.ProblemAutoConfiguration
+      - vn.viettel.okrkpi.shared.resilience.ResilienceAutoConfiguration
+      - vn.viettel.okrkpi.shared.observability.ObservabilityAutoConfiguration
+      - vn.viettel.okrkpi.shared.audit.AuditAutoConfiguration
+      - vn.viettel.okrkpi.shared.tenant.TenantAutoConfiguration
+      - vn.viettel.okrkpi.shared.outbox.OutboxAutoConfiguration
+      - vn.viettel.okrkpi.shared.inbox.InboxAutoConfiguration
+      - vn.viettel.okrkpi.shared.idempotency.IdempotencyAutoConfiguration
+      - vn.viettel.okrkpi.shared.paging.PagingAutoConfiguration
+      - vn.viettel.okrkpi.shared.job.JobAutoConfiguration
+      - vn.viettel.okrkpi.shared.authz.AuthzSubjectAutoConfiguration
+      - vn.viettel.okrkpi.shared.authz.AuthzAutoConfiguration
+      - vn.viettel.okrkpi.shared.audit.C2AccessAutoConfiguration
+      - vn.viettel.okrkpi.shared.routing.TenantRoutingAutoConfiguration
+      - vn.viettel.okrkpi.shared.site.SiteAutoConfiguration
   threads:
     virtual:
       enabled: true
