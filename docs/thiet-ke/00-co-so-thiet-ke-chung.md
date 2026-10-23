@@ -297,3 +297,29 @@ Nguyên tắc: **lớp bảo vệ nào có chi phí lớn thì đưa ra khỏi �
 | 7. Tách quyền kỹ thuật | Mã hoá trường C2 bằng AES-256-GCM với DEK lưu đệm 15 phút; HSM chỉ để mở DEK | ≈ 1–3 µs/trường; gọi HSM ≈ 5 ms nhưng < 1 lần/15 phút/tenant/pod |
 Mã hoá theo lớp dữ liệu: C1 chỉ mã hoá ổ đĩa (LUKS/Ceph) + TLS 1.3/mTLS; C2 thêm mã hoá trường (envelope encryption, KEK trong HSM qua OpenBao Transit, DEK theo tenant theo tháng) cho số định danh, ngày sinh, nhận xét đánh giá, nội dung khiếu nại; điểm số và mức xếp loại không mã hoá trường (để tính toán, phân tích) mà được bảo vệ bằng RLS + ABAC + sổ cái; C3 mã hoá đầu cuối tại client (WebCrypto, AES-256-GCM cho nội dung, khoá nội dung bọc bằng khoá công khai ECDH P-256/RSA-OAEP của từng người nhận lấy từ chứng thư), máy chủ chỉ lưu bản mã, không tìm kiếm toàn văn, không đưa vào phân tích hay AI, chỉ có chỉ mục mù (HMAC) trên vài trường mô tả. Bản quốc phòng thay bộ mật mã bằng thuật toán của Ban Cơ yếu qua lớp trừu tượng `CryptoProvider`.
 Ngân sách độ trễ phía máy chủ cho thao tác "cập nhật tiến độ" (p95): cổng API + WAF 3 ms, xác thực JWT 0,3 ms, OPA 0,5 ms, mTLS ztunnel 0,5 ms, logic 10 ms, giao dịch CSDL + outbox 8 ms, mã hoá trường 0,05 ms ⇒ ≈ 25 ms, còn dư nhiều so với NFR-03 800 ms. Đây là ước tính thiết kế; TL-04 đặt kịch bản PERF đo thực tế trên môi trường thử.
+
+## 15. Bổ sung sau triển khai đợt 1 (23/10/2026)
+
+Mục này được thêm khi rà soát bộ tài liệu theo thực tế triển khai trên nhánh `main`. Các mục 1 đến 14 ở trên giữ nguyên; mục này chỉ liệt kê những mã đã được cấp thêm trong các tài liệu bổ sung và trong quá trình triển khai, cùng các con số đã được hiểu thống nhất. Không mã nào ở đây thay nghĩa mã cũ. Chi tiết của từng điểm lệch nằm ở phụ lục "Cập nhật sau triển khai đợt 1" của từng TL.
+
+### 15.1. Quyết định kiến trúc bổ sung
+
+| Mã | Quyết định | Nguồn |
+|---|---|---|
+| ADR-32 | Hợp đồng API trước: mọi API công khai dưới `/api/v1` mô tả trước bằng OpenAPI 3.1 trong `contracts/openapi/`; hai phía sinh mã từ hợp đồng; phần mở rộng `x-mission` để truy vết | BS-02, TL-01 Phụ lục A và F |
+| ADR-33 | Hồ sơ tập khách hàng trên một lõi chung: lõi cung cấp đại lượng thô qua sáu điểm cắm DC-01 đến DC-06, khác biệt giữa các tập khách hàng nằm trong cấu hình có phiên bản | BS-03, TL-01 Phụ lục A và G |
+
+### 15.2. Sự kiện, màn hình, quy tắc bổ sung
+
+| Mã | Nội dung | Nguồn |
+|---|---|---|
+| EVT-27 | VaiTroDaThayDoi, topic `config.access.changed.v1`, MOD-08 phát, MOD-08, SVC-02 và OPA tiêu thụ | `contracts/events/catalog.yaml`, WEB-058 |
+| SCR-0105 đến SCR-0107 | Vai trò theo đơn vị; hồ sơ quyền của một người; uỷ quyền khi vắng mặt | `docs/phan-quyen/ma-tran.json` |
+| BR-01-13 đến BR-01-18, MSG-01-16 đến MSG-01-18 | Quy tắc và thông điệp của ba màn hình trên | `docs/phan-quyen/de-xuat-quan-tri-vai-tro.md` |
+| SCR-1505, SCR-1506 | Thư viện, trình soạn mẫu luồng và giám sát tiến trình theo mẫu (nội bộ nền tảng); vai trò `wf_template_author` | BS-01, TL-01 Phụ lục E |
+
+Danh mục sự kiện ở mục 7 có thêm hai người tiêu thụ theo mã hiện tại: SVC-16 tiêu thụ EVT-06 và EVT-24 để dựng chỉ mục tìm kiếm (theo mã, chờ xác nhận).
+
+### 15.3. Con số và quy ước được hiểu thống nhất
+
+Quy mô định cỡ dùng trong kế hoạch triển khai là 6,5 triệu tài khoản và 300.000 người dùng đồng thời (NFR-01 trong quy định của repo); mục 2 và các ước tính ở mục 3.1 vẫn tính với 6 triệu và chưa được tính lại. Go dùng bản 1.25 thay cho 1.23. Thư viện frontend dùng chung có thêm `@vt/api-client` và `@vt/e2ee` ngoài danh sách ở mục 5.2. Quy ước API ở mục 13 có thêm tiền tố `/registry` của SVC-03 và tiền tố `/internal/v1/...` cho lời gọi giữa các service; xung đột phiên bản trả 409, riêng giao diện SCIM trả 412 theo chuẩn. Theo YC-PT-19, các chỉ tiêu NFR liên quan tới hiệu năng chưa được đo ở tải cao trong giai đoạn này.

@@ -1,6 +1,6 @@
 ---
 title: "Đặc tả quy trình nghiệp vụ và giao diện"
-subtitle: "Nền tảng đánh giá cán bộ theo OKR và KPI · Mã tài liệu TL-02 · Phiên bản 1.0 · 10/2026"
+subtitle: "Nền tảng đánh giá cán bộ theo OKR và KPI · Mã tài liệu TL-02 · Phiên bản 1.1 · 10/2026"
 toc-title: "Mục lục"
 ---
 
@@ -13,6 +13,7 @@ Tài liệu này là phần đặc tả quy trình nghiệp vụ và giao diện
 | 0.1 | 12/10/2026 | Nhóm phân tích nghiệp vụ | Dựng khung đặc tả, danh mục quy trình và màn hình theo cơ sở thiết kế chung |
 | 0.5 | 16/10/2026 | Nhóm phân tích nghiệp vụ, nhóm thiết kế giao diện | Hoàn thành lưu đồ, quy tắc nghiệp vụ và mockup QT-00 đến QT-08 |
 | 1.0 | 19/10/2026 | Nhóm phân tích nghiệp vụ | Bản phát hành để rà soát cùng TL-01, TL-03, TL-04 |
+| 1.1 | 23/10/2026 | Nhóm phân tích nghiệp vụ | Cập nhật theo thực tế triển khai đợt 1: phụ lục cuối ghi điểm lệch, mã bổ sung và quyết định; sửa tại chỗ nơi nhận SCIM ở QT-01 |
 
 Bảng "Tài liệu liên quan" dưới đây cho biết tài liệu này dựa vào đâu và được dùng ở đâu. Các mã thành phần (SVC), module (MOD), sự kiện (EVT), bảng dữ liệu và trạng thái trong tài liệu này đều lấy từ cơ sở thiết kế chung; khi tài liệu cần thêm cột, bảng hay trạng thái mới, phần đề xuất được ghi riêng để người thiết kế cơ sở dữ liệu đối chiếu.
 
@@ -512,7 +513,7 @@ Hình 6.5 có bốn làn. Làn "Quản trị nền tảng" (AC-01) khai báo ten
 | 4 | Saga cấp phát | SVC-03, SVC-06 | Tạo CSDL (bridge) hoặc đăng ký `tenant_id` (pool), tạo khoá KEK trong HSM, tạo Organization trong Keycloak, đăng ký tên miền và cấp chứng chỉ TLS tự động, sao chép Policy Pack và UI Pack xuống cell, tạo lịch nghỉ mặc định | SCR-0101 (tiến độ) | `DANG_CAP_PHAT` rồi `DANG_CAU_HINH` | ≤ 2 giờ (bridge), ≤ 5 phút (pool) |
 | 5 | Khai báo IdP, VNeID, vai trò | AC-02 | Khai báo IdP của tỉnh (OIDC, SAML hoặc LDAP liên kết), bật VNeID, ánh xạ nhóm sang vai trò | SCR-0102 bước 4 | `registry.tenant_idp` | 1 giờ |
 | 6 | Nhập cây tổ chức có lịch sử | AC-02 | Nhập tệp Excel theo mẫu gồm đơn vị, cấp, loại, khối đối tượng PL 2A, đơn vị cấp trên, ngày hiệu lực, đơn vị tiền thân; khai báo các sự kiện sáp nhập, giải thể, đổi tên với ngày hiệu lực | SCR-0103 | `org.org_unit`, `org.org_unit_relation`; EVT-14 | 2 giờ |
-| 7 | Đồng bộ nhân sự | SVC-13, SVC-04 | Đồng bộ từ CSDL CBCCVC qua NDXP, CSDL đảng viên, SCIM 2.0 từ IdP; khớp người theo số định danh băm HMAC và ngày sinh; ghi `org.person`, `org.assignment` với hai trục thời gian | SCR-0104 | EVT-15, EVT-16; `org.scim_sync_log` | ≤ 1 giờ cho 100.000 bản ghi |
+| 7 | Đồng bộ nhân sự | SVC-13, SVC-04 | Đồng bộ từ CSDL CBCCVC qua NDXP, CSDL đảng viên, SCIM 2.0 từ IdP (cập nhật 10/2026: giao diện SCIM đặt ở SVC-04); khớp người theo số định danh băm HMAC và ngày sinh; ghi `org.person`, `org.assignment` với hai trục thời gian | SCR-0104 | EVT-15, EVT-16; `org.scim_sync_log` | ≤ 1 giờ cho 100.000 bản ghi |
 | 8 | Đối soát lệch | AC-02 | Xem danh sách lệch theo loại và mức; chọn lấy theo nguồn, giữ dữ liệu nội bộ, ánh xạ thủ công, hoặc tạo điều động tương lai | SCR-0104 | Lệch mức Cao về 0 | 2 đến 4 giờ |
 | 9 | Kiểm tra tổng thể và kích hoạt | AC-01 | Hệ thống kiểm tra dung lượng, tên miền, chứng chỉ, Policy Pack đạt test case vàng, IdP hoạt động, lệch mức Cao bằng 0; AC-01 kích hoạt; AC-02 tạo kỳ đánh giá đầu tiên | SCR-0102 bước 6 | `SAN_SANG` rồi `DANG_VAN_HANH` | 30 phút |
 
@@ -4555,3 +4556,70 @@ PL A1 và A2 của báo cáo BGĐ liệt kê tám nhóm tính năng với căn c
 | 8. Quản trị nền tảng | Kênh web, di động, thông báo đẩy, trợ lý AI tiếng Việt | Đề xuất | QT-03, QT-05, QT-17, QT-18 | SCR-0302, SCR-0504, SCR-1701, SCR-1803 |
 
 Mọi dòng tính năng trong PL A1, A2 đều được ít nhất một quy trình đáp ứng. Bốn điểm chưa thống nhất của dự thảo nêu ở PL A4 (cách tính chất lượng, ngày lịch hay ngày làm việc, cách hiểu điều kiện 30%, phân nhóm ở kỳ quý) không được viết cứng mà trở thành tham số của Policy Pack (BR-15-02, BR-15-03, BR-15-04, BR-10-07), nên khi có hướng dẫn chính thức chỉ cần phát hành phiên bản Policy Pack mới theo QT-15 trong thời hạn NFR-07.
+
+# Phụ lục. Cập nhật sau triển khai đợt 1 (10/2026) {-}
+
+Phụ lục này ghi lại những điểm mà quy trình, màn hình và quy tắc nghiệp vụ đã được hiện thực khác với TL-02 phiên bản 1.0, tính đến mã trên nhánh `main` ngày 23/10/2026. Nguồn đối chiếu là mã nguồn, bộ hợp đồng `contracts/openapi/`, ma trận phân quyền `docs/phan-quyen/ma-tran.json` và trang wiki 14. Cách ghi trạng thái giống Phụ lục D của TL-01: "Đã chốt" là đã có quyết định của người phụ trách, "Theo mã, chờ xác nhận" là phương án mặc định mà mã đang chạy, "Câu hỏi mở" là việc chưa có câu trả lời. Khi TL-02 và TL-01 mâu thuẫn, phụ lục ghi theo mã và nêu rõ; trong đợt này, phần lớn mâu thuẫn được giải quyết theo TL-02, vì TL-02 mô tả quy trình ở mức chi tiết hơn.
+
+## Quy ước chung của đặc tả {-}
+
+Hai quy ước chung thay đổi cách đọc các bảng sự kiện của từng màn hình. Thứ nhất, theo ADR-32 (TL-01 Phụ lục F), cột "API" trong bảng sự kiện SCR nay được hiểu theo `operationId` của bộ hợp đồng; đường dẫn ghi trong TL-02 chỉ còn giá trị minh hoạ. Khi đường dẫn trong TL-02 khác hợp đồng, hợp đồng thắng; ví dụ quyết định với gợi ý AI là `POST /ai/suggestions/{id}/decision` với giá trị `CHAP_NHAN`, `SUA`, `BO_QUA`, không phải hai thao tác `/accept`, `/dismiss`. Thứ hai, văn bản hiển thị trên màn hình phải là nhãn nghiệp vụ tiếng Việt: mockup và đặc tả không được in mã SCR, QT, BR, MSG, mã trạng thái thô hay tên trường lên giao diện. Quy định chi tiết và bảng từ thay thế nằm ở trang wiki 16; ví dụ nhiệm vụ có nguồn `DOT_XUAT` hiển thị là "Phát sinh", mức dự báo trễ hạn `VUA` hiển thị là "Trung bình".
+
+## Mã định danh bổ sung {-}
+
+Đợt triển khai cấp thêm một số mã trong dải của TL-02a cho chức năng quản trị vai trò và uỷ quyền (WEB-058, CORE-08-16). Các mã này không thay nghĩa mã cũ.
+
+| Loại | Mã mới | Nội dung |
+|---|---|---|
+| Màn hình | SCR-0105, SCR-0106, SCR-0107 | Vai trò theo đơn vị (cấp, duyệt thứ hai, thu hồi); hồ sơ quyền của một người; uỷ quyền khi vắng mặt |
+| Quy tắc | BR-01-13 đến BR-01-18 | Ràng buộc cấp, duyệt thứ hai, xác thực bước cao (BR-01-15), thu hồi và uỷ quyền; nội dung đầy đủ ở `docs/phan-quyen/de-xuat-quan-tri-vai-tro.md` và trang wiki 15a |
+| Thông báo | MSG-01-16 đến MSG-01-18 | Thông điệp của ba màn hình trên, theo cùng tài liệu đề xuất |
+| Sự kiện | EVT-27 `VaiTroDaThayDoi` | Phát khi cấp, duyệt, từ chối, thu hồi, hết hạn vai trò và uỷ quyền |
+| Màn hình (BS-01) | SCR-1505, SCR-1506 | Thư viện, trình soạn mẫu luồng và giám sát tiến trình theo mẫu (nội bộ nền tảng), đặc tả ở TL-01 Phụ lục E |
+
+## Phần A: QT-00 đến QT-08 {-}
+
+Bảng dưới đây liệt kê các điểm khác thiết kế của phần A. Điểm quan trọng nhất là saga khoá kỳ: TL-01 chương G2 liệt kê năm bước (khoá kỳ, tính điểm hàng loạt, sinh Mẫu 1A đến 3, ký lô, mở khoá có điều kiện), còn TL-02a QT-08 đặc tả sáu bước có bước kiểm tra tiền điều kiện ở đầu và bước hoàn tất ở cuối. Mã MOD-08 (`LockStep`) và màn hình SCR-0801 theo đúng sáu bước của TL-02a, và TL-01 đã được sửa cho khớp.
+
+| Quy trình, màn hình | TL-02 ghi | Hiện thực trên main | Trạng thái |
+|---|---|---|---|
+| QT-00, SCR-0001 | Xác thực bước cao khi thao tác nhạy cảm | Hiệu lực 15 phút sau lần xác thực `aal2` (BR-00-02); thiếu thì trả mã yêu cầu xác thực bước cao để giao diện mở lại hộp xác thực | Theo mã |
+| QT-01, bước 4 | Saga cấp phát do SVC-03 khởi tạo, SVC-06 điều phối | Saga cấp phát chạy ngay trong tenant-registry (SVC-03), trạng thái lưu ở `registry.job`; sự kiện `sys.tenant.provisioned.v1` phát khi tenant chuyển sang đang cấu hình | Theo mã, chờ xác nhận |
+| QT-01, bước 7 | SVC-13 đồng bộ SCIM 2.0 từ IdP | SCIM 2.0 đặt ở org-service (SVC-04); SVC-13 chỉ đồng bộ CSDL CBCCVC, CSDL đảng viên và tệp lô qua cổng nội bộ của org-service | Đã chốt 22/10/2026 |
+| QT-01, SCR-0101 | Ngưỡng mô hình bridge từ 5.000 tới 1.000.000 tài khoản | Giữ ngưỡng của TL-02a (tham số `TENANT_BRIDGE_MAX`, mặc định 1.000.000), khác con số 150.000 ở TL-01 | Theo mã, chờ xác nhận |
+| QT-01, SCR-0104 | Bốn cách xử lý lệch dữ liệu | Hợp đồng có năm hành động gợi ý và bốn cách xử lý; giao diện hiện đủ năm | Theo mã |
+| QT-02, SCR-0203 | Duyệt bộ mục tiêu một lần | Duyệt hàng loạt chạy nền (202), kết quả từng mục tiêu trả về trong danh sách lỗi của tác vụ | Theo mã |
+| QT-02, SCR-0201 | KR nháp đủ chỉ tiêu và hạn | KR ở trạng thái nháp cho phép thiếu chỉ tiêu và hạn; kiểm đủ khi trình duyệt | Theo mã |
+| QT-02 | Tầng OKR (cá nhân, đơn vị, cấp trên) | Chưa chốt cách phân tầng hiển thị | Câu hỏi mở |
+| QT-04, BR-04-01 | Hạn duyệt kế hoạch quý lưu ở cấu hình kỳ | Tính khi đọc theo quy tắc `NGAY_LAM_VIEC_CUOI_TUAN_LICH_THU_2` của Policy Pack; dấu "duyệt muộn" được tính, không lưu cột; quá hạn không chặn duyệt | Theo mã, chờ xác nhận |
+| QT-04, gửi duyệt | Tiến trình `duyet-ke-hoach` | Tiến trình tên `duyet-ke-hoach-quy` (theo SCR-1504 và hợp đồng), khởi tạo ngay khi gửi duyệt, không đợi EVT-03; nội dung phiên bản chờ duyệt được khoá bằng trạng thái và mã băm SHA-256 | Theo mã, chờ xác nhận |
+| QT-04, dòng kế hoạch | Có tên sản phẩm | Hợp đồng có `productName` nhưng TL-03 chưa có cột `plan_item.product_name` | Câu hỏi mở (TL-03) |
+| QT-05, SCR-0503 | Năm loại đề nghị điều chỉnh | Giữ năm loại `GIA_HAN`, `DOI_SO_LUONG`, `DOI_SAN_PHAM`, `TAM_DUNG`, `HUY`; đề nghị không có bản nháp, gửi là chờ duyệt; mỗi quyết định bắt buộc ghi nguyên nhân và lý do | Theo mã |
+| QT-05, giao lại | Đề nghị đổi người chủ trì | Thao tác giao lại trực tiếp của người giao, có lưu vết; consumer EVT-15 đánh dấu nhiệm vụ cần giao lại khi người chủ trì chuyển công tác | Theo mã, chờ xác nhận |
+| QT-06, SCR-0601 | Dự báo nguy cơ trễ hạn | Nhịp thực hiện lấy theo 5 ngày làm việc gần nhất; ngưỡng Thấp khi n/m ≤ 0,8, Trung bình khi đến 1,0, Cao khi vượt 1,0 (suy luận, tham số dịch vụ); kết quả ghi qua cổng `delay-risk` của MOD-02 | Theo mã, chờ xác nhận |
+| QT-07, SCR-0701 | Một tệp mỗi phiên bản minh chứng | Tối đa 20 tệp mỗi phiên bản; tệp trùng mã băm với minh chứng khác được đánh dấu nghi trùng; tệp bị cách ly do mã độc không cho tải | Theo mã |
+| QT-07, SCR-0703 | Nghiệm thu thay | Đã hiện thực theo uỷ quyền, nhưng TL-03 chưa có cột lưu người được thay nên màn hình chưa hiện nhãn "nghiệm thu thay" | Câu hỏi mở |
+| QT-08, bước 1 | Chuyển kỳ sang `DANG_KHOA` và phát EVT-09 | EVT-09 chỉ phát khi kỳ đã `DA_KHOA` (bước hoàn tất); chuyển `MO` sang `DANG_KHOA` chưa có sự kiện, các module chặn ghi qua bảng chiếu trạng thái kỳ; EVT-26 phát khi bù trừ `DANG_KHOA` về `MO` | Câu hỏi mở (cần sự kiện bắt đầu khoá hoặc dấu chặn luồng) |
+| QT-08, SCR-0801 | Saga sáu bước, hai người duyệt khi huỷ | Đúng sáu bước của TL-02a; huỷ được trước khi bước ký số lô xong; người duyệt phải khác người lập, người khởi chạy phải khác người duyệt; lệnh khoá có thời điểm dự kiến | Đã chốt (theo TL-02a) |
+
+## Phần B: QT-09 đến QT-18 {-}
+
+Phần B có nhiều điểm suy luận ở các luật cảnh báo bất thường (QT-14), vì TL-02b cho một phần số ngưỡng và TL-01 nêu ví dụ ngưỡng khác. Job phát hiện bất thường theo TL-02b, các ngưỡng còn thiếu số được đặt mặc định và tenant ghi đè được. Các con số dưới đây cần nghiệp vụ xác nhận trước khi đưa vào vận hành thật.
+
+| Quy trình, màn hình | TL-02 ghi | Hiện thực trên main | Trạng thái |
+|---|---|---|---|
+| QT-09, SCR-0901 | Tự đánh giá | Nộp tự đánh giá có ký số; hồ sơ không tự đánh giá đúng hạn được đánh dấu thiếu | Theo mã |
+| QT-09, QT-10 | Mức xếp loại theo bảng | "Hoàn thành xuất sắc nhiệm vụ" bao hàm điều kiện của mức thấp hơn; khi người đề xuất chọn mức khác mức gợi ý phải nêu lý do (DC-05) | Đã chốt 22/10/2026 |
+| QT-09, EVT-10 | Sự kiện mang luồng, câu giải thích | Lược đồ Avro chưa có các trường này; giá trị nằm trong kết quả tính, MOD-04 đọc qua mã kết quả | Câu hỏi mở (hợp đồng) |
+| QT-10, SCR-0904 | Ký lô quyết định | Ký lô có ngưỡng lỗi 0,2 và huỷ lô khi lỗi một phần; số quyết định duy nhất theo năm và tenant | Theo mã |
+| QT-11, SCR-1102 | Kết thúc hội nghị phát EVT-11 | Chưa phát EVT-11 vì sự kiện thuộc MOD-04; góp ý "hạn chế" tự sinh mục cần khắc phục | Câu hỏi mở |
+| QT-12, SCR-1201 | Khiếu nại gửi một lần | Cho lưu nháp (cần bỏ ràng buộc NOT NULL của TL-03); mã khiếu nại dạng KN-năm-số; hạn khiếu nại 10 ngày làm việc từ khi quyết định được ký | Theo mã, chờ xác nhận |
+| QT-13 | Hai người duyệt mở lại kỳ | Chọn hai người duyệt bằng Java, không bao giờ hạ xuống một người duyệt; mở lại hết hạn thì kỳ tự khoá lại | Đã chốt bởi luồng điều phối |
+| QT-14, luật 1 đến 8 | Ngưỡng ở TL-02b, ví dụ khác ở TL-01 | Theo TL-02b; ngưỡng thiếu số là giả định; dấu hiệu 8 gộp với BR-06-12 thành một luật miễn trừ lặp; cảnh báo tự đóng khi lượt sau không còn phát hiện | Theo mã, chờ xác nhận |
+| QT-14, xử lý cảnh báo | Thông báo cảnh báo mức cao | Gom thông báo hằng ngày lúc 03:30, mỗi người xử lý một thông báo, không nêu tên người bị cảnh báo | Theo mã |
+| QT-15, SCR-1504 | Tham số luồng phát hành cùng Policy Pack | MOD-05 công bố API, SVC-06 giữ dữ liệu; khoá `wf_binding` chưa có phiên bản gói | Câu hỏi mở (TL-03) |
+| QT-15 | Soạn gói cho từng tập khách hàng | Hồ sơ tập khách hàng (ADR-33); hồ sơ TWĐ chạy 1.441 ca vàng trên cùng bản build lõi với hai gói cũ | Đã chốt 22/10/2026 |
+| QT-16, SCR-1601 | Đệm kết quả 5 phút | Đệm 60 giây theo TL-01, cộng làm mới pre-aggregation 5 phút, vẫn trong giới hạn BR-16-08; chỉ tiêu kinh tế xã hội có cờ công bố chưa có nguồn dữ liệu | Theo mã |
+| QT-16, chia sẻ bảng điều hành | Thông báo cho người được chia sẻ | Chưa phát EVT-21 vì analytics-api không có danh bạ người dùng theo đơn vị | Câu hỏi mở |
+| QT-17, SCR-1701 | Ba ca sử dụng AI | Thêm soạn OKR, soát KR, hỏi đáp quy định, giải thích điểm và nhập bằng giọng nói; đọc chữ minh chứng (OCR) lưu văn bản mã hoá C2 | Theo mã; nhà cung cấp nhận dạng tiếng nói là câu hỏi mở |
+| QT-18, SCR-1801 | UI Pack | Có chế độ "Đảng viên cao tuổi" trong token; gửi duyệt chạy kiểm thử nền; quay lui chỉ về bản đã ký | Theo mã |

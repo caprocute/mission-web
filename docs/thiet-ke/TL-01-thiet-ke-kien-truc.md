@@ -1,6 +1,6 @@
 ---
 title: "Thiết kế kiến trúc chi tiết"
-subtitle: "Nền tảng đánh giá cán bộ theo OKR và KPI · Mã tài liệu TL-01 · Phiên bản 1.0 · 10/2026"
+subtitle: "Nền tảng đánh giá cán bộ theo OKR và KPI · Mã tài liệu TL-01 · Phiên bản 1.1 · 10/2026"
 toc-title: "Mục lục"
 ---
 
@@ -14,6 +14,7 @@ toc-title: "Mục lục"
 | 0.5 | 16/10/2026 | Nhóm kiến trúc nền tảng | Thiết kế chi tiết SVC-01 đến SVC-18, ba chuyên đề G1, G2, G3 |
 | 0.9 | 18/10/2026 | Nhóm kiến trúc nền tảng | Ma trận truy vết 110 tiêu chí, phụ lục ADR, ngăn xếp công nghệ, danh mục API |
 | 1.0 | 19/10/2026 | Kiến trúc sư trưởng | Bản trình duyệt cùng TL-02, TL-03, TL-04 |
+| 1.1 | 23/10/2026 | Nhóm kiến trúc nền tảng | Cập nhật theo thực tế triển khai đợt 1: thêm ADR-32, ADR-33 vào Phụ lục A; Phụ lục D ghi điểm lệch và quyết định; nhập BS-01, BS-02, BS-03 thành Phụ lục E, F, G; sửa tại chỗ mục hợp đồng API, saga chốt kỳ, khởi tạo luồng duyệt, Phụ lục B và C |
 
 ## Tài liệu liên quan {-}
 
@@ -1063,7 +1064,7 @@ Flowable 7.1 nhúng trong Spring Boot 3.5, Java 21, CSDL PostgreSQL riêng `flow
 | GET | `/api/v1/workflow/instances/{businessKey}/history` | Lịch sử duyệt của một hồ sơ |
 | POST | `/api/v1/workflow/sagas/period-close` | Khởi động saga chốt kỳ (trả 202 và mã theo dõi) |
 
-Dữ liệu gồm bảng `ACT_*` của Flowable, `wf_template` (mẫu luồng đã đăng ký), `wf_binding` (tham số theo tenant, khối, loại hồ sơ) và `wf_task_projection` (bảng phẳng phục vụ hộp việc, cập nhật bởi listener). Service nhận EVT-03, EVT-11, EVT-13, EVT-25 để khởi tạo tiến trình và phát lệnh hoàn thành bước về lõi qua API công bố.
+Dữ liệu gồm bảng `ACT_*` của Flowable, `wf_template` (mẫu luồng đã đăng ký), `wf_binding` (tham số theo tenant, khối, loại hồ sơ) và `wf_task_projection` (bảng phẳng phục vụ hộp việc, cập nhật bởi listener). Service nhận EVT-03, EVT-11, EVT-13, EVT-25 để khởi tạo tiến trình và phát lệnh hoàn thành bước về lõi qua API công bố. Cập nhật 10/2026: tiến trình duyệt OKR, duyệt kế hoạch quý và duyệt đề nghị điều chỉnh được khởi tạo ngay khi đối tượng được gửi duyệt, qua cổng nội bộ `StartApprovalService` của workflow-service, theo TL-02a; lý do là EVT-01, EVT-03 là sự kiện "đã duyệt", xảy ra sau tiến trình chứ không trước (xem Phụ lục D).
 
 ### Co giãn
 
@@ -1351,7 +1352,7 @@ components:
 
 ## Hợp đồng API theo OpenAPI
 
-Mọi API công khai có mô tả OpenAPI 3.1, đáp ứng A7. Lõi theo hướng "mã trước, hợp đồng kiểm tra": springdoc sinh tài liệu từ annotation, và CI so sánh với tệp hợp đồng đã duyệt trong repo bằng `openapi-diff`; thay đổi phá vỡ tương thích làm build thất bại trừ khi đi kèm tăng phiên bản đường dẫn. API cho đối tác do integration-gateway công bố theo hướng "hợp đồng trước": tệp OpenAPI được duyệt trước, mã sinh từ hợp đồng.
+Mọi API công khai có mô tả OpenAPI 3.1, đáp ứng A7. Theo ADR-32 (cập nhật 10/2026, chi tiết ở Phụ lục F), toàn bộ API công khai đi theo hướng "hợp đồng trước": bộ tệp OpenAPI 3.1 trong thư mục `contracts/openapi/` là nguồn sự thật và được duyệt trước khi viết mã ở bất kỳ phía nào. Frontend sinh kiểu TypeScript bằng openapi-typescript; backend sinh interface controller và DTO bằng openapi-generator, controller cài đặt interface đó. springdoc vẫn được giữ nhưng chỉ để đối chiếu ngược: CI chạy `openapi-diff` giữa tài liệu sinh lúc chạy và tệp hợp đồng, mọi khác biệt làm build thất bại; thay đổi phá vỡ tương thích phải đi kèm tăng phiên bản đường dẫn. Mỗi thao tác mang phần mở rộng `x-mission` để truy vết QT, SCR, owner, EVT, vai trò, phạm vi, AAL, bốn mắt và BR. API cho đối tác do integration-gateway công bố cũng theo hướng hợp đồng trước, với kho hợp đồng riêng.
 
 Quy ước chung của mọi API: JSON với tên trường `camelCase`; không còn endpoint `application/x-www-form-urlencoded` mang chuỗi JSON (35 endpoint cũ của backend-missions được thay trong đợt 2); phân trang theo con trỏ với `limit` tối đa 200; ghi có `Idempotency-Key`; cập nhật có `If-Match`; lỗi theo RFC 9457 (chương 14); tác vụ dài trả 202 kèm `Location`. Chính sách phiên bản: phiên bản chính nằm trong đường dẫn (`/api/v1`), phiên bản cũ được duy trì tối thiểu 12 tháng sau khi phiên bản mới phát hành, với header `Deprecation` và `Sunset` theo RFC 9745 và RFC 8594.
 
@@ -1884,7 +1885,7 @@ Tầng 1 là máy trạng thái khai báo trong mã, chạy trong mission-core, 
 
 Tầng 2 là Flowable 7 BPMN cho luồng duyệt có con người tham gia nhiều bước theo thẩm quyền: duyệt kế hoạch quý, duyệt OKR, hồ sơ đánh giá (tự đánh giá, thẩm định, đề xuất, quyết định), khiếu nại, mở lại kỳ hai người duyệt, phê duyệt phát hành Policy Pack. Đây là nơi BPMN đem lại giá trị thật: luồng nhiều cấp theo thẩm quyền khác nhau giữa khối Đảng (chi bộ, đảng uỷ cơ sở, tỉnh uỷ, Ban Tổ chức TW) và khối quân đội (chỉ huy và chính uỷ, cơ quan chính trị); sơ đồ đọc được bởi người nghiệp vụ; hạn xử lý, leo thang, uỷ quyền là tính năng có sẵn. Khối lượng khoảng 150 lần hoàn thành mỗi giây ở cell lớn.
 
-Tầng 3 là saga điều phối cho quy trình kỹ thuật nhiều bước liên service, có hành động bù trừ: chốt kỳ (khoá kỳ, tính điểm hàng loạt, sinh Mẫu 1A đến 3, ký lô, mở khoá có điều kiện nếu ký lỗi), phát hành Policy Pack (kiểm thử, ký, phân phối xuống cell, kích hoạt), ký lô. Saga cũng mô hình hoá bằng BPMN trên cùng workflow-service để dùng chung công cụ giám sát, nhưng mỗi bước là một external worker task: engine chỉ ghi "bước X cần làm", worker ở service tương ứng (scoring, document, esign) chủ động lấy việc, thực hiện ngoài giao dịch của engine, rồi báo kết quả. Engine không bao giờ chờ hệ ngoài trong giao dịch của nó.
+Tầng 3 là saga điều phối cho quy trình kỹ thuật nhiều bước liên service, có hành động bù trừ: chốt kỳ (sáu bước theo TL-02a QT-08: kiểm tra tiền điều kiện, khoá kỳ, tính điểm hàng loạt, sinh Mẫu 1A đến 3 và bảng chấm điểm, ký số lô, hoàn tất; bù trừ về `MO` nếu huỷ trước khi ký lô xong), phát hành Policy Pack (kiểm thử, ký, phân phối xuống cell, kích hoạt), ký lô. Saga cũng mô hình hoá bằng BPMN trên cùng workflow-service để dùng chung công cụ giám sát, nhưng mỗi bước là một external worker task: engine chỉ ghi "bước X cần làm", worker ở service tương ứng (scoring, document, esign) chủ động lấy việc, thực hiện ngoài giao dịch của engine, rồi báo kết quả. Engine không bao giờ chờ hệ ngoài trong giao dịch của nó.
 
 Ranh giới giữa các tầng rõ ràng. Tầng 1 phát sự kiện (EVT-03, EVT-11) khi một đối tượng cần duyệt; workflow-service nhận sự kiện và khởi tạo tiến trình tầng 2 với business key là id đối tượng. Khi một user task hoàn thành với quyết định, tầng 2 gọi API công bố của lõi để thực hiện chuyển trạng thái ở tầng 1 (ví dụ `POST /api/v1/plans/{id}/approve`), bằng external worker có idempotency key, không gọi trong giao dịch engine. Dữ liệu nghiệp vụ không nằm trong biến tiến trình; tiến trình chỉ mang id, tenant, khối, luồng và phiên bản Policy Pack.
 
@@ -3699,6 +3700,26 @@ Phụ lục này ghi lại các quyết định kiến trúc (Architecture Decis
 
 **Hệ quả.** Tích cực: khoảng 100 phiên xác nhận mỗi cell. Tiêu cực: kiểm chứng một phiếu cần kèm danh sách băm của lô.
 
+## ADR-32. Hợp đồng API trước cho toàn bộ API công khai {-}
+
+**Bối cảnh.** Mục "Hợp đồng API theo OpenAPI" ban đầu chọn hướng "mã trước, hợp đồng kiểm tra" cho phần lõi. Khi phân hệ web được nhiều luồng phát triển song song trong lúc backend chưa có mã, hướng này buộc frontend tự đoán đường dẫn và tên trường, và các chỗ TL ghi khác nhau chỉ lộ ra khi ghép nối.
+
+**Quyết định.** Mọi API công khai dưới `/api/v1` (trừ API đối tác của SVC-13) được mô tả trước bằng OpenAPI 3.1 trong `contracts/openapi/`, mỗi module hoặc service một tệp. Frontend sinh kiểu TypeScript bằng openapi-typescript, backend sinh interface controller bằng openapi-generator; springdoc chỉ còn dùng để đối chiếu ngược trong CI. Mỗi thao tác có phần mở rộng `x-mission` để truy vết QT, SCR, owner, EVT, vai trò, phạm vi, AAL, bốn mắt và BR. Chi tiết ở Phụ lục F.
+
+**Phương án đã cân nhắc.** Giữ "mã trước" làm frontend phải chờ backend; viết hợp đồng riêng cho từng màn hình làm trùng lặp và lệch nhau giữa các luồng.
+
+**Hệ quả.** Tích cực: một bộ đường dẫn và tên trường chung, dữ liệu giả lập và kiểm thử hợp đồng sinh từ `examples`. Tiêu cực: mỗi thay đổi API cần PR sửa hợp đồng và chờ duyệt; khi mã lệch hợp đồng thì sửa mã (YC-PT-09). Trạng thái: đã chấp nhận ngày 19/10/2026.
+
+## ADR-33. Hồ sơ tập khách hàng trên một lõi chung {-}
+
+**Bối cảnh.** Policy Pack chỉ phân biệt hai luồng `DANG` và `NHA_NUOC` với một tập đầu vào cố định. Khi đối chiếu với giải pháp KPI của UEB cho Ban Tổ chức Trung ương, có sáu nhóm nghiệp vụ không biểu diễn được bằng cấu hình hiện có, vì lõi chưa cung cấp đủ dữ liệu thô.
+
+**Quyết định.** Tách ba lớp: lớp lõi chỉ cung cấp sự kiện và đại lượng thô; lớp cấu hình gồm Policy Pack, danh mục, mẫu luồng, bộ quy tắc cảnh báo và UI Pack, đều có phiên bản; lớp hồ sơ tập khách hàng là bản kê có phiên bản trỏ tới đúng phiên bản của từng thành phần cấu hình. Lõi bổ sung sáu điểm cắm DC-01 đến DC-06, mặc định giữ hành vi cũ. Chi tiết ở Phụ lục G.
+
+**Phương án đã cân nhắc.** Viết thẳng cách chấm của từng khách hàng vào mã làm mất khả năng phục vụ các tập khách hàng khác.
+
+**Hệ quả.** Tích cực: thêm hồ sơ mới là việc cấu hình và ký bộ ca vàng. Tiêu cực: mở rộng `inputs` của scoring và một số cột ở TL-03. Tiêu chí nghiệm thu: cùng một bản build lõi đạt 100 phần trăm ca vàng của ít nhất hai hồ sơ; không có nhánh mã theo tên hồ sơ. Trạng thái: đã chấp nhận ngày 22/10/2026.
+
 # Phụ lục B. Danh mục công nghệ {-}
 
 Bảng dưới liệt kê công nghệ của kiến trúc đích, phiên bản tham chiếu tại thời điểm thiết kế (tháng 10/2026), giấy phép và lý do chọn. Phiên bản cụ thể khi triển khai theo chính sách nâng cấp của TL-04: chỉ dùng bản còn được hỗ trợ, cập nhật bản vá trong 30 ngày, bản vá an ninh nghiêm trọng trong 7 ngày.
@@ -3719,7 +3740,7 @@ Bảng dưới liệt kê công nghệ của kiến trúc đích, phiên bản t
 | Frontend | Angular | 21 | MIT | Chuẩn của đội |
 | Frontend | Native Federation | Theo Angular 21 | MIT | Micro-frontend |
 | Frontend | PrimeNG | 21 | MIT | Bộ component |
-| Frontend | ngx-formly | 6.x | MIT | Biểu mẫu động |
+| Frontend | ngx-formly | 10 (cập nhật 10/2026, khớp Angular 21) | MIT | Biểu mẫu động |
 | Di động | Flutter | 3.x | BSD-3 | Một mã cho hai nền tảng |
 | CSDL | PostgreSQL | 17 | PostgreSQL License | ADR-02 |
 | CSDL | CloudNativePG | 1.2x | Apache 2.0 | Vận hành PostgreSQL trên Kubernetes |
@@ -3758,6 +3779,8 @@ Bảng dưới liệt kê công nghệ của kiến trúc đích, phiên bản t
 Bốn thay thế do giấy phép cần lưu ý. Redis được thay bằng Valkey vì từ năm 2024 Redis chuyển sang giấy phép kép RSAL và SSPL (bản 8 bổ sung AGPL), không phù hợp đóng gói trong bản cài cho khách hàng. Elasticsearch được thay bằng OpenSearch vì lý do tương tự từ bản 7.11. HashiCorp Vault được thay bằng OpenBao vì Vault chuyển sang BSL năm 2023. iText 7 không được dùng vì AGPL đòi công bố mã nguồn của sản phẩm phân phối hoặc mua giấy phép thương mại. Các thành phần AGPL còn lại trong bảng (Grafana, Loki, Tempo, k6) chỉ chạy như công cụ nội bộ của nhà vận hành, không được sửa đổi và không phân phối kèm sản phẩm; nếu bản cài tại chỗ cần kèm chúng, phải đánh giá lại theo quy trình pháp chế. Camunda 8 không được chọn vì giấy phép tự lưu trữ cho sản xuất của Zeebe không còn miễn phí, và Camunda 7 bản cộng đồng hết hỗ trợ tháng 10/2025.
 
 # Phụ lục C. Danh mục API theo module {-}
+
+> Cập nhật 10/2026: theo ADR-32, danh mục API có hiệu lực là bộ hợp đồng OpenAPI trong `contracts/openapi/` của repo mission-web. Bảng dưới đây được giữ để tra cứu thiết kế ban đầu; khi bảng khác hợp đồng (ví dụ `knownAt` nay là `recordedAsOf`, quyết định gợi ý AI là `POST /ai/suggestions/{id}/decision`), hợp đồng thắng. Các điểm đã chốt khi ghép nguồn nằm ở Phụ lục F.
 
 Phụ lục này liệt kê các endpoint chính của nền tảng theo module. Mọi đường dẫn có tiền tố `/api/v1`. Cột quyền ghi vai trò cơ bản trong token; quyết định cuối cùng do OPA đưa ra theo chính sách ABAC (chương 16), ví dụ vai trò `manager` chỉ có hiệu lực trên đơn vị mình quản lý. Các vai trò dùng trong bảng gồm `staff` (cán bộ), `manager` (lãnh đạo đơn vị, người giao việc), `appraiser` (người thẩm định), `decider` (người quyết định xếp loại), `second_approver` (người duyệt thứ hai), `inspector` (giám sát, thanh tra), `org_officer` (cán bộ tổ chức), `policy_author`, `policy_approver`, `tenant_admin`, `platform_admin`. Thao tác đánh dấu "AAL2" yêu cầu nâng bậc xác thực. Hợp đồng đầy đủ nằm trong tệp OpenAPI của từng module.
 
@@ -3882,3 +3905,619 @@ Phụ lục này liệt kê các endpoint chính của nền tảng theo module.
 | POST | `/ai/suggestions` | Yêu cầu gợi ý AI chỉ đọc | `staff` |
 | GET | `/analytics/dashboards/{id}?period=&unit=` | Dữ liệu bảng điều hành | `manager`, `inspector` |
 
+# Phụ lục D. Cập nhật sau triển khai đợt 1 (10/2026) {-}
+
+Phụ lục này ghi lại những điểm mà mã nguồn trên nhánh `main` của repo mission-web, tính đến ngày 23/10/2026, đã hiện thực khác với nội dung TL-01 phiên bản 1.0, cùng với các quyết định mà người phụ trách đã chốt trong quá trình triển khai. Nguồn đối chiếu gồm mã nguồn, bộ hợp đồng `contracts/openapi/` và `contracts/events/catalog.yaml`, trang wiki 14 "Quyết định và câu hỏi mở", cùng ba tài liệu bổ sung BS-01, BS-02, BS-03 nay đã được nhập vào Phụ lục E, F và G của tài liệu này.
+
+Nguyên tắc xử lý như sau. Khi TL-01 và một tài liệu khác (TL-02, TL-03, TL-04) mâu thuẫn nhau, phụ lục này ghi theo mã đang chạy và nêu rõ chỗ mâu thuẫn. Mỗi dòng có một trong ba trạng thái. "Đã chốt" nghĩa là người phụ trách hoặc luồng điều phối đã quyết định và nội dung chương tương ứng được hiểu theo dòng này. "Theo mã, chờ xác nhận" nghĩa là luồng triển khai đã chọn phương án mặc định có lý do, mã chạy theo phương án đó, nhưng chưa có quyết định chính thức. "Câu hỏi mở" nghĩa là cả thiết kế lẫn mã đều chưa có câu trả lời đầy đủ. Mã định danh (ADR, SVC, MOD, EVT, QT, SCR, BR, MSG) giữ nguyên như baseline; phụ lục không đặt mã mới ngoài các mã đã được cấp trong BS-02, BS-03 và WEB-058. Nội dung suy ra mà nguồn không ghi trực tiếp được đánh dấu "(suy luận)". Theo YC-PT-19, các chỉ tiêu hiệu năng trong giai đoạn này chỉ được ghi lại, chưa đo ở tải cao.
+
+## D.1. Quyết định kiến trúc bổ sung {-}
+
+Trong đợt triển khai đầu, hai quyết định kiến trúc mới đã được chấp nhận và nay có hồ sơ đầy đủ ở Phụ lục A. ADR-32 chuyển toàn bộ API công khai sang hướng hợp đồng trước: bộ tệp OpenAPI 3.1 trong `contracts/openapi/` là nguồn sự thật, frontend sinh kiểu TypeScript, backend sinh interface controller, và springdoc chỉ còn vai trò đối chiếu ngược trong CI. Quyết định này thay câu "Lõi theo hướng mã trước, hợp đồng kiểm tra" ở mục "Hợp đồng API theo OpenAPI" của chương tích hợp. ADR-33 đưa vào khái niệm hồ sơ tập khách hàng với sáu điểm cắm DC-01 đến DC-06, để khác biệt giữa các tập khách hàng (ví dụ hồ sơ TWĐ cho Ban Tổ chức Trung ương) nằm hoàn toàn trong cấu hình, không nằm trong mã lõi. Ngoài hai ADR này, quy tắc "sửa mã, không sửa hợp đồng" (YC-PT-09) được áp dụng nhất quán: khi mã và hợp đồng lệch nhau, mã được sửa cho khớp hợp đồng, còn thay đổi hợp đồng phải đi qua PR riêng.
+
+Hệ quả trực tiếp của ADR-32 là Phụ lục C không còn là danh mục API có hiệu lực. Bảng ở Phụ lục C được giữ để tra cứu lịch sử thiết kế, còn danh mục API chính thức là bộ hợp đồng, hiện gồm 11 tệp module và hơn 351 thao tác ở bản nháp 1.0.0-draft.1, sau đó được bổ sung qua NEN-042, NEN-043, NEN-044. Mỗi thao tác mang phần mở rộng `x-mission` (QT, SCR, owner, EVT, vai trò, phạm vi, AAL, bốn mắt, BR, dòng TL nguồn) để chuỗi truy vết được kiểm tự động.
+
+## D.2. Phân hệ web (SVC-17) {-}
+
+Phần lớn kiến trúc frontend ở chương 7 (G1) và chương "Thiết kế chi tiết từng thành phần" được hiện thực đúng thiết kế: shell và remote theo Native Federation, Design Token theo tenant, SDUI có registry, biểu mẫu động bằng Formly và JSON Schema, plugin có kiểm soát. Các điểm khác biệt dưới đây chủ yếu là lựa chọn thư viện cụ thể và cách hiện thực các ràng buộc CSP.
+
+| Chủ đề | TL-01 ghi | Hiện thực trên main | Trạng thái |
+|---|---|---|---|
+| Trình soạn và hiển thị sơ đồ luồng (SCR-1504, SCR-1505) | BS-01 đề xuất nhúng trình soạn BPMN (bpmn-js) | ngx-vflow 2.7, dựng sơ đồ từ mô tả luồng đã kiểm, không nhúng trình soạn BPMN tự do | Đã chốt 22/10/2026 |
+| Thư viện biểu mẫu động | ngx-formly 6.x (Phụ lục B) | Formly 10, khớp Angular 21 | Đã chốt |
+| Đánh giá biểu thức CEL ở trình duyệt | cel-js | `@marcbachmann/cel-js` 8.0.0 cho bộ đánh giá dùng chung `evaluateMissionCel`; máy chủ vẫn là nguồn sự thật | Đã chốt |
+| Kiểm JSON Schema ở trình duyệt | Ajv biên dịch sẵn schema | Bộ kiểm tự viết, vì Ajv chế độ mặc định sinh mã lúc chạy, trái CSP | Đã chốt |
+| Chính sách Trusted Types | Một chính sách mặc định | Thêm hai chính sách có tên `native-federation` và `es-module-shims` để nạp remote; plugin nạp qua `vt-federation` | Đã chốt |
+| Thư viện dùng chung `@vt/*` | Danh sách ở baseline mục 5.2 | Thêm `@vt/api-client` (mọi lời gọi API) và `@vt/e2ee` (luồng C3) | Đã chốt |
+| Nhúng vào hệ thống khác | Chưa đặc tả | Phần tử tuỳ biến `<vt-okr-app>` dựng bằng Angular Elements, kiểm soát bằng `frame-ancestors` | Theo mã, chờ xác nhận |
+| Bảng điều hành (SCR-1601) | Superset nhúng | Giao diện vẽ biểu đồ SVG từ `POST /analytics/query`; Superset nhúng (DV-15-05) chỉ dùng cho phân tích tự do | Theo mã, chờ xác nhận |
+
+## D.3. Giao tiếp API và sự kiện {-}
+
+Quy ước API ở chương 14 và baseline mục 13 được giữ, với một số điểm đã chốt khi viết hợp đồng. Xung đột phiên bản khi cập nhật trả 409 (không dùng 412), trừ giao diện SCIM theo chuẩn RFC 7644 vẫn dùng 412. Thời hạn giữ `Idempotency-Key` là 48 giờ. Kiểu lỗi RFC 9457 dùng `type` dạng `https://okrkpi.vn/problems/<slug>`, còn mã BR, MSG nằm ở trường mở rộng. Cập nhật tiến độ nhiệm vụ là `POST` (mỗi lần cập nhật là một bản ghi mới), danh sách việc của tôi là `/tasks/mine`, và tham số thời điểm ghi nhận của API tổ chức hai trục thời gian là `recordedAsOf` (thay `knownAt`). Tiền tố `/registry` của tenant-registry và tiền tố nội bộ `/internal/v1/...` cho lời gọi giữa service là bổ sung so với baseline mục 13.
+
+| Chủ đề | TL-01 ghi | Hiện thực trên main | Trạng thái |
+|---|---|---|---|
+| Danh mục sự kiện | 26 sự kiện EVT-01 đến EVT-26 | Thêm EVT-27 `VaiTroDaThayDoi` (`config.access.changed.v1`, MOD-08 phát) cho quản trị vai trò và uỷ quyền (WEB-058); danh mục máy đọc được ở `contracts/events/catalog.yaml` | Đã chốt |
+| Người tiêu thụ EVT-06, EVT-24 | Không có SVC-16 | SVC-16 tiêu thụ EVT-04, EVT-06, EVT-24 để dựng chỉ mục tìm kiếm | Theo mã, chờ xác nhận |
+| Sự kiện nội bộ của mission-core | Bảng outbox | Event Publication Registry của Spring Modulith (ADR-23); tắt phát lại khi khởi động, tự phát lại theo tenant | Đã chốt |
+| Topic kỹ thuật | `iam.audit.v1` và tiền tố `sys.` | `iam.auth.event.v1` cho sự kiện Keycloak; thêm `sys.siem.v1`, `sys.security.runtime.v1`; `sys.audit.v1` chỉ do audit-writer và Fluent Bit ghi | Đã chốt |
+| Hàng đợi lỗi | Một DLQ mỗi topic | `<topic>.retry.<consumer>` với 1, 5, 30 phút rồi `<topic>.dlq.<consumer>`; thử tại chỗ 3 lần | Đã chốt |
+| Tương thích lược đồ | BACKWARD | Apicurio `BACKWARD_TRANSITIVE` cộng kiểm `VALIDITY FULL` | Đã chốt |
+| Khởi tạo tiến trình duyệt | SVC-06 nhận EVT-03, EVT-11, EVT-13, EVT-25 để khởi tạo tiến trình | Khởi tạo qua cổng nội bộ `StartApprovalService` ngay khi gửi duyệt (theo TL-02a), vì EVT-01, EVT-03 là sự kiện "đã duyệt"; đề nghị bổ sung `POST /workflow/instances` vào hợp đồng | Theo mã, chờ xác nhận |
+| Tín hiệu hết dấu hiệu bất thường | Không có | Đề xuất phát lại EVT-20 cùng `alertKey` với `severity = HET_DAU_HIEU`, không đặt mã EVT mới (chờ NEN-007) | Câu hỏi mở |
+
+## D.4. mission-core (SVC-05) và các module {-}
+
+Ma trận phụ thuộc module của TL-01 được kiểm bằng ArchUnit và Spring Modulith; mọi điểm lệch dưới đây đều giữ đúng ma trận, tức khi một module cần dữ liệu của module khác mà ma trận không cho gọi, mã dùng đảo phụ thuộc qua cổng `api` thay vì gọi thẳng. Trang wiki 21 mô tả cây gói `vn.viettel.okrkpi` và vị trí mã.
+
+| Chủ đề | TL-01 ghi | Hiện thực trên main | Trạng thái |
+|---|---|---|---|
+| Máy trạng thái nhiệm vụ (ADR-04 tầng 1) | Khai báo trong mã | Bảng chuyển trạng thái `task_lifecycle` (10 dòng) nằm trong Policy Pack ghim theo kỳ; lệnh chuyển theo hợp đồng `TaskTransition` (`TIEP_TUC`, `TRINH_NGHIEM_THU`, `HOAN_THANH`…) | Theo mã, chờ xác nhận |
+| Hạn duyệt kế hoạch quý (BR-04-01) | Ghi vào `config.period.plan_deadline` | MOD-02 tính khi đọc từ tham số `plan_approval_deadline_rule` của Policy Pack và lịch làm việc, vì MOD-02 không được ghi schema `config` | Theo mã, chờ xác nhận |
+| Chọn người duyệt mở lại kỳ (QT-13) | Chọn qua OPA | Chọn bằng Java trong MOD-07 (đi từ đơn vị gốc lên cấp trên, loại người lập và người đã tham gia hồ sơ); OPA trong pod chỉ trả cho phép hay không, không trả danh sách người. Thư mục `deploy/policies/` là chính sách Kyverno, Rego của dự án nằm ở `backend/opa/okrkpi` | Đã chốt bởi luồng điều phối |
+| Chọn người xử lý khiếu nại (BR-12-04) | Chưa đặc tả nơi chạy | Một quy tắc Rego `okrkpi.complaint` dùng ở cả hai nơi: OPA chọn ứng viên, Java chạy cùng dữ liệu đầu vào để kiểm | Theo mã, chờ xác nhận |
+| MOD-06 đọc Policy Pack | `PolicyQueryApi` | Qua cổng `config.api.SpecialCaseRulesPort` do MOD-05 hiện thực (đảo phụ thuộc), đúng ma trận | Đã chốt 22/10/2026 |
+| Kết thúc hội nghị kiểm điểm phát EVT-11 | Có | Chưa phát, vì EVT-11 thuộc MOD-04 và `appraisal :: api` chưa có lệnh chuyển bước | Câu hỏi mở |
+| Hồ sơ tập khách hàng (ADR-33) | Không có | MOD-05 lưu bản kê hồ sơ, hiện chỉ đối chiếu được thành phần `policyPack`; các thành phần `catalog`, `alertRuleSet`, `workflowParams`, `uiPack` mới kiểm dạng khoá | Theo mã, phần còn lại chờ cổng tra phiên bản |
+| Biểu mẫu động | Policy Pack sở hữu lược đồ biểu mẫu | `config.form_schema` thuộc MOD-08 giữ lược đồ, kèm tham chiếu Policy Pack và danh sách trường ảnh hưởng điểm | Theo mã, chờ xác nhận |
+| Biên dịch UI Pack | Job Node dùng Style Dictionary | `UiPackCompiler` viết bằng Java, ký ES256; tệp phát hành `ui-packs/{tenant}/{ver}/` bất biến, `current.json` hết hạn 60 giây | Theo mã, chờ xác nhận |
+| Ghi nhận bằng chứng kiểm thử CEL | cel-java | Hai bộ máy: cel-java ở máy chủ và `cel-js-runner` (Node) để so khớp với trình duyệt; kết quả so tới 9 chữ số thập phân | Theo mã, chờ xác nhận |
+
+## D.5. Các microservice {-}
+
+Các service nằm ngoài mission-core được hiện thực với ngôn ngữ như TL-01 chọn (Java 21 Spring Boot, Go, Python FastAPI). Phiên bản Go dùng thực tế là 1.25 (toolchain 1.26.9), mới hơn bản 1.23 ghi trong baseline. Ảnh container Java được đóng bằng Jib, Go và Python dùng BuildKit.
+
+| Service | Điểm khác thiết kế | Trạng thái |
+|---|---|---|
+| SVC-02 iam | Thời hạn token theo mẫu realm production: access 5 phút, refresh xoay vòng (nhàn rỗi 30 phút, tối đa 8 giờ), phiên SSO 10 giờ; bước xác thực cao `aal2` có hiệu lực 15 phút (BR-00-02); mã khôi phục MFA chạy trong SPI `mission-iam` của Keycloak; tên realm dev là `mission`, chart mặc định `okrkpi` | Theo mã; tên realm và claim `tenant` chờ chốt |
+| SVC-03 tenant-registry | Saga cấp phát tenant chạy ngay trong tenant-registry (trạng thái ở `registry.job`), không chạy trên SVC-06 như chương 12 và TL-02a mô tả; tenant có 8 trạng thái theo TL-03, có thêm `DANG_CHUYEN_CELL` | Theo mã, chờ xác nhận |
+| SVC-04 org-service | Giao diện SCIM 2.0 đặt ở org-service (17 thao tác), không đi qua integration-gateway; SCIM dùng 412 cho `If-Match` theo chuẩn | Đã chốt 22/10/2026 |
+| SVC-06 workflow-service | Saga dùng một BPMN dùng chung `saga-dieu-phoi` với external worker `saga-buoc`; external worker gọi lõi đặt ở workflow-service (theo TL-03), không ở mission-core như G2 ghi; DMN `chon-cap-duyet` thêm dòng r5..r9 cho OKR, kế hoạch, đề nghị; workflow-service giữ bản sao `org_replica` và lịch nghỉ trong CSDL riêng (consumer chưa có) | Theo mã, chờ xác nhận |
+| SVC-07 scoring-service | Làm tròn hai bước: kết quả trung gian giữ 10 chữ số, rồi làm tròn theo gói (1 chữ số, `NUA_LEN`) thay cho "2 chữ số HALF_UP"; trang đầu vào 200 dòng (không 500); Flowable DMN 7.2 chỉ đọc DMN 1.3 nên gói viết DMN 1.4 được chuyển đổi khi nạp | Đã chốt 22/10/2026 (làm tròn) |
+| SVC-08 evidence-service | Spring MVC với luồng ảo (không WebFlux); tải tệp đi qua service theo hợp đồng thay vì URL ký sẵn ghi thẳng Ceph; quét mã độc bằng ClamAV qua worker riêng; xem trước bằng PDFBox | Theo mã, chờ xác nhận |
+| SVC-09 ledger-service | Cột băm theo TL-03; `chain_head` thêm `is_locked`; còn phát `ledger.anomaly.detected.v1` riêng thay vì EVT-20 | Câu hỏi mở (sự kiện) |
+| SVC-10 esign-service | Nhà cung cấp MySign với thời hạn lời gọi 10 giây theo TL-01; mục đích ký thêm `KHIEU_NAI`; mức B-LTA chờ DV-10-03 | Theo mã |
+| SVC-11 document-service | Nhận lệnh sinh tệp qua REST (không qua Kafka); kiểm PDF/A bằng veraPDF; tem chân trang và XMP bằng PDFBox | Theo mã, chờ xác nhận |
+| SVC-12 notification-service | Bảng thông báo phân vùng theo ngày bằng PL/pgSQL, giữ 90 ngày; SSE theo người với giới hạn 5 kết nối; hàng đợi kênh ngoài là bảng `delivery` lấy việc bằng `SKIP LOCKED` | Theo mã |
+| SVC-14 ai-gateway | Đổi token (RFC 8693) sang audience mission-core với phạm vi `ai_readonly`; thêm các ca sử dụng soạn OKR, soát KR, hỏi đáp quy định, giải thích điểm, giọng nói; nhà cung cấp nhận dạng tiếng nói chưa chốt | Theo mã; ASR là câu hỏi mở |
+| SVC-15 analytics | Giả danh mã người bằng SMT HMAC theo tenant trong Debezium; Cube đọc qua view `SQL SECURITY INVOKER`; đệm kết quả 60 giây theo TL-01 (TL-02b ghi 5 phút); analytics-api chưa gọi OPA | Theo mã, chờ xác nhận |
+| SVC-16 search | Tài liệu tìm kiếm ghép từ nhiều sự kiện bằng `scripted_upsert`, phiên bản theo nhóm trường (lệch TL-03 dùng external version) | Theo mã, chờ xác nhận |
+
+## D.6. Policy Pack và dữ liệu nền {-}
+
+Chương "Policy Pack" được hiện thực đúng hướng: gói có phiên bản, ký số, bộ ca vàng, kiểm thử hai bộ máy và saga phát hành. Đợt này phát sinh bốn quyết định nghiệp vụ đã chốt ngày 22/10/2026 và một số điểm kỹ thuật. Về nghiệp vụ, làm tròn theo hai bước như mục D.5; điều kiện "Hoàn thành xuất sắc nhiệm vụ" bao hàm điều kiện của mức thấp hơn; tên khối và chức danh trong dữ liệu giả lập theo DL-07; và hồ sơ khách hàng TWĐ là cấu hình riêng theo ADR-33. Về dữ liệu, mọi gói hiện có (`khoi-dang/quy-dinh-moi` 2.1.0, `khoi-chinh-quyen/nd335` 1.4.0, `twd/diem-cong-viec`) là dữ liệu giả lập có cờ `gia_lap`, vì hệ thống được xây dựng như một hệ mới độc lập, mọi hệ ngoài được giả lập (YC-PT-13). Vì vậy các task chuyển đổi từ hệ cũ (LEG-01 đến LEG-12, DL-09 đến DL-11) đã bỏ, và lộ trình Strangler Fig ở ADR-20 không còn là con đường triển khai của đợt này (suy luận, cần người phụ trách xác nhận có giữ ADR-20 cho giai đoạn sau hay không).
+
+Ở phía kỹ thuật, manifest dạng tệp của gói (`policy.yaml`) viết `inputs`, `quotas`, `classification` khác lược đồ `PolicyManifest` của hợp đồng sau NEN-044; `PolicyPackController` chuẩn hoá khi trả qua API, chờ DL chốt một dạng. Khoá `wf_binding` của TL-03 không có phiên bản Policy Pack trong khi hợp đồng đặt tham số luồng dưới phiên bản gói; đây là câu hỏi mở cho TL-03.
+
+## D.7. Hạ tầng và vận hành (tóm tắt) {-}
+
+Các điểm hạ tầng chi tiết thuộc TL-04 và được ghi ở phụ lục cập nhật của TL-04. TL-01 chỉ cần lưu ý ba điểm. Thứ nhất, số cụm PostgreSQL mỗi cell lớn là sáu theo TL-04, TL-05 (TL-03 ghi năm). Thứ hai, OpenBao chạy trong namespace `secure-data` và cấp chứng chỉ nội bộ qua ClusterIssuer `openbao-pki-cell`. Thứ ba, môi trường thí điểm có thêm cell `CELL-NB` ngoài danh sách cell của baseline mục 6 (suy luận từ hạ tầng dev, chờ xác nhận tên chính thức).
+
+## D.8. Chỉ tiêu hiệu năng chưa đo {-}
+
+Theo YC-PT-19, giai đoạn hiện tại chỉ tập trung phát triển. Các chỉ tiêu sau được giữ nguyên như thiết kế và đánh dấu "chưa đo ở tải cao": outbox tới Kafka p99 ≤ 2 giây (kiểm thử tích hợp chỉ còn chặn treo 30 giây); 150 user task mỗi giây mỗi cell của workflow-service; tính điểm 8.000 hồ sơ mỗi giây; PERF-24 300 truy vấn bảng điều hành mỗi giây; nạp 100 nghìn sự kiện cảnh báo bất thường. Số đo trên dữ liệu vàng ở máy phát triển, ví dụ Cube p95 khoảng 8 ms khi trúng đệm và 35 ms khi đọc pre-aggregation, chỉ là ghi chú, không dùng để nghiệm thu.
+
+# Phụ lục E. Giao diện cấu hình quy trình động trên Flowable (BS-01) {-}
+
+> Phụ lục này nhập nguyên nội dung tài liệu bổ sung BS-01 vào TL-01 phiên bản 1.1. Câu "chưa ghép vào các tệp .docx đã phát hành" trong phần mở đầu chỉ còn giá trị lịch sử.
+
+## Mục đích và phạm vi {-}
+
+Tài liệu này trả lời câu hỏi "phần quy trình chạy trên Flowable có giao diện để cấu hình động quy trình không". Tài liệu được viết thành tệp bổ sung riêng, chưa ghép vào bốn tệp .docx đã phát hành, để không phải build lại bộ tài liệu. Khi bộ tài liệu được phát hành phiên bản tiếp theo, nội dung ở đây sẽ được đưa vào đúng vị trí đã nêu ở mục cuối.
+
+Bộ tài liệu hiện tại đã có giao diện cấu hình quy trình ở cấp tenant, nhưng nằm trong chương Policy Pack nên khó tìm. Phần còn thiếu là giao diện để đội sản phẩm soạn và phát hành chính các mẫu luồng; hiện việc này chỉ được mô tả là thực hiện qua kho mã và CI. Tài liệu chia làm hai phần: phần thứ nhất chỉ ra những gì đã có, phần thứ hai đề xuất thiết kế cho phần còn thiếu.
+
+## Những gì bộ tài liệu đã có {-}
+
+### Cấu hình luồng ở cấp tenant (SCR-1504) {-}
+
+Màn hình SCR-1504 "Cấu hình luồng duyệt (mẫu + tham số)" thuộc quy trình QT-15 "Soạn, kiểm thử và phát hành Policy Pack". Màn hình nằm ở TL-02, chương "Quy trình cấu hình, phân tích và trợ lý AI", mục SCR-1504, Hình 12.6. Người dùng là quản trị nghiệp vụ của cơ quan tổ chức (AC-03, vai trò `policy_author`), và đường vào là Config Studio › thẻ Luồng duyệt.
+
+Trên màn hình này người cấu hình chọn một mẫu luồng đã được kiểm thử, ví dụ `duyet-ho-so-danh-gia` phiên bản 3, rồi điền tham số. Các tham số gồm số cấp duyệt, vai trò và đơn vị của từng cấp, thời hạn mỗi bước, nhắc hạn, hành vi khi quá hạn (chuyển cấp phó được uỷ quyền), các bước bắt buộc ký số, ký lô và điều kiện bỏ qua cấp viết bằng CEL. Màn hình hiển thị xem trước luồng sinh từ mẫu cùng kết quả linter, và chạy bộ test của mẫu với chính bộ tham số vừa điền. Tham số được lưu thành một bản ghi `flowable.wf_binding` và phát hành cùng Policy Pack, nên nó cũng phải đạt test, được phê duyệt và chỉ có hiệu lực từ một kỳ trong tương lai.
+
+Vì vậy câu trả lời ngắn là có: tenant thay đổi được luồng duyệt của mình mà không cần phát hành lại phần mềm. Điều tenant không làm được là tự vẽ một sơ đồ BPMN mới.
+
+### Lý do không cho tenant vẽ BPMN tự do {-}
+
+Quyết định này là chủ ý của ADR-04 và quy tắc BR-15-11 (TL-02), nhằm trả lời góp ý G2 về nguy cơ "mạng nhện". Nếu mỗi tenant tự vẽ luồng, số định nghĩa BPMN sẽ tăng theo số tenant, có thể tới 5.000. Mỗi định nghĩa khi đó cần kiểm thử riêng, chiếm bộ đệm định nghĩa của engine, và rất dễ sinh ra gọi chéo tiến trình hoặc service task gọi đồng bộ ra ngoài. Đây đều là những nguyên nhân làm engine nghẽn mà TL-01 chương "Chuyên đề G2" đã phân tích.
+
+Thay vào đó, đội sản phẩm duy trì khoảng 20 đến 40 mẫu dùng chung, còn tenant chỉ chọn mẫu và điền tham số. Cách này giữ số định nghĩa hoạt động dưới vài trăm dù số tenant tăng từ 100 lên 5.000. TL-01 đặt ngưỡng cảnh báo "chống mạng nhện" là 300 định nghĩa hoạt động và ngưỡng nghiêm trọng là 1.000.
+
+### Dữ liệu và quy tắc quản trị đã có {-}
+
+TL-03, mục "Schema flowable và saga (SVC-06)", đã định nghĩa hai bảng làm nền cho việc cấu hình động. Bảng `flowable.wf_template` lưu mẫu BPMN theo phiên bản, có trạng thái `NHAP`, `HIEU_LUC`, `NGUNG` và mã triển khai trong Flowable. Bảng `flowable.wf_binding` gắn mẫu với tenant, khối đối tượng, luồng Đảng hoặc Nhà nước và loại kỳ, kèm tham số trong `params_json`.
+
+TL-01, mục "Quy tắc quản trị chống mạng nhện", đặt các quy tắc mà linter kiểm tra tự động. Thứ nhất, cấm triển khai định nghĩa gắn `tenantId`. Thứ hai, chỉ được có tối đa một tầng call activity. Thứ ba, không gọi tiến trình chéo tenant và không dùng signal phát rộng. Thứ tư, không có service task gọi đồng bộ ra ngoài, mà mọi tác vụ máy phải là external worker.
+
+## Phần còn thiếu và đề xuất bổ sung {-}
+
+### Khoảng trống {-}
+
+Bộ tài liệu chỉ nói mẫu luồng được phát triển trong "repo mẫu luồng" và kiểm tra bằng CI. Bộ tài liệu chưa có màn hình nào cho ba việc sau:
+
+1. Đội sản phẩm soạn hoặc sửa một mẫu luồng mới bằng giao diện đồ hoạ, thay vì sửa tệp XML trong kho mã.
+2. Đội sản phẩm kiểm thử mẫu, phê duyệt và triển khai mẫu lên engine của từng cell.
+3. Quản trị nền tảng và quản trị tenant theo dõi các tiến trình đang chạy theo mẫu, ví dụ phát hiện tiến trình kẹt và chuyển người xử lý.
+
+Đề xuất dưới đây bổ sung hai màn hình, SCR-1505 cho việc 1 và 2, và SCR-1506 cho việc 3. Mã SCR-1505 và SCR-1506 nằm trong dải của QT-15, chưa được dùng trong baseline.
+
+### SCR-1505. Thư viện và trình soạn mẫu luồng (nội bộ nền tảng) {-}
+
+**Người dùng và quyền.** Màn hình chỉ dành cho đội sản phẩm phía Viettel, gắn với một vai trò mới `wf_template_author` thuộc AC-01 (quản trị nền tảng). Người phê duyệt phát hành là một người khác giữ vai trò `second_approver` (AC-09), theo nguyên tắc bốn mắt. Tenant không thấy màn hình này. Đây là điểm mấu chốt để giữ quyết định của ADR-04: giao diện đồ hoạ làm việc soạn mẫu dễ hơn, nhưng không làm số mẫu tăng theo tenant.
+
+**Bố cục.** Màn hình có ba vùng. Vùng trái là thư viện mẫu, liệt kê mã mẫu, phiên bản, trạng thái, số tenant đang dùng (đếm từ `flowable.wf_binding`) và số test. Vùng giữa là trình soạn BPMN nhúng thư viện bpmn-js (mã nguồn mở, cùng ký pháp BPMN 2.0 mà Flowable đọc). Bảng màu của trình soạn chỉ có các phần tử được phép: user task, external worker task, exclusive gateway, parallel gateway, timer, một tầng call activity, và các khối dựng sẵn của nền tảng như "Bước ký số", "Ký lô", "Leo thang quá hạn". Vùng phải là bảng thuộc tính, gồm khai báo các tham số mà mẫu cho phép tenant điền. Mỗi tham số có kiểu, giá trị mặc định và miền giá trị, và chính khai báo này sinh ra biểu mẫu tham số trên SCR-1504.
+
+**Kiểm tra khi soạn.** Linter chạy ngay trên trình duyệt sau mỗi thay đổi, dùng bộ quy tắc bpmnlint tuỳ biến hiện thực đúng bốn quy tắc chống mạng nhện của TL-01. Lỗi được tô đỏ trên sơ đồ. Cùng bộ quy tắc ấy cũng chạy lại ở máy chủ khi lưu, và máy chủ là nơi quyết định.
+
+**Kiểm thử.** Mỗi mẫu có bộ test kịch bản, mỗi kịch bản gồm bộ tham số, chuỗi hành động của người dùng và trạng thái kết thúc mong đợi. Nút "Chạy test" gửi mẫu tới một engine Flowable kiểm thử dùng riêng (không phải engine của cell), chạy toàn bộ kịch bản với tham số của mọi `wf_binding` đang dùng mẫu đó, rồi báo kết quả. Nhờ vậy, một thay đổi mẫu làm hỏng cấu hình của bất kỳ tenant nào đều bị chặn trước khi phát hành.
+
+**Vòng đời phiên bản.** Trạng thái của `flowable.wf_template` được mở rộng thành `NHAP` → `DAT_KIEM_THU` → `CHO_PHE_DUYET` → `HIEU_LUC` → `NGUNG`, tương tự vòng đời Policy Pack. Phiên bản đã lên `HIEU_LUC` không sửa được nữa; mọi thay đổi tạo phiên bản mới. Các tiến trình đang chạy tiếp tục theo phiên bản cũ cho tới khi kết thúc, và Flowable vốn giữ định nghĩa theo phiên bản nên điều này có sẵn. Chuyển `wf_binding` của một tenant sang phiên bản mới là thao tác trên SCR-1504, có hiệu lực từ kỳ sau.
+
+**Đồng bộ với kho mã.** Giao diện không thay thế kho mã mà ghi vào nó. Khi người soạn bấm "Đề nghị phát hành", hệ thống tạo một merge request vào repo mẫu luồng, kèm tệp BPMN, khai báo tham số và bộ test. CI chạy lại linter và test, người phê duyệt duyệt merge request, và pipeline ký số gói mẫu (cosign) rồi ghi `wf_template` sang `HIEU_LUC`. Cách này giữ một nguồn sự thật duy nhất và giữ vết kiểm toán trong Git như mọi thay đổi mã khác.
+
+**Triển khai lên cell.** Sau khi phát hành, saga "phát hành mẫu luồng" của SVC-06 triển khai định nghĩa lên engine của từng cell theo thứ tự cuốn chiếu giống phát hành phần mềm trong TL-04: cell thí điểm CELL-NB trước, sau đó các cell nhóm tỉnh, và CELL-HCM, CELL-DTW sau cùng. Mỗi bước kiểm tra trạng thái khoẻ của engine trước khi sang cell tiếp theo, và có bước bù trừ là đặt lại phiên bản trước làm mặc định.
+
+### SCR-1506. Giám sát tiến trình theo mẫu {-}
+
+Màn hình này cho quản trị tenant (AC-02) xem các tiến trình của tenant mình, và cho quản trị nền tảng (AC-01) xem tổng hợp theo cell. Dữ liệu đọc từ `flowable.wf_task_projection` và các chỉ số mà TL-01 đã định nghĩa cho engine, không truy vấn trực tiếp bảng `ACT_*` lúc cao điểm. Màn hình cung cấp ba thao tác có kiểm soát. Thao tác thứ nhất là chuyển người xử lý của một user task khi cán bộ nghỉ hoặc chuyển công tác. Thao tác thứ hai là gia hạn thời hạn của một bước. Thao tác thứ ba là xem sơ đồ tiến trình với bước hiện tại, dùng lại API `/diagram` đã có ở QT-08. Mọi thao tác đều ghi sổ cái. Màn hình không cho sửa biến tiến trình hay nhảy bước tuỳ ý, vì làm thế sẽ phá tính tái lập của hồ sơ đánh giá.
+
+### Giới hạn để không ảnh hưởng mức tải 150 user task mỗi giây mỗi cell {-}
+
+Giao diện mới không được đưa thêm tải vào đường găng của engine. Thiết kế đảm bảo điều này bằng bốn giới hạn.
+
+Thứ nhất, linter chặn ngay từ khi soạn những cấu trúc làm tăng chi phí mỗi user task: service task đồng bộ, call activity lồng nhiều tầng, vòng lặp đa thể hiện (multi-instance) không có giới hạn số phần tử. Một mẫu được phép có tối đa 12 user task trên một nhánh và tối đa 50 phần tử đa thể hiện mỗi lần. Hai con số này là đề xuất và cần được đo lại bằng kịch bản thử tải của TL-04.
+
+Thứ hai, mỗi mẫu trước khi phát hành phải chạy kịch bản thử tải rút gọn trên engine kiểm thử. Ngân sách là không quá 20 câu lệnh SQL cho mỗi lần hoàn thành user task. Con số này suy ra từ ước tính của TL-01: khoảng 2.250 câu lệnh mỗi giây chia cho 150 lần hoàn thành mỗi giây, tức khoảng 15 câu lệnh, cộng dư địa. Mẫu vượt ngân sách không được phát hành.
+
+Thứ ba, tổng số định nghĩa đang hoạt động tiếp tục được giám sát bằng ngưỡng 300 và 1.000 của TL-01. Nếu giao diện mới khiến số mẫu tăng nhanh, cảnh báo sẽ kích hoạt việc rà soát gộp mẫu.
+
+Thứ tư, triển khai định nghĩa lên engine chỉ diễn ra ngoài giờ cao điểm và không trong ba ngày cuối kỳ, vì đó là lúc tải user task cao nhất và sổ cái đang niêm phong 5 phút một lần.
+
+### Thay đổi dữ liệu đề xuất (bổ sung cho TL-03) {-}
+
+Bảng `flowable.wf_template` được bổ sung bốn cột. Cột `param_schema` kiểu `jsonb` lưu khai báo tham số dạng JSON Schema, dùng để sinh biểu mẫu trên SCR-1504 và kiểm tra `wf_binding.params_json`. Cột `test_suite_ref` kiểu `varchar(128)` lưu mã commit của bộ test trong repo mẫu luồng. Cột `approved_by` kiểu `uuid` lưu người phê duyệt phát hành. Cột `signature` kiểu `bytea` lưu chữ ký gói mẫu. Ràng buộc CHECK của cột `status` được mở rộng thêm `DAT_KIEM_THU` và `CHO_PHE_DUYET`.
+
+Bảng mới `flowable.wf_template_rollout` lưu tiến độ triển khai một phiên bản mẫu lên từng cell. Bảng gồm các cột `wf_template_id`, `cell_code`, `flowable_deployment_id`, `status` (`CHO`, `DA_TRIEN_KHAI`, `LOI`, `DA_BU_TRU`) và `deployed_at`. Bảng `flowable.wf_binding` được bổ sung `version_no` và `status` (`NHAP`, `HIEU_LUC`, `NGUNG`) để thể hiện rõ trạng thái "nháp" mà SCR-1504 đang nhắc tới. Sự kiện mới đề xuất là `config.wf_template.published.v1`, do SVC-06 phát khi một phiên bản mẫu lên `HIEU_LUC`.
+
+## Vị trí ghép vào bộ tài liệu khi phát hành phiên bản sau {-}
+
+| Nội dung | Vị trí ghép |
+|---|---|
+| Đặc tả SCR-1505, SCR-1506 và mockup | TL-02, chương "Quy trình cấu hình, phân tích và trợ lý AI", sau SCR-1504 |
+| Vai trò `wf_template_author` | Baseline mục vai trò, và TL-01 phần phân quyền |
+| Vòng đời phiên bản mẫu, saga phát hành mẫu | TL-01, Chuyên đề G2, sau "Quy tắc quản trị chống mạng nhện" |
+| Cột và bảng mới của schema flowable | TL-03, mục "Schema flowable và saga (SVC-06)" |
+| Kịch bản thử tải rút gọn cho từng mẫu | TL-04, nhóm PERF, cạnh kịch bản thử tải workflow-service |
+
+
+# Phụ lục F. Hợp đồng API trước (BS-02, ADR-32) {-}
+
+> Phụ lục này nhập nguyên nội dung tài liệu bổ sung BS-02 vào TL-01 phiên bản 1.1. Câu "chưa ghép vào các tệp .docx đã phát hành" trong phần mở đầu chỉ còn giá trị lịch sử.
+
+## Mục đích và phạm vi {-}
+
+Tài liệu này ghi quyết định kiến trúc ADR-32: chuyển toàn bộ API công khai của nền tảng sang hướng "hợp đồng trước" (API-first), trong đó bộ tệp OpenAPI 3.1 là nguồn sự thật của giao tiếp giữa frontend và backend. Tài liệu được viết thành tệp bổ sung riêng như BS-01, chưa ghép vào các tệp .docx đã phát hành, để không phải build lại bộ tài liệu. Khi bộ tài liệu được phát hành phiên bản tiếp theo, nội dung ở đây được đưa vào đúng vị trí nêu ở mục cuối.
+
+Phần thứ hai của tài liệu là bảng các điểm mà TL-01 Phụ lục C, TL-02 (bảng sự kiện của từng SCR), TL-03 (cột và ràng buộc CHECK) và ma trận phân quyền ghi khác nhau. Khi viết hợp đồng, mỗi điểm đã được chọn một phương án mặc định có lý do. Theo quy tắc YC-TK-10 của sổ tay yêu cầu, các điểm này đã được đưa lên người phụ trách; ngày 19/10/2026 anh Hiếu chấp nhận toàn bộ phương án mặc định nêu trong tài liệu này. Việc sửa TL-03 theo các điểm "cần bổ sung" vẫn chờ lần phát hành tiếp theo của bộ tài liệu.
+
+## ADR-32: Hợp đồng API trước cho toàn bộ API công khai {-}
+
+**Bối cảnh.** TL-01 mục "Hợp đồng API theo OpenAPI" chọn cho phần lõi hướng "mã trước, hợp đồng kiểm tra": springdoc sinh tài liệu từ annotation, CI so với tệp hợp đồng đã duyệt bằng `openapi-diff`. Chỉ API đối tác qua integration-gateway (SVC-13) theo hướng hợp đồng trước. Khi phân hệ web bắt đầu được phát triển song song bởi nhiều luồng (giao việc, OKR, đánh giá, giám sát, cấu hình) trong lúc backend chưa có mã, hướng "mã trước" để lại hai vấn đề. Thứ nhất, frontend không có hợp đồng để sinh kiểu và dữ liệu giả lập, nên mỗi luồng tự đặt đường dẫn và tên trường theo cách đọc riêng của mình. Thứ hai, những chỗ ba tài liệu TL ghi khác nhau về đường dẫn, tên cột hay giá trị liệt kê chỉ lộ ra khi hai phía ráp nối, tức là muộn và tốn kém.
+
+**Quyết định.** Mọi API công khai dưới `/api/v1` (trừ API đối tác của SVC-13, vẫn giữ kho hợp đồng riêng) được mô tả trước bằng OpenAPI 3.1 trong thư mục `contracts/openapi/` của repo mission-web, mỗi module hoặc service một tệp, cộng một tệp thành phần dùng chung. Hợp đồng được viết và duyệt trước khi viết mã ở bất kỳ phía nào. Hai phía sinh mã từ hợp đồng:
+
+- Frontend sinh kiểu TypeScript bằng openapi-typescript (chỉ sinh kiểu, không sinh mã chạy, phù hợp CSP của TL-01). Lệnh `api:check` trong CI báo lỗi khi tệp kiểu đã commit lệch với hợp đồng.
+- Backend sinh interface controller và DTO bằng openapi-generator (Spring, chế độ `interfaceOnly`), controller cài đặt interface đó. springdoc vẫn được giữ, nhưng vai trò đổi thành công cụ đối chiếu ngược: CI chạy `openapi-diff` giữa tài liệu springdoc sinh lúc chạy và tệp hợp đồng đã gộp; mọi khác biệt làm build thất bại.
+
+Mọi thay đổi API bắt đầu bằng một PR sửa tệp hợp đồng. Thay đổi phá vỡ tương thích phải đi kèm tăng phiên bản đường dẫn theo chính sách phiên bản hiện có của TL-01 (header `Deprecation`, `Sunset`). Hợp đồng được kiểm tra bằng Redocly CLI với bộ quy tắc ở `contracts/redocly.yaml`, gồm hai quy tắc riêng của dự án: mỗi thao tác phải có phần mở rộng `x-mission` để truy vết, và mỗi thao tác ghi phải khai `Idempotency-Key`.
+
+**Phần mở rộng truy vết `x-mission`.** Mỗi thao tác mang `qt`, `scr`, `owner` (MOD hoặc SVC), `evt`, `roles` (tên vai trò của baseline mục 10), `scope` (ký hiệu phạm vi của ma trận phân quyền), `aal`, `fourEyes`, `rules` (BR) và `source` (dòng TL đã dùng). Nhờ vậy chuỗi truy vết QT → SCR → API → MOD/SVC → EVT mà AGENTS.md yêu cầu được kiểm tra tự động trên chính hợp đồng, và ma trận phân quyền có thể được đối chiếu với hợp đồng bằng công cụ thay vì đọc tay.
+
+**Hệ quả.** Các luồng frontend dùng chung một bộ đường dẫn và tên trường; dữ liệu giả lập và kiểm thử hợp đồng sinh được từ `examples` trong tệp. Backend không còn tự do đặt tên trường khi viết controller, và mọi chỗ TL ghi khác nhau phải được chốt sớm, ngay khi viết hợp đồng. Chi phí là mỗi thay đổi API cần thêm một bước sửa hợp đồng và chờ duyệt. Quyết định này thay thế câu "Lõi theo hướng mã trước, hợp đồng kiểm tra" ở TL-01 mục "Hợp đồng API theo OpenAPI"; phần còn lại của mục đó (quy ước JSON, phân trang, idempotency, RFC 9457, chính sách phiên bản) giữ nguyên.
+
+**Trạng thái.** Đã chấp nhận (anh Hiếu yêu cầu hướng API-first và chấp nhận toàn bộ phương án mặc định ngày 19/10/2026); đã có bộ hợp đồng bản nháp 1.0.0-draft.1 (WEB-063) gồm 11 tệp module, 351 thao tác, đều đạt lint.
+
+## Bố cục bộ hợp đồng {-}
+
+| Tệp | Phạm vi | Tiền tố đường dẫn | Số thao tác |
+|---|---|---|---|
+| `common/common.yaml` | Lỗi RFC 9457, phân trang con trỏ, `Idempotency-Key`, `If-Match`, job 202, bảo mật Keycloak, kiểu dùng chung | – | – |
+| `modules/tasks.yaml` | MOD-02: nhiệm vụ, kế hoạch quý, danh mục công việc, văn bản đến | `/tasks`, `/plans`, `/catalog` | 58 |
+| `modules/org.yaml` | SVC-04: người dùng hiện tại, tra cứu, cây tổ chức, đồng bộ và đối soát | `/org` | 20 |
+| `modules/jobs.yaml` | Tác vụ dài dùng chung | `/jobs` | 2 |
+| `modules/okr.yaml` | MOD-01 | `/okr` | 23 |
+| `modules/products.yaml` | MOD-03, SVC-08 | `/products`, `/evidences`, `/files` | 22 |
+| `modules/appraisals.yaml` | MOD-04, SVC-07 (đọc điểm) | `/appraisals` | 24 |
+| `modules/dossiers.yaml` | MOD-06, SVC-11, SVC-10 | `/dossiers`, `/esign` | 31 |
+| `modules/oversight.yaml` | MOD-07, SVC-09 | `/oversight`, `/ledger` | 36 |
+| `modules/policies.yaml` | MOD-05 | `/policies` | 34 |
+| `modules/config.yaml` | MOD-08 | `/config`, `/periods`, `/ui` | 54 |
+| `modules/platform.yaml` | SVC-03, SVC-06, SVC-12, SVC-14, SVC-15, SVC-16 | `/registry`, `/workflow`, `/notifications`, `/ai`, `/analytics`, `/search` | 47 |
+
+## Các điểm đã chốt khi ghép nguồn {-}
+
+Các bảng dưới liệt kê từng chỗ nguồn ghi khác nhau, phương án hợp đồng đã chốt và lý do. Những giá trị liệt kê, đường dẫn hay trường mà nguồn không ghi và hợp đồng phải tự đặt được đánh dấu "(suy luận)" ngay trong tệp hợp đồng; bảng này chỉ nêu những điểm có ảnh hưởng đáng kể.
+
+### Quy ước chung {-}
+
+| Mã | Chủ đề | Nguồn ghi khác nhau | Hợp đồng chọn | Lý do |
+|---|---|---|---|---|
+| HD-01 | Mã lỗi xung đột `If-Match` | Baseline mục 13, TL-02: 409; TL-01 chương 11: 412 | 409, mã `<MODULE>-409-VERSION-CONFLICT`; thiếu `If-Match` trả 428 | Baseline là nguồn chung; frontend đã xử lý 409 |
+| HD-02 | Thời hạn giữ `Idempotency-Key` | TL-01: 24 giờ; TL-03: 48 giờ | 48 giờ | TL-03 chi tiết hơn, có lý do (ứng dụng di động gửi lại sau mất mạng) |
+| HD-03 | Cập nhật tiến độ | TL-01 PL C: `PATCH /tasks/{id}/progress`; TL-02 (8 chỗ), mã: `POST` | `POST` | Mỗi lần cập nhật tạo một dòng `task.task_progress` chỉ ghi thêm |
+| HD-04 | Danh sách "Việc của tôi" | PL C, SCR-0503: `GET /tasks?assignee=me`; ma trận: `/tasks/my`; mã: `/tasks/mine` | `GET /tasks/mine`; `GET /tasks` cho danh sách đơn vị | Hai danh sách trả lược đồ khác nhau |
+| HD-05 | Tên vai trò | PL C: `staff`, `org_officer`, `policy_approver`; baseline mục 10 và ma trận: `member`, `appraiser`, `tenant_admin`, `decider` | Tên của baseline mục 10 | Baseline và realm Keycloak dùng các tên này |
+| HD-06 | Lược đồ job | TL chưa đặc tả | Giữ lược đồ `Job` của WEB-007 | Đã có mã dùng, không mâu thuẫn TL |
+| HD-07 | Mâu thuẫn còn lại của HD-05 | TL-03 CHECK `appraisal_*.actor_role` dùng `staff` | Giữ giá trị `staff` trong dữ liệu, `member` trong `x-mission.roles` | Không tự đổi CHECK của TL-03; cần chốt đổi TL-03 sang `member` |
+
+### Giao việc, kế hoạch, danh mục (tasks.yaml) {-}
+
+| Chủ đề | Nguồn ghi khác nhau | Hợp đồng chọn |
+|---|---|---|
+| Điểm chuẩn dòng kế hoạch | TL-02: `score_weight`; TL-03: `standard_score` | `standardScore` theo TL-03 |
+| Tên sản phẩm dòng kế hoạch | TL-02 có `product_name`; TL-03 thiếu cột | `productName`; TL-03 cần bổ sung cột |
+| Mở nháp để giao | Mã frontend: `GET /tasks/{id}?view=assign` | `GET /tasks/{id}/draft` (một đường dẫn trả một lược đồ) |
+| Gia hạn | PL C: `/tasks/{id}/extensions`; TL-02: đề nghị điều chỉnh | `/tasks/{id}/change-requests` |
+| Gửi duyệt kế hoạch | PL C: `/plans/{id}/submit` | `/plans/{id}/versions/{v}/submit` |
+| Thêm mục danh mục | PL C: `POST /catalog/items` | `POST /catalog/{catalogId}/items` |
+| Loại đề nghị điều chỉnh | TL-02 và TL-03 CHECK khác nhau | Theo TL-02 |
+
+### Tổ chức và nhân sự (org.yaml) {-}
+
+| Chủ đề | Nguồn ghi khác nhau | Hợp đồng chọn |
+|---|---|---|
+| Cây con | PL C: `/org/units/{id}/subtree`; TL-02: `/tree` | `/subtree` theo PL C |
+| Trục ghi nhận | PL C: `knownAt`; TL-02: `recordedAsOf` | `recordedAsOf` |
+| Loại thay đổi tổ chức | SCR-0103 có thành lập, đổi tên, hợp nhất; TL-03 `org_change_order.kind` thiếu các giá trị này | `THANH_LAP`, `DOI_TEN`, `SAP_NHAP`, `HOP_NHAT`, `CHIA_TACH`, `GIAI_THE` (suy luận); TL-03 cần bổ sung |
+| Độ dài mã đơn vị | TL-02: 30 ký tự; TL-03: `varchar(50)` | 30 |
+| Đồng bộ ngay | Ma trận TL-02b: `/org/sync` | `POST /org/sync-runs` (có danh sách lần chạy cùng tài nguyên) |
+
+### OKR (okr.yaml) {-}
+
+| Chủ đề | Nguồn ghi khác nhau | Hợp đồng chọn |
+|---|---|---|
+| Sửa mục tiêu | PL C: `PATCH /okr/objectives/{id}`; TL-02, ma trận: `PUT` | `PUT`, lưu cả O và KR |
+| Liên kết OKR | TL-02: `PARENT`/`PEER`; TL-03: `PHAN_RA`/`DONG_GOP`/`NGANG`/`CAN_CU` | Theo TL-03 |
+| Thang trọng số và tiến độ | TL-03 0..1; nhiệm vụ trong mã frontend 0..100 | OKR 0..1, nhiệm vụ 0..100; cần chốt thống nhất |
+| Người phụ trách KR | SCR-0002 cần; TL-03 thiếu `okr.key_result.owner_id` | Có trường (suy luận); TL-03 cần bổ sung |
+| Sự kiện khi gửi OKR | TL-02a: không phát; TL-02b: EVT-21 | Không phát |
+| Chưa phủ | Điều chỉnh OKR giữa kỳ (BR-02-10), đóng mục tiêu, check-in thay, tạo căn cứ | Chờ TL-02 đặc tả API |
+
+### Sản phẩm và minh chứng (products.yaml) {-}
+
+| Chủ đề | Nguồn ghi khác nhau | Hợp đồng chọn |
+|---|---|---|
+| Đường dẫn nghiệm thu | PL C: `/products/{id}/evidence-versions`, `/acceptance`; TL-02: `/evidences/{id}/versions/{v}/...` | Theo TL-02 |
+| Thời hạn URL tải | TL-01: 5 phút; TL-03: 15 phút | 5 phút |
+| Độ tươi AAL2 khi nghiệm thu | BR-07-11: 15 phút; TL-01 `auth_time`: 5 phút | 5 phút; cần chốt |
+| Tải nội dung | Ma trận SCR-1603: `/evidences/{id}/versions/{v}/content` | Gộp về `/files/{objectId}/download-url` |
+| Tải tệp lên | Ma trận SCR-1201: `POST /files` | `POST /files/uploads` |
+| Phân loại tên tệp | TL-03 ghi C1 ở chỗ này, C2 ở chỗ khác | C2 |
+| Số tệp mỗi phiên bản minh chứng | TL-02 SCR-0701 (Hình 8.13): bảng nhiều tệp trong một phiên bản, cảnh báo trùng theo từng tệp; TL-03 `product.evidence_version`: một `object_id` | Nhiều tệp (`files[]`, tối đa 20, suy luận); quét và cờ trùng ở cấp phiên bản là tổng hợp. Bổ sung 19/10/2026 theo phát hiện của WEB-032 |
+| Nguyên nhân chỉnh sửa | TL-03 `revision_cause`: 5 giá trị theo mức chỉnh sửa; TL-02 SCR-0703 trường 4: Chủ quan, Khách quan, Không có; hợp đồng bản đầu dùng hai bộ ở hai module | Một enum dùng chung `RevisionCause` (common, theo TL-03) cộng cờ `isObjectiveRevision` cho chủ quan, khách quan, ở cả nghiệm thu và xem trước điểm. Bổ sung 19/10/2026 theo WEB-033 |
+| Trình xem minh chứng theo trang | TL-02 SCR-0703 Hình 8.15 vẽ trình xem "trang 1 trên 6"; TL chưa có API, hợp đồng bản đầu chỉ có URL tải | Thêm `GET /files/{objectId}/preview` trả ảnh từng trang do SVC-08 dựng (suy luận); tệp C3 trả `KHONG_HO_TRO` và giải mã tại trình duyệt. Bổ sung 19/10/2026 theo WEB-033 |
+
+### Đánh giá (appraisals.yaml) {-}
+
+| Chủ đề | Nguồn ghi khác nhau | Hợp đồng chọn |
+|---|---|---|
+| Kiểu đường dẫn | PL C: `/appraisals/{id}/...`, `/appraisals/decisions/batch`; TL-02b: `/appraisals/profiles/{id}/...`, `/appraisals/batch-decisions` | Theo TL-02b |
+| Quyết định một hồ sơ | PL C: `POST /appraisals/{id}/decision` | Gộp vào `batch-decisions` (lô một hồ sơ) |
+| Hồ sơ của tôi | PL C: `GET /appraisals?period=&flow=` | `GET /appraisals/profiles/mine` |
+| Mức xếp loại | TL-02b `level`; TL-03 `rating_code` | `ratingCode` |
+| Tỉ lệ vượt | TL-02b `over_target_ratio`; TL-03 `exceed_ratio` | `exceedRatio` |
+| Bước 9 QT-10 | Không có API trong TL | Chưa phủ |
+
+### Hồ sơ số và ký số (dossiers.yaml) {-}
+
+| Chủ đề | Nguồn ghi khác nhau | Hợp đồng chọn |
+|---|---|---|
+| Ký số | PL C: `/esign/sessions`; TL-02 (4 chỗ), TL-03: `sign_request` | `/esign/requests` |
+| Gói hồ sơ | TL-02b: một gói cho mỗi đơn vị và kỳ; TL-03: `dossier_package.person_id NOT NULL` | Theo TL-02b; TL-03 cần sửa |
+| Mục đích ký | TL-03 `sign_request.purpose` thiếu giá trị cho duyệt kế hoạch (SCR-0403) và trả lời khiếu nại (SCR-1202) | Giữ enum TL-03; TL-03 cần bổ sung |
+| Hạn nộp | TL-02 `due_date`; TL-03 `deadline` | `deadline` |
+| Lập gói | PL C: `POST /dossiers/{id}/packages` | `POST /dossiers/packages` |
+
+### Giám sát và sổ cái (oversight.yaml) {-}
+
+| Chủ đề | Nguồn ghi khác nhau | Hợp đồng chọn |
+|---|---|---|
+| Cảnh báo | PL C: `/oversight/anomalies`; TL-02b (3 chỗ): `/oversight/alerts` | `/oversight/alerts`, `/alerts/{id}/actions` |
+| Trả lời khiếu nại | PL C: `POST /complaints/{id}/responses`; TL-02b: `/respond` (202) | `/respond`; tách thêm `PUT /conclusion` (suy luận) |
+| Duyệt mở lại kỳ | PL C: `/approve`; TL-02b: `/approvals` | `/approvals` |
+| Hành động cảnh báo | TL-03 thiếu `KET_LUAN` mà TL-02b dùng | Thêm `KET_LUAN`; TL-03 cần bổ sung |
+| Khiếu nại nháp | TL-02b có nháp; TL-03 không có `NHAP`, `filed_at NOT NULL` | `status: null` khi chưa gửi; cần chốt |
+
+### Policy Pack (policies.yaml) {-}
+
+| Chủ đề | Nguồn ghi khác nhau | Hợp đồng chọn |
+|---|---|---|
+| Tiền tố | PL C: `/policies/{id}/versions`; TL-02b: `/policies/packs/{id}/versions/{v}` | Theo TL-02b |
+| Phát hành | PL C: `/publish`, vai trò `policy_approver`; TL-02b: `/approve` | `/approve` (202), vai trò `decider` |
+| Mã phiên bản | TL-02b `v2.1`; TL-03 CHECK semver | Semver ba phần `2.1.0` |
+| Trạng thái mẫu luồng | TL-03: 3 giá trị; BS-01: 5 giá trị | Theo BS-01 |
+
+### Cấu hình và kỳ (config.yaml) {-}
+
+| Chủ đề | Nguồn ghi khác nhau | Hợp đồng chọn |
+|---|---|---|
+| Người khởi động khoá kỳ | PL C: `org_officer`; SCR-0801, ma trận: AC-02 | `tenant_admin` |
+| Mô hình thuê bao | `registry.tenant` chữ hoa, có `AIRGAP`; `tenant_cell`, TL-02a chữ thường | Chữ thường ở `/config`; `/registry` giữ chữ hoa theo `registry.tenant` |
+| Giao thức IdP | TL-02a nhắc LDAP liên kết; TL-03 CHECK chỉ `OIDC`, `SAML` | Theo TL-03 |
+| Cột trùng nghĩa | `ui_pack_version` có `tokens`/`tokens_json`; `form_schema` có `form_code`/`form_key` | Một trường cho mỗi cặp; TL-03 cần gỡ cột thừa |
+
+### Dịch vụ nền (platform.yaml) {-}
+
+| Chủ đề | Nguồn ghi khác nhau | Hợp đồng chọn |
+|---|---|---|
+| Quyết định gợi ý AI | SCR-1701, ma trận: `/accept`, `/dismiss`; SCR-0502, mã: `/decision` | `POST /ai/suggestions/{id}/decision` |
+| Dữ liệu bảng điều hành | PL C: `GET /analytics/dashboards/{id}`; SCR-1601: `POST /analytics/query` | Giữ cả hai (định nghĩa kèm dữ liệu, và truy vấn tự do) |
+| Mẫu luồng (BS-01) | Có thể đặt dưới `/policies` hoặc `/workflow` | `/workflow/templates` cho SCR-1505; `/policies/workflow-templates` chỉ đọc cho SCR-1504 |
+
+## Những thay đổi cần đưa vào TL ở phiên bản sau {-}
+
+Khi phát hành phiên bản tiếp theo của bộ tài liệu, TL-01 mục "Hợp đồng API theo OpenAPI" thay câu về hướng "mã trước" bằng tóm tắt ADR-32 và thêm ADR-32 vào bảng ADR; Phụ lục C trỏ sang bộ hợp đồng thay vì liệt kê đường dẫn. TL-02 thay các đường dẫn trong bảng sự kiện SCR bằng `operationId` tương ứng. TL-03 sửa các điểm đã nêu "cần bổ sung" hoặc "cần sửa" ở trên: bảng con `product.evidence_version_file` cho nhiều tệp mỗi phiên bản minh chứng, cột `plan_item.product_name`, `okr.key_result.owner_id`, giá trị liệt kê của `org_change_order.kind`, `sign_request.purpose`, `alert_action`, quan hệ `dossier_package` theo đơn vị, và các cột trùng nghĩa của `config`.
+
+
+# Phụ lục G. Hồ sơ tập khách hàng và điểm cắm lõi (BS-03, ADR-33) {-}
+
+> Phụ lục này nhập nguyên nội dung tài liệu bổ sung BS-03 vào TL-01 phiên bản 1.1. Câu "chưa ghép vào các tệp .docx đã phát hành" trong phần mở đầu chỉ còn giá trị lịch sử.
+
+## Mục đích và phạm vi {-}
+
+Tài liệu này ghi quyết định kiến trúc ADR-33. Quyết định đưa vào Mission khái niệm **hồ sơ tập khách hàng**, tức một bộ cấu hình có phiên bản gom mọi khác biệt về cách chấm điểm và quy tắc nghiệp vụ của một tập khách hàng. Tài liệu cũng đặc tả sáu **điểm cắm** (DC-01 đến DC-06) mà lõi phải bổ sung để các hồ sơ có đủ dữ liệu thô mà biểu diễn những cách chấm khác nhau.
+
+Bối cảnh trực tiếp là bộ giải pháp KPI của UEB cho Ban Tổ chức Trung ương (UEB-BTCTW-QTCV-01..05, v1.2, 10/2026). Báo cáo phân tích nằm ở `/mnt/project-files/phan-tich-ueb/phan-tich-ueb-hap-thu-vao-mission.md`. Ngày 22/10/2026, anh Hiếu chấp thuận cả bốn phương án khuyến nghị của báo cáo, kèm một điều kiện bắt buộc. Nghiệp vụ UEB đi vào Mission thành **một bộ hồ sơ riêng cho TWĐ, cấu hình được, không hợp nhất cứng vào lõi**. Quyết định này hiện thực quy tắc YC-TK-11 của sổ tay yêu cầu.
+
+Giống BS-01 và BS-02, tài liệu được viết thành tệp bổ sung riêng và chưa ghép vào các tệp .docx đã phát hành. Mục cuối nêu vị trí đưa vào TL khi bộ tài liệu được phát hành phiên bản tiếp theo. Lớp cấp trên giữa các tenant (B7 trong báo cáo) không thuộc BS-03, vì cần thiết kế riêng và đợt thí điểm chưa cần.
+
+## ADR-33: Hồ sơ tập khách hàng trên một lõi chung {-}
+
+**Bối cảnh.** Policy Pack ở TL-01 đã tách công thức và bảng xếp loại ra khỏi mã. Tuy vậy, Policy Pack chỉ phân biệt theo hai luồng `DANG` và `NHA_NUOC`. Đầu vào (`inputs`) của gói lại là một tập biến đếm cố định, gồm số việc được duyệt, kế hoạch, mức chất lượng trung bình và số ngày chậm. Khi đối chiếu với giải pháp UEB, có sáu nhóm nghiệp vụ không biểu diễn được bằng cấu hình hiện có. Cụ thể là:
+
+- điểm công việc theo hệ số;
+- điểm quản lý theo phạm vi phụ trách;
+- kiểu đo mốc;
+- kế thừa tham số có khung giới hạn;
+- chuỗi xếp loại nhiều bước;
+- chế độ "mỗi công việc một người".
+
+Nguyên nhân không nằm ở công thức. Lõi chưa cung cấp đủ dữ liệu thô cho công thức dùng. Nếu viết thẳng cách chấm của Ban Tổ chức vào mã, Mission sẽ mất khả năng phục vụ các tập khách hàng khác như khối Nhà nước, doanh nghiệp nhà nước và các tỉnh.
+
+**Quyết định.** Mission tách ba lớp.
+
+- **Lớp lõi** giữ nguyên kiến trúc đã chốt. Lõi chỉ cung cấp **sự kiện và đại lượng thô**: việc nào, điểm chuẩn bao nhiêu, *mức* của từng loại hệ số, mức chất lượng, số ngày chậm, nguyên nhân chậm, ai phụ trách mục nào. Lõi không chứa giá trị hệ số, công thức hay ngưỡng của bất kỳ khách hàng nào.
+- **Lớp cấu hình** gồm Policy Pack, danh mục có kế thừa, mẫu luồng Flowable kèm tham số (BS-01), bộ quy tắc cảnh báo và UI Pack. Mọi thành phần của lớp này có phiên bản và hiệu lực theo kỳ.
+- **Lớp hồ sơ tập khách hàng** là một bản kê có phiên bản, trỏ tới đúng phiên bản của từng thành phần cấu hình mà tập khách hàng dùng. Bản kê cũng bật hoặc tắt từng điểm cắm và khai báo khung tham số mà cấp dưới được phép chỉnh.
+
+Mỗi điểm cắm DC-01..DC-06 là khả năng chung của lõi, không mang tên khách hàng. Mặc định của mỗi điểm cắm giữ đúng hành vi hiện tại, nên các gói đã phát hành (DL-01, DL-02) chạy không đổi. Giá trị riêng của UEB chỉ nằm trong **hồ sơ TWĐ** (mục "Hồ sơ TWĐ" bên dưới). Một tập khách hàng khác có thể dùng hồ sơ khác, hoặc tắt hẳn điểm cắm đó.
+
+**Hệ quả.**
+
+- Thêm một hồ sơ mới là việc cấu hình, nạp dữ liệu và ký bộ ca vàng, không phải một đợt phát triển.
+- Lõi phải chịu thêm chi phí là mở rộng `inputs` của scoring và một vài cột hoặc bảng nhỏ ở TL-03.
+- Tiêu chí nghiệm thu bắt buộc: **cùng một bản build của lõi phải đạt 100% ca vàng của ít nhất hai hồ sơ khác nhau**. Hai hồ sơ đó là hồ sơ TWĐ và hồ sơ "quy định mới" hiện có của DL-01. Kiểm thử này chạy trong CI của DV-07.
+- Không được tạo nhánh mã `if (hoSo == TWĐ)` ở bất kỳ đâu. Kiểm tra ArchUnit và rà soát mã phải chặn mọi hằng số định danh hồ sơ trong `vn.viettel.okrkpi`.
+
+**Trạng thái.** Đã chấp nhận (anh Hiếu, 22/10/2026). Lớp cấp trên giữa các tenant để ngoài phạm vi.
+
+## Mô hình hồ sơ tập khách hàng {-}
+
+### Bản kê hồ sơ {-}
+
+Hồ sơ là một tài liệu YAML được đóng gói, ký và phát hành theo đúng vòng đời của Policy Pack: nháp, kiểm thử, đạt kiểm thử, chờ phê duyệt, đã phát hành, ngừng. Hai người khác nhau soạn và duyệt. Hồ sơ không chứa công thức. Hồ sơ chỉ chứa tham chiếu và cờ.
+
+```yaml
+apiVersion: policy.okrkpi.vn/v1
+kind: CustomerProfile
+metadata:
+  id: twd/ban-to-chuc-ueb          # hồ sơ TWĐ theo giải pháp UEB
+  version: 0.1.0
+  ten: "Khối Đảng ở Trung ương – mẫu Ban Tổ chức (giả lập theo UEB)"
+  gia_lap: true                    # YC-PT-14: dự thảo chưa ban hành
+  can_cu: ["Dự thảo Quy định kiểm điểm, đánh giá, xếp loại (12/10/2026)", "UEB-BTCTW-QTCV-02 v1.2"]
+thanh_phan:
+  policy_pack: {id: twd/diem-cong-viec, version: "0.1.0", luong: DANG}
+  danh_muc: {code: TWD-DM-25, version: 25}
+  bo_quy_tac_canh_bao: {id: twd/diem-nghen, version: "0.1.0"}
+  tham_so_luong: {mau: duyet-de-nghi, bo: twd-tham-quyen}
+  ui_pack: null                    # dùng UI Pack của tenant
+diem_cam:
+  DC-01_diem_cong_viec: BAT
+  DC-02_khung_ke_thua: BAT
+  DC-03_pham_vi_phu_trach: BAT
+  DC-04_kieu_do_moc: BAT
+  DC-05_chuoi_xep_loai: BAT
+  DC-06_che_do_phan_cong: MOT_NGUOI_MOT_VIEC
+khung_tham_so: tham-so/khung-twd.yaml   # ràng buộc DC-02 cho cấp dưới
+ap_dung_cho:
+  tenant_tags: [khoi-dang-tw]
+```
+
+Hồ sơ gắn vào tenant bằng thẻ `tenant_tags`, theo đúng cách Policy Pack hiện dùng. Trong một kỳ, `policy_binding` vẫn là nơi ghim phiên bản gói. Bổ sung một cột `customer_profile_version_id` để snapshot ghi được cả phiên bản hồ sơ. Khi kỳ đã khoá, mọi thành phần mà hồ sơ trỏ tới đều bị đóng băng cùng với kỳ.
+
+### Lưu trữ (bổ sung TL-03, schema `policy`) {-}
+
+| Bảng | Nội dung | Ghi chú |
+|---|---|---|
+| `policy.customer_profile` | `code`, `name`, `is_simulated`, `legal_basis`, cột chung | Mã duy nhất trong tenant gốc toàn cục |
+| `policy.customer_profile_version` | `version`, `status` (cùng tập giá trị với `policy_pack_version.status`), `manifest jsonb`, `content_hash`, `signature`, `approved_by` | Cùng ràng buộc CHECK "đã phát hành phải có chữ ký và người duyệt khác người soạn" |
+| `policy.param_constraint` | `customer_profile_version_id`, `param_key`, `can_toggle`, `can_change_levels`, `min_value`, `max_value`, `tighten_direction` (`TANG`, `GIAM`, `KHONG`), `allowed_scopes` | Khung tham số của DC-02 |
+| `policy.policy_binding` | thêm `customer_profile_version_id uuid` (FK, cho phép NULL với dữ liệu cũ) | Snapshot đọc từ đây |
+
+Tất cả là dữ liệu C0 hoặc C1, đi theo RLS tenant và quy ước cột chung ở TL-03. Hồ sơ gốc do tenant gốc toàn cục phát hành và được phát tán qua saga phát hành đa cell (CORE-05-10, EVT-13) giống Policy Pack.
+
+## Sáu điểm cắm của lõi {-}
+
+Mỗi điểm cắm dưới đây được mô tả theo bốn ý: lõi bổ sung gì, mặc định khi không bật, hồ sơ TWĐ dùng thế nào, và tác động tới hợp đồng.
+
+### DC-01 · Đầu vào tính điểm theo điểm công việc {-}
+
+**Lõi bổ sung.** API đọc lô `GET /api/v1/appraisals/inputs` (`listAppraisalScoringInputs`) trả thêm cho mỗi hồ sơ danh sách `workItems`, gồm các việc lá của người đó trong kỳ. Mỗi việc lá mang các trường sau:
+
+- `taskId`, `standardScore`;
+- `coefficientLevels`, là bản đồ từ mã loại hệ số sang **mức**;
+- `taskGroup`, `axisCode`;
+- `statusAtLock`, `qualityLevel`;
+- `subjectiveLateWorkdays`, `objectiveLateWorkdays`;
+- `exceeded`, `outOfScope`, `deferredByDecision`.
+
+Khai báo `inputs` của Policy Pack nhận kiểu `list<WorkItem>` với nguồn `task.aggregate.work_items`.
+
+Lõi chỉ lưu **mức** của hệ số, không lưu giá trị. Bảng quy đổi từ mức ra giá trị nằm trong gói, theo kỳ. Nhờ vậy, đổi hệ số chỉ cần phát hành phiên bản gói mới, không phải sửa dữ liệu nhiệm vụ. Về dữ liệu, `task.task` và `task.catalog_item` đã có `difficulty` (1–5) và `task_group`. Bổ sung `coefficient_levels jsonb` cho các loại hệ số mở, mặc định `{}`. Bổ sung thêm `axis_code varchar(16)` (NULL được phép).
+
+**Mặc định.** Các biến đếm cũ (`so_luong_duyet`, `ke_hoach`…) giữ nguyên. Gói không khai báo `work_items` thì không nhận danh sách, và chi phí đọc lô không đổi.
+
+**Hồ sơ TWĐ dùng.** Điểm công việc được tính theo công thức:
+
+`Đ = điểm chuẩn × hệ số khó × hệ số nhóm` (dành sẵn ba ô hệ số dự phòng)
+
+Điểm đạt của một việc tính theo công thức `(Đ + Đ·m + Đ·(1 − 0,05·n)) / 3`. Từ đó có hai chế độ đưa về thang 100. Chế độ "tỷ lệ có hệ số" tính `100 × Σ đạt / Σ giao` và là mặc định của hồ sơ. Chế độ "gói điểm" được bật bằng tham số.
+
+**Hiệu năng.** Danh sách được trả theo hồ sơ và có giới hạn 200 việc lá mỗi hồ sơ. Nếu vượt giới hạn, API phân trang con việc bằng con trỏ con. CEL đánh giá trên chương trình đã biên dịch, nên vẫn giữ được NFR-06 với hồ sơ trung bình 25 nhiệm vụ như TL-01 ước tính.
+
+**Hợp đồng.** `appraisals.yaml` bổ sung `WorkItem` vào `AppraisalScoringInput` dưới dạng trường tùy chọn, nên không phá tương thích. `tasks.yaml` bổ sung `coefficientLevels`, `axisCode` cho `CatalogItem`, `Task`, `PlanItem`.
+
+### DC-02 · Khung tham số kế thừa có giới hạn {-}
+
+**Lõi bổ sung.** Cơ chế `extends` của Policy Pack hiện chỉ cho tenant "siết ngưỡng" qua cờ `policy_rule.overridable`. Cơ chế này được mở rộng thành ràng buộc khai báo cho từng tham số, lưu trong `policy.param_constraint`. Mỗi ràng buộc gồm các thuộc tính:
+
+- tham số có được bật tắt không;
+- có được đổi số mức không;
+- khoảng tối thiểu và tối đa;
+- chiều được phép siết;
+- các cấp được phép chỉnh.
+
+Công cụ phát hành từ chối mọi phiên bản cấp dưới vi phạm khung, và trả lỗi RFC 9457 nêu rõ tham số, giá trị và khung.
+
+Phạm vi kế thừa có bốn cấp: hệ thống → khối → tỉnh → đơn vị. `task.work_catalog.scope` bổ sung hai giá trị `KHOI` và `TINH` bên cạnh `VI_TRI`, `DON_VI`, `QUOC_GIA`. `task.catalog_item` bổ sung `score_adjust_min` và `score_adjust_max` (tỷ lệ chỉnh cho phép so với dòng cha, NULL nghĩa là không được chỉnh).
+
+**Mặc định.** Khi không có ràng buộc, hành vi giữ đúng `overridable` hiện tại.
+
+**Hồ sơ TWĐ dùng.** Được chỉnh điểm chuẩn ±20% so với dòng cha. Hệ số nhóm nằm trong khung [1,0; 1,5]. Mức trừ mỗi ngày chậm chỉ được siết, tức chỉ tăng. Ngưỡng cảnh báo phân bố mức khó 60/20/10% được chỉnh theo khung.
+
+**Hợp đồng.** `policies.yaml` bổ sung tài nguyên `param-constraints` thuộc phiên bản hồ sơ. `tasks.yaml` mở rộng enum `scope`.
+
+### DC-03 · Phạm vi phụ trách cho điểm quản lý {-}
+
+**Lõi bổ sung.** Với hồ sơ của người giữ chức vụ lãnh đạo, quản lý, `inputs` trả thêm `responsibilityScope`. Đây là danh sách các mục mà người đó phụ trách, gồm KPI, nhiệm vụ, KR và đơn vị, mỗi mục có các trường:
+
+- `itemType`, `itemId`;
+- các tổng S, Q, D đã tổng hợp;
+- `targetAchievedRatio` (r);
+- `confirmedLevel` (m);
+- `ownLateWorkdays` (n).
+
+Các số này tính trên chính mục đó, không cộng dồn hai lần phần giảm của cấp dưới. Phạm vi phụ trách lấy từ quan hệ "người phụ trách" đã có ở `okr` và `task`, cùng với phân công lãnh đạo của SVC-04, theo tổ chức tại thời điểm khoá kỳ.
+
+**Mặc định.** Gói không khai báo thì không nhận dữ liệu này.
+
+**Hồ sơ TWĐ dùng.** Điểm quản lý theo phạm vi phụ trách. Các phần giảm r, m, n áp đúng tại cấp KPI, nhiệm vụ hoặc KR. Cách làm này gắn kết quả của người lãnh đạo với kết quả của đơn vị, theo dự thảo Điều 11 khoản 1.
+
+**Hợp đồng.** `appraisals.yaml` bổ sung `ResponsibilityItem` (trường tùy chọn).
+
+### DC-04 · Danh mục kiểu đo mở và kiểu mốc {-}
+
+**Lõi bổ sung.** `okr.key_result.metric_type` bổ sung giá trị `MOC`, nghĩa là mốc có thời hạn. Bảng mới `okr.kr_milestone` lưu `key_result_id`, `seq`, `due_date`, `recognition_condition`, `achieved_at`, `evidence_ref`, gồm cả các mốc trung gian. `direction` bổ sung giá trị `TOI_DA` (không vượt quá). KR kiểu tỷ lệ cho phép khai `numerator_label` và `denominator_label` để check-in nhập cả tử số và mẫu số.
+
+Lõi chỉ ghi lại ngày đạt mốc và số ngày làm việc chậm, tính theo lịch nghỉ của CORE-08-04. Cách quy đổi ra tỷ lệ hoàn thành nằm trong gói.
+
+Khi khuôn phân rã của hồ sơ yêu cầu, KPI trở thành nút đo được giữa nhiệm vụ và công việc. Việc này dùng lại `task.task.parent_task_id`, vốn đã có trong CORE-02-02, và bổ sung `task.task.node_kind`, nhận các giá trị `NHIEM_VU`, `KPI`, `CONG_VIEC`, `CONG_VIEC_CON`, mặc định `NHIEM_VU`.
+
+**Mặc định.** Bốn kiểu đo cũ và cây hai tầng hiện có giữ nguyên.
+
+**Hồ sơ TWĐ dùng.** Trừ 5% mỗi ngày làm việc chậm của mốc. Cây bảy bậc O → KR → NV → KPI → CV → CVc.
+
+**Hợp đồng.** `okr.yaml` mở rộng `OkrMetricType` và bổ sung tài nguyên `milestones`. `tasks.yaml` bổ sung `nodeKind`.
+
+### DC-05 · Chuỗi xếp loại nhiều bước và bốn giá trị mức {-}
+
+**Lõi bổ sung.** `classification` của Policy Pack nhận thêm dạng `chuoi`. Dạng này là danh sách bước có thứ tự, mỗi bước là một bảng DMN hoặc một biểu thức CEL. Mỗi bước ghi vào `score_trace` gồm `stepNo`, `ruleCode`, `inputs`, `output` và câu lý do. Hợp đồng `appraisals.yaml` đã có cấu trúc này. Nhờ đó, phiếu đánh giá hiển thị được "vì sao bị hạ mức".
+
+Về bốn giá trị mức, TL-03 đã đáp ứng nên DC-05 không thêm cột mới. Mức hệ thống gợi ý nằm ở `appraisal.score_snapshot.auto_rating_code`, kèm `downgrade_reasons`. Bốn mức do con người đưa ra là bốn dòng của `appraisal.rating_proposal`, phân biệt bằng `stage`: tự đề xuất, thẩm định, đề xuất của cấp có thẩm quyền và quyết định. Như vậy phiếu có đủ các giá trị mà UEB yêu cầu: gợi ý, tự nhận, đề xuất và quyết định.
+
+DC-05 chỉ bổ sung một ràng buộc. Khi mức của một dòng `rating_proposal` khác `auto_rating_code` của ảnh chụp mà người đó đã nhìn thấy, dòng đó phải có lý do. Lý do được ghi vào `appraisal.rating_explanation`, với lời giải trình được mã hoá C2 như TL-03 đã thiết kế. Ràng buộc này được kiểm ở máy trạng thái của CORE-04-03. `downgrade_reasons` được điền từ các bước của chuỗi xếp loại.
+
+Bảng mới `appraisal.incident` ghi các "sự việc" đã có kết luận của cấp có thẩm quyền: loại sự việc, ngày kết luận, văn bản và tác động. Điều kiện loại trừ trong gói đọc bảng này qua `inputs` để tự bật.
+
+`quotas` trở thành **tùy chọn** của gói. Ví dụ `HTXSNV 20%` ở TL-01 chỉ còn là ví dụ cấu hình, không phải mặc định. Lý do là dự thảo Quy định 12/10/2026 không quy định trần.
+
+**Mặc định.** Gói dùng `classification.dmn` một bảng `FIRST` như cũ vẫn hợp lệ.
+
+**Hồ sơ TWĐ dùng.** Xếp loại gợi ý theo sáu bước. Mức Xuất sắc bao gồm điều kiện của mức thấp hơn và làm tròn hai bước, theo quyết định ngày 22/10. Không đặt trần, nhưng báo cáo tỷ lệ.
+
+**Hợp đồng.** `appraisals.yaml` bổ sung tài nguyên `incidents` và mã lỗi bắt buộc lý do khi mức khác mức gợi ý (nếu hợp đồng chưa có). `policies.yaml` cho phép `classification.chain`.
+
+### DC-06 · Chế độ phân công theo hồ sơ {-}
+
+**Lõi bổ sung.** Lõi giữ mô hình "một chủ trì, nhiều phối hợp" (`task.task_assignee`) làm mặc định. Hồ sơ có tham số `che_do_phan_cong` nhận một trong hai giá trị:
+
+| Giá trị | Hành vi |
+|---|---|
+| `CHU_TRI_PHOI_HOP` | Mặc định, giữ mô hình hiện tại |
+| `MOT_NGUOI_MOT_VIEC` | Mỗi công việc lá đúng một người; điểm của việc cha chỉ tính khi mọi việc con xong; điểm thành phần của việc con cộng lại bằng điểm của việc cha |
+
+Quy tắc của chế độ `MOT_NGUOI_MOT_VIEC` được kiểm ở bước giao việc (CORE-02-14) bằng tham số đọc qua `PolicyQueryApi`, không viết cứng. Việc con lưu `component_score numeric(6,3)` trên `task.task`.
+
+**Hồ sơ TWĐ dùng.** `MOT_NGUOI_MOT_VIEC`.
+
+**Hợp đồng.** `tasks.yaml` bổ sung `componentScore` và mã lỗi `TASK-422-ASSIGNMENT-MODE`.
+
+## Hồ sơ TWĐ {-}
+
+Hồ sơ TWĐ (`twd/ban-to-chuc-ueb`) là bản đầu tiên dùng các điểm cắm trên và được đánh dấu **giả lập** theo YC-PT-14, vì dự thảo chưa ban hành và nhiều tham số còn chờ Ban Tổ chức chọn. Hồ sơ gồm:
+
+1. **Policy Pack `twd/diem-cong-viec`.** Gói `extends` từ gói chung của khối Đảng. Gói gồm:
+   - công thức ba mặt điểm trên điểm công việc và hai chế độ đưa về thang 100;
+   - bảng gói điểm theo nhóm đối tượng và tỷ trọng theo trục;
+   - mức trừ 5% mỗi ngày;
+   - thang mức chất lượng 1,00 / 0,75 / 0,50 / 0,25 / 0 và trần 0,75 cho mục cần khắc phục;
+   - bảng hệ số khó 0,8 / 1 / 1,25 / 1,6 / 2,0 và hệ số nhóm 1 / 1,3;
+   - chuỗi xếp loại sáu bước.
+2. **Ca vàng.** Lấy từ mục 11.8, mục 32 (120 người, kết quả mong đợi 3 / 113 / 4 / 0), các ca G1–G13 của Phụ lục 01G và CTB1–CTB30. Bộ ca phải đạt 100% trước khi phát hành.
+3. **Danh mục điểm chuẩn tạm thời của Ban.** Lấy theo dự thảo số 25, kể cả các dòng tách như 34a, 34b, ở phạm vi `KHOI`. Đi kèm khung tham số DC-02.
+4. **Danh mục dùng chung theo dự thảo:**
+   - 6 trục TR1–TR6;
+   - 5 chỉ tiêu CT1–CT5, địa phương mở từ CT6;
+   - điều kiện công nhận kiểu mốc;
+   - bộ tiêu chí chung 12/10/11;
+   - loại sự việc dẫn tới loại trừ.
+5. **Bộ quy tắc cảnh báo `twd/diem-nghen`.** Gồm chín quy tắc tự sinh điểm nghẽn và rủi ro (mục 11.6), viết bằng CEL. Mỗi quy tắc có điều kiện, mức, người nhận, ngưỡng, giờ chạy và cờ bật tắt. Job của lõi chỉ đánh giá và ghi `task.task_blocker`. Bảng này hiện chưa có cột phân biệt nguồn, nên bổ sung `origin` (`NGUOI_DUNG` mặc định, `TU_DONG`) và `rule_code`. Khoá idempotent của dòng tự sinh là `(task_id, rule_code, ngày chạy)`.
+6. **Tham số luồng.** Gồm bảng thẩm quyền duyệt thay đổi, thẩm quyền rà soát, thẩm định, quyết định và hạn 2/2/1/1 ngày làm việc. Các tham số này được đặt qua SCR-1504 theo phạm vi BS-01.
+
+Mọi giá trị trên đều là dữ liệu của hồ sơ. Không giá trị nào được trở thành mặc định của lõi hay của hồ sơ khác.
+
+## Ngoài phạm vi {-}
+
+- **Lớp cấp trên giữa các tenant (B7).** Gồm O, KR của Trung ương, tỉnh, xã; liên kết; số cuốn lên. Hướng đã ghi trong báo cáo: danh mục dùng chung chỉ đọc, chỉ lưu liên kết, tổng hợp bên analytics qua sự kiện. Hướng này sẽ được làm ở một bản bổ sung sau.
+- **Kết cấu dịch vụ và yêu cầu phi chức năng của UEB.** Gồm mục 34.1 và 34.4, cùng giao diện mockup và chức năng ghi thời gian thực hiện (mục 6.6). Báo cáo đã xếp các nội dung này vào nhóm C.
+
+## Bảng truy vết sang task {-}
+
+| Điểm cắm | Task mới | Task được bổ sung phạm vi |
+|---|---|---|
+| Hợp đồng cho DC-01..DC-06 | NEN-044 | – |
+| Hồ sơ, DC-02 (kể cả phân giải tham số theo khung trong `PolicyQueryApi` đã gộp) | CORE-05-12 | – |
+| DC-01, DC-02 phía danh mục | CORE-02-27 | – |
+| DC-04 (cây KPI), DC-06 | CORE-02-28 | CORE-02-14, CORE-02-20 |
+| DC-04 (kiểu mốc) | CORE-01-14 | CORE-01-03, CORE-01-08 |
+| DC-01, DC-03, DC-05 phía MOD-04 | CORE-04-13 | CORE-04-06, CORE-04-03 |
+| DC-01, DC-05 phía SVC-07 | – | DV-07-03, DV-07-05 |
+| Hồ sơ TWĐ | DL-16 | – |
+
+Thứ tự thực hiện là hợp đồng (NEN-044) trước, theo ADR-32 và YC-PT-09. Sau đó đến lõi (CORE-05-12, CORE-02-27, CORE-01-14, CORE-02-28, CORE-04-13). Tiếp theo là scoring (DV-07-03, DV-07-05). Cuối cùng là nạp hồ sơ TWĐ (DL-16). Giao diện cho các điểm cắm sẽ được giao thành task WEB khi hợp đồng đã gộp.
+
+## Vị trí đưa vào bộ TL {-}
+
+- **Baseline:** thêm ADR-33 vào bảng ADR.
+- **TL-01:**
+  - chương "Policy Pack" bổ sung mục "Hồ sơ tập khách hàng", phần `inputs` mở rộng (DC-01, DC-03), dạng `classification.chain` (DC-05);
+  - sửa ví dụ `quotas` thành tùy chọn có chú thích;
+  - SVC-07 bổ sung đầu vào lô mới.
+- **TL-03:**
+  - schema `policy` thêm ba bảng và một cột;
+  - schema `task` thêm `coefficient_levels`, `axis_code`, `node_kind`, `component_score`, `score_adjust_min`, `score_adjust_max`, giá trị `scope` mới và cột `origin`, `rule_code` của `task_blocker`;
+  - schema `okr` thêm `MOC`, `TOI_DA`, `kr_milestone`;
+  - schema `appraisal` thêm bảng `incident` và ràng buộc lý do khi mức của `rating_proposal` khác mức gợi ý.
+- **Wiki:** trang 14 ghi quyết định. Trang 17 và 21 cập nhật khi các task lõi gộp.
