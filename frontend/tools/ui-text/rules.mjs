@@ -107,6 +107,11 @@ export const RULES = [
     hint: 'Không in ghi chú giải pháp, tiến độ phát triển hay ghi chú dữ liệu mẫu lên giao diện.',
   },
   {
+    id: 'tieng-anh-mac-dinh',
+    re: /\b(No results found|No available options|No selected item|items selected|Search results are available|No file chosen|Rows per page|(Previous|Next|First|Last) Page|Choose (Date|Month|Year)|Enter a password|Loading\.\.\.)\b/,
+    hint: 'Chuỗi mặc định tiếng Anh của thư viện giao diện; đặt bản dịch tiếng Việt (PRIMENG_VI trong @vt/design-system) hoặc truyền nhãn tiếng Việt cho component.',
+  },
+  {
     id: 'xung-ho',
     re: /\b(anh\/chị|Anh\/chị|anh chị|Anh chị|bạn hãy|Bạn hãy)\b/,
     hint: 'Xưng hô thống nhất "đồng chí" (wiki/16).',
