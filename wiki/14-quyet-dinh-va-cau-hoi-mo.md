@@ -1455,6 +1455,14 @@ Hồ sơ `twd/ban-to-chuc-ueb` gồm gói `data/policy-pack/twd/diem-cong-viec`,
 - **Điểm nghẽn tự sinh.** `BlockerCauseCategory` chỉ có năm giá trị trong khi UEB có tám nguyên nhân kèm nhóm Khách quan, Chủ quan, Theo từng bản ghi; danh mục ghi cột `ma_hop_dong` là giá trị gần nhất (suy luận) và mã chi tiết đi kèm. `TaskBlocker` chưa có trường phân biệt "Điểm nghẽn" với "Rủi ro" (quy tắc 2, 7 sinh Rủi ro), và trạng thái nhiệm vụ chuẩn chưa có "Không hoàn thành", "Đã chuyển kỳ" mà quy tắc 3 cần loại trừ. BS-03 chưa giao task cho job đánh giá bộ quy tắc; suy luận là thuộc phạm vi điểm nghẽn của CORE-02-20.
 - **Dạng tệp gói.** Gói TWĐ viết theo dạng khai báo chung của các gói hiện có, nên khi trả qua API vẫn đi qua phần chuẩn hoá của `PolicyPackController` ở mục 7 của ghi chú CORE-05-09.
 
+### Ghi chú và quyết định từ đọc điểm theo luồng (CORE-04-09, 23/10/2026)
+
+- **Vết tính không làm lại ở mission-core.** `getAppraisalScoreTrace` có chủ là SVC-07 và đã được scoring-service phục vụ (DV-07-03); mission-core chỉ hiện thực `getAppraisalScores` trên `appraisal.score_snapshot`, không đọc bảng của `scoring`.
+- **Giải thích lấy từ ảnh chụp.** `systemLevel` là `auto_rating_code`, `conditions` là `rule_checks`, câu giải thích là `detail_json.giai_thich` nếu có, không có thì lấy lý do hạ mức đầu tiên. `rating_explanation` thuộc đề xuất của người (`rating_proposal`) nên không dùng ở đây. Ảnh chụp do bộ tiêu thụ EVT-10 hiện ghi `rule_checks = []`, `group_scores_json = {}`, chưa có `detail_json`, nên phần giải thích và nhóm điểm còn rỗng cho tới khi EVT-10 mang đủ kết quả của SVC-07 (câu hỏi mở ở ghi chú DV-07-05).
+- **Luồng khác luồng của hồ sơ.** Tham số `flow` khác luồng của hồ sơ thì đọc hồ sơ cùng người, cùng kỳ ở luồng kia và kiểm quyền trên chính hồ sơ đó; không có hồ sơ luồng kia thì 404, có hồ sơ mà chưa có ảnh chụp thì 409 `APPRAISAL-409-NOT-COMPUTED` (MSG-09-01).
+- **Đệm bằng ETag, không dùng Valkey (suy luận).** Ảnh chụp bất biến nên ETag là `snapshot_hash`, phản hồi `Cache-Control: private, no-cache` và trả 304 khi `If-None-Match` khớp; dữ liệu đọc chỉ là C1 nên không cần bộ đệm phía máy chủ ở giai đoạn này.
+- **Bảng xuất hàng đợi thẩm định có thêm cột "Tổng điểm"** lấy từ ảnh chụp hiện hành.
+
 ## Liên quan
 
 - [README của wiki](README.md)

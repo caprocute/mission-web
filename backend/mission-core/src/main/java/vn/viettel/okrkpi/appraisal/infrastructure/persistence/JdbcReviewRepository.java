@@ -37,7 +37,7 @@ public class JdbcReviewRepository implements ReviewRepository {
              p.is_head, p.is_leadership, p.current_snapshot_id, s.auto_rating_code,
              p.final_rating_code, p.appraiser_id, p.decider_id, p.return_count,
              p.is_self_assessment_missing, p.submitted_at, p.decided_at, p.locked_at, p.row_version,
-             pv.full_name, u.name
+             pv.full_name, u.name, s.total_score
         FROM appraisal.appraisal_profile p
         LEFT JOIN appraisal.score_snapshot s
           ON s.period_bucket = p.period_bucket AND s.tenant_id = p.tenant_id
@@ -112,7 +112,10 @@ public class JdbcReviewRepository implements ReviewRepository {
         .query(
             (rs, i) ->
                 new QueueRow(
-                    JdbcSelfAssessmentRepository.summary(rs), rs.getString(21), rs.getString(22)))
+                    JdbcSelfAssessmentRepository.summary(rs),
+                    rs.getString(21),
+                    rs.getString(22),
+                    rs.getBigDecimal(23)))
         .list();
   }
 
