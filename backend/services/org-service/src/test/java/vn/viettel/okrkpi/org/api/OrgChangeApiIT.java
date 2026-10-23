@@ -144,8 +144,8 @@ class OrgChangeApiIT extends IntegrationTestBase {
     JsonNode renamed = body(asAdmin(postChange(newId, idemKey, renameReq))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.changeType").value("DOI_TEN")));
-    assertThat(renamed.get("warnings").get(0).get("msg").asText()).isEqualTo("MSG-01-10");
-    assertThat(renamed.get("warnings").get(0).get("period").asText()).isEqualTo("Quý I/2027");
+    assertThat(renamed.get("lockedPeriodName").asText()).isEqualTo("Quý I/2027");
+    assertThat(renamed.has("warnings")).isFalse();
 
     asAdmin(get("/api/v1/org/units/{id}", newId).param("asOf", "2027-02-05"))
         .andExpect(jsonPath("$.name").value("Sở Khoa học, Công nghệ và Đổi mới sáng tạo"));
