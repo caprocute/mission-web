@@ -1438,7 +1438,7 @@ paths:
         qt: [QT-05]
         scr: [SCR-0502]
         owner: MOD-02
-        roles: [manager, leader]
+        roles: [manager, leader, ai_readonly]
         scope: Đv
         source: 'Mã frontend WEB-029 (suy luận)'
 

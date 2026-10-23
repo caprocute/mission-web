@@ -150,6 +150,16 @@ public class TaskDraftService {
   }
 
   /**
+   * Thêm nhiệm vụ {@code NHAP} trong giao dịch của người gọi, chủ trì là đơn vị khi {@code
+   * leadUnitId} khác {@code null}: nhiệm vụ xác nhận từ văn bản đến (CORE-02-16). Người gọi đã kiểm
+   * khoá kỳ.
+   */
+  public DraftRow insertDraft(
+      TenantId tenant, TaskDraftSpec spec, TaskActor actor, UUID leadUnitId) {
+    return insert(tenant, spec, actor, leadUnitId);
+  }
+
+  /**
    * Thêm nhiệm vụ {@code NHAP}; {@code leadUnitId} khác {@code null} khi chủ trì là đơn vị (giao
    * đồng loạt).
    */
