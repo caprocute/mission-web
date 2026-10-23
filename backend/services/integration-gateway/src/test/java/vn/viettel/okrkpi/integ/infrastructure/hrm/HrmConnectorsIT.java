@@ -365,6 +365,38 @@ class HrmConnectorsIT {
   }
 
   @Test
+  @Order(5)
+  void orgServiceTuChoiMotPhanLoVaoThuChetKhongDanhDauDaXuLy() throws Exception {
+    // org-service nhận lô nhưng báo một bản ghi không ghi được (ví dụ chưa mã hoá được trường C2)
+    ORG.stubFor(
+        post(urlPathMatching("/internal/v1/org/sync-runs/[0-9a-f-]+/batches"))
+            .atPriority(1)
+            .withRequestBody(containing("NS-9"))
+            .willReturn(okJson("{\"records\":2,\"changes\":1,\"errors\":1,\"discrepancies\":0}")));
+    int before = letters(SFTP_CONN).size();
+    upload(
+        "e-org-tu-choi.csv",
+        (HEADER
+                + "NS-9,Vũ Văn G,001099000009,1981-01-09,DV-01,CV\n"
+                + "NS-10,Hồ Thị H,001099000010,1982-02-10,DV-01,CV\n")
+            .getBytes(StandardCharsets.UTF_8),
+        Instant.now().getEpochSecond() - 30);
+    await().atMost(Duration.ofSeconds(30)).until(() -> letters(SFTP_CONN).size() == before + 1);
+    Map<String, Object> l = letters(SFTP_CONN).get(before);
+    assertThat(l.get("error_code")).isEqualTo(HrmPersonTranslator.ORG_REJECTED);
+    assertThat((String) l.get("error_detail")).contains("1/2");
+    assertThat(
+            admin()
+                .queryForObject(
+                    "SELECT status FROM integ.inbox_message WHERE connector_id = ?"
+                        + " ORDER BY received_at DESC LIMIT 1",
+                    String.class,
+                    SFTP_CONN))
+        .as("thông điệp còn bản ghi lỗi không được coi là đã xử lý")
+        .isEqualTo("LOI");
+  }
+
+  @Test
   @Order(3)
   void restHrmKeoTheoConTroVaChuyenOrgService() {
     await().atMost(Duration.ofSeconds(30)).until(() -> !batches("NS-R1").isEmpty());
