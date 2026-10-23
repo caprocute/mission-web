@@ -132,13 +132,22 @@ export class Phien {
           `${r.request().method()} ${new URL(r.url()).pathname} → ${r.status()}${id ? ` · ${id}` : ''}`,
         );
       }
-      if (!/\/protocol\/openid-connect\/token$/.test(new URL(r.url()).pathname)) return;
-      if (r.status() !== 200) return;
-      r.json()
-        .then((b: { access_token?: string }) => {
+    });
+    if (!HE_THONG) return;
+    // Bắt token qua route thay vì đọc thân phản hồi: Chrome bỏ thân phản hồi khi trang chuyển tuyến ngay sau
+    // khi đổi mã lấy token (getResponseBody "No data found"), nên cách đọc sau làm mất token của lần đăng nhập.
+    void m.page.route(/\/protocol\/openid-connect\/token$/, async (route) => {
+      const res = await route.fetch();
+      const body = await res.text();
+      if (res.status() === 200) {
+        try {
+          const b = JSON.parse(body) as { access_token?: string };
           if (b.access_token) m.token = b.access_token;
-        })
-        .catch(() => undefined);
+        } catch {
+          // thân không phải JSON: để nguyên cho ứng dụng tự xử lý
+        }
+      }
+      await route.fulfill({ response: res, body });
     });
   }
 

@@ -257,8 +257,11 @@ services:
       - "/policies"
     ports:
       - "${OPA_PORT:-35181}:8181"
+    # Gói chính sách thật okrkpi (NEN-040, sinh từ ma trận phân quyền) như bundle của cụm thật; thư mục gắn ở
+    # /policies/okrkpi để generated/data.json nằm đúng data.okrkpi.generated. Mission-core hỏi
+    # /v1/data/okrkpi/authz/decision; bản khởi tạo ./opa/policies chỉ từ chối mặc định nên mọi API trả 403.
     volumes:
-      - ./opa/policies:/policies:ro
+      - ../../backend/opa/okrkpi:/policies/okrkpi:ro
     healthcheck:
       test: ["CMD", "/opa", "eval", "data.okrkpi.authz.allow"]
       interval: 10s
@@ -613,6 +616,27 @@ services:
     networks:
       - mission-net
 
+  # clamd cho worker quét minh chứng của evidence-service (DV-08-04, SEC-47). Lần đầu freshclam tải cơ sở dữ liệu
+  # chữ ký (vài phút, cần mạng ra database.clamav.net), nên start_period dài. StreamMaxLength không nhỏ hơn
+  # EVIDENCE_MAX_FILE_BYTES (mặc định 50 MB). Hành trình QA-05 dùng tệp thử EICAR.
+  clamav:
+    image: clamav/clamav:1.4
+    container_name: mission-dev-clamav
+    restart: unless-stopped
+    profiles: ["backend"]
+    environment:
+      CLAMD_CONF_StreamMaxLength: 60M
+    volumes:
+      - clamav_db:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 300s
+    networks:
+      - mission-net
+
   # Máy chủ mô hình nhỏ chạy CPU cho ai-gateway (DV-14-01): llama.cpp server có API tương thích OpenAI như vLLM,
   # mô hình Qwen2.5-0.5B-Instruct GGUF (giấy phép Apache 2.0) tải từ Hugging Face lần đầu. ai-gateway trỏ tới bằng
   # LLM_MODE=openai, LLM_BASE_URL=http://127.0.0.1:${LLM_MOCK_PORT}; mặc định ai-gateway dùng bản giả lập trong mã.
@@ -843,7 +867,8 @@ services:
     ports:
       - "${DOCUMENT_SERVICE_PORT:-35114}:8080"
 
-  # SVC-08: quét virus tắt ở dev (không có clamd).
+  # SVC-08: API và worker quét chung một container ở dev, quét bằng clamd của dịch vụ clamav (đặt
+  # EVIDENCE_SCAN_ENABLED=false trong .env để tắt khi không bật clamav).
   evidence-service:
     <<: *backend-java
     build:
@@ -857,7 +882,9 @@ services:
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY: ${MINIO_ROOT_USER:-}
       S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-}
-      EVIDENCE_SCAN_ENABLED: "false"
+      EVIDENCE_SCAN_ENABLED: ${EVIDENCE_SCAN_ENABLED:-true}
+      CLAMD_HOST: clamav
+      CLAMD_PORT: "3310"
     ports:
       - "${EVIDENCE_SERVICE_PORT:-35115}:8080"
 
@@ -1179,6 +1206,7 @@ volumes:
   grafana_data:
   llm_cache:
   superset_home:
+  clamav_db:
 
 networks:
   mission-net:

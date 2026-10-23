@@ -33,26 +33,34 @@ chế độ giả lập và hệ thống thật:
 Chạy ở chế độ giả lập: `npx playwright test -c e2e/hanh-trinh/qt04-07/playwright.gia-lap.config.ts`
 (sau `npm run e2e:prepare`); trên hệ thống thật các tệp này chạy cùng bộ QA-03 với `E2E_MODE=he-thong`.
 
-## Điều kiện để chạy thật QA-05 và QA-06 trên bộ hạ tầng dev
+## Chạy thật QA-05 và QA-06 trên bộ hạ tầng dev
 
-Rà tĩnh ngày 23/10/2026 (B4) cho thấy lời gọi API của hai bộ hành trình khớp hợp đồng. Mã người dùng Keycloak
-của tài khoản thử trùng mã cán bộ của `infra/dev/postgres/seed/org-du-lieu-thu.sql`, nên kịch bản dùng `sub`
-làm mã người giao và mã người chủ trì là đúng. Trước khi chạy, môi trường cần đủ các điều kiện sau. Nếu thiếu,
-hành trình sẽ hỏng hoặc ghi "chờ" dù kịch bản đúng:
+Ngày 23/10/2026 (B4) hai bộ hành trình được chạy thật trên bộ compose dev dựng trong máy làm việc, theo trình tự
+chung ở mục dưới. Lời gọi API của kịch bản khớp hợp đồng. Ngoài trình tự đó, hai bộ này cần thêm:
 
-- **Bản sao tổ chức đã được phát lại.** Nạp `org-du-lieu-thu.sql` bằng SQL không phát sự kiện, nên
-  `org_replica` của mission-core và workflow-service vẫn rỗng. Sau khi nạp, chạy `org-republish` của
-  org-service cho tenant thử (hồ sơ Spring `republish`, xem `ops/runbooks/org-republish.md`).
-- **Minh chứng được quét mã độc.** evidence-service cần clamd và `EVIDENCE_SCAN_ENABLED=true`. Nếu không có,
-  tệp tải lên mãi chờ quét, HT-20 và HT-21 không qua được.
-- **Hồ sơ đánh giá mở được phiếu tự đánh giá (QA-06).** Cần đủ bốn điều kiện:
-  - kỳ quý dài đúng ba tháng đã khoá;
-  - cán bộ thử là đảng viên, vì luồng Nhà nước còn giữ trạng thái chưa lập theo wiki trang 14 mục 59(e);
-  - có Policy Pack đã phát hành cho luồng Đảng và khối đối tượng của đơn vị thử;
-  - scoring-service đang chạy.
-- **Biến môi trường.** `E2E_KC_URL` phải trùng từng ký tự với `KEYCLOAK_PUBLIC_URL` của hạ tầng, nếu không
-  máy chủ từ chối token vì `iss` khác. Bước kiểm sự kiện cần `E2E_KAFKA_UI_URL`; compose dev hiện chưa có
-  kafka-ui.
+- **clamd cho minh chứng.** Compose có dịch vụ `clamav` và evidence-service bật quét (`EVIDENCE_SCAN_ENABLED`);
+  thiếu clamd thì tệp tải lên mãi chờ quét, HT-20 và HT-21 không qua được.
+- **Chính sách OPA thật.** OPA gắn `backend/opa/okrkpi`; bản khởi tạo `infra/dev/opa/policies` chỉ từ chối mặc định.
+- **Cán bộ thử là đảng viên.** Luồng Đảng chỉ lập hồ sơ cho đảng viên, luồng Nhà nước còn giữ trạng thái chưa lập
+  (wiki trang 14 mục 59(e)), nên `org-du-lieu-thu.sql` đặt `is_party_member` cho năm tài khoản thuộc diện đánh giá.
+
+Sửa ở kịch bản và web trong lượt này: token được bắt qua `page.route` ở endpoint token (Chrome bỏ thân phản hồi khi
+trang chuyển tuyến ngay sau khi đổi mã); hành trình kế hoạch (HT-11, HT-12) dùng kỳ quý, vì máy chủ lấy kỳ quý
+hiện hành khi màn hình kế hoạch không chọn kỳ; hành trình khoá kỳ tạo kỳ trong năm 2020..2024, vì máy chủ không
+nhận kỳ trước năm 2020 (`ck_period__bucket`); web không gọi làm mới token khi chưa có refresh token (trước đây 401
+lúc chưa đăng nhập xong làm Keycloak trả 400 và web báo hết phiên).
+
+Khoảng trống phía máy chủ còn chặn hành trình (ghi ngày 23/10/2026):
+
+- `GET /catalog/items` gắn chức năng `SCR-0503.xem`, mà ma trận chỉ cấp cho `member` phạm vi bản thân trong khi mục
+  danh mục không có người sở hữu; OPA trả `out_of_scope` cho cả cán bộ lẫn quản lý, nên HT-11 và HT-13 dừng ở bước
+  chọn mục danh mục.
+- `GET /periods` gắn `SCR-0801.xem` (màn hình cấu hình kỳ), nên vai trò `member` bị từ chối dù ma trận API cho phép.
+- Chưa có API tạo Policy Pack (hợp đồng chỉ có tạo phiên bản cho gói đã có, `importPack` không có nơi gọi), nên
+  HT-25 đến HT-27 vẫn ghi "Chờ".
+- esign-service và document-service tự tạo `outbox_event` ở V1, trùng migration chung V0_x mà `MigrationRunner`
+  thêm vào, nên hai service không triển khai được và ký số (HT-27) trả 503.
+- Compose chưa có kafka-ui, nên bước kiểm sự kiện ghi "Chờ".
 
 ## Dựng đủ hệ thống thật trên một máy để chạy QA-03, QA-04
 

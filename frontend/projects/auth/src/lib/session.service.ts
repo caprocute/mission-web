@@ -251,6 +251,9 @@ export class SessionService {
    */
   handleUnauthorized(): Promise<boolean> {
     if (!this.cfg.auth.enabled) return Promise.resolve(false);
+    // Lời gọi phát ra khi chưa đăng nhập xong (chưa có refresh token): không có gì để làm mới, cũng chưa
+    // phải hết phiên. Gọi refreshToken() lúc này chỉ nhận 400 từ Keycloak và báo hết phiên trước khi đăng nhập.
+    if (!this.oauth.getRefreshToken()) return Promise.resolve(false);
     this.refreshing ??= this.oauth
       .refreshToken()
       .then(() => true)
@@ -519,7 +522,9 @@ export function isLoopbackHttp(url: string): boolean {
     const u = new URL(url);
     return (
       u.protocol === 'http:' &&
-      (u.hostname === 'localhost' || /^127(\.\d{1,3}){3}$/.test(u.hostname) || u.hostname === '[::1]')
+      (u.hostname === 'localhost' ||
+        /^127(\.\d{1,3}){3}$/.test(u.hostname) ||
+        u.hostname === '[::1]')
     );
   } catch {
     return false;
