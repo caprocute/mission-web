@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -30,6 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.MissionCoreApplication;
 import vn.viettel.okrkpi.MissionCoreTestDatabase;
@@ -37,14 +39,18 @@ import vn.viettel.okrkpi.config.application.PeriodLockControlService;
 import vn.viettel.okrkpi.config.application.port.LockProjectionRepository;
 import vn.viettel.okrkpi.config.domain.LockBatch;
 import vn.viettel.okrkpi.config.domain.LockFailure;
+import vn.viettel.okrkpi.config.infrastructure.client.PeriodLockCommandRelay;
 import vn.viettel.okrkpi.config.infrastructure.web.PeriodCaller;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
+import vn.viettel.okrkpi.shared.infrastructure.workflow.WorkflowSagaClient;
 import vn.viettel.okrkpi.shared.job.Job;
 import vn.viettel.okrkpi.shared.job.JobQueryService;
 import vn.viettel.okrkpi.shared.job.JobStatus;
 import vn.viettel.okrkpi.shared.kernel.ActorId;
+import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
+import vn.viettel.okrkpi.shared.resilience.DependencyUnavailableException;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 
 /**
@@ -408,5 +414,99 @@ class PeriodLockControlApiIT extends ContractConformanceTest {
         .isFalse();
     assertThat(job(ActorId.of(second), unlockJob).orElseThrow().status())
         .isEqualTo(JobStatus.HOAN_TAT);
+  }
+
+  @Test
+  void relaySendsQueuedCommandsOnceAndRecordsBusinessRejections() throws Exception {
+    String base = runningSaga("2029-Q3", "Quý III/2029", "2029-07-01", "2029-09-30");
+    UUID orderId =
+        UUID.fromString(body(perform(get(base + "/lock"))).get("lockOrder").get("id").asText());
+    MvcResult paused = perform(postJson(base + "/lock/pause", "{}").header("If-Match", "\"2\""));
+    assertThat(paused.getResponse().getStatus()).isEqualTo(200);
+    MvcResult requested =
+        perform(
+            postJson(
+                    base + "/lock/cancel",
+                    "{\"reason\":\"Phát hiện sai sót cấu hình trọng số khối 3.\"}")
+                .header("If-Match", "\"3\""));
+    assertThat(requested.getResponse().getStatus()).isEqualTo(200);
+    as(second, true);
+    MvcResult approved =
+        perform(postJson(base + "/lock/cancel/approve", "{}").header("If-Match", "\"4\""));
+    assertThat(approved.getResponse().getStatus()).isEqualTo(202);
+    UUID unlockJob = UUID.fromString(body(approved).get("id").asText());
+
+    List<Map<String, Object>> sent = new java.util.concurrent.CopyOnWriteArrayList<>();
+    java.util.concurrent.atomic.AtomicBoolean down =
+        new java.util.concurrent.atomic.AtomicBoolean(true);
+    PeriodLockCommandRelay.Sender sender =
+        new PeriodLockCommandRelay.Sender() {
+          @Override
+          public boolean available() {
+            return true;
+          }
+
+          @Override
+          public WorkflowSagaClient.ControlOutcome send(
+              TenantId t, UUID sagaId, UUID commandId, Map<String, Object> body) {
+            if (down.get()) {
+              throw new DependencyUnavailableException(
+                  "workflow-service", DependencyUnavailableException.Reason.IO_ERROR, null, null);
+            }
+            sent.add(body);
+            return "BU_TRU".equals(body.get("command"))
+                ? new WorkflowSagaClient.ControlOutcome(false, 409, "PERIOD-409-POINT-OF-NO-RETURN")
+                : new WorkflowSagaClient.ControlOutcome(true, 202, null);
+          }
+        };
+    TransactionTemplate tx = new TransactionTemplate(tm);
+    tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    PeriodLockCommandRelay relay =
+        new PeriodLockCommandRelay(
+            JdbcClient.create(dataSource), tx, sender, json, Clock.systemUtc());
+
+    // SVC-06 không phản hồi: dòng giữ nguyên để lần sau gửi lại.
+    assertThat(TenantContext.call(tenant, () -> relay.relay(tenant))).isZero();
+    assertThat(commandStatuses(orderId)).containsOnly("CHO");
+
+    down.set(false);
+    assertThat(TenantContext.call(tenant, () -> relay.relay(tenant))).isEqualTo(2);
+    assertThat(TenantContext.call(tenant, () -> relay.relay(tenant)))
+        .as("không gửi lần hai")
+        .isZero();
+    assertThat(sent).hasSize(2);
+    assertThat(sent.get(0))
+        .containsEntry("command", "TAM_DUNG")
+        .containsEntry("requestedBy", admin);
+    assertThat(sent.get(1))
+        .containsEntry("command", "BU_TRU")
+        .containsEntry("commandId", unlockJob)
+        .containsEntry("requestedBy", admin)
+        .containsEntry("approvedBy", second);
+    assertThat(commandStatuses(orderId)).containsExactly("HOAN_TAT", "THAT_BAI");
+    assertThat(job(ActorId.of(second), unlockJob.toString()).orElseThrow().status())
+        .isEqualTo(JobStatus.THAT_BAI);
+    JsonNode events = body(perform(get(base + "/lock/events").param("limit", "1")));
+    assertThat(events.get("items").get(0).get("event").asText())
+        .isEqualTo(
+            "Không thực hiện được: huỷ và bù trừ toàn bộ, vì tiến trình đã qua bước ký số lô nên"
+                + " không huỷ được nữa.")
+        .doesNotContain("PERIOD-");
+  }
+
+  private List<String> commandStatuses(UUID orderId) throws Exception {
+    return TenantContext.call(
+        tenant,
+        () ->
+            new TransactionTemplate(tm)
+                .execute(
+                    s ->
+                        JdbcClient.create(dataSource)
+                            .sql(
+                                "SELECT status FROM config.period_lock_command"
+                                    + " WHERE lock_order_id = ? ORDER BY created_at, id")
+                            .param(orderId)
+                            .query(String.class)
+                            .list()));
   }
 }
