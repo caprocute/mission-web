@@ -1814,6 +1814,11 @@ esign-service ký bằng khoá của tổ chức trong HSM qua PKCS#11 (SunPKCS1
 - **Job gia hạn dấu thời gian lưu trữ (suy luận về nơi ghi).** Chạy hằng năm (mặc định 02:00 UTC ngày 15/01), quét PAdES-LTA của mọi tenant qua hàm `esign.fn_tai_lieu_luu_tru` (V3), tài liệu có chứng thư TSA hết hạn trong 400 ngày được thêm dấu thời gian tài liệu `ETSI.RFC3161` bằng lưu gia tăng, ghi đối tượng mới hậu tố `.lta-<ngày>.pdf` và cập nhật `sign_item.signed_object_key`; đối tượng cũ giữ nguyên, kết quả ghi nhật ký job. Job chưa thêm dữ liệu kiểm chứng (DSS/VRI) cho chứng thư TSA cũ; phần đó cần bộ kiểm OCSP/CRL của DV-10-04.
 - **Không đo thông lượng.** Mục tiêu khoảng 1.000 chữ ký mỗi giây của TL-01 chỉ ghi chú cho giai đoạn đo hiệu năng (YC-PT-19); bộ ký có pool phiên (`max-sessions`) và chỉ số `esign_hsm_signatures`, `esign_hsm_errors`, `esign_hsm_sign` để đo sau.
 
+### Ghi chú từ việc bổ sung của luồng gộp cho B6 (23/10/2026)
+
+- **`wf_binding.policy_pack_version_id` đã hiện thực (CORE-05-11, DV-06-08, chốt TL v1.1).** Migration flowable `V9__wf_binding_phien_ban_goi.sql` thêm cột, lấy giá trị cho dòng có sẵn từ `scope_json.policyPackVersionId`, và thay khoá duy nhất `uq_wf_binding__scope` bằng (`tenant_id`, `policy_pack_version_id`, `process_kind`, `subject_group_id`, `flow`, `period_type`). Kích hoạt vẫn giữ một dòng hiệu lực cho mỗi phạm vi (ghi đè dòng cùng phạm vi như trước) và ghi phiên bản gói vào cột mới; gỡ kích hoạt trả lại cả phiên bản gói của dòng cũ. Vì vậy cách đọc tham số khi khởi động luồng không đổi. V8 dành cho DV-06-11.
+- **Ca hỏng `WorkflowApiIT.nguoiKhoiTaoKhongTuDuyetVaKhongXuLyViecTenantKhac` không do mã workflow.** Nguyên nhân là bản `vt-platform-starter` cũ trong kho Maven cục bộ: bản đó thiếu `@Role(ROLE_INFRASTRUCTURE)` trên `requiresPermissionAdvisor` (commit 0207e5a1), nên `InfrastructureAdvisorAutoProxyCreator` bỏ qua advisor, `OpaApprovalAccessPolicy` không được proxy, OPA không được hỏi và người khởi tạo tự duyệt được. Chạy `mvn -pl services/workflow-service` mà không có `-am` sẽ dùng jar cũ; dựng lại thư viện nền (`-am` hoặc `install` thư viện) thì cả 8 ca xanh.
+
 ## Liên quan
 
 - [README của wiki](README.md)

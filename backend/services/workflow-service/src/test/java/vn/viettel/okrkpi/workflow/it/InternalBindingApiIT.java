@@ -262,6 +262,7 @@ class InternalBindingApiIT extends WorkflowIntegrationTest {
     JsonNode first = call("/bindings/activate", v1);
     assertThat(first.path("items").get(0).path("status").asText()).isEqualTo("HIEU_LUC");
     assertThat(startParams().orElseThrow().levels()).hasSize(2);
+    assertThat(bindingVersion()).isEqualTo(v1);
     assertThat(
             owner.queryForObject(
                 "SELECT count(*) FROM flowable.wf_template WHERE template_code = 'duyet-ke-hoach-quy'"
@@ -280,12 +281,15 @@ class InternalBindingApiIT extends WorkflowIntegrationTest {
         .extracting(r -> r.role())
         .containsExactly("manager", "decider", "decider");
     assertThat(bindingRows()).isEqualTo(1);
+    assertThat(bindingVersion()).isEqualTo(v2);
     mvc.perform(svc(get(BASE + "/bindings").param("policyPackVersionId", v1.toString())))
         .andExpect(jsonPath("$.items[0].status").value("NGUNG"));
 
     JsonNode undone = call("/bindings/deactivate", v2);
     assertThat(undone.path("items").get(0).path("status").asText()).isEqualTo("NGUNG");
     assertThat(startParams().orElseThrow().levels()).hasSize(2);
+    // Gỡ phiên bản mới trả lại cả phiên bản gói của dòng cũ (V9).
+    assertThat(bindingVersion()).isEqualTo(v1);
     mvc.perform(svc(get(BASE + "/bindings").param("policyPackVersionId", v1.toString())))
         .andExpect(jsonPath("$.items[0].status").value("HIEU_LUC"));
 
@@ -310,6 +314,13 @@ class InternalBindingApiIT extends WorkflowIntegrationTest {
 
   private long count(String table) {
     return owner.queryForObject("SELECT count(*) FROM " + table, Long.class);
+  }
+
+  private UUID bindingVersion() {
+    return owner.queryForObject(
+        "SELECT policy_pack_version_id FROM flowable.wf_binding WHERE tenant_id = ?",
+        UUID.class,
+        tenant);
   }
 
   private long bindingRows() {

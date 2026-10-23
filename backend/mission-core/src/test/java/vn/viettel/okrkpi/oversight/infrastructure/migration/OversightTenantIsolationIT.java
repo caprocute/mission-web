@@ -57,6 +57,10 @@ class OversightTenantIsolationIT extends TenantIsolationCatalogTest {
           Map<String, Object> r = periodRow(tenant, "complaint_response");
           r.put("complaint_id", id(tenant, "complaint"));
           r.put("record_kind", "YEU_CAU");
+          // ck_complaint_response__request (V6): yêu cầu giải trình phải có bên được yêu cầu và hạn.
+          r.put("party_kind", "NGUOI");
+          r.put("party_id", id(tenant, "party"));
+          r.put("due_date", LocalDate.parse("2027-05-05"));
           r.put("responder_id", id(tenant, "responder"));
           r.put("response_enc", new byte[] {2});
           r.put("dek_id", id(tenant, "dek"));
