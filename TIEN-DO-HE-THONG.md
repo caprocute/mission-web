@@ -14,7 +14,7 @@
 
 - **Tổng tiến độ đã gộp `main`**: **280 / 408 task (68.6%)** — Khối lượng quy đổi đã gộp: **321 / 492.5 đơn vị**.
 - **Tổng tiến độ tính cả các task đã xong chờ gộp**: **281 / 408 task (68.9%)** (gồm **280** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **7 task** (2 đang làm, 5 làm một phần).
+- **Đang thực hiện / Làm một phần**: **7 task** (1 đang làm, 6 làm một phần).
 - **Chưa bắt đầu**: **120 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **18 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-10`** (đang xử lý trên nhánh: không).
 
@@ -631,7 +631,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 |---|---|:---:|:---:|:---:|---|---|---|
 | [WEB-070](docs/tasks/WEB-070-noi-api-that-okr-viec-minh-chung.md) | Nối các màn hình OKR, giao việc, minh chứng với API thật, tắt giả lập theo module bằng cấu hình | L | W | 20 | QA-03, CORE-01-08, CORE-02-19, CORE-03-07 | **Làm một phần** | Nhánh claude/b8-ha-tang-g7g48k: công tắc giả lập theo module (MOCK_API_MODULES) và 3 kịch bản luồng chính xanh ở chế độ giả lập; chờ QA-03 để chạy với máy chủ thật |
 | [WEB-071](docs/tasks/WEB-071-noi-api-that-danh-gia-giam-sat.md) | Nối các màn hình đánh giá, hồ sơ số, giám sát với API thật | L | W | 23 | WEB-070, CORE-04-10, CORE-06-08, CORE-07-11 | **Làm một phần** | Nhánh claude/b8-ha-tang-g7g48k: 4 lời gọi khớp hợp đồng, 3 lỗi màn hình đã sửa, kịch bản đánh giá quý, gói hồ sơ, khiếu nại xanh ở giả lập (938/938 e2e); máy chủ mới có 40/105 thao tác, chờ CORE-06, CORE-07 và QA-03 |
-| [WEB-072](docs/tasks/WEB-072-noi-api-that-quan-tri-cau-hinh.md) | Nối các màn hình quản trị, cấu hình, Policy Pack, bảng điều hành với API thật | L | W | 21 | WEB-070, CORE-05-10, CORE-08-11, DV-15-04 | **Đang làm** | Nhánh claude/b8-ha-tang-g7g48k: đối chiếu hợp đồng, nối quản trị, cấu hình, Policy Pack, bảng điều hành |
+| [WEB-072](docs/tasks/WEB-072-noi-api-that-quan-tri-cau-hinh.md) | Nối các màn hình quản trị, cấu hình, Policy Pack, bảng điều hành với API thật | L | W | 21 | WEB-070, CORE-05-10, CORE-08-11, DV-15-04 | **Làm một phần** | Nhánh claude/b8-ha-tang-g7g48k: UiPackLoader dự phòng qua API, tác vụ nền theo /jobs, khởi tạo đơn vị và cây tổ chức khớp hợp đồng, 3 kịch bản quản trị; e2e giả lập 941/941; máy chủ có 124/214 thao tác, chờ QA-03 |
 | [WEB-073](docs/tasks/WEB-073-xu-ly-cat-tai-retry-after.md) | Xử lý 429 và 503 có `Retry-After`, thử lại có backoff, giữ bản nháp | S | W | 1 | WEB-007 | **Đã gộp main** | Đã gộp main (f4fca53); máy chủ thật chờ CORE tương ứng |
 | [WEB-074](docs/tasks/WEB-074-traceparent-telemetry.md) | Gắn `traceparent` vào mọi lời gọi của `@vt/api-client` và liên kết với telemetry | S | W | 1 | WEB-011 | **Đã gộp main** | Đã gộp main (f4fca53); máy chủ thật chờ CORE tương ứng |
 | [WEB-075](docs/tasks/WEB-075-kham-pha-cell.md) | Khám phá cell khi đăng nhập (chuyển hướng 307, mã 421) | S | W | 10 | WEB-006, DV-01-04 | **Đã gộp main** | Đã gộp main (f4fca53); máy chủ thật chờ CORE tương ứng |
@@ -978,4 +978,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 00:10 | Luồng B8 hạ tầng | `WEB-071` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b8-ha-tang-g7g48k: 4 lời gọi khớp hợp đồng, 3 lỗi màn hình đã sửa, kịch bản đánh giá quý, gói hồ sơ, khiếu nại xanh ở giả lập (938/938 e2e); máy chủ mới có 40/105 thao tác, chờ CORE-06, CORE-07 và QA-03 |
 | 23/10/2026 00:10 | Luồng B8 hạ tầng | `WEB-010` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b8-ha-tang-g7g48k: dựng dần theo nhóm, lượt vẽ đầu 13-20 ms, không tác vụ dài trên 50 ms (wiki/09) |
 | 23/10/2026 00:10 | Luồng B8 hạ tầng | `WEB-072` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b8-ha-tang-g7g48k: đối chiếu hợp đồng, nối quản trị, cấu hình, Policy Pack, bảng điều hành |
+| 23/10/2026 01:43 | Luồng B8 hạ tầng | `WEB-072` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b8-ha-tang-g7g48k: UiPackLoader dự phòng qua API, tác vụ nền theo /jobs, khởi tạo đơn vị và cây tổ chức khớp hợp đồng, 3 kịch bản quản trị; e2e giả lập 941/941; máy chủ có 124/214 thao tác, chờ QA-03 |
 <!-- PROGRESS_LOG_END -->
