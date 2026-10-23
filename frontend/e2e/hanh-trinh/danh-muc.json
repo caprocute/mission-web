@@ -236,7 +236,7 @@
       "caPhuDinh": ["Gửi duyệt kế hoạch chưa qua kiểm tra hợp lệ bị chặn"],
       "cheDoCaoTuoi": true,
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-12",
@@ -258,7 +258,7 @@
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-13",
@@ -286,7 +286,7 @@
       "caPhuDinh": ["Giao việc cho người ngoài đơn vị quản lý bị từ chối"],
       "cheDoCaoTuoi": true,
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-14",
@@ -308,7 +308,7 @@
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
       "ghiChu": "Văn bản đến nạp bằng dữ liệu khởi tạo (EVT-24 giả lập).",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-15",
@@ -330,7 +330,7 @@
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-16",
@@ -369,7 +369,7 @@
       "caPhuDinh": ["Cập nhật với phiên bản cũ nhận xung đột"],
       "cheDoCaoTuoi": true,
       "ghiChu": "Hành trình mẫu của QA-03.",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-18",
@@ -386,7 +386,7 @@
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-19",
@@ -412,7 +412,7 @@
       "caPhuDinh": ["Đề nghị vượt ngưỡng đi qua luồng duyệt nhiều bước"],
       "cheDoCaoTuoi": false,
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-20",
@@ -444,7 +444,7 @@
       "caPhuDinh": ["Tệp thử EICAR bị đánh dấu nhiễm và không nộp được"],
       "cheDoCaoTuoi": true,
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-21",
@@ -480,7 +480,7 @@
       ],
       "cheDoCaoTuoi": false,
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-22",
