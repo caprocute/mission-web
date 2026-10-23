@@ -572,7 +572,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [INF-24](docs/tasks/INF-24-audit-archiver.md) | Dịch vụ `audit-archiver`: chuyển nhật ký kiểm toán sang kho lưu trữ bất biến theo thời hạn lưu giữ | M | B8 | 4 | INF-12, INF-19 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
 | [INF-25](docs/tasks/INF-25-bo-dieu-khien-suy-giam.md) | Bộ điều khiển suy giảm ba mức khi quá tải (tắt tính năng phụ, cắt tải theo ưu tiên) | M | B8 | 4 | DV-01-02, INF-15 | **Làm một phần** | Đã gộp phần repo; còn chạy thật trên dev/kind |
 | [INF-26](docs/tasks/INF-26-cong-cu-vtctl.md) | Công cụ vận hành `vtctl` cho các thao tác trong runbook (tenant, cell, khoá kỳ, phát lại sự kiện) | L | B8 | 9 | INF-04, DV-03-03 | **Làm một phần** | Đã gộp phần repo; còn chạy thật trên dev/kind |
-| [INF-27](docs/tasks/INF-27-quan-ly-truy-cap-dac-quyen.md) | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | B8 | 3 | INF-13 | **Làm một phần** | Nhánh claude/b8-ha-tang-g7g48k: pam-integration (quét cửa sau, VAP binding có hạn, Warpgate 0.30), sửa thu hồi người dùng động OpenBao, bao_admin chỉ còn ADMIN, otel-siem transform/ecs-pam; kiểm thật trên PG16 và Warpgate; chờ chốt cách cấp quyền kubectl/psql qua Warpgate, chưa chạy kind |
+| [INF-27](docs/tasks/INF-27-quan-ly-truy-cap-dac-quyen.md) | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | B8 | 3 | INF-13 | **Làm một phần** | Gộp 3f6d867d (Warpgate, thu hồi PG); còn SA kubectl, dba_ops, lưu phiên RGW |
 | [INF-28](docs/tasks/INF-28-cum-cho-am-ttdl-hai.md) | Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite | L | B8 | 9 | INF-11, INF-18, INF-20, INF-04, INF-08, INF-09, INF-17 | **Đang làm** | Giao sau phát hành |
 
 ### QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng (5/16 đã gộp `main`, 0 chờ gộp, 3 đang làm)
@@ -1033,4 +1033,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 13:55 | B9 | `MOB-09` | Chuyển trạng thái sang **Làm một phần** — Máy chủ + giả lập gộp e40a8c1f; Flutter chờ MOB-01 |
 | 23/10/2026 13:58 | B7 | `MOB-02` | Chuyển trạng thái sang **Làm một phần** — Package ngoai_tuyen gộp c3063a30; tích hợp app chờ MOB-01 |
 | 23/10/2026 14:05 | Luồng B8 hạ tầng | `INF-27` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b8-ha-tang-g7g48k: pam-integration (quét cửa sau, VAP binding có hạn, Warpgate 0.30), sửa thu hồi người dùng động OpenBao, bao_admin chỉ còn ADMIN, otel-siem transform/ecs-pam; kiểm thật trên PG16 và Warpgate; chờ chốt cách cấp quyền kubectl/psql qua Warpgate, chưa chạy kind |
+| 23/10/2026 14:06 | B8 | `INF-27` | Chuyển trạng thái sang **Làm một phần** — Gộp 3f6d867d (Warpgate, thu hồi PG); còn SA kubectl, dba_ops, lưu phiên RGW |
 <!-- PROGRESS_LOG_END -->
