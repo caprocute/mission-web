@@ -18,12 +18,14 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.web.SecurityFilterChain;
 import vn.viettel.okrkpi.integ.infrastructure.web.InternalIssuedDocumentController;
 import vn.viettel.okrkpi.integ.infrastructure.web.InternalSyncRunController;
+import vn.viettel.okrkpi.integ.infrastructure.web.JwksController;
 
 /**
  * Bảo vệ cổng nội bộ {@code /internal/**} bằng token dịch vụ Keycloak có vai trò realm {@code
  * svc_mission_core} (zero trust, TL-04 SEC), riêng lần đồng bộ và ánh xạ mã ngoài nhận thêm vai trò
- * {@code svc_org_service} của org-service (DV-13-06); các đường còn lại chỉ là probe và chỉ số của
- * actuator. {@code okrkpi.integ.auth-enabled=false} chỉ dùng cho kiểm thử và môi trường giả lập.
+ * {@code svc_org_service} của org-service (DV-13-06); ngoài ra chỉ có probe, chỉ số của actuator và
+ * JWKS công khai của khoá ký thông điệp ra (DV-13-02). {@code okrkpi.integ.auth-enabled=false} chỉ
+ * dùng cho kiểm thử và môi trường giả lập.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnWebApplication
@@ -83,8 +85,18 @@ public class IntegSecurityConfiguration {
     return http.build();
   }
 
+  /** JWKS ký thông điệp ra (DV-13-02) công khai cho đối tác. */
   @Bean
   @Order(3)
+  SecurityFilterChain integPublicJwks(HttpSecurity http) throws Exception {
+    http.securityMatcher(JwksController.PATH)
+        .authorizeHttpRequests(a -> a.anyRequest().permitAll())
+        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+    return http.build();
+  }
+
+  @Bean
+  @Order(4)
   SecurityFilterChain integDenyRest(HttpSecurity http) throws Exception {
     http.authorizeHttpRequests(a -> a.anyRequest().denyAll())
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));

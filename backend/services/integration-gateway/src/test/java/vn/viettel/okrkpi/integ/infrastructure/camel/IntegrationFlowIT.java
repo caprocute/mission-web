@@ -277,6 +277,9 @@ class IntegrationFlowIT {
   @Value("${local.management.port}")
   int managementPort;
 
+  @Value("${local.server.port}")
+  int serverPort;
+
   final TenantId tenant = TenantId.of(TENANT);
 
   JdbcTemplate adminJdbc() {
@@ -539,6 +542,22 @@ class IntegrationFlowIT {
               BodyHandlers.ofString());
       assertThat(res.statusCode()).as(probe).isEqualTo(200);
     }
+  }
+
+  /** JWKS ký thông điệp ra (DV-13-02) công khai; chưa cấu hình khoá thì rỗng. */
+  @Test
+  void jwksCongKhaiKhongCanXacThuc() throws Exception {
+    var res =
+        HttpClient.newHttpClient()
+            .send(
+                HttpRequest.newBuilder(
+                        URI.create("http://localhost:" + serverPort + "/.well-known/jwks.json"))
+                    .build(),
+                BodyHandlers.ofString());
+    assertThat(res.statusCode()).isEqualTo(200);
+    assertThat(res.headers().firstValue("Content-Type"))
+        .hasValueSatisfying(v -> assertThat(v).startsWith("application/jwk-set+json"));
+    assertThat(res.body()).isEqualTo("{\"keys\":[]}");
   }
 
   static KafkaProducer<byte[], byte[]> producer() {

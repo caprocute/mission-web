@@ -18,12 +18,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import vn.viettel.okrkpi.workflow.application.periodclose.PeriodCloseAlarms;
+import vn.viettel.okrkpi.workflow.application.periodclose.PeriodCloseControlService;
 import vn.viettel.okrkpi.workflow.application.periodclose.PeriodCloseSaga;
 import vn.viettel.okrkpi.workflow.application.periodclose.PeriodCloseSteps;
 import vn.viettel.okrkpi.workflow.application.periodclose.port.PeriodCloseGateway;
 import vn.viettel.okrkpi.workflow.application.periodclose.port.PeriodCloseGateway.Participant;
 import vn.viettel.okrkpi.workflow.application.saga.SagaBlueprint;
+import vn.viettel.okrkpi.workflow.application.saga.SagaService;
 import vn.viettel.okrkpi.workflow.application.saga.SagaStepHandler;
+import vn.viettel.okrkpi.workflow.application.saga.StepInvocation;
 
 /**
  * Lắp saga {@code CHOT_KY} (DV-06-06) vào khung saga: bản thiết kế, sáu bộ xử lý bước, cổng tới các
@@ -64,12 +67,27 @@ public class PeriodCloseConfiguration {
   @Bean
   @ConditionalOnMissingBean(PeriodCloseAlarms.class)
   PeriodCloseAlarms periodCloseAlarms(ObjectProvider<MeterRegistry> meters) {
-    Set<String> raised = ConcurrentHashMap.newKeySet();
-    MeterRegistry registry = meters.getIfAvailable();
-    return (invocation, budget, elapsed) -> {
-      // Mỗi lần thử của một bước chỉ cảnh báo một lần trên pod này.
-      String key = invocation.sagaId() + ":" + invocation.stepNo() + ":" + invocation.attempt();
-      if (!raised.add(key)) {
+    return new LoggingAlarms(meters.getIfAvailable());
+  }
+
+  @Bean
+  PeriodCloseControlService periodCloseControlService(SagaService sagas, Clock clock) {
+    return new PeriodCloseControlService(sagas, clock);
+  }
+
+  /** Nhật ký cảnh báo và chỉ số Micrometer; mỗi lần thử của một bước chỉ cảnh báo một lần/pod. */
+  static final class LoggingAlarms implements PeriodCloseAlarms {
+
+    private final Set<String> raised = ConcurrentHashMap.newKeySet();
+    private final MeterRegistry registry;
+
+    LoggingAlarms(MeterRegistry registry) {
+      this.registry = registry;
+    }
+
+    @Override
+    public void overBudget(StepInvocation invocation, Duration budget, Duration elapsed) {
+      if (!raised.add(key(invocation, "ngan-sach"))) {
         return;
       }
       LOG.warn(
@@ -78,13 +96,36 @@ public class PeriodCloseConfiguration {
           invocation.stepCode(),
           elapsed.toMinutes(),
           budget.toMinutes());
-      if (registry != null) {
-        Counter.builder("okrkpi.saga.period_close.over_budget")
-            .tag("step", invocation.stepCode())
-            .register(registry)
-            .increment();
+      count("okrkpi.saga.period_close.over_budget", invocation);
+    }
+
+    @Override
+    public void determinismMismatch(StepInvocation invocation, int profiles) {
+      if (!raised.add(key(invocation, "tat-dinh"))) {
+        return;
       }
-    };
+      LOG.error(
+          "BR-08-11 saga chốt kỳ {}: kiểm tính lại phát hiện {} hồ sơ lệch kết quả đã lưu",
+          invocation.sagaId(),
+          profiles);
+      count("okrkpi.saga.period_close.determinism_mismatch", invocation);
+    }
+
+    private void count(String name, StepInvocation invocation) {
+      if (registry != null) {
+        Counter.builder(name).tag("step", invocation.stepCode()).register(registry).increment();
+      }
+    }
+
+    private static String key(StepInvocation invocation, String kind) {
+      return invocation.sagaId()
+          + ":"
+          + invocation.stepNo()
+          + ":"
+          + invocation.attempt()
+          + ":"
+          + kind;
+    }
   }
 
   @Bean

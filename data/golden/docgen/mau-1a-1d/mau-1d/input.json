@@ -1,0 +1,34 @@
+{
+  "ten_don_vi": "Chi bộ Văn phòng Sở Tư pháp (giả lập)",
+  "ten_ky": "Năm 2026",
+  "ho_ten": "Lê Văn Cường",
+  "chuc_danh": "Nhân viên",
+  "bang_tieu_chi_chung": [
+    {
+      "ten_tieu_chi": "Chính trị, tư tưởng",
+      "ket_qua_tieu_chi": true
+    },
+    {
+      "ten_tieu_chi": "Đạo đức, lối sống",
+      "ket_qua_tieu_chi": true
+    },
+    {
+      "ten_tieu_chi": "Ý thức tổ chức kỷ luật",
+      "ket_qua_tieu_chi": false
+    }
+  ],
+  "uu_diem": "Chủ động tham mưu, hoàn thành đúng hạn các nhiệm vụ được giao.\nPhối hợp tốt với các phòng chuyên môn.",
+  "han_che": "Có lúc chậm cập nhật số liệu báo cáo tháng.",
+  "huong_khac_phuc": "Lập lịch cập nhật số liệu hằng tuần.",
+  "han_che_ky_truoc": [
+    {
+      "noi_dung_han_che": "Chưa đầy đủ hồ sơ lưu trữ",
+      "tinh_trang_khac_phuc": "DA_KHAC_PHUC"
+    },
+    {
+      "noi_dung_han_che": "Báo cáo quý II nộp muộn",
+      "tinh_trang_khac_phuc": "DANG_KHAC_PHUC"
+    }
+  ],
+  "muc_tu_de_xuat": "HTNV"
+}

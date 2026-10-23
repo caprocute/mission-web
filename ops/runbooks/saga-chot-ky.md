@@ -13,10 +13,10 @@ Cán bộ quản trị khởi chạy khoá kỳ ở SCR-0801; MOD-08 gọi `POST
 | 2 | `DAT_DANG_KHOA` | MOD-08 | 1 phút (cộng thời gian xả marker) | 5 lần | `DAT_LAI_MO`: kỳ về `MO`, phát EVT-26 |
 | 3 | `TINH_DIEM_CHOT_KY` | SVC-07 | 2 giờ cho 1,2 triệu hồ sơ | 3 lần (lô lỗi SVC-07 tự thử 3 lần) | `DANH_DAU_LO_THAY_THE` |
 | 4 | `SINH_BIEU_MAU` | SVC-11 | cùng bước 5 trong 4 giờ | 3 lần | `THU_HOI_TEP` |
-| 5 | `KY_SO_LO` | SVC-10 | cùng bước 4 trong 4 giờ | 13 lần, lùi 1, 2, 4… tới 30 phút, tổng khoảng 4 giờ | `HUY_YEU_CAU_KY` |
-| 6 | `HOAN_TAT` | MOD-08 rồi SVC-09 | 10 phút | 5 lần | Không: điểm không quay lại |
+| 5 | `KY_SO_LO` | SVC-10 | cùng bước 4 trong 4 giờ | 13 lần, lùi 1, 2, 4… tới 30 phút, tổng khoảng 4 giờ | `HUY_YEU_CAU_KY`; bước này xong là điểm không quay lại |
+| 6 | `HOAN_TAT` | MOD-08 rồi SVC-09 | 10 phút | 5 lần | Không |
 
-Mỗi bước từ 2 đến 6 giao một tác vụ dài cho bên làm với mã tác vụ do saga cấp, rồi lượt đối chiếu (mặc định 5 giây một lần) thăm dò trạng thái tác vụ đó. Lệnh của bước 6 đã phát là saga qua điểm không quay lại: kỳ sau đó chỉ mở lại bằng quy trình mở lại hậu kiểm bốn mắt, không bằng bù trừ.
+Mỗi bước từ 2 đến 6 giao một tác vụ dài cho bên làm với mã tác vụ do saga cấp, rồi lượt đối chiếu (mặc định 5 giây một lần) thăm dò trạng thái tác vụ đó. Bước ký số lô hoàn tất là saga qua điểm không quay lại (BR-08-09): kỳ sau đó chỉ mở lại bằng quy trình mở lại hậu kiểm bốn mắt, không bằng bù trừ.
 
 ## 2. Theo dõi
 
@@ -42,7 +42,12 @@ ORDER BY s.step_no;
 
 - `Chưa nối <bên> ... (chờ <task>)`: bên tham gia chưa có API nội bộ, môi trường đang chạy cổng `CHUA_NOI` (xem mục 4). Không thử lại cho tới khi task đó được triển khai.
 - Lỗi kỹ thuật của bên làm (mạng, HSM, quá thời hạn chờ): khắc phục rồi gọi thử lại bước (`THU_LAI`, bộ đếm lần thử về 0). Bước trước không chạy lại.
-- Cần huỷ toàn bộ (trước bước 6): người thứ hai duyệt huỷ trên SCR-0801 (`requestPeriodLockCancel`, `approvePeriodLockCancel`), MOD-08 chuyển thành lệnh bù trừ `BU_TRU`; saga hoàn tác từ bước lỗi về bước 2 (kỳ về `MO`, EVT-26). Sau bước 6 lệnh này bị từ chối.
+- Cần huỷ toàn bộ (trước khi bước ký số lô xong): người thứ hai (AC-09, khác người đề nghị) duyệt huỷ trên SCR-0801 (`requestPeriodLockCancel`, `approvePeriodLockCancel`); SVC-06 kiểm lại hai người khác nhau rồi bù trừ ngược từ bước hiện tại, kể cả lệnh đang chờ (huỷ yêu cầu ký, thu hồi tệp, đánh dấu lô điểm bị thay thế), về bước khoá (kỳ về `MO`, EVT-26 đúng một lần). Không có lệnh xoá dữ liệu đã niêm phong hay tệp Object Lock. Sau khi ký xong, yêu cầu huỷ trả 409 `PERIOD-409-POINT-OF-NO-RETURN`; dùng quy trình mở lại hậu kiểm.
+- Lệnh từ SCR-0801 (tạm dừng, tiếp tục, chạy lại, huỷ, chấp nhận lỗi) đi qua hộp lệnh `config.period_lock_command` của mission-core rồi tới `POST /api/v1/workflow/sagas/period-close/{sagaId}/commands`. Dòng hộp lệnh đứng ở `CHO` lâu (`delivered_at` trống) là bộ chuyển tiếp chưa gửi được: kiểm kết nối mission-core tới workflow-service; gửi lại an toàn vì `Idempotency-Key` là mã dòng. Dòng `THAT_BAI` mang mã Problem trong nhật ký khoá kỳ (ví dụ 409 sau khi ký xong, 403 cùng người duyệt).
+
+**Bước tính điểm `LOI_CAN_XU_LY` với "Còn N hồ sơ tính điểm lỗi".** Saga giữ bước, không tính lại cả kỳ. Xem hàng đợi lỗi ở SCR-0801, sửa nguyên nhân rồi chạy lại hồ sơ lỗi (`retryFailedPeriodLock`, kèm `Idempotency-Key`; gọi trùng khoá không tạo lô mới), hoặc để AC-04 chấp nhận để lại hồ sơ lỗi kèm lý do; saga đi tiếp khi hàng đợi rỗng hoặc đã chấp nhận.
+
+**Bước tính điểm `LOI_CAN_XU_LY` với "Kiểm tra tính lại phát hiện N hồ sơ…" (BR-08-11, chỉ số `okrkpi_saga_period_close_determinism_mismatch_total`).** Mẫu 0,1% hồ sơ tính lại cho kết quả khác kết quả đã lưu: nghi lỗi tất định hoặc dữ liệu bị sửa. Không cho saga đi tiếp; báo đội tính điểm và đội ATTT đối chiếu `score_trace`, sổ cái. Sau khi xác định nguyên nhân, thử lại cả bước (tính lại toàn kỳ) hoặc huỷ.
 
 **Pod workflow-service khởi động lại giữa chừng.** Không cần làm gì: lượt chưa commit được giao lại khi khoá lượt hết hạn (mặc định 5 phút), lượt đã commit thì bước đã ghi; tác vụ đã giao ở bên làm giữ nguyên mã nên không bị giao trùng.
 

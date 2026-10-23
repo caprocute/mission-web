@@ -1,6 +1,6 @@
 ---
 title: "Đặc tả quy trình nghiệp vụ và giao diện"
-subtitle: "Nền tảng đánh giá cán bộ theo OKR và KPI · Mã tài liệu TL-02 · Phiên bản 1.0 · 10/2026"
+subtitle: "Nền tảng đánh giá cán bộ theo OKR và KPI · Mã tài liệu TL-02 · Phiên bản 1.1 · 10/2026"
 toc-title: "Mục lục"
 ---
 
@@ -13,6 +13,7 @@ Tài liệu này là phần đặc tả quy trình nghiệp vụ và giao diện
 | 0.1 | 12/10/2026 | Nhóm phân tích nghiệp vụ | Dựng khung đặc tả, danh mục quy trình và màn hình theo cơ sở thiết kế chung |
 | 0.5 | 16/10/2026 | Nhóm phân tích nghiệp vụ, nhóm thiết kế giao diện | Hoàn thành lưu đồ, quy tắc nghiệp vụ và mockup QT-00 đến QT-08 |
 | 1.0 | 19/10/2026 | Nhóm phân tích nghiệp vụ | Bản phát hành để rà soát cùng TL-01, TL-03, TL-04 |
+| 1.1 | 23/10/2026 | Nhóm phân tích nghiệp vụ | Cập nhật theo thực tế triển khai đợt 1: phụ lục cuối ghi điểm lệch, mã bổ sung và quyết định; sửa tại chỗ nơi nhận SCIM ở QT-01 |
 
 Bảng "Tài liệu liên quan" dưới đây cho biết tài liệu này dựa vào đâu và được dùng ở đâu. Các mã thành phần (SVC), module (MOD), sự kiện (EVT), bảng dữ liệu và trạng thái trong tài liệu này đều lấy từ cơ sở thiết kế chung; khi tài liệu cần thêm cột, bảng hay trạng thái mới, phần đề xuất được ghi riêng để người thiết kế cơ sở dữ liệu đối chiếu.
 
@@ -512,7 +513,7 @@ Hình 6.5 có bốn làn. Làn "Quản trị nền tảng" (AC-01) khai báo ten
 | 4 | Saga cấp phát | SVC-03, SVC-06 | Tạo CSDL (bridge) hoặc đăng ký `tenant_id` (pool), tạo khoá KEK trong HSM, tạo Organization trong Keycloak, đăng ký tên miền và cấp chứng chỉ TLS tự động, sao chép Policy Pack và UI Pack xuống cell, tạo lịch nghỉ mặc định | SCR-0101 (tiến độ) | `DANG_CAP_PHAT` rồi `DANG_CAU_HINH` | ≤ 2 giờ (bridge), ≤ 5 phút (pool) |
 | 5 | Khai báo IdP, VNeID, vai trò | AC-02 | Khai báo IdP của tỉnh (OIDC, SAML hoặc LDAP liên kết), bật VNeID, ánh xạ nhóm sang vai trò | SCR-0102 bước 4 | `registry.tenant_idp` | 1 giờ |
 | 6 | Nhập cây tổ chức có lịch sử | AC-02 | Nhập tệp Excel theo mẫu gồm đơn vị, cấp, loại, khối đối tượng PL 2A, đơn vị cấp trên, ngày hiệu lực, đơn vị tiền thân; khai báo các sự kiện sáp nhập, giải thể, đổi tên với ngày hiệu lực | SCR-0103 | `org.org_unit`, `org.org_unit_relation`; EVT-14 | 2 giờ |
-| 7 | Đồng bộ nhân sự | SVC-13, SVC-04 | Đồng bộ từ CSDL CBCCVC qua NDXP, CSDL đảng viên, SCIM 2.0 từ IdP; khớp người theo số định danh băm HMAC và ngày sinh; ghi `org.person`, `org.assignment` với hai trục thời gian | SCR-0104 | EVT-15, EVT-16; `org.scim_sync_log` | ≤ 1 giờ cho 100.000 bản ghi |
+| 7 | Đồng bộ nhân sự | SVC-13, SVC-04 | Đồng bộ từ CSDL CBCCVC qua NDXP, CSDL đảng viên, SCIM 2.0 từ IdP (cập nhật 10/2026: giao diện SCIM đặt ở SVC-04); khớp người theo số định danh băm HMAC và ngày sinh; ghi `org.person`, `org.assignment` với hai trục thời gian | SCR-0104 | EVT-15, EVT-16; `org.scim_sync_log` | ≤ 1 giờ cho 100.000 bản ghi |
 | 8 | Đối soát lệch | AC-02 | Xem danh sách lệch theo loại và mức; chọn lấy theo nguồn, giữ dữ liệu nội bộ, ánh xạ thủ công, hoặc tạo điều động tương lai | SCR-0104 | Lệch mức Cao về 0 | 2 đến 4 giờ |
 | 9 | Kiểm tra tổng thể và kích hoạt | AC-01 | Hệ thống kiểm tra dung lượng, tên miền, chứng chỉ, Policy Pack đạt test case vàng, IdP hoạt động, lệch mức Cao bằng 0; AC-01 kích hoạt; AC-02 tạo kỳ đánh giá đầu tiên | SCR-0102 bước 6 | `SAN_SANG` rồi `DANG_VAN_HANH` | 30 phút |
 

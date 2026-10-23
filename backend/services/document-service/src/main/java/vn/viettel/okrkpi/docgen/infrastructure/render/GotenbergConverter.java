@@ -15,6 +15,11 @@ import vn.viettel.okrkpi.docgen.application.render.DocumentPorts.TransientFailur
  * Chuyển DOCX sang PDF/A-2b qua Gotenberg 8 ({@code POST /forms/libreoffice/convert}, trường {@code
  * pdfa=PDF/A-2b}). Lỗi 4xx là tệp hỏng (không thử lại); lỗi mạng, 5xx, 503 khi Gotenberg quá tải là
  * lỗi tạm thời.
+ *
+ * <p>Tắt {@code exportFormFields}: LibreOffice mặc định xuất content control của DOCX (vùng trộn
+ * của mẫu DL-05) thành ô nhập liệu PDF vẽ bằng phông Times chuẩn không nhúng, bảng mã WinAnsi, nên
+ * mất dấu tiếng Việt và người nhận sửa được ô trên tệp. Xuất như văn bản thường thì giá trị in đúng
+ * phông của mẫu và tệp không còn ô sửa được (DV-11-02).
  */
 public class GotenbergConverter implements PdfConverter {
 
@@ -39,6 +44,7 @@ public class GotenbergConverter implements PdfConverter {
           }
         });
     form.add("pdfa", PDFA_2B);
+    form.add("exportFormFields", "false");
     try {
       byte[] pdf =
           client

@@ -16,8 +16,9 @@ import vn.viettel.okrkpi.workflow.domain.saga.SagaType;
  *
  * <p>Thứ tự chọn theo TL-02a chứ không theo TL-03: EVT-09 phát khi kỳ vào {@code DANG_KHOA} (bước
  * 2) vì SVC-07 và MOD-04 tiêu thụ EVT-09 để tính điểm và lập hồ sơ; {@code DA_KHOA} đặt ở bước cuối
- * sau ký và niêm phong. Điểm không quay lại vì vậy là bước hoàn tất; bù trừ bước khoá đưa kỳ về
- * {@code MO} và MOD-08 phát EVT-26. Quyết định ghi ở wiki trang 14.
+ * sau ký và niêm phong. Điểm không quay lại là lúc bước ký số lô hoàn tất (BR-08-09: chữ ký đã hoàn
+ * tất không thu hồi được); trước đó bù trừ chạy ngược, huỷ cả yêu cầu ký đang chờ, và bù trừ bước
+ * khoá đưa kỳ về {@code MO}, MOD-08 phát EVT-26. Quyết định ghi ở wiki trang 14.
  *
  * <p>Saga không tự bù trừ khi một bước hết lần thử ({@code compensateOnExhaustion = false}): bù trừ
  * toàn bộ cần người duyệt thứ hai (TL-02a QT-08 bước 9), nên saga chờ người vận hành. Riêng tiền
@@ -99,7 +100,7 @@ public class PeriodCloseSaga implements SagaBlueprint {
                     Duration.ofHours(2),
                     signing,
                     "HUY_YEU_CAU_KY",
-                    false),
+                    true),
                 new SagaStepDefinition(
                     HOAN_TAT,
                     Command.HOAN_TAT_KY.name() + "+" + Command.NIEM_PHONG.name(),
@@ -107,13 +108,18 @@ public class PeriodCloseSaga implements SagaBlueprint {
                     Duration.ofMinutes(30),
                     RetryPolicy.standard(),
                     null,
-                    true)),
+                    false)),
             false);
   }
 
   @Override
   public SagaDefinition definition() {
     return definition;
+  }
+
+  @Override
+  public String pointOfNoReturnCode() {
+    return "PERIOD-409-POINT-OF-NO-RETURN";
   }
 
   /** Mỗi kỳ chỉ một saga chạy hoặc đã hoàn tất (BR-08-08). */

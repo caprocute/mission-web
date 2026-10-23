@@ -45,8 +45,7 @@ public final class PeriodCloseSteps {
       case PeriodCloseSaga.KIEM_TIEN_DIEU_KIEN -> new Precondition(gateway);
       case PeriodCloseSaga.DAT_DANG_KHOA ->
           new RemoteStep(stepCode, Command.KHOA_KY, gateway, alarms, clock);
-      case PeriodCloseSaga.TINH_DIEM_CHOT_KY ->
-          new RemoteStep(stepCode, Command.TINH_DIEM, gateway, alarms, clock);
+      case PeriodCloseSaga.TINH_DIEM_CHOT_KY -> new Scoring(gateway, alarms, clock);
       case PeriodCloseSaga.SINH_BIEU_MAU ->
           new RemoteStep(stepCode, Command.SINH_BIEU_MAU, gateway, alarms, clock);
       case PeriodCloseSaga.KY_SO_LO ->
@@ -124,7 +123,7 @@ public final class PeriodCloseSteps {
     private final String stepCode;
     final Command command;
     final PeriodCloseGateway gateway;
-    private final PeriodCloseAlarms alarms;
+    final PeriodCloseAlarms alarms;
     private final Clock clock;
     private final Duration budget;
 
@@ -201,6 +200,85 @@ public final class PeriodCloseSteps {
                     state.error() == null ? "Bên tham gia báo tác vụ thất bại" : state.error()));
       };
     }
+  }
+
+  /**
+   * Bước 3 (TL-02a bước 2): tính điểm chốt kỳ. Tác vụ xong mà còn hồ sơ lỗi thì bước chờ người vận
+   * hành chạy lại lô hồ sơ lỗi ({@link #RETRY_NOTE}) hoặc chấp nhận để lại kèm lý do ({@link
+   * #ACCEPT_NOTE}); sau đó kiểm tất định 0,1% hồ sơ (BR-08-11), lệch thì chờ người vận hành.
+   */
+  static final class Scoring extends RemoteStep {
+
+    static final String RETRY_NOTE = "chayLaiHoSoLoi";
+    static final String ACCEPT_NOTE = "chapNhanHoSoLoi";
+    static final String RETRY_PROFILES_NOTE = "hoSoChayLai";
+
+    Scoring(PeriodCloseGateway gateway, PeriodCloseAlarms alarms, Clock clock) {
+      super(PeriodCloseSaga.TINH_DIEM_CHOT_KY, Command.TINH_DIEM, gateway, alarms, clock);
+    }
+
+    @Override
+    public Optional<StepReply> poll(
+        StepInvocation invocation, UUID commandEventId, Instant stepStartedAt) {
+      watchBudget(invocation, stepStartedAt);
+      PeriodCloseRequest request = PeriodCloseRequest.of(invocation);
+      Outcome scoring = outcome(command, request, commandEventId);
+      if (scoring.reply != null) {
+        return scoring.reply;
+      }
+      int failed = scoring.state.failedItems();
+      Object retry = invocation.notes().get(RETRY_NOTE);
+      if (retry != null) {
+        Outcome rerun =
+            outcome(Command.TINH_LAI_HO_SO_LOI, request, UUID.fromString(retry.toString()));
+        if (rerun.reply != null) {
+          return rerun.reply.map(
+              r ->
+                  r.success()
+                      ? r
+                      : StepReply.hold("Lần chạy lại hồ sơ lỗi không thành công: " + r.error()));
+        }
+        failed = rerun.state.failedItems();
+      }
+      if (failed > 0 && !invocation.notes().containsKey(ACCEPT_NOTE)) {
+        return Optional.of(
+            StepReply.hold(
+                "Còn "
+                    + failed
+                    + " hồ sơ tính điểm lỗi: chạy lại sau khi sửa nguyên nhân hoặc chấp nhận để lại"
+                    + " kèm lý do."));
+      }
+      Outcome check =
+          outcome(Command.KIEM_TAT_DINH, request, derived(commandEventId, Command.KIEM_TAT_DINH));
+      if (check.reply != null) {
+        return check.reply;
+      }
+      if (check.state.failedItems() > 0) {
+        alarms.determinismMismatch(invocation, check.state.failedItems());
+        return Optional.of(
+            StepReply.hold(
+                "Kiểm tra tính lại phát hiện "
+                    + check.state.failedItems()
+                    + " hồ sơ cho kết quả khác kết quả đã lưu."));
+      }
+      return Optional.of(StepReply.done());
+    }
+
+    /** Tác vụ xong thì {@code reply} rỗng và có {@code state}; chưa xong hoặc lỗi thì có reply. */
+    private Outcome outcome(Command c, PeriodCloseRequest request, UUID jobId) {
+      JobState state = gateway.state(c, request, jobId);
+      return switch (state.status()) {
+        case CHUA_CO -> {
+          gateway.submit(c, request, jobId);
+          yield new Outcome(null, Optional.empty());
+        }
+        case DANG_CHAY -> new Outcome(null, Optional.empty());
+        case THAT_BAI -> new Outcome(null, reply(state));
+        case HOAN_TAT -> new Outcome(state, null);
+      };
+    }
+
+    private record Outcome(JobState state, Optional<StepReply> reply) {}
   }
 
   /**

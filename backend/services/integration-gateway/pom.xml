@@ -174,6 +174,13 @@
       <groupId>io.micrometer</groupId>
       <artifactId>micrometer-registry-prometheus</artifactId>
     </dependency>
+    <!-- DV-13-02: ký JWS dùng nimbus-jose-jwt đến qua spring-boot-starter-oauth2-resource-server.
+         Bộ kiểm chứng phía nhận kiểm phong bì CloudEvents theo JSON Schema (YC-PT-18). -->
+    <dependency>
+      <groupId>com.networknt</groupId>
+      <artifactId>json-schema-validator</artifactId>
+      <version>1.5.9</version>
+    </dependency>
     <dependency>
       <groupId>org.springdoc</groupId>
       <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
