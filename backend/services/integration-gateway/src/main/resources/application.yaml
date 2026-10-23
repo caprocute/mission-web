@@ -166,6 +166,17 @@ okrkpi:
         exclude-codes: ${INTEG_DISPATCH_EXCLUDE_CODES:}
       consumer:
         enabled: ${INTEG_OUTBOUND_CONSUMER_ENABLED:true}
+    # DV-13-02: CloudEvents ra ngoài, ký JWS bằng khoá của cell, gửi qua mTLS 1.3. Chỉ có đường dẫn:
+    # tệp JWK Set do OpenBao Agent kết xuất, thư mục chứng thư <tls-dir>/<mã kết nối viết thường>/
+    # (tls.crt, tls.key PKCS#8, ca.crt) do cert-manager gắn vào. Kết nối chưa khai dùng mặc định
+    # (C0, C1, chữ ký tách, bắt buộc mTLS).
+    cloudevents:
+      cell: ${INTEG_CELL_CODE:${vt.platform.routing.cell-code:cell-dev}}
+      data-schema-base: ${INTEG_DATA_SCHEMA_BASE:https://api.okr.viettel.vn/schemas}
+      signing-jwks-file: ${INTEG_SIGNING_JWKS_FILE:}
+      tls-dir: ${INTEG_TLS_DIR:}
+      connect-timeout: ${INTEG_CE_CONNECT_TIMEOUT:PT5S}
+      request-timeout: ${INTEG_CE_REQUEST_TIMEOUT:PT10S}
 
 camel:
   main:

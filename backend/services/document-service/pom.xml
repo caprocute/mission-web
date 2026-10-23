@@ -255,7 +255,7 @@
             <configuration>
               <inputSpec>${contract.dir}/modules/dossiers.yaml</inputSpec>
               <generatorName>spring</generatorName>
-              <openapiNormalizer>FILTER=operationId:createDossierRenderJob</openapiNormalizer>
+              <openapiNormalizer>FILTER=operationId:createDossierRenderJob|createDossierDraftForms</openapiNormalizer>
               <apiPackage>vn.viettel.okrkpi.docgen.infrastructure.web.api</apiPackage>
               <modelPackage>vn.viettel.okrkpi.docgen.infrastructure.web.model</modelPackage>
               <generateSupportingFiles>false</generateSupportingFiles>

@@ -8,6 +8,10 @@ import java.net.http.HttpClient;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -27,14 +31,22 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import vn.viettel.okrkpi.docgen.application.render.BangChamDiemRenderer;
 import vn.viettel.okrkpi.docgen.application.render.DocumentPorts;
+import vn.viettel.okrkpi.docgen.application.render.FormPreviewService;
 import vn.viettel.okrkpi.docgen.application.render.FormRenderer;
+import vn.viettel.okrkpi.docgen.application.render.Mau1Renderer;
+import vn.viettel.okrkpi.docgen.application.render.Mau2Renderer;
+import vn.viettel.okrkpi.docgen.application.render.Mau3Renderer;
+import vn.viettel.okrkpi.docgen.application.render.PreviewRateLimiter;
 import vn.viettel.okrkpi.docgen.application.render.RenderEvents;
 import vn.viettel.okrkpi.docgen.application.render.RenderInputPort;
 import vn.viettel.okrkpi.docgen.application.render.RenderMetrics;
 import vn.viettel.okrkpi.docgen.application.render.RenderService;
+import vn.viettel.okrkpi.docgen.application.render.SealedValueOpener;
 import vn.viettel.okrkpi.docgen.domain.render.RenderJobRepository;
 import vn.viettel.okrkpi.docgen.domain.render.TemplateRepository;
+import vn.viettel.okrkpi.shared.crypto.FieldEncryptor;
 import vn.viettel.okrkpi.shared.job.JobSource;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
 import vn.viettel.okrkpi.shared.resilience.ResilientClientFactory;
@@ -51,13 +63,34 @@ public class DocgenConfiguration {
    */
   @ConfigurationProperties(prefix = "okrkpi.docgen")
   public record DocgenProperties(
-      Gotenberg gotenberg, Storage storage, String coreUrl, Integer maxAttempts, Duration lease) {
+      Gotenberg gotenberg,
+      Storage storage,
+      String coreUrl,
+      Integer maxAttempts,
+      Duration lease,
+      Preview preview) {
     public DocgenProperties {
+      preview = preview == null ? new Preview(null, null, null, null, null) : preview;
       gotenberg = gotenberg == null ? new Gotenberg(null, null) : gotenberg;
       storage = storage == null ? new Storage(null, null, null, null, null) : storage;
       coreUrl = coreUrl == null ? "http://127.0.0.1:8080" : coreUrl;
       maxAttempts = maxAttempts == null ? 3 : maxAttempts;
       lease = lease == null ? Duration.ofMinutes(5) : lease;
+    }
+
+    /**
+     * Xem trước (DV-11-02): {@code limit} lượt mỗi người trong {@code window}, quá {@code timeout}
+     * thì 503; {@code threads} luồng trộn và chuyển PDF, hàng đợi {@code queue}.
+     */
+    public record Preview(
+        Integer limit, Duration window, Duration timeout, Integer threads, Integer queue) {
+      public Preview {
+        limit = limit == null ? 20 : limit;
+        window = window == null ? Duration.ofMinutes(1) : window;
+        timeout = timeout == null ? Duration.ofSeconds(5) : timeout;
+        threads = threads == null ? 4 : threads;
+        queue = queue == null ? 16 : queue;
+      }
     }
 
     /** Địa chỉ Gotenberg 8 và thời hạn một lần chuyển. */
@@ -160,6 +193,52 @@ public class DocgenConfiguration {
   }
 
   @Bean
+  FormRenderer mau1aRenderer() {
+    return new Mau1Renderer("MAU_1A");
+  }
+
+  @Bean
+  FormRenderer mau1bRenderer() {
+    return new Mau1Renderer("MAU_1B");
+  }
+
+  @Bean
+  FormRenderer mau1cRenderer() {
+    return new Mau1Renderer("MAU_1C");
+  }
+
+  @Bean
+  FormRenderer mau1dRenderer() {
+    return new Mau1Renderer("MAU_1D");
+  }
+
+  @Bean
+  FormRenderer mau2Renderer() {
+    return new Mau2Renderer();
+  }
+
+  @Bean
+  FormRenderer mau3Renderer() {
+    return new Mau3Renderer();
+  }
+
+  @Bean
+  FormRenderer bangChamDiemRenderer() {
+    return new BangChamDiemRenderer();
+  }
+
+  /**
+   * Giải mã C2 của dữ liệu biểu mẫu: dùng {@link FieldEncryptor} khi thư viện nền bật mã hoá
+   * ({@code okrkpi.crypto.enabled}); không có thì biểu mẫu mang trường C2 mã hoá bị từ chối.
+   */
+  @Bean
+  @ConditionalOnMissingBean(SealedValueOpener.class)
+  SealedValueOpener sealedValueOpener(ObjectProvider<FieldEncryptor> encryptor) {
+    FieldEncryptor e = encryptor.getIfAvailable();
+    return e == null ? SealedValueOpener.UNAVAILABLE : new FieldEncryptorSealedValueOpener(e);
+  }
+
+  @Bean
   RenderEvents renderEvents(OutboxWriter outbox) {
     return new OutboxRenderEvents(outbox);
   }
@@ -187,7 +266,8 @@ public class DocgenConfiguration {
       ObjectMapper json,
       Clock clock,
       DocgenProperties properties,
-      PlatformTransactionManager transactions) {
+      PlatformTransactionManager transactions,
+      SealedValueOpener opener) {
     return new RenderService(
         templates,
         jobs,
@@ -204,7 +284,44 @@ public class DocgenConfiguration {
         clock,
         properties.maxAttempts(),
         properties.lease(),
-        new TransactionTemplate(transactions));
+        new TransactionTemplate(transactions),
+        opener);
+  }
+
+  @Bean(destroyMethod = "shutdown")
+  ThreadPoolExecutor docgenPreviewExecutor(DocgenProperties properties) {
+    DocgenProperties.Preview p = properties.preview();
+    AtomicInteger seq = new AtomicInteger();
+    return new ThreadPoolExecutor(
+        p.threads(),
+        p.threads(),
+        60,
+        TimeUnit.SECONDS,
+        new ArrayBlockingQueue<>(p.queue()),
+        r -> {
+          Thread t = new Thread(r, "docgen-preview-" + seq.incrementAndGet());
+          t.setDaemon(true);
+          return t;
+        },
+        new ThreadPoolExecutor.AbortPolicy());
+  }
+
+  @Bean
+  FormPreviewService formPreviewService(
+      RenderService render,
+      RenderInputPort inputs,
+      DocumentPorts.PdfConverter converter,
+      ThreadPoolExecutor docgenPreviewExecutor,
+      DocgenProperties properties,
+      Clock clock) {
+    DocgenProperties.Preview p = properties.preview();
+    return new FormPreviewService(
+        render,
+        inputs,
+        converter,
+        new PreviewRateLimiter(p.limit(), p.window(), clock),
+        docgenPreviewExecutor,
+        p.timeout());
   }
 
   @Bean
