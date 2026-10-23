@@ -45,6 +45,7 @@ class HrmPersonTranslator implements Translator {
   private final PersonnelSink sink;
   private final ObjectMapper json;
   private final int batchSize;
+  private final boolean partyRoll;
 
   /** Lần chạy đang chạy của kết nối (DV-13-06), rỗng khi thông điệp đến ngoài lần chạy. */
   @FunctionalInterface
@@ -66,6 +67,7 @@ class HrmPersonTranslator implements Translator {
     this.sink = Objects.requireNonNull(sink, "sink");
     this.json = Objects.requireNonNull(json, "json");
     this.batchSize = profile.batchSize();
+    this.partyRoll = profile.party() != null;
   }
 
   @Override
@@ -84,8 +86,12 @@ class HrmPersonTranslator implements Translator {
     List<PersonnelSink.Person> persons = new ArrayList<>();
     for (PersonRows.Row r : result.rows()) {
       List<String> missing = new ArrayList<>();
-      UUID unit = resolve(ctx, EntityType.DON_VI, r.orgUnit(), "đơn vị", missing);
-      UUID title = resolve(ctx, EntityType.CHUC_DANH, r.jobTitle(), "chức danh", missing);
+      // Người đã ra khỏi Đảng không còn sinh hoạt ở tổ chức đảng nào (DV-13-07): không gửi phân
+      // công để org-service ghi lệch đảng tịch, không đòi ánh xạ tổ chức đảng cũ.
+      boolean posted = !partyRoll || r.partyMember();
+      UUID unit = posted ? resolve(ctx, EntityType.DON_VI, r.orgUnit(), "đơn vị", missing) : null;
+      UUID title =
+          posted ? resolve(ctx, EntityType.CHUC_DANH, r.jobTitle(), "chức danh", missing) : null;
       if (!missing.isEmpty()) {
         unmapped.put(r.line(), missing);
         continue;

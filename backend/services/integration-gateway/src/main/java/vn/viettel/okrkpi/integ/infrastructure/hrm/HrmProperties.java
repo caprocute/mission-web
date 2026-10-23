@@ -34,7 +34,8 @@ public record HrmProperties(Boolean enabled, Map<String, Profile> connectors) {
       Duration period,
       Duration requestTimeout,
       Integer batchSize,
-      Trigger trigger) {
+      Trigger trigger,
+      Party party) {
 
     public Profile {
       trigger = trigger == null ? Trigger.POLL : trigger;
@@ -44,6 +45,21 @@ public record HrmProperties(Boolean enabled, Map<String, Profile> connectors) {
       period = period == null ? Duration.ofMinutes(15) : period;
       requestTimeout = requestTimeout == null ? Duration.ofSeconds(10) : requestTimeout;
       batchSize = batchSize == null || batchSize < 1 ? 500 : batchSize;
+    }
+  }
+
+  /**
+   * Hồ sơ là danh sách đảng viên (DV-13-07, CSDL đảng viên qua hạ tầng riêng khối Đảng): tổ chức
+   * đảng ({@code orgUnit}) và chức vụ đảng ({@code jobTitle}) quy đổi qua {@code mapping_xref} như
+   * đơn vị, chức danh; dòng không ghi đảng tịch là đảng viên, người đã ra khỏi Đảng ({@code
+   * partyMember} quy đổi thành sai) không mang phân công sinh hoạt; nguồn không ghi trạng thái công
+   * tác thì để trống thay vì mặc định. {@code outbound} là chiều ra "theo quy định", tắt cho tới
+   * khi có văn bản xác định dữ liệu được gửi (wiki 14).
+   */
+  public record Party(Boolean outbound) {
+
+    public Party {
+      outbound = outbound != null && outbound;
     }
   }
 

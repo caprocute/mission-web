@@ -86,6 +86,12 @@ public class HrmConfiguration {
     for (Map.Entry<String, Profile> e : properties.connectors().entrySet()) {
       String code = e.getKey();
       Profile p = e.getValue();
+      if (p.party() != null && p.party().outbound()) {
+        throw new IllegalStateException(
+            "Chiều ra của "
+                + code
+                + " chưa có văn bản xác định dữ liệu được gửi, giữ party.outbound=false");
+      }
       HrmHttp http = new HrmHttp(client(p.requestTimeout()), json, secrets);
       if (p.rest() != null && p.batch() != null) {
         throw new IllegalStateException(
