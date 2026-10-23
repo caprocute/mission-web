@@ -100,8 +100,22 @@ public final class ScoreCalculator {
       CanonicalDoc inputDoc,
       Map<String, Object> variables,
       Map<String, Object> overrides) {
+    return calculate(policy, inputDoc, variables, overrides, Map.of());
+  }
+
+  /**
+   * Tính với giá trị cố định cho quy tắc phạm vi nhiệm vụ (tính thử DV-07-08, BR-12-08): {@code
+   * fixed} theo {@code task_id} → khoá quy tắc ({@code kpi_C}) → giá trị thay cho kết quả biểu
+   * thức; các quy tắc sau đọc giá trị này. Bước vết của giá trị cố định ghi lời giải thích riêng.
+   */
+  public Calculation calculate(
+      CompiledPolicy policy,
+      CanonicalDoc inputDoc,
+      Map<String, Object> variables,
+      Map<String, Object> overrides,
+      Map<String, Map<String, Object>> fixed) {
     Plan plan = Plan.of(policy);
-    Run run = new Run(policy, plan);
+    Run run = new Run(policy, plan, fixed);
     Map<String, Object> ts = params(policy.params(), overrides);
     Map<String, Object> vars = new HashMap<>(variables);
     vars.put("tham_so", ts);
@@ -180,6 +194,20 @@ public final class ScoreCalculator {
         List.copyOf(groupResults),
         List.copyOf(run.trace),
         vars);
+  }
+
+  /**
+   * Chỉ chạy phạm vi nhiệm vụ cho một phần tử {@code nv} (xem trước A, B, C, KPI khi nghiệm thu,
+   * DV-07-08), không tính nhóm hay hồ sơ.
+   *
+   * @return giá trị từng quy tắc phạm vi nhiệm vụ theo {@code eval_order}
+   */
+  public Map<String, Object> taskScope(CompiledPolicy policy, Map<String, Object> nv) {
+    Plan plan = Plan.of(policy);
+    Run run = new Run(policy, plan);
+    Map<String, Object> ts = params(policy.params(), Map.of());
+    Map<String, Object> v = new HashMap<>(Map.of("nv", nv, "tham_so", ts));
+    return run.scope(plan.tasks, v, String.valueOf(nv.get(TASK_ID)));
   }
 
   /**
@@ -448,17 +476,25 @@ public final class ScoreCalculator {
     final Map<String, Object> outputs = new LinkedHashMap<>();
     final List<TraceStep> trace = new ArrayList<>();
     final Set<String> decided = new LinkedHashSet<>();
+    final Map<String, Map<String, Object>> fixed;
 
     Run(CompiledPolicy policy, Plan plan) {
+      this(policy, plan, Map.of());
+    }
+
+    Run(CompiledPolicy policy, Plan plan, Map<String, Map<String, Object>> fixed) {
       this.policy = policy;
       this.plan = plan;
+      this.fixed = fixed;
     }
 
     /** Phạm vi bắt buộc (nhiệm vụ, nhóm): mọi quy tắc phải chạy được. */
     Map<String, Object> scope(List<String> keys, Map<String, Object> vars, String taskId) {
       Map<String, Object> results = new LinkedHashMap<>();
+      Map<String, Object> pinned = taskId == null ? Map.of() : fixed.getOrDefault(taskId, Map.of());
       for (String key : keys) {
-        Object value = step(key, vars, taskId);
+        Object value =
+            pinned.containsKey(key) ? fix(key, pinned.get(key), taskId) : step(key, vars, taskId);
         vars.put(key, value);
         results.put(key, value);
       }
@@ -495,6 +531,17 @@ public final class ScoreCalculator {
       Map<String, Object> output = new TreeMap<>();
       output.put(key, value);
       add(key, rule.legalRef(), inputs, output);
+      return value;
+    }
+
+    /** Giá trị cố định của tính thử thay cho biểu thức, vẫn ghi một bước vết. */
+    private Object fix(String key, Object value, String taskId) {
+      CompiledPolicy.Rule rule = policy.rules().get(key);
+      Map<String, Object> inputs = new TreeMap<>();
+      inputs.put(TASK_ID, taskId);
+      Map<String, Object> output = new TreeMap<>();
+      output.put(key, value);
+      add(key, rule.legalRef(), inputs, output, "Giá trị điều chỉnh khi tính thử");
       return value;
     }
 
@@ -538,6 +585,15 @@ public final class ScoreCalculator {
 
     private void add(
         String ruleCode, String legalRef, Map<String, Object> inputs, Map<String, Object> output) {
+      add(ruleCode, legalRef, inputs, output, null);
+    }
+
+    private void add(
+        String ruleCode,
+        String legalRef,
+        Map<String, Object> inputs,
+        Map<String, Object> output,
+        String explanation) {
       String ref =
           legalRef == null || legalRef.length() <= 200 ? legalRef : legalRef.substring(0, 200);
       trace.add(
@@ -547,7 +603,7 @@ public final class ScoreCalculator {
               ref,
               CanonicalDoc.of(inputs),
               CanonicalDoc.of(output),
-              null));
+              explanation));
     }
 
     private Object compact(Object value) {

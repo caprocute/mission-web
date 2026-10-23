@@ -12,12 +12,17 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import vn.viettel.okrkpi.appraisal.application.annual.AnnualRatingService;
 import vn.viettel.okrkpi.appraisal.application.annual.AnnualRatingService.Explanation;
+import vn.viettel.okrkpi.appraisal.application.annual.AnnualReassignmentService;
+import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualRatingRepository;
 import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualRatingRepository.AnnualRow;
 import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualRatingRepository.Counts;
 import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualRatingRepository.Filter;
@@ -28,6 +33,8 @@ import vn.viettel.okrkpi.contract.appraisals.model.AnnualRatingCounts;
 import vn.viettel.okrkpi.contract.appraisals.model.AnnualRatingExplanation;
 import vn.viettel.okrkpi.contract.appraisals.model.AnnualRatingPage;
 import vn.viettel.okrkpi.contract.appraisals.model.AnnualRatingRow;
+import vn.viettel.okrkpi.contract.appraisals.model.AnnualReassignmentInput;
+import vn.viettel.okrkpi.contract.appraisals.model.AnnualReassignmentResult;
 import vn.viettel.okrkpi.contract.appraisals.model.AppraisalProfileStatus;
 import vn.viettel.okrkpi.contract.appraisals.model.AppraisalQuarterRating;
 import vn.viettel.okrkpi.contract.appraisals.model.Flow;
@@ -43,6 +50,8 @@ import vn.viettel.okrkpi.shared.authz.SqlPredicate;
 import vn.viettel.okrkpi.shared.authz.UntranslatablePolicyException;
 import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.error.ProblemFieldError;
+import vn.viettel.okrkpi.shared.etag.ETags;
+import vn.viettel.okrkpi.shared.idempotency.Idempotent;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 
@@ -62,12 +71,25 @@ public class AnnualRatingController {
   private final ObjectProvider<AuthzSubjectResolver> subjects;
   private final ObjectProvider<OpaSqlFilter> filters;
   private final ObjectProvider<AppraisalReviewGuard> guards;
+  private final ObjectProvider<AnnualReassignmentService> reassignments;
 
   public AnnualRatingController(
       AnnualRatingService service,
       ObjectProvider<AuthzSubjectResolver> subjects,
       ObjectProvider<OpaSqlFilter> filters,
       ObjectProvider<AppraisalReviewGuard> guards) {
+    this(service, subjects, filters, guards, null);
+  }
+
+  /** Như trên, kèm đề xuất bố trí lại (CORE-04-11). */
+  @org.springframework.beans.factory.annotation.Autowired
+  public AnnualRatingController(
+      AnnualRatingService service,
+      ObjectProvider<AuthzSubjectResolver> subjects,
+      ObjectProvider<OpaSqlFilter> filters,
+      ObjectProvider<AppraisalReviewGuard> guards,
+      ObjectProvider<AnnualReassignmentService> reassignments) {
+    this.reassignments = reassignments;
     this.service = Objects.requireNonNull(service, "service");
     this.subjects = Objects.requireNonNull(subjects, "subjects");
     this.filters = Objects.requireNonNull(filters, "filters");
@@ -145,6 +167,73 @@ public class AnnualRatingController {
                 r -> AppraisalReviewGuard.canView(guards.getIfAvailable(), participants(tenant, r)))
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     return ResponseEntity.ok(explanation(e));
+  }
+
+  /**
+   * {@code createAnnualReassignmentProposal} (CORE-04-11, BR-10-04): {@code If-Match} là {@code
+   * rowVersion} của dòng năm; OPA {@code SCR-1001.bo-tri-lai} kiểm trên dòng đã khoá. Ghi chú C2
+   * của người lập không được lưu vào việc MOD-02 vì các cột của việc là C1 (wiki 14).
+   */
+  @PostMapping("/{id}/reassignment-proposal")
+  @Idempotent
+  @RequiresPermission(
+      operationId = "createAnnualReassignmentProposal",
+      module = "appraisals",
+      resourceType = ReviewParticipants.TYPE)
+  public ResponseEntity<AnnualReassignmentResult> createAnnualReassignmentProposal(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody(required = false) AnnualReassignmentInput body) {
+    TenantId tenant = TenantContext.require();
+    long expected = ETags.expectedVersion(ifMatch, "APPRAISAL");
+    AnnualReassignmentService proposals =
+        reassignments == null ? null : reassignments.getIfAvailable();
+    if (proposals == null) {
+      throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
+    }
+    if (body != null && body.getNote() != null && body.getNote().length() > 1000) {
+      throw invalid("note", "Ghi chú tối đa 1.000 ký tự.");
+    }
+    OpaInput.Subject subject = subject();
+    AnnualReassignmentService.Caller caller =
+        new AnnualReassignmentService.Caller(
+            actor(), subject.roles() == null ? Set.of() : Set.copyOf(subject.roles()));
+    AnnualReassignmentService.Proposal p;
+    try {
+      p =
+          proposals.propose(
+              tenant,
+              id,
+              expected,
+              caller,
+              t -> {
+                AppraisalReviewGuard guard = guards.getIfAvailable();
+                if (guard != null) {
+                  guard.reassign(participants(tenant, t));
+                }
+              });
+    } catch (java.util.NoSuchElementException e) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+    }
+    AnnualReassignmentResult out =
+        new AnnualReassignmentResult(p.annualRatingId(), p.taskId(), true);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .location(java.net.URI.create("/api/v1/tasks/" + p.taskId()))
+        .eTag(ETags.of(p.rowVersion()))
+        .body(out);
+  }
+
+  private static ReviewParticipants participants(
+      TenantId tenant, AnnualRatingRepository.ProposalTarget t) {
+    return new ReviewParticipants(
+        tenant.value(),
+        t.profileId(),
+        t.orgUnitId(),
+        t.flow(),
+        t.personId(),
+        Set.of(),
+        t.appraiserId(),
+        t.deciderId());
   }
 
   static AnnualRatingRow row(AnnualRow r) {

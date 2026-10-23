@@ -17,7 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.viettel.okrkpi.appraisal.api.AppraisalSpecialCases;
 import vn.viettel.okrkpi.appraisal.api.AppraisalSpecialCases.SpecialCase;
 import vn.viettel.okrkpi.appraisal.api.AppraisalSpecialCases.Treatment;
+import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualNotices;
 import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualRatingRepository;
+import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualRatingRepository.Flagged;
 import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualRatingRepository.UnitGroup;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
@@ -47,16 +49,28 @@ public class AnnualSetupService {
   private final PeriodApi periods;
   private final PolicyQueryApi policies;
   private final AppraisalSpecialCases specialCases;
+  private final AnnualNotices notices;
 
   public AnnualSetupService(
       AnnualRatingRepository repository,
       PeriodApi periods,
       PolicyQueryApi policies,
       AppraisalSpecialCases specialCases) {
+    this(repository, periods, policies, specialCases, null);
+  }
+
+  /** Như trên, kèm cảnh báo MSG-10-02 cho dòng năm có cờ bố trí lại (CORE-04-11). */
+  public AnnualSetupService(
+      AnnualRatingRepository repository,
+      PeriodApi periods,
+      PolicyQueryApi policies,
+      AppraisalSpecialCases specialCases,
+      AnnualNotices notices) {
     this.repository = Objects.requireNonNull(repository, "repository");
     this.periods = periods;
     this.policies = policies;
     this.specialCases = specialCases;
+    this.notices = notices;
   }
 
   /**
@@ -94,6 +108,12 @@ public class AnnualSetupService {
           packs(tenant, annualId, flow, repository.unitGroups(tenant, periodBucket, flow));
       created +=
           repository.createAnnual(tenant, annualId, year, flow, packs, special, SYSTEM_ACTOR);
+      if (notices != null) {
+        // BR-10-04: cờ hai quý liên tiếp KHTNV vừa đặt thì báo người có thẩm quyền (MSG-10-02).
+        for (Flagged f : repository.flaggedInThisTransaction(tenant, year, flow)) {
+          notices.reassignFlagged(tenant, f.annualProfileId(), f.recipients());
+        }
+      }
     }
     return created;
   }
