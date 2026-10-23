@@ -31,6 +31,7 @@ import (
 	"mission/services-go/notification/internal/rt"
 	"mission/services-go/notification/internal/store"
 	"vn.viettel.okrkpi/services-go/vtplatform/otel"
+	"vn.viettel.okrkpi/services-go/vtplatform/site"
 )
 
 func main() {
@@ -45,6 +46,12 @@ func main() {
 	}
 
 	cfg, err := config.Load()
+	if err != nil {
+		log.Error("cấu hình không hợp lệ", "err", err.Error())
+		os.Exit(2)
+	}
+	// INF-28: ở TTDL chờ (VT_SITE_ROLE=standby) không chạy consumer Kafka, job định kỳ hay migration.
+	st, err := site.FromEnv()
 	if err != nil {
 		log.Error("cấu hình không hợp lệ", "err", err.Error())
 		os.Exit(2)
@@ -72,7 +79,9 @@ func main() {
 	}
 	defer roPool.Close()
 
-	go maintain(ctx, pool, cfg.MaintainInterval, log)
+	if st.Active(log, "scheduler") {
+		go maintain(ctx, pool, cfg.MaintainInterval, log)
+	}
 
 	// Luồng SSE qua Valkey Streams (DV-12-02); một địa chỉ là nút đơn, nhiều địa chỉ là cluster.
 	var hub *rt.Hub
@@ -144,11 +153,15 @@ func main() {
 		} else {
 			worker.Limiter = &ratelimit.Memory{Limits: limits}
 		}
-		go worker.Run(ctx)
+		if st.Active(log, "scheduler") {
+			go worker.Run(ctx)
+		}
 		log.Info("bật kênh ngoài", "channels", strings.Join(external, ","))
 	}
 
-	if len(cfg.KafkaBrokers) > 0 {
+	if st.Standby() {
+		st.Active(log, "kafka-consumer")
+	} else if len(cfg.KafkaBrokers) > 0 {
 		proc, err := consume.NewProcessor(store.Beginner{Pool: pool}, log)
 		if err != nil {
 			log.Error("không tạo được bộ xử lý sự kiện", "err", err.Error())
@@ -200,7 +213,7 @@ func main() {
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,
 		// Đọc hộp thông báo dùng pool chính vì đánh dấu đã đọc cần ghi; pool đọc dành cho bản sao (suy luận).
-		Handler:           api.Handler(deps),
+		Handler:           st.Wrap(api.Handler(deps)),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
