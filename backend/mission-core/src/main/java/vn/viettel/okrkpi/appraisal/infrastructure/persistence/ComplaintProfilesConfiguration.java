@@ -29,4 +29,13 @@ public class ComplaintProfilesConfiguration {
         policies.getIfAvailable(),
         json.getIfAvailable(ObjectMapper::new));
   }
+
+  /** Cổng {@code DossierProfilesApi} cho gói hồ sơ số của MOD-06 (CORE-06-06). */
+  @Bean
+  JdbcDossierProfiles dossierProfiles(
+      @Qualifier("appraisalDataSource") DataSource dataSource,
+      @Qualifier("appraisalTransactionManager") PlatformTransactionManager tm,
+      ObjectProvider<PolicyQueryApi> policies) {
+    return new JdbcDossierProfiles(JdbcClient.create(dataSource), tm, policies.getIfAvailable());
+  }
 }
