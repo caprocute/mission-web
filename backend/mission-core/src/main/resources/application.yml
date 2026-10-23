@@ -201,7 +201,7 @@ okrkpi:
       url: ${DB_OVERSIGHT_URL:jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:35432}/${DB_NAME:mission}?currentSchema=oversight&prepareThreshold=0&ApplicationName=mission-core-oversight}
       username: ${DB_OVERSIGHT_USER:svc_oversight}
       password: ${DB_OVERSIGHT_PASSWORD:${DB_PASSWORD:}}
-      max-pool-size: ${DB_OVERSIGHT_POOL_MAX:1}
+      max-pool-size: ${DB_OVERSIGHT_POOL_MAX:2}
       min-idle: ${DB_OVERSIGHT_POOL_MIN:1}
       connection-timeout: 2000
       max-lifetime: 1500000

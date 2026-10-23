@@ -101,12 +101,49 @@ public class DossierSigningService {
   /** Yêu cầu ký đã tạo ở SVC-10. */
   public record SignStarted(UUID signRequestId, PackageRow row) {}
 
-  /** EVT-18 của chữ ký gói. */
+  /**
+   * EVT-18 của chữ ký gói; {@code signedObjectKeys} cùng thứ tự với {@code hashes} (phần tử {@code
+   * null} khi SVC-10 không trả tệp đã ký).
+   */
   public record Signed(
-      UUID signRequestId, UUID packageId, UUID signer, List<byte[]> hashes, Instant signedAt) {}
+      UUID signRequestId,
+      UUID packageId,
+      UUID signer,
+      List<byte[]> hashes,
+      Instant signedAt,
+      List<String> signedObjectKeys) {
+
+    public Signed {
+      signedObjectKeys =
+          signedObjectKeys == null
+              ? List.of()
+              : java.util.Collections.unmodifiableList(new ArrayList<>(signedObjectKeys));
+    }
+
+    public Signed(
+        UUID signRequestId, UUID packageId, UUID signer, List<byte[]> hashes, Instant signedAt) {
+      this(signRequestId, packageId, signer, hashes, signedAt, List.of());
+    }
+
+    /** Khoá tệp đã ký của phần tử có băm {@code hash}. */
+    String signedObjectKey(byte[] hash) {
+      for (int i = 0; i < hashes.size() && i < signedObjectKeys.size(); i++) {
+        if (Arrays.equals(hashes.get(i), hash)) {
+          return signedObjectKeys.get(i);
+        }
+      }
+      return null;
+    }
+  }
 
   /** EVT-22: kỳ mở lại hậu kiểm theo phạm vi. */
-  public record Reopened(UUID periodId, String scope, List<UUID> scopeIds, UUID actor) {}
+  public record Reopened(
+      UUID periodId, String scope, List<UUID> scopeIds, UUID actor, UUID reopenRequestId) {
+
+    public Reopened(UUID periodId, String scope, List<UUID> scopeIds, UUID actor) {
+      this(periodId, scope, scopeIds, actor, null);
+    }
+  }
 
   /** Tài liệu cần ký trả SVC-10: gói chờ ký có manifest đã chốt, người ký là người yêu cầu. */
   public record SignSource(boolean ready, Set<UUID> signers, byte[] manifestHash) {}
@@ -334,8 +371,9 @@ public class DossierSigningService {
 
   /**
    * EVT-18 của chữ ký gói: gói {@code CHO_KY} có manifest khớp băm đã ký chuyển {@code DA_KY} rồi
-   * {@code DA_NOP} (băm gói là băm manifest đã ký), ghi sổ cái và MSG-11-05 qua outbox, sau đó báo
-   * MOD-04 khoá các hồ sơ trong gói. Sự kiện trùng hoặc lệch bị bỏ qua.
+   * {@code DA_NOP} (băm gói là băm manifest đã ký, tệp chữ ký ghi vào {@code object_key} để xuất
+   * ZIP và gửi gói con kèm chữ ký), ghi sổ cái và MSG-11-05 qua outbox, sau đó báo MOD-04 khoá các
+   * hồ sơ trong gói. Sự kiện trùng hoặc lệch bị bỏ qua.
    *
    * @return {@code true} khi gói vừa được nộp
    */
@@ -368,7 +406,14 @@ public class DossierSigningService {
                   packages.updateStatus(tenant, pkg, PackageStatus.DA_KY, null, signerId);
               PackageRow signedRow = with(pkg, PackageStatus.DA_KY, signedVersion);
               Instant at = event.signedAt() != null ? event.signedAt() : clock.instant();
-              long version = packages.submit(tenant, signedRow, at, pkg.manifestHash(), signerId);
+              long version =
+                  packages.submit(
+                      tenant,
+                      signedRow,
+                      at,
+                      pkg.manifestHash(),
+                      event.signedObjectKey(pkg.manifestHash()),
+                      signerId);
               List<UUID> recipients =
                   new ArrayList<>(new LinkedHashSet<>(nonNull(signerId, pkg.updatedBy())));
               events.submitted(
@@ -422,7 +467,8 @@ public class DossierSigningService {
         if (latest.isPresent() && !latest.get().id().equals(pkg.id())) {
           continue;
         }
-        PackageRow next = packages.newVersion(tenant, pkg, Ids.newUuidV7(), actor);
+        PackageRow next =
+            packages.newVersion(tenant, pkg, Ids.newUuidV7(), event.reopenRequestId(), actor);
         events.reopened(tenant, next, pkg.id(), actor);
         created++;
       }

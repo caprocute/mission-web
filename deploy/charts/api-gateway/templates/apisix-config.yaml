@@ -1,6 +1,7 @@
 {{- $v := .Values -}}
 {{- if not (has $v.mode (list "controller" "standalone")) }}{{ fail "api-gateway: mode chỉ nhận controller hoặc standalone" }}{{ end }}
-{{- range $v.routes }}{{ if eq .name "kpi-legacy" }}{{ fail "api-gateway: không có tuyến Strangler /kpi-legacy (Mission là hệ mới độc lập)" }}{{ end }}{{ end }}
+{{- $routes := include "api-gateway.allRoutes" . | fromJsonArray }}
+{{- range $routes }}{{ if eq .name "kpi-legacy" }}{{ fail "api-gateway: không có tuyến Strangler /kpi-legacy (Mission là hệ mới độc lập)" }}{{ end }}{{ end }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -65,11 +66,16 @@ data:
       - ip-restriction
       - openid-connect
       - vt-claims
+      - fault-injection
+      - client-control
+      - workflow
       - limit-conn
       - limit-count
       - limit-req
       - proxy-rewrite
       - response-rewrite
+      - vt-problem
+      - vt-waf-body
       - redirect
       - opentelemetry
       - prometheus
@@ -83,17 +89,30 @@ data:
   {{- if eq $v.mode "standalone" }}
   apisix.yaml: |
     routes:
-      {{- range $v.routes }}
+      {{- range $routes }}
+      {{- $rp := include "api-gateway.routePlugins" (dict "root" $ "route" .) | fromYaml }}
       - id: {{ .name }}
         uris: {{ toJson .paths }}
         hosts: {{ toJson .hosts }}
-        {{- with .pluginConfig }}
-        plugin_config_id: {{ . }}
+        {{- with .methods }}
+        methods: {{ toJson . }}
         {{- end }}
-        {{- with .rewrite }}
+        {{- with .uriRegex }}
+        priority: 10
+        vars: [["uri", "~~", {{ . | quote }}]]
+        {{- end }}
+        {{- if .pluginConfig }}
+        plugin_config_id: {{ include "api-gateway.routePluginConfig" (dict "root" $ "route" .) }}
+        {{- end }}
+        {{- if or .rewrite $rp }}
         plugins:
+          {{- with .rewrite }}
           proxy-rewrite:
             regex_uri: [{{ index . 0 | quote }}, {{ index . 1 | replace "{realm}" $v.oidc.realm | quote }}]
+          {{- end }}
+          {{- with $rp }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
         {{- end }}
         upstream:
           type: roundrobin
@@ -103,9 +122,13 @@ data:
           timeout: {{ toJson .timeout }}
       {{- end }}
     plugin_configs:
-      - id: protected-api
+      {{- range $class := list "1" "2" "3" }}
+      - id: {{ include "api-gateway.classConfigName" $class }}
+        # Nhãn APISIX (khoá chỉ gồm chữ, số, -, _, .) tương ứng nhãn vt.io/* của ApisixPluginConfig ở chế độ controller.
+        labels: { priority-class: {{ $class | quote }}, degrade-level: {{ $v.degrade.level | toString | quote }} }
         plugins:
-          {{- include "api-gateway.protectedApi" . | nindent 10 }}
+          {{- include "api-gateway.pluginConfig" (dict "root" $ "class" $class "level" $v.degrade.level) | nindent 10 }}
+      {{- end }}
     {{- if $v.opentelemetry.enabled }}
     plugin_metadata:
       - id: opentelemetry
@@ -128,3 +151,7 @@ metadata:
 data:
   vt-claims.lua: |
     {{- .Files.Get "files/vt-claims.lua" | nindent 4 }}
+  vt-problem.lua: |
+    {{- .Files.Get "files/vt-problem.lua" | nindent 4 }}
+  vt-waf-body.lua: |
+    {{- .Files.Get "files/vt-waf-body.lua" | nindent 4 }}

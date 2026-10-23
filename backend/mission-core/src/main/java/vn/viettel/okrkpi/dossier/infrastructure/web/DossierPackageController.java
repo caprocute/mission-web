@@ -45,12 +45,15 @@ import vn.viettel.okrkpi.contract.dossiers.model.DossierPackageStatus;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierRegenerateRequest;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierSignJob;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierTransferDestination;
+import vn.viettel.okrkpi.contract.dossiers.model.DossierTransferRequest;
 import vn.viettel.okrkpi.contract.dossiers.model.PeriodRef;
 import vn.viettel.okrkpi.contract.dossiers.model.Ref;
+import vn.viettel.okrkpi.dossier.application.dossierpackage.DossierExportService;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.DossierPackageService;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.DossierPackageService.NewPackageCommand;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.DossierPackageService.PackageView;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.DossierSigningService;
+import vn.viettel.okrkpi.dossier.application.dossierpackage.DossierTransferService;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.port.DossierPackageRepository.Filter;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.port.DossierPackageRepository.FormRow;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.port.DossierPackageRepository.PackageRow;
@@ -76,7 +79,8 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
  * Gói hồ sơ số của {@code dossiers.yaml} (CORE-06-06, QT-11 bước 10–12, SCR-1102): {@code
  * listDossierPackages}, {@code createDossierPackage}, {@code getDossierPackage}, {@code
  * listDossierPackageForms}, {@code regenerateDossierPackageForms} (202); CORE-06-07 thêm {@code
- * getDossierPackageChecklist} và {@code signDossierPackage} (202 kèm mã yêu cầu ký). Phạm vi đơn vị
+ * getDossierPackageChecklist} và {@code signDossierPackage} (202 kèm mã yêu cầu ký); CORE-06-08
+ * thêm {@code exportDossierPackage} và {@code createDossierPackageTransfer} (202). Phạm vi đơn vị
  * của phân công đang chọn; tên đơn vị, người chưa có bản sao trong MOD-06 nên trả rỗng.
  */
 @RestController
@@ -91,17 +95,23 @@ public class DossierPackageController {
 
   private final DossierPackageService service;
   private final DossierSigningService signing;
+  private final DossierExportService exports;
+  private final DossierTransferService transfers;
   private final DossierCallers callers;
   private final ObjectProvider<PeriodApi> periods;
 
   public DossierPackageController(
       DossierPackageService service,
       DossierSigningService signing,
+      DossierExportService exports,
+      DossierTransferService transfers,
       ObjectProvider<DossierCaller> callers,
       ObjectProvider<AuthzSubjectResolver> subjects,
       ObjectProvider<PeriodApi> periods) {
     this.service = Objects.requireNonNull(service, "service");
     this.signing = Objects.requireNonNull(signing, "signing");
+    this.exports = Objects.requireNonNull(exports, "exports");
+    this.transfers = Objects.requireNonNull(transfers, "transfers");
     this.callers = new DossierCallers(callers, subjects);
     this.periods = Objects.requireNonNull(periods, "periods");
   }
@@ -352,6 +362,60 @@ public class DossierPackageController {
         .location(Jobs.location(request.toString()))
         .header(HttpHeaders.RETRY_AFTER, Long.toString(Jobs.DEFAULT_RETRY_AFTER_SECONDS))
         .body(job);
+  }
+
+  @PostMapping("/{id}/export")
+  @Idempotent
+  @RequiresPermission(
+      operationId = "exportDossierPackage",
+      module = "dossiers",
+      resourceType = "dossier_package")
+  public ResponseEntity<Job> exportDossierPackage(@PathVariable("id") UUID id) {
+    TenantId tenant = TenantContext.require();
+    UUID actor = callers.actor();
+    DossierExportService.ExportJob job;
+    try {
+      job = exports.request(tenant, actor, callers.unit().orElse(null), id);
+    } catch (NoSuchElementException e) {
+      throw notFound();
+    }
+    return Jobs.accepted(PackageExportJobs.job(job));
+  }
+
+  @PostMapping("/{id}/transfers")
+  @Idempotent
+  @RequiresPermission(
+      operationId = "createDossierPackageTransfer",
+      module = "dossiers",
+      resourceType = "dossier_package")
+  public ResponseEntity<Job> createDossierPackageTransfer(
+      @PathVariable("id") UUID id, @RequestBody(required = false) DossierTransferRequest body) {
+    TenantId tenant = TenantContext.require();
+    UUID actor = callers.actor();
+    if (body == null || body.getDestination() == null) {
+      throw invalid("destination", "Chưa chọn nơi nhận hồ sơ.");
+    }
+    List<UUID> profileIds =
+        body.getProfileIds() == null ? List.of() : List.copyOf(body.getProfileIds());
+    if (profileIds.size() > MAX_LIMIT) {
+      throw invalid("profileIds", "Mỗi lần gửi tối đa 200 hồ sơ.");
+    }
+    DossierTransferService.TransferJob job;
+    try {
+      job =
+          transfers.request(
+              tenant,
+              actor,
+              callers.unit().orElse(null),
+              id,
+              body.getDestination().getValue(),
+              profileIds);
+    } catch (NoSuchElementException e) {
+      throw notFound();
+    } catch (DossierTransferService.TransferUnavailableException e) {
+      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
+    }
+    return Jobs.accepted(PackageTransferJobs.job(job));
   }
 
   // ---------------------------------------------------------------- ánh xạ

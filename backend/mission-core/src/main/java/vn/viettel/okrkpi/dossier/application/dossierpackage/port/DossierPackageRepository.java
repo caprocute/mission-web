@@ -193,12 +193,50 @@ public interface DossierPackageRepository {
   Optional<PackageRow> findBySignRequest(TenantId tenant, UUID signRequestId);
 
   /**
-   * Gói {@code DA_KY} sang {@code DA_NOP} với thời điểm nộp và băm gói (gói sau đó bị khoá). Trả
-   * phiên bản mới.
+   * Gói {@code DA_KY} sang {@code DA_NOP} với thời điểm nộp, băm gói và khoá tệp chữ ký gói (gói
+   * sau đó bị khoá). Trả phiên bản mới.
+   *
+   * @param signatureKey khoá đối tượng tệp chữ ký của manifest ({@code signedObjectKey} của
+   *     EVT-18), ghi vào {@code object_key}; {@code null} khi SVC-10 không trả
    */
   long submit(
-      TenantId tenant, PackageRow row, Instant submittedAt, byte[] packageSha256, UUID actor);
+      TenantId tenant,
+      PackageRow row,
+      Instant submittedAt,
+      byte[] packageSha256,
+      String signatureKey,
+      UUID actor);
 
   /** Phiên bản kế tiếp của gói ở {@code DANG_LAP}: cùng đơn vị, kỳ, loại, mã và hạn nộp. */
-  PackageRow newVersion(TenantId tenant, PackageRow previous, UUID id, UUID actor);
+  PackageRow newVersion(
+      TenantId tenant, PackageRow previous, UUID id, UUID reopenRequestId, UUID actor);
+
+  /** Yêu cầu mở lại kỳ (EVT-22) dẫn tới phiên bản gói; rỗng với gói lập thường. */
+  Optional<UUID> reopenRequest(TenantId tenant, int periodBucket, UUID packageId);
+
+  /**
+   * Biểu mẫu nháp ngoài gói ({@code createDossierDraftForms}); {@code sourceProfiles} là tập hồ sơ
+   * đã chọn của biểu mẫu đơn vị, rỗng với biểu mẫu cá nhân.
+   */
+  void insertDraft(
+      TenantId tenant,
+      UUID periodId,
+      int periodBucket,
+      NewForm form,
+      List<UUID> sourceProfiles,
+      UUID actor);
+
+  /** Tập hồ sơ đã chọn của biểu mẫu nháp đơn vị; rỗng với biểu mẫu khác. */
+  List<UUID> sourceProfiles(TenantId tenant, int periodBucket, UUID formId);
+
+  // ---------------------------------------------------------------- xuất, gửi gói con (CORE-06-08)
+
+  /** Khoá tệp chữ ký gói ({@code object_key}) ghi lúc nộp; rỗng khi chưa có. */
+  Optional<String> signatureKey(TenantId tenant, int periodBucket, UUID packageId);
+
+  /**
+   * Gói {@code DA_NOP} sang {@code DA_LUU_TRU}, ghi nơi chuyển hồ sơ diện TW khi cột đang rỗng. Trả
+   * phiên bản mới, 0 khi gói không còn {@code DA_NOP}.
+   */
+  long archive(TenantId tenant, PackageRow row, String transferredTo, UUID actor);
 }

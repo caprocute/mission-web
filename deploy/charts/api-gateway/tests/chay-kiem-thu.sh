@@ -31,5 +31,7 @@ phai_hong() { local mota=$1 mau=$2; shift 2
   elif grep -q "$mau" "$OUT/e"; then ok "$mota bị từ chối"; else hong "$mota: thông báo không rõ"; cat "$OUT/e"; fi; }
 phai_hong "ảnh Coraza thiếu digest" "SEC-55"
 phai_hong "mode lạ" "mode chỉ nhận" -f tests/values-ci.yaml --set mode=abc
+# Giới hạn tần suất, lớp ưu tiên, cắt tải, WAF (DV-01-02).
+tests/kiem-thu-gioi-han.sh > "$OUT/gh" 2>&1 && ok "$(tail -1 "$OUT/gh")" || { hong "kiem-thu-gioi-han.sh"; grep HỎNG "$OUT/gh"; }
 echo "Tổng: $dat đạt, $truot hỏng"
 [ "$truot" -eq 0 ]

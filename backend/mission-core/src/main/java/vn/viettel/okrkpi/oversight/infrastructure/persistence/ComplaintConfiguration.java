@@ -39,6 +39,7 @@ import vn.viettel.okrkpi.oversight.infrastructure.client.EsignComplaintSigner;
 import vn.viettel.okrkpi.oversight.infrastructure.client.ModuleComplaintHandlerDirectory;
 import vn.viettel.okrkpi.oversight.infrastructure.client.ModuleComplaintPartyDirectory;
 import vn.viettel.okrkpi.oversight.infrastructure.client.ReopenComplaintReopener;
+import vn.viettel.okrkpi.oversight.infrastructure.docgen.ComplaintFormPreviewSource;
 import vn.viettel.okrkpi.oversight.infrastructure.listener.ComplaintSignedListener;
 import vn.viettel.okrkpi.oversight.infrastructure.scheduling.ComplaintClosingJob;
 import vn.viettel.okrkpi.oversight.infrastructure.scheduling.ComplaintExplanationJob;
@@ -92,7 +93,8 @@ public class ComplaintConfiguration {
           String registry,
       @Value("${mission.oversight.esign.base-url:}") String esignUrl,
       ObjectProvider<OutboxPayloadSerializer> serializer,
-      ObjectProvider<ObjectMapper> json) {
+      ObjectProvider<ObjectMapper> json,
+      @Qualifier("oversightTransactionManager") PlatformTransactionManager tm) {
     OutboxWriter outbox = outbox(dataSource, registry, serializer, json);
     FieldEncryptor e = encryptor.getIfAvailable();
     return new ComplaintService(
@@ -109,7 +111,14 @@ public class ComplaintConfiguration {
                         new EsignRequestClient(esignUrl, json.getIfAvailable(ObjectMapper::new)))),
         new OutboxComplaintEvents(outbox),
         new OutboxOversightAudit(outbox),
+        ReopenRequestConfiguration.committed(tm),
         java.time.Clock.systemUTC());
+  }
+
+  /** Dữ liệu xem trước văn bản trả lời khiếu nại cho cổng xem trước của MOD-06. */
+  @Bean
+  ComplaintFormPreviewSource complaintFormPreviewSource(ComplaintService complaintService) {
+    return new ComplaintFormPreviewSource(complaintService);
   }
 
   @Bean

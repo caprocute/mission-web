@@ -18,7 +18,7 @@ import java.time.Instant;
  * của org-service; giữ tới 30 giây trước khi hết hạn, cùng cách {@code ServiceToken} của
  * analytics-api. Không cấu hình địa chỉ token thì không gửi token (giả lập, kiểm thử).
  */
-class ServiceToken {
+public class ServiceToken {
 
   private final HttpClient http;
   private final ObjectMapper json;
@@ -29,7 +29,7 @@ class ServiceToken {
   private String token;
   private Instant expiry = Instant.EPOCH;
 
-  ServiceToken(
+  public ServiceToken(
       HttpClient http,
       ObjectMapper json,
       String tokenUrl,
@@ -44,11 +44,11 @@ class ServiceToken {
     this.clock = clock;
   }
 
-  boolean enabled() {
+  public boolean enabled() {
     return tokenUrl != null && !tokenUrl.isBlank();
   }
 
-  synchronized String bearer() throws IOException {
+  public synchronized String bearer() throws IOException {
     if (token != null && clock.instant().isBefore(expiry)) {
       return token;
     }

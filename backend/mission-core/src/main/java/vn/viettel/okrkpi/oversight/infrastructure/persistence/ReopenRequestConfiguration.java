@@ -21,6 +21,8 @@ import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.appraisal.api.ProfileParticipantsApi;
 import vn.viettel.okrkpi.config.api.AccessDirectory;
 import vn.viettel.okrkpi.config.api.PeriodApi;
@@ -89,7 +91,8 @@ public class ReopenRequestConfiguration {
       @Value("${mission.oversight.esign.base-url:}") String esignUrl,
       ObjectProvider<ApprovalSigner> signer,
       ObjectProvider<OutboxPayloadSerializer> serializer,
-      ObjectProvider<ObjectMapper> json) {
+      ObjectProvider<ObjectMapper> json,
+      @Qualifier("oversightTransactionManager") PlatformTransactionManager tm) {
     OutboxWriter outbox = outbox(dataSource, registry, serializer, json);
     return new ReopenApprovalService(
         repository,
@@ -105,7 +108,19 @@ public class ReopenRequestConfiguration {
         new OutboxReopenEvents(outbox),
         new OutboxOversightAudit(outbox),
         periods,
+        committed(tm),
         java.time.Clock.systemUTC());
+  }
+
+  /**
+   * Giao dịch riêng ({@code REQUIRES_NEW}) cho mẫu "chốt trước, gọi sau" (wiki trang 14): API ký
+   * giữ một kết nối {@code oversight} cho giao dịch khoá lặp, giao dịch riêng và lời hỏi tài liệu
+   * cần ký của SVC-10 cần thêm kết nối, nên {@code DB_OVERSIGHT_POOL_MAX} tối thiểu là 2.
+   */
+  static TransactionTemplate committed(PlatformTransactionManager tm) {
+    TransactionTemplate committed = new TransactionTemplate(tm);
+    committed.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    return committed;
   }
 
   @Bean
