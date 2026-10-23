@@ -28,6 +28,7 @@ echo "== Luật dài hạn, Alertmanager, dashboard (INF-15)"
 promtool check rules rules/*.yaml > "$OUT/pt" 2>&1 && ok "promtool check rules dài hạn và NG" || { hong "promtool check rules"; cat "$OUT/pt"; }
 (cd rules/tests && promtool test rules dai-han-nang-luc.test.yaml) > "$OUT/pt" 2>&1 && ok "promtool test rules dai-han-nang-luc.test.yaml" || { hong "promtool test"; tail -20 "$OUT/pt"; }
 alertmanager/tests/chay-kiem-thu.sh > "$OUT/am" 2>&1 && ok "Alertmanager: $(tail -1 "$OUT/am")" || { hong "Alertmanager"; grep HỎNG "$OUT/am"; }
+tests/kiem-thu-cong-cell.sh > "$OUT/cc" 2>&1 && ok "điểm vào TLS cho cell: $(tail -1 "$OUT/cc")" || { hong "điểm vào TLS cho cell"; grep HỎNG "$OUT/cc"; }
 dashboards/dung.sh --kiem-tra && ok "dashboards/json khớp mã Grafonnet" || hong "dashboards/json lệch"
 for d in dashboards/json/*.json; do python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["uid"] and d["panels"]' "$d" || hong "JSON $d"; done
 grep -q 'name: thanos-rule$' "$f" && grep -q 'name: alertmanager$' "$f" && ok "render có Thanos Ruler và Alertmanager" || hong "Thanos Ruler, Alertmanager"
