@@ -30,7 +30,12 @@ import { PolicyWorkspace } from './policy-workspace';
  * khoá quy tắc `kpi_A`, `kpi_B`, `kpi_C` (theo `definitions` của manifest), nên khối tìm cả hai dạng.
  */
 const BLOCKS = ['A', 'B', 'C'] as const;
+/**
+ * Tổng điểm tối đa các nhóm (BR-15-05, như RuleParamRules.totalFor của máy chủ): luồng Đảng 100; luồng Nhà
+ * nước 70 vì 30 điểm còn lại thuộc tiêu chí chung.
+ */
 const GROUP_TOTAL = 100;
+const GROUP_TOTAL_NHA_NUOC = 70;
 
 /**
  * Config Studio · Công thức (SCR-1501, QT-15): khối KPI nhiệm vụ = (A + B + C)/3 với ba biểu thức
@@ -319,7 +324,7 @@ const GROUP_TOTAL = 100;
             <p class="small muted">
               KPI nhóm là trung bình KPI các nhiệm vụ trong nhóm. Tổng điểm tối đa các nhóm phải
               bằng
-              {{ total }}.
+              {{ total() }}.
             </p>
           }
         </section>
@@ -633,7 +638,9 @@ export class FormulaPage {
   protected readonly blocks = computed(() =>
     BLOCKS.map((k) => this.blockKey(k)).filter((k) => this.draft().some((r) => r.ruleKey === k)),
   );
-  protected readonly total = GROUP_TOTAL;
+  protected readonly total = computed(() =>
+    this.ws.pack.value()?.flow === 'NHA_NUOC' ? GROUP_TOTAL_NHA_NUOC : GROUP_TOTAL,
+  );
   protected readonly statusLabel = POLICY_VERSION_STATUS_LABEL;
   protected readonly vlabel = policyVersionLabel;
   protected readonly qualityOpts = Object.entries(QUALITY_METHOD_LABEL);
@@ -705,8 +712,8 @@ export class FormulaPage {
     Object.values(this.groupMax()).reduce((a, n) => a + (Number(n) || 0), 0),
   );
   protected readonly groupError = computed(() =>
-    this.groups().length && this.groupTotal() !== GROUP_TOTAL
-      ? `Tổng điểm tối đa các nhóm là ${this.groupTotal()}, phải bằng ${GROUP_TOTAL}.`
+    this.groups().length && this.groupTotal() !== this.total()
+      ? `Tổng điểm tối đa các nhóm là ${this.groupTotal()}, phải bằng ${this.total()}.`
       : null,
   );
   protected readonly slowError = computed(() => {
@@ -782,7 +789,18 @@ export class FormulaPage {
     return this.rule(this.paramOwner(key, name))?.params?.[name];
   }
 
+  /**
+   * Danh sách nhóm của gói (`tham_so.nhom`: mã, điểm tối đa, nhóm nhiệm vụ) mà quy tắc tính điểm nhóm giữ;
+   * phiên bản cũ đặt điểm tối đa dạng bảng `diem_toi_da` theo mã nhóm.
+   */
+  private groupList(): { ma: string; diem_toi_da: number }[] | null {
+    const list = this.param('nhom', 'nhom');
+    return Array.isArray(list) ? (list as { ma: string; diem_toi_da: number }[]) : null;
+  }
+
   private groupMax(): Record<string, number> {
+    const list = this.groupList();
+    if (list) return Object.fromEntries(list.map((g) => [g.ma, Number(g.diem_toi_da) || 0]));
     return (this.param('nhom', 'diem_toi_da') ?? {}) as Record<string, number>;
   }
 
@@ -805,6 +823,16 @@ export class FormulaPage {
   }
 
   protected setGroupMax(group: string, value: unknown) {
+    const list = this.groupList();
+    if (list) {
+      const max = Number(value) || 0;
+      this.setParam(
+        'nhom',
+        'nhom',
+        list.map((g) => (g.ma === group ? { ...g, diem_toi_da: max } : g)),
+      );
+      return;
+    }
     this.setParam('nhom', 'diem_toi_da', { ...this.groupMax(), [group]: Number(value) || 0 });
   }
 

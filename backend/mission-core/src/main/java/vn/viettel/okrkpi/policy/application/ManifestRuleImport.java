@@ -20,14 +20,18 @@ import vn.viettel.okrkpi.shared.kernel.Ids;
  * để sửa. Mỗi định nghĩa thành một quy tắc cùng khoá, biểu thức, kiểu, làm tròn ({@code {}} khi
  * định nghĩa không làm tròn), thứ tự và cờ {@code overridable}; {@code params} là các tham số mà
  * biểu thức đọc trực tiếp qua {@code tham_so.<khoá>}, lấy giá trị {@code mac_dinh} của manifest.
- * Quy tắc cùng khoá ghi đè định nghĩa khi tính (PolicyEvaluator), nên kết quả không đổi so với chỉ
- * dùng manifest.
+ * Danh sách nhóm {@code tham_so.nhom} (mã, điểm tối đa, nhóm nhiệm vụ) không được biểu thức nào đọc
+ * trực tiếp mà định ra các lượt của phạm vi {@code nhom}, nên được đặt ở quy tắc đầu tiên của phạm
+ * vi đó đọc {@code g.diem_toi_da}, để thẻ Công thức sửa được điểm tối đa từng nhóm và kiểm tổng
+ * (RuleParamRules.groupTotal) đếm đúng một lần. Quy tắc cùng khoá ghi đè định nghĩa khi tính
+ * (PolicyEvaluator), nên kết quả không đổi so với chỉ dùng manifest.
  */
 final class ManifestRuleImport {
 
   private static final Pattern PARAM =
       Pattern.compile("tham_so\\.([A-Za-z_]\\w*(?:\\.[A-Za-z_]\\w*)*)");
   private static final int LEGAL_REF_MAX = 200;
+  private static final String GROUPS = "nhom";
 
   private ManifestRuleImport() {}
 
@@ -35,12 +39,13 @@ final class ManifestRuleImport {
     Map<?, ?> params = manifest.get("params") instanceof Map<?, ?> p ? p : Map.of();
     List<PolicyRule> out = new ArrayList<>();
     Set<String> seen = new LinkedHashSet<>();
+    boolean groupsPlaced = !(params.get(GROUPS) instanceof Map<?, ?>);
     for (String block : List.of("definitions", "definitions_nam")) {
       if (!(manifest.get(block) instanceof Map<?, ?> scopes)) {
         continue;
       }
-      for (Object defs : scopes.values()) {
-        if (!(defs instanceof Map<?, ?> m)) {
+      for (Map.Entry<?, ?> scope : scopes.entrySet()) {
+        if (!(scope.getValue() instanceof Map<?, ?> m)) {
           continue;
         }
         for (Map.Entry<?, ?> e : m.entrySet()) {
@@ -50,6 +55,13 @@ final class ManifestRuleImport {
           }
           String expression = String.valueOf(d.get("expression")).strip();
           String legal = d.get("legal_ref") == null ? "" : String.valueOf(d.get("legal_ref"));
+          Map<String, Object> used = referenced(expression, params);
+          if (!groupsPlaced
+              && GROUPS.equals(String.valueOf(scope.getKey()))
+              && expression.contains("g.diem_toi_da")) {
+            used.put(GROUPS, ((Map<?, ?>) params.get(GROUPS)).get("mac_dinh"));
+            groupsPlaced = true;
+          }
           out.add(
               new PolicyRule(
                   Ids.newUuidV7(),
@@ -60,7 +72,7 @@ final class ManifestRuleImport {
                   write(json, d.get("rounding") instanceof Map<?, ?> r ? r : Map.of()),
                   legal.length() > LEGAL_REF_MAX ? legal.substring(0, LEGAL_REF_MAX) : legal,
                   d.get("eval_order") instanceof Number n ? n.intValue() : 0,
-                  write(json, referenced(expression, params)),
+                  write(json, used),
                   Boolean.TRUE.equals(d.get("overridable"))));
         }
       }

@@ -215,6 +215,9 @@ public class PolicyPreviewService {
 
   /**
    * Kết quả từng nhiệm vụ theo {@code PolicyEvaluateOutputs.nhiem_vu}; thiếu khoá bắt buộc thì bỏ.
+   * Hợp đồng đặt tên ba thành phần {@code A}, {@code B}, {@code C}; gói mẫu (data/policy-pack) đặt
+   * khoá định nghĩa là {@code kpi_A}, {@code kpi_B}, {@code kpi_C}, nên lấy khoá ngắn trước rồi tới
+   * khoá dài.
    */
   private static List<Map<String, Object>> tasks(List<Map<String, Object>> tasks) {
     List<Map<String, Object>> out = new ArrayList<>();
@@ -228,7 +231,8 @@ public class PolicyPreviewService {
         m.put("nhom", String.valueOf(t.get("nhom")));
       }
       for (String k : List.of("A", "B", "C")) {
-        if (t.get(k) instanceof Number n) {
+        Object value = t.get(k) instanceof Number ? t.get(k) : t.get("kpi_" + k);
+        if (value instanceof Number n) {
           m.put(k, n);
         }
       }

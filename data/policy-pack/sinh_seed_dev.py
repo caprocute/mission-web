@@ -88,8 +88,9 @@ def quy_tac(manifest):
     """Quy tắc của phiên bản dựng từ definitions như ManifestRuleImport của mission-core khi nhập gói."""
     params = manifest.get("params") or {}
     out, seen = [], set()
+    nhom_xong = not isinstance(params.get("nhom"), dict)
     for block in ("definitions", "definitions_nam"):
-        for defs in (manifest.get(block) or {}).values():
+        for pham_vi, defs in (manifest.get(block) or {}).items():
             for key, d in (defs or {}).items():
                 if not isinstance(d, dict) or key in seen:
                     continue
@@ -103,6 +104,10 @@ def quy_tac(manifest):
                             used.setdefault(path, params[path].get("mac_dinh"))
                             break
                         path = path.rpartition(".")[0]
+                # Danh sách nhóm đặt ở quy tắc đầu tiên của phạm vi nhom đọc g.diem_toi_da, như ManifestRuleImport.
+                if not nhom_xong and pham_vi == "nhom" and "g.diem_toi_da" in expr:
+                    used["nhom"] = params["nhom"].get("mac_dinh")
+                    nhom_xong = True
                 out.append(
                     {
                         "key": key,
