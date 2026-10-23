@@ -79,7 +79,7 @@ Khi đề nghị gia hạn hoặc điều chỉnh thuộc thẩm quyền lãnh �
 
 ![Phân nhóm cán bộ triển vọng](anh/ac-04-06-phan-nhom-trien-vong.jpg)
 
-1. Kéo thả để xếp lại thứ tự hoặc mở menu **Đổi nhóm, thứ tự** của từng người, chọn **Chuyển sang Nhóm** phù hợp.
+1. Kéo thả thẻ của từng người để chuyển nhóm hoặc đổi thứ tự. Nếu không dùng chuột, đồng chí bấm nút ba chấm (⋮) cạnh tên người đó rồi chọn **Đưa lên trên**, **Đưa xuống dưới** hoặc **Chuyển sang** nhóm phù hợp.
 2. Ghi **Lý do điều chỉnh** (bắt buộc khi khác đề xuất ban đầu).
 3. Bấm **Lưu nháp**, rồi **Trình tập thể lãnh đạo** và xác nhận **Trình**.
 
