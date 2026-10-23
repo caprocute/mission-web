@@ -2,6 +2,7 @@ package vn.viettel.okrkpi.appraisal.application.review;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -32,13 +33,17 @@ public class ReviewExportService {
   public static final String LOCATION = "/api/v1/appraisals/exports/";
   static final int PAGE = 500;
 
-  /** Cột của tệp xuất: đều là dữ liệu C0/C1 của hồ sơ. */
+  /**
+   * Cột của tệp xuất: đều là dữ liệu C0/C1 của hồ sơ. Mỗi dòng là một hồ sơ của một luồng, nên điểm
+   * và mức theo luồng nằm trên dòng của luồng đó (CORE-04-09).
+   */
   public static final List<String> HEADER =
       List.of(
           "Họ và tên",
           "Đơn vị",
           "Luồng đánh giá",
           "Trạng thái",
+          "Tổng điểm",
           "Mức hệ thống gợi ý",
           "Mức tự đề xuất",
           "Mức thẩm định",
@@ -137,12 +142,18 @@ public class ReviewExportService {
         text(item.row().unitName()),
         "DANG".equals(p.flow()) ? "Đảng" : "Chính quyền",
         STATUS.getOrDefault(p.status(), ""),
+        score(item.row().totalScore()),
         label(p.autoRating()),
         label(levels.get(LevelKind.TU_DE_XUAT)),
         label(levels.get(LevelKind.THAM_DINH)),
         label(levels.get(LevelKind.DE_XUAT)),
         label(levels.get(LevelKind.QUYET_DINH)),
         p.returnCount());
+  }
+
+  /** Tổng điểm của ảnh chụp hiện hành theo luồng của dòng (CORE-04-09); chưa tính thì để trống. */
+  private static Object score(BigDecimal total) {
+    return total == null ? "" : total.stripTrailingZeros();
   }
 
   private static String label(RatingLevel r) {

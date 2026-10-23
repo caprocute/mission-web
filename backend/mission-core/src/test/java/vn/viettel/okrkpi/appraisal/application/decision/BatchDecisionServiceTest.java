@@ -444,6 +444,38 @@ class BatchDecisionServiceTest {
         .isEqualTo(BatchDecisionService.profilesHash(b));
   }
 
+  /** CORE-04-10: hồ sơ năm còn quý đang khiếu nại thì chưa quyết định năm (MSG-10-03). */
+  @Test
+  void namConKhieuNaiQuyThi409() {
+    UUID a = UUID.randomUUID();
+    int year = BUCKET / 10 * 10;
+    when(profiles.lock(TENANT, a))
+        .thenReturn(
+            Optional.of(
+                new ProfileRow(
+                    a,
+                    period,
+                    year,
+                    UUID.randomUUID(),
+                    "DANG",
+                    AppraisalStatus.CHO_QUYET_DINH,
+                    appraiser,
+                    null,
+                    UUID.randomUUID(),
+                    RatingLevel.HTTNV,
+                    null,
+                    0,
+                    UUID.randomUUID(),
+                    3,
+                    List.of())));
+    when(batches.withOpenQuarterComplaint(eq(TENANT), eq(year), any())).thenReturn(Set.of(a));
+    assertCode(
+        () ->
+            service.prepare(
+                TENANT, decider, command(false, item(a, RatingLevel.HTTNV, null, 3)), Scope.NONE),
+        "APPRAISAL-409-COMPLAINT-OPEN");
+  }
+
   // ---------------------------------------------------------------- hỗ trợ
 
   private void lock(

@@ -73,6 +73,9 @@ public class BatchDecisionService {
   static final String MSG_REASON = "Mức quyết định khác mức đề xuất, đồng chí cần nêu lý do.";
   static final String MSG_SUGGESTED =
       "Mức đồng chí chọn khác mức hệ thống gợi ý, đồng chí cần nêu lý do.";
+  static final String MSG_COMPLAINT =
+      "Chưa thể quyết định xếp loại năm vì khiếu nại về kết quả một quý trong năm chưa có kết"
+          + " luận.";
   static final String MSG_HEAD =
       "Hồ sơ của người đứng đầu chỉ được quyết định sau khi các đơn vị trực thuộc đã có mức"
           + " (QĐ khoản 14.3.3).";
@@ -171,6 +174,7 @@ public class BatchDecisionService {
       throw duplicate();
     }
     checkVersions(items, rows);
+    checkQuarterComplaints(tenant, bucket, items);
     Map<UUID, ProfileFacts> facts = batches.facts(tenant, bucket, ids);
     checkPending(items, facts);
     Set<UUID> outside = batches.outOfScope(tenant, bucket, ids, scope);
@@ -395,6 +399,30 @@ public class BatchDecisionService {
       throw new BusinessException(
           "APPRAISAL-409-INVALID-STATUS", "Một số hồ sơ không còn ở bước chờ quyết định.", status);
     }
+  }
+
+  /**
+   * QT-10 ngoại lệ 2: hồ sơ năm còn quý đang khiếu nại chưa kết luận thì chưa quyết định năm
+   * (MSG-10-03). Kiểm trên trạng thái {@code KHIEU_NAI} của hồ sơ quý trong MOD-04, không hỏi
+   * MOD-07.
+   */
+  private void checkQuarterComplaints(TenantId tenant, int bucket, List<Item> items) {
+    if (bucket % 10 != 0) {
+      return;
+    }
+    Set<UUID> open =
+        batches.withOpenQuarterComplaint(
+            tenant, bucket, items.stream().map(Item::profileId).toList());
+    if (open == null || open.isEmpty()) {
+      return;
+    }
+    List<ProblemFieldError> errors = new ArrayList<>();
+    for (int i = 0; i < items.size(); i++) {
+      if (open.contains(items.get(i).profileId())) {
+        errors.add(field(i, "profileId", MSG_COMPLAINT));
+      }
+    }
+    throw new BusinessException("APPRAISAL-409-COMPLAINT-OPEN", MSG_COMPLAINT, errors, "MSG-10-03");
   }
 
   private static void checkPending(List<Item> items, Map<UUID, ProfileFacts> facts) {

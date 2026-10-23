@@ -177,8 +177,10 @@ public class JdbcProfileSetupRepository implements ProfileSetupRepository {
             INSERT INTO appraisal.score_snapshot (id, tenant_id, created_by, updated_by, period_id,
                 period_bucket, profile_id, flow, snapshot_kind, score_result_id,
                 policy_pack_version_id, policy_content_hash, policy_version, input_hash, total_score,
-                auto_rating_code, rule_checks, group_scores_json, computed_at, snapshot_hash)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]'::jsonb, '{}'::jsonb, ?, ?)
+                auto_rating_code, rule_checks, group_scores_json, computed_at, snapshot_hash,
+                detail_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]'::jsonb, '{}'::jsonb, ?, ?,
+                ?::jsonb)
             """)
         .params(
             s.id(),
@@ -198,7 +200,8 @@ public class JdbcProfileSetupRepository implements ProfileSetupRepository {
             s.totalScore(),
             s.autoRatingCode(),
             Timestamp.from(s.computedAt()),
-            s.snapshotHash())
+            s.snapshotHash(),
+            s.detailJson())
         .update();
   }
 
