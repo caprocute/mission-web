@@ -364,162 +364,180 @@
   },
   "policyPacks": [
     {
-      "id": "pk-dang-qdm-2.0",
-      "name": "Khối Đảng · Quy định mới",
-      "version": "v2.0",
+      "id": "0192a1b0-3c4d-7e5f-8a9b-000000004120",
       "flow": "DANG",
-      "status": "DA_PHAT_HANH",
-      "goldenPassRate": 100
+      "packCode": "khoi-dang/quy-dinh-moi",
+      "name": "Khối Đảng · Quy định mới",
+      "version": "2.0.0",
+      "goldenPassRate": 1
     },
     {
-      "id": "pk-dang-qdm-2.1",
-      "name": "Khối Đảng · Quy định mới",
-      "version": "v2.1",
+      "id": "0192a1b0-3c4d-7e5f-8a9b-000000004121",
       "flow": "DANG",
-      "status": "DA_PHAT_HANH",
-      "goldenPassRate": 96
+      "packCode": "khoi-dang/quy-dinh-moi",
+      "name": "Khối Đảng · Quy định mới",
+      "version": "2.1.0",
+      "goldenPassRate": 0.96
     },
     {
-      "id": "pk-nn-335-1.3",
+      "id": "0192a1b0-3c4d-7e5f-8a9b-000000004213",
+      "flow": "NHA_NUOC",
+      "packCode": "nn-335",
       "name": "Nhà nước · NĐ 335",
-      "version": "v1.3",
-      "flow": "NHA_NUOC",
-      "status": "DA_PHAT_HANH",
-      "goldenPassRate": 100
+      "version": "1.3.0",
+      "goldenPassRate": 1
     },
     {
-      "id": "pk-sn-233-yte-1.0",
-      "name": "Sự nghiệp · NĐ 233 Y tế",
-      "version": "v1.0",
+      "id": "0192a1b0-3c4d-7e5f-8a9b-000000004310",
       "flow": "NHA_NUOC",
-      "status": "DA_PHAT_HANH",
-      "goldenPassRate": 100
-    },
-    {
-      "id": "pk-dn-okr-1.1",
-      "name": "Doanh nghiệp · OKR",
-      "version": "v1.1",
-      "flow": "NHA_NUOC",
-      "status": "DA_PHAT_HANH",
-      "goldenPassRate": 100
+      "packCode": "vc-su-nghiep",
+      "name": "Sự nghiệp · Viên chức",
+      "version": "1.0.0",
+      "goldenPassRate": 1
     }
   ],
   "uiPacks": [
     {
-      "id": "ui-mac-dinh-3.0",
+      "id": "0192e2d5-6e7f-7a81-8b2c-3d4e5f6a7b80",
       "name": "Mặc định",
-      "version": "v3.0"
+      "version": "3.0"
     },
     {
-      "id": "ui-khoi-dang-1.4",
-      "name": "Khối Đảng",
-      "version": "v1.4"
-    },
-    {
-      "id": "ui-y-te-1.2",
-      "name": "Y tế",
-      "version": "v1.2"
+      "id": "0192fa0b-8192-7da4-9fb6-000000008107",
+      "name": "Giao diện Sở Y tế tỉnh X",
+      "version": "1.7.0"
     }
   ],
   "onboarding": {
     "t-truong-thpt-hue": {
       "onboardingCode": "ONB-2026-0331",
-      "contractSignedOn": "2026-10-15",
+      "contractValidTo": "2029-10-15",
       "expectedUnits": 12,
-      "isolationRequired": false,
-      "adminName": "Nguyễn Thị Lan",
-      "adminEmail": "lan.nt@quochoc.edu.vn",
-      "startedAt": "@today-1T15:40:00+07:00",
-      "policyPacks": {},
-      "idps": [],
-      "hrSources": [],
-      "highIssues": 0
+      "adminContact": {
+        "fullName": "Nguyễn Thị Lan",
+        "email": "lan.nt@quochoc.edu.vn"
+      },
+      "createdAt": "@today-1T15:40:00+07:00",
+      "policyBindings": [],
+      "staffSources": [],
+      "highIssues": 0,
+      "idps": []
     },
     "t-laocai": {
       "onboardingCode": "ONB-2026-0322",
-      "contractSignedOn": "2026-10-12",
+      "provisionRunning": true,
+      "contractValidTo": "2029-10-12",
       "expectedUnits": 980,
-      "isolationRequired": false,
-      "adminName": "Hoàng Văn Sơn",
-      "adminEmail": "son.hv@laocai.gov.vn",
-      "startedAt": "@todayT07:30:00+07:00",
-      "kekMode": "RIENG",
-      "policyPacks": {
-        "DANG": "pk-dang-qdm-2.0",
-        "NHA_NUOC": "pk-nn-335-1.3"
+      "adminContact": {
+        "fullName": "Hoàng Văn Sơn",
+        "email": "son.hv@laocai.gov.vn"
       },
-      "uiPackId": "ui-mac-dinh-3.0",
-      "idps": [],
-      "hrSources": [],
+      "createdAt": "@todayT07:30:00+07:00",
+      "kekMode": "RIENG",
+      "policyBindings": [
+        {
+          "flow": "DANG",
+          "packVersionId": "0192a1b0-3c4d-7e5f-8a9b-000000004120"
+        },
+        {
+          "flow": "NHA_NUOC",
+          "packVersionId": "0192a1b0-3c4d-7e5f-8a9b-000000004213"
+        }
+      ],
+      "uiPackVersionId": "0192e2d5-6e7f-7a81-8b2c-3d4e5f6a7b80",
+      "staffSources": [],
       "highIssues": 0,
-      "provisionRunning": true
+      "idps": []
     },
     "t-thainguyen": {
       "onboardingCode": "ONB-2026-0318",
-      "contractSignedOn": "2026-10-10",
       "contractRefOverride": "87/2026/HĐ-VTS",
+      "contractValidTo": "2029-10-10",
       "expectedUnits": 1215,
-      "isolationRequired": false,
-      "adminName": "Trần Minh Đức",
-      "adminEmail": "duc.tm@thainguyen.gov.vn",
-      "startedAt": "@today-2T08:10:00+07:00",
-      "kekMode": "RIENG",
-      "policyPacks": {
-        "DANG": "pk-dang-qdm-2.0",
-        "NHA_NUOC": "pk-nn-335-1.3"
+      "adminContact": {
+        "fullName": "Trần Minh Đức",
+        "email": "duc.tm@thainguyen.gov.vn"
       },
-      "uiPackId": "ui-mac-dinh-3.0",
-      "provisionedMinutes": 74,
-      "idps": [
+      "createdAt": "@today-2T08:10:00+07:00",
+      "kekMode": "RIENG",
+      "policyBindings": [
         {
-          "kind": "KEYCLOAK_ORG",
-          "name": "Không gian đăng nhập \"thainguyen\"",
-          "status": "DAT"
+          "flow": "DANG",
+          "packVersionId": "0192a1b0-3c4d-7e5f-8a9b-000000004120"
         },
         {
-          "kind": "VNEID",
-          "name": "VNeID",
-          "status": "DAT"
-        },
-        {
-          "kind": "LDAP",
-          "name": "LDAP Sở TT&TT",
-          "url": "ldaps://ldap.thainguyen.gov.vn",
-          "status": "CHUA_KIEM_TRA"
+          "flow": "NHA_NUOC",
+          "packVersionId": "0192a1b0-3c4d-7e5f-8a9b-000000004213"
         }
       ],
-      "hrSources": ["CBCCVC", "DANG_VIEN"],
-      "highIssues": 412
+      "uiPackVersionId": "0192e2d5-6e7f-7a81-8b2c-3d4e5f6a7b80",
+      "staffSources": [
+        {
+          "type": "CSDL_CBCCVC"
+        },
+        {
+          "type": "CSDL_DANG_VIEN"
+        }
+      ],
+      "highIssues": 412,
+      "idps": [
+        {
+          "idpAlias": "vneid",
+          "protocol": "OIDC",
+          "issuer": "https://sso.vneid.gov.vn",
+          "isVneid": true,
+          "status": "HOAT_DONG",
+          "lastTestedAt": "@today-1T15:00:00+07:00",
+          "lastTestOk": true
+        },
+        {
+          "idpAlias": "saml-so-tttt",
+          "protocol": "SAML",
+          "issuer": "https://idp.thainguyen.gov.vn/saml/metadata",
+          "isVneid": false,
+          "emailDomains": ["thainguyen.gov.vn"],
+          "status": "HOAT_DONG"
+        }
+      ]
     },
     "t-quangngai": {
       "onboardingCode": "ONB-2026-0297",
-      "contractSignedOn": "2026-09-28",
+      "contractValidTo": "2029-09-28",
       "expectedUnits": 860,
-      "isolationRequired": false,
-      "adminName": "Lê Thị Hoa",
-      "adminEmail": "hoa.lt@quangngai.gov.vn",
-      "startedAt": "@today-9T09:00:00+07:00",
-      "kekMode": "RIENG",
-      "policyPacks": {
-        "NHA_NUOC": "pk-nn-335-1.3"
+      "adminContact": {
+        "fullName": "Lê Thị Hoa",
+        "email": "hoa.lt@quangngai.gov.vn"
       },
-      "uiPackId": "ui-mac-dinh-3.0",
-      "provisionedMinutes": 81,
-      "idps": [
+      "createdAt": "@today-9T09:00:00+07:00",
+      "kekMode": "RIENG",
+      "policyBindings": [
         {
-          "kind": "KEYCLOAK_ORG",
-          "name": "Không gian đăng nhập \"quangngai\"",
-          "status": "DAT"
-        },
-        {
-          "kind": "OIDC",
-          "name": "Hệ thống đăng nhập tỉnh Quảng Ngãi",
-          "url": "https://sso.quangngai.gov.vn/realms/cbcc",
-          "status": "DAT"
+          "flow": "NHA_NUOC",
+          "packVersionId": "0192a1b0-3c4d-7e5f-8a9b-000000004213"
         }
       ],
-      "hrSources": ["CBCCVC", "SCIM"],
-      "highIssues": 0
+      "uiPackVersionId": "0192e2d5-6e7f-7a81-8b2c-3d4e5f6a7b80",
+      "staffSources": [
+        {
+          "type": "CSDL_CBCCVC"
+        },
+        {
+          "type": "SCIM"
+        }
+      ],
+      "highIssues": 0,
+      "idps": [
+        {
+          "idpAlias": "sso-quangngai",
+          "protocol": "OIDC",
+          "issuer": "https://sso.quangngai.gov.vn/realms/cbcc",
+          "isVneid": false,
+          "emailDomains": ["quangngai.gov.vn"],
+          "status": "HOAT_DONG",
+          "lastTestedAt": "@today-2T10:00:00+07:00",
+          "lastTestOk": true
+        }
+      ]
     }
   }
 }

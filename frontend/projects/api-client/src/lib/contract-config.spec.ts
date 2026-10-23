@@ -110,12 +110,150 @@ describe('lời gọi quản trị, cấu hình khớp hợp đồng (WEB-072)',
     patch.flush(t);
     const prov = ctrl.expectOne('/api/v1/config/tenants/t1/provision');
     expect(prov.request.headers.get('If-Match')).toBe('"9"');
-    prov.flush(job('p1', 'TENANT_PROVISION'), {
+    prov.flush(job('p1', 'PROVISION'), {
       status: 202,
       statusText: 'Accepted',
       headers: { Location: '/api/v1/jobs/p1' },
     });
     expect(location).toBe('/api/v1/jobs/p1');
+    ctrl.verify();
+  });
+
+  it('khởi tạo tenant: khai báo, lấy hồ sơ, huỷ, kích hoạt theo đường dẫn hợp đồng', () => {
+    const { ctrl, tenant } = setup();
+    const t = { id: 't1', rowVersion: 4 } as TenantOnboarding;
+    tenant
+      .create({
+        code: 'hagiang',
+        name: 'Tỉnh Hà Giang',
+        sector: 'CHINH_QUYEN',
+        contractRef: '91/2026',
+        flows: ['DANG'],
+        expectedAccounts: 60_000,
+        adminContact: { fullName: 'Nguyễn Văn A', email: 'a@hagiang.gov.vn' },
+      })
+      .subscribe();
+    tenant.get('t1').subscribe();
+    tenant.cancel(t).subscribe();
+    tenant.activate(t).subscribe();
+    const create = ctrl.expectOne({ method: 'POST', url: '/api/v1/config/tenants' });
+    expect(create.request.body.adminContact).toEqual({
+      fullName: 'Nguyễn Văn A',
+      email: 'a@hagiang.gov.vn',
+    });
+    expect(Object.keys(create.request.body)).not.toContain('isolationRequired');
+    create.flush({});
+    ctrl.expectOne({ method: 'GET', url: '/api/v1/config/tenants/t1' }).flush({});
+    const del = ctrl.expectOne({ method: 'DELETE', url: '/api/v1/config/tenants/t1' });
+    expect(del.request.headers.get('If-Match')).toBe('"4"');
+    del.flush(null);
+    const act = ctrl.expectOne('/api/v1/config/tenants/t1/activate');
+    expect(act.request.headers.get('If-Match')).toBe('"4"');
+    act.flush({});
+    // không còn các đường dẫn ngoài hợp đồng
+    ctrl.expectNone((r) => /\/(onboarding|checks|domain-check|cell-options)$/.test(r.url));
+    ctrl.verify();
+  });
+
+  it('cell ứng viên từ /registry/cells theo mô hình chữ hoa; thiếu số tài khoản thì lấy cellLoads', () => {
+    const { ctrl, tenant } = setup();
+    let out: { code: string; loadAfter: number; eligible: boolean }[] = [];
+    tenant.cellOptions('bridge', 100_000).subscribe((c) => (out = c));
+    const cells = ctrl.expectOne((r) => r.url === '/api/v1/registry/cells');
+    expect(cells.request.params.get('tenancyModel')).toBe('BRIDGE');
+    const cell = (code: string, extra = {}) => ({
+      id: code,
+      code,
+      name: code,
+      primaryDc: 'HOALAC',
+      tenancyModel: 'BRIDGE',
+      apiBaseUrl: 'https://x',
+      capacityAccounts: 1_000_000,
+      status: 'HOAT_DONG',
+      ...extra,
+    });
+    cells.flush({
+      items: [cell('CELL-A'), cell('CELL-B', { status: 'BAO_TRI' })],
+      nextCursor: null,
+    });
+    const list = ctrl.expectOne((r) => r.url === '/api/v1/config/tenants');
+    expect(list.request.params.get('limit')).toBe('1');
+    list.flush({
+      items: [],
+      nextCursor: null,
+      summary: {
+        cellLoads: [
+          {
+            cellCode: 'CELL-A',
+            accountCount: 800_000,
+            capacityAccounts: 1_000_000,
+            loadPercent: 80,
+          },
+        ],
+      },
+    });
+    expect(out.map((c) => [c.code, c.eligible])).toEqual([
+      ['CELL-B', false],
+      ['CELL-A', false],
+    ]);
+    expect(out[1].loadAfter).toBeCloseTo(0.9);
+    ctrl.verify();
+  });
+
+  it('Policy Pack gốc theo luồng và UI Pack đang phát hành thành lựa chọn của bước 3', () => {
+    const { ctrl, tenant } = setup();
+    let packs: { id: string; goldenPassRate: number | null }[] = [];
+    let uis: { id: string; version: string }[] = [];
+    tenant.policyPacks('DANG').subscribe((p) => (packs = p));
+    tenant.uiPacks().subscribe((u) => (uis = u));
+    const req = ctrl.expectOne((r) => r.url === '/api/v1/policies/packs');
+    expect(req.request.params.get('flow')).toBe('DANG');
+    expect(req.request.params.get('origin')).toBe('GOC_TOAN_CUC');
+    const v = (id: string, status: string, goldenPassRate: number | null) => ({
+      id,
+      policyPackId: 'p1',
+      version: '2.0.0',
+      status,
+      goldenPassRate,
+      rowVersion: 1,
+    });
+    req.flush({
+      items: [
+        {
+          id: 'p1',
+          code: 'khoi-dang',
+          name: 'Khối Đảng',
+          flow: 'DANG',
+          origin: 'GOC_TOAN_CUC',
+          versions: [v('v1', 'NHAP', null), v('v2', 'DA_PHAT_HANH', 0.96)],
+        },
+      ],
+      nextCursor: null,
+    });
+    ctrl
+      .expectOne((r) => r.url === '/api/v1/ui/packs')
+      .flush({
+        items: [
+          { id: 'u1', code: 'a', name: 'A', currentVersionId: 'uv1', currentVersion: '1.7.0' },
+          { id: 'u2', code: 'b', name: 'B', currentVersionId: null },
+        ],
+        nextCursor: null,
+      });
+    expect(packs).toEqual([expect.objectContaining({ id: 'v2', goldenPassRate: 0.96 })]);
+    expect(uis).toEqual([{ id: 'uv1', name: 'A', version: '1.7.0' }]);
+    ctrl.verify();
+  });
+
+  it('kiểm tra kết nối một IdP gửi idpAlias; job cấp phát đọc tại /jobs/{id}', () => {
+    const { ctrl, tenant } = setup();
+    let ok: boolean | undefined;
+    tenant.testIdp('t1', 'sso-tinh').subscribe((r) => (ok = r.success));
+    tenant.provisionJob('j9').subscribe();
+    const test = ctrl.expectOne('/api/v1/config/tenants/t1/idp/test');
+    expect(test.request.body).toEqual({ idpAlias: 'sso-tinh' });
+    test.flush({ success: true, checkedAt: '2026-10-19T10:12:00+07:00' });
+    ctrl.expectOne('/api/v1/jobs/j9').flush(job('j9', 'PROVISION'));
+    expect(ok).toBe(true);
     ctrl.verify();
   });
 });

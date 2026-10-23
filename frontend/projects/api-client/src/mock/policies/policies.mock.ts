@@ -1184,7 +1184,15 @@ export const POLICIES_MOCK: MockModule = {
     {
       method: 'GET',
       pattern: '/api/v1/policies/packs',
-      handle: () => out({ items: packs, nextCursor: null }),
+      // lọc `flow`, `origin` theo `listPolicyPacks` (trình khởi tạo tenant SCR-0102 dùng, WEB-072)
+      handle: (r) => {
+        const flow = r.params.get('flow');
+        const origin = r.params.get('origin');
+        const items = packs.filter(
+          (p) => (!flow || p.flow === flow) && (!origin || p.origin === origin),
+        );
+        return out({ items, nextCursor: null });
+      },
     },
     { method: 'GET', pattern: '/api/v1/policies/test-cases', handle: listTestCases },
     { method: 'POST', pattern: '/api/v1/policies/test-cases', handle: createTestCase },

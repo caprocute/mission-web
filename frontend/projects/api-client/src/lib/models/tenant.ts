@@ -48,7 +48,7 @@ export const DATA_CENTER_LABEL: Record<string, string> = {
 };
 
 /** Trạng thái cell (`registry.cell.status`). */
-export const CELL_STATUS_LABEL: Record<CellInfo['status'], string> = {
+export const CELL_STATUS_LABEL: Record<PlatformSchemas['CellStatus'], string> = {
   HOAT_DONG: 'Hoạt động',
   BAO_TRI: 'Bảo trì',
   NGUNG: 'Ngừng',
@@ -78,22 +78,6 @@ export type ConfigTenant = ConfigSchemas['ConfigTenant'];
 /** Bản ghi danh bạ tenant (`GET /registry/tenants/{id}`): cell hiện hành và các tên miền. */
 export type RegistryTenant = PlatformSchemas['RegistryTenant'];
 export type TenantDomainKind = PlatformSchemas['DomainKind'];
-
-/**
- * Cell ứng viên của trình khởi tạo SCR-0102 (WEB-017). Kiểu này chưa đối chiếu hợp đồng: TL-02a cần
- * thêm `name`, `primaryDc`, `status`, `tenantCount` mà `CellLoad` của `config.yaml` không có; khi
- * đối chiếu WEB-017 sẽ chuyển sang `RegistryCell` của `platform.yaml`.
- */
-export interface CellInfo {
-  code: string;
-  name: string;
-  primaryDc: string;
-  tenancyModel: TenancyModel;
-  status: 'HOAT_DONG' | 'BAO_TRI' | 'NGUNG';
-  accountCount: number;
-  capacityAccounts: number;
-  tenantCount: number;
-}
 
 /** Ngưỡng tải cell: vượt thì đề nghị mở cell mới (MSG-01-01) và không thêm tenant (BR-01-02). */
 export const CELL_LOAD_THRESHOLD = 0.85;

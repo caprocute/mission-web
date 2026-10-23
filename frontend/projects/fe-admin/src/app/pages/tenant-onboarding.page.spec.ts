@@ -11,7 +11,10 @@ import {
 import { ADMIN_CAN } from '../admin-permissions';
 import { TenantOnboardingPage } from './tenant-onboarding.page';
 
-/** WEB-017: SCR-0102 trên dữ liệu giả lập: khai báo, mở lại nháp, kiểm tra tổng thể, kích hoạt, quyền. */
+/**
+ * WEB-017: SCR-0102 trên dữ liệu giả lập: khai báo, mở lại nháp, kiểm tra tổng thể, kích hoạt, quyền.
+ * WEB-072: hồ sơ là `ConfigTenant` theo hợp đồng `config.yaml`.
+ */
 async function render(id?: string, step?: string, can: (k: string) => boolean = () => true) {
   TestBed.configureTestingModule({
     imports: [TenantOnboardingPage],
@@ -63,6 +66,10 @@ describe('TenantOnboardingPage (SCR-0102)', () => {
     type(el, 'code', 'hagiang');
     type(el, 'contractRef', '91/2026/HĐ-VTS');
     type(el, 'accounts', '60000');
+    await fixture.whenStable();
+    expect(button(el, 'Tiếp tục')?.disabled).toBe(true);
+    type(el, 'adminName', 'Nguyễn Văn A');
+    type(el, 'adminEmail', 'a@hagiang.gov.vn');
     await fixture.whenStable();
     expect(button(el, 'Tiếp tục')?.disabled).toBe(false);
     button(el, 'Tiếp tục')!.click();
