@@ -62,6 +62,7 @@ import vn.viettel.okrkpi.workflow.domain.saga.SagaType;
       "flowable.process.async.executor.default-async-job-acquire-wait-time=100ms",
       "flowable.process.async.executor.reset-expired-jobs-interval=200ms",
       "okrkpi.saga.worker.enabled=false",
+      "okrkpi.saga.period-close.enabled=false",
       "management.server.port=8080"
     })
 @AutoConfigureMockMvc
