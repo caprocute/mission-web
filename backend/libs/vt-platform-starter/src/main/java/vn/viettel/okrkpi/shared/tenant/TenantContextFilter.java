@@ -106,10 +106,7 @@ public class TenantContextFilter extends OncePerRequestFilter {
   private void forbid(HttpServletRequest request, HttpServletResponse response) throws IOException {
     ProblemDetail pd =
         problems.standard(
-            HttpServletResponse.SC_FORBIDDEN,
-            "Phiên đăng nhập không gắn với đơn vị triển khai nào",
-            List.of(),
-            request);
+            HttpServletResponse.SC_FORBIDDEN, TenantProblemHandler.DETAIL, List.of(), request);
     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
     response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
     response.setCharacterEncoding("UTF-8");
