@@ -88,10 +88,11 @@ TINH_TRANG = OrderedDict([
     ("SCR-0402.xem", (CO, "Kế hoạch quý: nháp, chờ duyệt, trả lại, đã duyệt (mỗi tenant hai kế hoạch)")),
     ("SCR-0402.lap", (CO, "Kế hoạch nháp của Tỉnh uỷ, UBND tỉnh, Công ty để lập tiếp; kế hoạch bị trả lại để sửa")),
     ("SCR-0402.gui-duyet", (CO, "Kế hoạch nháp đã có dòng để gửi duyệt")),
-    ("SCR-0402.dieu-chinh", (CO, "Kế hoạch Sở Tài chính đã duyệt (nếu ký số trên dev thành công) để tạo phiên bản điều chỉnh")),
+    ("SCR-0402.dieu-chinh", (CO, "Kế hoạch Sở Tài chính đã duyệt (chỉ gồm dòng danh mục) để tạo phiên bản điều chỉnh")),
     ("SCR-0403.so-sanh", (TRUC_TIEP, "Có sau khi tạo điều chỉnh kế hoạch (phiên bản 2)")),
     ("SCR-0403.tra-lai", (CO, "Kế hoạch chờ duyệt của Ban Tổ chức Tỉnh uỷ, Xí nghiệp Cấp nước số 1")),
-    ("SCR-0403.duyet-ky", (CO, "Kế hoạch chờ duyệt; ký số cần xác thực bước lên và MySign giả lập trên dev")),
+    ("SCR-0403.duyet-ky", (CO, "Kế hoạch chờ duyệt; ký số cần xác thực bước lên và MySign giả lập trên dev. Kế hoạch có "
+                            "dòng ngoài danh mục chỉ duyệt được sau bước định điểm (BR-04-05), máy chủ dev chưa có bước này")),
     ("SCR-0501.soan", (CO, "Mỗi tenant một nhiệm vụ nháp chưa giao")),
     ("SCR-0501.giao", (CO, "Nhiệm vụ nháp để giao; nhiệm vụ đã giao chưa nhận để giao lại")),
     ("SCR-0501.giao-dong-loat", (TRUC_TIEP, "Giao cho nhiều phòng, xã trong cây tổ chức")),

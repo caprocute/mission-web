@@ -1030,8 +1030,10 @@ KE_HOACH = {
                    dict(ten="Tham mưu phương án phân bổ dự toán ngân sách năm 2027 trình Hội đồng nhân dân tỉnh",
                         nhom="THEN_CHOT", chu="cq.phogiamdocstc", sp="Dự thảo nghị quyết", sl=1, dvt="Văn bản",
                         so_ngay=60, muc=0xD104),
-                   dict(ten="Theo dõi, báo cáo tiến độ giải ngân vốn đầu tư công hằng tháng", nhom="THUONG_XUYEN",
-                        chu="cq.chuyenvienns2", sp="Báo cáo", sl=3, dvt="Báo cáo", so_ngay=65, diem=8.0,
+                   # Kế hoạch đã duyệt chỉ gồm dòng danh mục: dòng ngoài danh mục phải qua bước định điểm (BR-04-05)
+                   # mà máy chủ chưa có API, nên để dòng ngoài danh mục ở các kế hoạch nháp, chờ duyệt, trả lại.
+                   dict(ten="Tổ chức họp chuyên đề của lãnh đạo tỉnh về giải ngân vốn đầu tư công", nhom="THUONG_XUYEN",
+                        chu="cq.chuyenvienns2", sp="Thông báo kết luận", sl=1, dvt="Cuộc", so_ngay=65, muc=0xD106,
                         kr="STC#1")]),
         dict(dv=0x100, lap="cq.phochutich", duyet="cq.chutich", dich="TRA_LAI",
              y_kien="Đề nghị bổ sung dòng về sắp xếp tổ chức bộ máy theo chỉ đạo của Trung ương và ghi rõ sản "
