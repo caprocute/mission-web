@@ -43,6 +43,7 @@ if [[ -f "${ENV_FILE}" ]]; then
   set +a
 fi
 for _kv in ${_truyen_vao[@]+"${_truyen_vao[@]}"}; do
+  # shellcheck disable=SC2163 # _kv có dạng KHOA=GIA_TRI nên export đúng biến KHOA
   export "${_kv}"
 done
 

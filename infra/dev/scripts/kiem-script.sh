@@ -66,7 +66,7 @@ echo "==> shellcheck ${#scripts[@]} script"
 if [[ -n "${SHELLCHECK:-}" ]] || command -v shellcheck >/dev/null 2>&1; then
   SC=("${SHELLCHECK:-shellcheck}")
 elif docker info >/dev/null 2>&1; then
-  SC=(docker run --rm -v "${SCRIPT_DIR}:${SCRIPT_DIR}:ro" -w "${SCRIPT_DIR}" koalaman/shellcheck:stable)
+  SC=(docker run --rm -v "${INFRA_DIR}:${INFRA_DIR}:ro" -w "${SCRIPT_DIR}" koalaman/shellcheck:stable)
 else
   echo "Lỗi: không có shellcheck (đặt SHELLCHECK hoặc cài shellcheck) và không có Docker" >&2
   exit 1

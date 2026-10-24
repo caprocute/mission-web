@@ -285,6 +285,7 @@ if selected mission-core && [[ "${SKIP_SEED:-0}" != "1" ]]; then
   "${SCRIPT_DIR}/them-client-integration-gateway.sh" >/dev/null ||
     canh_bao "client integration-gateway" "them-client-integration-gateway.sh"
   "${SCRIPT_DIR}/them-client-mission-core.sh" >/dev/null || canh_bao "client mission-core" "them-client-mission-core.sh"
+  "${SCRIPT_DIR}/them-client-analytics-api.sh" >/dev/null || canh_bao "client analytics-api" "them-client-analytics-api.sh"
   "${SCRIPT_DIR}/seed-org.sh" || canh_bao "seed tổ chức" "seed-org.sh"
   if selected org-service || docker ps -q --filter name=mission-dev-org-service | grep -q .; then
     "${SCRIPT_DIR}/dong-bo-to-chuc.sh" || canh_bao "đồng bộ tổ chức sang mission-core" "dong-bo-to-chuc.sh"
