@@ -41,7 +41,9 @@ import {
   FeatureFlagService,
   Job,
   JobTracker,
-  fieldErrors, toProblem } from '@vt/api-client';
+  fieldErrors,
+  toProblem,
+} from '@vt/api-client';
 import {
   CHECK_RESULT_LABEL,
   CellOption,
@@ -847,9 +849,9 @@ function provisionMinutes(t: ConfigTenant): number {
                   </fieldset>
                   <p class="muted small">
                     <!-- SCR-0103, SCR-0104, BR-01-10 -->
-                    Cây tổ chức được nhập ở chức năng Cây tổ chức; đồng bộ và đối soát nhân sự ở chức
-                    năng Đồng bộ và đối soát nhân sự. Đơn vị chỉ sẵn sàng kích hoạt khi đã có cây tổ
-                    chức và không còn mục lệch mức Cao.
+                    Cây tổ chức được nhập ở chức năng Cây tổ chức; đồng bộ và đối soát nhân sự ở
+                    chức năng Đồng bộ và đối soát nhân sự. Đơn vị chỉ sẵn sàng kích hoạt khi đã có
+                    cây tổ chức và không còn mục lệch mức Cao.
                   </p>
                 } @else {
                   <!-- ADR-34: đồng bộ từ hệ thống ngoài đang tắt, không cần chọn nguồn nhân sự -->
