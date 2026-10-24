@@ -14,7 +14,7 @@
   "contracts/openapi/modules/scim.yaml": "e7a560b74af11e5c1a444ea081b02cd497e42a2108c448d511b51f2580a56f8d",
   "contracts/openapi/modules/tasks.yaml": "92996bb8fc94c049c3f8a51b8d8679490c33cd540eac723c8acf6b092bf91614",
   "infra/dev/apisix/apisix.yaml": "b0de0fbedc936988ab3d46a44b6c7bf93500d7edf8853ec025d6ef67259a61dc",
-  "infra/dev/docker-compose.yml": "c7446d3f07277d78c3493ff20d9bbe9c3f9c3fd6ba1a33991fa6ace5d2218734"
+  "infra/dev/docker-compose.yml": "b9ef22a22e6976705ff24b96403fbb0a7a2d6a8ff405c52bac2a003d43cab2ee"
  },
  "operations": [
   {
