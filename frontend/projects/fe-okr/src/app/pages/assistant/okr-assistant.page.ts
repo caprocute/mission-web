@@ -241,7 +241,7 @@ export class OkrAssistantPage {
   protected submit(d: ObjectiveDetail) {
     if (this.busy()) return;
     this.start();
-    this.okr.submitObjective(d.id).subscribe({
+    this.okr.submitObjective(d.id, d.rowVersion).subscribe({
       next: (r) => {
         this.busy.set(false);
         this.notice.set(

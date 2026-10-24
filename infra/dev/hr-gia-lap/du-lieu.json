@@ -1,0 +1,26 @@
+{
+  "_ghi_chu": "Dữ liệu hư cấu của nguồn nhân sự giả lập (YC-PT-13, DL-07): tên, mã hồ sơ, số định danh và ngày sinh đều bịa, không phải dữ liệu thật. Khớp tài khoản thử ở infra/dev/postgres/seed/org-du-lieu-thu.sql; có chủ ý một chức vụ lệch và một hồ sơ chưa có trong tổ chức để đối soát (SCR-0104).",
+  "cbccvc": [
+    {"maHoSo": "HS-0305", "hoTen": "Lê Văn Lãnh Đạo", "soDinhDanh": "000000000305", "ngaySinh": "1975-03-05",
+     "tinhTrang": "Đang công tác", "laDangVien": true, "coQuan": {"maDinhDanh": "H99.01.01"}, "chucVu": {"ma": "GIAM-DOC"},
+     "ngayHieuLuc": "2000-01-01", "capNhatLuc": "2026-10-01T08:00:00Z"},
+    {"maHoSo": "HS-0306", "hoTen": "Trần Thị Quản Lý", "soDinhDanh": "000000000306", "ngaySinh": "1980-06-06",
+     "tinhTrang": "Đang công tác", "laDangVien": true, "coQuan": {"maDinhDanh": "H99.01.01"}, "chucVu": {"ma": "TRUONG-PHONG"},
+     "ngayHieuLuc": "2000-01-01", "capNhatLuc": "2026-10-01T08:00:00Z"},
+    {"maHoSo": "HS-0307", "hoTen": "Nguyễn Văn Cán Bộ", "soDinhDanh": "000000000307", "ngaySinh": "1990-07-07",
+     "tinhTrang": "Đang công tác", "laDangVien": false, "coQuan": {"maDinhDanh": "H99.01.01"}, "chucVu": {"ma": "CHUYEN-VIEN"},
+     "ngayHieuLuc": "2000-01-01", "capNhatLuc": "2026-10-01T08:00:00Z"},
+    {"maHoSo": "HS-0311", "hoTen": "Ngô Văn Kiểm Tra", "soDinhDanh": "000000000311", "ngaySinh": "1985-11-11",
+     "tinhTrang": "Đang công tác", "laDangVien": true, "coQuan": {"maDinhDanh": "H99.01.03"}, "chucVu": {"ma": "TRUONG-PHONG"},
+     "ngayHieuLuc": "2026-10-01", "capNhatLuc": "2026-10-02T08:00:00Z"},
+    {"maHoSo": "HS-0901", "hoTen": "Đinh Thị Hồ Sơ Mới", "soDinhDanh": "000000000901", "ngaySinh": "1995-01-09",
+     "tinhTrang": "Đang công tác", "laDangVien": false, "coQuan": {"maDinhDanh": "H99.01.02"}, "chucVu": {"ma": "CHUYEN-VIEN"},
+     "ngayHieuLuc": "2026-10-01", "capNhatLuc": "2026-10-02T08:00:00Z"}
+  ],
+  "dangVien": [
+    {"maDangVien": "DV-0305", "hoTen": "Lê Văn Lãnh Đạo", "soDinhDanh": "000000000305", "ngaySinh": "1975-03-05",
+     "tinhTrangDangTich": "Đang sinh hoạt", "ngayHieuLuc": "2000-01-01"},
+    {"maDangVien": "DV-0306", "hoTen": "Trần Thị Quản Lý", "soDinhDanh": "000000000306", "ngaySinh": "1980-06-06",
+     "tinhTrangDangTich": "Đang sinh hoạt", "ngayHieuLuc": "2000-01-01"}
+  ]
+}

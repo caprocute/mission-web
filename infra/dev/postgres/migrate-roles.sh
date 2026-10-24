@@ -321,7 +321,7 @@ EOSQL
 # 3. Khởi tạo CSDL mission với 21 schema và ngoại lệ liên schema
 MISSION_ALL_SCHEMAS="config,policy,okr,task,product,appraisal,dossier,oversight,org_replica,modulith,keyring,org,scoring,evidence,docgen,notify,integ,registry,esign,ai,apicurio"
 MISSION_CORE_MODULES="config,policy,okr,task,product,appraisal,dossier,oversight"
-MISSION_TENANT_SCHEMAS="config,policy,okr,task,product,appraisal,dossier,oversight,org_replica,modulith,org,scoring,evidence,docgen"
+MISSION_TENANT_SCHEMAS="config,policy,okr,task,product,appraisal,dossier,oversight,org_replica,modulith,org,scoring,evidence,docgen,integ"
 
 bootstrap_database_schemas "${PG_DB}" "${MISSION_ALL_SCHEMAS}" "${MISSION_CORE_MODULES}" "${MISSION_TENANT_SCHEMAS}"
 

@@ -41,8 +41,10 @@ public interface PersonnelSink {
    * Gửi một lô của lần chạy {@code runId}; {@code last} đóng lần chạy (một trang HRM hay một tệp lô
    * đến ngoài lần chạy là một lần chạy trọn). Lỗi kết nối ném ngoại lệ để luồng vào thử lại rồi
    * chuyển thư chết.
+   *
+   * @return số bản ghi org-service nhận lô nhưng không ghi được (cột {@code errors} của lần chạy)
    */
-  void forward(
+  int forward(
       TenantId tenant, String connectorCode, UUID runId, List<Person> persons, boolean last);
 
   /**

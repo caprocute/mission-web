@@ -208,6 +208,8 @@ public class UnitSupport {
   /** EVT-15: trạng thái hiện hành của phân công (không có trường C2). */
   public void emitAssignmentChanged(UUID assignmentId, UUID changeOrderId, Actor actor) {
     List<AssignmentVersion> versions = assignments.currentVersions(assignmentId);
+    Map<UUID, String> titles =
+        assignments.jobTitleNames(versions.stream().map(AssignmentVersion::jobTitleId).distinct().toList());
     List<Map<String, Object>> slices = new ArrayList<>();
     int version = 0;
     for (AssignmentVersion a : versions) {
@@ -217,6 +219,7 @@ public class UnitSupport {
       s.put("orgUnitId", a.orgUnitId().toString());
       s.put("positionId", str(a.positionId()));
       s.put("jobTitleId", a.jobTitleId().toString());
+      s.put("jobTitleName", titles.get(a.jobTitleId()));
       s.put("kind", a.kind());
       s.put("branch", a.branch());
       s.put("isHead", a.head());

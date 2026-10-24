@@ -114,6 +114,11 @@ public class OkrReadService {
     }
   }
 
+  /** Hạn duyệt kế hoạch của kỳ (hạn duyệt trong {@code OkrApprovalInfo}). */
+  public Optional<LocalDate> planDeadline(TenantId tenant, UUID periodId) {
+    return periods.planDeadline(tenant, new PeriodId(periodId));
+  }
+
   public PeriodView periodView(PeriodSnapshot p) {
     long days = ChronoUnit.DAYS.between(p.startDate(), p.endDate()) + 1;
     int weekCount = (int) ((days + 6) / 7);

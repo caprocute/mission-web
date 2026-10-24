@@ -316,6 +316,21 @@ public class PeriodConfigService implements PeriodApi {
     return periods.findById(tenantId, periodId).map(PeriodConfigService::snapshot);
   }
 
+  @Override
+  @Transactional(transactionManager = TX, readOnly = true)
+  public Optional<LocalDate> planDeadline(TenantId tenantId, PeriodId periodId) {
+    Objects.requireNonNull(tenantId, "tenantId");
+    Objects.requireNonNull(periodId, "periodId");
+    return periods
+        .findById(tenantId, periodId)
+        .map(Period::schedule)
+        .map(
+            s ->
+                s.planDeadline() != null || s.milestones() == null
+                    ? s.planDeadline()
+                    : s.milestones().planApprovalDeadline());
+  }
+
   /** Chặn khi kỳ đã khoá ({@code DA_KHOA}); kỳ không tồn tại không chặn. Đọc qua bộ đệm. */
   @Override
   public void assertOpen(TenantId tenantId, PeriodId periodId) throws PeriodLockedException {

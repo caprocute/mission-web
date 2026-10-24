@@ -131,6 +131,9 @@ class OrgRepublishIT extends IntegrationTestBase {
     assertThat(entities.subList(0, 4)).allMatch(DonViDaThayDoi.class::isInstance);
     assertThat(entities.subList(4, 44)).allMatch(NhanSuDaThayDoi.class::isInstance);
     assertThat(entities.subList(44, 84)).allMatch(PhanCongDaThayDoi.class::isInstance);
+    // bổ sung QA-03: phân công mang tên chức danh để bản sao hiện chức danh
+    assertThat(entities.subList(44, 84))
+        .allMatch(a -> "Chuyên viên".equals(((PhanCongDaThayDoi) a).getJobTitleName()));
 
     // Khoá và tiêu đề như sự kiện thường.
     Received unit = batch.get(1);

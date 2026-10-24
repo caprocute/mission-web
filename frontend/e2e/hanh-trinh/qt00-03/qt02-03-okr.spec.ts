@@ -1,7 +1,7 @@
 import { Page, expect, test } from '@playwright/test';
 import { batCaoTuoi, chiHeThong, chon, dau, kiemAxe, xacThucBuocLen } from '../ho-tro/kiem-tra';
 import { HE_THONG, cho, ghiCho } from '../ho-tro/moi-truong';
-import { Phien, main, spaGoto } from '../ho-tro/phien';
+import { Phien, TenTaiKhoan, main, spaGoto } from '../ho-tro/phien';
 import { choSuKien, coKafkaUi } from '../ho-tro/su-kien';
 import { api, kiemMoiTruong } from './chung';
 
@@ -35,14 +35,16 @@ async function soanVaTrinh(page: Page, ten: string, kr: (i: number) => string): 
   const capTren = m.getByRole('combobox', { name: 'Chọn mục tiêu cấp trên' });
   if (await capTren.isVisible()) {
     if (HE_THONG) {
-      // Kỳ thử của hệ thống thật chưa chắc có mục tiêu đã duyệt của đơn vị cấp trên (dev không có tài khoản thử
-      // ở Sở để lập sẵn), khi đó danh sách chỉ có dòng báo trống
+      // Kỳ thử của hệ thống thật chưa chắc có mục tiêu đã duyệt của đơn vị cấp trên (lập sẵn bằng
+      // infra/dev/scripts/seed-okr-mau.py), khi đó danh sách chỉ có dòng báo trống
       await capTren.click();
       const ds2 = page.getByRole('listbox');
       await expect(ds2.getByRole('option').first()).toBeVisible();
       if ((await ds2.getByRole('option', { name: /No results found|Không có/ }).count()) > 0)
         cho('kỳ thử chưa có mục tiêu đã duyệt của đơn vị cấp trên để chọn làm mục tiêu cấp trên');
       await page.keyboard.press('Escape');
+      // Chờ danh sách đóng hẳn: `chon` gặp danh sách đang đóng dở sẽ bấm vào mục đã bị gỡ khỏi trang
+      await expect(ds2).toBeHidden();
     }
     await chon(page, capTren);
   }
@@ -62,6 +64,9 @@ async function soanVaTrinh(page: Page, ten: string, kr: (i: number) => string): 
       .getByRole('spinbutton', { name: /^Chỉ tiêu KR/ })
       .nth(i)
       .fill('100');
+    // Người xác nhận lấy từ trưởng đơn vị sở hữu và đơn vị cấp trên (trường 14); giả lập có thể chọn sẵn
+    const xacNhan = m.getByRole('combobox', { name: /^Người xác nhận KR/ }).nth(i);
+    if ((await xacNhan.inputValue()) === '') await xacNhan.selectOption({ index: 1 });
   }
   const donVi = await m.getByRole('textbox', { name: 'Đơn vị sở hữu' }).inputValue();
   await kiemAxe(page, 'soạn mục tiêu');
@@ -73,12 +78,18 @@ async function soanVaTrinh(page: Page, ten: string, kr: (i: number) => string): 
 /** Mã mục tiêu đọc từ đường dẫn soạn `/okr/objectives/<id>/edit`. */
 const maMucTieu = (page: Page) => new URL(page.url()).pathname.split('/')[3] ?? '';
 
+/**
+ * Người duyệt mục tiêu của phòng: hàng chờ SCR-0203 trên máy chủ lấy mục tiêu của đơn vị cấp dưới đơn vị
+ * người duyệt (`listOkrReviews`), nên trên hệ thống thật là lãnh đạo Sở; kho giả lập cho `lanhdao` duyệt.
+ */
+const DUYET: TenTaiKhoan = HE_THONG ? 'giamdocso' : 'lanhdao';
+
 test.describe('QT-02 QT-03 Mục tiêu, OKR và check-in', { tag: '@qa-04' }, () => {
   let s: Phien;
 
   test.beforeEach(({ browser }) => {
     // Giả lập: người soạn và người duyệt cùng một kho dữ liệu nên dùng chung một trang
-    s = new Phien(browser, ['quanly', 'lanhdao']);
+    s = new Phien(browser, ['quanly', DUYET]);
     kiemMoiTruong();
   });
 
@@ -102,7 +113,7 @@ test.describe('QT-02 QT-03 Mục tiêu, OKR và check-in', { tag: '@qa-04' }, ()
     const id = maMucTieu(page);
 
     // AC-04 trả lại kèm ý kiến (SCR-0203 `returnOkrObjective`)
-    page = await s.trang('lanhdao', '/okr/phe-duyet');
+    page = await s.trang(DUYET, '/okr/phe-duyet');
     let m = main(page);
     await expect(
       m.getByRole('heading', { level: 1, name: 'Phê duyệt mục tiêu, OKR' }),
@@ -115,7 +126,7 @@ test.describe('QT-02 QT-03 Mục tiêu, OKR và check-in', { tag: '@qa-04' }, ()
     await m.getByRole('button', { name: 'Trả lại để sửa' }).click();
     await xacThucBuocLen(
       page,
-      'lanhdao',
+      DUYET,
       m.getByRole('status').filter({ hasText: /Đã trả lại bộ OKR/ }),
       false,
     );
@@ -131,14 +142,14 @@ test.describe('QT-02 QT-03 Mục tiêu, OKR và check-in', { tag: '@qa-04' }, ()
     await expect(m.getByRole('status').filter({ hasText: /Đã trình phê duyệt/ })).toBeVisible();
 
     // AC-04 phê duyệt (`approveOkrObjective`, AAL2: có thể được mời xác thực lại)
-    page = await s.trang('lanhdao', '/okr/phe-duyet');
+    page = await s.trang(DUYET, '/okr/phe-duyet');
     m = main(page);
     await m.getByRole('region', { name: 'Hàng chờ' }).getByRole('button', { name: donVi }).click();
     await expect(m.getByRole('rowheader', { name: new RegExp(tenSua) })).toBeVisible();
     await m.getByRole('button', { name: 'Phê duyệt', exact: true }).click();
     await xacThucBuocLen(
       page,
-      'lanhdao',
+      DUYET,
       m.getByRole('status').filter({ hasText: /Đã phê duyệt OKR/ }),
       false,
     );
@@ -176,11 +187,16 @@ test.describe('QT-02 QT-03 Mục tiêu, OKR và check-in', { tag: '@qa-04' }, ()
       await chiHeThong('approveOkrObjective bằng tài khoản quanly trả 403', async () => {
         const c = await api(rieng, 'quanly');
         const ds = await c.can<{ items: { id: string }[] }>('GET', 'okr/objectives', {
-          query: { limit: '1' },
+          query: { limit: '1', status: 'CHO_DUYET' },
         });
-        if (!ds.body.items.length) cho('chưa có mục tiêu nào trên dev để thử phê duyệt trái quyền');
+        // Mục tiêu phải đang chờ duyệt: mục tiêu đã duyệt bị từ chối 409 vì sai trạng thái
+        if (!ds.body.items.length)
+          cho('chưa có mục tiêu chờ duyệt nào trên dev để thử phê duyệt trái quyền');
+        // Gửi đúng If-Match để máy chủ đi tới bước kiểm quyền (thiếu If-Match bị chặn 428 trước)
+        const mt = await c.can('GET', `okr/objectives/${ds.body.items[0].id}`);
         const kq = await c.goi('POST', `okr/objectives/${ds.body.items[0].id}/approve`, {
           body: {},
+          ifMatch: mt.etag,
         });
         expect(kq.status).toBe(403);
         await c.dong();
@@ -204,7 +220,9 @@ test.describe('QT-02 QT-03 Mục tiêu, OKR và check-in', { tag: '@qa-04' }, ()
       const ds = m.getByRole('region', { name: 'KR của tôi cần check-in' }).getByRole('button');
       if (HE_THONG && (await ds.count()) === 0)
         cho('tài khoản canbo trên dev chưa sở hữu KR đã duyệt (seed OKR)');
-      const mot = ds.filter({ hasNotText: /Xong$/ }).first();
+      // Ưu tiên KR chưa check-in tuần này; chạy lại trên dev mọi KR đã "Xong" thì check-in bổ sung KR đầu tiên
+      const chua = ds.filter({ hasNotText: /Xong$/ });
+      const mot = (await chua.count()) > 0 ? chua.first() : ds.first();
       const tenKr = ((await mot.innerText()).split('\n')[0] ?? '')
         .split(' · ')
         .slice(0, 2)

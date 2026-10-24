@@ -53,6 +53,7 @@ INSERT INTO org.job_title (id, tenant_id, code, name, level, valid_from, created
 SELECT j.id::uuid, 'd0000000-0000-4000-8000-000000000001'::uuid, j.code, j.name, j.level, '2000-01-01'::date, '00000000-0000-0000-0000-000000000000'::uuid, '00000000-0000-0000-0000-000000000000'::uuid
 FROM (VALUES
   ('d0000000-0000-4000-8000-000000000201', 'GIAM-DOC', 'Giám đốc', 1),
+  ('d0000000-0000-4000-8000-000000000205', 'PHO-GIAM-DOC', 'Phó Giám đốc', 2),
   ('d0000000-0000-4000-8000-000000000202', 'TRUONG-PHONG', 'Trưởng phòng', 3),
   ('d0000000-0000-4000-8000-000000000203', 'CHUYEN-VIEN', 'Chuyên viên', 5),
   ('d0000000-0000-4000-8000-000000000204', 'KIEM-TRA-VIEN', 'Kiểm tra viên', 5)
@@ -82,7 +83,13 @@ INSERT INTO seed_person VALUES
   ('d0000000-0000-4000-8000-000000000310', 'duyet2', 'Bùi Thị Duyệt Hai',
    'd0000000-0000-4000-8000-000000000102', 'd0000000-0000-4000-8000-000000000203'),
   ('d0000000-0000-4000-8000-000000000311', 'kiemtra', 'Ngô Văn Kiểm Tra',
-   'd0000000-0000-4000-8000-000000000103', 'd0000000-0000-4000-8000-000000000204');
+   'd0000000-0000-4000-8000-000000000103', 'd0000000-0000-4000-8000-000000000204'),
+  -- Lãnh đạo cấp Sở: phogiamdocso soạn, giamdocso duyệt mục tiêu của Sở để mục tiêu cấp phòng chọn được mục tiêu
+  -- cấp trên đã duyệt (HT-08, HT-09; infra/dev/scripts/seed-okr-mau.py).
+  ('d0000000-0000-4000-8000-000000000312', 'giamdocso', 'Đặng Văn Giám Đốc',
+   'd0000000-0000-4000-8000-000000000100', 'd0000000-0000-4000-8000-000000000201'),
+  ('d0000000-0000-4000-8000-000000000313', 'phogiamdocso', 'Hà Thị Phó Giám Đốc',
+   'd0000000-0000-4000-8000-000000000100', 'd0000000-0000-4000-8000-000000000205');
 
 -- Tài khoản thử thuộc diện đánh giá là đảng viên giả lập: luồng DANG chỉ lập hồ sơ cho đảng viên, còn luồng
 -- NHA_NUOC giữ CHUA_LAP tới khi EVT-10 mang điểm thành phần (wiki trang 14 mục 59), nên hành trình QT-09 (QA-06)
@@ -111,6 +118,14 @@ SELECT md5('assignment-version:' || p.id)::uuid, md5('assignment:' || p.id)::uui
        p.title_id, 'CHINH', 'CHINH_QUYEN', '2000-01-01'::date, '00000000-0000-0000-0000-000000000000'::uuid, '00000000-0000-0000-0000-000000000000'::uuid
 FROM seed_person p
 ON CONFLICT DO NOTHING;
+
+-- Trưởng đơn vị (is_head): lanhdao đứng đầu phòng 101, giamdocso đứng đầu Sở 100. Màn soạn mục tiêu lấy người xác
+-- nhận KR từ trưởng đơn vị sở hữu và đơn vị cấp trên (SCR-0202 trường 14), thiếu trưởng đơn vị thì không trình được.
+-- Câu UPDATE giữ cho lần seed lại trên dữ liệu cũ (chèn trước đây bỏ qua khi đã có bản ghi); tăng row_version để
+-- org-republish ghi đè bản sao org_replica (chỉ nhận phiên bản nguồn mới hơn).
+UPDATE org.assignment a SET is_head = true, row_version = a.row_version + 1
+FROM seed_person p
+WHERE a.person_id = p.id AND a.kind = 'CHINH' AND NOT a.is_head AND p.username IN ('lanhdao', 'giamdocso');
 
 -- Phân công kiêm nhiệm thứ hai của quanly ở Ban Tổ chức, để hành trình HT-02 (QT-00, SCR-0002) chọn được đơn vị
 -- và vai trò khi đăng nhập.

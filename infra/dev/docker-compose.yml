@@ -68,6 +68,11 @@ x-backend-java-env: &backend-java-env
 # Service backend và APISIX chỉ thuộc profile backend, không thuộc `all`: ảnh Java cần jar dựng trước
 # (deploy-backend.sh), nên `docker compose --profile all up` của hạ tầng không kéo theo chúng.
 # Cổng quản trị 8081 chỉ mở trong mạng compose; compose kiểm readiness bằng curl trong container.
+# Bộ nhớ: Dockerfile.java đặt -XX:MaxRAMPercentage=70, không có giới hạn container thì mỗi JVM tính 70% RAM của cả
+# máy, mười service tranh nhau và bị OOM trên máy 16 GB. Mỗi service Java có mem_limit và -Xmx riêng qua .env
+# (<SERVICE>_MEM_LIMIT, <SERVICE>_XMX; service nhỏ dùng chung JAVA_MEM_LIMIT, JAVA_XMX); -Xmx thắng
+# MaxRAMPercentage, phần chênh giữa mem_limit và -Xmx dành cho metaspace, luồng, bộ đệm ngoài heap.
+# ExitOnOutOfMemoryError để container khởi động lại (restart: unless-stopped) thay vì treo nửa sống.
 x-backend-java: &backend-java
   restart: unless-stopped
   profiles: ["backend"]
@@ -219,9 +224,14 @@ services:
       MISSION_CORE_CLIENT_SECRET: ${MISSION_CORE_CLIENT_SECRET:-}
       ORG_SERVICE_CLIENT_SECRET: ${ORG_SERVICE_CLIENT_SECRET:-}
       PROVISION_CLIENT_SECRET: ${PROVISION_CLIENT_SECRET:-}
+      INTEGRATION_GATEWAY_CLIENT_SECRET: ${INTEGRATION_GATEWAY_CLIENT_SECRET:-}
       # Gốc web thêm vào redirect URI của client mission-web; thiếu biến thì Keycloak 26 từ chối nhập realm
       # vì "${WEB_ORIGIN}/*" không phải URI hợp lệ.
       WEB_ORIGIN: ${WEB_ORIGIN:-http://127.0.0.1:35000}
+      # iss của mọi token (kể cả token dịch vụ client_credentials lấy qua đường nội bộ keycloak:8080) luôn là địa
+      # chỉ công khai mà các service kiểm (KEYCLOAK_ISSUER_URI); endpoint token, certs vẫn trả lời theo đường gọi tới.
+      KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL:-http://127.0.0.1:35080}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
       KC_HOSTNAME_STRICT: "false"
       KC_PROXY_HEADERS: xforwarded
       TZ: Asia/Ho_Chi_Minh
@@ -776,8 +786,10 @@ services:
       dockerfile: ../../infra/dev/backend/Dockerfile.java
     image: mission-dev/mission-core:dev
     container_name: mission-dev-mission-core
+    mem_limit: ${MISSION_CORE_MEM_LIMIT:-1536m}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${MISSION_CORE_XMX:-1g} -XX:+ExitOnOutOfMemoryError"
       SERVICE_NAME: mission-core
       AUTH_ENABLED: ${MISSION_CORE_AUTH_ENABLED:-true}
       # Đối chiếu cel-js khi chạy kiểm thử Policy Pack (CORE-05-07, BR-15-07); thiếu thì lần chạy luôn "Chưa đạt".
@@ -808,8 +820,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/org-service:dev
     container_name: mission-dev-org-service
+    mem_limit: ${ORG_SERVICE_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${ORG_SERVICE_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       PORT: "8080"
       ORG_DB_URL: jdbc:postgresql://pgbouncer:6432/${POSTGRES_DB:-mission}?currentSchema=org&prepareThreshold=0
       ORG_DB_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-}
@@ -820,6 +834,15 @@ services:
       # wiki trang 14 mục 23); thiếu base-url thì PUT /org/me/context trả 503
       OKRKPI_ORG_KEYCLOAK_BASE_URL: http://keycloak:8080
       OKRKPI_ORG_KEYCLOAK_CLIENT_SECRET: ${ORG_SERVICE_CLIENT_SECRET:-}
+      # "Đồng bộ ngay" (SCR-0104) gửi lệnh tới cổng tích hợp kèm token dịch vụ của client org-service
+      # (svc_org_service, cùng cấu hình Keycloak ở trên); thiếu địa chỉ thì lần chạy kết thúc LOI ngay (HT-07)
+      OKRKPI_ORG_INTEGRATION_GATEWAY_URL: http://integration-gateway:8080
+      # Mã hoá phong bì C2 (số định danh, ngày sinh, liên hệ) bằng FieldEncryptor của NEN-015 qua OpenBao Transit,
+      # DEK ở keyring.dek; thiếu cấu hình thì nhập nhân sự có C2 trả 503 (HT-07). KEK mỗi tenant tự tạo ở dev.
+      OKRKPI_CRYPTO_OPENBAOBASEURL: http://openbao:8200
+      OKRKPI_CRYPTO_TOKENFILE: /run/secrets/openbao_token
+      OKRKPI_CRYPTO_AUTOCREATEKEK: "true"
+    secrets: [openbao_token]
     ports:
       - "${ORG_SERVICE_PORT:-35111}:8080"
 
@@ -831,8 +854,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/workflow-service:dev
     container_name: mission-dev-workflow-service
+    mem_limit: ${WORKFLOW_SERVICE_MEM_LIMIT:-1g}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${WORKFLOW_SERVICE_XMX:-640m} -XX:+ExitOnOutOfMemoryError"
       DB_NAME: flowable
       CORE_BASE_URL: http://mission-core:8080/api/v1
       # Flyway của chính service (schema flowable) chạy lúc khởi động bằng mig_flowable, nối thẳng PostgreSQL
@@ -852,8 +877,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/scoring-service:dev
     container_name: mission-dev-scoring-service
+    mem_limit: ${SCORING_SERVICE_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${SCORING_SERVICE_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       MISSION_CORE_URL: http://mission-core:8080
     ports:
       - "${SCORING_SERVICE_PORT:-35113}:8080"
@@ -866,8 +893,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/document-service:dev
     container_name: mission-dev-document-service
+    mem_limit: ${DOCUMENT_SERVICE_MEM_LIMIT:-1g}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${DOCUMENT_SERVICE_XMX:-640m} -XX:+ExitOnOutOfMemoryError"
       # Schema tự chứa outbox, inbox, idempotency (phân vùng DEFAULT), không dùng phần chung V0_x của
       # vt-db-migration. deploy-backend.sh áp trước bằng MigrationRunner (chỉ thư mục riêng); Flyway lúc khởi động
       # bằng mig_docgen giữ lại cho lần bật service riêng lẻ, cùng thư mục nên không trùng.
@@ -892,8 +921,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/evidence-service:dev
     container_name: mission-dev-evidence-service
+    mem_limit: ${EVIDENCE_SERVICE_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${EVIDENCE_SERVICE_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       GOTENBERG_URL: http://gotenberg:3000
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY: ${MINIO_ROOT_USER:-}
@@ -912,8 +943,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/esign-service:dev
     container_name: mission-dev-esign-service
+    mem_limit: ${ESIGN_SERVICE_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${ESIGN_SERVICE_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       # Schema tự chứa outbox, inbox, idempotency (phân vùng DEFAULT), không dùng phần chung V0_x của
       # vt-db-migration. deploy-backend.sh áp trước bằng MigrationRunner (chỉ thư mục riêng); Flyway lúc khởi động
       # bằng mig_esign giữ lại cho lần bật service riêng lẻ, cùng thư mục nên không trùng.
@@ -926,6 +959,24 @@ services:
       - "${ESIGN_SERVICE_PORT:-35116}:8080"
 
   # SVC-13: chỉ có cổng nội bộ /internal/v1, không có tuyến qua APISIX.
+  # Nguồn nhân sự giả lập (YC-PT-13, HT-07): CSDL CBCCVC và CSDL đảng viên cho "Đồng bộ ngay" (SCR-0104), chỉ trong
+  # mạng compose; dữ liệu hư cấu ở hr-gia-lap/du-lieu.json, kết nối và ánh xạ mã ở postgres/seed/integ-ket-noi-thu.sql.
+  hr-gia-lap:
+    image: python:3.13-alpine
+    container_name: mission-dev-hr-gia-lap
+    restart: unless-stopped
+    profiles: ["backend"]
+    command: ["python", "-I", "/srv/hr-gia-lap/may-chu.py"]
+    volumes:
+      - ./hr-gia-lap:/srv/hr-gia-lap:ro
+    networks:
+      - mission-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
   integration-gateway:
     <<: *backend-java
     build:
@@ -933,8 +984,23 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/integration-gateway:dev
     container_name: mission-dev-integration-gateway
+    mem_limit: ${INTEGRATION_GATEWAY_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      # Hồ sơ dev nạp hồ sơ kết nối HRM, CBCCVC, DANG_VIEN giả lập (application-dev.yaml); địa chỉ nguồn nằm ở
+      # bản ghi integ.connector của tenant (infra/dev/postgres/seed/integ-ket-noi-thu.sql) trỏ tới hr-gia-lap.
+      SPRING_PROFILES_ACTIVE: dev
+      # Lô nhân sự đẩy về org-service bằng token dịch vụ client integration-gateway (svc_integration_gateway).
+      ORG_SERVICE_URL: http://org-service:8080
+      INTEG_TOKEN_URL: http://keycloak:8080/realms/mission/protocol/openid-connect/token
+      INTEG_CLIENT_ID: integration-gateway
+      INTEG_CLIENT_SECRET: ${INTEGRATION_GATEWAY_CLIENT_SECRET:-}
+      # Mã hoá phong bì C2 (số định danh, ngày sinh của lô nhân sự, HT-07) qua OpenBao Transit; KEK mỗi tenant tự tạo ở dev.
+      OKRKPI_CRYPTO_OPENBAOBASEURL: http://openbao:8200
+      OKRKPI_CRYPTO_TOKENFILE: /run/secrets/openbao_token
+      OKRKPI_CRYPTO_AUTOCREATEKEK: "true"
+      JAVA_TOOL_OPTIONS: "-Xmx${INTEGRATION_GATEWAY_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
+    secrets: [openbao_token]
     ports:
       - "${INTEGRATION_GATEWAY_PORT:-35117}:8080"
 
@@ -946,8 +1012,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/analytics-api:dev
     container_name: mission-dev-analytics-api
+    mem_limit: ${ANALYTICS_API_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${ANALYTICS_API_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       OPA_URL: http://opa:8181
       MISSION_CORE_URL: http://mission-core:8080
       ANALYTICS_CLICKHOUSE_URL: http://clickhouse:8123
@@ -974,8 +1042,10 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/search:dev
     container_name: mission-dev-search
+    mem_limit: ${SEARCH_SERVICE_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
+      JAVA_TOOL_OPTIONS: "-Xmx${SEARCH_SERVICE_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       OPA_URL: http://opa:8181
       OPENSEARCH_URL: http://opensearch:9200
     ports:
@@ -1235,3 +1305,7 @@ networks:
 secrets:
   ca_bundle:
     file: ${BUILD_CA_BUNDLE:-/dev/null}
+  # Token OpenBao dev cho mã hoá phong bì C2 (okrkpi.crypto.token-file của vt-platform-starter, ADR-06): ở production
+  # là tệp do OpenBao Agent/CSI gắn; ở dev lấy từ token gốc của OpenBao chế độ dev.
+  openbao_token:
+    environment: OPENBAO_DEV_ROOT_TOKEN

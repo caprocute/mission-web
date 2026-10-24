@@ -335,7 +335,7 @@ public class OrgController implements OrgApi {
     String connector = body == null || body.getConnector() == null ? null : body.getConnector().getValue();
     SyncRunService.Started started = syncRuns.start(actor(),
         hasher.of(idempotencyKey, "POST", request.getRequestURI(), body), connector);
-    return ResponseEntity.accepted().location(URI.create("/api/v1/org/sync-runs"))
+    return ResponseEntity.accepted().location(SyncWebMapper.jobLocation(started.runIds().getFirst()))
         .body(SyncWebMapper.job(started.runIds().getFirst(), "DANG_CHAY"));
   }
 
@@ -353,7 +353,7 @@ public class OrgController implements OrgApi {
   @Override
   public ResponseEntity<ImportOrgExcel202Response> retryOrgSyncRun(String idempotencyKey, UUID id) {
     Run run = syncRuns.retry(actor(), hasher.of(idempotencyKey, "POST", request.getRequestURI(), null), id);
-    return ResponseEntity.accepted().location(URI.create("/api/v1/org/sync-runs"))
+    return ResponseEntity.accepted().location(SyncWebMapper.jobLocation(run.id()))
         .body(SyncWebMapper.job(run.id(), "DANG_CHAY"));
   }
 

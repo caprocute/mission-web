@@ -85,6 +85,12 @@ public final class Fixtures {
     return id;
   }
 
+  /** Thân JSON của các sự kiện trong outbox theo topic, cũ trước. */
+  public java.util.List<String> outboxPayloads(UUID tenant, String topic) {
+    return admin.queryForList("SELECT convert_from(payload, 'UTF8') FROM org.outbox_event WHERE tenant_id = ? AND topic = ? "
+        + "ORDER BY created_at", String.class, tenant, topic);
+  }
+
   public int outboxCount(UUID tenant, String topic) {
     Integer n = admin.queryForObject("SELECT count(*) FROM org.outbox_event WHERE tenant_id = ? AND topic = ?",
         Integer.class, tenant, topic);

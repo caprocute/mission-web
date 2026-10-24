@@ -61,7 +61,7 @@ class DevSeedApiIT extends IntegrationTestBase {
   @Test
   void moiTaiKhoanThuCoHoSoVaPhanCongTaiDonViCuaRealm() throws Exception {
     List<TestUser> users = realmUsers();
-    assertThat(users).hasSize(10);
+    assertThat(users).hasSize(12);
     for (TestUser u : users) {
       Map<String, Object> row = admin.queryForMap(
           "SELECT count(*) AS n, min(a.org_unit_id::text) AS unit FROM org.person p JOIN org.assignment a "

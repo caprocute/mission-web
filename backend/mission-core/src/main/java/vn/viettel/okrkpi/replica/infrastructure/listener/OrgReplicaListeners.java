@@ -133,7 +133,8 @@ public class OrgReplicaListeners {
         a.getIsHead(),
         a.getValidFrom(),
         a.getValidTo(),
-        a.getSourceVersion());
+        a.getSourceVersion(),
+        a.getJobTitleName());
   }
 
   static PersonSnapshot person(NhanSuDaThayDoi p) {

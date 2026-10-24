@@ -466,6 +466,7 @@ class OkrComposeApiIT extends ContractConformanceTest {
         .thenReturn(Map.of(UNIT, "Phòng Kế hoạch", OTHER_UNIT, "Sở Nội vụ"));
     when(names.personNames(eq(tenant), any()))
         .thenReturn(Map.of(ACTOR, "Nguyễn Văn An", VERIFIER, "Trần Thị Bình"));
+    when(names.personTitles(eq(tenant), any())).thenReturn(Map.of(VERIFIER, "Giám đốc Sở"));
     MvcResult r = perform(get("/api/v1/okr/compose-context").param("period", period.toString()));
     assertThat(r.getResponse().getStatus()).isEqualTo(200);
     JsonNode body = body(r);
@@ -475,6 +476,7 @@ class OkrComposeApiIT extends ContractConformanceTest {
     assertThat(body.at("/unit/name").asText()).isEqualTo("Phòng Kế hoạch");
     assertThat(body.at("/me/name").asText()).isEqualTo("Nguyễn Văn An");
     assertThat(body.at("/verifiers/0/name").asText()).isEqualTo("Trần Thị Bình");
+    assertThat(body.at("/verifiers/0/title").asText()).isEqualTo("Giám đốc Sở");
     assertThat(body.at("/parentOptions/0/unitName").asText()).isEqualTo("Sở Nội vụ");
     assertThat(body.get("existingCount").asInt()).isPositive();
     assertThat(body.at("/policy/recommendedMax").asInt()).isEqualTo(3);
@@ -489,13 +491,33 @@ class OkrComposeApiIT extends ContractConformanceTest {
             Optional.of(
                 new OkrApprovalStarter.ApprovalStarted(
                     "wf-1", VERIFIER, java.time.LocalDate.of(2027, 1, 8))));
+    when(orgDirectory.parentOf(tenant, OrgTree.CHUYEN_MON, UNIT))
+        .thenReturn(Optional.of(OTHER_UNIT));
+    when(orgDirectory.headsOf(eq(tenant), eq(OTHER_UNIT), any())).thenReturn(List.of(VERIFIER));
+    when(names.personNames(eq(tenant), any())).thenReturn(Map.of(VERIFIER, "Trần Thị Bình"));
+    setPlanDeadline(period, "2027-01-15");
+    UUID upper = id(create(UNIT, period, "Mục tiêu của đơn vị cấp trên", 3, null));
     UUID id = id(create(UNIT, period, "Nâng chất lượng sinh hoạt chi bộ trình duyệt", 3, null));
+    // đơn vị không ở cấp cao nhất phải liên kết mục tiêu cấp trên đã duyệt (BR-02-02)
+    inTenant(
+        jdbc ->
+            jdbc.sql("UPDATE okr.objective SET status = 'DA_DUYET', owner_unit_id = ? WHERE id = ?")
+                    .params(OTHER_UNIT, upper)
+                    .update()
+                + jdbc.sql("UPDATE okr.objective SET parent_objective_id = ? WHERE id = ?")
+                    .params(upper, id)
+                    .update());
     String key = UUID.randomUUID().toString();
     MvcResult first = submit(id, key, "\"0\"");
     assertThat(first.getResponse().getStatus())
         .as(first.getResponse().getContentAsString(StandardCharsets.UTF_8))
         .isEqualTo(200);
     assertThat(body(first).get("status").asText()).isEqualTo("CHO_DUYET");
+    // người duyệt là trưởng đơn vị cấp trên, hạn duyệt là hạn duyệt kế hoạch của kỳ
+    assertThat(body(first).at("/approval/reviewer/id").asText()).isEqualTo(VERIFIER.toString());
+    assertThat(body(first).at("/approval/reviewer/name").asText()).isEqualTo("Trần Thị Bình");
+    assertThat(body(first).at("/approval/dueDate").asText()).isEqualTo("2027-01-15");
+    assertThat(body(first).at("/approval/submittedAt").isMissingNode()).isFalse();
     assertThat(first.getResponse().getHeader("ETag")).isEqualTo("\"1\"");
     assertThat(body(first).at("/keyResults/0/status").asText()).isEqualTo("CHO_DUYET");
     assertResponseConforms(first, "/okr/objectives/{id}/submit", PathItem.HttpMethod.POST);
@@ -679,6 +701,19 @@ class OkrComposeApiIT extends ContractConformanceTest {
                                 status,
                                 ACTOR,
                                 ACTOR)
+                            .update()));
+  }
+
+  private void setPlanDeadline(UUID id, String day) {
+    JdbcClient jdbc = JdbcClient.create(configDataSource);
+    TenantContext.run(
+        tenant,
+        () ->
+            new TransactionTemplate(configTm)
+                .executeWithoutResult(
+                    s ->
+                        jdbc.sql("UPDATE config.period SET plan_deadline = ?::date WHERE id = ?")
+                            .params(day, id)
                             .update()));
   }
 
