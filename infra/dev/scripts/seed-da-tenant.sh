@@ -6,10 +6,14 @@
 # docs/kich-ban-trai-nghiem/KICH-BAN-DA-TENANT.md.
 #
 # Các bước, chạy lại an toàn (không sinh trùng):
-#   1. SQL: tenant-registry, tổ chức, căn cứ OKR, danh mục công việc (postgres/seed/da-tenant-du-lieu-thu.sql);
+#   1. SQL: tenant-registry, tổ chức, căn cứ OKR, danh mục công việc (postgres/seed/da-tenant-du-lieu-thu.sql) và
+#      Policy Pack mẫu của từng tenant để quản trị nghiệp vụ soạn, kiểm ca mẫu, phát hành (da-tenant-policy-*.sql);
 #   2. tài khoản realm mission (keycloak/tai-khoan-da-tenant.json, partialImport bỏ qua tài khoản đã có);
 #   3. phát lại tổ chức của từng tenant sang bản sao của mission-core (dong-bo-to-chuc.sh);
-#   4. kỳ quý hiện hành, OKR, check-in, nhiệm vụ qua API như người dùng (seed-da-tenant-api.py).
+#   4. dữ liệu nghiệp vụ qua API như người dùng thật (seed-da-tenant-api.py): kỳ quý trước (OKR đã duyệt, lệnh khoá
+#      đã duyệt) và kỳ hiện hành với OKR ở mọi trạng thái, nhiều lần check-in, nhiệm vụ ở cả bảy trạng thái kèm
+#      điểm nghẽn, đề nghị điều chỉnh, nhắc việc, giao lại, kế hoạch công tác, uỷ quyền, phân quyền; cuối cùng in
+#      bảng thống kê theo tenant và danh sách bước lỗi (mã thoát 1 nếu có bước lỗi).
 #
 #   ./infra/dev/scripts/seed-da-tenant.sh            # cả bốn bước
 #   ./infra/dev/scripts/seed-da-tenant.sh --khong-api # chỉ ba bước đầu
@@ -28,6 +32,7 @@ if [[ -f "${ENV_FILE}" ]]; then
   set +a
 fi
 SEED="${SCRIPT_DIR}/../postgres/seed/da-tenant-du-lieu-thu.sql"
+POLICY_SEEDS="${SCRIPT_DIR}/../postgres/seed/da-tenant-policy-dang.sql ${SCRIPT_DIR}/../postgres/seed/da-tenant-policy-cq.sql ${SCRIPT_DIR}/../postgres/seed/da-tenant-policy-dn.sql"
 USERS="${SCRIPT_DIR}/../keycloak/tai-khoan-da-tenant.json"
 PG_SUPERUSER="${POSTGRES_USER:-mission_admin}"
 PG_SUPERPASS="${POSTGRES_PASSWORD:?Cần POSTGRES_PASSWORD trong infra/dev/.env}"
@@ -40,9 +45,11 @@ KC="${KEYCLOAK_CONTAINER:-mission-dev-keycloak}"
 export KC_TEST_USER_PASSWORD KC_TEST_OTP_SECRET
 TENANTS="e1000000-0000-4000-8000-000000000001 e2000000-0000-4000-8000-000000000001 e3000000-0000-4000-8000-000000000001"
 
-echo "==> 1/4 Tổ chức, tenant-registry, căn cứ OKR, danh mục công việc"
-docker exec -i -e PGPASSWORD="${PG_SUPERPASS}" "${POSTGRES_CONTAINER}" \
-  psql -q -v ON_ERROR_STOP=1 --username "${PG_SUPERUSER}" --dbname "${PG_DB}" < "${SEED}"
+echo "==> 1/4 Tổ chức, tenant-registry, căn cứ OKR, danh mục công việc, Policy Pack mẫu"
+for f in "${SEED}" ${POLICY_SEEDS}; do
+  docker exec -i -e PGPASSWORD="${PG_SUPERPASS}" "${POSTGRES_CONTAINER}" \
+    psql -q -v ON_ERROR_STOP=1 --username "${PG_SUPERUSER}" --dbname "${PG_DB}" < "${f}"
+done
 
 echo "==> 2/4 Tài khoản realm mission"
 kc() { docker exec -i "${KC}" /opt/keycloak/bin/kcadm.sh "$@"; }
@@ -67,5 +74,5 @@ if [[ "${1:-}" == "--khong-api" ]]; then
   echo "Bỏ qua bước 4 (OKR, nhiệm vụ qua API)."
   exit 0
 fi
-echo "==> 4/4 Kỳ, OKR, check-in, nhiệm vụ qua API"
+echo "==> 4/4 Kỳ trước và kỳ hiện hành: OKR, check-in, nhiệm vụ, kế hoạch, uỷ quyền, phân quyền qua API"
 python3 -I "${SCRIPT_DIR}/seed-da-tenant-api.py"

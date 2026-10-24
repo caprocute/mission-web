@@ -25,7 +25,20 @@ import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { OkrApi, OrgApi, TASK_GROUP_LABEL, TaskGroup, toProblem } from '@vt/api-client';
-import { CatalogApi, CatalogItem, PLAN_CHECK_RULES, PLAN_RECURRENCE_LABEL, PLAN_VERSION_STATUS_LABEL, PeriodApi, PlanApi, PlanItem, PlanItemInput, PlanRemovedItem, PlanVersion, PlanWorkspace } from '@vt/api-client/domains';
+import {
+  CatalogApi,
+  CatalogItem,
+  PLAN_CHECK_RULES,
+  PLAN_RECURRENCE_LABEL,
+  PLAN_VERSION_STATUS_LABEL,
+  PeriodApi,
+  PlanApi,
+  PlanItem,
+  PlanItemInput,
+  PlanRemovedItem,
+  PlanVersion,
+  PlanWorkspace,
+} from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
@@ -193,20 +206,14 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
       @if (editable()) {
         @if ((v.workingDaysToDeadline ?? 0) < 0) {
           <p class="msg err banner" role="note">
-            <span class="num" aria-hidden="true">1</span>
             Đã quá hạn phê duyệt kế hoạch {{ date(deadline()) }}. Việc này đã được ghi nhận và báo
             người đứng đầu.
           </p>
         } @else {
           <p class="msg warn banner" role="note">
-            <span class="num" aria-hidden="true">1</span>
             <span
               >Hạn phê duyệt kế hoạch là <strong>{{ date(deadline()) }}</strong
               >. Còn {{ v.workingDaysToDeadline }} ngày làm việc.
-              @if (!simple()) {
-                (Hạn là hết tuần thứ 2 của tháng đầu quý theo bộ quy định đánh giá của đơn vị. Nếu
-                quá hạn, hệ thống báo người đứng đầu và ghi nhận là dấu hiệu bất thường.)
-              }
             </span>
           </p>
         }
@@ -276,10 +283,7 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
       <div class="layout">
         <section class="box" aria-labelledby="tbl-title">
           <h2 id="tbl-title" class="h">
-            <span class="num" aria-hidden="true">2</span> Danh sách công việc
-            <span class="muted small"
-              >· mỗi việc đúng một đơn vị chủ trì, có thể nhiều đơn vị phối hợp</span
-            >
+            Danh sách công việc
             @if (editable()) {
               <span class="save-state small" aria-live="polite">{{ saveState() }}</span>
             }
@@ -389,19 +393,13 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
                 [outlined]="true"
                 (onClick)="addBlank()"
               />
-              <span class="muted small"
-                >Điểm của việc lấy từ danh mục (Bảng 3, Phụ lục 1); việc ngoài danh mục cần cấp
-                duyệt chấm điểm.</span
-              >
             </div>
           }
         </section>
 
         <aside>
           <section class="box" aria-labelledby="w-title">
-            <h2 id="w-title" class="h">
-              <span class="num" aria-hidden="true">3</span> Tỷ trọng nhóm
-            </h2>
+            <h2 id="w-title" class="h">Tỷ trọng nhóm</h2>
             <table class="weights">
               <tbody>
                 @for (g of groups; track g) {
@@ -435,18 +433,11 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
                 }
               </p>
             }
-            @if (!simple()) {
-              <p class="muted small">
-                Tỷ trọng do cấp có thẩm quyền quyết định trong bộ quy định đánh giá của đơn vị.
-              </p>
-            }
           </section>
 
           @if (editable()) {
             <section class="box" aria-labelledby="chk-title" aria-live="polite">
-              <h2 id="chk-title" class="h">
-                <span class="num" aria-hidden="true">4</span> Kiểm tra kế hoạch
-              </h2>
+              <h2 id="chk-title" class="h">Kiểm tra kế hoạch</h2>
               @if (checks()) {
                 <ul class="checks">
                   @for (x of checkRows(); track $index) {
@@ -597,7 +588,6 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
   styles: `
     :host {
       display: block;
-      padding: 16px 24px;
       --p-togglebutton-color: #374151;
     }
     .top {

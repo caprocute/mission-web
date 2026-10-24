@@ -114,7 +114,8 @@ describe('EvidenceSubmitPage (SCR-0701)', () => {
     expect(text(el.querySelector('.doc + .muted'))).toContain('Trần Thị Bình');
     expect(rows(el)[1]).toContain('phu-luc-so-lieu.xlsx');
     expect(rows(el)[1]).toContain('96 KB');
-    expect(rows(el)[1]).toMatch(/77be 0c11 … 9a40/);
+    // mã kiểm tra toàn vẹn (SHA-256) không hiện cho người dùng (YC-PT-24)
+    expect(rows(el)[1]).not.toMatch(/77be/);
     expect(text(el.querySelector('.dup'))).toContain('NV-2026-Q3-0088 (Phạm Thu Hà');
     expect([...el.querySelectorAll('.versions li')].map(text)).toEqual([
       expect.stringContaining('Phiên bản 1'),

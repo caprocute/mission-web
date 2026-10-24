@@ -84,6 +84,18 @@ Lớp thứ hai là kiểm thử đầu cuối `e2e/gia-lap.noi-dung.spec.ts`, c
 
 Một task giao diện chỉ hoàn thành khi cả hai lớp đều xanh với các màn hình của task (bổ sung vào tiêu chí ở [Kiểm thử và chất lượng](11-kiem-thu-va-chat-luong.md)).
 
+## Bố cục và mức độ thông tin (YC-PT-24)
+
+Ngày 24/10/2026, người phụ trách yêu cầu giao diện được thiết kế như một sản phẩm hoàn chỉnh cho người dùng cuối (YC-PT-24 trong sổ tay yêu cầu). Ngoài việc không lộ mã thiết kế, mỗi màn hình phải tuân thủ các điểm sau, và đợt rà soát cùng ngày đã sửa toàn bộ màn hình theo các điểm này:
+
+- Đầu trang dùng lớp chung `.vt-page-head`, gồm tiêu đề, một dòng mô tả ngắn và các nút thao tác ở bên phải. Không dùng băng tiêu đề nền tối, dòng khẩu hiệu hay mô tả quảng bá ("Khung nền tảng", "nền tảng lõi").
+- Trang tổng hợp dẫn tới các chức năng con dùng lưới thẻ `.vt-hub`, mỗi thẻ có biểu tượng, tên và một dòng mô tả.
+- Không in lời giải thích cách hệ thống vận hành (máy chủ kiểm tra lại, ghi sổ cái, tính mã băm, chạy lúc 02:00, số lô, tốc độ xử lý, ngân sách dung lượng, quy trình phiên bản N). Quy tắc nghiệp vụ được thể hiện bằng ràng buộc trên ô nhập và bằng thông báo lỗi đúng lúc; căn cứ thiết kế đặt trong chú thích mã nguồn.
+- Không hiện số đánh dấu vùng của bản phác thảo, mã băm, khoá kỹ thuật như mã gói chính sách (`nn-335/so-y-te`). Trùng minh chứng gọi là "trùng nội dung".
+- Bảng phải có cột tên đủ rộng (không ép tên cán bộ xuống nhiều dòng); cột ít dùng có thể ẩn mặc định bằng `hiddenByDefault` trong `ListColumnDef`, người dùng bật lại qua cá nhân hoá danh sách.
+- Bảng phụ, khung đăng ký nhanh hoặc khung xem nhanh chỉ mở khi người dùng yêu cầu, không mở sẵn.
+- Ghi chú nguồn của nội dung do AI tạo ("Nguồn: …") là yêu cầu minh bạch nghiệp vụ nên được giữ lại.
+
 ## Ví dụ sửa
 
 Câu "Nhiệm vụ chuyển trạng thái Đã giao, phát sự kiện NhiemVuDaGiao (EVT-04); người chủ trì và phối hợp nhận thông báo" được sửa thành "Nhiệm vụ chuyển sang trạng thái Đã giao; người chủ trì và người phối hợp nhận được thông báo." Phần "phát sự kiện" là cách hệ thống hiện thực nên bị bỏ.

@@ -42,7 +42,7 @@ Repo `mission-web` đã có một lát cắt dọc chạy được, dùng để 
 
 Quá trình dựng lát cắt này đã lộ ra một số bẫy kỹ thuật của Native Federation và Angular 21, như việc shell phải tự dùng `rxjs-interop` để remote dùng chung được, hay việc phải bỏ `@primeuix/themes` khỏi danh sách chia sẻ. Các bẫy này đã được ghi vào `AGENTS.md` và wiki để agent sau không lặp lại.
 
-Hạ tầng dùng chung cho dev được đóng gói bằng Docker Compose trong `infra/dev/`, chia theo profile (core, events, search, analytics, observability, gateway, web), dùng dải cổng 35xxx để không đụng các hệ thống đang chạy trên server 14.232.210.125, và được triển khai vào `/home/provision/mission-infra`.
+Hạ tầng dùng chung cho dev được đóng gói bằng Docker Compose trong `infra/dev/`, chia theo profile (core, events, search, analytics, observability, gateway, web), dùng dải cổng 35xxx để không đụng các hệ thống đang chạy trên server dev dùng chung, và được triển khai vào `/home/provision/mission-infra`.
 
 ## 5. Lộ trình theo giai đoạn
 
@@ -92,7 +92,7 @@ Một task chỉ được coi là xong khi đạt đồng thời các điều ki
 
 ## 8. Môi trường phát triển dùng chung
 
-Server dev 14.232.210.125 chạy hạ tầng dùng chung bằng Docker Compose với tên project `mission-dev`, tách biệt hoàn toàn với các stack đang có trên máy. Thông tin truy cập SSH nằm trong `.env` ở gốc repo, mật khẩu các dịch vụ nằm trong `infra/dev/.env`; cả hai đều bị `.gitignore` chặn và không bao giờ được commit. Chi tiết dịch vụ, cổng, tài khoản thử và cách vận hành nằm trong `infra/dev/README.md` và wiki trang 12.
+Server dev dùng chung (địa chỉ chỉ ghi trong `.env` không commit) chạy hạ tầng dùng chung bằng Docker Compose với tên project `mission-dev`, tách biệt hoàn toàn với các stack đang có trên máy. Thông tin truy cập SSH nằm trong `.env` ở gốc repo, mật khẩu các dịch vụ nằm trong `infra/dev/.env`; cả hai đều bị `.gitignore` chặn và không bao giờ được commit. Chi tiết dịch vụ, cổng, tài khoản thử và cách vận hành nằm trong `infra/dev/README.md` và wiki trang 12.
 
 Ổ `/u01` chứa dữ liệu Docker của server đã đầy khoảng 95%, nên toàn bộ dữ liệu của `mission-dev` được đặt dưới `/home/provision/mission-infra/data`. Trước khi bật thêm profile nặng (events, search, analytics) cần kiểm tra lại dung lượng ổ và bộ nhớ.
 

@@ -105,7 +105,7 @@ describe('PlanReviewPage (SCR-0403)', () => {
 
   it('BR-04-05: định điểm việc ngoài danh mục trước khi bật duyệt và ký số', async () => {
     await render('.tbl tbody tr', () => true, {}, 'plan-2027-q1');
-    const { PlanApi } = await import('@vt/api-client');
+    const { PlanApi } = await import('@vt/api-client/domains');
     const api = TestBed.inject(PlanApi);
     const p = (await firstValueFrom(api.list())).find((x) => x.id === 'plan-2027-q1')!;
     const ws = await firstValueFrom(api.workspace(p));

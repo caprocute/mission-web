@@ -11,72 +11,79 @@ import { OVERSIGHT_CAN } from '../oversight-permissions';
   selector: 'vt-oversight-home-page',
   imports: [RouterLink],
   template: `
-    <h1>Giám sát, hậu kiểm</h1>
-    <ul class="cards">
+    <header class="vt-page-head">
+      <div>
+        <h1>Giám sát, hậu kiểm</h1>
+        <p>Khiếu nại, hậu kiểm và cảnh báo bất thường trong đánh giá cán bộ.</p>
+      </div>
+    </header>
+    <ul class="vt-hub">
       @if (canAny('SCR-1201', ['soan', 'ky-gui', 'rut-bao-luu'])) {
         <li>
-          <a routerLink="my-complaints">Khiếu nại, giải trình của tôi</a>
-          <span>Gửi khiếu nại, giải trình bổ sung hoặc bảo lưu ý kiến về kết quả đánh giá.</span>
+          <a routerLink="my-complaints" class="vt-hub-card">
+            <i class="pi pi-comment" aria-hidden="true"></i>
+            <div>
+              <strong>Khiếu nại, giải trình của tôi</strong>
+              <span>Gửi khiếu nại, giải trình về kết quả đánh giá.</span>
+            </div>
+          </a>
         </li>
       }
       @if (canAny('SCR-1202', ['tiep-nhan', 'giai-trinh', 'tinh-thu', 'ky-tra-loi', 'mo-lai'])) {
         <li>
-          <a routerLink="complaints">Xử lý khiếu nại</a>
-          <span>Tiếp nhận, yêu cầu giải trình, tính thử, kết luận và ký văn bản trả lời.</span>
+          <a routerLink="complaints" class="vt-hub-card">
+            <i class="pi pi-inbox" aria-hidden="true"></i>
+            <div>
+              <strong>Xử lý khiếu nại</strong>
+              <span>Tiếp nhận, giải quyết và trả lời khiếu nại.</span>
+            </div>
+          </a>
         </li>
       }
       @if (canReopen()) {
         <li>
-          <a routerLink="reopen-requests">Hậu kiểm, mở lại kỳ</a>
-          <span>Lập, tính thử và phê duyệt yêu cầu mở lại kỳ đã khoá với hai người duyệt.</span>
+          <a routerLink="reopen-requests" class="vt-hub-card">
+            <i class="pi pi-replay" aria-hidden="true"></i>
+            <div>
+              <strong>Hậu kiểm, mở lại kỳ</strong>
+              <span>Đề nghị và phê duyệt mở lại kỳ đã khoá.</span>
+            </div>
+          </a>
         </li>
       }
       @if (can('SCR-1401.xem')) {
         <li>
-          <a routerLink="alerts">Cảnh báo bất thường</a>
-          <span>Xem chuỗi truy vết, xác nhận hợp lệ, giao kiểm tra và kết luận các cảnh báo.</span>
+          <a routerLink="alerts" class="vt-hub-card">
+            <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+            <div>
+              <strong>Cảnh báo bất thường</strong>
+              <span>Xác minh và kết luận các dấu hiệu bất thường.</span>
+            </div>
+          </a>
         </li>
       } @else if (can('SCR-1401.nguong')) {
         <li>
-          <a routerLink="alert-thresholds">Ngưỡng phát hiện bất thường</a>
-          <span>Điều chỉnh ngưỡng của tám dấu hiệu bất thường, lưu phiên bản có lý do.</span>
+          <a routerLink="alert-thresholds" class="vt-hub-card">
+            <i class="pi pi-sliders-h" aria-hidden="true"></i>
+            <div>
+              <strong>Ngưỡng phát hiện bất thường</strong>
+              <span>Điều chỉnh ngưỡng phát hiện bất thường.</span>
+            </div>
+          </a>
         </li>
       }
       @if (can('SCR-1302.tra-cuu')) {
         <li>
-          <a routerLink="ledger">Sổ cái và kiểm tra toàn vẹn</a>
-          <span
-            >Tra cứu lịch sử thay đổi dữ liệu đánh giá và kiểm tra tính toàn vẹn của sổ cái.</span
-          >
+          <a routerLink="ledger" class="vt-hub-card">
+            <i class="pi pi-book" aria-hidden="true"></i>
+            <div>
+              <strong>Sổ cái và kiểm tra toàn vẹn</strong>
+              <span>Tra cứu lịch sử thay đổi dữ liệu đánh giá.</span>
+            </div>
+          </a>
         </li>
       }
     </ul>
-  `,
-  styles: `
-    h1 {
-      font-size: 1.5rem;
-      margin: 0 0 16px;
-    }
-    .cards {
-      list-style: none;
-      padding: 0;
-      margin: 0 0 16px;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 12px;
-    }
-    .cards li {
-      border: 1px solid var(--p-content-border-color, #e5e7eb);
-      border-radius: 8px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .cards a {
-      font-weight: 600;
-      font-size: 1.05rem;
-    }
   `,
 })
 export class OversightHomePage {

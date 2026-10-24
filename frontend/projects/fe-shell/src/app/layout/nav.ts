@@ -45,10 +45,8 @@ export interface NavItem {
   link: string;
   /** Khoá chức năng của nhóm; không khai báo nghĩa là mọi người đã đăng nhập đều thấy. */
   perms?: PermissionKey[];
-  /** Phân nhóm hiển thị: 'platform' (Khung nền tảng & Quản trị) | 'workspace' (Không gian làm việc) */
+  /** Phân nhóm hiển thị: 'workspace' (công việc nghiệp vụ, đứng trước) | 'platform' (nhóm "Quản trị", đứng cuối) */
   section?: NavSection;
-  /** Mô tả ngắn gọn dưới nhãn chính */
-  subtitle?: string;
   /** Cờ tính năng (WEB-076): mục chỉ hiện khi cờ bật, dùng cho tính năng đang phát hành dần. */
   flag?: string;
 }
@@ -60,7 +58,6 @@ export const NAV: NavItem[] = [
     icon: 'pi pi-home',
     link: '/',
     section: 'workspace',
-    subtitle: 'Bàn làm việc trung tâm',
   },
   // Mục menu chỉ hiện với vai trò có màn hình đầu vào (việc của tôi, giao việc, thư viện danh mục);
   // vai trò chỉ xem chi tiết nhiệm vụ (SCR-0601, ví dụ inspector) vẫn mở được `/tasks/:id` từ màn
@@ -70,7 +67,6 @@ export const NAV: NavItem[] = [
     icon: 'pi pi-check-square',
     link: '/tasks',
     section: 'workspace',
-    subtitle: 'Giao việc & Nghiệm thu',
     perms: screenKeys('SCR-0401', 'SCR-0501', 'SCR-0502', 'SCR-0503'),
   },
   {
@@ -78,7 +74,6 @@ export const NAV: NavItem[] = [
     icon: 'pi pi-bullseye',
     link: '/okr',
     section: 'workspace',
-    subtitle: 'Cây mục tiêu & Check-in',
     perms: SECTION_KEYS.okr,
   },
   {
@@ -86,7 +81,6 @@ export const NAV: NavItem[] = [
     icon: 'pi pi-calendar',
     link: '/plans',
     section: 'workspace',
-    subtitle: 'Đăng ký & Phê duyệt KPI',
     perms: SECTION_KEYS.plans,
   },
   {
@@ -94,7 +88,6 @@ export const NAV: NavItem[] = [
     icon: 'pi pi-paperclip',
     link: '/evidence',
     section: 'workspace',
-    subtitle: 'Kho tài liệu kiểm chứng',
     perms: SECTION_KEYS.evidence,
   },
   {
@@ -102,7 +95,6 @@ export const NAV: NavItem[] = [
     icon: 'pi pi-star',
     link: '/appraisal',
     section: 'workspace',
-    subtitle: 'Chấm điểm QĐ 366-QĐ/TW',
     perms: SECTION_KEYS.appraisal,
   },
   {
@@ -110,7 +102,6 @@ export const NAV: NavItem[] = [
     icon: 'pi pi-folder',
     link: '/dossier',
     section: 'workspace',
-    subtitle: 'Hồ sơ cán bộ cuối kỳ',
     perms: SECTION_KEYS.dossier,
   },
   {
@@ -118,7 +109,6 @@ export const NAV: NavItem[] = [
     icon: 'pi pi-eye',
     link: '/oversight',
     section: 'workspace',
-    subtitle: 'Cảnh báo & Kiểm tra chéo',
     perms: SECTION_KEYS.oversight,
   },
   {
@@ -126,7 +116,6 @@ export const NAV: NavItem[] = [
     icon: 'pi pi-chart-bar',
     link: '/dashboard',
     section: 'workspace',
-    subtitle: 'Thống kê & Chỉ đạo',
     perms: SECTION_KEYS.dashboard,
   },
   {
@@ -134,7 +123,6 @@ export const NAV: NavItem[] = [
     icon: 'pi pi-sliders-h',
     link: '/config-studio',
     section: 'platform',
-    subtitle: 'Luồng quy trình & Chính sách',
     perms: SECTION_KEYS.configStudio,
   },
   {
@@ -142,7 +130,6 @@ export const NAV: NavItem[] = [
     icon: 'pi pi-cog',
     link: '/admin',
     section: 'platform',
-    subtitle: 'Tổ chức, Người dùng & Quyền',
     perms: SECTION_KEYS.admin,
   },
 ];

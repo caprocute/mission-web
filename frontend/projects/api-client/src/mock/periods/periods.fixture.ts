@@ -250,7 +250,7 @@ export function periodFixtures(): PeriodFixture[] {
           }),
           step(2, 'DANG_CHAY', {
             startedAt: '2026-10-19T07:05:42+07:00',
-            resultSummary: { note: '3 lô lỗi đang tự thử lại' },
+            resultSummary: { note: '17 hồ sơ chưa tính được, đang thử lại' },
           }),
           step(3, 'CHO'),
           step(4, 'CHO'),
@@ -263,7 +263,7 @@ export function periodFixtures(): PeriodFixture[] {
           {
             at: '2026-10-19T07:41:13+07:00',
             event:
-              'Lô q3-lo-040, q3-lo-041, q3-lo-042 lỗi sau 3 lần thử; 17 hồ sơ chuyển sang danh sách hồ sơ lỗi.',
+              '17 hồ sơ chưa tính được điểm sau 3 lần thử, đã chuyển sang danh sách hồ sơ lỗi.',
             evt: null,
             actor: null,
             ledgerEntryId: 'le-q3-6',
@@ -277,7 +277,7 @@ export function periodFixtures(): PeriodFixture[] {
           },
           {
             at: '2026-10-19T07:05:42+07:00',
-            event: 'Bắt đầu bước 2: chia thành 299 lô tính điểm.',
+            event: 'Bắt đầu tính điểm hàng loạt.',
             evt: null,
             actor: null,
             ledgerEntryId: 'le-q3-4',
@@ -299,7 +299,7 @@ export function periodFixtures(): PeriodFixture[] {
           },
           {
             at: '2026-10-19T07:02:00+07:00',
-            event: 'Khởi chạy tiến trình khoá kỳ theo quy trình phiên bản 3.',
+            event: 'Khởi chạy tiến trình khoá kỳ.',
             evt: null,
             actor: PEOPLE.lan,
             ledgerEntryId: 'le-q3-1',
@@ -418,7 +418,7 @@ export function periodFixtures(): PeriodFixture[] {
           },
           {
             at: '2026-09-08T08:03:00+07:00',
-            event: 'Khởi chạy tiến trình khoá kỳ theo quy trình phiên bản 3.',
+            event: 'Khởi chạy tiến trình khoá kỳ.',
             evt: null,
             actor: PEOPLE.lan,
             ledgerEntryId: 'le-m08-1',

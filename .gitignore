@@ -19,3 +19,5 @@ __pycache__/
 *.pyc
 frontend/dist-web/
 infra/dev/secrets/
+.chay-may-tram-logs/
+.tmp-config.bak

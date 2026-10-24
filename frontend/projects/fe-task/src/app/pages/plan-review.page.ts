@@ -21,7 +21,17 @@ import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TASK_GROUP_LABEL, toProblem } from '@vt/api-client';
-import { EsignRequestStatus, PLAN_CHANGE_LABEL, PLAN_RECURRENCE_LABEL, PlanApi, PlanDiffLine, PlanItem, PlanSignRequest, SIGN_METHOD_LABEL, SignMethod } from '@vt/api-client/domains';
+import {
+  EsignRequestStatus,
+  PLAN_CHANGE_LABEL,
+  PLAN_RECURRENCE_LABEL,
+  PlanApi,
+  PlanDiffLine,
+  PlanItem,
+  PlanSignRequest,
+  SIGN_METHOD_LABEL,
+  SignMethod,
+} from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { SelectButtonModule } from 'primeng/selectbutton';
@@ -98,7 +108,6 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
       <section class="cards" aria-label="Tóm tắt thay đổi">
         @if (d.base) {
           <div class="card">
-            <span class="num" aria-hidden="true">1</span>
             <span class="lbl">Thêm mới</span><strong class="big add">{{ x.added }}</strong>
           </div>
           <div class="card">
@@ -109,7 +118,6 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
           </div>
         } @else {
           <div class="card">
-            <span class="num" aria-hidden="true">1</span>
             <span class="lbl">Số công việc</span><strong class="big">{{ x.lines.length }}</strong>
           </div>
         }
@@ -130,7 +138,6 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
       <div class="layout">
         <section class="box" aria-labelledby="diff-h">
           <h2 class="h" id="diff-h">
-            <span class="num" aria-hidden="true">2</span>
             {{ d.base ? 'Khác biệt giữa hai phiên bản' : 'Nội dung kế hoạch' }}
           </h2>
           <div class="scroll" tabindex="0" role="region" aria-label="Bảng so sánh, cuộn ngang">
@@ -270,9 +277,7 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
 
         <aside>
           <section class="box" aria-labelledby="info-h">
-            <h2 class="h" id="info-h">
-              <span class="num" aria-hidden="true">3</span> Thông tin trình
-            </h2>
+            <h2 class="h" id="info-h">Thông tin trình</h2>
             <dl class="meta">
               <dt>Người trình</dt>
               <dd>
@@ -295,20 +300,12 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
               }
               <dt>Hiệu lực</dt>
               <dd>Từ ngày duyệt; không hồi tố</dd>
-              @if (!simple()) {
-                <dt>Mã kiểm tra toàn vẹn</dt>
-                <dd>
-                  <code class="hash" [title]="t.contentHash ?? ''">{{
-                    shortHash(t.contentHash ?? undefined)
-                  }}</code>
-                </dd>
-              }
             </dl>
           </section>
 
           @if (t.status === 'CHO_DUYET' && (can('SCR-0403.tra-lai') || can('SCR-0403.duyet-ky'))) {
             <section class="box" aria-labelledby="dec-h">
-              <h2 class="h" id="dec-h"><span class="num" aria-hidden="true">4</span> Quyết định</h2>
+              <h2 class="h" id="dec-h">Quyết định</h2>
               <label for="rv-comment" class="sr-only">Ý kiến của người duyệt</label>
               <textarea
                 id="rv-comment"
@@ -401,13 +398,6 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
                   />
                 }
               </div>
-              @if (can('SCR-0403.duyet-ky') && !simple()) {
-                <p class="muted small">
-                  <span class="num sm" aria-hidden="true">5</span>
-                  Duyệt kế hoạch là thao tác ký số có giá trị pháp lý; hệ thống yêu cầu xác thực
-                  nhiều lớp nếu đã quá 15 phút kể từ lần xác thực gần nhất.
-                </p>
-              }
             </section>
           }
           <p class="back">
@@ -424,7 +414,6 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
   styles: `
     :host {
       display: block;
-      padding: 16px 24px;
       --p-togglebutton-color: #374151;
     }
     h1 {
@@ -840,10 +829,6 @@ export class PlanReviewPage {
 
   protected date(iso: string) {
     return formatDate(iso);
-  }
-
-  protected shortHash(h?: string) {
-    return h ? `${h.slice(0, 4)}…${h.slice(-4)}` : '—';
   }
 
   /** Mô tả một dòng ở một phiên bản: dòng thêm, bỏ hoặc không đổi ghi đủ; dòng sửa chỉ ghi phần đã đổi. */

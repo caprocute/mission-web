@@ -53,9 +53,16 @@ import { daysLeft, statusSeverity } from '../app/task-ui';
       border-bottom: 1px solid var(--p-content-border-color, #eee);
       min-height: var(--vt-min-touch, 40px);
     }
+    li:last-child {
+      border-bottom: 0;
+    }
     li a {
       color: var(--vt-color-text);
       text-decoration: none;
+    }
+    li p-tag {
+      flex-shrink: 0;
+      white-space: nowrap;
     }
     li a:hover {
       color: var(--vt-color-primary-strong, #d1002d);

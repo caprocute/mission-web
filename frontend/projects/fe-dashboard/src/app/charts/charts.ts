@@ -1,6 +1,15 @@
 import { NgComponentOutlet } from '@angular/common';
 import { Component, Type, computed, input } from '@angular/core';
-import { AnalyticsCell, AnalyticsColumn, AnalyticsRow, DashboardChartType, PREVIOUS_SUFFIX, cellNumber, formatCell, resultRows } from '@vt/api-client/domains';
+import {
+  AnalyticsCell,
+  AnalyticsColumn,
+  AnalyticsRow,
+  DashboardChartType,
+  PREVIOUS_SUFFIX,
+  cellNumber,
+  formatCell,
+  resultRows,
+} from '@vt/api-client/domains';
 
 /**
  * Biểu đồ của bảng điều hành và dashboard tự dựng (SCR-1601, SCR-1602), vẽ bằng SVG và CSS qua liên kết
@@ -327,9 +336,13 @@ export class ColumnChart extends ChartBase {}
         @if (p.value !== null) {
           <circle [attr.cx]="x(i)" [attr.cy]="y(p.value)" r="3.5" class="dot" />
         }
-        <text [attr.x]="x(i)" [attr.y]="H - 4" text-anchor="middle" class="ax">{{ p.label }}</text>
       }
     </svg>
+    <div class="axis" aria-hidden="true">
+      @for (p of series().points; track $index; let i = $index) {
+        <span [style.left.%]="(x(i) / W) * 100">{{ p.label }}</span>
+      }
+    </div>
     @if (seriesNames(); as n) {
       <p class="legend small">
         <span class="k cur"></span>{{ n[0] }}
@@ -363,9 +376,17 @@ export class ColumnChart extends ChartBase {}
     .dot {
       fill: #1e3a8a;
     }
-    .ax {
-      font-size: 11px;
-      fill: #374151;
+    .axis {
+      position: relative;
+      height: 1.4em;
+      font-size: 0.8rem;
+      color: #4b5563;
+    }
+    .axis span {
+      position: absolute;
+      top: 0;
+      transform: translateX(-50%);
+      white-space: nowrap;
     }
     .legend {
       display: flex;
@@ -398,7 +419,7 @@ export class ColumnChart extends ChartBase {}
   `,
 })
 export class LineChart extends ChartBase {
-  protected readonly W = 360;
+  protected readonly W = 480;
   protected readonly H = 160;
   protected readonly P = 20;
   protected readonly grid = [0, 0.5, 1];
@@ -407,7 +428,7 @@ export class LineChart extends ChartBase {
     return this.P + (i * (this.W - 2 * this.P)) / n;
   }
   protected gy(frac: number) {
-    return this.H - 20 - frac * (this.H - 40);
+    return this.H - 10 - frac * (this.H - 20);
   }
   protected y(v: number) {
     return this.gy(v / this.max());

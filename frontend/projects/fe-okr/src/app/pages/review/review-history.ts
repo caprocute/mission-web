@@ -45,10 +45,6 @@ const ACTION: Record<OkrHistoryAction, string> = {
       @if (history.error()) {
         <p class="muted">Chưa tải được lịch sử lưu, trình của bộ này.</p>
       }
-      <p class="muted note">
-        Quy trình phê duyệt OKR phiên bản {{ q.workflow.version }}, áp dụng theo quy định của đơn
-        vị. Người trình không được tự duyệt.
-      </p>
     </section>
   `,
   styles: `

@@ -1,7 +1,14 @@
 import { Component, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { POLICY_VERSION_STATUS_LABEL, PolicyApi, PolicyPack, PolicyPackVersionSummary, isPolicyVersionEditable, policyVersionLabel } from '@vt/api-client/domains';
+import {
+  POLICY_VERSION_STATUS_LABEL,
+  PolicyApi,
+  PolicyPack,
+  PolicyPackVersionSummary,
+  isPolicyVersionEditable,
+  policyVersionLabel,
+} from '@vt/api-client/domains';
 import { FLOW_LABEL, fmtDate } from '../studio-ui';
 import { POLICY_KEYS } from '../studio-layout';
 import { STUDIO_ACCESS } from '../studio-permissions';
@@ -15,14 +22,10 @@ import { POLICY_TABS } from './policy/policy-tabs';
   selector: 'vt-policy-packs-page',
   imports: [RouterLink],
   template: `
-    <header class="studio-hero">
+    <header class="vt-page-head">
       <div>
-        <span class="badge">KHUNG NỀN TẢNG · LUỒNG ĐỘNG & CHÍNH SÁCH</span>
-        <h1>Chính sách đánh giá &amp; Luồng quy trình động</h1>
-        <p class="sub">
-          Công thức tính điểm, bảng xếp loại, gói biểu mẫu động và luồng phê duyệt áp dụng cho các
-          kỳ đánh giá của đơn vị.
-        </p>
+        <h1>Chính sách đánh giá</h1>
+        <p>Công thức tính điểm, bảng xếp loại và quy trình phê duyệt áp dụng cho đơn vị.</p>
       </div>
     </header>
 
@@ -84,7 +87,7 @@ import { POLICY_TABS } from './policy/policy-tabs';
                       class="btn-link secondary"
                       [routerLink]="['goi', p.id, v.version, 'luong-duyet']"
                     >
-                      Luồng duyệt động
+                      Quy trình phê duyệt
                     </a>
                   }
                 </td>
@@ -100,37 +103,6 @@ import { POLICY_TABS } from './policy/policy-tabs';
     }
   `,
   styles: `
-    .studio-hero {
-      padding: 20px 24px;
-      border-radius: 16px;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 65%, #3b0714 100%);
-      color: #f8fafc;
-      margin-bottom: 20px;
-      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.16);
-    }
-    .badge {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: rgba(238, 0, 51, 0.22);
-      border: 1px solid rgba(251, 113, 133, 0.35);
-      color: #fda4af;
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      margin-bottom: 8px;
-    }
-    h1 {
-      font-size: 1.45rem;
-      font-weight: 800;
-      margin: 0;
-      color: #ffffff;
-    }
-    .sub {
-      color: #cbd5e1;
-      margin: 6px 0 0;
-      font-size: 0.92rem;
-    }
     .card {
       border: 1px solid #e2e8f0;
       border-radius: 14px;

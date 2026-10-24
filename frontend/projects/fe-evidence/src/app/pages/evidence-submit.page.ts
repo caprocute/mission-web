@@ -28,7 +28,20 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { TASK_STATUS_LABEL, TaskApi, TaskStatus, toProblem } from '@vt/api-client';
-import { EVIDENCE_STATUS_LABEL, EvidenceApi, EvidenceDuplicateMatch, EvidenceExternalDoc, EvidenceVersion, EvidenceVersionDraft, EvidenceVersionStatus, FILE_SCAN_LABEL, FileApi, FileRejectedError, FileScanStatus, UploadProgress } from '@vt/api-client/domains';
+import {
+  EVIDENCE_STATUS_LABEL,
+  EvidenceApi,
+  EvidenceDuplicateMatch,
+  EvidenceExternalDoc,
+  EvidenceVersion,
+  EvidenceVersionDraft,
+  EvidenceVersionStatus,
+  FILE_SCAN_LABEL,
+  FileApi,
+  FileRejectedError,
+  FileScanStatus,
+  UploadProgress,
+} from '@vt/api-client/domains';
 import { permittedOn } from '@vt/auth';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
@@ -151,9 +164,7 @@ const fmtSize = (n?: number | null) =>
       <div class="layout">
         <div>
           <section class="box" aria-labelledby="src-h">
-            <h2 class="h" id="src-h">
-              <span class="num" aria-hidden="true">1</span> Chọn nguồn minh chứng
-            </h2>
+            <h2 class="h" id="src-h">Chọn nguồn minh chứng</h2>
             <fieldset class="sources" [disabled]="!editable()">
               <legend class="sr-only">Nguồn minh chứng</legend>
               <!-- prettier-ignore -->
@@ -240,7 +251,7 @@ const fmtSize = (n?: number | null) =>
 
           <section class="box" aria-labelledby="file-h">
             <h2 class="h" id="file-h">
-              <span class="num" aria-hidden="true">2</span> Tệp minh chứng · phiên bản
+              Tệp minh chứng · phiên bản
               {{ versionNo() }}
             </h2>
             @if (doc() || file()) {
@@ -250,9 +261,6 @@ const fmtSize = (n?: number | null) =>
                     <tr>
                       <th scope="col">Tệp</th>
                       <th scope="col">Dung lượng</th>
-                      @if (!elderly()) {
-                        <th scope="col">Mã kiểm tra toàn vẹn</th>
-                      }
                       <th scope="col">Quét mã độc</th>
                       @if (editable()) {
                         <th scope="col"><span class="sr-only">Thao tác</span></th>
@@ -266,9 +274,6 @@ const fmtSize = (n?: number | null) =>
                           <i class="pi pi-file" aria-hidden="true"></i> Văn bản {{ d.docNumber }}
                         </td>
                         <td>—</td>
-                        @if (!elderly()) {
-                          <td class="muted small">tệp gốc vOffice</td>
-                        }
                         <td>
                           <span class="chip SACH">{{
                             d.signatureValid === false ? 'Chữ ký lỗi' : 'Ký số hợp lệ'
@@ -283,9 +288,6 @@ const fmtSize = (n?: number | null) =>
                       <tr>
                         <td><i class="pi pi-file" aria-hidden="true"></i> {{ f.fileName }}</td>
                         <td class="nw">{{ size(f.sizeBytes) }}</td>
-                        @if (!elderly()) {
-                          <td class="hash" [attr.title]="f.sha256">{{ shortHash(f.sha256) }}</td>
-                        }
                         <td>
                           <span class="chip" [class]="f.scanStatus">{{
                             scanLabel[f.scanStatus]
@@ -333,9 +335,6 @@ const fmtSize = (n?: number | null) =>
                   <span>
                     Kéo thả tệp vào đây hoặc
                     <label for="file-in" class="link">chọn tệp</label>
-                    @if (!elderly()) {
-                      <span class="muted"> · hệ thống kiểm tra toàn vẹn tệp ngay khi tải lên</span>
-                    }
                   </span>
                   <input
                     id="file-in"
@@ -346,11 +345,6 @@ const fmtSize = (n?: number | null) =>
                   />
                 }
               </div>
-              @if (file() && source() === 'VAN_BAN_HE_THONG') {
-                <p class="muted small">
-                  Tệp tải lên là phụ lục kèm văn bản; mỗi phiên bản giữ một tệp.
-                </p>
-              }
             }
 
             @if (file()?.scanStatus === 'NHIEM') {
@@ -361,9 +355,9 @@ const fmtSize = (n?: number | null) =>
             @if (file()?.duplicateOf; as m) {
               <div class="msg err dup" role="alert">
                 <span>
-                  <span class="num" aria-hidden="true">3</span>
-                  <strong>Cảnh báo trùng minh chứng:</strong> Tệp "{{ file()!.fileName }}" trùng mã
-                  băm với minh chứng đã nộp cho <strong>{{ m.taskCode }}</strong> ({{ m.ownerName
+                  <strong>Cảnh báo trùng minh chứng:</strong> Tệp "{{ file()!.fileName }}" có nội
+                  dung trùng với minh chứng đã nộp cho <strong>{{ m.taskCode }}</strong> ({{
+                    m.ownerName
                   }}{{ m.submittedAt ? ', ' + date(m.submittedAt) : '' }}). Vui lòng ghi giải trình;
                   minh chứng chưa được tính điểm cho tới khi người nghiệm thu xác nhận.
                 </span>
@@ -395,9 +389,7 @@ const fmtSize = (n?: number | null) =>
 
         <aside>
           <section class="box" aria-labelledby="ver-h">
-            <h2 class="h" id="ver-h">
-              <span class="num" aria-hidden="true">4</span> Các phiên bản
-            </h2>
+            <h2 class="h" id="ver-h">Các phiên bản</h2>
             <ol class="versions">
               @for (v of e.versions ?? []; track v.versionNo) {
                 <li [class.cur]="v.versionNo === versionNo()">
@@ -421,12 +413,6 @@ const fmtSize = (n?: number | null) =>
                 </li>
               }
             </ol>
-            @if (!elderly()) {
-              <p class="muted small">
-                Phiên bản cũ không bị xoá. Mỗi phiên bản có trạng thái nghiệm thu riêng; trạng thái
-                thực hiện của nhiệm vụ chỉ đổi khi đủ sản phẩm được nộp.
-              </p>
-            }
           </section>
 
           <section class="box" aria-labelledby="sep-h">
@@ -782,10 +768,6 @@ export class EvidenceSubmitPage {
 
   protected size(n?: number | null) {
     return fmtSize(n);
-  }
-
-  protected shortHash(h: string) {
-    return `${h.slice(0, 4)} ${h.slice(4, 8)} … ${h.slice(-4)}`;
   }
 
   protected progressText(p: UploadProgress) {

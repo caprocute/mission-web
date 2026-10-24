@@ -20,7 +20,19 @@ import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Job, JobTracker } from '@vt/api-client';
-import { ORG_CHANGE_TYPE_LABEL, ORG_UNIT_TYPE_LABEL, OrgChangeOrder, OrgTimeQuery, OrgTreeApi, OrgUnitAssignment, OrgUnitDetail, OrgUnitVersion, UNIT_ASSIGNMENT_KIND_LABEL, orgImportErrors, orgUnitLevelLabel } from '@vt/api-client/domains';
+import {
+  ORG_CHANGE_TYPE_LABEL,
+  ORG_UNIT_TYPE_LABEL,
+  OrgChangeOrder,
+  OrgTimeQuery,
+  OrgTreeApi,
+  OrgUnitAssignment,
+  OrgUnitDetail,
+  OrgUnitVersion,
+  UNIT_ASSIGNMENT_KIND_LABEL,
+  orgImportErrors,
+  orgUnitLevelLabel,
+} from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
@@ -120,12 +132,6 @@ const FLOW_LABEL: Record<string, string> = {
 
     @if (asOf(); as d) {
       <p class="warnbox" role="status">{{ msg0108(date(d)) }}</p>
-    } @else if (!simple()) {
-      <p class="warnbox">
-        Cây hiển thị các đơn vị đang có hiệu lực. Chọn <strong>Xem tại ngày</strong>, ví dụ
-        30/06/2025 (trước sắp xếp đơn vị hành chính cấp xã 01/07/2025), để tái hiện đúng cơ cấu đã
-        dùng khi đánh giá quý II/2025; chế độ đó chỉ đọc.
-      </p>
     }
     @if (importJob(); as j) {
       <p-message
@@ -288,7 +294,7 @@ const FLOW_LABEL: Record<string, string> = {
                       <td>
                         <span class="tag">{{ kindOf[a.kind] }}</span>
                       </td>
-                      <td>{{ period(a) }}</td>
+                      <td style="white-space: nowrap">{{ period(a) }}</td>
                     </tr>
                   } @empty {
                     <tr>
@@ -303,10 +309,6 @@ const FLOW_LABEL: Record<string, string> = {
                 Xem tất cả {{ allAssign().length }} phân công
               </button>
             }
-            <p class="muted small">
-              Người được điều động giữa kỳ được đánh giá theo Phụ lục 6: công tác tại đơn vị mới
-              dưới 2 tháng thì đơn vị cũ đánh giá.
-            </p>
           </section>
         </div>
       </div>
@@ -375,7 +377,7 @@ const FLOW_LABEL: Record<string, string> = {
     }
     .pair {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
       gap: 16px;
     }
     .pair.one {
@@ -645,7 +647,7 @@ export class OrgTreePage {
   }
   protected period(a: OrgUnitAssignment) {
     const from = a.validFrom ? fmtDate(a.validFrom) : '';
-    return a.validTo ? `${from} → ${fmtDate(prevDay(a.validTo))}` : `${from} →`;
+    return a.validTo ? `${from} – ${fmtDate(prevDay(a.validTo))}` : `Từ ${from}`;
   }
   protected late(h: OrgUnitVersion): number {
     const days = Math.round(

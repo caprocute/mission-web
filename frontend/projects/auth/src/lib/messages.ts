@@ -17,6 +17,17 @@ export function isTenantSuspended(p: { code?: string | null; [k: string]: unknow
 export const TEXT_SESSION_EXPIRED =
   'Phiên làm việc đã hết hạn. Đồng chí đăng nhập lại để tiếp tục; dữ liệu đang nhập trên màn hình được giữ.';
 export const TEXT_FORBIDDEN = 'Đồng chí không có quyền thực hiện thao tác này.';
+
+/**
+ * Lời giải thích cho lỗi 403 (YC-PT-21): máy chủ nêu lý do cụ thể trong `detail` (ví dụ "Không có quyền truy
+ * cập đơn vị ngoài phạm vi phân công", "Chưa có dữ liệu cây tổ chức của đơn vị công tác") thì hiện đúng lý
+ * do đó để cán bộ và người quản trị biết vì sao; không có thì dùng câu không có quyền chung. Chỉ dùng
+ * `detail`, không dùng `title` (title của OPA là câu chung, title của một số dịch vụ là mã kỹ thuật).
+ */
+export function forbiddenText(p: { detail?: string | null } | null | undefined): string {
+  const detail = p?.detail?.trim();
+  return detail && !/[A-Z]{2,}-\d{3}|_/.test(detail) ? detail : TEXT_FORBIDDEN;
+}
 export const TEXT_IDP_UNAVAILABLE =
   'Không kết nối được máy chủ đăng nhập. Vui lòng thử lại sau ít phút.';
 

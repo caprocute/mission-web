@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Job, ProblemDetails, toProblem } from '@vt/api-client';
-import { TEXT_FORBIDDEN } from '@vt/auth';
+import { forbiddenText } from '@vt/auth';
 
 /** Số thập phân theo cách viết Việt Nam: 0,783; 91,2. */
 export const fmtNum = (n: unknown, digits = 3) =>
@@ -18,15 +18,14 @@ export function fmtDate(iso: string | null | undefined): string {
 
 /** Lời nhắn lỗi cho người dùng: ưu tiên `detail` (MSG của máy chủ), rồi `title`. */
 export function errorText(err: unknown, fallback: string): string {
-  if (err instanceof HttpErrorResponse && err.status === 403) return TEXT_FORBIDDEN;
   const p: ProblemDetails = toProblem(err);
-  if (p.status === 403) return TEXT_FORBIDDEN;
+  if (p.status === 403 || (err instanceof HttpErrorResponse && err.status === 403)) return forbiddenText(p);
   return p.detail || p.title || fallback;
 }
 
 /** Lời nhắn khi tác vụ nền (202 + `Location`) kết thúc không thành công: `problem` của job trước. */
 export function jobErrorText(job: Job, fallback: string): string {
-  if (job.problem?.status === 403) return TEXT_FORBIDDEN;
+  if (job.problem?.status === 403) return forbiddenText(job.problem);
   return job.problem?.detail || job.problem?.title || fallback;
 }
 

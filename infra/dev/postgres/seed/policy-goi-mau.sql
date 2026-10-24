@@ -1,5 +1,5 @@
 -- SINH TỰ ĐỘNG bởi data/policy-pack/sinh_seed_dev.py từ data/policy-pack/khoi-dang/quy-dinh-moi, không sửa tay.
--- Policy Pack giả lập luồng Đảng cho tenant thử (MOD-05, QT-15, SCR-1501..SCR-1503): hợp đồng chưa có API
+-- Policy Pack giả lập luồng DANG cho tenant thử d0000000-0000-4000-8000-000000000001 (MOD-05, QT-15, SCR-1501..SCR-1503): hợp đồng chưa có API
 -- tạo gói nên seed làm việc của importPack (gói + phiên bản nháp 2.1.0, manifest từ policy.yaml, quy tắc từ
 -- definitions), thêm ba bảng quyết định từ dmn/ và bộ ca mẫu đã duyệt, chưa ký số. Chỉ dữ liệu dev. Chạy
 -- lại không sinh bản ghi trùng và không đụng phiên bản đã đóng băng (chỉ chèn dòng còn thiếu). Nạp bởi

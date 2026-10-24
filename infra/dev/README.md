@@ -53,6 +53,8 @@ Toàn bộ cổng host đặt trong dải `35000–35999` và đều cấu hình
 
 ## 2. Kết nối qua cổng hầm SSH (SSH Tunnel) khi máy chủ hạn chế mở cổng
 
+> **Bảo mật cổng (bắt buộc):** mọi cổng ở bảng trên được Docker gắn vào `${BIND_ADDRESS:-127.0.0.1}`, tức chỉ nghe trên loopback của server dev. Không đặt `BIND_ADDRESS=0.0.0.0`: server dev có IP công khai và Docker công bố cổng bỏ qua tường lửa `ufw`, nên Postgres, Keycloak admin, OpenBao… sẽ lộ ra Internet. Truy cập từ máy trạm luôn đi qua hầm SSH bên dưới. Sau mỗi lần `docker compose up`, chạy `scripts/kiem-tra-cong.sh` trên server để xác nhận không còn cổng `0.0.0.0`. Địa chỉ server, tài khoản SSH chỉ ghi trong `.env` ở gốc repo (không commit), không ghi vào tài liệu, wiki hay thông điệp commit.
+
 Khi máy chủ dev chỉ mở cổng SSH (`22`) và không mở trực tiếp dải cổng `35xxx` ra mạng ngoài, lập trình viên mở một phiên hầm SSH từ máy trạm cá nhân:
 
 ```bash
@@ -285,6 +287,7 @@ Tệp `keycloak/realm-mission.json` tạo sẵn:
 - **Client dịch vụ**: `mission-core`; `org-service` (tài khoản dịch vụ, vai trò `svc_org_service`, bí mật `ORG_SERVICE_CLIENT_SECRET`); `integration-gateway` (tài khoản dịch vụ, vai trò `svc_integration_gateway`, bí mật `INTEGRATION_GATEWAY_CLIENT_SECRET`, đẩy lô nhân sự về org-service). Hai client dịch vụ của chuỗi đồng bộ nhân sự có phạm vi `profile` để token mang `preferred_username = service-account-<client>`: dịch vụ nhận chỉ đọc tenant đích ở `X-Tenant-Id` khi client nằm trong `okrkpi.tenant.delegating-clients`. Realm cũ chạy `./scripts/them-client-integration-gateway.sh` (bước seed của `deploy-backend.sh` tự gọi).
 - **Địa chỉ phát hành token**: Keycloak đặt `KC_HOSTNAME` bằng `KEYCLOAK_PUBLIC_URL` cùng `KC_HOSTNAME_BACKCHANNEL_DYNAMIC=true`, nên token dịch vụ lấy qua đường nội bộ `keycloak:8080` vẫn mang `iss` công khai mà mọi service kiểm.
 - **Tài khoản thử cấp Sở**: `giamdocso` (lãnh đạo, duyệt) và `phogiamdocso` (quản lý, soạn) ở Sở Thử nghiệm, để có mục tiêu cấp trên đã duyệt cho HT-08, HT-09 (`scripts/seed-okr-mau.py`). Realm cũ chạy `./scripts/them-tai-khoan-thu.sh` để thêm tài khoản thử còn thiếu.
+- **Tắt OTP ở dev**: từ 24/10/2026 server dev tắt bước nhập mã OTP cho mọi tài khoản bằng `./scripts/tat-otp-dev.sh` (bật lại bằng `--bat`). Nhánh OTP theo vai trò bị tắt, nhánh step-up aal2 được thêm bước "Allow access" nên vẫn trả acr aal2 mà không hỏi mã; thay đổi nằm trong dữ liệu Keycloak nên tồn tại qua các lần triển khai lại, chỉ phải chạy lại khi xoá dữ liệu Keycloak. Realm production vẫn bắt buộc MFA theo wiki 07.
 - **Client saga cấp phát tenant**: `tenant-registry-provisioner` (tài khoản dịch vụ, vai trò `realm-management` gồm `manage-realm`, `manage-users`, `manage-identity-providers`, `view-realm`, `query-users`; bí mật `PROVISION_CLIENT_SECRET`). Keycloak chỉ nhập realm khi realm chưa có, nên với Keycloak dev đã chạy từ trước, chạy `./scripts/them-client-provisioner.sh` để thêm client này.
 - **Các vai trò chuẩn**: `SYS_ADMIN`, `LANH_DAO_DON_VI`, `THU_TRUONG_CO_QUAN`, `CHUYEN_VIEN_THAM_MUU`, `CAN_BO`, `HOI_DONG_THAM_DINH`, `KIEM_TRA_GIAM_SAT`
 - **Protocol mappers**: tự động gắn `tenant_id`, `org_path`, `roles` vào access token và ID token.

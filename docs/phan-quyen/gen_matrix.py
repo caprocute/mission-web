@@ -15,8 +15,14 @@ Dùng:
   python3 docs/phan-quyen/gen_matrix.py --ts      # chỉ sinh lại tệp TypeScript
   python3 docs/phan-quyen/gen_matrix.py --rego    # chỉ sinh lại dữ liệu và ca kiểm thử của gói OPA (NEN-040)
   python3 docs/phan-quyen/gen_matrix.py --rego-check  # kiểm tra dữ liệu OPA có khớp ma trận không
+  python3 docs/phan-quyen/gen_matrix.py --bo-sung-api # thêm ô suy luận (*) vào bảng API cho đủ bao phủ rồi ghi lại ma-tran.json
 
-Chỉ cần Python 3 và openpyxl (không cài thêm gói nào).
+Mọi lệnh đều kiểm tra "bao phủ API" trước (xem kiem_bao_phu_api): bảng API theo module (OPA/mission-core
+kiểm bằng bảng này) phải cho ít nhất những phương thức mà ma trận chức năng (giao diện ẩn/hiện bằng bảng
+này) và hợp đồng OpenAPI (`x-mission.roles`) đã cấp cho cùng vai trò; nếu không, người dùng thấy chức năng
+nhưng máy chủ trả 403 (YC-PT-21, 24/10/2026). Lệch thì dừng với mã 1 và liệt kê từng ô còn thiếu.
+
+Chỉ cần Python 3 và openpyxl; có PyYAML thì kiểm thêm hợp đồng OpenAPI, không có thì bỏ qua phần hợp đồng.
 """
 import json
 import re
@@ -56,7 +62,132 @@ def load():
     missing = [s for s in d["man_hinh"] if s not in {f["scr"] for f in d["chuc_nang"]}]
     if missing:
         raise SystemExit(f"Màn hình chưa có dòng nào trong ma trận: {', '.join(missing)}")
+    if "--bo-sung-api" not in sys.argv:
+        thieu = kiem_bao_phu_api(d)
+        if thieu:
+            for t in thieu:
+                print(t, file=sys.stderr)
+            raise SystemExit(f"Bảng API thiếu {len(thieu)} ô so với ma trận chức năng/hợp đồng; "
+                             "chạy gen_matrix.py --bo-sung-api rồi rà lại ô đã thêm.")
     return d, acs
+
+
+CONTRACTS = ROOT / "contracts" / "openapi" / "modules"
+METHOD_PREFIX_RE = re.compile(r"((?:GET|POST|PUT|PATCH|DELETE)(?:/(?:GET|POST|PUT|PATCH|DELETE))*)\s+`?$")
+API_PATH_RE = re.compile(r"/api/v1/([a-z][a-z0-9-]*)")
+# Vai trò kỹ thuật (AC-11 client credentials, AC-12 trợ lý AI) không đi qua giao diện; không kiểm bao phủ.
+USER_ROLE_SKIP_AC = {"AC-11", "AC-12"}
+# Đường dẫn hợp đồng không đi qua bảng API theo module: tài nguyên tự phục vụ `/config/me/...` do luật
+# self_service của okrkpi.authz quyết định (CNH-02), báo truy cập bất thường không kiểm OPA, `/registry/resolve`
+# shell gọi trước khi có vai trò. Không được dùng chúng để mở rộng quyền ghi module `config` cho vai trò thường
+# (ca kiểm thử authz_test "member_still_cannot_put_other_config" giữ nguyên tắc này).
+CONTRACT_SKIP_RE = re.compile(r"^/(config/me(/|$)|config/security/report-suspicious$|registry/resolve$)")
+
+
+def _api_can_thiet_tu_chuc_nang(d):
+    """{(module, role): {method: [khoá chức năng]}} mà ma trận chức năng ngụ ý.
+
+    Ô có quyền của một chức năng web kéo theo quyền gọi API ghi trong cột `api`: đường dẫn có tiền tố
+    phương thức (`POST /api/v1/...`, `POST/PUT /api/v1/...`) đòi đúng phương thức đó; đường dẫn không
+    ghi phương thức chỉ đòi GET (mở màn hình là đọc), không suy đoán phương thức ghi.
+    """
+    role_of = {r["ac"]: r["role"] for r in d["vai_tro"]}
+    out = {}
+    for f in d["chuc_nang"]:
+        if not f["web"]:
+            continue
+        roles = [role_of[ac] for ac, v in f["quyen"].items()
+                 if ac not in USER_ROLE_SKIP_AC and v not in ("-", "H") and not v.startswith("A")]
+        if not roles:
+            continue
+        for m in API_PATH_RE.finditer(f["api"]):
+            prefix = METHOD_PREFIX_RE.search(f["api"][max(0, m.start() - 40):m.start()])
+            methods = prefix.group(1).split("/") if prefix else ["GET"]
+            for role in roles:
+                for meth in methods:
+                    out.setdefault((m.group(1), role), {}).setdefault(meth, []).append(f["key"])
+    return out
+
+
+def _api_can_thiet_tu_hop_dong(d):
+    """{(module, role): {method: [operationId]}} mà `x-mission.roles` của hợp đồng OpenAPI cấp cho vai trò người dùng."""
+    try:
+        import yaml  # noqa: PLC0415 - tuỳ chọn, chỉ để đọc hợp đồng
+    except ImportError:
+        return {}
+    user_roles = {r["role"] for r in d["vai_tro"] if r["ac"] not in USER_ROLE_SKIP_AC}
+    out = {}
+    for tep in sorted(CONTRACTS.glob("*.yaml")):
+        doc = yaml.safe_load(tep.read_text(encoding="utf-8")) or {}
+        for path, item in (doc.get("paths") or {}).items():
+            if not isinstance(item, dict) or CONTRACT_SKIP_RE.match(path):
+                continue
+            module = path.strip("/").split("/")[0]
+            for meth, op in item.items():
+                if meth.upper() not in HTTP_METHODS or not isinstance(op, dict):
+                    continue
+                mission = op.get("x-mission") or {}
+                for role in mission.get("roles", []):
+                    if role in user_roles:
+                        out.setdefault((module, role), {}).setdefault(meth.upper(), []).append(
+                            op.get("operationId", f"{meth.upper()} {path}"))
+    return out
+
+
+def kiem_bao_phu_api(d):
+    """Danh sách ô bảng API còn thiếu so với ma trận chức năng và hợp đồng; rỗng là đạt."""
+    rows = {a["module"]: a for a in d["api"]}
+    ac_of = {r["role"]: r["ac"] for r in d["vai_tro"]}
+    thieu = []
+    for nguon, ten in ((_api_can_thiet_tu_chuc_nang(d), "ma trận chức năng"),
+                       (_api_can_thiet_tu_hop_dong(d), "hợp đồng")):
+        for (module, role), by_meth in sorted(nguon.items()):
+            row = rows.get(module)
+            if row is None:
+                # Module chưa có dòng API: OPA từ chối mọi vai trò; SCIM là đường của hệ ngoài (AC-11), không xét.
+                if module in ("Users", "Groups", "Schemas", "ResourceTypes", "ServiceProviderConfig"):
+                    continue
+                thieu.append(f"API {module}: chưa có dòng trong bảng API; {ten} cần {role} "
+                             f"{' '.join(sorted(by_meth))} ({', '.join(sorted(set(sum(by_meth.values(), [])))[:4])})")
+                continue
+            have = {t.rstrip("*") for t in row["quyen"].get(ac_of[role], "-").split() if t != "-"}
+            for meth, vi_du in sorted(by_meth.items()):
+                if meth not in have:
+                    thieu.append(f"API {module} {role} thiếu {meth} theo {ten}: {', '.join(sorted(set(vi_du))[:4])}")
+    return thieu
+
+
+def bo_sung_api(d):
+    """Thêm phương thức còn thiếu vào bảng API dưới dạng ô suy luận (`*`) và ghi chú; trả về số ô đã thêm."""
+    rows = {a["module"]: a for a in d["api"]}
+    ac_of = {r["role"]: r["ac"] for r in d["vai_tro"]}
+    acs = [r["ac"] for r in d["vai_tro"]]
+    them = 0
+    for nguon, ten in ((_api_can_thiet_tu_chuc_nang(d), "ma trận chức năng"),
+                       (_api_can_thiet_tu_hop_dong(d), "hợp đồng OpenAPI")):
+        for (module, role), by_meth in sorted(nguon.items()):
+            if module in ("Users", "Groups", "Schemas", "ResourceTypes", "ServiceProviderConfig"):
+                continue
+            row = rows.get(module)
+            if row is None:
+                row = {"module": module, "quyen": {ac: "-" for ac in acs},
+                       "ghi_chu": "Bổ sung 24/10/2026 từ hợp đồng OpenAPI (suy luận).", "nguon": "contracts/openapi",
+                       "ngoai_baseline": True}
+                d["api"].append(row)
+                rows[module] = row
+            ac = ac_of[role]
+            toks = [t for t in row["quyen"].get(ac, "-").split() if t != "-"]
+            have = {t.rstrip("*") for t in toks}
+            moi = [m for m in HTTP_METHODS if m in by_meth and m not in have]
+            if not moi:
+                continue
+            toks += [m + "*" for m in moi]
+            row["quyen"][ac] = " ".join(sorted(toks, key=lambda t: HTTP_METHODS.index(t.rstrip("*"))))
+            vi_du = sorted({x for m in moi for x in by_meth[m]})[:3]
+            ghi = f"{role} {' '.join(moi)} theo {ten} ({', '.join(vi_du)})"
+            row["ghi_chu"] = (row.get("ghi_chu", "").rstrip() + " Bổ sung 24/10/2026 (suy luận, YC-PT-21): " + ghi + ".").strip()
+            them += len(moi)
+    return them
 
 
 def esc(s):
@@ -663,6 +794,12 @@ def rego_outputs(d):
 
 def main(argv):
     d, acs = load()
+    if "--bo-sung-api" in argv:
+        n = bo_sung_api(d)
+        DATA.write_text(json.dumps(d, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        con = kiem_bao_phu_api(d)
+        print(f"Đã thêm {n} ô suy luận vào bảng API; còn thiếu {len(con)}. Chạy lại gen_matrix.py và --rego để sinh đầu ra.")
+        return 1 if con else 0
     if "--rego" in argv or "--rego-check" in argv:
         # Chỉ đụng tới backend/opa (NEN-040); không sinh lại xlsx, Markdown hay TypeScript
         outs = rego_outputs(d)
