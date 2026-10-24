@@ -7,7 +7,7 @@ import {
 import { inject, isDevMode } from '@angular/core';
 import { catchError, from, switchMap, throwError } from 'rxjs';
 import { toProblem } from '@vt/api-client';
-import { isTenantSuspended, MSG_00_06, MSG_00_07, TEXT_FORBIDDEN } from './messages';
+import { forbiddenText, isTenantSuspended, MSG_00_06, MSG_00_07 } from './messages';
 import { PermissionService, apiModuleOf } from './permission.service';
 import { Acr, SessionService } from './session.service';
 
@@ -80,7 +80,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           : isTenantSuspended(p)
             ? MSG_00_07(session.user()?.tenant ?? '')
             : WRITE_METHODS.has(req.method)
-              ? TEXT_FORBIDDEN
+              ? forbiddenText(p)
               : null;
         if (text) session.showNotice({ severity: 'error', text });
       }
