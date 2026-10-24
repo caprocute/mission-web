@@ -14,7 +14,7 @@
   "contracts/openapi/modules/scim.yaml": "e7a560b74af11e5c1a444ea081b02cd497e42a2108c448d511b51f2580a56f8d",
   "contracts/openapi/modules/tasks.yaml": "92996bb8fc94c049c3f8a51b8d8679490c33cd540eac723c8acf6b092bf91614",
   "infra/dev/apisix/apisix.yaml": "b0de0fbedc936988ab3d46a44b6c7bf93500d7edf8853ec025d6ef67259a61dc",
-  "infra/dev/docker-compose.yml": "7981d43cd289435392792763ccd53d89c2dc24a928f7db2c778d95bace6bdecd"
+  "infra/dev/docker-compose.yml": "6349ba4d5edba69c912e79ff9d106c195ca0a5506d84d1b1f347eb882e5d888d"
  },
  "operations": [
   {
@@ -525,6 +525,7 @@
   "clickhouse": [
    "${CLICKHOUSE_HTTP_PORT:-35123}:8123"
   ],
+  "clickhouse-lam-moi": [],
   "cube": [
    "${CUBE_PORT:-35400}:4000"
   ],
