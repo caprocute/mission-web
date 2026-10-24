@@ -271,10 +271,15 @@ services:
     # Gói chính sách thật okrkpi (NEN-040, sinh từ ma trận phân quyền) như bundle của cụm thật; thư mục gắn ở
     # /policies/okrkpi để generated/data.json nằm đúng data.okrkpi.generated. Mission-core hỏi
     # /v1/data/okrkpi/authz/decision; bản khởi tạo ./opa/policies chỉ từ chối mặc định nên mọi API trả 403.
+    # Đường tương đối tính từ thư mục project compose: chạy compose từ một bản chép riêng của infra/dev (thư mục hạ
+    # tầng cũ ngoài repo) thì ../../backend không tồn tại, Docker tạo thư mục rỗng và mọi API trả 403. Khi đó đặt
+    # OPA_POLICY_DIR (đường tuyệt đối tới backend/opa/okrkpi của bản checkout) trong .env; deploy-backend.sh và
+    # sync-server.sh kiểm thư mục này có tệp .rego.
     volumes:
-      - ../../backend/opa/okrkpi:/policies/okrkpi:ro
+      - ${OPA_POLICY_DIR:-../../backend/opa/okrkpi}:/policies/okrkpi:ro
+    # Không healthy khi gói okrkpi vắng hay rỗng (eval --fail trả mã khác 0 khi kết quả không xác định).
     healthcheck:
-      test: ["CMD", "/opa", "eval", "data.okrkpi.authz.allow"]
+      test: ["CMD", "/opa", "eval", "--fail", "-d", "/policies", "data.okrkpi.authz.decision"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -417,8 +422,14 @@ services:
     networks:
       - mission-net
 
+  # Kafka Connect kèm plugin giả danh của connector CDC phân tích (infra/dev/debezium/Dockerfile). Connector đăng ký
+  # bằng scripts/noi-cdc-phan-tich.py; cấu hình connector chỉ giữ ${env:...}, giá trị lấy từ biến môi trường dưới đây
+  # qua EnvVarConfigProvider nên mật khẩu và khoá giả danh không nằm trong topic cấu hình của Connect.
   debezium:
-    image: quay.io/debezium/connect:3.0.0.Final
+    build:
+      context: ../../analytics/cdc/smt
+      dockerfile: ../../../infra/dev/debezium/Dockerfile
+    image: mission-dev/debezium-connect:3.0.0-smt
     container_name: mission-dev-debezium
     restart: unless-stopped
     profiles: ["events", "all"]
@@ -442,6 +453,11 @@ services:
       CONNECT_CONFIG_PROVIDERS: env
       CONNECT_CONFIG_PROVIDERS_ENV_CLASS: org.apache.kafka.common.config.provider.EnvVarConfigProvider
       PG_CDC_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-${POSTGRES_PASSWORD:-mission_dev_change_me}}
+      PG_HOST: postgres
+      PG_PORT: "5432"
+      PG_CDC_ANALYTICS_USER: ${DEBEZIUM_DB_USER:-cdc_debezium}
+      PG_CDC_ANALYTICS_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-${POSTGRES_PASSWORD:-${PG_SUPERUSER_PASSWORD:-}}}
+      ANALYTICS_PSEUDONYM_KEY: ${ANALYTICS_PSEUDONYM_KEY:-}
     volumes:
       # Jar SMT OutboxHeadersTransform do scripts/dang-ky-outbox.sh dựng từ vt-platform-starter.
       - ./debezium/vt-outbox-smt:/kafka/connect/vt-outbox-smt:ro
@@ -812,6 +828,12 @@ services:
       OKRKPI_CRYPTO_OPENBAOBASEURL: http://openbao:8200
       OKRKPI_CRYPTO_TOKENFILE: /run/secrets/openbao_token
       OKRKPI_CRYPTO_AUTOCREATEKEK: "true"
+      # Luồng duyệt, hộp việc, mẫu luồng và saga khoá kỳ gọi workflow-service (SVC-06, CORE-02-08); thiếu địa chỉ thì
+      # các API này trả 503. Token dịch vụ lấy bằng client credentials của client mission-core, tài khoản dịch vụ mang
+      # vai trò service_client (scripts/them-client-mission-core.sh); cùng client đó gọi Admin API Keycloak.
+      MISSION_CONFIG_WORKFLOW_BASEURL: http://workflow-service:8080
+      MISSION_CONFIG_KEYCLOAKADMIN_BASEURL: http://keycloak:8080
+      MISSION_CONFIG_KEYCLOAKADMIN_CLIENTSECRET: ${MISSION_CORE_CLIENT_SECRET:-}
     secrets: [openbao_token]
     ports:
       - "${MISSION_CORE_PORT:-35100}:8080"
@@ -839,6 +861,9 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/org-service:dev
     container_name: mission-dev-org-service
+    # Docker Compose 2.17 trên server dev báo "getent unable to find entry 10001:10001" khi service có
+    # secrets mà user lấy từ ảnh dạng uid:gid; khai báo uid số ở đây thì chạy được.
+    user: "10001"
     mem_limit: ${ORG_SERVICE_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
@@ -1017,6 +1042,9 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/integration-gateway:dev
     container_name: mission-dev-integration-gateway
+    # Docker Compose 2.17 trên server dev báo "getent unable to find entry 10001:10001" khi service có
+    # secrets mà user lấy từ ảnh dạng uid:gid; khai báo uid số ở đây thì chạy được.
+    user: "10001"
     mem_limit: ${INTEGRATION_GATEWAY_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
@@ -1233,6 +1261,28 @@ services:
     networks:
       - mission-net
 
+  # Thay refreshable materialized view ở cell dev (nhân CentOS 7 là 3.10, ClickHouse đòi 3.15 trở lên): khi kho được
+  # áp với ANALYTICS_REFRESHABLE_MV=false, job này tính lại các view trong analytics_dev._lam_moi_dinh_ky theo chu kỳ
+  # gốc bằng INSERT … SELECT (analytics/clickhouse/migrate.py --lam-moi). Kho áp ở chế độ mặc định thì job không làm gì.
+  clickhouse-lam-moi:
+    image: python:3.13-alpine
+    container_name: mission-dev-clickhouse-lam-moi
+    restart: unless-stopped
+    profiles: ["analytics", "all"]
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    command: ["python", "-I", "/srv/clickhouse/migrate.py", "--lam-moi", "--lap"]
+    environment:
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?Đặt CLICKHOUSE_PASSWORD trong .env}
+      ANALYTICS_CELL: dev
+    volumes:
+      - ../../analytics/clickhouse:/srv/clickhouse:ro
+    networks:
+      - mission-net
+
   # Lớp ngữ nghĩa Cube (DV-15-03): mô hình và cấu hình ở analytics/cube. Chạy sau khi đã áp migration kho
   # (analytics/clickhouse/migrate.py). Bộ đệm và hàng đợi trong bộ nhớ, một tiến trình; Cube Store và nhiều bản sao
   # là phần triển khai cụm (INF).
@@ -1339,6 +1389,9 @@ secrets:
   ca_bundle:
     file: ${BUILD_CA_BUNDLE:-/dev/null}
   # Token OpenBao dev cho mã hoá phong bì C2 (okrkpi.crypto.token-file của vt-platform-starter, ADR-06): ở production
-  # là tệp do OpenBao Agent/CSI gắn; ở dev lấy từ token gốc của OpenBao chế độ dev.
+  # là tệp do OpenBao Agent/CSI gắn; ở dev là tệp chứa token gốc của OpenBao chế độ dev, do deploy-backend.sh ghi từ
+  # OPENBAO_DEV_ROOT_TOKEN (thư mục secrets/ quyền 700, không commit). Không dùng `environment:` vì khi đó compose
+  # chép tệp vào container kèm chủ sở hữu theo USER của ảnh, và Docker 23 trên máy chủ dev tra "10001:10001" như tên
+  # người dùng của máy chủ ("getent unable to find entry"); secret dạng tệp được gắn thẳng nên không vướng.
   openbao_token:
-    environment: OPENBAO_DEV_ROOT_TOKEN
+    file: ${OPENBAO_TOKEN_FILE:-./secrets/openbao_token}

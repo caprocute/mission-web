@@ -13,9 +13,10 @@
 #   (4) postgres/migrate-roles.sh (schema, tài khoản, tiện ích mới trên volume pg_data cũ), dựng lại opensearch kèm
 #       plugin analysis-icu khi container đang chạy chưa có; create-topics.sh, them-client-provisioner.sh (bất biến);
 #   (5) dựng jar trên máy trạm (mặc định khi có JDK 21 và Node) rồi chép jar lên, hoặc để máy chủ tự dựng;
-#   (6) deploy-backend.sh trên máy chủ cho các service chọn (mặc định APISIX, mission-core, web): dựng ảnh,
-#       migration, bật, chờ healthcheck, nạp kỳ hiện hành;
-#   (7) seed-org.sh, smoke-backend.sh, health.sh.
+#   (6) deploy-backend.sh trên máy chủ cho các service chọn (mặc định APISIX, mission-core, workflow-service,
+#       analytics-api, web): dựng ảnh, migration, bật, chờ healthcheck, nạp kỳ hiện hành;
+#   (7) seed-org.sh; noi-cdc-phan-tich.py nối CDC phân tích (Debezium → Kafka → ClickHouse) khi bật profile analytics;
+#       smoke-backend.sh, health.sh.
 #
 # Lần đầu, máy chủ chuyển từ thư mục hạ tầng riêng (DEV_SERVER_INFRA_DIR, ví dụ /home/provision/mission-infra) sang
 # bố cục repo: .env được sao (cp, không đọc nội dung) sang thư mục mới; dữ liệu vẫn ở thư mục cũ qua các biến *_DATA
@@ -23,8 +24,8 @@
 #
 # Đọc từ `.env` ở gốc repo (không commit): DEV_SERVER_HOST, DEV_SERVER_SSH_PORT, DEV_SERVER_USER,
 # DEV_SERVER_INFRA_DIR (thư mục hạ tầng cũ, nguồn .env), DEV_SERVER_REPO_DIR (mặc định /home/<user>/mission-web),
-# DEV_SERVER_PROFILES (mặc định "core security events search"), TRIEN_KHAI_DICH_VU (mặc định "apisix mission-core
-# web"), JAR_BUILD (may-tram | may-chu), WEB_BUILD (may-tram | may-chu, mặc định may-tram khi máy trạm có Node), MIN_FREE_GB (mặc định 12, dung lượng trống tối thiểu cho cache dựng ảnh).
+# DEV_SERVER_PROFILES (mặc định "core security events search analytics"), TRIEN_KHAI_DICH_VU (mặc định "apisix
+# mission-core workflow-service analytics-api web"), JAR_BUILD (may-tram | may-chu), WEB_BUILD (may-tram | may-chu, mặc định may-tram khi máy trạm có Node), MIN_FREE_GB (mặc định 12, dung lượng trống tối thiểu cho cache dựng ảnh).
 #
 # Cách dùng:
 #   infra/dev/scripts/trien-khai-lai.sh plan                 # chỉ kiểm, không đổi gì trên máy chủ
@@ -60,8 +61,10 @@ DEV_SERVER_SSH_PORT="${DEV_SERVER_SSH_PORT:-2222}"
 DEV_SERVER_USER="${DEV_SERVER_USER:-provision}"
 DEV_SERVER_INFRA_DIR="${DEV_SERVER_INFRA_DIR:-}"
 DEV_SERVER_REPO_DIR="${DEV_SERVER_REPO_DIR:-/home/${DEV_SERVER_USER}/mission-web}"
-DEV_SERVER_PROFILES="${DEV_SERVER_PROFILES:-core security events search}"
-TRIEN_KHAI_DICH_VU="${TRIEN_KHAI_DICH_VU:-apisix mission-core web}"
+# analytics: ClickHouse, Cube, Superset của bảng điều hành; workflow-service: luồng duyệt và mẫu luồng mà mission-core
+# gọi (thiếu thì API duyệt trả 503); analytics-api đọc kho ClickHouse.
+DEV_SERVER_PROFILES="${DEV_SERVER_PROFILES:-core security events search analytics}"
+TRIEN_KHAI_DICH_VU="${TRIEN_KHAI_DICH_VU:-apisix mission-core workflow-service analytics-api web}"
 MIN_FREE_GB="${MIN_FREE_GB:-12}"
 NEW_INFRA_DIR="${DEV_SERVER_REPO_DIR}/infra/dev"
 # Mọi profile của compose. Profile khác `core` phụ thuộc dịch vụ của core (ví dụ debezium cần postgres), nên
@@ -382,6 +385,10 @@ cmd_apply() {
   remote_script "${prefix}" deploy-backend.sh ${SERVICES[@]+"${SERVICES[@]}"}
   echo "==> Dữ liệu thử và kiểm thử khói"
   remote_script "" seed-org.sh || echo "  Cảnh báo: seed-org.sh lỗi (cần schema org của org-service); chạy lại sau khi org-service đã migrate." >&2
+  if [[ " ${DEV_SERVER_PROFILES} " == *" analytics "* ]]; then
+    echo "==> CDC phân tích sang ClickHouse (kho, publication, connector Debezium)"
+    remote_script "" noi-cdc-phan-tich.py || echo "  Cảnh báo: chưa nối xong CDC phân tích; chạy lại scripts/noi-cdc-phan-tich.py trên máy chủ." >&2
+  fi
   remote_script "" smoke-backend.sh || echo "  Cảnh báo: kiểm thử khói có mục hỏng, xem chi tiết ở trên." >&2
   remote_script "" health.sh
 }

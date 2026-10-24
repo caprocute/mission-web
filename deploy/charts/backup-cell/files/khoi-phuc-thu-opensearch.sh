@@ -33,8 +33,10 @@ else
     else
       sai=0
       for i in "${chi_muc[@]}"; do
-        g=$(os_api GET "/_cat/count/$i?format=json" | jq -r '.[0].count')
-        t=$(os_api GET "/_cat/count/$TIEN_TO$i?format=json" | jq -r '.[0].count')
+        # Số tài liệu lấy từ thống kê chỉ mục (quyền indices_monitor của vai trò sao-luu); _cat/count là truy vấn tìm
+        # kiếm, cần quyền đọc dữ liệu mà vai trò cố ý không có (403 khi chạy thật trên OpenSearch 2.19, INF-18).
+        g=$(os_api GET "/_cat/indices/$i?format=json&h=docs.count" | jq -r '.[0]["docs.count"]')
+        t=$(os_api GET "/_cat/indices/$TIEN_TO$i?format=json&h=docs.count" | jq -r '.[0]["docs.count"]')
         if [ "$g" -ge "$NGUONG" ] && awk -v t="$t" -v g="$g" -v r="$TI_LE" 'BEGIN { exit !(t < r * g) }'; then
           echo "LỖI: $i có $t tài liệu sau khôi phục, gốc $g" >&2; sai=1
         fi

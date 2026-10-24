@@ -285,6 +285,14 @@ def ts_source(d):
     one = head + ", ".join(f"'{k}'" for k in bg) + "];"
     # Giữ định dạng Prettier: một dòng khi vừa printWidth 100
     out += [one, ""] if len(one) <= 100 else [head, *[f"  '{k}'," for k in bg], "];", ""]
+    # Vai trò phạm vi nền tảng (`pham_vi` "N", AC-01): làm việc ở vùng điều phối toàn cục, không cần phân
+    # công trong tenant, nên shell không chặn khi tài khoản không có phân công (QT-00, BR-00-07).
+    plat = [role for ac, role in roles if next(r for r in d["vai_tro"] if r["ac"] == ac)["pham_vi"] == "N"]
+    out += [
+        "/** Vai trò phạm vi nền tảng (vùng điều phối toàn cục): không cần phân công đơn vị trong tenant. */",
+        "export const PLATFORM_SCOPE_ROLES: readonly string[] = [" + ", ".join(f"'{r}'" for r in plat) + "];",
+        "",
+    ]
     # Ma trận API (YC-PT-21): giao diện ẩn phần tử gắn với một API mà vai trò không được gọi (ví dụ ô
     # tìm kiếm toàn cục) và cảnh báo khi màn hình gọi API ngoài ma trận; máy chủ vẫn kiểm quyền.
     out += [

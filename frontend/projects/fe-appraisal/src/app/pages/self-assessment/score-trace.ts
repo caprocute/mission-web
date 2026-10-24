@@ -1,5 +1,5 @@
 import { Component, ElementRef, afterNextRender, input, output, viewChild } from '@angular/core';
-import { AppraisalScoreTrace, AppraisalScoreTraceStep } from '@vt/api-client';
+import { AppraisalScoreTrace, AppraisalScoreTraceStep } from '@vt/api-client/domains';
 
 const RULE: Record<string, string> = {
   kpi_nhiem_vu: 'KPI nhiệm vụ',

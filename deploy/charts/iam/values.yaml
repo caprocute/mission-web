@@ -180,12 +180,18 @@ mayChu:
     - { name: MISSION_ORG_SERVICE_URL, value: "http://org-service.identity.svc.cluster.local" }
     - { name: MISSION_IAM_BROKER_TOKEN_URL, value: "http://localhost:8080/realms/okrkpi/protocol/openid-connect/token" }
     - { name: MISSION_IAM_BROKER_CLIENT_ID, value: mission-iam-broker }
+    # TL-04 mục 11.4: bước mission-tenant-status chặn đăng nhập của tenant TAM_NGUNG, DA_CHAM_DUT. Registry là dịch vụ
+    # toàn cục, chỉ nhận token realm nền tảng mang vai trò service_client (như apisix-global của APISIX).
+    - { name: MISSION_TENANT_REGISTRY_URL, value: "http://tenant-registry.global.svc.cluster.local:8080" }
+    - { name: MISSION_TENANT_REGISTRY_TOKEN_URL, value: "https://sso.global.danhgia.vn/realms/platform/protocol/openid-connect/token" }
+    - { name: MISSION_TENANT_REGISTRY_CLIENT_ID, value: keycloak-tenant-status }
   # DV-02-04: khoá HMAC liên kết VNeID và secret tài khoản dịch vụ, từ OpenBao (không có giá trị trong repo).
   externalSecret:
     enabled: true
     data:
       - { secretKey: MISSION_VNEID_LINK_KEY, remoteRef: { key: iam/vneid, property: link-key } }
       - { secretKey: MISSION_IAM_BROKER_CLIENT_SECRET, remoteRef: { key: iam/iam-broker, property: client-secret } }
+      - { secretKey: MISSION_TENANT_REGISTRY_CLIENT_SECRET, remoteRef: { key: iam/tenant-status, property: client-secret } }
   envFrom:
     - secretRef: { name: keycloak-secrets }
   probes:
@@ -210,6 +216,8 @@ mayChu:
       - { namespace: identity, podLabels: { app.kubernetes.io/name: keycloak }, ports: [{ port: 7800 }] }
       # DV-02-04: tra người theo số định danh ở org-service; gọi VNeID ra ngoài qua egress gateway của cell.
       - { namespace: identity, podLabels: { app.kubernetes.io/name: org-service }, ports: [{ port: 8080 }] }
+      # TL-04 mục 11.4: tra trạng thái tenant ở tenant-registry toàn cục.
+      - { namespace: global, podLabels: { app.kubernetes.io/name: tenant-registry }, ports: [{ port: 8080 }] }
       - { namespace: egress, podLabels: { app.kubernetes.io/name: egress-gateway }, ports: [{ port: 443 }], internet: true }
 
 # DV-02-06: consumer EVT-16 đồng bộ người dùng sang Keycloak (backend/services/iam/user-sync).

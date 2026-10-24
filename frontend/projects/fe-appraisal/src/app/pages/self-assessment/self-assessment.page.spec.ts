@@ -2,17 +2,8 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import {
-  AppraisalApi,
-  DEFAULT_RUNTIME_CONFIG,
-  JOB_TRACKER_OPTIONS,
-  MOCK_API_OPTIONS,
-  RUNTIME_CONFIG,
-  idempotencyInterceptor,
-  mockApiInterceptor,
-  mockStepUp,
-  setMockEsignOutage,
-} from '@vt/api-client';
+import { DEFAULT_RUNTIME_CONFIG, JOB_TRACKER_OPTIONS, MOCK_API_OPTIONS, RUNTIME_CONFIG, idempotencyInterceptor, mockApiInterceptor, mockStepUp, setMockEsignOutage } from '@vt/api-client';
+import { AppraisalApi } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { provideFormEngine } from '@vt/form-engine';
 import { firstValueFrom } from 'rxjs';

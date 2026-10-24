@@ -1,7 +1,7 @@
 import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { apiUrl } from './api-path';
+import { apiUrl } from '@vt/api-client';
 import { DossierDraftFormsRequest, EsignCertificate } from './models/appraisal';
 import {
   DossierComment,
@@ -27,8 +27,8 @@ import {
   DossierRemediationItemUpdate,
   DossierSpecialCasePage,
 } from './models/dossier';
-import { Job } from './models/job';
-import { MAX_PAGE_LIMIT } from './paging';
+import { Job } from '@vt/api-client';
+import { MAX_PAGE_LIMIT } from '@vt/api-client';
 
 const ifMatch = (o: { rowVersion: number }) => ({ 'If-Match': `"${o.rowVersion}"` });
 

@@ -32,20 +32,8 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import {
-  AppraisalApi,
-  AppraisalFlow,
-  AppraisalProfileView,
-  AppraisalScoreGroup,
-  AppraisalScoreTaskLine,
-  AppraisalScoreTraceStep,
-  DossierApi,
-  GENERAL_CRITERIA_LEVEL_LABEL,
-  RATING_LEVELS,
-  RATING_LEVEL_LABEL,
-  RatingLevel,
-  toProblem,
-} from '@vt/api-client';
+import { toProblem } from '@vt/api-client';
+import { AppraisalApi, AppraisalFlow, AppraisalProfileView, AppraisalScoreGroup, AppraisalScoreTaskLine, AppraisalScoreTraceStep, DossierApi, GENERAL_CRITERIA_LEVEL_LABEL, RATING_LEVELS, RATING_LEVEL_LABEL, RatingLevel } from '@vt/api-client/domains';
 import { permittedOn } from '@vt/auth';
 import { ThemeService } from '@vt/design-system';
 import { firstValueFrom } from 'rxjs';

@@ -272,7 +272,7 @@ fluent-bit:
       [OUTPUT]
           Name                kafka
           Match               audit.*
-          Brokers             kafka-kafka-bootstrap.data-kafka.svc:9093
+          Brokers             kafka-cell-kafka-bootstrap.data-kafka.svc:9093
           Topics              sys.audit.v1
           rdkafka.security.protocol   ssl
           rdkafka.ssl.ca.location     /etc/fluent-bit/kafka/ca.crt
@@ -286,7 +286,7 @@ fluent-bit:
       [OUTPUT]
           Name                kafka
           Match               k8saudit
-          Brokers             kafka-kafka-bootstrap.data-kafka.svc:9093
+          Brokers             kafka-cell-kafka-bootstrap.data-kafka.svc:9093
           Topics              sys.audit.v1
           rdkafka.security.protocol   ssl
           rdkafka.ssl.ca.location     /etc/fluent-bit/kafka/ca.crt

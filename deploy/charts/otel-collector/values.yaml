@@ -59,7 +59,7 @@ siem:
     requests: { cpu: 200m, memory: 512Mi }
     limits: { cpu: "1", memory: 512Mi }
   kafka:
-    brokers: [kafka-kafka-bootstrap.data-kafka.svc:9093]
+    brokers: [kafka-cell-kafka-bootstrap.data-kafka.svc:9093]
     # Consumer group và KafkaUser siem-forwarder có trong danh mục Kafka (vt-platform/ha-tang/kafka); Secret ca.crt,
     # user.crt, user.key do Strimzi sinh, ESO chép sang observability.
     groupId: siem-forwarder

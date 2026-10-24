@@ -11,18 +11,8 @@ import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { last } from 'rxjs';
-import {
-  JobAccepted,
-  JobTracker,
-  WF_ROLLOUT_STATUS_LABEL,
-  WF_TEMPLATE_STATUS_LABEL,
-  WfLintIssue,
-  WorkflowTemplate,
-  WorkflowTemplateApi,
-  WorkflowTemplateSummary,
-  lintBpmn,
-  toProblem,
-} from '@vt/api-client';
+import { JobAccepted, JobTracker, toProblem } from '@vt/api-client';
+import { WF_ROLLOUT_STATUS_LABEL, WF_TEMPLATE_STATUS_LABEL, WfLintIssue, WorkflowTemplate, WorkflowTemplateApi, WorkflowTemplateSummary, lintBpmn } from '@vt/api-client/domains';
 import { STUDIO_ACCESS } from '../../studio-permissions';
 import { STUDIO_STEP_UP } from '../../studio-step-up';
 import { errorText, fmtDate, jobErrorText, problemCode } from '../../studio-ui';

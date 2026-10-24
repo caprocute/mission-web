@@ -1,4 +1,4 @@
-import { REOPEN_SCOPE_LABEL, ReopenRequest, ReopenRequestStatus } from '@vt/api-client';
+import { REOPEN_SCOPE_LABEL, ReopenRequest, ReopenRequestStatus } from '@vt/api-client/domains';
 
 /** Màu nhãn trạng thái yêu cầu (PrimeNG `p-tag`). */
 export function reopenSeverity(

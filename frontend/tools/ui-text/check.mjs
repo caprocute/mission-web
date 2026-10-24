@@ -220,6 +220,7 @@ function scanTs(file, src) {
       return;
     }
     if (ts.isPropertyAssignment(node) && node.name.getText() === 'styles') return;
+    rawLabelFallback(node);
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
       if (!isNonUiContext(node)) report(node, node.text);
     } else if (ts.isTemplateExpression(node)) {
@@ -230,6 +231,38 @@ function scanTs(file, src) {
         );
     }
     ts.forEachChild(node, visit);
+  };
+  // tra bảng nhãn rồi rơi về chính mã khi thiếu (`LABEL[t] ?? t`): mã thô lộ ra màn hình khi máy chủ
+  // trả giá trị bảng nhãn chưa có hoặc khác hoa thường; phải rơi về tên chung (wiki/16)
+  const rawLabelFallback = (node) => {
+    if (!ts.isBinaryExpression(node)) return;
+    const op = node.operatorToken.kind;
+    if (op !== ts.SyntaxKind.QuestionQuestionToken && op !== ts.SyntaxKind.BarBarToken) return;
+    let left = node.left;
+    while (ts.isParenthesizedExpression(left) || ts.isNonNullExpression(left))
+      left = left.expression;
+    if (!ts.isElementAccessExpression(left) || !/LABEL|NHAN/i.test(left.expression.getText()))
+      return;
+    let right = node.right;
+    while (ts.isParenthesizedExpression(right) || ts.isAsExpression(right))
+      right = right.expression;
+    if (!(
+      ts.isIdentifier(right) ||
+      ts.isPropertyAccessExpression(right) ||
+      ts.isElementAccessExpression(right)
+    ))
+      return;
+    if (right.getText() !== left.argumentExpression.getText()) return;
+    const line = sf.getLineAndCharacterOfPosition(node.getStart()).line + 1;
+    if (ignored.has(line)) return;
+    findings.push({
+      file: relative(ROOT, file),
+      line,
+      rule: 'nhan-roi-ve-ma-tho',
+      match: node.getText(),
+      text: node.getText(),
+      hint: 'Khi bảng nhãn thiếu giá trị, hiện tên chung (ví dụ "Khác") thay vì chính mã.',
+    });
   };
   const report = (node, text) => {
     const line = sf.getLineAndCharacterOfPosition(node.getStart()).line + 1;

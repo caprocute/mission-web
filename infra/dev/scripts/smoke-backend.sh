@@ -111,6 +111,42 @@ else
   fi
 fi
 
+echo "==> 5. Luồng duyệt (mission-core → workflow-service) và bảng điều hành (CDC → ClickHouse → analytics-api)"
+# Mỗi phép thử dùng một tài khoản khác nhau: Keycloak không nhận lại mã OTP của cùng tài khoản trong 30 giây.
+running() { docker ps -q --filter "name=^mission-dev-$1\$" 2>/dev/null | grep -q .; }
+goi_voi() {
+  local user="$1" path="$2" tok
+  tok="$(SMOKE_USER="${user}" python3 "${SCRIPT_DIR}/lay-token-thu.py" 2>/dev/null)" || tok=""
+  [[ -n "${tok}" ]] || { echo "token"; return; }
+  curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${tok}" "${GATEWAY}${path}"
+}
+if running workflow-service; then
+  code="$(goi_voi "${SMOKE_POLICY_USER:-chinhsach}" /api/v1/policies/workflow-templates)"
+  if [[ "${code}" == "200" ]]; then
+    pass "GET /api/v1/policies/workflow-templates → 200"
+  else
+    # 503: mission-core chưa có địa chỉ workflow-service; 403 kèm opa_unavailable trong nhật ký: OPA chưa nạp gói.
+    fail "GET /api/v1/policies/workflow-templates" "mã ${code} (503: thiếu MISSION_CONFIG_WORKFLOW_BASEURL hoặc token dịch vụ, chạy them-client-mission-core.sh)"
+  fi
+else
+  echo "  bỏ qua luồng duyệt (workflow-service chưa chạy)"
+fi
+if running analytics-api && running clickhouse; then
+  code="$(goi_voi "${SMOKE_ANALYTICS_USER:-quanly}" /api/v1/analytics/semantic-model)"
+  if [[ "${code}" == "200" ]]; then
+    pass "GET /api/v1/analytics/semantic-model → 200"
+  else
+    fail "GET /api/v1/analytics/semantic-model" "mã ${code} (403: kho chưa có cây tổ chức, chạy noi-cdc-phan-tich.py)"
+  fi
+  if python3 -I "${SCRIPT_DIR}/noi-cdc-phan-tich.py" --kiem >/dev/null 2>&1; then
+    pass "connector CDC phân tích và bảng phạm vi cây tổ chức"
+  else
+    fail "CDC phân tích" "xem python3 -I scripts/noi-cdc-phan-tich.py --kiem"
+  fi
+else
+  echo "  bỏ qua bảng điều hành (analytics-api hoặc clickhouse chưa chạy, profile analytics)"
+fi
+
 echo
 if [[ ${failed} -eq 0 ]]; then echo "Kết quả: ĐẠT"; else echo "Kết quả: CÓ KIỂM TRA HỎNG"; fi
 exit "${failed}"

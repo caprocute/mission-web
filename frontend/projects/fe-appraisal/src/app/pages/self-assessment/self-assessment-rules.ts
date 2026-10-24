@@ -1,10 +1,5 @@
-import {
-  AppraisalProfileStatus,
-  GeneralCriteriaLevel,
-  RATING_LEVELS,
-  RatingLevel,
-  UiFormVersion,
-} from '@vt/api-client';
+import { UiFormVersion } from '@vt/api-client';
+import { AppraisalProfileStatus, GeneralCriteriaLevel, RATING_LEVELS, RatingLevel } from '@vt/api-client/domains';
 import { FormRule, evaluateRules } from '@vt/form-engine';
 
 /**

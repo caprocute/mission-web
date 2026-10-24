@@ -1,4 +1,5 @@
-import { CONFLICT_TITLE, DossierForm, DossierPackage, ProblemDetails } from '@vt/api-client';
+import { CONFLICT_TITLE, ProblemDetails } from '@vt/api-client';
+import { DossierForm, DossierPackage } from '@vt/api-client/domains';
 import { DossierPermissionKey } from '../../dossier-permissions';
 
 /**

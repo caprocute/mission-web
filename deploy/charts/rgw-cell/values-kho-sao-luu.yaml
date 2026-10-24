@@ -16,6 +16,7 @@ buckets:
   ledger-archive: null
   uploads-tmp: null
   transfer: null
+  pam-ghi-phien: null
   # CNPG Barman Cloud (nền + WAL) của mọi cụm PostgreSQL của cell: <cụm>/base, <cụm>/wals giữ 35 ngày (PITR); bản
   # cuối tháng chép sang dai-han/thang/ giữ 12 tháng, bản cuối năm của pg-ledger, pg-secure sang dai-han/nam/ giữ 10
   # năm (hạn giữ đặt theo từng đối tượng lúc chép, chỉ kéo dài được ở COMPLIANCE; job giu-dai-han của backup-cell).
@@ -96,6 +97,7 @@ nguoiDung:
   ledger-service: null
   tenant-registry: null
   sao-luu-minh-chung: null
+  pam-ghi-phien: null
   pg:
     uid: bk-cell-{cell}-pg
     namespace: ""

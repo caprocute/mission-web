@@ -59,3 +59,28 @@ Dựng lớp sao lưu thứ hai độc lập với nhân bản theo nguyên tắ
 ## 7. Báo cáo
 
 Theo AGENTS.md mục 6.
+
+## 8. Bằng chứng chạy thật trên kind (24/10/2026, luồng B8)
+
+Lần chạy dùng cụm gọn `vt-cell-kind` (`cluster-gon.yaml`, một control plane và một worker, kindnet, không Cilium) với cell-base đã cài. Kho sao lưu là một container Ceph RGW (`ceph-bk`) trên mạng kind, realm `cell-kind`, dựng bằng chart `rgw-cell` với `values-kind-rgw-sao-luu.yaml`; khoá S3 của cell là khoá giả lập OpenBao nằm ngoài repo. Toàn bộ các bước được gom vào `deploy/environments/kind/kiem-thu-sao-luu.sh` để chạy lại.
+
+| Tiêu chí | Kết quả |
+|---|---|
+| Kho S3 có Object Lock | Tám bucket sao lưu tạo với Object Lock chế độ COMPLIANCE, hạn giữ tới 28/11/2026. |
+| Bản nền và WAL liên tục | WAL được lưu trữ liên tục; ba bản nền `thu-nen-2` (20261024T032939), `thu-nen-3` (20261024T042327), `thu-nen-4` (20261024T042707). |
+| Xoá bằng khoá của cell bị từ chối | Xoá một phiên bản, xoá không kèm VersionId và đổi cấu hình khoá đều trả `AccessDenied`; ngay cả quản trị kho cũng bị khoá đối tượng chặn. |
+| PITR tới trước thời điểm xoá dữ liệu | Khôi phục về mốc trước lệnh xoá trả lại đủ 1000 dòng (bằng chứng DR-06 rút gọn). |
+| `restore-check` một vòng | `rc-thu-7`: ĐẠT sau 62 s, `backup_restore_check_success 1`, `backup_restore_check_target_reached 1`, cụm tạm và ObjectStore tạm bị xoá. |
+| Nguồn nhàn rỗi sau mốc | `rc-thu-9`: ĐẠT sau 94 s, tự chuyển sang khôi phục tới hết WAL, `target_reached 0`. |
+| Bản nền hỏng | Ghi đè `thu-nen-3` bằng một phiên bản rác; `rc-thu-8` HỎNG ("General error exit code 4"), `backup_restore_check_success 0`. |
+| Cảnh báo | `promtool check rules` (18 quy tắc) và `promtool test rules` đạt; kiểm thử tĩnh backup-cell 42/42, rgw-cell 11/11, script 73/73. |
+
+Lỗi phát hiện khi chạy thật và đã sửa trong commit 60302170:
+
+1. `restore-check.sh` sinh `nodeSelector: {}` và `tolerations: []` rỗng; CNPG coi đó là thay đổi đặc tả và khởi động lại primary vô hạn. Script nay bỏ hẳn khối affinity khi không có giá trị.
+2. Khi cụm nguồn không có giao dịch sau mốc kiểm, PostgreSQL dừng với "recovery ended before configured recovery target was reached" và lần kiểm luôn hỏng. Script đọc nhật ký Job khôi phục, nhận ra trường hợp này, dựng lại cụm tạm khôi phục tới hết WAL và ghi metric mới `backup_restore_check_target_reached` (Role thêm quyền `pods/log get`).
+3. Chính sách bucket của `rgw-cell` thiếu `s3:PutObject` trên ARN bucket cho tải lên nhiều phần; `values-kho-sao-luu.yaml` tắt `pam-ghi-phien` không dùng cho kho sao lưu.
+4. Ảnh etcd trong `anh/Dockerfile` chuyển sang `gcr.io/etcd-development/etcd:v3.6.4` ghim digest (ảnh cũ không còn kéo được).
+5. `nap-anh.sh` xử lý được dạng `repo:tag@sha256`, `tao-cum.sh` có công tắc `KHONG_CILIUM`, thêm `cluster-gon.yaml` cho máy 4 vCPU.
+
+Chưa chạy: `kiem-thu-sao-luu.sh` được ghép từ các bước đã chạy tay ở trên nhưng chưa chạy liền một mạch từ đầu đến cuối; Velero và Job snapshot etcd chưa chạy trên kind vì cụm gọn không đủ CPU cho thêm thành phần và kind không có etcd ngoài để kiểm khôi phục; diễn tập DR đầy đủ đã bỏ khỏi phạm vi (YC-PT-19).

@@ -94,8 +94,10 @@ kubeBench:
   enabled: true
   schedule: "0 2 * * 0"
   timeZone: Asia/Ho_Chi_Minh
-  # Phiên bản benchmark để trống: kube-bench tự chọn theo phiên bản Kubernetes.
-  benchmark: ""
+  # Ghim benchmark: Job không gắn token ServiceAccount nên kube-bench không hỏi được phiên bản Kubernetes, tự lùi về
+  # 1.18 và chấm theo cis-1.5 cũ (phát hiện khi chạy trên kind, INF-19). cis-1.10 là bản CIS mới nhất của kube-bench
+  # 0.12 (Kubernetes 1.28 trở lên); nâng cùng ảnh kube-bench.
+  benchmark: cis-1.10
   targets:
     - name: master
       checks: master,controlplane,etcd,policies

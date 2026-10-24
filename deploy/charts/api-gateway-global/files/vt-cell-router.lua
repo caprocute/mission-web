@@ -7,6 +7,10 @@
 -- (`v1.<b64url JSON {t,c,exp}>.<b64url HMAC>`): cookie hợp lệ và cell đã biết thì đi thẳng, không tra registry.
 -- 421 của registry hoặc của cell được chuyển nguyên vẹn kèm Location và xoá mục đệm; registry lỗi thì dùng mục đệm đã
 -- quá hạn tươi nhưng còn trong cửa sổ stale_ttl, không có thì 503 + Retry-After: 30.
+-- TL-04 mục 11.4: tenant `TAM_NGUNG` vẫn đọc được, lệnh ghi (khác GET, HEAD, OPTIONS) bị chặn ở đây với 403 Problem
+-- Details mang `tenantStatus`; đường dẫn trong write_exempt_prefixes (biểu mẫu đăng nhập Keycloak) không bị chặn, vì
+-- Keycloak tự chặn đăng nhập của tenant tạm ngừng và quản trị nền tảng vẫn phải vào được. Trạng thái lấy từ cùng mục
+-- đệm phân giải, nên có hiệu lực chậm nhất sau cache_ttl; dịch vụ ở cell vẫn chặn ghi ngay (TenantCellRoutingFilter).
 local core = require("apisix.core")
 local upstream = require("apisix.upstream")
 local http = require("resty.http")
@@ -34,6 +38,7 @@ local schema = {
         key_previous_env = { type = "string", default = "VT_ROUTE_COOKIE_KEY_PREVIOUS" },
         cookie_domain = { type = "string" },
         cells = { type = "object", additionalProperties = { type = "string" }, default = {} },
+        write_exempt_prefixes = { type = "array", items = { type = "string" }, default = { "/realms/" } },
     },
     required = { "registry_url" },
 }
@@ -101,10 +106,27 @@ local function verify_cookie(conf, value)
     return c
 end
 
-local function problem(status, title, code, extra_headers)
+local function problem(status, title, code, extra_headers, extra)
     core.response.set_header("Content-Type", "application/problem+json")
     for k, v in pairs(extra_headers or {}) do core.response.set_header(k, v) end
-    return status, { type = "about:blank", title = title, status = status, code = code }
+    local body = { type = "about:blank", title = title, status = status, code = code }
+    for k, v in pairs(extra or {}) do body[k] = v end
+    return status, body
+end
+
+local READ_METHODS = { GET = true, HEAD = true, OPTIONS = true }
+
+-- Tenant tạm ngừng chỉ được đọc (TL-04 mục 11.4). Trả nil nếu cho qua, hoặc (status, body) của 403.
+local function block_suspended_write(conf, ctx, status)
+    if status ~= "TAM_NGUNG" or READ_METHODS[ngx.req.get_method()] then return nil end
+    local uri = ctx.var.uri or ""
+    for _, p in ipairs(conf.write_exempt_prefixes) do
+        if uri:sub(1, #p) == p then return nil end
+    end
+    core.response.set_header("Cache-Control", "no-store")
+    return problem(403, "Đơn vị của bạn đang tạm ngừng sử dụng hệ thống. Bạn vẫn xem được dữ liệu nhưng chưa thể"
+                        .. " cập nhật cho tới khi đơn vị được mở lại.", "COMMON-403-FORBIDDEN", nil,
+                   { tenantStatus = status })
 end
 
 -- Token client credentials của client nội bộ gọi registry, đệm tới trước khi hết hạn 30 giây.
@@ -158,8 +180,8 @@ local function resolve(conf, kind, value, ttl, ctx)
     if status == 200 then
         local b = core.json.decode(res.body)
         if type(b) == "table" and type(b.cell) == "table" and b.cell.apiBaseUrl and b.cell.code then
-            local e = { tenant = b.tenantId, cell = b.cell.code, url = b.cell.apiBaseUrl, at = ngx.now(),
-                        ttl = math.min(ttl, tonumber(b.cacheTtlSeconds) or ttl) }
+            local e = { tenant = b.tenantId, cell = b.cell.code, url = b.cell.apiBaseUrl, status = b.status,
+                        at = ngx.now(), ttl = math.min(ttl, tonumber(b.cacheTtlSeconds) or ttl) }
             dict:set(key, core.json.encode(e), e.ttl + conf.stale_ttl)
             remember_cell(e.cell, e.url)
             return e
@@ -254,15 +276,22 @@ function _M.access(conf, ctx)
     end
 
     local url = cookie and (dict:get("c:" .. cookie.c) or conf.cells[cookie.c])
+    local status
     if url then
         ctx.vt_cache = "cookie"
         ctx.vt_cache_key = "h:" .. host
+        -- Đi thẳng bằng cookie: trạng thái tenant lấy từ mục đệm của tên miền nếu còn.
+        local raw = dict:get(ctx.vt_cache_key)
+        local cached = raw and core.json.decode(raw)
+        status = type(cached) == "table" and cached.status or nil
     else
         local e, st, title, code, hdr = resolve(conf, "host", host, conf.cache_ttl, ctx)
         if not e then return problem(st, title, code, hdr) end
-        url = e.url
+        url, status = e.url, e.status
         ctx.vt_set_cookie = sign_cookie(conf, e.tenant, e.cell)
     end
+    local bs, body = block_suspended_write(conf, ctx, status)
+    if bs then return bs, body end
     return proxy_to(ctx, url)
 end
 

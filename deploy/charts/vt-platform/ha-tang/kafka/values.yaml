@@ -202,6 +202,9 @@ mirrorMaker2:
   sourceTasksMax: 24
   checkpointTasksMax: 4
   dongBoOffsetGiay: 30
+  # Hệ số nhân bản của topic MM2 tạo (topic nhân bản, checkpoints, offset-syncs, topic lưu trữ của Connect); kind một
+  # broker đặt 1 (trước đây ghim 3 trong template nên MM2 không chạy được trên cụm nhỏ hơn 3 broker, kiểm trên kind).
+  heSoNhanBan: 3
   resources:
     requests: { cpu: "2", memory: 4Gi }
     limits: { cpu: "4", memory: 4Gi }

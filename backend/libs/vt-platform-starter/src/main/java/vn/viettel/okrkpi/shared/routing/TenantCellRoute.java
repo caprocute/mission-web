@@ -57,11 +57,21 @@ public record TenantCellRoute(
     return "DANG_CHUYEN_CELL".equalsIgnoreCase(status);
   }
 
-  /** Kiểm tra khách thuê đang tạm ngưng hoặc đã chấm dứt ({@code 503}). */
+  /**
+   * Kiểm tra khách thuê đang chuyển cell hoặc đã chấm dứt ({@code 503}). Khách thuê {@code
+   * TAM_NGUNG} không thuộc nhóm này: TL-04 mục 11.4 giữ dữ liệu và chỉ chặn ghi, xem {@link
+   * #isSuspended()}.
+   */
   public boolean isUnavailableStatus() {
-    return "DANG_CHUYEN_CELL".equalsIgnoreCase(status)
-        || "TAM_NGUNG".equalsIgnoreCase(status)
-        || "DA_CHAM_DUT".equalsIgnoreCase(status);
+    return "DANG_CHUYEN_CELL".equalsIgnoreCase(status) || "DA_CHAM_DUT".equalsIgnoreCase(status);
+  }
+
+  /**
+   * Kiểm tra khách thuê đang tạm ngừng ({@code TAM_NGUNG}): vẫn đọc được dữ liệu, lệnh ghi của
+   * người dùng bị từ chối ({@code 403}, TL-04 mục 11.4).
+   */
+  public boolean isSuspended() {
+    return "TAM_NGUNG".equalsIgnoreCase(status);
   }
 
   /** Kiểm tra mục bộ nhớ đệm đã hết hạn tại thời điểm {@code now} hay chưa. */

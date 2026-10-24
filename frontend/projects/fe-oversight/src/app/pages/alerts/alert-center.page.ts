@@ -18,32 +18,8 @@ import { Component, computed, inject, input, linkedSignal, signal } from '@angul
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  ALERT_ACTION_LABEL,
-  ALERT_NOTE_LIMITS,
-  ALERT_SUBJECT_TYPE_LABEL,
-  ALERT_VERDICT_LABEL,
-  ANOMALY_ALERT_STATUS_LABEL,
-  ANOMALY_OPEN_STATUSES,
-  ANOMALY_SEVERITY_LABEL,
-  ANOMALY_SIGNALS,
-  ANOMALY_SIGNAL_LABEL,
-  ANOMALY_SIGNAL_SUGGESTION,
-  AlertActionInput,
-  AlertApi,
-  AlertFilter,
-  AlertVerdict,
-  AnomalyAlert,
-  AnomalyAlertStatus,
-  AnomalyAlertSummary,
-  AnomalySeverity,
-  AnomalySignalCode,
-  EVIDENCE_CHAIN_KIND_LABEL,
-  EvidenceChainNode,
-  OrgApi,
-  PeriodApi,
-  toProblem,
-} from '@vt/api-client';
+import { OrgApi, toProblem } from '@vt/api-client';
+import { ALERT_ACTION_LABEL, ALERT_NOTE_LIMITS, ALERT_SUBJECT_TYPE_LABEL, ALERT_VERDICT_LABEL, ANOMALY_ALERT_STATUS_LABEL, ANOMALY_OPEN_STATUSES, ANOMALY_SEVERITY_LABEL, ANOMALY_SIGNALS, ANOMALY_SIGNAL_LABEL, ANOMALY_SIGNAL_SUGGESTION, AlertActionInput, AlertApi, AlertFilter, AlertVerdict, AnomalyAlert, AnomalyAlertStatus, AnomalyAlertSummary, AnomalySeverity, AnomalySignalCode, EVIDENCE_CHAIN_KIND_LABEL, EvidenceChainNode, PeriodApi } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';

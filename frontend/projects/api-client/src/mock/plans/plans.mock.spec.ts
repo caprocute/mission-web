@@ -291,4 +291,22 @@ describe('mock plans – SCR-0402 (WEB-026)', () => {
     expect(s[0]).toMatchObject({ leadAssignee: { id: 'u-btc' }, quantity: 0 });
     expect(s[0].dueDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
+
+  it('lập kế hoạch cho kỳ quý đang mở: phiên bản 1 trống ở trạng thái nháp, lập lại thì báo đã có', async () => {
+    const api = setup();
+    const created = await firstValueFrom(api.create('p-2026q4'));
+    expect(created).toMatchObject({
+      period: { id: 'p-2026q4' },
+      unitId: 'u-btc',
+      currentVersion: { versionNo: 1, status: 'NHAP', itemCount: 0 },
+    });
+    expect((await plan(api, created.id)).id).toBe(created.id);
+    const w = await firstValueFrom(api.workspace(created));
+    expect(w.version.items).toEqual([]);
+    const dup = await errorOf(firstValueFrom(api.create('p-2026q4')));
+    expect(dup.status).toBe(409);
+    expect(dup.error.code).toBe('TASK-409-PLAN-EXISTS');
+    // kỳ đang khoá không lập được kế hoạch mới
+    expect((await errorOf(firstValueFrom(api.create('p-2026q3')))).status).toBe(409);
+  });
 });

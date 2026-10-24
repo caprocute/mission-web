@@ -1,13 +1,7 @@
 import { Component, computed, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import {
-  AssigneeRef,
-  PLAN_RECURRENCE_LABEL,
-  PlanItem,
-  PlanRecurrence,
-  TASK_GROUP_LABEL,
-  TaskGroup,
-} from '@vt/api-client';
+import { AssigneeRef, TASK_GROUP_LABEL, TaskGroup } from '@vt/api-client';
+import { PLAN_RECURRENCE_LABEL, PlanItem, PlanRecurrence } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';

@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """Nạp OKR mẫu đã phê duyệt cho dev qua API thật (APISIX → mission-core), để hành trình HT-08, HT-09 chạy được.
 
-Chạy sau `seed-org.sh`, `dong-bo-to-chuc.sh` và khi đã có kỳ đang mở bao trùm hôm nay (nạp cho mọi kỳ như vậy) (`seed-ky-hien-hanh.sh` hoặc
+Chạy sau `seed-org.sh`, `dong-bo-to-chuc.sh` và khi đã có kỳ đang mở bao trùm hôm nay (`seed-ky-hien-hanh.sh` hoặc
 `seed-ky-nhiem-vu.py`):
   1. `phogiamdocso` soạn mục tiêu tập thể của Sở Thử nghiệm (đơn vị cấp cao nhất), trình; `giamdocso` phê duyệt.
      Mục tiêu phòng ban soạn ở HT-08 chọn được mục tiêu cấp trên đã duyệt (BR-02-02).
   2. `canbo` soạn mục tiêu cá nhân ở Phòng Tổng hợp phân rã từ mục tiêu của Sở, trình; `lanhdao` phê duyệt.
      `canbo` có KR đã duyệt để check-in ở HT-09 (SCR-0301).
-  3. `canbo` soạn thêm một mục tiêu cá nhân và trình, để ở chờ duyệt cho ca phủ định HT-08.
-Chạy lại không sinh bản ghi trùng: mục tiêu mẫu (tên bắt đầu bằng "[Mẫu dev]") đã duyệt thì bỏ qua, còn nháp hay chờ
+Chạy lại không sinh bản ghi trùng: mục tiêu mẫu (nhận theo đúng tên trong tệp này) đã duyệt thì bỏ qua, còn nháp hay chờ
 duyệt thì đi tiếp từ bước dở. Gọi API như người dùng nên kiểm tra nghiệp vụ, kiểm toán và sự kiện chạy như trên màn
 hình. Chỉ dùng thư viện chuẩn, không in token.
 
@@ -26,7 +25,8 @@ _base = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_base)
 nap_env, token, claims, goi = _base.nap_env, _base.token, _base.claims, _base.goi
 
-TIEN_TO = "[Mẫu dev]"
+# Tên hiển thị như dữ liệu thật; bản ghi do bản cũ tạo (có tiền tố) vẫn được nhận để không sinh trùng.
+TIEN_TO_CU = "[Mẫu dev] "
 SO = "d0000000-0000-4000-8000-000000000100"
 PHONG_TH = "d0000000-0000-4000-8000-000000000101"
 
@@ -37,7 +37,7 @@ def etag(o: dict, e) -> str:
 
 def mau(tok: str, ky: dict, unit: str, ten: str):
     _, ds, _ = goi(tok, "GET", f"/okr/objectives?period={ky['id']}&unit={unit}&view=table&limit=200")
-    return next((o for o in ds["items"] if o["title"] == ten), None)
+    return next((o for o in ds["items"] if o["title"] in (ten, TIEN_TO_CU + ten)), None)
 
 
 def lap(tac_gia: str, duyet: str, ky: dict, can_cu: str, ten: str, than: dict) -> dict:
@@ -79,15 +79,15 @@ def kr(ten: str, nguoi_xac_nhan: str) -> dict:
 
 
 def nap_ky(ky: dict, can_cu: str, t_pgd: str, t_gd: str, t_cb: str, t_ld: str, t_ql: str) -> None:
-    so = lap(t_pgd, t_gd, ky, can_cu, f"{TIEN_TO} Nâng cao chất lượng tham mưu của Sở",
+    so = lap(t_pgd, t_gd, ky, can_cu, "Nâng cao chất lượng tham mưu của Sở",
              {"ownerType": "TAP_THE", "ownerUnitId": SO,
               "keyResults": [kr("Tỷ lệ văn bản tham mưu đúng hạn", claims(t_gd)["sub"])]})
-    lap(t_cb, t_ld, ky, can_cu, f"{TIEN_TO} Hoàn thành đúng hạn báo cáo tổng hợp",
+    lap(t_cb, t_ld, ky, can_cu, "Hoàn thành đúng hạn báo cáo tổng hợp",
         {"ownerType": "CA_NHAN", "ownerUnitId": PHONG_TH, "ownerPersonId": claims(t_cb)["sub"],
          "parentObjectiveId": so["id"],
          "keyResults": [kr("Tỷ lệ báo cáo tổng hợp nộp đúng hạn", claims(t_ql)["sub"])]})
     # 3. Một mục tiêu cá nhân để ở chờ duyệt: ca phủ định HT-08 thử phê duyệt trái quyền bằng `quanly` (403)
-    trinh(t_cb, ky, can_cu, f"{TIEN_TO} Chuẩn hoá mẫu biểu báo cáo của phòng",
+    trinh(t_cb, ky, can_cu, "Chuẩn hoá mẫu biểu báo cáo của phòng",
           {"ownerType": "CA_NHAN", "ownerUnitId": PHONG_TH, "ownerPersonId": claims(t_cb)["sub"],
            "parentObjectiveId": so["id"],
            "keyResults": [kr("Tỷ lệ mẫu biểu được chuẩn hoá", claims(t_ql)["sub"])]})
@@ -99,8 +99,7 @@ def main() -> int:
     t_pgd, t_gd = token("phogiamdocso", env), token("giamdocso", env)
     t_cb, t_ld, t_ql = token("canbo", env), token("lanhdao", env), token("quanly", env)
     _, ds, _ = goi(t_pgd, "GET", "/periods?status=MO&limit=200")
-    # Mọi kỳ đang mở bao trùm hôm nay (kỳ tháng, kỳ quý của e2e): màn hình soạn mục tiêu mặc định chọn một kỳ
-    # trong số đó, nên mỗi kỳ cần đủ bộ mẫu.
+    # Mọi kỳ đang mở bao trùm hôm nay: màn hình soạn mục tiêu mặc định chọn một kỳ trong số đó
     kys = [k for k in ds["items"] if k["startDate"] <= hom <= k["endDate"]]
     if not kys:
         sys.exit("Chưa có kỳ đang mở bao trùm hôm nay: chạy seed-ky-hien-hanh.sh trước")

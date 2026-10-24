@@ -1,14 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import {
-  POLICY_VERSION_STATUS_LABEL,
-  PolicyApi,
-  PolicyPack,
-  PolicyPackVersionSummary,
-  isPolicyVersionEditable,
-  policyVersionLabel,
-} from '@vt/api-client';
+import { POLICY_VERSION_STATUS_LABEL, PolicyApi, PolicyPack, PolicyPackVersionSummary, isPolicyVersionEditable, policyVersionLabel } from '@vt/api-client/domains';
 import { FLOW_LABEL, fmtDate } from '../studio-ui';
 import { POLICY_KEYS } from '../studio-layout';
 import { STUDIO_ACCESS } from '../studio-permissions';

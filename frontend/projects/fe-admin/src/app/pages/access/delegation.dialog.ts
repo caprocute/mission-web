@@ -1,13 +1,8 @@
 import { Component, effect, inject, input, model, output, signal, untracked } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import {
-  DELEGATION_KIND_LABEL,
-  Delegation,
-  DelegationKind,
-  OrgApi,
-  RoleAdminApi,
-} from '@vt/api-client';
+import { OrgApi } from '@vt/api-client';
+import { DELEGATION_KIND_LABEL, Delegation, DelegationKind, RoleAdminApi } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';

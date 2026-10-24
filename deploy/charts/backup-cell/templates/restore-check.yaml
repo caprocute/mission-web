@@ -63,6 +63,10 @@ rules:
   - apiGroups: [""]
     resources: [pods/exec]
     verbs: [create]
+  # Đọc log Job khôi phục của cụm tạm để nhận ra cụm nguồn nhàn rỗi ("recovery target was not reached").
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

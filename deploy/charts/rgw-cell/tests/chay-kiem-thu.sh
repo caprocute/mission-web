@@ -43,7 +43,9 @@ for k, v in cm.items():
             if "s3:DeleteObject" in st["Action"]:
                 assert k == "uploads-tmp.chinh-sach.json", k
 ev = json.loads(cm["evidence.chinh-sach.json"])["Statement"]
-assert all(s["Resource"][0].endswith("/t/*") or s["Condition"]["StringLike"]["s3:prefix"] == ["t/*"] for s in ev)
+# Câu ghi nhiều phần (s3:PutObject trên ARN bucket, RGW 19 kiểm CreateMultipartUpload ở đó) không cần tiền tố:
+# UploadPart và CompleteMultipartUpload ngoài tiền tố vẫn bị từ chối (kiểm trên kind, INF-17).
+assert all(s["Resource"][0].endswith("/t/*") or s["Action"] == ["s3:PutObject"] or s["Condition"]["StringLike"]["s3:prefix"] == ["t/*"] for s in ev)
 vd = json.loads(cm["evidence.vong-doi.json"])["Rules"]
 assert any(r.get("Transitions") == [{"Days": 30, "StorageClass": "HDD_EC"}] for r in vd)
 assert json.loads(cm["uploads-tmp.vong-doi.json"])["Rules"][1]["Expiration"] == {"Days": 1}

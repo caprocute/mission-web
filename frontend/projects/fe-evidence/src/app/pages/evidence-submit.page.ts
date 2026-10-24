@@ -27,24 +27,8 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  EVIDENCE_STATUS_LABEL,
-  EvidenceApi,
-  EvidenceDuplicateMatch,
-  EvidenceExternalDoc,
-  EvidenceVersion,
-  EvidenceVersionDraft,
-  EvidenceVersionStatus,
-  FILE_SCAN_LABEL,
-  FileApi,
-  FileRejectedError,
-  FileScanStatus,
-  TASK_STATUS_LABEL,
-  TaskApi,
-  TaskStatus,
-  UploadProgress,
-  toProblem,
-} from '@vt/api-client';
+import { TASK_STATUS_LABEL, TaskApi, TaskStatus, toProblem } from '@vt/api-client';
+import { EVIDENCE_STATUS_LABEL, EvidenceApi, EvidenceDuplicateMatch, EvidenceExternalDoc, EvidenceVersion, EvidenceVersionDraft, EvidenceVersionStatus, FILE_SCAN_LABEL, FileApi, FileRejectedError, FileScanStatus, UploadProgress } from '@vt/api-client/domains';
 import { permittedOn } from '@vt/auth';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';

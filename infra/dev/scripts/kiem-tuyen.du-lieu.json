@@ -1,0 +1,913 @@
+{
+ "nguon": {
+  "contracts/openapi/common/common.yaml": "63da29c718eec4e25da12d05c89fa470e28c80488cbfc2d365558188f6ac2f4c",
+  "contracts/openapi/modules/appraisals.yaml": "4adbba75a7a05240ac19a441b0d062cdeebd031576fd83ca52cc5467f14a549c",
+  "contracts/openapi/modules/config.yaml": "c141dc049d2458b4216060294e1a38be50abaa12278846294e0d0ec95af6f95d",
+  "contracts/openapi/modules/dossiers.yaml": "0bff8d5db23e5dc1b7ddac0b0a1360befc4431539d8df71f090fa36af54a5ebe",
+  "contracts/openapi/modules/jobs.yaml": "437a610d30b202a36e221f7284fbe43c38fea4ae71d082fca1fb54d546bc1c91",
+  "contracts/openapi/modules/okr.yaml": "b2b7d9d7406f15d3e1cba1a1511cdafe5817e9d3e84b4e4ae879ee037dc37794",
+  "contracts/openapi/modules/org.yaml": "bb16ae3020cc8843e33ee719595cb360cce391ee29dd6f6c04faae64b6407b37",
+  "contracts/openapi/modules/oversight.yaml": "633c9da557b8e7b5d714514347b1b6bdebe2770f88216590a3d157346250bccc",
+  "contracts/openapi/modules/platform.yaml": "461312c0012bc563e8b5542d4d7a49c3245166dd3beb761393971cc176d05cd4",
+  "contracts/openapi/modules/policies.yaml": "93d3338282d2ea664ba02730cca8a75064fea844bad737b1fcb3f35607912f95",
+  "contracts/openapi/modules/products.yaml": "6f76d7a95e984e7072c5707d234c90d27dbd3c1303188e63ba7efdcd2b442424",
+  "contracts/openapi/modules/scim.yaml": "e7a560b74af11e5c1a444ea081b02cd497e42a2108c448d511b51f2580a56f8d",
+  "contracts/openapi/modules/tasks.yaml": "92996bb8fc94c049c3f8a51b8d8679490c33cd540eac723c8acf6b092bf91614",
+  "infra/dev/apisix/apisix.yaml": "b0de0fbedc936988ab3d46a44b6c7bf93500d7edf8853ec025d6ef67259a61dc",
+  "infra/dev/docker-compose.yml": "6349ba4d5edba69c912e79ff9d106c195ca0a5506d84d1b1f347eb882e5d888d"
+ },
+ "operations": [
+  {
+   "id": "listMyAppraisalProfiles",
+   "module": "appraisals",
+   "owner": "MOD-04",
+   "path": "/api/v1/appraisals/profiles/mine"
+  },
+  {
+   "id": "listAppraisalProfiles",
+   "module": "appraisals",
+   "owner": "MOD-04",
+   "path": "/api/v1/appraisals/profiles"
+  },
+  {
+   "id": "listAppraisalIncidents",
+   "module": "appraisals",
+   "owner": "MOD-04",
+   "path": "/api/v1/appraisals/incidents"
+  },
+  {
+   "id": "listAppraisalBatchDecisions",
+   "module": "appraisals",
+   "owner": "MOD-04",
+   "path": "/api/v1/appraisals/batch-decisions"
+  },
+  {
+   "id": "listConfigTenants",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/config/tenants"
+  },
+  {
+   "id": "listFeatureFlags",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/config/feature-flags"
+  },
+  {
+   "id": "getAnomalyThresholds",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/config/anomaly-thresholds"
+  },
+  {
+   "id": "listPeriods",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/periods"
+  },
+  {
+   "id": "getCurrentUiPack",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/ui/packs/current"
+  },
+  {
+   "id": "listUiPacks",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/ui/packs"
+  },
+  {
+   "id": "listUiComponents",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/ui/components"
+  },
+  {
+   "id": "listUiForms",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/ui/forms"
+  },
+  {
+   "id": "getHomeLayout",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/ui/layouts/home"
+  },
+  {
+   "id": "getEffectiveFeatureFlags",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/ui/feature-flags"
+  },
+  {
+   "id": "getMyPreferences",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/config/me/preferences"
+  },
+  {
+   "id": "listTenantSettings",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/config/settings"
+  },
+  {
+   "id": "listRoleBindings",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/config/role-bindings"
+  },
+  {
+   "id": "listAccessHistory",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/config/access-history"
+  },
+  {
+   "id": "listDelegations",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/config/delegations"
+  },
+  {
+   "id": "listDossierMeetings",
+   "module": "dossiers",
+   "owner": "MOD-06",
+   "path": "/api/v1/dossiers/meetings"
+  },
+  {
+   "id": "listDossierPackages",
+   "module": "dossiers",
+   "owner": "MOD-06",
+   "path": "/api/v1/dossiers/packages"
+  },
+  {
+   "id": "listDossierSpecialCases",
+   "module": "dossiers",
+   "owner": "MOD-06",
+   "path": "/api/v1/dossiers/special-cases"
+  },
+  {
+   "id": "listMyEsignRequests",
+   "module": "dossiers",
+   "owner": "SVC-10",
+   "path": "/api/v1/esign/requests"
+  },
+  {
+   "id": "listMyEsignCertificates",
+   "module": "dossiers",
+   "owner": "SVC-10",
+   "path": "/api/v1/esign/certificates/mine"
+  },
+  {
+   "id": "listOkrObjectives",
+   "module": "okr",
+   "owner": "MOD-01",
+   "path": "/api/v1/okr/objectives"
+  },
+  {
+   "id": "listOkrKeyResults",
+   "module": "okr",
+   "owner": "MOD-01",
+   "path": "/api/v1/okr/key-results"
+  },
+  {
+   "id": "getOkrAlignment",
+   "module": "okr",
+   "owner": "MOD-01",
+   "path": "/api/v1/okr/alignment"
+  },
+  {
+   "id": "listOkrLinks",
+   "module": "okr",
+   "owner": "MOD-01",
+   "path": "/api/v1/okr/links"
+  },
+  {
+   "id": "listOkrBases",
+   "module": "okr",
+   "owner": "MOD-01",
+   "path": "/api/v1/okr/bases"
+  },
+  {
+   "id": "getOkrTree",
+   "module": "okr",
+   "owner": "MOD-01",
+   "path": "/api/v1/okr/tree"
+  },
+  {
+   "id": "getOkrComposeContext",
+   "module": "okr",
+   "owner": "MOD-01",
+   "path": "/api/v1/okr/compose-context"
+  },
+  {
+   "id": "listOkrReviews",
+   "module": "okr",
+   "owner": "MOD-01",
+   "path": "/api/v1/okr/reviews"
+  },
+  {
+   "id": "getMyOrgProfile",
+   "module": "org",
+   "owner": "SVC-04",
+   "path": "/api/v1/org/me"
+  },
+  {
+   "id": "listOrgPersons",
+   "module": "org",
+   "owner": "SVC-04",
+   "path": "/api/v1/org/persons"
+  },
+  {
+   "id": "listOrgUnits",
+   "module": "org",
+   "owner": "SVC-04",
+   "path": "/api/v1/org/units"
+  },
+  {
+   "id": "getOrgTree",
+   "module": "org",
+   "owner": "SVC-04",
+   "path": "/api/v1/org/units/tree"
+  },
+  {
+   "id": "listSubjectGroups",
+   "module": "org",
+   "owner": "SVC-04",
+   "path": "/api/v1/org/subject-groups"
+  },
+  {
+   "id": "listOrgSyncRuns",
+   "module": "org",
+   "owner": "SVC-04",
+   "path": "/api/v1/org/sync-runs"
+  },
+  {
+   "id": "listOrgSyncSchedules",
+   "module": "org",
+   "owner": "SVC-04",
+   "path": "/api/v1/org/sync-schedules"
+  },
+  {
+   "id": "listOrgDiscrepancies",
+   "module": "org",
+   "owner": "SVC-04",
+   "path": "/api/v1/org/discrepancies"
+  },
+  {
+   "id": "listE2eeDirectoryKeys",
+   "module": "org",
+   "owner": "SVC-04",
+   "path": "/api/v1/org/e2ee/directory-keys"
+  },
+  {
+   "id": "getRecoveryKey",
+   "module": "org",
+   "owner": "SVC-04",
+   "path": "/api/v1/org/e2ee/recovery-key"
+  },
+  {
+   "id": "listE2eeRecoveries",
+   "module": "org",
+   "owner": "SVC-04",
+   "path": "/api/v1/org/e2ee/recoveries"
+  },
+  {
+   "id": "listComplainableProfiles",
+   "module": "oversight",
+   "owner": "MOD-07",
+   "path": "/api/v1/oversight/complaints/eligible-profiles"
+  },
+  {
+   "id": "listComplaints",
+   "module": "oversight",
+   "owner": "MOD-07",
+   "path": "/api/v1/oversight/complaints"
+  },
+  {
+   "id": "listReopenRequests",
+   "module": "oversight",
+   "owner": "MOD-07",
+   "path": "/api/v1/oversight/reopen-requests"
+  },
+  {
+   "id": "listPostAudits",
+   "module": "oversight",
+   "owner": "MOD-07",
+   "path": "/api/v1/oversight/post-audits"
+  },
+  {
+   "id": "listAnomalyAlerts",
+   "module": "oversight",
+   "owner": "MOD-07",
+   "path": "/api/v1/oversight/alerts"
+  },
+  {
+   "id": "listLedgerEntries",
+   "module": "oversight",
+   "owner": "SVC-09",
+   "path": "/api/v1/ledger/entries"
+  },
+  {
+   "id": "listLedgerVerifyRuns",
+   "module": "oversight",
+   "owner": "SVC-09",
+   "path": "/api/v1/ledger/verify-runs"
+  },
+  {
+   "id": "searchAccessLogs",
+   "module": "oversight",
+   "owner": "MOD-07",
+   "path": "/api/v1/oversight/access-logs"
+  },
+  {
+   "id": "resolveTenantCell",
+   "module": "platform",
+   "owner": "SVC-03",
+   "path": "/api/v1/registry/resolve"
+  },
+  {
+   "id": "listCells",
+   "module": "platform",
+   "owner": "SVC-03",
+   "path": "/api/v1/registry/cells"
+  },
+  {
+   "id": "listWorkflowInbox",
+   "module": "platform",
+   "owner": "SVC-06",
+   "path": "/api/v1/workflow/inbox"
+  },
+  {
+   "id": "listWorkflowInstances",
+   "module": "platform",
+   "owner": "SVC-06",
+   "path": "/api/v1/workflow/instances"
+  },
+  {
+   "id": "listWorkflowTemplates",
+   "module": "platform",
+   "owner": "SVC-06",
+   "path": "/api/v1/workflow/templates"
+  },
+  {
+   "id": "streamNotifications",
+   "module": "platform",
+   "owner": "SVC-12",
+   "path": "/api/v1/notifications/stream"
+  },
+  {
+   "id": "listNotifications",
+   "module": "platform",
+   "owner": "SVC-12",
+   "path": "/api/v1/notifications"
+  },
+  {
+   "id": "listMyPushDevices",
+   "module": "platform",
+   "owner": "SVC-12",
+   "path": "/api/v1/notifications/devices"
+  },
+  {
+   "id": "getNotificationPreferences",
+   "module": "platform",
+   "owner": "SVC-12",
+   "path": "/api/v1/notifications/preferences"
+  },
+  {
+   "id": "listAiSuggestions",
+   "module": "platform",
+   "owner": "SVC-14",
+   "path": "/api/v1/ai/suggestions"
+  },
+  {
+   "id": "getSemanticModel",
+   "module": "platform",
+   "owner": "SVC-15",
+   "path": "/api/v1/analytics/semantic-model"
+  },
+  {
+   "id": "listDashboards",
+   "module": "platform",
+   "owner": "SVC-15",
+   "path": "/api/v1/analytics/dashboards"
+  },
+  {
+   "id": "listPolicyPacks",
+   "module": "policies",
+   "owner": "MOD-05",
+   "path": "/api/v1/policies/packs"
+  },
+  {
+   "id": "listCustomerProfiles",
+   "module": "policies",
+   "owner": "MOD-05",
+   "path": "/api/v1/policies/customer-profiles"
+  },
+  {
+   "id": "listPolicyWorkflowTemplates",
+   "module": "policies",
+   "owner": "MOD-05",
+   "path": "/api/v1/policies/workflow-templates"
+  },
+  {
+   "id": "listEvidences",
+   "module": "products",
+   "owner": "MOD-03",
+   "path": "/api/v1/evidences"
+  },
+  {
+   "id": "searchEvidenceExternalDocs",
+   "module": "products",
+   "owner": "MOD-03",
+   "path": "/api/v1/evidences/external-docs"
+  },
+  {
+   "id": "getScimServiceProviderConfig",
+   "module": "scim",
+   "owner": "SVC-04",
+   "path": "/scim/v2/ServiceProviderConfig"
+  },
+  {
+   "id": "listScimResourceTypes",
+   "module": "scim",
+   "owner": "SVC-04",
+   "path": "/scim/v2/ResourceTypes"
+  },
+  {
+   "id": "listScimSchemas",
+   "module": "scim",
+   "owner": "SVC-04",
+   "path": "/scim/v2/Schemas"
+  },
+  {
+   "id": "listScimUsers",
+   "module": "scim",
+   "owner": "SVC-04",
+   "path": "/scim/v2/Users"
+  },
+  {
+   "id": "listScimGroups",
+   "module": "scim",
+   "owner": "SVC-04",
+   "path": "/scim/v2/Groups"
+  },
+  {
+   "id": "listUnitTasks",
+   "module": "tasks",
+   "owner": "MOD-02",
+   "path": "/api/v1/tasks"
+  },
+  {
+   "id": "listMyTasks",
+   "module": "tasks",
+   "owner": "MOD-02",
+   "path": "/api/v1/tasks/mine"
+  },
+  {
+   "id": "getNewTaskDraft",
+   "module": "tasks",
+   "owner": "MOD-02",
+   "path": "/api/v1/tasks/drafts/new"
+  },
+  {
+   "id": "listSourceDocs",
+   "module": "tasks",
+   "owner": "MOD-02",
+   "path": "/api/v1/tasks/source-docs"
+  },
+  {
+   "id": "listPlans",
+   "module": "tasks",
+   "owner": "MOD-02",
+   "path": "/api/v1/plans"
+  },
+  {
+   "id": "listApprovedPlanItems",
+   "module": "tasks",
+   "owner": "MOD-02",
+   "path": "/api/v1/plans/items"
+  },
+  {
+   "id": "listPlanApprovals",
+   "module": "tasks",
+   "owner": "MOD-02",
+   "path": "/api/v1/plans/approvals"
+  },
+  {
+   "id": "listWorkCatalogs",
+   "module": "tasks",
+   "owner": "MOD-02",
+   "path": "/api/v1/catalog"
+  },
+  {
+   "id": "listApplicableCatalogItems",
+   "module": "tasks",
+   "owner": "MOD-02",
+   "path": "/api/v1/catalog/items"
+  }
+ ],
+ "ports": {
+  "analytics-api": [
+   "${ANALYTICS_API_PORT:-35118}:8080"
+  ],
+  "apicurio": [
+   "${APICURIO_PORT:-35081}:8080"
+  ],
+  "apisix": [
+   "${APISIX_PORT:-35000}:9080"
+  ],
+  "cel-js-runner": [],
+  "clamav": [],
+  "clickhouse": [
+   "${CLICKHOUSE_HTTP_PORT:-35123}:8123"
+  ],
+  "clickhouse-lam-moi": [],
+  "cube": [
+   "${CUBE_PORT:-35400}:4000"
+  ],
+  "debezium": [
+   "${DEBEZIUM_PORT:-35083}:8083"
+  ],
+  "document-service": [
+   "${DOCUMENT_SERVICE_PORT:-35114}:8080"
+  ],
+  "esign-service": [
+   "${ESIGN_SERVICE_PORT:-35116}:8080"
+  ],
+  "evidence-service": [
+   "${EVIDENCE_SERVICE_PORT:-35115}:8080"
+  ],
+  "gotenberg": [
+   "${GOTENBERG_PORT:-35330}:3000"
+  ],
+  "grafana": [
+   "${GRAFANA_PORT:-35300}:3000"
+  ],
+  "hr-gia-lap": [],
+  "integration-gateway": [
+   "${INTEGRATION_GATEWAY_PORT:-35117}:8080"
+  ],
+  "kafka": [
+   "${KAFKA_TUNNEL_BIND:-127.0.0.1}:${KAFKA_PORT:-35092}:9095",
+   "${KAFKA_EXTERNAL_PORT:-35094}:9094"
+  ],
+  "kafka-init": [],
+  "keycloak": [
+   "${KEYCLOAK_PORT:-35080}:8080"
+  ],
+  "ledger-service": [
+   "${LEDGER_SERVICE_PORT:-35120}:8080"
+  ],
+  "llm-mock": [
+   "${LLM_MOCK_PORT:-35340}:8080"
+  ],
+  "loki": [
+   "${LOKI_PORT:-35310}:3100"
+  ],
+  "minio": [
+   "${MINIO_API_PORT:-35900}:9000",
+   "${MINIO_CONSOLE_PORT:-35901}:9001"
+  ],
+  "minio-init": [],
+  "mission-core": [
+   "${MISSION_CORE_PORT:-35100}:8080",
+   "127.0.0.1:${MISSION_CORE_MGMT_PORT:-35101}:8081"
+  ],
+  "notification-service": [
+   "${NOTIFICATION_SERVICE_PORT:-35121}:8080"
+  ],
+  "opa": [
+   "${OPA_PORT:-35181}:8181"
+  ],
+  "openbao": [
+   "${OPENBAO_PORT:-35820}:8200"
+  ],
+  "openbao-init": [],
+  "opensearch": [
+   "${OPENSEARCH_PORT:-35200}:9200"
+  ],
+  "org-service": [
+   "${ORG_SERVICE_PORT:-35111}:8080"
+  ],
+  "otel-collector": [
+   "${OTEL_GRPC_PORT:-35317}:4317",
+   "${OTEL_HTTP_PORT:-35318}:4318"
+  ],
+  "pgbouncer": [
+   "${PGBOUNCER_PORT:-35433}:6432"
+  ],
+  "postgres": [
+   "${POSTGRES_PORT:-35432}:5432"
+  ],
+  "prometheus": [
+   "${PROMETHEUS_PORT:-35990}:9090"
+  ],
+  "provision-gia-lap": [],
+  "scoring-service": [
+   "${SCORING_SERVICE_PORT:-35113}:8080"
+  ],
+  "search": [
+   "${SEARCH_SERVICE_PORT:-35119}:8080"
+  ],
+  "softhsm-init": [],
+  "superset": [
+   "${SUPERSET_PORT:-35088}:8088"
+  ],
+  "tempo": [
+   "${TEMPO_PORT:-35320}:3200"
+  ],
+  "tenant-registry": [
+   "${TENANT_REGISTRY_PORT:-35110}:8080"
+  ],
+  "tsa-mock": [
+   "${TSA_MOCK_PORT:-35350}:8318"
+  ],
+  "valkey": [
+   "${VALKEY_PORT:-35379}:6379"
+  ],
+  "web": [],
+  "workflow-service": [
+   "${WORKFLOW_SERVICE_PORT:-35112}:8080"
+  ]
+ },
+ "routes": [
+  {
+   "id": "mission-core",
+   "methods": null,
+   "priority": 0,
+   "regex": [],
+   "service": "mission-core",
+   "uris": [
+    "/api/v1/okr*",
+    "/api/v1/tasks*",
+    "/api/v1/plans*",
+    "/api/v1/catalog*",
+    "/api/v1/products*",
+    "/api/v1/evidences*",
+    "/api/v1/appraisals*",
+    "/api/v1/policies*",
+    "/api/v1/dossiers*",
+    "/api/v1/oversight*",
+    "/api/v1/config*",
+    "/api/v1/periods*",
+    "/api/v1/ui*",
+    "/api/v1/jobs*"
+   ]
+  },
+  {
+   "id": "scoring-preview",
+   "methods": [
+    "POST"
+   ],
+   "priority": 20,
+   "regex": [],
+   "service": "scoring-service",
+   "uris": [
+    "/api/v1/appraisals/score-preview"
+   ]
+  },
+  {
+   "id": "scoring-profile",
+   "methods": null,
+   "priority": 20,
+   "regex": [
+    "^/api/v1/appraisals/profiles/[^/]+/(score-trace|simulate|recompute)$"
+   ],
+   "service": "scoring-service",
+   "uris": [
+    "/api/v1/appraisals/profiles/*"
+   ]
+  },
+  {
+   "id": "document-render",
+   "methods": [
+    "POST"
+   ],
+   "priority": 20,
+   "regex": [],
+   "service": "document-service",
+   "uris": [
+    "/api/v1/dossiers/render-jobs",
+    "/api/v1/dossiers/forms",
+    "/api/v1/dossiers/forms/preview"
+   ]
+  },
+  {
+   "id": "ledger",
+   "methods": null,
+   "priority": 20,
+   "regex": [],
+   "service": "ledger-service",
+   "uris": [
+    "/api/v1/ledger*",
+    "/api/v1/oversight/ledger/proofs"
+   ]
+  },
+  {
+   "id": "esign",
+   "methods": null,
+   "priority": 0,
+   "regex": [],
+   "service": "esign-service",
+   "uris": [
+    "/api/v1/esign*"
+   ]
+  },
+  {
+   "id": "org",
+   "methods": null,
+   "priority": 0,
+   "regex": [],
+   "service": "org-service",
+   "uris": [
+    "/api/v1/org*"
+   ]
+  },
+  {
+   "id": "workflow",
+   "methods": null,
+   "priority": 0,
+   "regex": [],
+   "service": "workflow-service",
+   "uris": [
+    "/api/v1/workflow*"
+   ]
+  },
+  {
+   "id": "files",
+   "methods": null,
+   "priority": 0,
+   "regex": [],
+   "service": "evidence-service",
+   "uris": [
+    "/api/v1/files*"
+   ]
+  },
+  {
+   "id": "jobs-org",
+   "methods": null,
+   "priority": 20,
+   "regex": [
+    "^/api/v1/jobs/org-[^/]+$"
+   ],
+   "service": "org-service",
+   "uris": [
+    "/api/v1/jobs/*"
+   ]
+  },
+  {
+   "id": "jobs-workflow",
+   "methods": null,
+   "priority": 20,
+   "regex": [
+    "^/api/v1/jobs/wf-[^/]+$"
+   ],
+   "service": "workflow-service",
+   "uris": [
+    "/api/v1/jobs/*"
+   ]
+  },
+  {
+   "id": "jobs-scoring",
+   "methods": null,
+   "priority": 20,
+   "regex": [
+    "^/api/v1/jobs/score-[^/]+$"
+   ],
+   "service": "scoring-service",
+   "uris": [
+    "/api/v1/jobs/*"
+   ]
+  },
+  {
+   "id": "jobs-document",
+   "methods": null,
+   "priority": 20,
+   "regex": [
+    "^/api/v1/jobs/doc-[^/]+$"
+   ],
+   "service": "document-service",
+   "uris": [
+    "/api/v1/jobs/*"
+   ]
+  },
+  {
+   "id": "jobs-ledger",
+   "methods": null,
+   "priority": 20,
+   "regex": [
+    "^/api/v1/jobs/ledger-[^/]+$"
+   ],
+   "service": "ledger-service",
+   "uris": [
+    "/api/v1/jobs/*"
+   ]
+  },
+  {
+   "id": "jobs-analytics",
+   "methods": null,
+   "priority": 20,
+   "regex": [
+    "^/api/v1/jobs/ana-[^/]+$"
+   ],
+   "service": "analytics-api",
+   "uris": [
+    "/api/v1/jobs/*"
+   ]
+  },
+  {
+   "id": "notifications",
+   "methods": null,
+   "priority": 0,
+   "regex": [],
+   "service": "notification-service",
+   "uris": [
+    "/api/v1/notifications*"
+   ]
+  },
+  {
+   "id": "notifications-stream",
+   "methods": [
+    "GET"
+   ],
+   "priority": 20,
+   "regex": [],
+   "service": "notification-service",
+   "uris": [
+    "/api/v1/notifications/stream"
+   ]
+  },
+  {
+   "id": "search",
+   "methods": null,
+   "priority": 0,
+   "regex": [],
+   "service": "search",
+   "uris": [
+    "/api/v1/search",
+    "/api/v1/search/*"
+   ]
+  },
+  {
+   "id": "analytics",
+   "methods": null,
+   "priority": 0,
+   "regex": [],
+   "service": "analytics-api",
+   "uris": [
+    "/api/v1/analytics*"
+   ]
+  },
+  {
+   "id": "iam-mission-iam",
+   "methods": null,
+   "priority": 0,
+   "regex": [],
+   "service": "keycloak",
+   "uris": [
+    "/api/v1/iam/*"
+   ]
+  },
+  {
+   "id": "tenant-registry",
+   "methods": null,
+   "priority": 20,
+   "regex": [],
+   "service": "tenant-registry",
+   "uris": [
+    "/api/v1/registry*",
+    "/api/v1/config/tenants*"
+   ]
+  },
+  {
+   "id": "internal-only",
+   "methods": null,
+   "priority": 100,
+   "regex": [],
+   "service": "mission-core",
+   "uris": [
+    "/api/v1/appraisals/inputs*",
+    "/api/v1/config/dashboard-defs*",
+    "/api/v1/esign/seals",
+    "/api/v1/workflow/sagas/period-close*",
+    "/api/v1/ai/ocr",
+    "/api/v1/policies/resolve",
+    "/api/v1/tasks/visibility-check"
+   ]
+  },
+  {
+   "id": "web",
+   "methods": null,
+   "priority": 0,
+   "regex": [],
+   "service": "web",
+   "uris": [
+    "/*"
+   ]
+  }
+ ]
+}

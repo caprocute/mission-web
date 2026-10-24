@@ -24,24 +24,8 @@ import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import {
-  CatalogApi,
-  CatalogItem,
-  OkrApi,
-  OrgApi,
-  PLAN_CHECK_RULES,
-  PLAN_RECURRENCE_LABEL,
-  PLAN_VERSION_STATUS_LABEL,
-  PlanApi,
-  PlanItem,
-  PlanItemInput,
-  PlanRemovedItem,
-  PlanVersion,
-  PlanWorkspace,
-  TASK_GROUP_LABEL,
-  TaskGroup,
-  toProblem,
-} from '@vt/api-client';
+import { OkrApi, OrgApi, TASK_GROUP_LABEL, TaskGroup, toProblem } from '@vt/api-client';
+import { CatalogApi, CatalogItem, PLAN_CHECK_RULES, PLAN_RECURRENCE_LABEL, PLAN_VERSION_STATUS_LABEL, PeriodApi, PlanApi, PlanItem, PlanItemInput, PlanRemovedItem, PlanVersion, PlanWorkspace } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
@@ -75,6 +59,44 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
   template: `
     @if (!can('SCR-0402.xem')) {
       <p class="msg warn">Đồng chí không có quyền xem kế hoạch quý của đơn vị.</p>
+    } @else if (plans.error()) {
+      <p class="msg err" role="alert">{{ plansError() }}</p>
+    } @else if (plans.value()?.length === 0) {
+      <section class="empty" aria-labelledby="plan-empty-title">
+        <h1 id="plan-empty-title">Kế hoạch công tác quý</h1>
+        <p>Đơn vị chưa có kế hoạch công tác quý.</p>
+        @if (can('SCR-0402.lap')) {
+          @if (openPeriods().length) {
+            <div class="create">
+              <label for="plan-period">Kỳ kế hoạch</label>
+              <p-select
+                inputId="plan-period"
+                [options]="openPeriods()"
+                optionLabel="name"
+                optionValue="id"
+                [ngModel]="newPeriod()"
+                (ngModelChange)="newPeriod.set($event)"
+              />
+              <p-button
+                label="Lập kế hoạch"
+                icon="pi pi-plus"
+                [loading]="creating()"
+                [disabled]="!newPeriod() || creating()"
+                (onClick)="createPlan()"
+              />
+            </div>
+          } @else if (periodsRes.isLoading()) {
+            <p class="muted">Đang tải kỳ kế hoạch…</p>
+          } @else {
+            <p class="muted">Hiện chưa có kỳ kế hoạch quý đang mở để lập kế hoạch.</p>
+          }
+          @if (createError(); as e) {
+            <p class="msg err" role="alert">{{ e }}</p>
+          }
+        } @else {
+          <p class="muted">Khi đơn vị lập kế hoạch, nội dung kế hoạch sẽ hiện tại đây.</p>
+        }
+      </section>
     } @else if (ws.error()) {
       <p class="msg err" role="alert">{{ loadError() }}</p>
     } @else if (ws.value(); as w) {
@@ -752,6 +774,16 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
     .err-text {
       color: #b91c1c;
     }
+    .empty {
+      max-width: 640px;
+    }
+    .create {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 12px 0;
+    }
     .msg {
       margin: 0 0 10px;
       padding: 10px 14px;
@@ -815,6 +847,7 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
 })
 export class PlanPage {
   private readonly api = inject(PlanApi);
+  private readonly periodApi = inject(PeriodApi);
   private readonly orgApi = inject(OrgApi);
   private readonly okrApi = inject(OkrApi);
   private readonly catalogApi = inject(CatalogApi);
@@ -826,10 +859,26 @@ export class PlanPage {
   private readonly query = toSignal(this.route.queryParamMap);
   protected readonly groups: TaskGroup[] = ['THUONG_XUYEN', 'THEN_CHOT'];
 
-  private readonly plans = rxResource({
+  protected readonly plans = rxResource({
     params: () => (this.can('SCR-0402.xem') ? true : undefined),
     stream: () => this.api.list(),
   });
+  protected readonly plansError = computed(() =>
+    this.plans.error()
+      ? toProblem(this.plans.error()).title ||
+        'Chưa tải được danh sách kế hoạch. Vui lòng thử lại sau.'
+      : '',
+  );
+
+  // Đơn vị chưa có kế hoạch: người lập chọn kỳ quý đang mở rồi "Lập kế hoạch" (`createPlan`, SCR-0402).
+  protected readonly periodsRes = rxResource({
+    params: () => (this.plans.value()?.length === 0 && this.can('SCR-0402.lap') ? true : undefined),
+    stream: () => this.periodApi.list({ kind: 'QUY', status: 'MO' }),
+  });
+  protected readonly openPeriods = computed(() => this.periodsRes.value() ?? []);
+  protected readonly newPeriod = linkedSignal<string | undefined>(() => this.openPeriods()[0]?.id);
+  protected readonly creating = signal(false);
+  protected readonly createError = signal('');
   /** Kỳ đang xem: `?plan=`, mặc định kế hoạch còn đang soạn, nếu không có thì kỳ mới nhất. */
   protected readonly planId = computed(() => {
     const list = this.plans.value() ?? [];
@@ -1111,6 +1160,24 @@ export class PlanPage {
   }
   protected tone(x: { passed: boolean; level: string }) {
     return x.passed ? 'ok' : x.level === 'CHAN' ? 'bad' : 'warn';
+  }
+
+  protected createPlan() {
+    const periodId = this.newPeriod();
+    if (!periodId || this.creating()) return;
+    this.creating.set(true);
+    this.createError.set('');
+    this.api.create(periodId).subscribe({
+      next: (plan) => {
+        this.creating.set(false);
+        this.plans.reload();
+        this.choosePlan(plan.id);
+      },
+      error: (e) => {
+        this.creating.set(false);
+        this.createError.set(toProblem(e).title || 'Chưa lập được kế hoạch. Vui lòng thử lại sau.');
+      },
+    });
   }
 
   protected choosePlan(id: string) {

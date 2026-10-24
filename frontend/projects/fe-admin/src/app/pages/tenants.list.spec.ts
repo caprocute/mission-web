@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizeCriteria } from '@vt/api-client';
+import { sanitizeCriteria } from '@vt/api-client/domains';
 import { TENANTS_CODEC } from './tenants.list';
 
 describe('TENANTS_CODEC (CNH-04)', () => {

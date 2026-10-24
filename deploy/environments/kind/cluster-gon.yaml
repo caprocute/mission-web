@@ -1,0 +1,56 @@
+# Cụm kind gọn cho kiểm thử chạy thật sao lưu và bảo mật nền (INF-17, INF-18, INF-19; kiem-thu-sao-luu.sh,
+# kiem-thu-an-ninh.sh) trên máy ít đĩa (máy cloud của agent, khoảng 40 GB): một control plane và một worker, CNI
+# kindnet mặc định của kind (có NetworkPolicy chuẩn, không có CiliumNetworkPolicy), giữ nguyên nhật ký kiểm toán API
+# như cluster-an-ninh.yaml. Bốn node kèm Cilium tốn khoảng 3 GB đĩa mỗi node trước khi nạp ảnh ứng dụng.
+# Dùng: KIND_CONFIG=cluster-gon.yaml KHONG_CILIUM=1 ./tao-cum.sh
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: vt-cell-kind
+networking:
+  podSubnet: 10.244.0.0/16
+  serviceSubnet: 10.96.0.0/16
+kubeadmConfigPatches:
+  - |
+    kind: ClusterConfiguration
+    apiServer:
+      extraArgs:
+        audit-policy-file: /etc/kubernetes/audit-policy.yaml
+        audit-log-path: /var/log/kubernetes/audit/audit.log
+        audit-log-maxage: "7"
+        audit-log-maxbackup: "10"
+        audit-log-maxsize: "200"
+        profiling: "false"
+        tls-min-version: VersionTLS12
+      extraVolumes:
+        - name: audit-policy
+          hostPath: /etc/kubernetes/audit-policy.yaml
+          mountPath: /etc/kubernetes/audit-policy.yaml
+          readOnly: true
+          pathType: File
+        - name: audit-log
+          hostPath: /var/log/kubernetes/audit
+          mountPath: /var/log/kubernetes/audit
+          readOnly: false
+          pathType: DirectoryOrCreate
+  # Lưu giữ log container của kubelet theo TL-04 mục 10.3 (lớp đệm thứ hai khi Fluent Bit gặp sự cố).
+  - |
+    kind: KubeletConfiguration
+    containerLogMaxSize: 100Mi
+    containerLogMaxFiles: 5
+containerdConfigPatches:
+  # Máy chạy kind trong container lồng nhau (môi trường cloud của agent) không cho hạ oom_score_adj;
+  # bật restrict_oom_score_adj để containerd không đặt giá trị âm cho sandbox. Vô hại trên máy thường.
+  - |-
+    [plugins."io.containerd.grpc.v1.cri"]
+      restrict_oom_score_adj = true
+nodes:
+  - role: control-plane
+    extraMounts:
+      - hostPath: ../../clusters/cell-cluster/files/audit-policy.yaml
+        containerPath: /etc/kubernetes/audit-policy.yaml
+        readOnly: true
+  - role: worker
+    labels:
+      topology.kubernetes.io/zone: hl-a
+      vt.io/rack: r1
+      vt.io/pool: app-general

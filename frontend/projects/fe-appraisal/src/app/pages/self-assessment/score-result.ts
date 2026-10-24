@@ -1,5 +1,5 @@
 import { Component, input, output } from '@angular/core';
-import { AppraisalScoreView } from '@vt/api-client';
+import { AppraisalScoreView } from '@vt/api-client/domains';
 import { vn } from './self-assessment-rules';
 
 /**

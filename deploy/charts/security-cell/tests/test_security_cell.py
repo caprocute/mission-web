@@ -192,7 +192,10 @@ class Falcosidekick(CoSo):
     def test_sang_topic_an_ninh_va_soc(self):
         cfg = yaml.safe_load(tim(self.d, "ConfigMap", "falcosidekick")[0]["data"]["config.yaml"])
         self.assertTrue(cfg["otlp"]["logs"]["endpoint"].startswith("https://otel-siem.observability.svc"))
-        self.assertIn("OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE", cfg["otlp"]["logs"]["extraenvvars"])
+        self.assertNotIn("extraenvvars", cfg["otlp"]["logs"], "viper đổi tên biến sang chữ thường, SDK OTLP không đọc")
+        env = {e["name"]: e.get("value") for e in tim(self.d, "Deployment", "falcosidekick")[0]["spec"]["template"]["spec"]["containers"][0]["env"]}
+        self.assertEqual(env["OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE"], "/etc/falcosidekick/otlp/ca.crt")
+        self.assertEqual(env["OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE"], "/etc/falcosidekick/otlp/tls.crt")
         self.assertEqual(cfg["webhook"]["minimumpriority"], "critical")
         self.assertNotIn("address", cfg["webhook"], "địa chỉ webhook SOC không được nằm trong ConfigMap")
         dep = tim(self.d, "Deployment", "falcosidekick")[0]["spec"]["template"]["spec"]["containers"][0]

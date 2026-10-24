@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { apiUrl } from './api-path';
+import { apiUrl } from '@vt/api-client';
 import {
   ComplaintAdjustment,
   ReopenImpact,
@@ -9,7 +9,7 @@ import {
   ReopenRequestFilter,
   ReopenRequestInput,
 } from './models/reopen';
-import { CursorPage, MAX_PAGE_LIMIT } from './paging';
+import { CursorPage, MAX_PAGE_LIMIT } from '@vt/api-client';
 
 const ifMatch = (rowVersion: number) => ({ 'If-Match': `"${rowVersion}"` });
 

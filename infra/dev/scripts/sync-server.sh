@@ -30,12 +30,21 @@ REPO_ROOT="$(cd "${INFRA_DIR}/../.." && pwd)"
 ENV_FILE="${REPO_ROOT}/.env"
 PROJECT="mission-dev"
 
+# Biến người gọi đã đặt (trien-khai-lai.sh truyền DEV_SERVER_INFRA_DIR là thư mục repo mới trên máy chủ) thắng .env
+# gốc repo: nếu .env đè lại thư mục cũ, compose chạy ở đó và đường dẫn ../../backend, ../../analytics trỏ ra ngoài repo.
+_truyen_vao=()
+for _v in DEV_SERVER_INFRA_DIR DEV_SERVER_PROFILES SYNC_SERVER_ENV; do
+  [[ -n "${!_v:-}" ]] && _truyen_vao+=("${_v}=${!_v}")
+done
 if [[ -f "${ENV_FILE}" ]]; then
   set -a
   # shellcheck disable=SC1090
   source "${ENV_FILE}"
   set +a
 fi
+for _kv in ${_truyen_vao[@]+"${_truyen_vao[@]}"}; do
+  export "${_kv}"
+done
 
 DEV_SERVER_HOST="${DEV_SERVER_HOST:-}"
 DEV_SERVER_SSH_PORT="${DEV_SERVER_SSH_PORT:-2222}"
@@ -241,6 +250,8 @@ cmd_apply() {
   copy_files no
   echo "==> Kiểm compose config sau khi chép"
   remote "$(compose_cmd) config -q"
+  echo "==> Kiểm gói chính sách OPA mà compose sẽ gắn"
+  remote "cd $(printf '%q' "${DEV_SERVER_INFRA_DIR}") && python3 scripts/kiem-goi-opa.py .env"
   retire_services
   echo "==> Áp lại project ${PROJECT}, profile: ${DEV_SERVER_PROFILES}"
   remote "$(compose_cmd) up -d --build"

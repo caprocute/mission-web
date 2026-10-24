@@ -19,21 +19,8 @@
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import {
-  Job,
-  JobTracker,
-  ORG_CHANGE_TYPE_LABEL,
-  ORG_UNIT_TYPE_LABEL,
-  OrgChangeOrder,
-  OrgTimeQuery,
-  OrgTreeApi,
-  OrgUnitAssignment,
-  OrgUnitDetail,
-  OrgUnitVersion,
-  UNIT_ASSIGNMENT_KIND_LABEL,
-  orgImportErrors,
-  orgUnitLevelLabel,
-} from '@vt/api-client';
+import { Job, JobTracker } from '@vt/api-client';
+import { ORG_CHANGE_TYPE_LABEL, ORG_UNIT_TYPE_LABEL, OrgChangeOrder, OrgTimeQuery, OrgTreeApi, OrgUnitAssignment, OrgUnitDetail, OrgUnitVersion, UNIT_ASSIGNMENT_KIND_LABEL, orgImportErrors, orgUnitLevelLabel } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
@@ -650,7 +637,7 @@ export class OrgTreePage {
   protected readonly canChange = computed(() => !!this.u() && !this.ended());
 
   protected flows(u: OrgUnitDetail) {
-    return u.flows.map((f) => FLOW_LABEL[f] ?? f).join(' và ');
+    return u.flows.map((f) => FLOW_LABEL[f] ?? 'luồng khác').join(' và ');
   }
   protected versionTitle(h: OrgUnitVersion) {
     if (h.changeType) return this.kindLabel[h.changeType];

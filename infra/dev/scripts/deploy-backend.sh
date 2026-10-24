@@ -9,7 +9,7 @@
 #
 # Các bước: (1) `mvnw package` các mô-đun Java; (2) `docker compose build`; (3) kiểm hạ tầng core, security,
 # events đang chạy (không bật hay dựng lại); (4) migration bằng tài khoản mig_<schema>; (5) `docker compose up -d` các service
-# backend; (6) chờ healthcheck; (7) seed khi có mission-core (lược đồ Avro, tổ chức và org-republish, kỳ hiện
+# backend; (6) chờ healthcheck, đăng ký lược đồ Avro (lỗi thì dừng); (7) seed khi có mission-core (tổ chức và org-republish, kỳ hiện
 # hành, phân vùng theo kỳ, nhiệm vụ mẫu, OKR mẫu đã duyệt; bỏ bằng SKIP_SEED=1) rồi gọi health.sh. Chỉ thao tác project compose `mission-dev`: không dùng
 # --remove-orphans, không prune, không đụng container khác trên máy.
 #
@@ -89,11 +89,30 @@ if [[ "${IN_MO_DUN:-0}" == "1" ]]; then
   exit 0
 fi
 
+# Gói chính sách OPA của chính bản checkout này (docker-compose.yml, OPA_POLICY_DIR): đường tuyệt đối để không phụ
+# thuộc thư mục chạy compose.
+export OPA_POLICY_DIR="${OPA_POLICY_DIR:-${REPO_ROOT}/backend/opa/okrkpi}"
+
 compose() {
   docker compose -p "${PROJECT}" --project-directory "${INFRA_DIR}" -f "${INFRA_DIR}/docker-compose.yml" \
     --env-file "${ENV_FILE}" --profile core --profile security --profile events --profile search \
     --profile backend "$@"
 }
+
+# Secret openbao_token của compose là tệp (docker-compose.yml): ghi từ OPENBAO_DEV_ROOT_TOKEN, thư mục 700 để chỉ chủ
+# máy đọc được; tệp 644 để người dùng 10001 trong container đọc qua điểm gắn. Không in giá trị.
+if [[ -z "${OPENBAO_TOKEN_FILE:-}" ]]; then
+  if [[ -n "${OPENBAO_DEV_ROOT_TOKEN:-}" ]]; then
+    install -d -m 700 "${INFRA_DIR}/secrets"
+    (umask 022 && printf '%s' "${OPENBAO_DEV_ROOT_TOKEN}" >"${INFRA_DIR}/secrets/openbao_token.tmp")
+    chmod 644 "${INFRA_DIR}/secrets/openbao_token.tmp"
+    mv "${INFRA_DIR}/secrets/openbao_token.tmp" "${INFRA_DIR}/secrets/openbao_token"
+  elif [[ ! -f "${INFRA_DIR}/secrets/openbao_token" ]]; then
+    echo "  Cảnh báo: chưa đặt OPENBAO_DEV_ROOT_TOKEN; org-service, integration-gateway không mã hoá được trường C2." >&2
+    install -d -m 700 "${INFRA_DIR}/secrets"
+    : >"${INFRA_DIR}/secrets/openbao_token"
+  fi
+fi
 
 echo "==> Container trước khi áp: $(docker ps -q | wc -l) đang chạy, $(docker ps -q --filter "label=com.docker.compose.project=${PROJECT}" | wc -l) thuộc ${PROJECT}"
 
@@ -137,6 +156,18 @@ for c in postgres pgbouncer valkey keycloak opa kafka apicurio; do
   fi
 done
 [[ ${missing} -eq 0 ]] || die "hạ tầng chưa sẵn sàng; bật profile core, security, events trước (README mục 3)"
+# OPA chạy với thư mục chính sách rỗng vẫn "running" và mọi API trả 403 (thư mục hạ tầng chép ngoài repo làm
+# ../../backend/opa/okrkpi trỏ vào chỗ không có, Docker tự tạo thư mục rỗng): kiểm nguồn gắn và quyết định thật.
+if [[ " ${HA_TANG_KHONG_BAT_BUOC:-} " != *" opa "* ]]; then
+  opa_src="$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/policies/okrkpi"}}{{.Source}}{{end}}{{end}}' mission-dev-opa)"
+  if [[ -z "${opa_src}" ]] || ! compgen -G "${opa_src}/*.rego" >/dev/null; then
+    die "OPA gắn '${opa_src:-?}' vào /policies/okrkpi nhưng thư mục không có tệp .rego; đặt OPA_POLICY_DIR=${REPO_ROOT}/backend/opa/okrkpi trong .env rồi dựng lại OPA (compose up -d --force-recreate opa)"
+  fi
+  curl -fsS -X POST -H 'Content-Type: application/json' -d '{"input":{}}' \
+    "http://127.0.0.1:${OPA_PORT:-35181}/v1/data/okrkpi/authz/decision" 2>/dev/null | grep -q '"result"' ||
+    die "OPA chưa nạp gói okrkpi từ ${opa_src} (không có data.okrkpi.authz.decision); xem docker logs mission-dev-opa"
+  echo "  opa        gói okrkpi từ ${opa_src}"
+fi
 
 # --- (4) migration ---------------------------------------------------------------
 # Schema của mission-core (keyring trước, theo backend/libs/vt-db-migration/README.md) và các service có
@@ -234,12 +265,26 @@ done
 # Thứ tự: lược đồ Avro vào Apicurio trước mọi thao tác ghi có sự kiện; tổ chức sang org_replica trước khi giao
 # việc; phân vùng theo kỳ trước khi ghi dữ liệu của kỳ (README mục 3.2). Mỗi bước chạy lại an toàn.
 canh_bao() { echo "  Cảnh báo: $1 chưa xong; chạy lại $2 khi APISIX, Keycloak và Apicurio sẵn sàng" >&2; }
+# Lược đồ Avro phải có trong Apicurio trước mọi lần phát sự kiện (serde không tự đăng ký): thiếu là org-republish
+# hỏng và seed nhận 403 về sau, nên chờ Apicurio rồi đăng ký, lỗi thì dừng triển khai thay vì chỉ cảnh báo.
+# Bỏ bằng SKIP_SCHEMA=1 (ví dụ khi HA_TANG_KHONG_BAT_BUOC=apicurio).
+if [[ "${SKIP_SCHEMA:-0}" != "1" ]] && { selected mission-core || selected org-service; }; then
+  echo "==> Đăng ký lược đồ sự kiện vào Apicurio"
+  export REGISTRY_URL="${REGISTRY_URL:-http://127.0.0.1:${APICURIO_PORT:-35081}/apis/registry/v3}"
+  deadline=$((SECONDS + 180))
+  until curl -fsS "${REGISTRY_URL}/system/info" >/dev/null 2>&1; do
+    [[ ${SECONDS} -lt ${deadline} ]] || die "Apicurio không trả lời ở ${REGISTRY_URL} sau 3 phút"
+    sleep 5
+  done
+  python3 -I "${SCRIPT_DIR}/dang-ky-luoc-do.py" | tail -n 1 ||
+    die "đăng ký lược đồ sự kiện lỗi (chi tiết ở trên); sửa rồi chạy lại dang-ky-luoc-do.py"
+fi
 if selected mission-core && [[ "${SKIP_SEED:-0}" != "1" ]]; then
-  python3 -I "${SCRIPT_DIR}/dang-ky-luoc-do.py" >/dev/null || canh_bao "đăng ký lược đồ sự kiện" "dang-ky-luoc-do.py"
   # Realm đã nhập từ trước không tự có tài khoản thử, client dịch vụ mới của realm-mission.json (HT-07, HT-08).
   "${SCRIPT_DIR}/them-tai-khoan-thu.sh" >/dev/null || canh_bao "tài khoản thử mới" "them-tai-khoan-thu.sh"
   "${SCRIPT_DIR}/them-client-integration-gateway.sh" >/dev/null ||
     canh_bao "client integration-gateway" "them-client-integration-gateway.sh"
+  "${SCRIPT_DIR}/them-client-mission-core.sh" >/dev/null || canh_bao "client mission-core" "them-client-mission-core.sh"
   "${SCRIPT_DIR}/seed-org.sh" || canh_bao "seed tổ chức" "seed-org.sh"
   if selected org-service || docker ps -q --filter name=mission-dev-org-service | grep -q .; then
     "${SCRIPT_DIR}/dong-bo-to-chuc.sh" || canh_bao "đồng bộ tổ chức sang mission-core" "dong-bo-to-chuc.sh"

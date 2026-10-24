@@ -10,18 +10,7 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import {
-  DAY_KIND_LABEL,
-  PERIOD_KIND_LABEL,
-  PeriodApi,
-  PolicyApi,
-  PolicyDiffChange,
-  PolicyPackVersion,
-  PolicyRule,
-  QUALITY_METHOD_LABEL,
-  RETURN_REASON_LABEL,
-  policyVersionLabel,
-} from '@vt/api-client';
+import { DAY_KIND_LABEL, PERIOD_KIND_LABEL, PeriodApi, PolicyApi, PolicyDiffChange, PolicyPackVersion, PolicyRule, QUALITY_METHOD_LABEL, RETURN_REASON_LABEL, policyVersionLabel } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { TextareaModule } from 'primeng/textarea';
@@ -123,6 +112,7 @@ export class PolicyDiffDialog {
     if (c.kind === 'DECISION_TABLE') return 'Bảng quyết định xếp loại';
     if (c.kind === 'PARAM') {
       const p = (c.path ?? '').replace(/^params\./, '');
+      // ui-text-ok: tham số, giá trị và lựa chọn do người soạn chính sách tự đặt, không có bảng nhãn cố định
       return `${what}: ${PARAM_LABEL[p] ?? p}`;
     }
     return c.change === 'THEM' ? `${what} (thêm mới)` : `${what}: biểu thức`;
@@ -131,6 +121,7 @@ export class PolicyDiffDialog {
   protected show(v: unknown): string {
     if (v === null || v === undefined) return '—';
     if (typeof v === 'number') return fmtNum(v);
+    // ui-text-ok: tham số, giá trị và lựa chọn do người soạn chính sách tự đặt, không có bảng nhãn cố định
     if (typeof v === 'string') return VALUE_LABEL[v] ?? v;
     if (typeof v === 'object') {
       return Object.entries(v as Record<string, unknown>)

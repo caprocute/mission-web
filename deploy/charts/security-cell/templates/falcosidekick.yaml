@@ -36,10 +36,9 @@ data:
         timeout: 10000
         checkcert: true
         minimumpriority: {{ $v.falco.minimumPriority }}
-        extraenvvars:
-          OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE: /etc/falcosidekick/otlp/ca.crt
-          OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE: /etc/falcosidekick/otlp/tls.crt
-          OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY: /etc/falcosidekick/otlp/tls.key
+        # CA và chứng thư máy khách mTLS đặt bằng biến OTEL_EXPORTER_OTLP_LOGS_* trên container (Deployment bên dưới):
+        # extraenvvars đi qua viper nên tên biến bị chuyển chữ thường, SDK OTLP không đọc, otel-siem từ chối chứng
+        # thư ("certificate signed by unknown authority", phát hiện khi chạy trên kind, INF-19).
     {{- if $s.soc.enabled }}
     webhook:
       method: POST
@@ -88,8 +87,11 @@ spec:
           image: {{ include "sec.image" (dict "root" . "name" "falcosidekick") }}
           imagePullPolicy: IfNotPresent
           args: ["-c", "/etc/falcosidekick/config.yaml"]
-          {{- if $s.soc.enabled }}
           env:
+            - { name: OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE, value: /etc/falcosidekick/otlp/ca.crt }
+            - { name: OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE, value: /etc/falcosidekick/otlp/tls.crt }
+            - { name: OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY, value: /etc/falcosidekick/otlp/tls.key }
+          {{- if $s.soc.enabled }}
             - name: WEBHOOK_ADDRESS
               valueFrom:
                 secretKeyRef: { name: {{ $s.soc.urlSecret.name }}, key: {{ $s.soc.urlSecret.key }} }

@@ -15,20 +15,8 @@ import { Component, computed, inject, input, linkedSignal, signal } from '@angul
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import {
-  AnalyticsApi,
-  AnalyticsDashboard,
-  CHART_TYPES,
-  CHART_TYPE_LABEL,
-  DASHBOARD_LIMITS,
-  DashboardShareScope,
-  DashboardWidget,
-  OrgApi,
-  SHARE_SCOPE_LABEL,
-  SemanticDimension,
-  SemanticMeasure,
-  toProblem,
-} from '@vt/api-client';
+import { OrgApi, toProblem } from '@vt/api-client';
+import { AnalyticsApi, AnalyticsDashboard, CHART_TYPES, CHART_TYPE_LABEL, DASHBOARD_LIMITS, DashboardShareScope, DashboardWidget, SHARE_SCOPE_LABEL, SemanticDimension, SemanticMeasure } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DialogModule } from 'primeng/dialog';

@@ -1,18 +1,7 @@
 import { Component, computed, effect, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import {
-  JobAccepted,
-  PackVersionRef,
-  PeriodApi,
-  PolicyApi,
-  PolicyDiffChange,
-  PolicyPackVersion,
-  PolicyTestCaseResult,
-  PolicyTestRunSummary,
-  RATING_LEVEL_LABEL,
-  RatingLevel,
-  policyVersionLabel,
-} from '@vt/api-client';
+import { JobAccepted } from '@vt/api-client';
+import { PackVersionRef, PeriodApi, PolicyApi, PolicyDiffChange, PolicyPackVersion, PolicyTestCaseResult, PolicyTestRunSummary, RATING_LEVEL_LABEL, RatingLevel, policyVersionLabel } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { combineLatest, map, of } from 'rxjs';
 import { STUDIO_ACCESS } from '../../studio-permissions';
@@ -822,12 +811,14 @@ export class TestCasePage {
 
   protected changeTitle(c: PolicyDiffChange) {
     const p = (c.path ?? '').replace(/^params\./, '');
+    // ui-text-ok: tham số, giá trị và lựa chọn do người soạn chính sách tự đặt, không có bảng nhãn cố định
     return c.kind === 'PARAM' ? (PARAM_LABEL[p] ?? p) : this.ws.label(c.key);
   }
 
   protected value(v: unknown): string {
     if (v === null || v === undefined) return '—';
     if (typeof v === 'number') return fmtNum(v, 3);
+    // ui-text-ok: tham số, giá trị và lựa chọn do người soạn chính sách tự đặt, không có bảng nhãn cố định
     if (typeof v === 'string') return VALUE_LABEL[v] ?? v;
     return JSON.stringify(v);
   }

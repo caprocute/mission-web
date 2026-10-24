@@ -1,0 +1,1737 @@
+{
+  "users": [
+    {
+      "id": "e1000000-0000-4000-8000-000000000301",
+      "username": "tu.bithu",
+      "enabled": true,
+      "firstName": "Hưng",
+      "lastName": "Trần Quốc",
+      "email": "tu.bithu@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e1000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e1000000-0000-4000-8000-000000000100"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "leader",
+        "decider"
+      ]
+    },
+    {
+      "id": "e1000000-0000-4000-8000-000000000302",
+      "username": "tu.phobithu",
+      "enabled": true,
+      "firstName": "Hà",
+      "lastName": "Lê Thị Thu",
+      "email": "tu.phobithu@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e1000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e1000000-0000-4000-8000-000000000100"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager",
+        "second_approver"
+      ]
+    },
+    {
+      "id": "e1000000-0000-4000-8000-000000000303",
+      "username": "tu.truongbantc",
+      "enabled": true,
+      "firstName": "Đức",
+      "lastName": "Phạm Minh",
+      "email": "tu.truongbantc@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e1000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e1000000-0000-4000-8000-000000000102"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "leader",
+        "appraiser"
+      ]
+    },
+    {
+      "id": "e1000000-0000-4000-8000-000000000304",
+      "username": "tu.phobantc",
+      "enabled": true,
+      "firstName": "Tùng",
+      "lastName": "Hà Văn",
+      "email": "tu.phobantc@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e1000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e1000000-0000-4000-8000-000000000102"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager",
+        "appraiser"
+      ]
+    },
+    {
+      "id": "e1000000-0000-4000-8000-000000000305",
+      "username": "tu.truongphongcb",
+      "enabled": true,
+      "firstName": "Lan",
+      "lastName": "Võ Thị Ngọc",
+      "email": "tu.truongphongcb@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e1000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e1000000-0000-4000-8000-000000000105"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager",
+        "appraiser"
+      ]
+    },
+    {
+      "id": "e1000000-0000-4000-8000-000000000306",
+      "username": "tu.chuyenviencb",
+      "enabled": true,
+      "firstName": "Huy",
+      "lastName": "Đặng Quang",
+      "email": "tu.chuyenviencb@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e1000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e1000000-0000-4000-8000-000000000105"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "appraiser"
+      ]
+    },
+    {
+      "id": "e1000000-0000-4000-8000-000000000307",
+      "username": "tu.chuyenvientcdv",
+      "enabled": true,
+      "firstName": "Nhung",
+      "lastName": "Bùi Thị Hồng",
+      "email": "tu.chuyenvientcdv@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e1000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e1000000-0000-4000-8000-000000000106"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "policy_author"
+      ]
+    },
+    {
+      "id": "e1000000-0000-4000-8000-000000000308",
+      "username": "tu.chanhvp",
+      "enabled": true,
+      "firstName": "Nam",
+      "lastName": "Hoàng Văn",
+      "email": "tu.chanhvp@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e1000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e1000000-0000-4000-8000-000000000101"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "leader"
+      ]
+    },
+    {
+      "id": "e1000000-0000-4000-8000-000000000309",
+      "username": "tu.truongphongth",
+      "enabled": true,
+      "firstName": "Hương",
+      "lastName": "Ngô Thị Thanh",
+      "email": "tu.truongphongth@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e1000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e1000000-0000-4000-8000-000000000107"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager"
+      ]
+    },
+    {
+      "id": "e1000000-0000-4000-8000-00000000030a",
+      "username": "tu.chuyenvienth",
+      "enabled": true,
+      "firstName": "Khánh",
+      "lastName": "Lý Văn",
+      "email": "tu.chuyenvienth@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e1000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e1000000-0000-4000-8000-000000000107"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member"
+      ]
+    },
+    {
+      "id": "e1000000-0000-4000-8000-00000000030b",
+      "username": "tu.chuyenvienth2",
+      "enabled": true,
+      "firstName": "Mai",
+      "lastName": "Trịnh Thị",
+      "email": "tu.chuyenvienth2@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e1000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e1000000-0000-4000-8000-000000000107"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member"
+      ]
+    },
+    {
+      "id": "e1000000-0000-4000-8000-00000000030c",
+      "username": "tu.quantri",
+      "enabled": true,
+      "firstName": "Tuấn",
+      "lastName": "Đỗ Minh",
+      "email": "tu.quantri@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e1000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e1000000-0000-4000-8000-000000000107"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "tenant_admin"
+      ]
+    },
+    {
+      "id": "e1000000-0000-4000-8000-00000000030d",
+      "username": "tu.ubkt",
+      "enabled": true,
+      "firstName": "Trường",
+      "lastName": "Mai Xuân",
+      "email": "tu.ubkt@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e1000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e1000000-0000-4000-8000-000000000103"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "inspector"
+      ]
+    },
+    {
+      "id": "e1000000-0000-4000-8000-00000000030e",
+      "username": "tu.bithuxa",
+      "enabled": true,
+      "firstName": "Lực",
+      "lastName": "Đinh Văn",
+      "email": "tu.bithuxa@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e1000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e1000000-0000-4000-8000-00000000010a"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "leader"
+      ]
+    },
+    {
+      "id": "e1000000-0000-4000-8000-00000000030f",
+      "username": "tu.bithuchibo",
+      "enabled": true,
+      "firstName": "Lan",
+      "lastName": "Nguyễn Thị",
+      "email": "tu.bithuchibo@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e1000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e1000000-0000-4000-8000-00000000010b"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager"
+      ]
+    },
+    {
+      "id": "e1000000-0000-4000-8000-000000000310",
+      "username": "tu.dangvien",
+      "enabled": true,
+      "firstName": "Bảy",
+      "lastName": "Trần Văn",
+      "email": "tu.dangvien@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e1000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e1000000-0000-4000-8000-00000000010b"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-000000000301",
+      "username": "cq.chutich",
+      "enabled": true,
+      "firstName": "Phúc",
+      "lastName": "Lê Hoàng",
+      "email": "cq.chutich@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-000000000100"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "leader",
+        "decider"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-000000000302",
+      "username": "cq.phochutich",
+      "enabled": true,
+      "firstName": "Oanh",
+      "lastName": "Nguyễn Thị Kim",
+      "email": "cq.phochutich@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-000000000100"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager",
+        "second_approver"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-000000000303",
+      "username": "cq.chanhvp",
+      "enabled": true,
+      "firstName": "Danh",
+      "lastName": "Trương Công",
+      "email": "cq.chanhvp@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-000000000101"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "leader"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-000000000304",
+      "username": "cq.truongphongth",
+      "enabled": true,
+      "firstName": "Yến",
+      "lastName": "Phan Thị Hải",
+      "email": "cq.truongphongth@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-000000000102"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-000000000305",
+      "username": "cq.chuyenvienth",
+      "enabled": true,
+      "firstName": "Anh",
+      "lastName": "Vũ Đức",
+      "email": "cq.chuyenvienth@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-000000000102"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-000000000306",
+      "username": "cq.giamdoctt",
+      "enabled": true,
+      "firstName": "Ánh",
+      "lastName": "Châu Thị",
+      "email": "cq.giamdoctt@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-000000000103"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-000000000307",
+      "username": "cq.vienchuctt",
+      "enabled": true,
+      "firstName": "Tài",
+      "lastName": "Lâm Văn",
+      "email": "cq.vienchuctt@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-000000000103"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-000000000308",
+      "username": "cq.giamdocsnv",
+      "enabled": true,
+      "firstName": "Hiển",
+      "lastName": "Đoàn Văn",
+      "email": "cq.giamdocsnv@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-000000000104"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "leader",
+        "appraiser"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-000000000309",
+      "username": "cq.truongphongccvc",
+      "enabled": true,
+      "firstName": "Tâm",
+      "lastName": "Cao Minh",
+      "email": "cq.truongphongccvc@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-000000000105"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager",
+        "policy_author"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-00000000030a",
+      "username": "cq.chuyenviennv",
+      "enabled": true,
+      "firstName": "Thảo",
+      "lastName": "Huỳnh Thị",
+      "email": "cq.chuyenviennv@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-000000000105"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "appraiser"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-00000000030b",
+      "username": "cq.giamdocstc",
+      "enabled": true,
+      "firstName": "Lộc",
+      "lastName": "Phạm Văn",
+      "email": "cq.giamdocstc@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-000000000106"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "leader"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-00000000030c",
+      "username": "cq.phogiamdocstc",
+      "enabled": true,
+      "firstName": "Ngọc",
+      "lastName": "Hồ Thị Bích",
+      "email": "cq.phogiamdocstc@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-000000000106"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-00000000030d",
+      "username": "cq.truongphongns",
+      "enabled": true,
+      "firstName": "Bảo",
+      "lastName": "Lương Quốc",
+      "email": "cq.truongphongns@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-000000000107"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-00000000030e",
+      "username": "cq.chuyenvienns",
+      "enabled": true,
+      "firstName": "Châu",
+      "lastName": "Tạ Thị Minh",
+      "email": "cq.chuyenvienns@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-000000000107"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-00000000030f",
+      "username": "cq.chuyenvienns2",
+      "enabled": true,
+      "firstName": "Sơn",
+      "lastName": "Kiều Văn",
+      "email": "cq.chuyenvienns2@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-000000000107"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-000000000310",
+      "username": "cq.truongphongcds",
+      "enabled": true,
+      "firstName": "Phương",
+      "lastName": "Mạc Thị",
+      "email": "cq.truongphongcds@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-000000000109"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-000000000311",
+      "username": "cq.thanhtra",
+      "enabled": true,
+      "firstName": "Hải",
+      "lastName": "Quách Văn",
+      "email": "cq.thanhtra@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-00000000010a"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "inspector"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-000000000312",
+      "username": "cq.chutichxa",
+      "enabled": true,
+      "firstName": "Toàn",
+      "lastName": "Lã Văn",
+      "email": "cq.chutichxa@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-00000000010b"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "leader",
+        "manager"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-000000000313",
+      "username": "cq.congchucxa",
+      "enabled": true,
+      "firstName": "Hoa",
+      "lastName": "Ninh Thị",
+      "email": "cq.congchucxa@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-00000000010b"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-000000000314",
+      "username": "cq.quantri",
+      "enabled": true,
+      "firstName": "Long",
+      "lastName": "Đỗ Thành",
+      "email": "cq.quantri@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-000000000102"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "tenant_admin"
+      ]
+    },
+    {
+      "id": "e2000000-0000-4000-8000-000000000315",
+      "username": "cq.quantri2",
+      "enabled": true,
+      "firstName": "Hạnh",
+      "lastName": "Tô Thị",
+      "email": "cq.quantri2@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e2000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e2000000-0000-4000-8000-000000000102"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "tenant_admin"
+      ]
+    },
+    {
+      "id": "e3000000-0000-4000-8000-000000000301",
+      "username": "dn.chutich",
+      "enabled": true,
+      "firstName": "Quân",
+      "lastName": "Hoàng Minh",
+      "email": "dn.chutich@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e3000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e3000000-0000-4000-8000-000000000100"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "leader",
+        "decider"
+      ]
+    },
+    {
+      "id": "e3000000-0000-4000-8000-000000000302",
+      "username": "dn.tonggiamdoc",
+      "enabled": true,
+      "firstName": "Thắng",
+      "lastName": "Nguyễn Văn",
+      "email": "dn.tonggiamdoc@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e3000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e3000000-0000-4000-8000-000000000100"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "leader",
+        "manager"
+      ]
+    },
+    {
+      "id": "e3000000-0000-4000-8000-000000000303",
+      "username": "dn.photonggiamdoc",
+      "enabled": true,
+      "firstName": "Dung",
+      "lastName": "Phan Thị Thùy",
+      "email": "dn.photonggiamdoc@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e3000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e3000000-0000-4000-8000-000000000100"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager",
+        "second_approver"
+      ]
+    },
+    {
+      "id": "e3000000-0000-4000-8000-000000000304",
+      "username": "dn.kiemsoatvien",
+      "enabled": true,
+      "firstName": "Cường",
+      "lastName": "Lê Văn",
+      "email": "dn.kiemsoatvien@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e3000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e3000000-0000-4000-8000-000000000100"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "inspector"
+      ]
+    },
+    {
+      "id": "e3000000-0000-4000-8000-000000000305",
+      "username": "dn.truongphongtchc",
+      "enabled": true,
+      "firstName": "Tâm",
+      "lastName": "Đỗ Thị Thanh",
+      "email": "dn.truongphongtchc@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e3000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e3000000-0000-4000-8000-000000000101"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager",
+        "appraiser"
+      ]
+    },
+    {
+      "id": "e3000000-0000-4000-8000-000000000306",
+      "username": "dn.chuyenviennhansu",
+      "enabled": true,
+      "firstName": "Việt",
+      "lastName": "Vương Quốc",
+      "email": "dn.chuyenviennhansu@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e3000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e3000000-0000-4000-8000-000000000101"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "policy_author"
+      ]
+    },
+    {
+      "id": "e3000000-0000-4000-8000-000000000307",
+      "username": "dn.truongphongkd",
+      "enabled": true,
+      "firstName": "Linh",
+      "lastName": "Trần Thị Mỹ",
+      "email": "dn.truongphongkd@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e3000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e3000000-0000-4000-8000-000000000104"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager"
+      ]
+    },
+    {
+      "id": "e3000000-0000-4000-8000-000000000308",
+      "username": "dn.nhanvienkd",
+      "enabled": true,
+      "firstName": "Nam",
+      "lastName": "Phạm Hoài",
+      "email": "dn.nhanvienkd@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e3000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e3000000-0000-4000-8000-000000000104"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member"
+      ]
+    },
+    {
+      "id": "e3000000-0000-4000-8000-000000000309",
+      "username": "dn.nhanvienkd2",
+      "enabled": true,
+      "firstName": "Trâm",
+      "lastName": "Lê Thị Ngọc",
+      "email": "dn.nhanvienkd2@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e3000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e3000000-0000-4000-8000-000000000104"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member"
+      ]
+    },
+    {
+      "id": "e3000000-0000-4000-8000-00000000030a",
+      "username": "dn.truongphongkt",
+      "enabled": true,
+      "firstName": "Hùng",
+      "lastName": "Bạch Văn",
+      "email": "dn.truongphongkt@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e3000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e3000000-0000-4000-8000-000000000102"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager"
+      ]
+    },
+    {
+      "id": "e3000000-0000-4000-8000-00000000030b",
+      "username": "dn.giamdocxn",
+      "enabled": true,
+      "firstName": "Định",
+      "lastName": "Tống Văn",
+      "email": "dn.giamdocxn@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e3000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e3000000-0000-4000-8000-000000000105"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "leader",
+        "manager"
+      ]
+    },
+    {
+      "id": "e3000000-0000-4000-8000-00000000030c",
+      "username": "dn.totruong",
+      "enabled": true,
+      "firstName": "Hậu",
+      "lastName": "Nguyễn Văn",
+      "email": "dn.totruong@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e3000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e3000000-0000-4000-8000-000000000105"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager"
+      ]
+    },
+    {
+      "id": "e3000000-0000-4000-8000-00000000030d",
+      "username": "dn.congnhan",
+      "enabled": true,
+      "firstName": "Tư",
+      "lastName": "Đặng Văn",
+      "email": "dn.congnhan@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e3000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e3000000-0000-4000-8000-000000000105"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member"
+      ]
+    },
+    {
+      "id": "e3000000-0000-4000-8000-00000000030e",
+      "username": "dn.quantri",
+      "enabled": true,
+      "firstName": "Hồng",
+      "lastName": "Lưu Thị",
+      "email": "dn.quantri@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "e3000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "e3000000-0000-4000-8000-000000000101"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (đa tenant)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "tenant_admin"
+      ]
+    }
+  ]
+}

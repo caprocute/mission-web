@@ -6,9 +6,9 @@ import {
   SavedFilterCriteria,
   TableScreenPreference,
   UserPreferenceItem,
-} from './models/preference';
-import { PreferenceApi } from './preference-api';
-import { toProblem } from './problem-details';
+} from '@vt/api-client';
+import { PreferenceApi } from '@vt/api-client';
+import { toProblem } from '@vt/api-client';
 
 /**
  * Cột tuỳ chọn và bộ lọc đã lưu dùng chung cho mọi danh sách (CNH-04, quy ước danh sách TL-02).

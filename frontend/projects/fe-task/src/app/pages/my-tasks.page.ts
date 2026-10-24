@@ -23,23 +23,8 @@ import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { debounceTime } from 'rxjs';
-import {
-  AssigneeRole,
-  MY_TASKS_QUICK_FILTER_LABEL,
-  MyTasksQuery,
-  MyTasksQuickFilter,
-  TASK_GROUP_LABEL,
-  TASK_STATUS_LABEL,
-  TaskApi,
-  TaskDetail,
-  TaskGroup,
-  TaskSummary,
-  FILTER_QUERY_PARAM,
-  createListPersonalization,
-  decodeCriteria,
-  encodeCriteria,
-  toProblem,
-} from '@vt/api-client';
+import { AssigneeRole, MY_TASKS_QUICK_FILTER_LABEL, MyTasksQuery, MyTasksQuickFilter, TASK_GROUP_LABEL, TASK_STATUS_LABEL, TaskApi, TaskDetail, TaskGroup, TaskSummary, toProblem } from '@vt/api-client';
+import { FILTER_QUERY_PARAM, createListPersonalization, decodeCriteria, encodeCriteria } from '@vt/api-client/domains';
 import { ThemeService, VtColumnPickerComponent, VtSavedFiltersComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';

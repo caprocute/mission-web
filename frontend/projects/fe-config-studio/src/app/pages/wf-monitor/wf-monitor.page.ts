@@ -2,14 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
-import {
-  ROLE_CODE_LABEL,
-  RoleAdminApi,
-  RoleCode,
-  WorkflowInstanceApi,
-  WorkflowInstanceSummary,
-  WorkflowHistoryAction,
-} from '@vt/api-client';
+import { ROLE_CODE_LABEL, RoleAdminApi, RoleCode, WorkflowInstanceApi, WorkflowInstanceSummary, WorkflowHistoryAction } from '@vt/api-client/domains';
 import { STUDIO_ACCESS } from '../../studio-permissions';
 import { errorText, fmtDate, problemCode } from '../../studio-ui';
 import { WfDiagram } from '../wf-template/wf-diagram';

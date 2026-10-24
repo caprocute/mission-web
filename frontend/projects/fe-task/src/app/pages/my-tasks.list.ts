@@ -1,10 +1,5 @@
-import {
-  AssigneeRole,
-  FilterCodec,
-  ListColumnDef,
-  MyTasksQuickFilter,
-  TaskGroup,
-} from '@vt/api-client';
+import { AssigneeRole, MyTasksQuickFilter, TaskGroup } from '@vt/api-client';
+import { FilterCodec, ListColumnDef } from '@vt/api-client/domains';
 
 /** Mã màn hình dùng cho tuỳ chọn cột và bộ lọc đã lưu (CNH-04). */
 export const MY_TASKS_SCREEN = 'SCR-0503';

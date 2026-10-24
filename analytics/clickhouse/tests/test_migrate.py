@@ -52,3 +52,21 @@ def test_every_migration_renders_with_cell_params() -> None:
         assert "{{" not in sql
         for stmt in migrate.statements(sql):
             assert "ON CLUSTER 'cell_hcm'" in stmt, (m.path.name, stmt[:80])
+
+
+def test_without_refresh_turns_every_refreshable_mv_into_plain_view() -> None:
+    p = migrate.params_from_env({**ENV, "ANALYTICS_REFRESHABLE_MV": "false"})
+    jobs = {}
+    for m in migrate.discover():
+        sql, _ = migrate.render(m.path.read_text(encoding="utf-8"), p)
+        for stmt in migrate.statements(sql):
+            out, job = migrate.without_refresh(stmt)
+            if job:
+                jobs[job[0]] = job[1:]
+                assert out.startswith(f"CREATE VIEW analytics_hcm.{job[0]} ON CLUSTER 'cell_hcm'\nAS\n")
+            assert "REFRESH EVERY" not in out, (m.path.name, stmt[:80])
+    assert jobs == {"mv_dim_org_scope": ("dim_org_scope", 60, 0), "mv_data_freshness": ("data_freshness", 60, 0),
+                    "mv_agg_task_tinh": ("agg_task_tinh", 3600, 1), "mv_agg_score_tinh": ("agg_score_tinh", 3600, 1),
+                    "mv_agg_rating_tinh": ("agg_rating_tinh", 3600, 1)}
+    with pytest.raises(SystemExit):
+        migrate.params_from_env({**ENV, "ANALYTICS_REFRESHABLE_MV": "co"})

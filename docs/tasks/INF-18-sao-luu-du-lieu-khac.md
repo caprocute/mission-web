@@ -59,3 +59,19 @@ Hoàn thiện sao lưu và nhân bản cho các kho dữ liệu ngoài PostgreSQ
 ## 7. Báo cáo
 
 Theo AGENTS.md mục 6.
+
+## 8. Bằng chứng chạy thật trên kind (24/10/2026, luồng B8)
+
+Lần chạy dùng cụm gọn `vt-cell-kind` như INF-17, cùng kho Ceph RGW `ceph-bk` có Object Lock.
+
+**MirrorMaker 2** (`deploy/environments/kind/kiem-thu-mm2.sh`, 11/11 đạt). Hai namespace `kafka-hl` (vai trò nguồn) và `kafka-sn` (vai trò đích) cài cùng chart kafka; Strimzi theo dõi cả hai; mỗi namespace có default-deny, DNS và đường tới kube-apiserver, nên NetworkPolicy `mm2-ra` của chart phải tự đủ. Sau khi ghi 8000 bản tin và dừng phía nguồn, offset cuối hai phía khớp tuyệt đối (phân vùng 0: 2236, phân vùng 1: 5764, chênh lệch 0), nội dung trùng khớp theo SHA, topic đích giữ đúng tên (chính sách định danh), topic thử lại bị loại trừ, offset nhóm dịch sang đích không vượt nguồn (nguồn 0:2236 1:1764, đích 0:2236 1:1, MM2 dịch thận trọng), và người dùng `mm2-hl-user` chỉ đọc được phía nguồn.
+
+**Snapshot OpenSearch** (`deploy/environments/kind/kiem-thu-snapshot-opensearch.sh`, 13/13 đạt). OpenSearch 2.19.3 với plugin repository-s3 (kiểm SHA-512), kho `bk-sn` trên bucket Object Lock, chính sách SM `daily-to-sn` cùng bản sao chạy mỗi phút; snapshot `daily-to-sn-moi-phut-2026-10-24t04:35:11-tpmjrz5e` tạo thành công; vai trò `sao-luu` của chart bị 403 khi ghi chỉ mục, tạo hay xoá snapshot; `khoi-phuc-thu-opensearch.sh` khôi phục được cả bốn nhóm chỉ mục vào chỉ mục tạm và số tài liệu khớp.
+
+Lỗi phát hiện khi chạy thật và đã sửa trong commit 60302170:
+
+1. CR `KafkaMirrorMaker2` ghi cứng `replication.factor: 3` cho topic nội bộ, không chạy được trên cụm ít broker; nay lấy từ `mirrorMaker2.heSoNhanBan` (mặc định 3).
+2. Connector checkpoint chỉ phát hiện nhóm mới mỗi 600 giây nên offset nhóm đồng bộ chậm hơn mục tiêu; thêm `refresh.groups.interval.seconds` theo `dongBoOffsetGiay`.
+3. Vai trò `sao-luu` chỉ có `indices_monitor` nên `_cat/count` trả 403; `khoi-phuc-thu-opensearch.sh` chuyển sang đếm bằng `_cat/indices?h=docs.count`.
+
+Chưa chạy: backup ClickHouse thu nhỏ (cụm gọn không đủ CPU cho ClickHouse cùng Kafka và OpenSearch); kiểm thử tích hợp công cụ phát lại outbox không thuộc yêu cầu chạy thật lần này; Ceph multisite cần hai cụm Ceph nên chưa dựng; Job kiểm mẫu phát hiện đối tượng bị sửa và script ClickHouse mới kiểm trong `deploy/charts/backup-cell/tests/kiem-thu-script.sh` (PostgreSQL thật có RLS, kho S3 giả; 73/73 đạt), chưa chạy trên kho Ceph.

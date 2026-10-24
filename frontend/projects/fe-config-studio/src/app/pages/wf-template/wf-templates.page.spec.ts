@@ -7,15 +7,8 @@ import {
 } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import {
-  DEFAULT_RUNTIME_CONFIG,
-  MOCK_API_OPTIONS,
-  RUNTIME_CONFIG,
-  idempotencyInterceptor,
-  lintBpmn,
-  mockApiInterceptor,
-  mockStepUp,
-} from '@vt/api-client';
+import { DEFAULT_RUNTIME_CONFIG, MOCK_API_OPTIONS, RUNTIME_CONFIG, idempotencyInterceptor, mockApiInterceptor, mockStepUp } from '@vt/api-client';
+import { lintBpmn } from '@vt/api-client/domains';
 import { PermissionKey } from '@vt/auth';
 import { resetMockData } from '../../../../../api-client/src/mock/mock-registry';
 import { buildBpmn } from '../../../../../api-client/src/mock/workflow-templates/workflow-templates.mock';

@@ -13,7 +13,10 @@ tuyến `infra/dev/apisix/apisix.yaml` chọn (cổng công bố trong `infra/de
   khac         mã khác (4xx, 5xx)
 
 Cuối cùng in bảng tóm tắt theo service và danh sách tuyến hỏng, kèm ảnh, nhãn commit, thời điểm dựng của từng
-container `mission-dev-*` khi có docker CLI. Chỉ dùng thư viện chuẩn và PyYAML.
+container `mission-dev-*` khi có docker CLI. Chỉ dùng thư viện chuẩn; PyYAML không bắt buộc: thiếu PyYAML (máy chủ dev
+Python 3.6 chưa cài) thì đọc bản rút gọn `kiem-tuyen.du-lieu.json` (danh sách thao tác, bảng tuyến, cổng compose) sinh
+sẵn trong repo bằng `--sinh-du-lieu` trên máy có PyYAML. Bản này mang băm SHA-256 của mọi tệp nguồn; nguồn đã đổi mà
+chưa sinh lại thì script dừng và báo, không chạy với bảng tuyến cũ.
 
 Đọc infra/dev/.env (không commit) như smoke-backend.sh: DEV_HOST, APISIX_PORT, cổng từng service. Token lấy từ
 SMOKE_TOKEN, nếu không có thì chạy lay-token-thu.py (tài khoản thử, PKCE và OTP); --no-token để gọi không token.
@@ -34,8 +37,9 @@ from pathlib import Path
 
 try:
     import yaml
-except ImportError:  # pragma: no cover
-    sys.exit("Cần PyYAML: python3 -m pip install --user pyyaml")
+except ImportError:  # pragma: no cover - máy chủ dev chưa có PyYAML, dùng bản rút gọn sinh sẵn
+    yaml = None
+import hashlib
 
 SCRIPTS = Path(__file__).resolve().parent
 DEV = SCRIPTS.parent
@@ -44,6 +48,7 @@ MODULES = REPO / "contracts" / "openapi" / "modules"
 APISIX = DEV / "apisix" / "apisix.yaml"
 COMPOSE = DEV / "docker-compose.yml"
 BROKEN = {"404-tuyen", "roi-web", "ket-noi"}
+DU_LIEU = SCRIPTS / "kiem-tuyen.du-lieu.json"
 
 
 def load_env() -> None:
@@ -147,16 +152,48 @@ def route_for(routes, method: str, uri: str):
     return max(hits, key=lambda r: r["priority"]) if hits else None
 
 
-def published_ports():
-    """Cổng máy chủ của từng service compose (mapping tới cổng 8080 trong container)."""
+def compose_ports():
+    """Khai báo `ports` chưa giải biến của từng service compose."""
     doc = yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))
+    return {name: [str(p) for p in (svc.get("ports") or [])] for name, svc in (doc.get("services") or {}).items()}
+
+
+def published_ports(raw):
+    """Cổng máy chủ của từng service compose (mapping tới cổng 8080 trong container)."""
     out = {}
-    for name, svc in (doc.get("services") or {}).items():
-        for p in svc.get("ports") or []:
-            parts = expand(str(p)).split(":")
+    for name, ports in raw.items():
+        for p in ports:
+            parts = expand(p).split(":")
             if len(parts) >= 2 and parts[-1] == "8080":
                 out[name] = parts[-2]
     return out
+
+
+# ---------------------------------------------------------------- bản rút gọn cho máy không có PyYAML
+
+
+def nguon():
+    tep = [APISIX, COMPOSE] + sorted((REPO / "contracts" / "openapi").rglob("*.yaml"))
+    return {str(t.relative_to(REPO)): hashlib.sha256(t.read_bytes()).hexdigest() for t in tep}
+
+
+def sinh_du_lieu():
+    routes = [dict(r, regex=[x.pattern for x in r["regex"]]) for r in load_routes()]
+    return {"nguon": nguon(), "operations": list(operations()), "routes": routes, "ports": compose_ports()}
+
+
+def nap_du_lieu():
+    """(operations, routes, cổng compose chưa giải biến) từ YAML nếu có PyYAML, nếu không từ bản rút gọn."""
+    if yaml is not None:
+        return list(operations()), load_routes(), compose_ports()
+    if not DU_LIEU.is_file():
+        sys.exit(f"Thiếu PyYAML và thiếu {DU_LIEU.name}; chạy kiem-tuyen.py --sinh-du-lieu trên máy có PyYAML")
+    d = json.loads(DU_LIEU.read_text(encoding="utf-8"))
+    lech = sorted(k for k, v in nguon().items() if d["nguon"].get(k) != v) + sorted(set(d["nguon"]) - set(nguon()))
+    if lech:
+        sys.exit(f"{DU_LIEU.name} cũ hơn nguồn ({', '.join(lech[:5])}); chạy kiem-tuyen.py --sinh-du-lieu trên máy có PyYAML")
+    routes = [dict(r, regex=[re.compile(x) for x in r["regex"]]) for r in d["routes"]]
+    return d["operations"], routes, d["ports"]
 
 
 # ---------------------------------------------------------------- gọi và phân loại
@@ -206,12 +243,12 @@ def docker_images():
     try:
         names = subprocess.run(
             ["docker", "ps", "-a", "--filter", "name=mission-dev-", "--format", "{{.Names}}"],
-            capture_output=True, text=True, timeout=20, check=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, timeout=20, check=True,
         ).stdout.split()
         if not names:
             return []
         out = subprocess.run(
-            ["docker", "inspect", "--format", fmt, *names], capture_output=True, text=True, timeout=20, check=True
+            ["docker", "inspect", "--format", fmt, *names], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, timeout=20, check=True
         ).stdout
     except (subprocess.SubprocessError, OSError):
         return []
@@ -227,7 +264,7 @@ def get_token(no_token: bool) -> str:
     os.environ.setdefault("KC_URL", os.environ.get("KEYCLOAK_PUBLIC_URL") or f"http://{host}:{os.environ.get('KEYCLOAK_PORT', '35080')}")
     try:
         res = subprocess.run(
-            [sys.executable, str(SCRIPTS / "lay-token-thu.py")], capture_output=True, text=True, timeout=60
+            [sys.executable, str(SCRIPTS / "lay-token-thu.py")], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, timeout=60
         )
     except (subprocess.SubprocessError, OSError):
         return ""
@@ -258,12 +295,26 @@ def main() -> int:
     ap.add_argument("--all", action="store_true", help="in mọi thao tác, không chỉ dòng có vấn đề")
     ap.add_argument("--json", action="store_true", help="in kết quả dạng JSON")
     ap.add_argument("--timeout", type=float, default=10.0)
+    ap.add_argument("--sinh-du-lieu", action="store_true", help=f"ghi {DU_LIEU.name} cho máy không có PyYAML rồi thoát")
+    ap.add_argument("--kiem-du-lieu", action="store_true", help=f"mã thoát 1 khi {DU_LIEU.name} lệch nguồn")
     args = ap.parse_args()
 
-    routes = load_routes()
-    ports = published_ports()
+    if args.sinh_du_lieu or args.kiem_du_lieu:
+        if yaml is None:
+            sys.exit("Cần PyYAML để sinh hoặc kiểm bản rút gọn")
+        moi = json.dumps(sinh_du_lieu(), ensure_ascii=False, indent=1, sort_keys=True) + "\n"
+        if args.kiem_du_lieu:
+            dung = DU_LIEU.is_file() and DU_LIEU.read_text(encoding="utf-8") == moi
+            print(f"{DU_LIEU.name}: {'khớp nguồn' if dung else 'lệch nguồn, chạy --sinh-du-lieu'}")
+            return 0 if dung else 1
+        DU_LIEU.write_text(moi, encoding="utf-8")
+        print(f"Đã ghi {DU_LIEU.relative_to(REPO)}")
+        return 0
+
+    all_ops, routes, raw_ports = nap_du_lieu()
+    ports = published_ports(raw_ports)
     token = get_token(args.no_token)
-    ops = [o for o in operations() if not args.module or o["module"] in args.module]
+    ops = [dict(o) for o in all_ops if not args.module or o["module"] in args.module]
 
     def check(op):
         route = route_for(routes, "GET", op["path"])

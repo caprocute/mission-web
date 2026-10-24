@@ -1,5 +1,5 @@
 import { Component, input } from '@angular/core';
-import { AppraisalRatingProposal, RATING_LEVEL_LABEL } from '@vt/api-client';
+import { AppraisalRatingProposal, RATING_LEVEL_LABEL } from '@vt/api-client/domains';
 import { vnTime } from './self-assessment-rules';
 
 const KIND: Record<AppraisalRatingProposal['levelKind'], string> = {

@@ -24,6 +24,10 @@ COPY --from=extract /workspace/layers/dependencies/ ./
 COPY --from=extract /workspace/layers/spring-boot-loader/ ./
 COPY --from=extract /workspace/layers/snapshot-dependencies/ ./
 COPY --from=extract /workspace/layers/application/ ./
+# Docker cũ trên máy chủ dev CentOS 7 báo "getent unable to find entry 10001:10001 in passwd database" khi chạy
+# container có secrets bằng UID không có trong /etc/passwd: khai báo sẵn người dùng app (UID/GID 10001).
+RUN groupadd --system --gid 10001 app && \
+    useradd --system --uid 10001 --gid 10001 --no-create-home --home-dir /app --shell /usr/sbin/nologin app
 USER 10001:10001
 EXPOSE 8080 8081
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=70.0", "-XX:+UseZGC", "-Djava.io.tmpdir=/tmp", "org.springframework.boot.loader.launch.JarLauncher"]

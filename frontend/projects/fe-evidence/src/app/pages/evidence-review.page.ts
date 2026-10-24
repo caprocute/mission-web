@@ -26,17 +26,8 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  EVIDENCE_STATUS_LABEL,
-  EvidenceApi,
-  EvidenceCriterionResult,
-  EvidenceDecisionResult,
-  EvidenceVersion,
-  FileApi,
-  QUALITY_LEVELS,
-  QualityLevel,
-  toProblem,
-} from '@vt/api-client';
+import { toProblem } from '@vt/api-client';
+import { EVIDENCE_STATUS_LABEL, EvidenceApi, EvidenceCriterionResult, EvidenceDecisionResult, EvidenceVersion, FileApi, QUALITY_LEVELS, QualityLevel } from '@vt/api-client/domains';
 import { permittedOn } from '@vt/auth';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';

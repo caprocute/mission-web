@@ -25,6 +25,25 @@ spec:
   egress:
     - to: [{ namespaceSelector: {} }]
 ---
+# Fluent Bit ghi sys.audit.v1 (nhật ký kiểm toán API và sự kiện kiểm toán của ứng dụng) vào Kafka của cell bằng mTLS.
+# Thiếu chính sách này thì default-deny của observability chặn đầu ra kafka (phát hiện khi chạy luồng SIEM trên kind, INF-19).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fluent-bit-ra-kafka
+  namespace: observability
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: fluent-bit }
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: data-kafka }
+          podSelector:
+            matchLabels: { strimzi.io/cluster: kafka-cell }
+      ports: [{ protocol: TCP, port: 9093 }]
+---
 # Kube API server, kubelet và node không chọn được bằng NetworkPolicy chuẩn; Cilium dùng thực thể (entity).
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy

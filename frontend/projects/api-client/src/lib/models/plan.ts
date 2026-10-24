@@ -1,5 +1,5 @@
-import { PeriodRef, TaskGroup } from './task';
-import { AssigneeRef } from './task-assign';
+import { PeriodRef, TaskGroup } from '@vt/api-client';
+import { AssigneeRef } from '@vt/api-client';
 
 /** Dòng kế hoạch quý đã duyệt dùng làm nguồn giao việc (`plan.plan_item`, QT-04, BR-05-04). */
 export interface PlanItemRef {

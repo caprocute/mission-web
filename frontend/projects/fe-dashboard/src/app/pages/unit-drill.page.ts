@@ -8,7 +8,7 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { AnalyticsApi, DIMENSION, MEASURE, cellNumber, resultRows } from '@vt/api-client';
+import { AnalyticsApi, DIMENSION, MEASURE, cellNumber, resultRows } from '@vt/api-client/domains';
 import { MessageModule } from 'primeng/message';
 import { DASHBOARD_CAN } from '../dashboard-permissions';
 import { eq, errorText, fmtDateTime, fmtNum } from '../dashboard-ui';

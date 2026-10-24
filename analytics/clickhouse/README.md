@@ -21,6 +21,7 @@ Thư mục này chứa lược đồ kho phân tích `analytics_<cell>` của SV
 | `migrations/V013__de_nghi_va_tu_dong.sql` | Nguồn `task.task_change_request` (`fact_task_change_request`) cho dấu hiệu 8, bảng lượt chạy `anomaly_run` và cột tự đóng của `anomaly_out` (DV-15-09) |
 | `migrations/V014__lich_su_tien_trinh.sql` | Lịch sử tiến trình Flowable `flowable.act_hi_procinst`, `act_hi_taskinst`, `act_hi_actinst` vào `fact_process_instance`, `fact_process_task`, `fact_process_activity`; bản ghi xoá do job dọn lịch sử không nạp (DV-06-11) |
 | `migrations/V015__tong_hop_quoc_gia.sql` | Job làm mới `agg_*` mỗi giờ về đơn vị cấp tỉnh, khung xuất `v_agg_xuat` che nhóm nhỏ k = 10, mốc `agg_xuat_moc`, vai trò `<db>_agg` của bộ xuất (DV-15-11) |
+| `migrations/V016__ngay_vo_cuc_debezium.sql` | Sửa `mission_cdc_date` cho ngày `infinity` mà Debezium 3.0 gửi thành `-622191234`, tạo lại tám view nạp có gọi hàm (ClickHouse chép thân hàm vào view lúc tạo) |
 | `migrate.py` | Bộ áp migration (chỉ thư viện chuẩn) |
 | `agg_export.py` | Bộ xuất DV-15-11: đọc `v_agg_xuat`, phát Avro `AggregateMetric` lên `agg.province.metric.v1` (MirrorMaker 2 ở `analytics/mirrormaker` đưa sang kho quốc gia) |
 | `phan-loai-ngoai-repo.json` | Phân loại cột của schema chưa có migration trong repo (`appraisal`), chép từ TL-03 |
@@ -39,6 +40,8 @@ python3 analytics/clickhouse/migrate.py
 ```
 
 Các biến khác: `ANALYTICS_DB` (mặc định `analytics_<cell>`), `ANALYTICS_CLUSTER` (mặc định `cell_<cell>`), `ANALYTICS_KAFKA_GROUP`, `ANALYTICS_KAFKA_CONSUMERS`, `ANALYTICS_KAFKA_FLUSH_MS`, `ANALYTICS_CORE_DB` (CSDL của mission-core, mặc định `tenant_data`), `ANALYTICS_ORG_DB` (CSDL của org-service, mặc định `org`). Ở dev, ClickHouse chạy bằng `docker compose --profile analytics up -d` trong `infra/dev`, cụm tên `cell_dev`.
+
+Refreshable materialized view (bảng dẫn xuất của V008, bảng `agg_*` của V015) cần nhân Linux 3.15 trở lên. Cell chạy trên nhân cũ hơn, hiện chỉ có máy chủ dev CentOS 7 (nhân 3.10), đặt `ANALYTICS_REFRESHABLE_MV=false` trước khi áp: bộ áp dựng mỗi câu `CREATE MATERIALIZED VIEW … REFRESH EVERY … [APPEND] TO <đích>` thành view thường cùng tên và ghi lịch vào `<db>._lam_moi_dinh_ky` (view, bảng đích, chu kỳ giây, có APPEND hay không). `python3 migrate.py --lam-moi` tính lại các view đến hạn bằng `INSERT … SELECT` vào bảng đích, ghi đè thì `TRUNCATE` trước nên bảng trống trong chốc lát; `--tat-ca` bỏ qua hạn, `--lap` chạy mãi (job `clickhouse-lam-moi` của compose dev). Tổng kiểm vẫn tính trên tệp gốc nên chế độ này không làm lịch sử migration lệch, nhưng đổi chế độ trên một kho đã áp thì phải xoá kho rồi áp lại. Production giữ mặc định `true`.
 
 Tệp đã áp không được sửa: thay đổi lược đồ viết thành tệp số tiếp theo. Bộ áp dừng khi phát hiện tổng kiểm của một tệp đã áp khác đi.
 

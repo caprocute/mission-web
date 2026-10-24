@@ -5,7 +5,14 @@ import { Subject, of, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Assignment, DEFAULT_RUNTIME_CONFIG, OrgApi, RUNTIME_CONFIG } from '@vt/api-client';
 import { MSG_00_06, MSG_00_07, TEXT_SESSION_EXPIRED } from './messages';
-import { AAL2_TTL_MS, SessionService, hoTen, isLoopbackHttp, requiresAal2 } from './session.service';
+import {
+  AAL2_TTL_MS,
+  DEV_ROLES_KEY,
+  hoTen,
+  SessionService,
+  isLoopbackHttp,
+  requiresAal2,
+} from './session.service';
 
 /** WEB-006: phiên OIDC, chọn phân công khi kiêm nhiệm, bước lên AAL2 (QT-00, BR-00-01, BR-00-02). */
 const A = (id: string, roles: string[], kind: Assignment['kind'] = 'KIEM_NHIEM'): Assignment =>
@@ -51,9 +58,11 @@ function setup(
     authEnabled?: boolean;
     meError?: unknown;
     redirectUri?: string;
+    devRoles?: string;
   } = {},
 ) {
   sessionStorage.clear();
+  if (opts.devRoles) sessionStorage.setItem(DEV_ROLES_KEY, opts.devRoles);
   const oauth = fakeOAuth();
   const org = {
     me: vi.fn(() =>
@@ -139,6 +148,16 @@ describe('SessionService: chọn phân công (QT-00 bước 7)', () => {
     await flush();
     expect(session.contextStatus()).toBe('KHONG_PHAN_CONG');
     expect(session.notice()?.text).toBe(MSG_00_06);
+  });
+
+  it('quản trị nền tảng không có phân công vẫn vào làm việc bằng vai trò trong token', async () => {
+    const { session } = setup({ assignments: [], devRoles: 'platform_admin' });
+    await session.init();
+    await flush();
+    expect(session.contextStatus()).toBe('SAN_SANG');
+    expect(session.assignment()).toBeNull();
+    expect(session.user()?.roles).toEqual(['platform_admin']);
+    expect(session.notice()).toBeNull();
   });
 
   it('tenant tạm ngừng: MSG-00-07; org-service lỗi khác không chặn người dùng', async () => {

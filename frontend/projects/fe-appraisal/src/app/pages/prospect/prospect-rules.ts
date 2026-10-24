@@ -1,12 +1,5 @@
-import {
-  ProblemDetails,
-  ProspectCriteria,
-  ProspectGroupBoard,
-  ProspectGroupCode,
-  ProspectGroupEntryInput,
-  RATING_LEVEL_LABEL,
-  RatingLevel,
-} from '@vt/api-client';
+import { ProblemDetails } from '@vt/api-client';
+import { ProspectCriteria, ProspectGroupBoard, ProspectGroupCode, ProspectGroupEntryInput, RATING_LEVEL_LABEL, RatingLevel } from '@vt/api-client/domains';
 
 /**
  * Quy tắc của SCR-1002 Phân nhóm triển vọng chạy trên trình duyệt để phản hồi tức thì khi kéo thả; máy

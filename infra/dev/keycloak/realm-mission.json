@@ -80,6 +80,10 @@
       {
         "name": "svc_integration_gateway",
         "description": "Tài khoản dịch vụ integration-gateway (SVC-13) đẩy lô nhân sự và đóng lần đồng bộ ở API nội bộ của org-service: /internal/v1/org/sync-runs/{runId}/batches (DV-13-06, HT-07)"
+      },
+      {
+        "name": "service_client",
+        "description": "Client dịch vụ nội bộ được gọi API nội bộ và khởi động saga của workflow-service (SVC-06)"
       }
     ]
   },
@@ -1395,6 +1399,21 @@
       "clientRoles": {
         "realm-management": [
           "view-users",
+          "manage-users"
+        ]
+      }
+    },
+    {
+      "username": "service-account-mission-core",
+      "enabled": true,
+      "serviceAccountClientId": "mission-core",
+      "realmRoles": [
+        "service_client"
+      ],
+      "clientRoles": {
+        "realm-management": [
+          "view-users",
+          "query-users",
           "manage-users"
         ]
       }

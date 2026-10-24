@@ -1,6 +1,14 @@
-# Giá trị security-cell cho cụm kind (INF-19): 1 control plane + 3 worker; Tetragon chưa cài trên kind nên tắt
-# chính sách; kênh SOC tắt (không có webhook thật); tài nguyên nhỏ. Dùng cùng kiem-thu-an-ninh.sh.
+# Giá trị security-cell cho cụm kind (INF-19): cụm gọn cluster-gon.yaml (1 control plane + 1 worker); Tetragon chưa
+# cài trên kind nên tắt chính sách; kênh SOC tắt (không có webhook thật); tài nguyên nhỏ; ảnh kéo thẳng từ registry gốc
+# theo đúng digest của chart (nạp vào node bằng nap-anh.sh). Dùng cùng kiem-thu-an-ninh.sh.
 cell: kind
+images:
+  falco: { repository: docker.io/falcosecurity/falco }
+  falcosidekick: { repository: docker.io/falcosecurity/falcosidekick }
+  kubeBench: { repository: docker.io/aquasec/kube-bench }
+  kured: { repository: ghcr.io/kubereboot/kured }
+  busybox: { repository: docker.io/library/busybox }
+  pushgateway: { repository: docker.io/prom/pushgateway }
 falco:
   resources:
     requests: { cpu: 50m, memory: 256Mi }
@@ -21,7 +29,7 @@ kubeBench:
         - { key: node-role.kubernetes.io/control-plane, operator: Exists, effect: NoSchedule }
     - name: node
       checks: node
-      count: 3
+      count: 2
       nodeSelector: {}
       tolerations:
         - { operator: Exists }

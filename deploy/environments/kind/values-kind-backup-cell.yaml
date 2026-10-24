@@ -1,7 +1,8 @@
 # Chart backup-cell (INF-17) trên kind: kho sao lưu là container RGW zone sn của kiem-thu-kho-doi-tuong.sh
 # (172.18.0.51, HTTP) đóng vai ceph-sn-bk; ảnh công cụ dựng cục bộ từ deploy/charts/backup-cell/anh và nạp bằng
-# nap-anh.sh; không OpenBao/ESO (Secret bk-sn-s3-pg, bk-sn-s3-k8s, etcd-age-recipient tạo tay), không Pushgateway,
-# không Velero (chưa cài máy chủ Velero trên kind). Chỉ cụm pg-core như values-kind-data-pg.yaml.
+# nap-anh.sh; không OpenBao/ESO (Secret bk-sn-s3-pg, bk-sn-s3-k8s, etcd-age-recipient tạo tay), Pushgateway thử do
+# kiem-thu-sao-luu.sh dựng và truyền bằng --set pushgateway=..., không Velero (chưa cài máy chủ Velero trên kind).
+# Chỉ cụm pg-core như values-kind-data-pg.yaml.
 cell: kind
 image:
   repository: localhost/mission/backup-tools

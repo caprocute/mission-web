@@ -6,7 +6,8 @@ nay (tài khoản `quantri`), rồi tạo một nhiệm vụ mẫu do `quanly` g
 mẫu, để màn hình "Việc của tôi" và trang chủ có dữ liệu. Chạy lại không sinh bản ghi trùng. Gọi API như
 người dùng nên mọi kiểm tra nghiệp vụ, kiểm toán và sự kiện chạy như thao tác trên màn hình.
 
-Đọc KC_TEST_USER_PASSWORD, KC_TEST_OTP_SECRET từ môi trường (hoặc infra/dev/.env) qua lay-token-thu.py;
+Đọc KC_TEST_USER_PASSWORD, KC_TEST_OTP_SECRET, KEYCLOAK_PUBLIC_URL từ môi trường (hoặc infra/dev/.env) qua
+lay-token-thu.py (đăng nhập theo đúng issuer công khai của realm);
 SEED_API (mặc định http://127.0.0.1:35000/api/v1). Chỉ dùng thư viện chuẩn, không in token.
 
     python3 -I infra/dev/scripts/seed-ky-nhiem-vu.py
@@ -25,7 +26,9 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 API = os.environ.get("SEED_API", "http://127.0.0.1:35000/api/v1").rstrip("/")
-TIEN_TO = "[Mẫu dev]"
+# Nhiệm vụ mẫu nhận theo đúng tên; bản ghi do bản cũ tạo (có tiền tố) vẫn được nhận để không sinh trùng.
+TEN_MAU = "Rà soát số liệu báo cáo tháng"
+TEN_MAU_CU = "[Mẫu dev] " + TEN_MAU
 
 
 def nap_env() -> dict:
@@ -42,7 +45,7 @@ def nap_env() -> dict:
 def token(user: str, env: dict) -> str:
     e = dict(env, SMOKE_USER=user)
     kq = subprocess.run(
-        [sys.executable, "-I", str(HERE / "lay-token-thu.py")], env=e, capture_output=True, text=True
+        [sys.executable, "-I", str(HERE / "lay-token-thu.py")], env=e, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
     )
     if kq.returncode != 0 or not kq.stdout.strip():
         sys.exit(f"Không lấy được token của {user}: {kq.stderr.strip()[:300]}")
@@ -107,7 +110,7 @@ def main() -> int:
     t_cb = token("canbo", env)
     ql, cb = claims(t_ql), claims(t_cb)
     _, viec, _ = goi(t_ql, "GET", f"/tasks?period={ky['id']}&limit=200")
-    mau = next((v for v in viec["items"] if v["title"].startswith(TIEN_TO)), None)
+    mau = next((v for v in viec["items"] if v["title"] in (TEN_MAU, TEN_MAU_CU)), None)
     if mau and mau["status"] != "NHAP":
         print("Đã có nhiệm vụ mẫu trong kỳ")
         return 0
@@ -118,7 +121,7 @@ def main() -> int:
             if_match=etag or f'"{ct["rowVersion"]}"')
         print(f"Đã giao nhiệm vụ mẫu {ct.get('code', '')} (bản nháp có sẵn)")
         return 0
-    han = min(hom + dt.timedelta(days=14), dt.date.fromisoformat(ky["endDate"]))
+    han = min(hom + dt.timedelta(days=14), dt.datetime.strptime(ky["endDate"][:10], "%Y-%m-%d").date())
     moc = min(hom + dt.timedelta(days=7), han)
     _, nhap, etag = goi(
         t_ql,
@@ -131,7 +134,7 @@ def main() -> int:
             "unitName": "",
             "assignerId": ql["sub"],
             "assignerName": ql.get("name", "quanly"),
-            "title": f"{TIEN_TO} Rà soát số liệu báo cáo tháng",
+            "title": TEN_MAU,
             "taskGroup": "THUONG_XUYEN",
             "priority": "TRUNG_BINH",
             "productName": "Bảng số liệu đã rà soát",
