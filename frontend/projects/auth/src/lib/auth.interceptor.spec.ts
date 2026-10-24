@@ -2,7 +2,7 @@ import { HttpClient, HttpContext, provideHttpClient, withInterceptors } from '@a
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { MSG_00_06, TEXT_FORBIDDEN } from './messages';
+import { MSG_00_06, MSG_00_07, TEXT_FORBIDDEN } from './messages';
 import { SKIP_FORBIDDEN_NOTICE, authInterceptor, parseStepUpChallenge } from './auth.interceptor';
 import { SessionService } from './session.service';
 
@@ -124,5 +124,23 @@ describe('authInterceptor', () => {
       .subscribe(noop);
     ctrl.expectOne('/api/v1/c').flush({ status: 403 }, { status: 403, statusText: 'Forbidden' });
     expect(session.showNotice).not.toHaveBeenCalled();
+  });
+
+  it('403 do tenant tạm ngừng chặn lệnh ghi (tenantStatus TAM_NGUNG): hiện MSG-00-07', () => {
+    const { http, ctrl, session } = setup();
+    http.post('/api/v1/tasks', {}).subscribe({ error: () => undefined });
+    ctrl.expectOne('/api/v1/tasks').flush(
+      {
+        title: 'Không có quyền thực hiện thao tác này',
+        status: 403,
+        code: 'COMMON-403-FORBIDDEN',
+        tenantStatus: 'TAM_NGUNG',
+      },
+      { status: 403, statusText: 'Forbidden' },
+    );
+    expect(session.showNotice).toHaveBeenLastCalledWith({
+      severity: 'error',
+      text: MSG_00_07('so-tu-phap'),
+    });
   });
 });

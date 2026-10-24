@@ -25,9 +25,10 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from typing import Optional
 
 
-def totp(secret: str, now: float | None = None) -> str:
+def totp(secret: str, now: Optional[float] = None) -> str:
     counter = struct.pack(">Q", int((time.time() if now is None else now) // 30))
     digest = hmac.new(secret.encode("utf-8"), counter, hashlib.sha1).digest()
     offset = digest[-1] & 0x0F
@@ -40,7 +41,7 @@ class _StopAtRedirect(urllib.request.HTTPRedirectHandler):
 
     def __init__(self, redirect_uri: str):
         self.redirect_uri = redirect_uri
-        self.location: str | None = None
+        self.location: Optional[str] = None
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         if newurl.startswith(self.redirect_uri):
@@ -95,7 +96,7 @@ def main() -> int:
         }
     )
 
-    def post(url: str, fields: dict) -> str | None:
+    def post(url: str, fields: dict) -> Optional[str]:
         try:
             with opener.open(url, urllib.parse.urlencode(fields).encode()) as resp:
                 return resp.read().decode("utf-8", "replace")

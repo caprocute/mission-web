@@ -55,3 +55,67 @@ TL-04 yêu cầu các thao tác thường xuyên trong runbook (bật mức suy 
 ## 7. Báo cáo
 
 Theo AGENTS.md mục 6.
+
+## 8. Bằng chứng chạy thật (2026-10-24, B7)
+
+Dùng cùng stack của INF-25 (`deploy/environments/kind/van-hanh-api-server/`), thay kind bằng kube-apiserver thật. vtctl thật đăng nhập bằng luồng thiết bị với Keycloak giả lập (có bước lên `aal2`). Nó gọi tenant-registry thật trên PostgreSQL 17 (có saga kích hoạt và dịch vụ chuyển cell), gọi kubectl bằng tài khoản người trực có `operate-app` của chart `security-cell`, và gọi bộ điều khiển suy giảm thật. Cell `g2` dùng tài khoản không thuộc nhóm trực để kiểm nhánh từ chối.
+
+Lệnh: `./dung-stack.sh && source $W/moi-truong.sh && python3 -I kiem_thu_vtctl.py`
+
+```
+== Đăng nhập
+  [ĐẠT] login luồng thiết bị, bậc aal1, không ghi kiểm toán
+  [ĐẠT] whoami: tài khoản và vai trò từ token
+== cell list, tenant status (đọc)
+  [ĐẠT] cell list đọc registry thật (bước lên aal2 khi cần)
+  [ĐẠT] tenant status: DANG_VAN_HANH ở CELL-G1
+== cell move: đề nghị, bốn mắt, theo dõi, huỷ
+  [ĐẠT] move request không --confirm: chỉ in tóm tắt, không tạo lệnh, không ghi kiểm toán
+  [ĐẠT] move request --confirm: lệnh 01a16be8… CHO_DUYET, một bản ghi kiểm toán
+  [ĐẠT] bản ghi kiểm toán có Idempotency-Key
+  [ĐẠT] người đề nghị tự duyệt bị máy chủ từ chối (bốn mắt), ghi kiểm toán THAT_BAI
+  [ĐẠT] move status: vẫn CHO_DUYET
+  [ĐẠT] move cancel --confirm: DA_HUY
+== tenant suspend, activate
+  [ĐẠT] suspend không --confirm: tenant vẫn DANG_VAN_HANH
+  [ĐẠT] suspend --confirm: TAM_NGUNG
+  [ĐẠT] lý do ghi registry.tenant_status_log
+  [ĐẠT] activate --confirm tới saga thật, bị chặn ở kiểm tra tổng thể (stack không có tên miền, IdP): 422, giữ TAM_NGUNG
+  [ĐẠT] vtctl in từng mục kiểm tra chưa đạt, thông báo tên miền đúng thực trạng
+== consumer restart (kubectl với vai trò operate-app)
+  [ĐẠT] restart không --confirm: Deployment không đổi
+  [ĐẠT] restart --confirm bằng tài khoản người trực: template được gắn restartedAt
+  [ĐẠT] tài khoản không có operate-app: dừng trước khi ghi, hướng dẫn xin quyền qua PAM
+== degrade (bộ điều khiển suy giảm thật)
+  [ĐẠT] degrade status: mức 0
+  [ĐẠT] degrade set không --confirm: mức không đổi
+  [ĐẠT] degrade set 2 --confirm bằng tài khoản người trực: mức 2
+  [ĐẠT] mọi ApisixPluginConfig mang nhãn mức 2
+  [ĐẠT] degrade pin 3 --for 2m: mức 3, có hạn ghim
+  [ĐẠT] degrade clear: bỏ ghim, giữ mức trong thời gian chống dao động
+  [ĐẠT] tài khoản không đọc được token bộ điều khiển: dừng, hướng dẫn PAM, mức không đổi
+== tenant terminate (bản ghi cuối)
+  [ĐẠT] terminate --confirm: DA_CHAM_DUT
+== Tệp kiểm toán
+  [ĐẠT] audit.jsonl quyền 0600
+  [ĐẠT] 11 bản ghi đủ người chạy, môi trường, thời điểm; không chứa token
+
+Tổng: 28 đạt, 0 hỏng
+```
+
+Bốn nhánh từ chối, với kết quả trên kiểm toán:
+
+- `tenant activate` bị 422. Đây là kết quả đúng: stack không khai tên miền, IdP hay gói chính sách vàng, và saga thật chặn ở kiểm tra tổng thể.
+- Tự duyệt `cell move approve` bị máy chủ trả 403 `REGISTRY-403-SAME-APPROVER` (bốn mắt nằm ở máy chủ). Kiểm toán ghi `THAT_BAI`.
+- `consumer restart` thiếu quyền bị dừng ở bước `kubectl auth can-i` trước khi ghi, nên không có bản ghi kiểm toán.
+- `degrade set` thiếu quyền đọc token thì dừng trong bước thực hiện và ghi `THAT_BAI`.
+
+Lỗi phát hiện và đã sửa:
+
+1. `vtctl` không in danh sách `errors` của lỗi RFC 9457, nên khi 422 người trực không biết mục kiểm tra nào chưa đạt. Đã sửa `internal/api/client.go`, kèm kiểm thử `client_test.go`.
+2. Kiểm tra tổng thể báo "Tên miền đã trỏ về cell" và "Chứng chỉ bảo mật đã sẵn sàng" kèm kết quả chưa đạt khi tenant chưa có tên miền nào. Đã sửa `services-go/tenant-registry/internal/provision/activate.go`; tệp này nằm ngoài danh sách được phép. Kiểm thử đơn vị của gói này cần Testcontainers nên không chạy được ở đây; bản sửa đã được kiểm qua kịch bản trên.
+3. `degrade set|pin|clear` không chạy được bằng vai trò người trực. Đã sửa cùng INF-25 (`deploy/charts/degrade-controller`, ngoài danh sách được phép của INF-26).
+
+Kiểm thử khác: `go vet ./...`, `go test ./...` của `services-go/vtctl` xanh.
+
+Chưa làm: `dlq replay|skip`, `consumer lag` (không có Kafka; đã kiểm bằng `go test` với `kfake`). `period-lock`, `outbox replay`, `org republish` cần mission-core, org-service và Job chạy trong cell. Chưa chạy `govulncheck` (cần tải cơ sở dữ liệu lỗ hổng).

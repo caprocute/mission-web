@@ -2,7 +2,8 @@
 # Kiểm thử tích hợp DV-01-04 với APISIX 3.13 thật trong Docker, không cần cụm: dựng ConfigMap của chart
 # api-gateway-global, chạy SVC-03 giả lập (token client credentials, registry/resolve có công tắc ngừng và chuyển cell)
 # và hai cell giả lập, rồi thử: trúng đệm không gọi registry, hết hạn gọi lại, 421 làm sạch đệm, registry ngừng vẫn
-# phục vụ tenant đã đệm, p95 khi trúng đệm ≤ 50 ms, cookie định tuyến, khám phá 307 trên tên miền chung.
+# phục vụ tenant đã đệm, p95 khi trúng đệm ≤ 50 ms, cookie định tuyến, khám phá 307 trên tên miền chung, tenant
+# TAM_NGUNG đọc được nhưng lệnh ghi bị chặn 403 (TL-04 mục 11.4).
 # Cần docker, helm, python3 có PyYAML.
 set -euo pipefail
 cd "$(dirname "$0")/.."

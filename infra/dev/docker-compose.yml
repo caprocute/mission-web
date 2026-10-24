@@ -821,6 +821,9 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/org-service:dev
     container_name: mission-dev-org-service
+    # Docker Compose 2.17 trên server dev báo "getent unable to find entry 10001:10001" khi service có
+    # secrets mà user lấy từ ảnh dạng uid:gid; khai báo uid số ở đây thì chạy được.
+    user: "10001"
     mem_limit: ${ORG_SERVICE_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
@@ -985,6 +988,9 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/integration-gateway:dev
     container_name: mission-dev-integration-gateway
+    # Docker Compose 2.17 trên server dev báo "getent unable to find entry 10001:10001" khi service có
+    # secrets mà user lấy từ ảnh dạng uid:gid; khai báo uid số ở đây thì chạy được.
+    user: "10001"
     mem_limit: ${INTEGRATION_GATEWAY_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env

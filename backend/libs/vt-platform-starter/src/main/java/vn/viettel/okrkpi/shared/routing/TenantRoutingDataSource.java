@@ -24,7 +24,9 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
  *   <li>Khách thuê {@link TenancyModel#BRIDGE} hoặc {@link TenancyModel#SILO}: trỏ tới pool riêng
  *       {@code td_<code_lower>} được khởi tạo lười (lazy) qua nhà máy {@code dataSourceFactory}.
  *   <li>Từ chối cấp kết nối nếu khách thuê thuộc cell khác hoặc đang ở trạng thái {@code
- *       DANG_CHUYEN_CELL} / {@code TAM_NGUNG} / {@code DA_CHAM_DUT}.
+ *       DANG_CHUYEN_CELL} / {@code DA_CHAM_DUT}. Khách thuê {@code TAM_NGUNG} vẫn được cấp kết nối
+ *       để đọc; lệnh ghi của người dùng bị {@link TenantCellRoutingFilter} chặn trước (TL-04 mục
+ *       11.4).
  * </ul>
  */
 public final class TenantRoutingDataSource extends AbstractDataSource implements Closeable {

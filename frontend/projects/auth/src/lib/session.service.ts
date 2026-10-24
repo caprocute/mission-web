@@ -3,6 +3,7 @@ import { OAuthService, OAuthStorage } from 'angular-oauth2-oidc';
 import { firstValueFrom } from 'rxjs';
 import { Assignment, OrgApi, RUNTIME_CONFIG, toProblem } from '@vt/api-client';
 import {
+  isTenantSuspended,
   MSG_00_05,
   MSG_00_06,
   MSG_00_07,
@@ -365,7 +366,7 @@ export class SessionService {
       this._contextStatus.set('CAN_CHON');
     } catch (err) {
       const p = toProblem(err);
-      if (p.status === 403 && /TENANT.*SUSPENDED|TAM_NGUNG/.test(p.code ?? '')) {
+      if (p.status === 403 && isTenantSuspended(p)) {
         this._notice.set({ severity: 'error', text: MSG_00_07(this.cfg.tenant) });
       }
       console.warn('[auth] Không tải được phân công', p.title);

@@ -99,6 +99,13 @@ networkPolicy:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: apisix
+    # TL-04 mục 11.4: Keycloak của cell tra trạng thái tenant để chặn đăng nhập khi TAM_NGUNG (bước mission-tenant-status).
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: identity
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: keycloak
   # Prometheus/OTel collector lấy số đo (nếu có).
   monitoringFrom:
     - namespaceSelector:
