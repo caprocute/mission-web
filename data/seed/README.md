@@ -8,6 +8,7 @@ Thư mục này chứa dữ liệu khởi tạo dùng ở môi trường dev, ki
 | `task/` | Thư viện danh mục công việc mẫu cho bảng `task.work_catalog`, `task.catalog_item` (CORE-02-01) |
 | `catalog/` | Danh mục công việc mẫu theo khối K1..K9 dạng Excel để nhập qua API (DL-06) |
 | `ui-pack/` | UI Pack mặc định của tenant mới, bộ kiểm tra tĩnh và bộ nạp qua API (DL-06) |
+| `da-tenant/` | Bộ dữ liệu thử đa tenant cho dev: khối Đảng, khối chính quyền, doanh nghiệp; nạp bằng `infra/dev/scripts/seed-da-tenant.sh` |
 | `component-registry/`, `config/`, `feature-flags/`, `plugins/`, `docgen/` | Dữ liệu khởi tạo của các mô-đun cấu hình tương ứng |
 
 ## Nạp cho tenant mới
