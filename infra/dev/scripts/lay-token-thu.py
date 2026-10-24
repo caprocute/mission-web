@@ -5,7 +5,8 @@
 của Keycloak, bắt mã ở redirect URI mà không mở trang đích, rồi đổi mã lấy token. Mã OTP sinh từ khoá TOTP
 thử (RFC 6238, SHA-1, 6 số, bước 30 giây, khoá dạng chuỗi như frontend/e2e/totp.ts). Chỉ dùng thư viện chuẩn.
 
-Biến môi trường: KC_URL (gốc Keycloak trình duyệt dùng, quyết định claim iss), KC_REALM (mission),
+Biến môi trường: KC_URL (gốc Keycloak trình duyệt dùng, quyết định claim iss; mặc định KEYCLOAK_PUBLIC_URL, rồi
+http://127.0.0.1:35080), KC_REALM (mission),
 KC_CLIENT_ID (mission-web), KC_REDIRECT_URI (http://localhost:4200/), SMOKE_USER (canbo),
 KC_TEST_USER_PASSWORD, KC_TEST_OTP_SECRET. In access token ra stdout; lỗi in ra stderr, mã thoát 1.
 Không in mật khẩu, mã OTP hay token vào nhật ký.
@@ -65,8 +66,16 @@ def _form_action(page: str) -> str:
 
 
 def main() -> int:
-    kc = os.environ.get("KC_URL", "http://127.0.0.1:35080").rstrip("/")
+    kc = (os.environ.get("KC_URL") or os.environ.get("KEYCLOAK_PUBLIC_URL") or "http://127.0.0.1:35080").rstrip("/")
     realm = os.environ.get("KC_REALM", "mission")
+    # Keycloak đặt KC_HOSTNAME theo KEYCLOAK_PUBLIC_URL: biểu mẫu đăng nhập trỏ về host đó và cookie phiên gắn
+    # với host đó, nên gọi bằng host khác (127.0.0.1 so với localhost) thì bước gửi biểu mẫu bị 400. Theo đúng
+    # issuer realm công bố để token có iss mà APISIX và service chấp nhận.
+    with urllib.request.urlopen(f"{kc}/realms/{realm}/.well-known/openid-configuration", timeout=30) as resp:
+        issuer = json.load(resp)["issuer"].rstrip("/")
+    if issuer != f"{kc}/realms/{realm}":
+        print(f"lay-token-thu: issuer của realm là {issuer}, dùng gốc này thay cho {kc}", file=sys.stderr)
+        kc = issuer[: -len(f"/realms/{realm}")]
     client_id = os.environ.get("KC_CLIENT_ID", "mission-web")
     redirect_uri = os.environ.get("KC_REDIRECT_URI", "http://localhost:4200/")
     user = os.environ.get("SMOKE_USER", "canbo")

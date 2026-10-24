@@ -271,10 +271,15 @@ services:
     # Gói chính sách thật okrkpi (NEN-040, sinh từ ma trận phân quyền) như bundle của cụm thật; thư mục gắn ở
     # /policies/okrkpi để generated/data.json nằm đúng data.okrkpi.generated. Mission-core hỏi
     # /v1/data/okrkpi/authz/decision; bản khởi tạo ./opa/policies chỉ từ chối mặc định nên mọi API trả 403.
+    # Đường tương đối tính từ thư mục project compose: chạy compose từ một bản chép riêng của infra/dev (thư mục hạ
+    # tầng cũ ngoài repo) thì ../../backend không tồn tại, Docker tạo thư mục rỗng và mọi API trả 403. Khi đó đặt
+    # OPA_POLICY_DIR (đường tuyệt đối tới backend/opa/okrkpi của bản checkout) trong .env; deploy-backend.sh và
+    # sync-server.sh kiểm thư mục này có tệp .rego.
     volumes:
-      - ../../backend/opa/okrkpi:/policies/okrkpi:ro
+      - ${OPA_POLICY_DIR:-../../backend/opa/okrkpi}:/policies/okrkpi:ro
+    # Không healthy khi gói okrkpi vắng hay rỗng (eval --fail trả mã khác 0 khi kết quả không xác định).
     healthcheck:
-      test: ["CMD", "/opa", "eval", "data.okrkpi.authz.allow"]
+      test: ["CMD", "/opa", "eval", "--fail", "-d", "/policies", "data.okrkpi.authz.decision"]
       interval: 10s
       timeout: 5s
       retries: 10

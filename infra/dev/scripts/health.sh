@@ -51,6 +51,19 @@ check "Keycloak 26 (35080)"       curl -fsS "http://${HOST}:${KEYCLOAK_PORT:-350
 echo
 echo "==> Kiểm tra đầu cuối (profile security):"
 check "OPA 1.x (35181)"           curl -fsS "http://${HOST}:${OPA_PORT:-35181}/health"
+# OPA vẫn trả /health 200 khi thư mục chính sách gắn vào rỗng (OPA_POLICY_DIR sai), lúc đó mọi API trả 403:
+# hỏi đúng quyết định mission-core dùng, không có "result" là gói okrkpi chưa nạp. Lỗi này làm mã thoát bằng 1.
+LOI=0
+if curl -fsS "http://${HOST}:${OPA_PORT:-35181}/health" >/dev/null 2>&1; then
+  printf "  %-24s " "OPA gói okrkpi"
+  if curl -fsS -X POST -H 'Content-Type: application/json' -d '{"input":{}}' \
+    "http://${HOST}:${OPA_PORT:-35181}/v1/data/okrkpi/authz/decision" 2>/dev/null | grep -q '"result"'; then
+    echo "OK"
+  else
+    echo "LỖI: chưa nạp chính sách (thư mục gắn vào /policies/okrkpi rỗng; xem OPA_POLICY_DIR trong .env)"
+    LOI=1
+  fi
+fi
 check "OpenBao 2.x (35820)"       curl -fsS "http://${HOST}:${OPENBAO_PORT:-35820}/v1/sys/health"
 
 echo
@@ -92,3 +105,4 @@ backend_check "analytics-api (35118)"        mission-dev-analytics-api        "$
 backend_check "search (35119)"               mission-dev-search               "${SEARCH_SERVICE_PORT:-35119}"
 backend_check "ledger-service (35120)"       mission-dev-ledger-service       "${LEDGER_SERVICE_PORT:-35120}"
 backend_check "notification-service (35121)" mission-dev-notification-service "${NOTIFICATION_SERVICE_PORT:-35121}"
+exit "${LOI}"

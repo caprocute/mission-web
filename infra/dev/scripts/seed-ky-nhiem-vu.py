@@ -6,7 +6,8 @@ nay (tài khoản `quantri`), rồi tạo một nhiệm vụ mẫu do `quanly` g
 mẫu, để màn hình "Việc của tôi" và trang chủ có dữ liệu. Chạy lại không sinh bản ghi trùng. Gọi API như
 người dùng nên mọi kiểm tra nghiệp vụ, kiểm toán và sự kiện chạy như thao tác trên màn hình.
 
-Đọc KC_TEST_USER_PASSWORD, KC_TEST_OTP_SECRET từ môi trường (hoặc infra/dev/.env) qua lay-token-thu.py;
+Đọc KC_TEST_USER_PASSWORD, KC_TEST_OTP_SECRET, KEYCLOAK_PUBLIC_URL từ môi trường (hoặc infra/dev/.env) qua
+lay-token-thu.py (đăng nhập theo đúng issuer công khai của realm);
 SEED_API (mặc định http://127.0.0.1:35000/api/v1). Chỉ dùng thư viện chuẩn, không in token.
 
     python3 -I infra/dev/scripts/seed-ky-nhiem-vu.py
