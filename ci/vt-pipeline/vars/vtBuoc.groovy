@@ -1,4 +1,4 @@
-// vtBuoc: các bước dùng chung của pipeline INF-06 (Go, Python, Flutter, Helm, Policy Pack, UI Pack).
+// vtBuoc: các bước dùng chung của pipeline INF-06 (Go, Python, Helm, Policy Pack, UI Pack).
 // Cùng cổng và cùng lệnh với vtJavaPipeline (INF-05): gitleaks (SEC-09), Semgrep chặn merge (SEC-39), Trivy và
 // SBOM CycloneDX (SEC-23), ảnh theo digest không root (SEC-49, SEC-55), ký cosign và provenance SLSA v1 trong
 // container riêng (SEC-37, SEC-38). vtJavaPipeline giữ bản riêng của các bước này để không đổi pipeline đã kiểm.
@@ -133,7 +133,7 @@ def kyVaChungThucAnh(Map cfg) {
   }
 }
 
-/** Ký sản phẩm không phải ảnh (gói ứng dụng, Policy Pack, UI Pack, chart đóng gói) bằng cosign sign-blob. */
+/** Ký sản phẩm không phải ảnh (Policy Pack, UI Pack, chart đóng gói) bằng cosign sign-blob. */
 def kyTep(Map cfg, List tep) {
   trongContainerKy(cfg) {
     tep.each { t ->

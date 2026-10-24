@@ -3,7 +3,7 @@ package vn.vt.pipeline
 import com.cloudbees.groovy.cps.NonCPS
 
 /**
- * Cấu hình của các pipeline INF-06 (Go, Python, Flutter, Helm, Policy Pack, UI Pack). Cùng nguyên tắc với
+ * Cấu hình của các pipeline INF-06 (Go, Python, Helm, Policy Pack, UI Pack). Cùng nguyên tắc với
  * CauHinh của vtJavaPipeline: mặc định theo TL-04 mục 9.6 < tham số Jenkinsfile < biến `VT_*` cấp controller,
  * khoá lạ bị từ chối, và không có biến nào tắt được cổng bí mật, SAST, lỗ hổng hay kiểm thử.
  */
@@ -24,13 +24,6 @@ class CauHinhLoai implements Serializable {
       dir: '.', semgrepConfigs: ['p/python', '.semgrep/vt-rules-python.yml'], dockerfile: 'Dockerfile',
       requirements: 'requirements.txt', requireHashes: true, testRequirements: 'requirements-dev.txt', pytestArgs: '',
       imageBuilder: 'buildkit', minUid: 10000,
-    ],
-    flutter: [
-      service: 'mobile-app', dir: 'mobile', semgrepConfigs: ['.semgrep/vt-rules-dart.yml'],
-      androidKeystoreCredentialsId: 'mobile-android-upload-keystore',      // tệp keystore + mật khẩu (credential)
-      androidKeyPropsCredentialsId: 'mobile-android-key-properties',
-      iosAgentLabel: 'macos-xcode', iosExportOptionsCredentialsId: 'mobile-ios-export-options',
-      buildIos: true, buildAndroid: true, artifactsRepo: 'harbor.vt.local/platform/mobile-builds',
     ],
     helm: [
       service: 'vt-platform', dir: 'deploy', chartsDir: 'deploy/charts', platformChart: 'deploy/charts/vt-platform',

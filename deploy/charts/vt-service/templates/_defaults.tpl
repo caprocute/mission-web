@@ -20,7 +20,7 @@ global:
     # objectStore: true trỏ về RGW trong cụm thay vì qua egress gateway tới Ceph RGW ngoài cụm (TL-04 mục 2.1, 3.8).
     inCluster: false
     rgw: { namespace: rook-ceph, podLabels: { app: rook-ceph-rgw }, ports: [{ port: 8080 }] }
-  # Cờ tính năng theo mô hình phân phối, thành biến VT_FF_<TÊN> (ví dụ publicMobileApp → VT_FF_PUBLIC_MOBILE_APP).
+  # Cờ tính năng theo mô hình phân phối, thành biến VT_FF_<TÊN> (ví dụ aiAssistant → VT_FF_AI_ASSISTANT).
   featureFlags: {}
   egress:
     # false ở bản cách ly: bỏ mọi luật egressTo đánh dấu internet: true.

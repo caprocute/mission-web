@@ -157,7 +157,7 @@ class RealmTemplateKeycloakIT {
     assertThat(scope).as("client scope mission-context (DV-02-02)").isNotNull();
     assertThat(scope.path("protocolMappers").get(0).path("protocolMapper").asText())
         .isEqualTo("mission-context-mapper");
-    for (String clientId : new String[] {"mission-web", "mission-mobile"}) {
+    for (String clientId : new String[] {"mission-web"}) {
       String id = admin.get("/admin/realms/" + REALM + "/clients?clientId=" + clientId).get(0).path("id").asText();
       assertThat(admin.get("/admin/realms/" + REALM + "/clients/" + id + "/default-client-scopes").findValuesAsText(
           "name")).contains("mission-context");
@@ -527,7 +527,7 @@ class RealmTemplateKeycloakIT {
 
     String password = newPassword();
     admin.createUser(REALM, "khong.directgrant", password);
-    for (String client : List.of("mission-web", "mission-mobile")) {
+    for (String client : List.of("mission-web")) {
       HttpResponse<String> d = b.postForm(b.endpoint("token"), Map.of(
           "grant_type", "password", "client_id", client, "username", "khong.directgrant", "password", password), null);
       assertThat(d.statusCode()).as(client).isIn(400, 401);

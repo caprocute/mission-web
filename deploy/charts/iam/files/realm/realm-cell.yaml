@@ -469,7 +469,7 @@ clientScopes:
 
 # ---------------------------------------------------------------------------
 # Client OIDC (SEC-17): Authorization Code + PKCE S256 bắt buộc; không implicit, không direct grant.
-# state và nonce do thư viện OIDC của ứng dụng sinh và kiểm (angular-oauth2-oidc, AppAuth trên di động).
+# state và nonce do thư viện OIDC của ứng dụng sinh và kiểm (angular-oauth2-oidc).
 # ---------------------------------------------------------------------------
 clients:
   - clientId: mission-web
@@ -494,37 +494,6 @@ clients:
       oidc.ciba.grant.enabled: "false"
       use.refresh.tokens: "true"
       client_credentials.use_refresh_token: "false"
-    defaultClientScopes:
-      - basic
-      - profile
-      - email
-      - roles
-      - web-origins
-      - acr
-      - mission-context
-    optionalClientScopes:
-      - organization
-
-  - clientId: mission-mobile
-    name: Ứng dụng di động Mission
-    protocol: openid-connect
-    enabled: true
-    publicClient: true
-    standardFlowEnabled: true
-    implicitFlowEnabled: false
-    directAccessGrantsEnabled: false
-    serviceAccountsEnabled: false
-    fullScopeAllowed: true
-    redirectUris: $(env:MISSION_MOBILE_REDIRECT_URIS)
-    webOrigins: []
-    attributes:
-      pkce.code.challenge.method: S256
-      post.logout.redirect.uris: $(env:MISSION_MOBILE_POST_LOGOUT_URIS)
-      id.token.signed.response.alg: ES256
-      access.token.signed.response.alg: ES256
-      oauth2.device.authorization.grant.enabled: "false"
-      oidc.ciba.grant.enabled: "false"
-      use.refresh.tokens: "true"
     defaultClientScopes:
       - basic
       - profile

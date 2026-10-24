@@ -37,12 +37,6 @@ realm:
     # web origin https://<host> và URI chuyển hướng sau đăng xuất.
     hosts:
       - app.cell-01.example.invalid
-  mobile:
-    # Redirect URI kiểu scheme riêng của ứng dụng di động (AppAuth, PKCE S256).
-    redirectUris:
-      - vn.viettel.mission:/oauth2redirect
-    postLogoutRedirectUris:
-      - vn.viettel.mission:/logout
 
   # Thời hạn (giây). Điểm lệch ba nguồn (wiki/14): chọn TL-04 cho access và refresh, giữ nhàn rỗi 30 phút của TL-01.
   tokens:

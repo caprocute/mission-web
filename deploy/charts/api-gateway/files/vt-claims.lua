@@ -9,7 +9,7 @@
 -- Problem Details RFC 9457, kể cả 401 do openid-connect sinh.
 -- Cookie định tuyến (DV-01-04): cookie `mission_route` do SVC-03 hoặc APISIX lớp ngoài ký HMAC-SHA256. Có cookie thì
 -- phải đúng chữ ký (sửa một byte là 403), cùng tenant với token (403) và cùng cell với cổng (421 tenant đã chuyển).
--- Cookie hết hạn bị bỏ qua như không có; request không có cookie (ứng dụng di động, client nội bộ) vẫn qua.
+-- Cookie hết hạn bị bỏ qua như không có; request không có cookie (client nội bộ) vẫn qua.
 local core = require("apisix.core")
 local http = require("resty.http")
 local pkey = require("resty.openssl.pkey")

@@ -95,8 +95,8 @@ class RealmTemplateStaticTest {
     Map<String, JsonNode> clients = new LinkedHashMap<>();
     r.path("clients").forEach(c -> clients.put(c.path("clientId").asText(), c));
     assertThat(clients.keySet())
-        .containsExactlyInAnyOrder("mission-web", "mission-mobile", "apisix-gateway", "mission-iam-broker");
-    for (String id : new String[] {"mission-web", "mission-mobile"}) {
+        .containsExactlyInAnyOrder("mission-web", "apisix-gateway", "mission-iam-broker");
+    for (String id : new String[] {"mission-web"}) {
       JsonNode c = clients.get(id);
       assertThat(c.path("publicClient").asBoolean()).as(id).isTrue();
       assertThat(c.path("standardFlowEnabled").asBoolean()).as(id).isTrue();

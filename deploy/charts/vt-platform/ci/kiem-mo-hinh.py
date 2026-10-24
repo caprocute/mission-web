@@ -31,9 +31,6 @@ for w in co_vt:
         sai.append(f"{ten}: VT_DEPLOYMENT_MODEL={e['VT_DEPLOYMENT_MODEL']}")
     if e.get("VT_CRYPTO_PROVIDER") != mat_ma:
         sai.append(f"{ten}: VT_CRYPTO_PROVIDER={e.get('VT_CRYPTO_PROVIDER')}, cần {mat_ma}")
-    ff = e.get("VT_FF_PUBLIC_MOBILE_APP")
-    if ff != ("false" if mo_hinh == "airgap" else "true"):
-        sai.append(f"{ten}: VT_FF_PUBLIC_MOBILE_APP={ff}")
 
 # Luật egress tới egress gateway (ra Internet).
 ra_ngoai = []
