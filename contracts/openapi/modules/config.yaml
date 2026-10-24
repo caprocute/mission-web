@@ -65,6 +65,8 @@ tags:
     description: Bố cục SDUI đã phân giải cho trang chủ "Việc của tôi hôm nay" (SCR-0002).
   - name: Vai trò và uỷ quyền
     description: Cấp, duyệt thứ hai, thu hồi vai trò `config.role_binding`, lịch sử quyền và uỷ quyền khi vắng mặt `config.delegation` (QT-01, SCR-0105, SCR-0106, SCR-0107; WEB-058).
+  - name: Vai trò và quyền
+    description: Vai trò tuỳ chỉnh thu hẹp từ vai trò hệ thống và danh mục quyền theo chức năng (QT-01, SCR-0110; BS-04, ADR-34).
   - name: Cấu hình tenant
     description: Cấu hình dạng khoá–giá trị của tenant hoặc ghi đè theo đơn vị (`config.tenant_setting`).
 
@@ -2454,7 +2456,7 @@ paths:
           schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         - name: role
           in: query
-          schema: { $ref: '#/components/schemas/RoleCode' }
+          schema: { $ref: '#/components/schemas/RoleRef' }
         - name: status
           in: query
           description: Trạng thái suy ra; bỏ trống là mọi trạng thái trừ `TU_CHOI`.
@@ -2875,6 +2877,247 @@ paths:
         '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
         '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
         '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  # ---------------------------------------------------------------- vai trò tuỳ chỉnh (BS-04, ADR-34)
+  /config/permission-catalog:
+    get:
+      tags: [Vai trò và quyền]
+      operationId: getPermissionCatalog
+      summary: Danh mục chức năng và quyền của vai trò hệ thống
+      description: >-
+        Danh mục chức năng web theo nhóm nghiệp vụ (quy trình, màn hình) cùng mức và phạm vi mà từng vai trò hệ
+        thống có theo ma trận phân quyền (sinh từ `docs/phan-quyen/ma-tran.json`), để SCR-0110 dựng ma trận và
+        soạn vai trò tuỳ chỉnh. Không phụ thuộc tenant; ETag theo phiên bản ma trận.
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0110]
+        owner: MOD-08
+        roles: [tenant_admin, inspector]
+        scope: Tn
+        source: BS-04 SCR-0110; ma trận SCR-0110.xem
+      responses:
+        '200':
+          description: Danh mục.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PermissionCatalog' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/custom-roles:
+    get:
+      tags: [Vai trò và quyền]
+      operationId: listCustomRoles
+      summary: Vai trò tuỳ chỉnh của tenant
+      description: Mọi vai trò tuỳ chỉnh (`config.custom_role`) của tenant, kèm số người đang giữ.
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0110, SCR-0105]
+        owner: MOD-08
+        roles: [tenant_admin, inspector]
+        scope: Tn
+        source: BS-04 SCR-0110
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/CustomRoleStatus' }
+      responses:
+        '200':
+          description: Danh sách vai trò tuỳ chỉnh.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/CustomRole' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+    post:
+      tags: [Vai trò và quyền]
+      operationId: createCustomRole
+      summary: Tạo vai trò tuỳ chỉnh từ một vai trò gốc
+      description: >-
+        Vai trò tuỳ chỉnh chỉ thu hẹp vai trò gốc (BR-01-23): mọi chức năng phải thuộc vai trò gốc, phạm vi không
+        rộng hơn. Tạo realm role Keycloak cùng mã, đẩy định nghĩa sang OPA ngay và phát EVT-27 (BR-01-24). Vi phạm
+        thu hẹp trả 422 mã `CONFIG-422-CUSTOM-ROLE-WIDER`; trùng tên trả 409 `CONFIG-409-CUSTOM-ROLE-NAME`.
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0110]
+        owner: MOD-08
+        evt: [EVT-27]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-01-22, BR-01-23, BR-01-24]
+        source: BS-04 SCR-0110; ma trận SCR-0110.sua
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomRoleCreate' }
+      responses:
+        '201':
+          description: Vai trò đã tạo, có hiệu lực ngay.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomRole' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/custom-roles/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Vai trò và quyền]
+      operationId: getCustomRole
+      summary: Chi tiết một vai trò tuỳ chỉnh
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0110]
+        owner: MOD-08
+        roles: [tenant_admin, inspector]
+        scope: Tn
+        source: BS-04 SCR-0110
+      responses:
+        '200':
+          description: Vai trò.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomRole' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+    put:
+      tags: [Vai trò và quyền]
+      operationId: updateCustomRole
+      summary: Sửa tên, mô tả và quyền của vai trò tuỳ chỉnh
+      description: >-
+        Thay cả bộ quyền; vai trò gốc không đổi được. Có hiệu lực ngay với mọi người đang giữ (BR-01-24). Vai trò
+        đã ngừng trả 409 `CONFIG-409-CUSTOM-ROLE-RETIRED`.
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0110]
+        owner: MOD-08
+        evt: [EVT-27]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-01-22, BR-01-23, BR-01-24]
+        source: BS-04 SCR-0110; ma trận SCR-0110.sua
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomRoleUpdate' }
+      responses:
+        '200':
+          description: Vai trò sau khi sửa.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomRole' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/custom-roles/{id}/retire:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Vai trò và quyền]
+      operationId: retireCustomRole
+      summary: Ngừng sử dụng vai trò tuỳ chỉnh
+      description: >-
+        Đặt trạng thái `NGUNG`, thu hồi mọi bản ghi cấp còn hiệu lực của vai trò (lý do "Vai trò đã ngừng sử
+        dụng"), gỡ khỏi OPA và Keycloak (BR-01-24).
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0110]
+        owner: MOD-08
+        evt: [EVT-27]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-01-22, BR-01-24]
+        source: BS-04 SCR-0110; ma trận SCR-0110.sua
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccessEndInput' }
+      responses:
+        '200':
+          description: Vai trò đã ngừng.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomRole' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/me/custom-roles:
+    get:
+      tags: [Vai trò và quyền]
+      operationId: listMyCustomRoles
+      summary: Định nghĩa vai trò tuỳ chỉnh mà người gọi đang giữ
+      description: >-
+        Giao diện dùng để ẩn hiện menu, tuyến, nút theo vai trò tuỳ chỉnh (YC-PT-21). Chỉ trả vai trò có trong
+        token của người gọi và đang hiệu lực; người không có vai trò tuỳ chỉnh nhận danh sách rỗng.
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0001]
+        owner: MOD-08
+        roles: [tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: BS-04 mục ADR-34 điểm 5
+      responses:
+        '200':
+          description: Định nghĩa vai trò tuỳ chỉnh của người gọi.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/CustomRole' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
         default: { $ref: '../common/common.yaml#/components/responses/Problem' }
 
   # ---------------------------------------------------------------- /config/dashboard-defs (CORE-08-17)
@@ -4915,7 +5158,7 @@ components:
         id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         person: { $ref: '../common/common.yaml#/components/schemas/Ref' }
         personTitle: { type: ['string', 'null'], description: 'Chức danh của phân công chính' }
-        roleCode: { $ref: '#/components/schemas/RoleCode' }
+        roleCode: { $ref: '#/components/schemas/RoleRef' }
         orgUnit: { $ref: '../common/common.yaml#/components/schemas/Ref' }
         scope: { $ref: '#/components/schemas/RoleBindingScope' }
         flow:
@@ -4973,7 +5216,7 @@ components:
       required: [personId, roleCode, orgUnitId, scope, validFrom, validTo, reason]
       properties:
         personId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
-        roleCode: { $ref: '#/components/schemas/RoleCode' }
+        roleCode: { $ref: '#/components/schemas/RoleRef' }
         orgUnitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         scope: { $ref: '#/components/schemas/RoleBindingScope' }
         flow:
@@ -5164,3 +5407,127 @@ components:
           type: object
           additionalProperties: true
         reason: { type: string, maxLength: 500 }
+    # ---------------------------------------------------------------- vai trò tuỳ chỉnh (BS-04)
+    RoleRef:
+      description: >-
+        Mã vai trò trong bản ghi cấp vai trò: một trong chín vai trò hệ thống (`RoleCode`) hoặc mã vai trò tuỳ chỉnh
+        của tenant dạng `tc_…` (BS-04, ADR-34).
+      type: string
+      pattern: '^(tenant_admin|policy_author|leader|manager|member|appraiser|decider|second_approver|inspector|tc_[a-z0-9_]{3,40})$'
+    PermissionScope:
+      description: >-
+        Phạm vi của một quyền theo ma trận (wiki/15a): `N` nền tảng, `Tn` toàn tenant, `Cd` đơn vị và cấp dưới, `Dv`
+        đơn vị (Đv), `Gn` được giao hoặc uỷ quyền, `B` bản thân. Thứ tự rộng hẹp N > Tn > Cd > Dv > B; Gn đứng riêng.
+      type: string
+      enum: [N, Tn, Cd, Dv, Gn, B]
+    PermissionGrant:
+      type: object
+      required: [level, scope]
+      properties:
+        level:
+          type: string
+          description: Ký hiệu mức (X toàn quyền, R xem, D duyệt…, `ky_hieu` của ma trận).
+        scope: { $ref: '#/components/schemas/PermissionScope' }
+        inferred: { type: boolean, description: Ô suy luận (`*` trong ma trận). }
+    PermissionFunction:
+      type: object
+      required: [key, name, grants]
+      properties:
+        key:
+          type: string
+          pattern: '^SCR-\d{4}\.[a-z0-9-]+$'
+        name: { type: string }
+        grants:
+          type: object
+          description: Vai trò hệ thống có quyền → mức và phạm vi.
+          additionalProperties: { $ref: '#/components/schemas/PermissionGrant' }
+    PermissionScreen:
+      type: object
+      required: [code, name, functions]
+      properties:
+        code: { type: string, pattern: '^SCR-\d{4}$' }
+        name: { type: string }
+        functions:
+          type: array
+          items: { $ref: '#/components/schemas/PermissionFunction' }
+    PermissionGroup:
+      type: object
+      required: [code, name, screens]
+      properties:
+        code: { type: string, description: Mã quy trình QT. }
+        name: { type: string }
+        screens:
+          type: array
+          items: { $ref: '#/components/schemas/PermissionScreen' }
+    SystemRole:
+      type: object
+      required: [code, name, customizable]
+      properties:
+        code: { type: string }
+        name: { type: string }
+        description: { type: string }
+        aal2: { type: boolean, description: Chỉ hiệu lực trong phiên AAL2 (BR-00-01). }
+        customizable: { type: boolean, description: Dùng được làm vai trò gốc của vai trò tuỳ chỉnh. }
+    PermissionCatalog:
+      type: object
+      required: [version, roles, groups]
+      properties:
+        version: { type: string, description: Phiên bản ma trận phân quyền. }
+        roles:
+          type: array
+          items: { $ref: '#/components/schemas/SystemRole' }
+        groups:
+          type: array
+          items: { $ref: '#/components/schemas/PermissionGroup' }
+    CustomRoleStatus:
+      type: string
+      enum: [HIEU_LUC, NGUNG]
+    CustomRolePermission:
+      type: object
+      required: [key, scope]
+      properties:
+        key:
+          type: string
+          pattern: '^SCR-\d{4}\.[a-z0-9-]+$'
+        scope: { $ref: '#/components/schemas/PermissionScope' }
+    CustomRole:
+      description: Vai trò tuỳ chỉnh của tenant (`config.custom_role`), thu hẹp từ một vai trò hệ thống.
+      type: object
+      required: [id, code, name, baseRole, permissions, status, holderCount, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { $ref: '#/components/schemas/RoleRef' }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        baseRole: { $ref: '#/components/schemas/RoleCode' }
+        permissions:
+          type: array
+          items: { $ref: '#/components/schemas/CustomRolePermission' }
+        status: { $ref: '#/components/schemas/CustomRoleStatus' }
+        holderCount: { type: integer, minimum: 0, description: Số người đang giữ (bản ghi cấp còn hiệu lực). }
+        createdAt: { type: [string, 'null'], format: date-time }
+        updatedAt: { type: [string, 'null'], format: date-time }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    CustomRoleCreate:
+      type: object
+      required: [name, baseRole, permissions]
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120 }
+        description: { type: [string, 'null'], maxLength: 500 }
+        baseRole: { $ref: '#/components/schemas/RoleCode' }
+        permissions:
+          type: array
+          minItems: 1
+          maxItems: 300
+          items: { $ref: '#/components/schemas/CustomRolePermission' }
+    CustomRoleUpdate:
+      type: object
+      required: [name, permissions]
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120 }
+        description: { type: [string, 'null'], maxLength: 500 }
+        permissions:
+          type: array
+          minItems: 1
+          maxItems: 300
+          items: { $ref: '#/components/schemas/CustomRolePermission' }

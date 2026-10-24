@@ -160,6 +160,13 @@ public class ProblemAdvice {
         "COMMON-422-VALIDATION", req));
   }
 
+  /** ADR-34: đồng bộ từ hệ thống ngoài đang tắt (ExternalSyncGate). */
+  @ExceptionHandler(ExternalSyncGate.FeatureDisabledException.class)
+  ResponseEntity<ProblemDetail> featureDisabled(ExternalSyncGate.FeatureDisabledException e, HttpServletRequest req) {
+    return send(problem(HttpStatus.NOT_FOUND, "feature-disabled", "Tính năng chưa được bật", e.getMessage(),
+        "ORG-404-FEATURE-DISABLED", req));
+  }
+
   @ExceptionHandler(IntegrationUnavailableException.class)
   ResponseEntity<ProblemDetail> integration(IntegrationUnavailableException e, HttpServletRequest req) {
     return send(problem(HttpStatus.SERVICE_UNAVAILABLE, "unavailable", "Chưa kết nối được nguồn dữ liệu",

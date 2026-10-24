@@ -1,5 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router, Routes } from '@angular/router';
+import { EXTERNAL_SYNC_FLAG, featureFlagGuard } from '@vt/api-client';
 import { permissionGuard } from '@vt/auth';
 import { ADMIN_CAN } from './admin-permissions';
 
@@ -55,7 +56,9 @@ export const ROUTES: Routes = [
     title: 'Kỳ đánh giá và khoá kỳ',
   },
   {
+    // Đồng bộ nhân sự từ hệ thống ngoài là tính năng tuỳ chọn (ADR-34), chỉ mở khi cờ của tenant bật
     path: 'org/sync',
+    canMatch: [featureFlagGuard(EXTERNAL_SYNC_FLAG)],
     canActivate: [permissionGuard('SCR-0104.xem')],
     loadComponent: () => import('./pages/org/org-sync.page').then((m) => m.OrgSyncPage),
     title: 'Đồng bộ và đối soát nhân sự',

@@ -691,7 +691,8 @@
           "methods": [
             "GET",
             "POST",
-            "PUT"
+            "PUT",
+            "PATCH"
           ]
         }
       }
@@ -2925,6 +2926,138 @@
       },
       "qt": "QT-01",
       "scr": "SCR-0107",
+      "web": true
+    },
+    "SCR-0108.khoa": {
+      "constraints": [],
+      "grants": {
+        "tenant_admin": {
+          "inferred": false,
+          "level": "X",
+          "scope": "Tn"
+        }
+      },
+      "qt": "QT-01",
+      "scr": "SCR-0108",
+      "web": true
+    },
+    "SCR-0108.them": {
+      "constraints": [],
+      "grants": {
+        "tenant_admin": {
+          "inferred": false,
+          "level": "X",
+          "scope": "Tn"
+        }
+      },
+      "qt": "QT-01",
+      "scr": "SCR-0108",
+      "web": true
+    },
+    "SCR-0108.xem": {
+      "constraints": [],
+      "grants": {
+        "inspector": {
+          "inferred": false,
+          "level": "R",
+          "scope": "Tn"
+        },
+        "tenant_admin": {
+          "inferred": false,
+          "level": "R",
+          "scope": "Tn"
+        }
+      },
+      "qt": "QT-01",
+      "scr": "SCR-0108",
+      "web": true
+    },
+    "SCR-0109.dat-lai-mat-khau": {
+      "constraints": [],
+      "grants": {
+        "tenant_admin": {
+          "inferred": false,
+          "level": "X",
+          "scope": "Tn"
+        }
+      },
+      "qt": "QT-01",
+      "scr": "SCR-0109",
+      "web": true
+    },
+    "SCR-0109.phan-cong": {
+      "constraints": [],
+      "grants": {
+        "tenant_admin": {
+          "inferred": false,
+          "level": "X",
+          "scope": "Tn"
+        }
+      },
+      "qt": "QT-01",
+      "scr": "SCR-0109",
+      "web": true
+    },
+    "SCR-0109.sua": {
+      "constraints": [],
+      "grants": {
+        "tenant_admin": {
+          "inferred": false,
+          "level": "X",
+          "scope": "Tn"
+        }
+      },
+      "qt": "QT-01",
+      "scr": "SCR-0109",
+      "web": true
+    },
+    "SCR-0109.xem": {
+      "constraints": [],
+      "grants": {
+        "inspector": {
+          "inferred": false,
+          "level": "R",
+          "scope": "Tn"
+        },
+        "tenant_admin": {
+          "inferred": false,
+          "level": "R",
+          "scope": "Tn"
+        }
+      },
+      "qt": "QT-01",
+      "scr": "SCR-0109",
+      "web": true
+    },
+    "SCR-0110.sua": {
+      "constraints": [],
+      "grants": {
+        "tenant_admin": {
+          "inferred": false,
+          "level": "X",
+          "scope": "Tn"
+        }
+      },
+      "qt": "QT-01",
+      "scr": "SCR-0110",
+      "web": true
+    },
+    "SCR-0110.xem": {
+      "constraints": [],
+      "grants": {
+        "inspector": {
+          "inferred": false,
+          "level": "R",
+          "scope": "Tn"
+        },
+        "tenant_admin": {
+          "inferred": false,
+          "level": "R",
+          "scope": "Tn"
+        }
+      },
+      "qt": "QT-01",
+      "scr": "SCR-0110",
       "web": true
     },
     "SCR-0201.check-in": {

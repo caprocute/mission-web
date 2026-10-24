@@ -81,6 +81,8 @@ import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer;
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
       "management.server.port=0",
+      // ADR-34: đồng bộ nhân sự ngoài mặc định tắt, kiểm thử này bật để phủ lần chạy
+      "okrkpi.integ.sync-run.enabled=true",
       "okrkpi.opa.enabled=false",
       "okrkpi.crypto.enabled=false",
       "okrkpi.integ.auth-enabled=false",

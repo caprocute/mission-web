@@ -34,7 +34,7 @@ Các bảng giữa cặp dấu `BEGIN GEN` và `END GEN` được sinh tự đ�
 | `Tn` | Toàn tenant | Mọi đơn vị trong tenant, vẫn chịu RLS theo `tenant_id`. |
 | `N` | Nền tảng | Vùng điều phối toàn cục, nhiều tenant (chỉ AC-01). |
 
-Dữ liệu hiện có 179 chức năng trên 53 màn hình, trong đó 175 chức năng thuộc 49 màn hình web; 87 ô được đánh dấu suy luận (`*`).
+Dữ liệu hiện có 188 chức năng trên 56 màn hình, trong đó 184 chức năng thuộc 52 màn hình web; 87 ô được đánh dấu suy luận (`*`).
 <!-- END GEN:chu-giai -->
 
 ## Ma trận chính: chức năng theo màn hình
@@ -95,6 +95,15 @@ Dòng tiêu đề cột: AC-01 `platform_admin`, AC-02 `tenant_admin`, AC-03 `po
 | SCR-0107 | Xem uỷ quyền khi vắng mặt đang hiệu lực và đã kết thúc của đơn vị `xem` | - | R/Tn* | - | R/Cd | - | - | - | - | - | R/Tn* | - | - |  |
 | SCR-0107 | Khai báo duyệt thay, nghiệm thu thay, check-in KR thay có thời hạn `tao` | - | - | - | T/Cd | - | - | - | - | - | - | - | - | BR-01-13, BR-01-16, BR-01-17 (không uỷ quyền lại), BR-01-18; step-up |
 | SCR-0107 | Thu hồi uỷ quyền trước hạn `thu-hoi` | - | - | - | T/Cd | - | - | - | - | - | - | - | - | Step-up (BR-01-15) |
+| SCR-0108 | Xem danh sách tài khoản theo đơn vị, tìm theo tên hoặc tên đăng nhập, lọc trạng thái `xem` | - | R/Tn | - | - | - | - | - | - | - | R/Tn | - | - |  |
+| SCR-0108 | Thêm người dùng: họ tên, tên đăng nhập, thư điện tử, đơn vị công tác, chức danh, mật khẩu tạm `them` | - | X/Tn | - | - | - | - | - | - | - | - | - | - | BR-01-19, BR-01-20, BR-01-22 (step-up) |
+| SCR-0108 | Khoá, mở khoá tài khoản có lý do, thu hồi mọi phiên đăng nhập `khoa` | - | X/Tn | - | - | - | - | - | - | - | - | - | - | BR-01-21, BR-01-22 (step-up) |
+| SCR-0109 | Xem hồ sơ người dùng: thông tin tài khoản, phân công, vai trò đang giữ, lịch sử `xem` | - | R/Tn | - | - | - | - | - | - | - | R/Tn | - | - |  |
+| SCR-0109 | Sửa họ tên, thư điện tử, số điện thoại của người dùng `sua` | - | X/Tn | - | - | - | - | - | - | - | - | - | - | If-Match |
+| SCR-0109 | Gán đơn vị công tác, chức danh; thêm, sửa, kết thúc kiêm nhiệm, biệt phái `phan-cong` | - | X/Tn | - | - | - | - | - | - | - | - | - | - | BR-01-06, BR-01-08 (step-up) |
+| SCR-0109 | Đặt lại mật khẩu, cấp mật khẩu tạm phải đổi khi đăng nhập `dat-lai-mat-khau` | - | X/Tn | - | - | - | - | - | - | - | - | - | - | BR-01-22 (step-up) |
+| SCR-0110 | Xem vai trò hệ thống, vai trò tuỳ chỉnh và ma trận chức năng theo vai trò `xem` | - | R/Tn | - | - | - | - | - | - | - | R/Tn | - | - |  |
+| SCR-0110 | Tạo, sửa, ngừng vai trò tuỳ chỉnh: chọn vai trò gốc, bật tắt từng chức năng, phạm vi `sua` | - | X/Tn | - | - | - | - | - | - | - | - | - | - | BR-01-23, BR-01-24, BR-01-22 (step-up) |
 
 #### QT-02. Lập và phê duyệt mục tiêu, OKR
 
@@ -399,9 +408,9 @@ Bảng dưới ghi các phương thức HTTP mà mỗi vai trò có thể gọi 
 | `/api/v1/policies` | - | GET* | GET POST PUT | GET* | - | - | GET* | GET POST | - | - | - | - | AC-08 POST = approve (TL-02) hoặc publish (TL-01, `policy_approver`). |
 | `/api/v1/dossiers` | - | - | - | GET POST* | GET POST* | GET POST | GET POST | GET POST | - | - | - | - | Góp ý, biên bản, gói; quyền thật theo thành phần hội nghị. |
 | `/api/v1/oversight` | - | - | - | - | - | GET POST PUT | GET POST | GET POST | GET POST | GET POST | - | - | AC-06 = khiếu nại của mình. |
-| `/api/v1/config` | GET POST PATCH DELETE | GET POST PUT PATCH | GET* PUT | GET POST | GET | GET | GET | GET | GET | GET | - | - | AC-01 = tenants; AC-02 = bước 4, 5, feature-flags, holiday-calendars; AC-03 = anomaly-thresholds (GET suy luận: đọc bản hiện hành trước khi sửa ở SCR-1401, QA-05 23/10/2026); người dùng khác GET lịch ngày làm việc. AC-02, AC-04 POST còn gồm role-bindings, delegations (SCR-0105, SCR-0107). |
+| `/api/v1/config` | GET POST PATCH DELETE | GET POST PUT PATCH | GET* PUT | GET POST | GET | GET | GET | GET | GET | GET | - | - | AC-01 = tenants; AC-02 = bước 4, 5, feature-flags, holiday-calendars; AC-03 = anomaly-thresholds (GET suy luận: đọc bản hiện hành trước khi sửa ở SCR-1401, QA-05 23/10/2026); người dùng khác GET lịch ngày làm việc. AC-02, AC-04 POST còn gồm role-bindings, delegations (SCR-0105, SCR-0107). AC-02 POST, PUT vai trò tuỳ chỉnh `/config/custom-roles` (SCR-0110, BS-04); mọi vai trò người dùng GET `/config/me/custom-roles`. |
 | `/api/v1/periods` | - | GET POST | GET* | GET POST | GET | GET | GET | GET | GET POST | GET | - | - | AC-04 POST = approve lệnh; AC-09 POST = duyệt huỷ. AC-03 GET (suy luận, QA-05 23/10/2026): chọn kỳ áp dụng khi gửi phê duyệt bộ quy định (BR-15-10) và kỳ của luồng duyệt, ca thử. |
-| `/api/v1/org` | GET* | GET POST PUT | - | GET PUT | GET PUT | GET PUT | GET PUT | GET PUT | GET PUT | GET PUT | - | - | PUT `/org/me/context` cho mọi người dùng; AC-11 đẩy dữ liệu qua SVC-13. |
+| `/api/v1/org` | GET* | GET POST PUT PATCH | - | GET PUT | GET PUT | GET PUT | GET PUT | GET PUT | GET PUT | GET PUT | - | - | PUT `/org/me/context` cho mọi người dùng; AC-11 đẩy dữ liệu qua SVC-13. AC-02 quản trị tài khoản `/org/users` (POST, PATCH; BS-04). |
 | `/api/v1/files` | - | - | - | GET | GET POST | GET POST PUT | GET | GET | - | GET | - | - | URL tải xuống ký trước 5 phút theo quyền trên sản phẩm. |
 | `/api/v1/ledger` | - | - | - | - | - | - | GET | - | - | GET POST | - | - | AC-10 POST = verify-runs, exports. |
 | `/api/v1/esign` | - | - | - | POST GET | - | POST GET | POST GET | POST GET | POST GET* | - | - | - | Chủ thể ký, AAL2. |

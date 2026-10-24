@@ -5,7 +5,7 @@ package okrkpi.authz_matrix_test
 
 import rego.v1
 
-# 2651 ca chức năng: ô có quyền -> allow (+ out_of_scope khi phạm vi B, Gn, Đv, Cd, Tn); ô '-' -> role_not_allowed
+# 2780 ca chức năng: ô có quyền -> allow (+ out_of_scope khi phạm vi B, Gn, Đv, Cd, Tn); ô '-' -> role_not_allowed
 
 test_function_matrix_qt_00 if function_group_ok("QT-00")
 
@@ -520,6 +520,135 @@ function_cases["QT-01"] := [
 	{"expect": "allow", "inferred": true, "key": "SCR-0107.xem", "level": "R", "role": "tenant_admin", "scope": "Tn"},
 	{"expect": "out_of_scope", "key": "SCR-0107.xem", "level": "R", "role": "tenant_admin", "scope": "Tn"},
 	{"expect": "role_not_allowed", "key": "SCR-0107.xem", "role": "wf_template_author"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.khoa", "role": "(client credentials)"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.khoa", "role": "ai_readonly"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.khoa", "role": "appraiser"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.khoa", "role": "decider"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.khoa", "role": "inspector"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.khoa", "role": "leader"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.khoa", "role": "manager"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.khoa", "role": "member"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.khoa", "role": "platform_admin"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.khoa", "role": "policy_author"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.khoa", "role": "second_approver"},
+	{"expect": "allow", "inferred": false, "key": "SCR-0108.khoa", "level": "X", "role": "tenant_admin", "scope": "Tn"},
+	{"expect": "out_of_scope", "key": "SCR-0108.khoa", "level": "X", "role": "tenant_admin", "scope": "Tn"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.khoa", "role": "wf_template_author"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.them", "role": "(client credentials)"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.them", "role": "ai_readonly"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.them", "role": "appraiser"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.them", "role": "decider"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.them", "role": "inspector"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.them", "role": "leader"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.them", "role": "manager"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.them", "role": "member"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.them", "role": "platform_admin"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.them", "role": "policy_author"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.them", "role": "second_approver"},
+	{"expect": "allow", "inferred": false, "key": "SCR-0108.them", "level": "X", "role": "tenant_admin", "scope": "Tn"},
+	{"expect": "out_of_scope", "key": "SCR-0108.them", "level": "X", "role": "tenant_admin", "scope": "Tn"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.them", "role": "wf_template_author"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.xem", "role": "(client credentials)"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.xem", "role": "ai_readonly"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.xem", "role": "appraiser"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.xem", "role": "decider"},
+	{"expect": "allow", "inferred": false, "key": "SCR-0108.xem", "level": "R", "role": "inspector", "scope": "Tn"},
+	{"expect": "out_of_scope", "key": "SCR-0108.xem", "level": "R", "role": "inspector", "scope": "Tn"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.xem", "role": "leader"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.xem", "role": "manager"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.xem", "role": "member"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.xem", "role": "platform_admin"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.xem", "role": "policy_author"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.xem", "role": "second_approver"},
+	{"expect": "allow", "inferred": false, "key": "SCR-0108.xem", "level": "R", "role": "tenant_admin", "scope": "Tn"},
+	{"expect": "out_of_scope", "key": "SCR-0108.xem", "level": "R", "role": "tenant_admin", "scope": "Tn"},
+	{"expect": "role_not_allowed", "key": "SCR-0108.xem", "role": "wf_template_author"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.dat-lai-mat-khau", "role": "(client credentials)"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.dat-lai-mat-khau", "role": "ai_readonly"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.dat-lai-mat-khau", "role": "appraiser"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.dat-lai-mat-khau", "role": "decider"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.dat-lai-mat-khau", "role": "inspector"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.dat-lai-mat-khau", "role": "leader"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.dat-lai-mat-khau", "role": "manager"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.dat-lai-mat-khau", "role": "member"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.dat-lai-mat-khau", "role": "platform_admin"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.dat-lai-mat-khau", "role": "policy_author"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.dat-lai-mat-khau", "role": "second_approver"},
+	{"expect": "allow", "inferred": false, "key": "SCR-0109.dat-lai-mat-khau", "level": "X", "role": "tenant_admin", "scope": "Tn"},
+	{"expect": "out_of_scope", "key": "SCR-0109.dat-lai-mat-khau", "level": "X", "role": "tenant_admin", "scope": "Tn"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.dat-lai-mat-khau", "role": "wf_template_author"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.phan-cong", "role": "(client credentials)"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.phan-cong", "role": "ai_readonly"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.phan-cong", "role": "appraiser"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.phan-cong", "role": "decider"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.phan-cong", "role": "inspector"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.phan-cong", "role": "leader"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.phan-cong", "role": "manager"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.phan-cong", "role": "member"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.phan-cong", "role": "platform_admin"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.phan-cong", "role": "policy_author"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.phan-cong", "role": "second_approver"},
+	{"expect": "allow", "inferred": false, "key": "SCR-0109.phan-cong", "level": "X", "role": "tenant_admin", "scope": "Tn"},
+	{"expect": "out_of_scope", "key": "SCR-0109.phan-cong", "level": "X", "role": "tenant_admin", "scope": "Tn"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.phan-cong", "role": "wf_template_author"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.sua", "role": "(client credentials)"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.sua", "role": "ai_readonly"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.sua", "role": "appraiser"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.sua", "role": "decider"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.sua", "role": "inspector"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.sua", "role": "leader"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.sua", "role": "manager"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.sua", "role": "member"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.sua", "role": "platform_admin"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.sua", "role": "policy_author"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.sua", "role": "second_approver"},
+	{"expect": "allow", "inferred": false, "key": "SCR-0109.sua", "level": "X", "role": "tenant_admin", "scope": "Tn"},
+	{"expect": "out_of_scope", "key": "SCR-0109.sua", "level": "X", "role": "tenant_admin", "scope": "Tn"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.sua", "role": "wf_template_author"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.xem", "role": "(client credentials)"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.xem", "role": "ai_readonly"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.xem", "role": "appraiser"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.xem", "role": "decider"},
+	{"expect": "allow", "inferred": false, "key": "SCR-0109.xem", "level": "R", "role": "inspector", "scope": "Tn"},
+	{"expect": "out_of_scope", "key": "SCR-0109.xem", "level": "R", "role": "inspector", "scope": "Tn"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.xem", "role": "leader"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.xem", "role": "manager"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.xem", "role": "member"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.xem", "role": "platform_admin"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.xem", "role": "policy_author"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.xem", "role": "second_approver"},
+	{"expect": "allow", "inferred": false, "key": "SCR-0109.xem", "level": "R", "role": "tenant_admin", "scope": "Tn"},
+	{"expect": "out_of_scope", "key": "SCR-0109.xem", "level": "R", "role": "tenant_admin", "scope": "Tn"},
+	{"expect": "role_not_allowed", "key": "SCR-0109.xem", "role": "wf_template_author"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.sua", "role": "(client credentials)"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.sua", "role": "ai_readonly"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.sua", "role": "appraiser"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.sua", "role": "decider"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.sua", "role": "inspector"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.sua", "role": "leader"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.sua", "role": "manager"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.sua", "role": "member"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.sua", "role": "platform_admin"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.sua", "role": "policy_author"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.sua", "role": "second_approver"},
+	{"expect": "allow", "inferred": false, "key": "SCR-0110.sua", "level": "X", "role": "tenant_admin", "scope": "Tn"},
+	{"expect": "out_of_scope", "key": "SCR-0110.sua", "level": "X", "role": "tenant_admin", "scope": "Tn"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.sua", "role": "wf_template_author"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.xem", "role": "(client credentials)"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.xem", "role": "ai_readonly"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.xem", "role": "appraiser"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.xem", "role": "decider"},
+	{"expect": "allow", "inferred": false, "key": "SCR-0110.xem", "level": "R", "role": "inspector", "scope": "Tn"},
+	{"expect": "out_of_scope", "key": "SCR-0110.xem", "level": "R", "role": "inspector", "scope": "Tn"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.xem", "role": "leader"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.xem", "role": "manager"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.xem", "role": "member"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.xem", "role": "platform_admin"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.xem", "role": "policy_author"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.xem", "role": "second_approver"},
+	{"expect": "allow", "inferred": false, "key": "SCR-0110.xem", "level": "R", "role": "tenant_admin", "scope": "Tn"},
+	{"expect": "out_of_scope", "key": "SCR-0110.xem", "level": "R", "role": "tenant_admin", "scope": "Tn"},
+	{"expect": "role_not_allowed", "key": "SCR-0110.xem", "role": "wf_template_author"},
 ]
 
 test_function_matrix_qt_02 if function_group_ok("QT-02")
@@ -2754,7 +2883,10 @@ function_cases["QT-18"] := [
 ]
 
 # 1560 ca API: module x vai trò x phương thức
-api_cases := [
+
+test_api_matrix_ai if api_group_ok("ai")
+
+api_cases["ai"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "ai", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "ai", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "ai", "role": "(client credentials)"},
@@ -2820,6 +2952,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "ai", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "ai", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "ai", "role": "wf_template_author"},
+]
+
+test_api_matrix_analytics if api_group_ok("analytics")
+
+api_cases["analytics"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "analytics", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "analytics", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "analytics", "role": "(client credentials)"},
@@ -2885,6 +3022,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "analytics", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "analytics", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "analytics", "role": "wf_template_author"},
+]
+
+test_api_matrix_appraisals if api_group_ok("appraisals")
+
+api_cases["appraisals"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "appraisals", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "appraisals", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "appraisals", "role": "(client credentials)"},
@@ -2950,6 +3092,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "appraisals", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "appraisals", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "appraisals", "role": "wf_template_author"},
+]
+
+test_api_matrix_catalog if api_group_ok("catalog")
+
+api_cases["catalog"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "catalog", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "catalog", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "catalog", "role": "(client credentials)"},
@@ -3015,6 +3162,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "catalog", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "catalog", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "catalog", "role": "wf_template_author"},
+]
+
+test_api_matrix_config if api_group_ok("config")
+
+api_cases["config"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "config", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "config", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "config", "role": "(client credentials)"},
@@ -3080,6 +3232,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "config", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "config", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "config", "role": "wf_template_author"},
+]
+
+test_api_matrix_dossiers if api_group_ok("dossiers")
+
+api_cases["dossiers"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "dossiers", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "dossiers", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "dossiers", "role": "(client credentials)"},
@@ -3145,6 +3302,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "dossiers", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "dossiers", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "dossiers", "role": "wf_template_author"},
+]
+
+test_api_matrix_esign if api_group_ok("esign")
+
+api_cases["esign"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "esign", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "esign", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "esign", "role": "(client credentials)"},
@@ -3210,6 +3372,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "esign", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "esign", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "esign", "role": "wf_template_author"},
+]
+
+test_api_matrix_evidences if api_group_ok("evidences")
+
+api_cases["evidences"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "evidences", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "evidences", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "evidences", "role": "(client credentials)"},
@@ -3275,6 +3442,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "evidences", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "evidences", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "evidences", "role": "wf_template_author"},
+]
+
+test_api_matrix_files if api_group_ok("files")
+
+api_cases["files"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "files", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "files", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "files", "role": "(client credentials)"},
@@ -3340,6 +3512,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "files", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "files", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "files", "role": "wf_template_author"},
+]
+
+test_api_matrix_jobs if api_group_ok("jobs")
+
+api_cases["jobs"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "jobs", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "jobs", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "jobs", "role": "(client credentials)"},
@@ -3405,6 +3582,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "jobs", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "jobs", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "jobs", "role": "wf_template_author"},
+]
+
+test_api_matrix_ledger if api_group_ok("ledger")
+
+api_cases["ledger"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "ledger", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "ledger", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "ledger", "role": "(client credentials)"},
@@ -3470,6 +3652,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "ledger", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "ledger", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "ledger", "role": "wf_template_author"},
+]
+
+test_api_matrix_notifications if api_group_ok("notifications")
+
+api_cases["notifications"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "notifications", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "notifications", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "notifications", "role": "(client credentials)"},
@@ -3535,6 +3722,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "notifications", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "notifications", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "notifications", "role": "wf_template_author"},
+]
+
+test_api_matrix_okr if api_group_ok("okr")
+
+api_cases["okr"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "okr", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "okr", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "okr", "role": "(client credentials)"},
@@ -3600,6 +3792,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "okr", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "okr", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "okr", "role": "wf_template_author"},
+]
+
+test_api_matrix_org if api_group_ok("org")
+
+api_cases["org"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "org", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "org", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "org", "role": "(client credentials)"},
@@ -3658,13 +3855,18 @@ api_cases := [
 	{"expect": "allow", "inferred": false, "method": "GET", "module": "org", "role": "tenant_admin"},
 	{"expect": "allow", "inferred": false, "method": "POST", "module": "org", "role": "tenant_admin"},
 	{"expect": "allow", "inferred": false, "method": "PUT", "module": "org", "role": "tenant_admin"},
-	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "org", "role": "tenant_admin"},
+	{"expect": "allow", "inferred": false, "method": "PATCH", "module": "org", "role": "tenant_admin"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "org", "role": "tenant_admin"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "org", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "org", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "org", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "org", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "org", "role": "wf_template_author"},
+]
+
+test_api_matrix_oversight if api_group_ok("oversight")
+
+api_cases["oversight"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "oversight", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "oversight", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "oversight", "role": "(client credentials)"},
@@ -3730,6 +3932,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "oversight", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "oversight", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "oversight", "role": "wf_template_author"},
+]
+
+test_api_matrix_periods if api_group_ok("periods")
+
+api_cases["periods"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "periods", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "periods", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "periods", "role": "(client credentials)"},
@@ -3795,6 +4002,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "periods", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "periods", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "periods", "role": "wf_template_author"},
+]
+
+test_api_matrix_plans if api_group_ok("plans")
+
+api_cases["plans"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "plans", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "plans", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "plans", "role": "(client credentials)"},
@@ -3860,6 +4072,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "plans", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "plans", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "plans", "role": "wf_template_author"},
+]
+
+test_api_matrix_policies if api_group_ok("policies")
+
+api_cases["policies"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "policies", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "policies", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "policies", "role": "(client credentials)"},
@@ -3925,6 +4142,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "policies", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "policies", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "policies", "role": "wf_template_author"},
+]
+
+test_api_matrix_products if api_group_ok("products")
+
+api_cases["products"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "products", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "products", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "products", "role": "(client credentials)"},
@@ -3990,6 +4212,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "products", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "products", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "products", "role": "wf_template_author"},
+]
+
+test_api_matrix_registry if api_group_ok("registry")
+
+api_cases["registry"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "registry", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "registry", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "registry", "role": "(client credentials)"},
@@ -4055,6 +4282,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "registry", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "registry", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "registry", "role": "wf_template_author"},
+]
+
+test_api_matrix_search if api_group_ok("search")
+
+api_cases["search"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "search", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "search", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "search", "role": "(client credentials)"},
@@ -4120,6 +4352,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "search", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "search", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "search", "role": "wf_template_author"},
+]
+
+test_api_matrix_tasks if api_group_ok("tasks")
+
+api_cases["tasks"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "tasks", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "tasks", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "tasks", "role": "(client credentials)"},
@@ -4185,6 +4422,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "tasks", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "tasks", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "tasks", "role": "wf_template_author"},
+]
+
+test_api_matrix_ui if api_group_ok("ui")
+
+api_cases["ui"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "ui", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "ui", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "ui", "role": "(client credentials)"},
@@ -4250,6 +4492,11 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "ui", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "ui", "role": "wf_template_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "ui", "role": "wf_template_author"},
+]
+
+test_api_matrix_workflow if api_group_ok("workflow")
+
+api_cases["workflow"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "workflow", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "workflow", "role": "(client credentials)"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "workflow", "role": "(client credentials)"},

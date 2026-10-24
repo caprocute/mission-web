@@ -36,7 +36,7 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { Job, JobTracker, fieldErrors, toProblem } from '@vt/api-client';
+import { EXTERNAL_SYNC_FLAG, FeatureFlagService, Job, JobTracker, fieldErrors, toProblem } from '@vt/api-client';
 import { CHECK_RESULT_LABEL, CellOption, CheckResult, ConfigTenant, IDP_KIND_LABEL, IdpKind, KEK_MODE_LABEL, KekMode, ONBOARDING_STEPS, PROVISION_STEPS, PolicyPackOption, READINESS_CHECK_LABEL, STAFF_SOURCE_LABEL, StaffSourceType, TENANCY_MODEL_LABEL, TENANT_FLOW_LABEL, TENANT_SECTOR_LABEL, TENANT_STATUS_LABEL, TenancyModel, TenantApi, TenantFlow, TenantIdp, TenantOnboarding, TenantOnboardingInput, TenantOnboardingPatch, TenantSector, UiPackOption, idpKind, modelAllowed, packNotReady, tenantSuggestion } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
@@ -799,28 +799,36 @@ function provisionMinutes(t: ConfigTenant): number {
             @case (5) {
               <section class="box" aria-labelledby="hr-title">
                 <h2 id="hr-title" class="h">5. Tổ chức, nhân sự</h2>
-                <fieldset class="f" [disabled]="!canEditConfig()">
-                  <legend>Nguồn nhân sự <span class="req" aria-hidden="true">*</span></legend>
-                  @for (h of hrSources; track h) {
-                    <label class="chk block">
-                      <input
-                        type="checkbox"
-                        [checked]="hr().includes(h)"
-                        (change)="toggleHr(h, $any($event.target).checked)"
-                      />
-                      {{ hrLabel[h] }}
-                    </label>
-                  }
-                  @if (fe()['staffSources']) {
-                    <small class="err">{{ fe()['staffSources'] }}</small>
-                  }
-                </fieldset>
-                <p class="muted small">
-                  <!-- SCR-0103, SCR-0104, BR-01-10 -->
-                  Cây tổ chức được nhập ở chức năng Cây tổ chức; đồng bộ và đối soát nhân sự ở chức
-                  năng Đồng bộ và đối soát nhân sự. Đơn vị chỉ sẵn sàng kích hoạt khi đã có cây tổ
-                  chức và không còn mục lệch mức Cao.
-                </p>
+                @if (externalSync()) {
+                  <fieldset class="f" [disabled]="!canEditConfig()">
+                    <legend>Nguồn nhân sự <span class="req" aria-hidden="true">*</span></legend>
+                    @for (h of hrSources; track h) {
+                      <label class="chk block">
+                        <input
+                          type="checkbox"
+                          [checked]="hr().includes(h)"
+                          (change)="toggleHr(h, $any($event.target).checked)"
+                        />
+                        {{ hrLabel[h] }}
+                      </label>
+                    }
+                    @if (fe()['staffSources']) {
+                      <small class="err">{{ fe()['staffSources'] }}</small>
+                    }
+                  </fieldset>
+                  <p class="muted small">
+                    <!-- SCR-0103, SCR-0104, BR-01-10 -->
+                    Cây tổ chức được nhập ở chức năng Cây tổ chức; đồng bộ và đối soát nhân sự ở chức
+                    năng Đồng bộ và đối soát nhân sự. Đơn vị chỉ sẵn sàng kích hoạt khi đã có cây tổ
+                    chức và không còn mục lệch mức Cao.
+                  </p>
+                } @else {
+                  <!-- ADR-34: đồng bộ từ hệ thống ngoài đang tắt, không cần chọn nguồn nhân sự -->
+                  <p class="muted">
+                    Cây tổ chức được nhập ở chức năng Cây tổ chức. Tài khoản cán bộ do quản trị đơn
+                    vị tạo trực tiếp ở chức năng Người dùng và phân quyền.
+                  </p>
+                }
               </section>
             }
             @case (6) {
@@ -938,8 +946,10 @@ function provisionMinutes(t: ConfigTenant): number {
                 <dd>{{ uiText() }}</dd>
                 <dt>Đăng nhập</dt>
                 <dd>{{ idpsText() }}</dd>
-                <dt>Nguồn nhân sự</dt>
-                <dd>{{ hrText() }}</dd>
+                @if (externalSync()) {
+                  <dt>Nguồn nhân sự</dt>
+                  <dd>{{ hrText() }}</dd>
+                }
               </dl>
             </section>
             @if (viewStep() <= 3) {
@@ -1305,6 +1315,9 @@ export class TenantOnboardingPage {
   private readonly jobs = inject(JobTracker);
   private readonly router = inject(Router);
   protected readonly can = inject(ADMIN_CAN);
+  private readonly flags = inject(FeatureFlagService);
+  /** Đồng bộ nhân sự từ hệ thống ngoài có bật không (ADR-34, mặc định tắt). */
+  protected readonly externalSync = computed(() => this.flags.isEnabled(EXTERNAL_SYNC_FLAG));
   private readonly theme = inject(ThemeService);
   /** Chế độ Đảng viên cao tuổi rút gọn: bỏ vùng tóm tắt, chỉ còn bước đang làm (NFR-11). */
   protected readonly simple = computed(
@@ -1633,7 +1646,7 @@ export class TenantOnboardingPage {
       case 4:
         return this.idps().length > 0 && this.idps().every((i) => i.lastTestOk === true);
       case 5:
-        return this.hr().length > 0;
+        return !this.externalSync() || this.hr().length > 0;
       default:
         return true;
     }

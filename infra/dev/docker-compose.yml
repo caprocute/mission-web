@@ -865,6 +865,8 @@ services:
       # "Đồng bộ ngay" (SCR-0104) gửi lệnh tới cổng tích hợp kèm token dịch vụ của client org-service
       # (svc_org_service, cùng cấu hình Keycloak ở trên); thiếu địa chỉ thì lần chạy kết thúc LOI ngay (HT-07)
       OKRKPI_ORG_INTEGRATION_GATEWAY_URL: http://integration-gateway:8080
+      # ADR-34: công tắc đồng bộ người dùng, tổ chức từ hệ thống ngoài (mặc định tắt)
+      ORG_EXTERNAL_SYNC_ENABLED: ${DONG_BO_NGOAI:-false}
       # Mã hoá phong bì C2 (số định danh, ngày sinh, liên hệ) bằng FieldEncryptor của NEN-015 qua OpenBao Transit,
       # DEK ở keyring.dek; thiếu cấu hình thì nhập nhân sự có C2 trả 503 (HT-07). KEK mỗi tenant tự tạo ở dev.
       OKRKPI_CRYPTO_OPENBAOBASEURL: http://openbao:8200
@@ -989,11 +991,13 @@ services:
   # SVC-13: chỉ có cổng nội bộ /internal/v1, không có tuyến qua APISIX.
   # Nguồn nhân sự giả lập (YC-PT-13, HT-07): CSDL CBCCVC và CSDL đảng viên cho "Đồng bộ ngay" (SCR-0104), chỉ trong
   # mạng compose; dữ liệu hư cấu ở hr-gia-lap/du-lieu.json, kết nối và ánh xạ mã ở postgres/seed/integ-ket-noi-thu.sql.
+  # ADR-34: đồng bộ ngoài mặc định tắt nên nguồn giả lập chỉ chạy khi thêm profile "dong-bo-ngoai" và đặt
+  # DONG_BO_NGOAI=true.
   hr-gia-lap:
     image: python:3.13-alpine
     container_name: mission-dev-hr-gia-lap
     restart: unless-stopped
-    profiles: ["backend"]
+    profiles: ["dong-bo-ngoai"]
     command: ["python", "-I", "/srv/hr-gia-lap/may-chu.py"]
     volumes:
       - ./hr-gia-lap:/srv/hr-gia-lap:ro
@@ -1026,6 +1030,8 @@ services:
       INTEG_TOKEN_URL: http://keycloak:8080/realms/mission/protocol/openid-connect/token
       INTEG_CLIENT_ID: integration-gateway
       INTEG_CLIENT_SECRET: ${INTEGRATION_GATEWAY_CLIENT_SECRET:-}
+      # ADR-34: lần đồng bộ nhân sự (lịch đêm, "Đồng bộ ngay") chỉ chạy khi bật đồng bộ ngoài
+      INTEG_SYNC_RUN_ENABLED: ${DONG_BO_NGOAI:-false}
       # Mã hoá phong bì C2 (số định danh, ngày sinh của lô nhân sự, HT-07) qua OpenBao Transit; KEK mỗi tenant tự tạo ở dev.
       OKRKPI_CRYPTO_OPENBAOBASEURL: http://openbao:8200
       OKRKPI_CRYPTO_TOKENFILE: /run/secrets/openbao_token

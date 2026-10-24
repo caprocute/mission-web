@@ -649,9 +649,13 @@ def rego_cases(data):
                 f"function_cases[\"{g}\"] := ["]
         out += [f"\t{_rego_obj(c)}," for c in groups[g]]
         out += ["]"]
-    out += ["", f"# {len(acases)} ca API: module x vai trò x phương thức", "api_cases := ["]
-    out += [f"\t{_rego_obj(c)}," for c in acases]
-    out += ["]", ""]
+    # Ca API chia theo module, cùng lý do thời hạn như trên
+    out += ["", f"# {len(acases)} ca API: module x vai trò x phương thức"]
+    for mod in sorted({c["module"] for c in acases}):
+        out += ["", f"test_api_matrix_{mod} if api_group_ok(\"{mod}\")", "", f"api_cases[\"{mod}\"] := ["]
+        out += [f"\t{_rego_obj(c)}," for c in acases if c["module"] == mod]
+        out += ["]"]
+    out += [""]
     return "\n".join(out)
 
 
