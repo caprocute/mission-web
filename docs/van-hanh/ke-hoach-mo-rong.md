@@ -138,7 +138,7 @@ Bảng theo dõi dùng mẫu [`theo-doi-ti-le.csv`](theo-doi-ti-le.csv), mỗi d
 
 ## 11. Diễn tập
 
-Buổi diễn tập ngày 23/10/2026 đưa nhóm thử N-THU (hai tenant hư cấu) vào sử dụng trên bản giả lập. Sau đó buổi diễn tập tắt cờ của một tenant và tạm ngừng tenant còn lại. Biên bản ở [`ops/dien-tap/2026-10-23-mo-rong-nhom.md`](../../ops/dien-tap/2026-10-23-mo-rong-nhom.md). Buổi diễn tập trên staging thật chưa làm được vì chưa có môi trường staging; biên bản ghi rõ phần nào đã chạy với mã thật và phần nào chạy trên bản giả lập.
+Buổi diễn tập ngày 23/10/2026 đưa nhóm thử N-THU (hai tenant hư cấu) vào sử dụng trên bản giả lập. Sau đó buổi diễn tập tắt cờ của một tenant và tạm ngừng tenant còn lại. Biên bản ở [`ops/dien-tap/2026-10-23-mo-rong-nhom.md`](../../ops/dien-tap/2026-10-23-mo-rong-nhom.md). Buổi diễn tập trên staging thật chưa làm được vì chưa có môi trường staging; biên bản ghi rõ phần nào đã chạy với mã thật và phần nào chạy trên bản giả lập. Buổi diễn tập lần 2 ngày 24/10/2026 ([biên bản](../../ops/dien-tap/2026-10-24-mo-rong-nhom.md)) chạy lại bản giả lập và kiểm chuỗi tạm ngừng tenant bằng mã thật. Kết quả: tenant chuyển được sang tạm ngừng và các dịch vụ từ chối yêu cầu của tenant đó; việc chặn đăng nhập ở Keycloak chưa có mã, nên trước mắt mức D-3 thêm bước tắt Organization của tenant trên trang quản trị Keycloak.
 
 ## 12. Khi nối với hệ thật
 
