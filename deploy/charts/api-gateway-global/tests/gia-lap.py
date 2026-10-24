@@ -6,7 +6,7 @@ from urllib.parse import urlparse, parse_qs
 VAI, TEN = os.environ.get("VAI", "cell"), os.environ.get("TEN", "")
 TENANTS = {"kpi.a.danhgia.vn": ("a", "11111111-1111-4111-8111-111111111111", "CELL-A", "http://cell-a.test:8080"),
            "kpi.b.danhgia.vn": ("b", "22222222-2222-4222-8222-222222222222", "CELL-B", "http://cell-b.test:8080")}
-state = {"mode": "normal", "calls": 0, "moved": set()}
+state = {"mode": "normal", "calls": 0, "moved": set(), "suspended": set()}
 
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
@@ -15,11 +15,16 @@ class H(BaseHTTPRequestHandler):
         self.send_response(code)
         for k, v in (headers or {}).items(): self.send_header(k, v)
         if body is not None: self.send_header("Content-Type", ct)
-        self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
+        self.send_header("Content-Length", str(len(b))); self.end_headers()
+        if self.command != "HEAD": self.wfile.write(b)
     def do_POST(self):
         if self.path == "/token":
             return self.send(200, {"access_token": "svc-tok", "expires_in": 300, "token_type": "Bearer"})
         self.do_GET()
+    def do_PUT(self): self.do_POST()
+    def do_PATCH(self): self.do_POST()
+    def do_DELETE(self): self.do_POST()
+    def do_HEAD(self): self.do_GET()
     def do_GET(self):
         u = urlparse(self.path); q = {k: v[0] for k, v in parse_qs(u.query).items()}
         if VAI == "cell":
@@ -31,6 +36,8 @@ class H(BaseHTTPRequestHandler):
             if "mode" in q: state["mode"] = q["mode"]
             if "move" in q: state["moved"].add(q["move"])
             if "unmove" in q: state["moved"].discard(q["unmove"])
+            if "suspend" in q: state["suspended"].add(q["suspend"])
+            if "unsuspend" in q: state["suspended"].discard(q["unsuspend"])
             return self.send(200, {"calls": state["calls"], "mode": state["mode"]})
         if u.path == "/api/v1/registry/resolve":
             state["calls"] += 1
@@ -45,7 +52,8 @@ class H(BaseHTTPRequestHandler):
             if code in state["moved"]:
                 return self.send(421, {"type": "about:blank", "status": 421, "code": "REGISTRY-421-TENANT-MOVED"},
                                  {"Location": "http://cell-b.test:8080"}, "application/problem+json")
-            return self.send(200, {"tenantId": tid, "tenantCode": code, "status": "DANG_VAN_HANH", "cacheTtlSeconds": 300,
+            st = "TAM_NGUNG" if code in state["suspended"] else "DANG_VAN_HANH"
+            return self.send(200, {"tenantId": tid, "tenantCode": code, "status": st, "cacheTtlSeconds": 300,
                                    "cell": {"id": tid, "code": cell, "apiBaseUrl": url}})
         if u.path.startswith("/api/v1/registry/") or u.path.startswith("/api/v1/jobs/"):
             return self.send(200, {"registry": True, "path": u.path})

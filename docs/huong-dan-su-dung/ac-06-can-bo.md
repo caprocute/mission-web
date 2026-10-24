@@ -35,7 +35,7 @@ Khi được giao việc mới, nhiệm vụ hiện với nút **Nhận việc**
 
 ![Hộp cập nhật tiến độ](anh/ac-06-04-cap-nhat-tien-do.jpg)
 
-Nếu có nhiều việc cần cập nhật cùng lúc, đồng chí dùng nút **Cập nhật tiến độ hàng loạt** trên màn hình Việc của tôi, nhập phần trăm cho từng việc rồi lưu một lần. Trang chủ cũng có lối cập nhật nhanh cho các việc sắp đến hạn.
+Đồng chí cũng có thể cập nhật mà không cần mở trang chi tiết: trên màn hình Việc của tôi, khung xem nhanh bên phải có thanh tiến độ và nút **Lưu** cho việc đang chọn; thông báo "Đã lưu tiến độ" kèm phần trăm mới hiện ngay trong khung. Nếu có nhiều việc cần cập nhật cùng lúc, đồng chí dùng nút **Cập nhật tiến độ hàng loạt** ở cuối danh sách, nhập phần trăm cho từng việc rồi lưu một lần.
 
 ### 2.3. Báo điểm nghẽn và đề nghị gia hạn
 
@@ -45,16 +45,16 @@ Khi không thể hoàn thành đúng hạn hoặc cần điều chỉnh nội du
 
 ### 2.4. Check-in kết quả then chốt
 
-Nếu đồng chí phụ trách một kết quả then chốt (KR), đồng chí cần check-in định kỳ để cập nhật số liệu. Đồng chí vào **Mục tiêu, OKR**, chọn **Check-in**, hoặc bấm vào thông báo nhắc check-in trên trang chủ.
+Nếu đồng chí phụ trách một kết quả then chốt (KR), đồng chí cần check-in định kỳ để cập nhật số liệu. Đồng chí vào **Mục tiêu, OKR**, bấm vào KR của mình trong cây mục tiêu, rồi bấm nút **Check-in** ở khung bên phải. Khi có thông báo nhắc check-in, bấm vào thông báo cũng mở thẳng màn hình này.
 
 ![Màn hình check-in kết quả then chốt](anh/ac-06-05-check-in.jpg)
 
 Các bước check-in như sau:
 
-1. Chọn KR trong danh sách **KR của tôi cần check-in**.
-2. Nhập giá trị đạt được. Với KR lấy số liệu từ hệ thống khác, bấm **Lấy lại số liệu nguồn** để điền tự động. Nếu đồng chí nhập con số khác số liệu nguồn, hệ thống yêu cầu ghi lý do.
-3. Chọn mức tự tin hoàn thành KR và ghi nhận xét ngắn.
-4. Bấm **Gửi check-in**. Nếu giá trị mới chênh lệch lớn so với lần trước, hệ thống hỏi lại để tránh nhập nhầm; đồng chí kiểm tra rồi bấm **Vẫn gửi** nếu số liệu đúng.
+1. Kiểm tra KR cần check-in đã được chọn trong danh sách **KR của tôi cần check-in**; nếu đồng chí phụ trách nhiều KR, bấm vào KR muốn cập nhật.
+2. Nhập giá trị đạt được vào ô **Giá trị hiện tại**. Ô **Giá trị lần trước** bên cạnh giúp đồng chí so sánh. Với KR lấy số liệu từ hệ thống khác, bấm **Lấy lại số liệu nguồn** để điền tự động. Nếu đồng chí nhập con số khác số liệu nguồn, hệ thống yêu cầu ghi lý do.
+3. Chọn **Mức tự tin đạt chỉ tiêu cuối kỳ** là Cao, Trung bình hoặc Thấp. Đây là mục bắt buộc; nếu bỏ trống, hệ thống nhắc "Vui lòng chọn mức tự tin". Sau đó ghi ngắn **Kết quả nổi bật trong tuần** và **Vướng mắc, đề nghị hỗ trợ** nếu có.
+4. Bấm **Gửi check-in**. Nếu giá trị mới chênh lệch lớn so với lần trước, hệ thống hỏi lại để tránh nhập nhầm; đồng chí kiểm tra rồi bấm **Vẫn gửi** nếu số liệu đúng. Thông báo "Đã gửi check-in" kèm tiến độ mới của mục tiêu xác nhận việc gửi thành công.
 
 Đồng chí có thể bấm **Lưu nháp** để lưu lại và gửi sau, hoặc bấm **Lịch sử** để xem các lần check-in trước.
 
@@ -127,11 +127,11 @@ Chế độ này dành cho đảng viên cao tuổi hoặc người cần chữ 
 
 ![Việc của tôi ở chế độ Đảng viên cao tuổi](anh/ac-06-02-viec-cua-toi-cao-tuoi.jpg)
 
-Ở chế độ này, ba việc thường ngày đều làm được trong không quá ba lần bấm:
+Ở chế độ này, chữ và nút to hơn, màn hình chỉ giữ những phần cần thiết, và các việc thường ngày làm được với ít lần bấm nhất:
 
-- **Cập nhật tiến độ:** từ trang chủ bấm vào việc cần cập nhật (lần 1), kéo thanh tiến độ (lần 2), bấm **Lưu** (lần 3).
-- **Check-in kết quả then chốt:** từ thông báo nhắc check-in bấm vào KR (lần 1), nhập giá trị (lần 2), bấm **Gửi check-in** (lần 3).
 - **Xem việc của tôi:** bấm **Việc của tôi** ở danh mục bên trái (lần 1).
+- **Cập nhật tiến độ:** bấm **Việc của tôi** (lần 1); khung xem nhanh bên phải hiện việc đang chọn, đồng chí kéo thanh tiến độ (lần 2) rồi bấm **Lưu** (lần 3). Nếu việc cần cập nhật không phải việc đang chọn, bấm vào việc đó trong danh sách trước.
+- **Check-in kết quả then chốt:** mở màn hình check-in như mục 2.4, nhập giá trị hiện tại, chọn mức tự tin rồi bấm **Gửi check-in**. Màn hình check-in ở chế độ này không có nút **Lưu nháp** và **Lịch sử**.
 
 ![Hộp cập nhật tiến độ ở chế độ Đảng viên cao tuổi](anh/ac-06-04-cap-nhat-tien-do-cao-tuoi.jpg)
 

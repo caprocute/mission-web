@@ -47,6 +47,7 @@ class VneidBrokerKeycloakIT {
   static final String MSG_UNAVAILABLE = "Dịch vụ VNeID đang gián đoạn";
   static final String MSG_NOT_LINKED = "Chưa tìm thấy hồ sơ cán bộ khớp";
   static final String MSG_ALREADY_LINKED = "đã được liên kết với một danh tính khác";
+  static final String MSG_SUSPENDED = "đang tạm ngừng sử dụng nền tảng";
 
   private final String adminUser = "kc-admin-kiem-thu";
   private final String adminPassword = UUID.randomUUID().toString();
@@ -79,6 +80,12 @@ class VneidBrokerKeycloakIT {
         .withEnv("MISSION_IAM_BROKER_TOKEN_URL",
             "http://localhost:8080/realms/" + REALM + "/protocol/openid-connect/token")
         .withEnv("MISSION_IAM_BROKER_CLIENT_SECRET", "broker-" + secret)
+        // Bước kiểm trạng thái tenant (TL-04 mục 11.4) gọi tenant-registry giả; token lấy từ chính realm.
+        .withEnv("MISSION_TENANT_REGISTRY_URL", vneid.registryUrl())
+        .withEnv("MISSION_TENANT_REGISTRY_TOKEN_URL",
+            "http://localhost:8080/realms/" + REALM + "/protocol/openid-connect/token")
+        .withEnv("MISSION_TENANT_REGISTRY_CLIENT_ID", "mission-iam-broker")
+        .withEnv("MISSION_TENANT_REGISTRY_CLIENT_SECRET", "broker-" + secret)
         .withCommand("start-dev")
         .waitingFor(Wait.forHttp("/realms/master").forPort(8080).withStartupTimeout(Duration.ofMinutes(4)));
     keycloak.start();
@@ -136,6 +143,10 @@ class VneidBrokerKeycloakIT {
 
   /** Tạo người (tài khoản Keycloak có id là mã người, như user-sync của DV-02-06) và ghi số định danh vào org giả. */
   private String person(String nationalId) {
+    return person(nationalId, TENANT);
+  }
+
+  private String person(String nationalId, String tenant) {
     String id = UUID.randomUUID().toString();
     ObjectNode body = RepoFiles.JSON.createObjectNode();
     body.put("ifResourceExists", "FAIL");
@@ -147,10 +158,10 @@ class VneidBrokerKeycloakIT {
     u.put("emailVerified", true);
     u.put("firstName", "Cán bộ");
     u.put("lastName", "Giả lập");
-    u.putObject("attributes").putArray("tenant_id").add(TENANT);
+    u.putObject("attributes").putArray("tenant_id").add(tenant);
     HttpResponse<String> r = admin.post("/admin/realms/" + REALM + "/partialImport", body);
     assertThat(r.statusCode()).as(r.body()).isEqualTo(200);
-    vneid.persons.put(TENANT + "|" + nationalId, id);
+    vneid.persons.put(tenant + "|" + nationalId, id);
     return id;
   }
 
@@ -164,10 +175,14 @@ class VneidBrokerKeycloakIT {
 
   /** Bấm "Đăng nhập bằng VNeID": đi qua Keycloak, VNeID giả, quay về Keycloak; trả code nếu về ứng dụng. */
   private Optional<String> loginWithVneid(OidcBrowser b, VneidGiaLap.Account account) {
+    return loginWithVneid(b, account, TENANT);
+  }
+
+  private Optional<String> loginWithVneid(OidcBrowser b, VneidGiaLap.Account account, String tenant) {
     vneid.next = account;
     Map<String, String> p = b.defaultAuthParams();
     p.put("kc_idp_hint", "vneid");
-    p.put("tenant_id", TENANT);
+    p.put("tenant_id", tenant);
     return follow(b, b.authorize(p));
   }
 
@@ -343,7 +358,7 @@ class VneidBrokerKeycloakIT {
   }
 
   @Test
-  @Order(9)
+  @Order(20)
   void vneidQuaHanThiNgatMachVaHienThongBao() {
     String path = "/admin/realms/" + REALM + "/identity-provider/instances/vneid";
     ObjectNode idp = (ObjectNode) admin.get(path);
@@ -367,5 +382,163 @@ class VneidBrokerKeycloakIT {
     } finally {
       vneid.tokenDelayMillis = 0;
     }
+  }
+
+  // ------------------------------------------------------------------------------------------
+  // Tenant tạm ngừng (TL-04 mục 11.4, MSG-00-07): chặn đăng nhập ở Keycloak, quản trị nền tảng vẫn vào được
+  // ------------------------------------------------------------------------------------------
+
+  /** Người đăng nhập bằng mật khẩu thuộc tenant {@code tenant}; thêm vai trò realm nếu có. */
+  private String passwordUser(String username, String password, String tenant, String role) {
+    // Nạp như user-sync (partialImport) để thuộc tính tenant_id được giữ cùng mật khẩu.
+    String id = UUID.randomUUID().toString();
+    ObjectNode body = RepoFiles.JSON.createObjectNode();
+    body.put("ifResourceExists", "FAIL");
+    ObjectNode u = body.putArray("users").addObject();
+    u.put("id", id);
+    u.put("username", username);
+    u.put("enabled", true);
+    u.put("email", username + "@kiem-thu.example.invalid");
+    u.put("emailVerified", true);
+    u.put("firstName", "Kiểm");
+    u.put("lastName", "Thử");
+    u.putObject("attributes").putArray("tenant_id").add(tenant);
+    ObjectNode c = u.putArray("credentials").addObject();
+    c.put("type", "password");
+    c.put("value", password);
+    c.put("temporary", false);
+    HttpResponse<String> r = admin.post("/admin/realms/" + REALM + "/partialImport", body);
+    assertThat(r.statusCode()).as(r.body()).isEqualTo(200);
+    if (role != null) {
+      assertThat(admin.post("/admin/realms/" + REALM + "/users/" + id + "/role-mappings/realm",
+          RepoFiles.JSON.createArrayNode().add(admin.get("/admin/realms/" + REALM + "/roles/" + role)))
+          .statusCode()).isEqualTo(204);
+    }
+    return id;
+  }
+
+  /** Đăng nhập bằng mật khẩu; nếu bị bắt cài SmartOTP (vai trò bậc 2) thì cài rồi gửi mã. */
+  private static Optional<String> passwordLogin(OidcBrowser b, String username, String password) {
+    assertThat(b.openLoginPage()).as(b.pageSummary()).isTrue();
+    Optional<String> code = b.submitLogin(username, password);
+    if (code.isEmpty() && b.hasForm("kc-totp-settings-form")) {
+      String totpSecret = b.hiddenValue("totpSecret");
+      code = b.submitForm("kc-totp-settings-form", Map.of("totp", OidcBrowser.totp(totpSecret),
+          "totpSecret", totpSecret, "userLabel", "SmartOTP"));
+    }
+    return code;
+  }
+
+  private static String password() {
+    return "Kt-" + UUID.randomUUID();
+  }
+
+  @Test
+  @Order(10)
+  void tenantDangVanHanhDangNhapDuoc() {
+    String tenant = UUID.randomUUID().toString();
+    String pw = password();
+    passwordUser("van.hanh", pw, tenant, null);
+    OidcBrowser b = browser();
+    String code = passwordLogin(b, "van.hanh", pw).orElseThrow(() -> new AssertionError(b.pageSummary()));
+    assertThat(tokens(b, code).path("access_token").asText()).isNotBlank();
+    assertThat(vneid.registryCalls).contains(tenant);
+  }
+
+  @Test
+  @Order(11)
+  void tenantTamNgungKhongDangNhapDuocVaGhiSuKien() {
+    String tenant = UUID.randomUUID().toString();
+    vneid.tenantStatus.put(tenant, "TAM_NGUNG");
+    String pw = password();
+    String id = passwordUser("tam.ngung", pw, tenant, null);
+    OidcBrowser b = browser();
+    assertThat(passwordLogin(b, "tam.ngung", pw)).as("không nhận được code").isEmpty();
+    assertThat(b.lastPage).as(b.pageSummary()).contains(MSG_SUSPENDED);
+    assertThat(b.lastPage).doesNotContain("TAM_NGUNG");
+
+    JsonNode events = admin.get("/admin/realms/" + REALM + "/events?type=LOGIN_ERROR&user=" + id + "&max=20");
+    boolean audited = false;
+    for (JsonNode e : events) {
+      audited |= "tenant_suspended".equals(e.path("error").asText())
+          && "TAM_NGUNG".equals(e.path("details").path("tenant_status").asText());
+    }
+    assertThat(audited).as(events.toString()).isTrue();
+
+    // Tenant đã chấm dứt cũng bị chặn.
+    String ended = UUID.randomUUID().toString();
+    vneid.tenantStatus.put(ended, "DA_CHAM_DUT");
+    passwordUser("da.cham.dut", pw, ended, null);
+    OidcBrowser c = browser();
+    assertThat(passwordLogin(c, "da.cham.dut", pw)).isEmpty();
+    assertThat(c.lastPage).as(c.pageSummary()).contains(MSG_SUSPENDED);
+  }
+
+  @Test
+  @Order(12)
+  void quanTriNenTangVanDangNhapDuocKhiTenantTamNgung() {
+    String tenant = UUID.randomUUID().toString();
+    vneid.tenantStatus.put(tenant, "TAM_NGUNG");
+    String pw = password();
+    passwordUser("quan.tri.nen.tang", pw, tenant, "platform_admin");
+    OidcBrowser b = browser();
+    String code = passwordLogin(b, "quan.tri.nen.tang", pw).orElseThrow(() -> new AssertionError(b.pageSummary()));
+    assertThat(tokens(b, code).path("access_token").asText()).isNotBlank();
+  }
+
+  @Test
+  @Order(13)
+  void phienSsoCuBiChanSauKhiTamNgung() throws InterruptedException {
+    String tenant = UUID.randomUUID().toString();
+    String pw = password();
+    passwordUser("phien.cu", pw, tenant, null);
+    OidcBrowser b = browser();
+    assertThat(passwordLogin(b, "phien.cu", pw)).as(b.pageSummary()).isPresent();
+    assertThat(b.authorizeWith(Map.of())).as("còn phiên SSO thì vào thẳng").isPresent();
+
+    vneid.tenantStatus.put(tenant, "TAM_NGUNG");
+    // Trạng thái được đệm 30 giây ở Keycloak (TenantStatusLookup.CACHE_SECONDS).
+    Thread.sleep(31_000);
+    assertThat(b.authorizeWith(Map.of())).as("phiên SSO không qua được bước kiểm tenant").isEmpty();
+    assertThat(b.lastPage).as(b.pageSummary()).contains(MSG_SUSPENDED);
+
+    // Mở lại tenant: đăng nhập lại được (sau hạn đệm).
+    vneid.tenantStatus.put(tenant, "DANG_VAN_HANH");
+    Thread.sleep(31_000);
+    OidcBrowser again = browser();
+    assertThat(passwordLogin(again, "phien.cu", pw)).as(again.pageSummary()).isPresent();
+  }
+
+  /** Chạy trước ca ngắt mạch VNeID (Order 20) và sau ca kiểm nhật ký (Order 8, chỉ gọi org-service cho TENANT). */
+  @Test
+  @Order(9)
+  void vneidCuaTenantTamNgungBiChan() {
+    String tenant = UUID.randomUUID().toString();
+    String n = nid();
+    String sub = UUID.randomUUID().toString();
+    person(n, tenant);
+    OidcBrowser first = browser();
+    assertThat(loginWithVneid(first, new VneidGiaLap.Account(sub, "2", n), tenant)).as(first.pageSummary())
+        .isPresent();
+
+    // Tenant khác (chưa đệm) bị tạm ngừng ngay từ lần liên kết đầu.
+    String paused = UUID.randomUUID().toString();
+    vneid.tenantStatus.put(paused, "TAM_NGUNG");
+    String m = nid();
+    person(m, paused);
+    OidcBrowser b = browser();
+    assertThat(loginWithVneid(b, new VneidGiaLap.Account(UUID.randomUUID().toString(), "2", m), paused)).isEmpty();
+    assertThat(b.lastPage).as(b.pageSummary()).contains(MSG_SUSPENDED);
+  }
+
+  @Test
+  @Order(15)
+  void registryGianDoanThiKhongChanDangNhap() {
+    String tenant = UUID.randomUUID().toString();
+    vneid.tenantStatus.put(tenant, "LOI_REGISTRY");
+    String pw = password();
+    passwordUser("registry.loi", pw, tenant, null);
+    OidcBrowser b = browser();
+    assertThat(passwordLogin(b, "registry.loi", pw)).as(b.pageSummary()).isPresent();
   }
 }

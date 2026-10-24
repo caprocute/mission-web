@@ -821,6 +821,9 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/org-service:dev
     container_name: mission-dev-org-service
+    # Docker Compose 2.17 trên server dev báo "getent unable to find entry 10001:10001" khi service có
+    # secrets mà user lấy từ ảnh dạng uid:gid; khai báo uid số ở đây thì chạy được.
+    user: "10001"
     mem_limit: ${ORG_SERVICE_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
@@ -985,6 +988,9 @@ services:
       dockerfile: ../../../infra/dev/backend/Dockerfile.java
     image: mission-dev/integration-gateway:dev
     container_name: mission-dev-integration-gateway
+    # Docker Compose 2.17 trên server dev báo "getent unable to find entry 10001:10001" khi service có
+    # secrets mà user lấy từ ảnh dạng uid:gid; khai báo uid số ở đây thì chạy được.
+    user: "10001"
     mem_limit: ${INTEGRATION_GATEWAY_MEM_LIMIT:-${JAVA_MEM_LIMIT:-768m}}
     environment:
       <<: *backend-java-env
@@ -1307,6 +1313,9 @@ secrets:
   ca_bundle:
     file: ${BUILD_CA_BUNDLE:-/dev/null}
   # Token OpenBao dev cho mã hoá phong bì C2 (okrkpi.crypto.token-file của vt-platform-starter, ADR-06): ở production
-  # là tệp do OpenBao Agent/CSI gắn; ở dev lấy từ token gốc của OpenBao chế độ dev.
+  # là tệp do OpenBao Agent/CSI gắn; ở dev là tệp chứa token gốc của OpenBao chế độ dev, do deploy-backend.sh ghi từ
+  # OPENBAO_DEV_ROOT_TOKEN (thư mục secrets/ quyền 700, không commit). Không dùng `environment:` vì khi đó compose
+  # chép tệp vào container kèm chủ sở hữu theo USER của ảnh, và Docker 23 trên máy chủ dev tra "10001:10001" như tên
+  # người dùng của máy chủ ("getent unable to find entry"); secret dạng tệp được gắn thẳng nên không vướng.
   openbao_token:
-    environment: OPENBAO_DEV_ROOT_TOKEN
+    file: ${OPENBAO_TOKEN_FILE:-./secrets/openbao_token}

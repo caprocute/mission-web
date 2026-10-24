@@ -61,6 +61,11 @@ type Problem struct {
 	Detail  string `json:"detail"`
 	Code    string `json:"code"`
 	TraceID string `json:"traceId"`
+	// Errors là danh sách FieldError (common.yaml), ví dụ từng mục kiểm tra tổng thể chưa đạt.
+	Errors []struct {
+		Field   string `json:"field"`
+		Message string `json:"message"`
+	} `json:"errors,omitempty"`
 }
 
 func (p *Problem) Error() string {
@@ -73,6 +78,9 @@ func (p *Problem) Error() string {
 	}
 	if p.TraceID != "" {
 		msg += " [traceId " + p.TraceID + "]"
+	}
+	for _, e := range p.Errors {
+		msg += "\n  - " + e.Field + ": " + e.Message
 	}
 	return fmt.Sprintf("HTTP %d %s", p.Status, msg)
 }

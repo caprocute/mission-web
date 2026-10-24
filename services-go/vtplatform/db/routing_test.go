@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -165,5 +166,48 @@ func BenchmarkDirectoryLookup(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _, _ = dir.Resolve(ctx, tenantID)
+	}
+}
+
+// TL-04 mục 11.4: khách thuê TAM_NGUNG giữ dữ liệu và đọc được; lệnh ghi bị chặn 403 kèm tenantStatus.
+func TestSuspendedTenantReadsButCannotWrite(t *testing.T) {
+	const suspendedID = "0195f3a0-0000-7000-8000-000000000140"
+	dir := NewDirectory(nil)
+	dir.Put(TenantRoute{TenantID: suspendedID, TenantCode: "hcm_paused", CellCode: "cell-hcm-01",
+		TenancyModel: ModelBridge, DatabaseName: "td_hcm_paused", Status: "TAM_NGUNG", SourceVersion: 1})
+	router := NewPoolRouter(dir, "cell-hcm-01", NewSimulatedPool(1), nil)
+	ctx := tenant.MustWithTenantID(context.Background(), suspendedID)
+	if db, route, err := router.ResolveDatabaseName(ctx); err != nil || db != "td_hcm_paused" || !route.IsSuspended() || route.IsUnavailable() {
+		t.Fatalf("tenant tạm ngừng vẫn phải có CSDL để đọc: db=%q err=%v", db, err)
+	}
+	reached := 0
+	mw := CellRoutingMiddleware(dir, "cell-hcm-01")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reached++
+		w.WriteHeader(http.StatusOK)
+	}))
+	for _, m := range []string{http.MethodGet, http.MethodHead, http.MethodOptions} {
+		rec := httptest.NewRecorder()
+		mw.ServeHTTP(rec, httptest.NewRequest(m, "/api/v1/tasks", nil).WithContext(ctx))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s của tenant tạm ngừng phải đi tiếp, có %d", m, rec.Code)
+		}
+	}
+	for _, m := range []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete} {
+		rec := httptest.NewRecorder()
+		mw.ServeHTTP(rec, httptest.NewRequest(m, "/api/v1/tasks", nil).WithContext(ctx))
+		var body struct {
+			Status       int    `json:"status"`
+			Code         string `json:"code"`
+			TenantCode   string `json:"tenantCode"`
+			TenantStatus string `json:"tenantStatus"`
+		}
+		_ = json.Unmarshal(rec.Body.Bytes(), &body)
+		if rec.Code != http.StatusForbidden || body.Code != "COMMON-403-FORBIDDEN" || body.TenantStatus != "TAM_NGUNG" ||
+			body.TenantCode != "hcm_paused" || rec.Header().Get("Retry-After") != "" {
+			t.Fatalf("%s của tenant tạm ngừng phải 403: %d %+v", m, rec.Code, body)
+		}
+	}
+	if reached != 3 {
+		t.Fatalf("chỉ ba lệnh đọc được tới xử lý, có %d", reached)
 	}
 }
