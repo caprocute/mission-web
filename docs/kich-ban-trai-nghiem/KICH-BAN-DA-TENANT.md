@@ -70,7 +70,9 @@ Bộ nạp đi đúng luồng nghiệp vụ như người dùng thao tác trên 
 
 Nhờ vậy, chi tiết nhiệm vụ có đủ nhật ký tiến độ, lịch sử trạng thái, điểm nghẽn (mở, đang xử lý, đã giải quyết), đề nghị điều chỉnh đủ bốn loại (gia hạn, đổi số lượng, đổi sản phẩm, tạm dừng, huỷ) ở cả ba kết cục (chờ duyệt, đã duyệt, từ chối), lần nhắc việc và lần giao lại kèm lý do. Nhiều nhiệm vụ liên kết với kết quả then chốt của mục tiêu cá nhân.
 
-**Kế hoạch công tác quý.** Mỗi tenant có hai kế hoạch quý IV ở trạng thái khác nhau: khối Đảng có kế hoạch Ban Tổ chức (bốn dòng, `tu.phobantc` lập) đang chờ `tu.truongbantc` duyệt và kế hoạch Tỉnh ủy còn nháp; khối chính quyền có kế hoạch Sở Tài chính đã duyệt (bước ký số phụ thuộc xác thực bước lên trên dev) và kế hoạch UBND tỉnh bị Chủ tịch trả lại với ý kiến bổ sung; doanh nghiệp có kế hoạch Xí nghiệp số 1 chờ Giám đốc Xí nghiệp duyệt và kế hoạch Công ty còn nháp. Các dòng kế hoạch lấy từ danh mục công việc hoặc ghi điểm chuẩn riêng, có dòng gắn kết quả then chốt.
+**Kế hoạch công tác quý.** Mỗi tenant có hai kế hoạch quý IV ở trạng thái khác nhau: khối Đảng có kế hoạch Ban Tổ chức (bốn dòng, `tu.phobantc` lập) đang chờ `tu.truongbantc` duyệt và kế hoạch Tỉnh ủy còn nháp; khối chính quyền có kế hoạch Sở Tài chính đã duyệt (chỉ gồm dòng danh mục; bước ký số phụ thuộc xác thực bước lên trên dev) và kế hoạch UBND tỉnh bị Chủ tịch trả lại với ý kiến bổ sung; doanh nghiệp có kế hoạch Xí nghiệp số 1 chờ Giám đốc Xí nghiệp duyệt và kế hoạch Công ty còn nháp. Các dòng kế hoạch lấy từ danh mục công việc hoặc là việc ngoài danh mục chờ định điểm, có dòng gắn kết quả then chốt.
+
+**Vai trò theo đơn vị.** Vai trò của 51 tài khoản được ghi thành bản ghi vai trò theo đơn vị (nguồn sự thật của phân quyền): lãnh đạo và người thẩm định ở đơn vị mình kèm cấp dưới; quản lý, cán bộ, quản trị nghiệp vụ ở đơn vị mình; quản trị tenant, cấp quyết định, người duyệt thứ hai, kiểm tra ở toàn tenant. Màn hình "Vai trò theo đơn vị" và "Hồ sơ quyền" vì vậy có dữ liệu cho mọi người, và uỷ quyền chỉ lãnh đạo của đơn vị mới khai được.
 
 **Uỷ quyền khi vắng mặt.** Bí thư Tỉnh ủy uỷ quyền duyệt thay cho Phó Bí thư Thường trực; Chánh Văn phòng giao `tu.chuyenvienth2` check-in thay kết quả then chốt của `tu.chuyenvienth`; Giám đốc Sở Tài chính uỷ quyền duyệt thay cho Phó Giám đốc và giao `cq.chuyenvienns2` check-in thay; Giám đốc Xí nghiệp uỷ quyền duyệt thay cho Tổ trưởng.
 
@@ -163,7 +165,7 @@ Tài khoản: `tu.truongphongcb`, `tu.truongphongth`, `tu.chuyenvienth2`.
 Tài khoản: `tu.phobantc` rồi `tu.truongbantc`.
 
 1. `tu.phobantc` vào "Kế hoạch quý", mở kế hoạch quý IV của Ban Tổ chức: bốn dòng lấy từ danh mục công việc và một dòng gắn kết quả then chốt, trạng thái chờ duyệt, không sửa được.
-2. `tu.truongbantc` mở cùng kế hoạch, xem kết quả kiểm tra (đủ trường, có điểm chuẩn, một người chủ trì mỗi dòng). Trả lại với ý kiến; `tu.phobantc` sửa và gửi lại; `tu.truongbantc` duyệt và ký số (bước ký số cần xác thực bước lên; nếu dev chưa cấu hình, hệ thống báo rõ).
+2. `tu.truongbantc` mở cùng kế hoạch, xem kết quả kiểm tra (đủ trường, có điểm chuẩn, một người chủ trì mỗi dòng). Trả lại với ý kiến; `tu.phobantc` sửa và gửi lại; `tu.truongbantc` duyệt và ký số (bước ký số cần xác thực bước lên; nếu dev chưa cấu hình, hệ thống báo rõ). Kế hoạch này có một dòng ngoài danh mục "chờ chấm điểm": máy chủ chỉ cho duyệt sau khi cơ quan thẩm định định độ khó và điểm chuẩn cho dòng đó, bước này chưa có trên dev nên hệ thống báo "còn 1 công việc ngoài danh mục chưa được định điểm"; muốn duyệt thử, bỏ dòng đó khi sửa lại kế hoạch.
 3. `tu.phobithu` mở kế hoạch nháp của Tỉnh ủy, thêm dòng rồi gửi duyệt cho `tu.bithu`.
 
 ### KB-D10. Uỷ quyền khi vắng mặt và cấp vai trò có thời hạn
