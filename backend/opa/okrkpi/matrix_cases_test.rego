@@ -4204,7 +4204,7 @@ api_cases["policies"] := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "policies", "role": "second_approver"},
 	{"expect": "allow", "inferred": true, "method": "GET", "module": "policies", "role": "tenant_admin"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "policies", "role": "tenant_admin"},
-	{"expect": "allow", "inferred": true, "method": "PUT", "module": "policies", "role": "tenant_admin"},
+	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "policies", "role": "tenant_admin"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "policies", "role": "tenant_admin"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "policies", "role": "tenant_admin"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "GET", "module": "policies", "role": "wf_template_author"},

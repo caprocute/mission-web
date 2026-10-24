@@ -472,7 +472,7 @@ export const API_PERMISSION_TABLE: Readonly<
   policies: {
     GET: 'tenant_admin* policy_author leader* appraiser* decider',
     POST: 'policy_author decider',
-    PUT: 'tenant_admin* policy_author',
+    PUT: 'policy_author',
   },
   dossiers: {
     GET: 'leader manager member appraiser decider',

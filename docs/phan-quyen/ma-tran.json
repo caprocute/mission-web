@@ -5151,7 +5151,7 @@
    "module": "policies",
    "quyen": {
     "AC-01": "-",
-    "AC-02": "GET* PUT*",
+    "AC-02": "GET*",
     "AC-03": "GET POST PUT",
     "AC-04": "GET*",
     "AC-05": "-",
@@ -5163,7 +5163,7 @@
     "AC-11": "-",
     "AC-12": "-"
    },
-   "ghi_chu": "AC-08 POST = approve (TL-02) hoặc publish (TL-01, `policy_approver`). Bổ sung 24/10/2026 (suy luận, YC-PT-21): tenant_admin PUT theo ma trận chức năng (SCR-1501.soan).",
+   "ghi_chu": "AC-08 POST = approve (TL-02) hoặc publish (TL-01, `policy_approver`).",
    "nguon": "SCR-1501..1504, SCR-1002",
    "ngoai_baseline": false
   },

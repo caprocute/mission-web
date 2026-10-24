@@ -6,7 +6,7 @@
   "contracts/openapi/modules/dossiers.yaml": "0bff8d5db23e5dc1b7ddac0b0a1360befc4431539d8df71f090fa36af54a5ebe",
   "contracts/openapi/modules/jobs.yaml": "437a610d30b202a36e221f7284fbe43c38fea4ae71d082fca1fb54d546bc1c91",
   "contracts/openapi/modules/okr.yaml": "b2b7d9d7406f15d3e1cba1a1511cdafe5817e9d3e84b4e4ae879ee037dc37794",
-  "contracts/openapi/modules/org.yaml": "17f1291f3f024a32f3f5dbe8dece9a4e61ad02c101a97b6b602b2addc952df82",
+  "contracts/openapi/modules/org.yaml": "8dbcfe1a796e680c9789bd7af325267a72b528ccde6f503e2f4acd2d8d217f3a",
   "contracts/openapi/modules/oversight.yaml": "633c9da557b8e7b5d714514347b1b6bdebe2770f88216590a3d157346250bccc",
   "contracts/openapi/modules/platform.yaml": "461312c0012bc563e8b5542d4d7a49c3245166dd3beb761393971cc176d05cd4",
   "contracts/openapi/modules/policies.yaml": "93d3338282d2ea664ba02730cca8a75064fea844bad737b1fcb3f35607912f95",

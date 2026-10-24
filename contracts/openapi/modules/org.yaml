@@ -163,7 +163,7 @@ paths:
         qt: [QT-01]
         scr: [SCR-0103]
         owner: SVC-04
-        roles: [tenant_admin, appraiser, manager, leader]
+        roles: [tenant_admin, appraiser, manager, leader, inspector]
         scope: Đv
         source: 'TL-02a SCR-0103 trường 13'
 
@@ -1149,9 +1149,9 @@ paths:
         qt: [QT-01]
         scr: [SCR-0104]
         owner: SVC-04
-        roles: [tenant_admin]
+        roles: [tenant_admin, inspector]
         scope: Tn
-        source: 'TL-02a SCR-0104 trường 1, 2'
+        source: 'TL-02a SCR-0104 trường 1, 2; TL-02 bảng tác nhân (AC-10 đọc nhật ký đồng bộ), ma trận SCR-0104.xem'
     post:
       tags: [Đồng bộ nhân sự]
       operationId: startOrgSyncRun

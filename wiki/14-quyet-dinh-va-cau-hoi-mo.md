@@ -2584,3 +2584,7 @@ Chạy các hành trình HT-23 đến HT-29 trên stack dev thật cho thấy sa
 8. **Nhịp worker saga trên dev.** Các bên tham gia giả lập trả lời gần như ngay nên với nhịp 500 ms saga qua bước ký lô trước khi kịp đề nghị huỷ; compose dev đặt `SAGA_WORKER_POLL=4s`.
 
 **Thiếu dữ liệu cho HT-25 đến HT-29.** Hồ sơ đánh giá quý lập từ EVT-09 chỉ khi kỳ có Policy Pack theo luồng, và phiếu tự đánh giá chỉ mở khi có EVT-10 với kết quả chính thức. Trên dev, bên tham gia SVC-07 của saga chốt kỳ vẫn giả lập và scoring-service chưa có xử lý lệnh tính điểm hàng loạt khi khoá kỳ (chỉ tính dần theo sự kiện nhiệm vụ), nên không có hồ sơ nào để tự đánh giá, thẩm định, quyết định hay xếp loại năm; năm ca này bỏ qua với lý do ghi trong báo cáo. Cần một task nối SVC-07 vào saga (lệnh `TINH_DIEM`) cùng dữ liệu kỳ quý có Policy Pack.
+
+### Gộp ADR-34 với phép kiểm bao phủ hợp đồng (main, 24/10/2026)
+
+Khi gộp nhánh quản trị người dùng (ADR-34) cùng phép kiểm `kiem_hop_dong_bao_phu_chuc_nang` mới của `gen_matrix.py`, phép kiểm báo `listPersonAssignments` (GET /org/persons/{id}/assignments) chưa cấp cho inspector trong khi ma trận chức năng cấp SCR-0109.xem cho AC-10 (R/Tn). Main thêm `inspector` vào `x-mission.roles` của thao tác này, cùng cách đã làm với `listOrgSyncRuns`. Thay đổi chỉ mở rộng danh sách vai trò, không đổi hình dạng hợp đồng.

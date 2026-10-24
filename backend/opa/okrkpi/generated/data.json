@@ -1093,12 +1093,10 @@
         },
         "tenant_admin": {
           "inferred_methods": [
-            "GET",
-            "PUT"
+            "GET"
           ],
           "methods": [
-            "GET",
-            "PUT"
+            "GET"
           ]
         }
       }
