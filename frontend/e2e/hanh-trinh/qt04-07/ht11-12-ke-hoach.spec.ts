@@ -46,13 +46,29 @@ interface KeHoach {
  * Hệ thống thật: kế hoạch của đơn vị người lập trong kỳ đang mở, tạo mới nếu chưa có (`createPlan`,
  * đơn vị lấy theo ngữ cảnh phân công). Trả đường dẫn mở đúng kế hoạch đó trên SCR-0402.
  */
-async function keHoachHeThong(s: PhienQt): Promise<{ api: ApiHeThong; id: string; url: string }> {
+async function keHoachHeThong(
+  s: PhienQt,
+): Promise<{ api: ApiHeThong; id: string; url: string } | null> {
   const api = await s.apiCua('quanly');
   const ky = await kyDangMo(await s.apiCua('quantri'), 'QUY');
   const ds = await api.can<{ items: KeHoach[] }>('GET', 'plans', {
     query: { period: ky.id, limit: '200' },
   });
+  // lần chạy trước dừng giữa chừng để lại kế hoạch chờ duyệt: lãnh đạo trả lại để lập tiếp
+  const dang = ds.body.items.find((p) => p.currentVersion.status === 'CHO_DUYET');
+  if (dang) {
+    const ld = await s.apiCua('lanhdao');
+    const duongDan = `plans/${dang.id}/versions/${dang.currentVersion.versionNo}`;
+    const v = await ld.can<{ rowVersion: number }>('GET', duongDan);
+    await ld.can('POST', `${duongDan}/return`, {
+      body: { comment: 'Trả lại để chạy lại kiểm thử đầu cuối' },
+      ifMatch: `"${v.body.rowVersion}"`,
+    });
+    dang.currentVersion.status = 'TRA_LAI';
+  }
   let kh = ds.body.items.find((p) => ['NHAP', 'TRA_LAI'].includes(p.currentVersion.status));
+  // mỗi đơn vị một kế hoạch mỗi kỳ: kế hoạch đã duyệt ở lần chạy trước thì không lập lại được
+  if (!kh && ds.body.items.some((p) => p.currentVersion.status === 'DA_DUYET')) return null;
   if (!kh) kh = (await api.can<KeHoach>('POST', 'plans', { body: { periodId: ky.id } })).body;
   return { api, id: kh.id, url: `/plans?plan=${kh.id}&v=${kh.currentVersion.versionNo}` };
 }
@@ -244,7 +260,11 @@ test.describe('Kế hoạch quý', { tag: '@qa-05' }, () => {
     // AC-05 mở kế hoạch quý nháp của đơn vị (SCR-0402)
     let planUrl = '/plans';
     let api: ApiHeThong | null = null;
-    if (HE_THONG) ({ api, url: planUrl } = await keHoachHeThong(s));
+    if (HE_THONG) {
+      const kh = await keHoachHeThong(s);
+      test.skip(!kh, 'Kế hoạch quý của đơn vị đã được duyệt ở lần chạy trước (HT-12 dùng lại)');
+      ({ api, url: planUrl } = kh!);
+    }
     let page = await s.as('quanly', planUrl);
     let m = main(page);
     await expect(m.getByRole('heading', { level: 1, name: /^Kế hoạch công tác/ })).toBeVisible();

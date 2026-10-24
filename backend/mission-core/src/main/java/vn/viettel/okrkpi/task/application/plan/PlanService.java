@@ -112,22 +112,62 @@ public class PlanService {
   public record Groups(List<GroupWeight> weights, ResolvedPack pack, String flow) {}
 
   /** Kế hoạch kèm kỳ, phiên bản mới nhất, phiên bản hiệu lực và kỳ trước có kế hoạch đã duyệt. */
+  /**
+   * @param adjustmentsMax số lần điều chỉnh tối đa trong kỳ (BR-04-10, tham số Policy Pack {@link
+   *     PlanAdjustments#MAX_KEY}); thiếu thì giao diện coi là 0 và khoá nút "Tạo điều chỉnh"
+   */
   public record PlanView(
       PlanRow plan,
       PeriodSnapshot period,
       VersionRow currentVersion,
       Integer effectiveVersionNo,
       PeriodSnapshot previousPeriod,
-      int adjustmentsUsed) {}
+      int adjustmentsUsed,
+      int adjustmentsMax) {
+
+    public PlanView(
+        PlanRow plan,
+        PeriodSnapshot period,
+        VersionRow currentVersion,
+        Integer effectiveVersionNo,
+        PeriodSnapshot previousPeriod,
+        int adjustmentsUsed) {
+      this(
+          plan,
+          period,
+          currentVersion,
+          effectiveVersionNo,
+          previousPeriod,
+          adjustmentsUsed,
+          PlanAdjustments.DEFAULT_MAX);
+    }
+  }
 
   /** Phiên bản kèm dòng. */
+  /**
+   * @param signRequestId yêu cầu ký SVC-10 đang gắn với phiên bản ({@code
+   *     PlanVersion.signRequestId} của hợp đồng, WEB-065): giao diện đọc lại phiên bản sau 202 rồi
+   *     theo dõi yêu cầu ký
+   */
   public record VersionView(
       PlanRow plan,
       PeriodSnapshot period,
       VersionRow version,
       List<ItemRow> items,
       List<PlanChecker.Check> checks,
-      Groups groups) {}
+      Groups groups,
+      UUID signRequestId) {
+
+    public VersionView(
+        PlanRow plan,
+        PeriodSnapshot period,
+        VersionRow version,
+        List<ItemRow> items,
+        List<PlanChecker.Check> checks,
+        Groups groups) {
+      this(plan, period, version, items, checks, groups, null);
+    }
+  }
 
   /** Dòng đã duyệt kèm kỳ để dựng mã kế hoạch. */
   public record ApprovedItem(ApprovedItemRow row, PeriodSnapshot period) {}
@@ -383,7 +423,14 @@ public class PlanService {
               items,
               plans.removedItems(tenant, plan.periodBucket(), v.id())));
     }
-    return new VersionView(plan, period, v, items, List.copyOf(checks), groups);
+    UUID signRequestId =
+        v.status() == PlanVersionStatus.CHO_DUYET || v.status() == PlanVersionStatus.DA_DUYET
+            ? plans
+                .approvalRow(tenant, plan.periodBucket(), v.id())
+                .map(PlanRepository.ApprovalRow::signRequestId)
+                .orElse(null)
+            : null;
+    return new VersionView(plan, period, v, items, List.copyOf(checks), groups, signRequestId);
   }
 
   /**
@@ -571,7 +618,12 @@ public class PlanService {
             .flatMap(e -> periods.findById(tenant, PeriodId.of(e.getKey().periodId())))
             .orElse(null);
     int used = (int) versions.stream().filter(v -> v.versionNo() > 1).count();
-    return new PlanView(plan, period, versions.get(0), effective, previous, used);
+    int max =
+        PlanAdjustments.allowed(
+            PlanAdjustmentService.integer(parameter(tenant, plan, PlanAdjustments.MAX_KEY))
+                .orElse(PlanAdjustments.DEFAULT_MAX),
+            0);
+    return new PlanView(plan, period, versions.get(0), effective, previous, used, max);
   }
 
   private VersionRow editable(

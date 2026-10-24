@@ -437,6 +437,14 @@ services:
       OFFSET_STORAGE_REPLICATION_FACTOR: 1
       STATUS_STORAGE_REPLICATION_FACTOR: 1
       DEBEZIUM_DB_USER: ${DEBEZIUM_DB_USER:-cdc_debezium}
+      # Connector outbox (scripts/dang-ky-outbox.sh) đọc mật khẩu cdc_debezium qua ${env:PG_CDC_PASSWORD},
+      # không ghi mật khẩu vào cấu hình connector trong topic _debezium_configs.
+      CONNECT_CONFIG_PROVIDERS: env
+      CONNECT_CONFIG_PROVIDERS_ENV_CLASS: org.apache.kafka.common.config.provider.EnvVarConfigProvider
+      PG_CDC_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-${POSTGRES_PASSWORD:-mission_dev_change_me}}
+    volumes:
+      # Jar SMT OutboxHeadersTransform do scripts/dang-ky-outbox.sh dựng từ vt-platform-starter.
+      - ./debezium/vt-outbox-smt:/kafka/connect/vt-outbox-smt:ro
     ports:
       - "${DEBEZIUM_PORT:-35083}:8083"
     healthcheck:
@@ -795,6 +803,10 @@ services:
       AUTH_ENABLED: ${MISSION_CORE_AUTH_ENABLED:-true}
       # Đối chiếu cel-js khi chạy kiểm thử Policy Pack (CORE-05-07, BR-15-07); thiếu thì lần chạy luôn "Chưa đạt".
       MISSION_POLICY_CELJS_URL: http://cel-js-runner:8080
+      # Yêu cầu ký ở SVC-10: duyệt kế hoạch (QT-04), nộp tự đánh giá và quyết định (QT-09), hồ sơ, khiếu nại.
+      ESIGN_URL: http://esign-service:8080
+      MISSION_APPRAISAL_ESIGN_BASEURL: http://esign-service:8080
+      MISSION_OVERSIGHT_ESIGN_BASEURL: http://esign-service:8080
     ports:
       - "${MISSION_CORE_PORT:-35100}:8080"
       # Cổng quản trị chỉ mở trên loopback của máy chủ (health.sh, Prometheus cục bộ).
@@ -956,6 +968,14 @@ services:
       SPRING_FLYWAY_USER: mig_esign
       SPRING_FLYWAY_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-}
       ESIGN_FAKE_PROVIDER: ${ESIGN_FAKE_PROVIDER:-true}
+      # Nhà cung cấp giả lập phải được ánh xạ cho từng mã (application-dev.yaml không nạp vì không bật hồ sơ dev);
+      # thiếu ánh xạ thì yêu cầu ký báo "Nhà cung cấp chữ ký số này chưa được cấu hình" (QA-05 HT-11).
+      ESIGN_PROVIDER_MYSIGN: ${ESIGN_PROVIDER_MYSIGN:-fake}
+      ESIGN_PROVIDER_VIETTEL_CA: ${ESIGN_PROVIDER_VIETTEL_CA:-fake}
+      ESIGN_PROVIDER_CA_CHINH_PHU: ${ESIGN_PROVIDER_CA_CHINH_PHU:-fake}
+      ESIGN_PROVIDER_BAN_CO_YEU: ${ESIGN_PROVIDER_BAN_CO_YEU:-fake}
+      # Module nguồn tài liệu cần ký (kế hoạch, đánh giá, hồ sơ) đều ở mission-core; mặc định 127.0.0.1 là chính service này.
+      ESIGN_SOURCE_CORE_URL: http://mission-core:8080
     ports:
       - "${ESIGN_SERVICE_PORT:-35116}:8080"
 

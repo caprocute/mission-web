@@ -448,6 +448,7 @@ public class PlanController {
     dto.setEffectiveVersionNo(v.effectiveVersionNo());
     dto.setPreviousPeriod(v.previousPeriod() == null ? null : period(v.previousPeriod()));
     dto.setAdjustmentsUsed(v.adjustmentsUsed());
+    dto.setAdjustmentsMax(v.adjustmentsMax());
     return dto;
   }
 
@@ -485,6 +486,7 @@ public class PlanController {
     dto.setContentHash(r.contentHash() == null ? null : HexFormat.of().formatHex(r.contentHash()));
     dto.setReviewComment(r.reviewComment());
     dto.setChangeReason(r.changeReason());
+    dto.setSignRequestId(v.signRequestId());
     return dto;
   }
 
