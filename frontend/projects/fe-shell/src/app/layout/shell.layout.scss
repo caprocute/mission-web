@@ -43,19 +43,12 @@
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #e11d48 0%, #c8102e 60%, #881337 100%);
-  color: #fde047;
+  background: var(--vt-color-primary-strong, #d1002d);
+  color: #ffffff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 1.05rem;
-  box-shadow: 0 6px 12px -2px rgba(200, 16, 46, 0.4);
-}
-.brand small {
-  display: block;
-  font-weight: 500;
-  font-size: 0.72rem;
-  color: var(--p-text-muted-color, #475569);
 }
 .spacer {
   flex: 1;
@@ -104,90 +97,92 @@
   position: relative;
 }
 .sidenav {
-  width: 256px;
+  width: 248px;
   flex-shrink: 0;
+  position: sticky;
+  top: 60px;
+  align-self: flex-start;
+  height: calc(100vh - 60px);
+  overflow-y: auto;
   padding: 16px 12px;
-  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
-  color: #e2e8f0;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--vt-color-surface, #ffffff);
+  color: var(--vt-color-text);
+  border-right: 1px solid var(--vt-color-border, #e2e8f0);
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 20px;
 }
 .nav-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 .nav-group__title {
-  padding: 0 10px 4px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #94a3b8;
+  padding: 0 12px 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--vt-color-text-muted, #475569);
 }
 .nav-group--platform {
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-.nav-group--platform .nav-group__title {
-  color: #fde047;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--vt-color-border, #e2e8f0);
 }
 .sidenav a {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 9px 12px;
-  min-height: var(--vt-min-touch, 42px);
-  border-radius: 10px;
-  color: #cbd5e1;
+  padding: 8px 12px;
+  min-height: var(--vt-min-touch, 40px);
+  border-radius: 8px;
+  color: #334155;
+  font-weight: 500;
   text-decoration: none;
-  transition: all 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 .sidenav a i {
-  font-size: 1rem;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 1.05rem;
+  width: 20px;
+  text-align: center;
+  color: #64748b;
   flex-shrink: 0;
 }
 .nav-copy {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  line-height: 1.25;
-}
-.nav-sub {
-  font-size: 0.72rem;
-  color: #94a3b8;
-  font-weight: 400;
+  line-height: 1.3;
 }
 .sidenav a:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+  background: #f1f5f9;
+  color: var(--vt-color-text);
 }
 .sidenav a.active {
-  background: linear-gradient(90deg, #e11d48 0%, #be123c 100%);
-  color: #ffffff;
-  font-weight: 700;
-  box-shadow: 0 6px 14px -3px rgba(225, 29, 72, 0.45);
+  background: #fff1f2;
+  color: var(--vt-color-primary-strong, #d1002d);
+  font-weight: 600;
+}
+.sidenav a.active::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--vt-color-primary-strong, #d1002d);
 }
 .sidenav a.active i {
-  background: rgba(255, 255, 255, 0.2);
-  color: #fde047;
-}
-.sidenav a.active .nav-sub {
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--vt-color-primary-strong, #d1002d);
 }
 .content {
   flex: 1;
   min-width: 0;
-  padding: 24px 28px;
+  max-width: 1600px;
+  padding: 24px 32px 40px;
   outline: none;
 }
 .sidenav-backdrop {
@@ -213,8 +208,7 @@
     display: inline-flex;
   }
   .user-name,
-  .unit-name,
-  .brand small {
+  .unit-name {
     display: none;
   }
   .page-title {
@@ -231,6 +225,7 @@
     position: fixed;
     top: 60px;
     bottom: 0;
+    height: auto;
     left: 0;
     transform: translateX(-100%);
     transition: transform 0.22s ease;

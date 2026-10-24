@@ -24,7 +24,7 @@ const TOP = 3;
       <p-card [header]="scope() === 'unit' ? 'Tiến độ OKR của đơn vị' : 'Tiến độ OKR của tôi'">
         @for (o of top(); track o.id) {
           <div class="row">
-            <span>{{ o.code }}. {{ o.title }}</span>
+            <span class="title">{{ o.code }}. {{ o.title }}</span>
             <vt-progress-bar [value]="o.pct" [label]="o.title" />
           </div>
         } @empty {
@@ -40,7 +40,10 @@ const TOP = 3;
     .row {
       display: grid;
       gap: 6px;
-      margin-bottom: 14px;
+      margin-bottom: 16px;
+    }
+    .title {
+      font-weight: 500;
     }
     .muted {
       color: var(--p-text-muted-color, #566275);

@@ -14,7 +14,9 @@ import { SduiNode } from '../ui-pack';
       [style.--cols-xl]="cols().xl"
     >
       @for (child of children(); track $index) {
-        <div class="vt-grid__cell"><vt-sdui-node [node]="child" /></div>
+        <div class="vt-grid__cell" [class.vt-grid__cell--full]="isFull(child)">
+          <vt-sdui-node [node]="child" />
+        </div>
       }
     </div>
   `,
@@ -37,10 +39,17 @@ import { SduiNode } from '../ui-pack';
     .vt-grid__cell {
       min-width: 0;
     }
+    .vt-grid__cell--full {
+      grid-column: 1 / -1;
+    }
   `,
 })
 export class GridComponent {
   readonly columns = input<{ xs?: number; md?: number; xl?: number }>({});
   readonly children = input<SduiNode[]>([]);
   protected readonly cols = computed(() => ({ xs: 1, md: 2, xl: 3, ...this.columns() }));
+  /** Thông báo của đơn vị trải hết chiều ngang lưới thay vì bị ép vào một cột. */
+  protected isFull(child: SduiNode): boolean {
+    return child.component === 'vt.widget.announcement';
+  }
 }

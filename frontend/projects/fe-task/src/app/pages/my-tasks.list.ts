@@ -12,7 +12,8 @@ export const MY_TASKS_COLUMNS: ListColumnDef[] = [
   { key: 'dueDate', label: 'Hạn' },
   { key: 'progress', label: 'Tiến độ' },
   { key: 'situation', label: 'Tình trạng' },
-  { key: 'status', label: 'Trạng thái' },
+  // trùng ý với cột Tình trạng nên mặc định ẩn để bảng gọn (YC-PT-24)
+  { key: 'status', label: 'Trạng thái', hiddenByDefault: true },
 ];
 
 /** Trạng thái lọc lưu được; KR và từ khoá tìm kiếm không lưu (KR đổi theo kỳ, từ khoá là văn bản tự do). */

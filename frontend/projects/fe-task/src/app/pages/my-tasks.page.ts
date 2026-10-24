@@ -23,8 +23,25 @@ import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { debounceTime } from 'rxjs';
-import { AssigneeRole, MY_TASKS_QUICK_FILTER_LABEL, MyTasksQuery, MyTasksQuickFilter, TASK_GROUP_LABEL, TASK_STATUS_LABEL, TaskApi, TaskDetail, TaskGroup, TaskSummary, toProblem } from '@vt/api-client';
-import { FILTER_QUERY_PARAM, createListPersonalization, decodeCriteria, encodeCriteria } from '@vt/api-client/domains';
+import {
+  AssigneeRole,
+  MY_TASKS_QUICK_FILTER_LABEL,
+  MyTasksQuery,
+  MyTasksQuickFilter,
+  TASK_GROUP_LABEL,
+  TASK_STATUS_LABEL,
+  TaskApi,
+  TaskDetail,
+  TaskGroup,
+  TaskSummary,
+  toProblem,
+} from '@vt/api-client';
+import {
+  FILTER_QUERY_PARAM,
+  createListPersonalization,
+  decodeCriteria,
+  encodeCriteria,
+} from '@vt/api-client/domains';
 import { ThemeService, VtColumnPickerComponent, VtSavedFiltersComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
@@ -91,31 +108,26 @@ export function readSavedFilters(
     BulkProgressDialog,
   ],
   template: `
-    <header class="page-head">
+    <header class="vt-page-head">
       <div>
         <h1>Việc của tôi</h1>
-        <p class="muted">{{ periodLabel() }} · {{ counts().TAT_CA }} nhiệm vụ · sắp theo hạn</p>
+        <p>{{ periodLabel() }} · {{ counts().TAT_CA }} nhiệm vụ</p>
       </div>
       <div class="head-actions">
-        <input
-          pInputText
-          type="search"
-          placeholder="Tìm theo tên hoặc mã nhiệm vụ"
-          [ngModel]="q()"
-          (ngModelChange)="q.set($event)"
-          aria-label="Tìm nhiệm vụ"
-        />
         @if (!reduced()) {
           <p-button
             label="Xuất Excel"
-            severity="contrast"
-            [outlined]="true"
+            icon="pi pi-download"
+            severity="secondary"
+            [text]="true"
             [loading]="exporting()"
             (onClick)="exportExcel()"
           />
         }
         @if (can('SCR-0501.giao') || can('SCR-0601.duyet-de-nghi')) {
-          <a routerLink="/tasks/approvals" class="p-button p-component p-button-outlined">Chờ duyệt</a>
+          <a routerLink="/tasks/approvals" class="p-button p-component p-button-outlined"
+            >Chờ duyệt</a
+          >
         }
         @if (can('SCR-0503.dang-ky')) {
           <p-button label="Đăng ký nhiệm vụ" icon="pi pi-plus" (onClick)="focusRegistration()" />
@@ -124,6 +136,15 @@ export function readSavedFilters(
     </header>
 
     <section class="card filters" aria-label="Bộ lọc">
+      <input
+        pInputText
+        type="search"
+        class="search"
+        placeholder="Tìm theo tên hoặc mã nhiệm vụ"
+        [ngModel]="q()"
+        (ngModelChange)="q.set($event)"
+        aria-label="Tìm nhiệm vụ"
+      />
       <div class="quick" role="group" aria-label="Lọc nhanh">
         @for (f of quickFilters; track f) {
           <button
@@ -201,7 +222,7 @@ export function readSavedFilters(
 
     <div class="layout">
       <section class="card list" aria-labelledby="list-title">
-        <h2 id="list-title">Danh sách nhiệm vụ</h2>
+        <h2 id="list-title" class="sr-only">Danh sách nhiệm vụ</h2>
         @if (page.error()) {
           <p-message severity="error" styleClass="notice">
             <span>{{ loadError() }}</span>
@@ -278,7 +299,7 @@ export function readSavedFilters(
                     </td>
                   }
                   @if (list.shows('role')) {
-                    <td>{{ t.role === 'CHU_TRI' ? 'Chủ trì' : 'Phối hợp' }}</td>
+                    <td class="nowrap">{{ t.role === 'CHU_TRI' ? 'Chủ trì' : 'Phối hợp' }}</td>
                   }
                   @if (list.shows('dueDate')) {
                     <td>{{ date(t.dueDate) }}</td>
@@ -360,7 +381,7 @@ export function readSavedFilters(
             (reloadRequested)="page.reload()"
           />
         }
-        @if (can('SCR-0503.dang-ky')) {
+        @if (can('SCR-0503.dang-ky') && regOpen()) {
           <vt-task-registration-panel #reg [period]="period()" (registered)="onRegistered()" />
         }
       </aside>
@@ -381,25 +402,6 @@ export function readSavedFilters(
       --mt-link: color-mix(in srgb, var(--vt-color-primary) 88%, black);
       display: block;
     }
-    .page-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      flex-wrap: wrap;
-      margin-bottom: 18px;
-      padding: 20px 24px;
-      border-radius: 16px;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #4c0519 100%);
-      color: #ffffff;
-      box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.08);
-    }
-    h1 {
-      margin: 0;
-      font-size: 1.5rem;
-      font-weight: 800;
-      color: #ffffff;
-    }
     h2 {
       margin: 0 0 12px;
       font-size: 1.05rem;
@@ -415,8 +417,17 @@ export function readSavedFilters(
       color: var(--mt-muted);
       margin: 4px 0 0;
     }
-    .page-head .muted {
-      color: rgba(241, 245, 249, 0.85);
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+    .search {
+      flex: 1 1 100%;
+      max-width: 28rem;
     }
     .small {
       font-size: 0.85em;
@@ -530,6 +541,9 @@ export function readSavedFilters(
     .sel {
       width: 2.5rem;
     }
+    td.nowrap {
+      white-space: nowrap;
+    }
     .pct {
       width: 9rem;
     }
@@ -545,6 +559,15 @@ export function readSavedFilters(
     .task-link:hover {
       color: var(--mt-link);
       text-decoration: underline;
+    }
+    /* Bấm vào dòng đã mở xem nhanh; nút chỉ hiện khi dùng bàn phím (Tab) để không lặp chữ trên mỗi dòng */
+    .peek:not(:focus-visible) {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
     }
     .peek {
       background: none;
@@ -880,10 +903,17 @@ export class MyTasksPage {
     this.page.reload();
   }
 
+  /** Khung đăng ký nhiệm vụ chỉ mở khi người dùng bấm "Đăng ký nhiệm vụ", không chiếm chỗ thường trực. */
+  protected readonly regOpen = signal(false);
+
   protected focusRegistration(): void {
-    const el = this.reg()?.nativeElement as HTMLElement | undefined;
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    el?.querySelector<HTMLElement>('h2')?.focus();
+    this.regOpen.set(true);
+    // chờ khung vừa mở được dựng rồi mới cuộn tới và đặt tiêu điểm
+    setTimeout(() => {
+      const el = this.reg()?.nativeElement as HTMLElement | undefined;
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el?.querySelector<HTMLElement>('h2')?.focus();
+    });
   }
 
   protected exportExcel(): void {

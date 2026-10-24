@@ -21,6 +21,8 @@ export interface ListColumnDef {
   label: string;
   /** Cột bắt buộc: luôn hiện, không có ô bỏ chọn. */
   required?: boolean;
+  /** Cột phụ: mặc định ẩn, người dùng tự bật trong "Chọn cột" khi cần. */
+  hiddenByDefault?: boolean;
 }
 
 /** Bộ chuyển đổi giữa trạng thái lọc của màn hình và tiêu chí lưu ở máy chủ. */
@@ -137,7 +139,7 @@ function dropUndefined<T extends object>(o: T): T {
 export function mergeVisibleColumns(defs: ListColumnDef[], saved: string[] | undefined): string[] {
   const known = new Set(defs.map((d) => d.key));
   const picked = new Set((saved ?? []).filter((k) => known.has(k)));
-  if (!picked.size) return defs.map((d) => d.key);
+  if (!picked.size) return defs.filter((d) => !d.hiddenByDefault).map((d) => d.key);
   return defs.filter((d) => d.required || picked.has(d.key)).map((d) => d.key);
 }
 

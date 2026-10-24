@@ -21,7 +21,23 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { JOB_STATUS_LABEL, Job, JobTracker } from '@vt/api-client';
-import { CellLoad, TENANCY_MODELS, TENANCY_MODEL_LABEL, TENANT_ONBOARDING_STATUSES, TENANT_STATUS_LABEL, TenancyModel, TenantApi, TenantQuery, TenantRow, TenantStats, TenantStatus, FILTER_QUERY_PARAM, createListPersonalization, decodeCriteria, encodeCriteria } from '@vt/api-client/domains';
+import {
+  CellLoad,
+  TENANCY_MODELS,
+  TENANCY_MODEL_LABEL,
+  TENANT_ONBOARDING_STATUSES,
+  TENANT_STATUS_LABEL,
+  TenancyModel,
+  TenantApi,
+  TenantQuery,
+  TenantRow,
+  TenantStats,
+  TenantStatus,
+  FILTER_QUERY_PARAM,
+  createListPersonalization,
+  decodeCriteria,
+  encodeCriteria,
+} from '@vt/api-client/domains';
 import { ThemeService, VtColumnPickerComponent, VtSavedFiltersComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
@@ -106,7 +122,6 @@ export const MSG_01_02 = (tenant: string, step: number) =>
         <div class="card first">
           <p class="label">Đơn vị đang vận hành</p>
           <p class="big">{{ int(o.activeTenants) }}</p>
-          <p class="muted small">tối đa {{ int(o.tenantLimit) }} đơn vị</p>
         </div>
         <div class="card">
           <p class="label">Tài khoản</p>
@@ -118,7 +133,6 @@ export const MSG_01_02 = (tenant: string, step: number) =>
         <div class="card">
           <p class="label">Đang khởi tạo</p>
           <p class="big warn">{{ int(o.onboardingTenants) }}</p>
-          <p class="muted small">mục tiêu không quá 1 ngày mỗi đơn vị</p>
         </div>
         <div class="card">
           <p class="label">Cụm máy chủ</p>
@@ -368,10 +382,6 @@ export const MSG_01_02 = (tenant: string, step: number) =>
               }
             </tbody>
           </table>
-          <p class="muted small">
-            Mức sử dụng bằng số tài khoản chia cho dung lượng thiết kế của cụm máy chủ. Khi vượt
-            85%, hệ thống đề nghị mở cụm máy chủ mới.
-          </p>
         </section>
       </aside>
     </div>
