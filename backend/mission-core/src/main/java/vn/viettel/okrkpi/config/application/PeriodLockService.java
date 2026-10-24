@@ -228,6 +228,17 @@ public class PeriodLockService {
   }
 
   /**
+   * Tiến độ theo mã saga cho tác vụ {@code PERIOD_LOCK} ({@code /api/v1/jobs/{id}}): mã tác vụ trả
+   * lúc khởi chạy là mã saga (QA-06 HT-23).
+   */
+  @Transactional(value = TX, readOnly = true)
+  public Optional<Progress> progressOfSaga(TenantId tenantId, UUID sagaId) {
+    return orders
+        .findBySaga(tenantId, sagaId)
+        .map(o -> new Progress(o, sixSteps(orders.steps(tenantId, o.id()))));
+  }
+
+  /**
    * Lệnh khoá hiện hành của kỳ (chưa huỷ) cho trường {@code currentLockOrder} của {@code Period}:
    * SCR-0801 hiện người lập, người duyệt và trạng thái lệnh từ trường này (QA-06 HT-23).
    */

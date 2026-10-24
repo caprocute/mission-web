@@ -255,7 +255,8 @@ okrkpi:
       poll-interval: ${SAGA_WORKER_POLL:500ms}
       reconcile-interval: ${SAGA_WORKER_RECONCILE:5s}
     # Saga chốt kỳ (DV-06-06): chế độ từng bên tham gia, CHUA_NOI (mặc định, lệnh thất bại rõ task
-    # còn thiếu) hoặc GIA_LAP (chỉ môi trường phát triển). Xem wiki trang 14.
+    # còn thiếu), GIA_LAP (chỉ môi trường phát triển) hoặc NOI (đã nối API nội bộ, hiện có MOD-08).
+    # Xem wiki trang 14.
     period-close:
       enabled: ${SAGA_PERIOD_CLOSE_ENABLED:true}
       participants:
@@ -264,3 +265,10 @@ okrkpi:
         svc-11: ${SAGA_PERIOD_CLOSE_SVC11:CHUA_NOI}
         svc-10: ${SAGA_PERIOD_CLOSE_SVC10:CHUA_NOI}
         svc-09: ${SAGA_PERIOD_CLOSE_SVC09:CHUA_NOI}
+      # Cổng nội bộ MOD-08 của mission-core khi mod-08 ở chế độ NOI (QA-06): token client credentials của client
+      # workflow-service, bí mật chỉ đọc từ môi trường.
+      mod-08-endpoint:
+        base-url: ${MOD08_BASE_URL:http://127.0.0.1:8080}
+        token-url: ${MOD08_TOKEN_URL:http://127.0.0.1:35080/realms/mission/protocol/openid-connect/token}
+        client-id: ${MOD08_CLIENT_ID:workflow-service}
+        client-secret: ${MOD08_CLIENT_SECRET:}

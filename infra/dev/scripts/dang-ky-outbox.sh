@@ -118,3 +118,9 @@ for _ in $(seq 20); do
 done
 echo "    trạng thái: ${STATE:-không rõ}"
 [[ "${STATE}" == "RUNNING RUNNING" ]]
+# Vết saga của workflow-service (sys.audit.v1, gồm tiến độ saga chốt kỳ mà MOD-08 chiếu sang
+# config.period_lock_step) nằm ở flowable.outbox_event của CSDL flowable riêng: đăng ký thêm
+# connector outbox-flowable (QA-06).
+if [[ "${DB_NAME}" == "mission" && "${OUTBOX_SKIP_FLOWABLE:-}" != "1" ]]; then
+  POSTGRES_DB=flowable OUTBOX_CONNECTOR_NAME=outbox-flowable "$0"
+fi

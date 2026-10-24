@@ -227,4 +227,6 @@ bootstrap_db "flowable" "flowable" "" ""
 # V1 của workflow-service mở đầu bằng CREATE SCHEMA IF NOT EXISTS flowable; PostgreSQL kiểm quyền CREATE trên CSDL
 # trước khi xét schema đã có, nên mig_flowable cần quyền này (chỉ CSDL flowable riêng của Flowable).
 psql_exec "flowable" -c "GRANT CREATE ON DATABASE flowable TO mig_flowable" >/dev/null
+# Debezium đọc flowable.outbox_event (vết saga sys.audit.v1, bản chiếu tiến độ khoá kỳ của MOD-08, QA-06).
+psql_exec "flowable" -c "GRANT CONNECT ON DATABASE flowable TO cdc_debezium" >/dev/null
 bootstrap_db "ledger" "ledger" "" ""

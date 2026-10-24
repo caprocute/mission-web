@@ -44,4 +44,10 @@ public interface LockOrderRepository {
 
   /** Các bước đã chiếu của lệnh, theo số bước tăng dần. */
   List<LockStep> steps(TenantId tenantId, UUID lockOrderId);
+
+  /** Lệnh đã khởi chạy saga {@code sagaId}. */
+  Optional<PeriodLockOrder> findBySaga(TenantId tenantId, UUID sagaId);
+
+  /** Ghi bản chiếu một bước ({@code step_no = stepNo + 1}), thay dòng cũ của cùng bước. */
+  void upsertStep(TenantId tenantId, UUID lockOrderId, LockStep step);
 }
