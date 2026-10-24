@@ -28,9 +28,11 @@ POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-mission-dev-postgres}"
 # Policy Pack mẫu luồng Đảng: hợp đồng chưa có API tạo gói, tệp sinh từ data/policy-pack bằng sinh_seed_dev.py.
 # Danh mục công việc thử: hợp đồng chưa có thao tác tạo danh mục đầu tiên, thiếu thì kế hoạch, giao việc không có mục.
 # Kết nối nguồn nhân sự giả lập của integration-gateway (hr-gia-lap, HT-07) nạp sau migration integ.
+# Vai trò theo đơn vị (config.role_binding, nguồn sự thật của vai trò) của các tài khoản thử nạp sau migration config.
 for seed in "${SEED}" "${SCRIPT_DIR}/../postgres/seed/registry-du-lieu-thu.sql" \
   "${SCRIPT_DIR}/../postgres/seed/okr-can-cu-thu.sql" "${SCRIPT_DIR}/../postgres/seed/policy-goi-mau.sql" \
-  "${SCRIPT_DIR}/../postgres/seed/task-danh-muc-thu.sql" "${SCRIPT_DIR}/../postgres/seed/integ-ket-noi-thu.sql"; do
+  "${SCRIPT_DIR}/../postgres/seed/task-danh-muc-thu.sql" "${SCRIPT_DIR}/../postgres/seed/integ-ket-noi-thu.sql" \
+  "${SCRIPT_DIR}/../postgres/seed/org-vai-tro-thu.sql"; do
   if command -v docker >/dev/null 2>&1 && docker inspect -f '{{.State.Running}}' "${POSTGRES_CONTAINER}" 2>/dev/null | grep -q true; then
     docker exec -i -e PGPASSWORD="${PG_SUPERPASS}" "${POSTGRES_CONTAINER}" \
       psql -q -v ON_ERROR_STOP=1 --username "${PG_SUPERUSER}" --dbname "${PG_DB}" < "${seed}"
@@ -39,4 +41,4 @@ for seed in "${SEED}" "${SCRIPT_DIR}/../postgres/seed/registry-du-lieu-thu.sql" 
       --username "${PG_SUPERUSER}" --dbname "${PG_DB}" < "${seed}"
   fi
 done
-echo "Đã nạp dữ liệu thử org-service, tenant-registry, căn cứ OKR, Policy Pack mẫu, danh mục công việc và kết nối nhân sự giả lập cho tenant d0000000-0000-4000-8000-000000000001."
+echo "Đã nạp dữ liệu thử org-service, tenant-registry, căn cứ OKR, Policy Pack mẫu, danh mục công việc, kết nối nhân sự giả lập và vai trò theo đơn vị cho tenant d0000000-0000-4000-8000-000000000001."
