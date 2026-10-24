@@ -17,10 +17,12 @@ Dùng:
   python3 docs/phan-quyen/gen_matrix.py --rego-check  # kiểm tra dữ liệu OPA có khớp ma trận không
   python3 docs/phan-quyen/gen_matrix.py --bo-sung-api # thêm ô suy luận (*) vào bảng API cho đủ bao phủ rồi ghi lại ma-tran.json
 
-Mọi lệnh đều kiểm tra "bao phủ API" trước (xem kiem_bao_phu_api): bảng API theo module (OPA/mission-core
-kiểm bằng bảng này) phải cho ít nhất những phương thức mà ma trận chức năng (giao diện ẩn/hiện bằng bảng
-này) và hợp đồng OpenAPI (`x-mission.roles`) đã cấp cho cùng vai trò; nếu không, người dùng thấy chức năng
-nhưng máy chủ trả 403 (YC-PT-21, 24/10/2026). Lệch thì dừng với mã 1 và liệt kê từng ô còn thiếu.
+Mọi lệnh đều kiểm tra "bao phủ" trước: (1) bảng API theo module (OPA/mission-core kiểm bằng bảng này) phải
+cho ít nhất những phương thức mà ma trận chức năng (giao diện ẩn/hiện bằng bảng này) và hợp đồng OpenAPI
+(`x-mission.roles`) đã cấp cho cùng vai trò (kiem_bao_phu_api); (2) hợp đồng OpenAPI phải cấp vai trò cho
+mọi thao tác mà ma trận chức năng đã cấp, vì org-service kiểm theo `x-mission.roles` của từng operation
+(kiem_hop_dong_bao_phu_chuc_nang). Nếu không, người dùng thấy chức năng nhưng máy chủ trả 403 (YC-PT-21,
+24/10/2026). Lệch thì dừng với mã 1 và liệt kê từng ô.
 
 Chỉ cần Python 3 và openpyxl; có PyYAML thì kiểm thêm hợp đồng OpenAPI, không có thì bỏ qua phần hợp đồng.
 """
@@ -69,12 +71,19 @@ def load():
                 print(t, file=sys.stderr)
             raise SystemExit(f"Bảng API thiếu {len(thieu)} ô so với ma trận chức năng/hợp đồng; "
                              "chạy gen_matrix.py --bo-sung-api rồi rà lại ô đã thêm.")
+        lech = kiem_hop_dong_bao_phu_chuc_nang(d)
+        if lech:
+            for t in lech:
+                print(t, file=sys.stderr)
+            raise SystemExit(f"Hợp đồng OpenAPI thiếu {len(lech)} vai trò so với ma trận chức năng; "
+                             "thêm vai trò vào x-mission.roles hoặc bỏ ô trong ma trận.")
     return d, acs
 
 
 CONTRACTS = ROOT / "contracts" / "openapi" / "modules"
 METHOD_PREFIX_RE = re.compile(r"((?:GET|POST|PUT|PATCH|DELETE)(?:/(?:GET|POST|PUT|PATCH|DELETE))*)\s+`?$")
 API_PATH_RE = re.compile(r"/api/v1/([a-z][a-z0-9-]*)")
+FULL_API_PATH_RE = re.compile(r"(?:((?:GET|POST|PUT|PATCH|DELETE)(?:/(?:GET|POST|PUT|PATCH|DELETE))*)\s+)?`?(/api/v1/[^`\s,)]+)")
 # Vai trò kỹ thuật (AC-11 client credentials, AC-12 trợ lý AI) không đi qua giao diện; không kiểm bao phủ.
 USER_ROLE_SKIP_AC = {"AC-11", "AC-12"}
 # Đường dẫn hợp đồng không đi qua bảng API theo module: tài nguyên tự phục vụ `/config/me/...` do luật
@@ -89,48 +98,94 @@ def _api_can_thiet_tu_chuc_nang(d):
 
     Ô có quyền của một chức năng web kéo theo quyền gọi API ghi trong cột `api`: đường dẫn có tiền tố
     phương thức (`POST /api/v1/...`, `POST/PUT /api/v1/...`) đòi đúng phương thức đó; đường dẫn không
-    ghi phương thức chỉ đòi GET (mở màn hình là đọc), không suy đoán phương thức ghi.
+    ghi phương thức chỉ đòi GET (mở màn hình là đọc), không suy đoán phương thức ghi. Ô ký hiệu R (Xem)
+    chỉ đòi GET dù cột `api` ghi phương thức ghi: vai trò chỉ xem không được suy ra quyền ghi.
     """
-    role_of = {r["ac"]: r["role"] for r in d["vai_tro"]}
     out = {}
-    for f in d["chuc_nang"]:
-        if not f["web"]:
-            continue
-        roles = [role_of[ac] for ac, v in f["quyen"].items()
-                 if ac not in USER_ROLE_SKIP_AC and v not in ("-", "H") and not v.startswith("A")]
-        if not roles:
-            continue
+    for f, role, read_only in _o_co_quyen(d):
         for m in API_PATH_RE.finditer(f["api"]):
             prefix = METHOD_PREFIX_RE.search(f["api"][max(0, m.start() - 40):m.start()])
             methods = prefix.group(1).split("/") if prefix else ["GET"]
-            for role in roles:
-                for meth in methods:
-                    out.setdefault((m.group(1), role), {}).setdefault(meth, []).append(f["key"])
+            for meth in methods:
+                if read_only and meth != "GET":
+                    continue
+                out.setdefault((m.group(1), role), {}).setdefault(meth, []).append(f["key"])
     return out
 
 
-def _api_can_thiet_tu_hop_dong(d):
-    """{(module, role): {method: [operationId]}} mà `x-mission.roles` của hợp đồng OpenAPI cấp cho vai trò người dùng."""
+def _o_co_quyen(d):
+    """Các bộ (chức năng web, vai trò người dùng, chỉ xem?) mà ma trận chức năng cấp quyền."""
+    role_of = {r["ac"]: r["role"] for r in d["vai_tro"]}
+    for f in d["chuc_nang"]:
+        if not f["web"]:
+            continue
+        for ac, v in f["quyen"].items():
+            if ac in USER_ROLE_SKIP_AC or v in ("-", "H") or v.startswith("A"):
+                continue
+            yield f, role_of[ac], v.startswith("R")
+
+
+def _hop_dong(d):
+    """{(METHOD, đường dẫn không tiền tố /api/v1): (operationId, [x-mission.roles])} của mọi hợp đồng; {} nếu thiếu PyYAML."""
     try:
         import yaml  # noqa: PLC0415 - tuỳ chọn, chỉ để đọc hợp đồng
     except ImportError:
         return {}
-    user_roles = {r["role"] for r in d["vai_tro"] if r["ac"] not in USER_ROLE_SKIP_AC}
     out = {}
     for tep in sorted(CONTRACTS.glob("*.yaml")):
         doc = yaml.safe_load(tep.read_text(encoding="utf-8")) or {}
         for path, item in (doc.get("paths") or {}).items():
-            if not isinstance(item, dict) or CONTRACT_SKIP_RE.match(path):
+            if not isinstance(item, dict):
                 continue
-            module = path.strip("/").split("/")[0]
             for meth, op in item.items():
-                if meth.upper() not in HTTP_METHODS or not isinstance(op, dict):
+                if meth.upper() in HTTP_METHODS and isinstance(op, dict):
+                    mission = op.get("x-mission") or {}
+                    out[(meth.upper(), path)] = (op.get("operationId", f"{meth.upper()} {path}"),
+                                                 list(mission.get("roles", [])))
+    return out
+
+
+def kiem_hop_dong_bao_phu_chuc_nang(d):
+    """Hợp đồng OpenAPI phải cấp vai trò cho mọi thao tác mà ma trận chức năng đã cấp; trả về danh sách lệch.
+
+    org-service kiểm `x-mission.roles` theo từng operation (ContractPolicyAdapter), nên một vai trò có ô trong
+    ma trận chức năng mà không có trong `roles` của operation tương ứng sẽ thấy chức năng rồi bị 403
+    (ví dụ `inspector` với `GET /org/sync-runs`, lượt đo 24/10/2026). Chỉ xét đường dẫn trong cột `api` khớp
+    nguyên văn một đường dẫn hợp đồng và không kèm chuỗi truy vấn; operation không khai `roles` thì không xét.
+    """
+    ops = _hop_dong(d)
+    if not ops:
+        return []
+    lech = {}
+    for f, role, read_only in _o_co_quyen(d):
+        for m in FULL_API_PATH_RE.finditer(f["api"]):
+            methods = (m.group(1) or "GET").split("/")
+            path = m.group(2)[len("/api/v1"):]
+            if "?" in path:
+                # Đường dẫn kèm truy vấn (`/tasks?assignee=me`) là cách dùng tự phục vụ của một operation
+                # rộng hơn; vai trò ở đó do phạm vi quyết định, không so với `roles` của operation.
+                continue
+            for meth in methods:
+                if read_only and meth != "GET":
                     continue
-                mission = op.get("x-mission") or {}
-                for role in mission.get("roles", []):
-                    if role in user_roles:
-                        out.setdefault((module, role), {}).setdefault(meth.upper(), []).append(
-                            op.get("operationId", f"{meth.upper()} {path}"))
+                op = ops.get((meth, path))
+                if op and op[1] and role not in op[1]:
+                    lech.setdefault((meth, path, op[0], role), []).append(f["key"])
+    return [f"Hợp đồng {op} ({meth} {path}) chưa cấp cho {role} dù ma trận chức năng cấp ở {', '.join(sorted(set(keys)))}"
+            for (meth, path, op, role), keys in sorted(lech.items())]
+
+
+def _api_can_thiet_tu_hop_dong(d):
+    """{(module, role): {method: [operationId]}} mà `x-mission.roles` của hợp đồng OpenAPI cấp cho vai trò người dùng."""
+    user_roles = {r["role"] for r in d["vai_tro"] if r["ac"] not in USER_ROLE_SKIP_AC}
+    out = {}
+    for (meth, path), (op_id, roles) in _hop_dong(d).items():
+        if CONTRACT_SKIP_RE.match(path):
+            continue
+        module = path.strip("/").split("/")[0]
+        for role in roles:
+            if role in user_roles:
+                out.setdefault((module, role), {}).setdefault(meth, []).append(op_id)
     return out
 
 
