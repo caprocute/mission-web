@@ -6,6 +6,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.client.HttpClientErrorException;
 import vn.viettel.okrkpi.esign.application.sign.SourceDocumentPort;
 import vn.viettel.okrkpi.esign.domain.sign.SignPurpose;
@@ -38,7 +42,16 @@ public class HttpSourceDocumentClient implements SourceDocumentPort {
     }
     Response body;
     try {
-      body = client.get(PATH, Response.class, sourceModule, sourceRefId, purpose.name());
+      body =
+          client.exchange(
+              HttpMethod.GET,
+              PATH,
+              null,
+              callerHeaders(),
+              Response.class,
+              sourceModule,
+              sourceRefId,
+              purpose.name());
     } catch (HttpClientErrorException.NotFound e) {
       return Optional.empty();
     }
@@ -63,6 +76,21 @@ public class HttpSourceDocumentClient implements SourceDocumentPort {
             body.signers() == null ? Set.of() : body.signers(),
             documents,
             Boolean.TRUE.equals(body.batch())));
+  }
+
+  /**
+   * Chuyển tiếp token Bearer của người gọi (người ký, đã được mission-core chuyển sang khi tạo yêu
+   * cầu ký) để module nguồn đọc tenant từ JWT như mọi lời gọi khác; thiếu token thì module nguồn
+   * trả 403 "Phiên đăng nhập không gắn với đơn vị triển khai nào" (QA-05 HT-11). Đọc ở luồng gọi,
+   * trước khi ResilientClient chuyển sang luồng ảo.
+   */
+  static HttpHeaders callerHeaders() {
+    HttpHeaders headers = new HttpHeaders();
+    if (SecurityContextHolder.getContext().getAuthentication()
+        instanceof JwtAuthenticationToken jwt) {
+      headers.setBearerAuth(jwt.getToken().getTokenValue());
+    }
+    return headers;
   }
 
   /**

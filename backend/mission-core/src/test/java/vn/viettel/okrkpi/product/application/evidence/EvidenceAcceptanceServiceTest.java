@@ -93,8 +93,19 @@ class EvidenceAcceptanceServiceTest {
         new EvidenceReviewService(
             evidences, lifecycle, tasks, new EvidenceIntegrityAlarm(events, audit), audit);
     CommentSealer sealer =
-        (tenant, id, plain) ->
-            plain == null || plain.isBlank() ? null : new SealedComment(new byte[] {9}, dekId);
+        new CommentSealer() {
+          @Override
+          public SealedComment seal(TenantId tenant, UUID id, String plain) {
+            return plain == null || plain.isBlank()
+                ? null
+                : new SealedComment(new byte[] {9}, dekId);
+          }
+
+          @Override
+          public String open(TenantId tenant, UUID id, byte[] cipher) {
+            return "nhận xét rõ " + cipher.length;
+          }
+        };
     service =
         new EvidenceAcceptanceService(
             evidences,
@@ -400,5 +411,53 @@ class EvidenceAcceptanceServiceTest {
     EvidenceActor lead = new EvidenceActor(LEAD, Set.of(), "aal2", NOW.getEpochSecond());
     assertThat(code(() -> service.acceptVersion(TENANT, evidenceId, 2, 5, input("1", null), lead)))
         .isEqualTo("PRODUCT-403-SELF-REVIEW");
+  }
+
+  /**
+   * QA-05 HT-21: GET phiên bản trả quyết định gần nhất; nhận xét C2 chỉ cho các bên của quyết định.
+   */
+  @Test
+  void quyetDinhGanNhatChiGiaiMaNhanXetChoCacBen() {
+    version("YEU_CAU_BO_SUNG");
+    VersionView v = evidences.findVersion(TENANT, 20271, evidenceId, 2).orElseThrow();
+    UUID acceptanceId = UUID.randomUUID();
+    when(acceptances.latestOfVersion(TENANT, 20271, versionId))
+        .thenReturn(
+            Optional.of(
+                new AcceptanceRepository.StoredAcceptance(
+                    acceptanceId,
+                    versionId,
+                    "YEU_CAU_BO_SUNG",
+                    null,
+                    List.of(),
+                    null,
+                    false,
+                    1,
+                    new byte[] {1, 2, 3},
+                    ASSIGNER,
+                    Instant.parse("2027-03-01T00:00:00Z"),
+                    null,
+                    null)));
+
+    assertThat(service.latestOf(TENANT, v, ASSIGNER).orElseThrow().comment())
+        .isEqualTo("nhận xét rõ 3");
+    assertThat(service.latestOf(TENANT, v, v.submittedBy()).orElseThrow().comment())
+        .isEqualTo("nhận xét rõ 3");
+    EvidenceAcceptanceService.AcceptanceView other =
+        service.latestOf(TENANT, v, UUID.randomUUID()).orElseThrow();
+    assertThat(other.comment()).isNull();
+    assertThat(other.decision()).isEqualTo("YEU_CAU_BO_SUNG");
+    assertThat(other.revisionCount()).isEqualTo(1);
+  }
+
+  /** SCR-0703 hỏi nguyên nhân chỉnh sửa khi minh chứng từng bị yêu cầu bổ sung (QA-05 HT-21). */
+  @Test
+  void coPhienBanTruocBiYeuCauBoSung() {
+    version("DANG_NGHIEM_THU");
+    VersionView v = evidences.findVersion(TENANT, 20271, evidenceId, 2).orElseThrow();
+    when(acceptances.priorRevisions(TENANT, 20271, evidenceId, 2)).thenReturn(1);
+    assertThat(service.hasPriorRevision(TENANT, v)).isTrue();
+    when(acceptances.priorRevisions(TENANT, 20271, evidenceId, 2)).thenReturn(0);
+    assertThat(service.hasPriorRevision(TENANT, v)).isFalse();
   }
 }

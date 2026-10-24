@@ -2,8 +2,8 @@
 -- d0000000-0000-4000-8000-000000000001 cho dev: hợp đồng tasks.yaml chỉ có nhập mục vào danh mục đã có và tạo
 -- phiên bản mới, không có thao tác tạo danh mục đầu tiên, nên tenant dev mới không có mục nào để chọn khi lập kế
 -- hoạch (SCR-0402) hay giao việc (SCR-0501). Một danh mục cấp đơn vị của Sở Thử nghiệm đang hiệu lực, sáu mục
--- đang áp dụng, có mục 5 điểm (hành trình kế hoạch chọn mục nhỏ điểm nhất). Mục không gắn vị trí việc làm vì
--- tổ chức thử chưa có vị trí, nên đăng ký nhiệm vụ theo vị trí (SCR-0503) vẫn trống. Chỉ dữ liệu giả lập; chạy
+-- đang áp dụng, có mục 5 điểm (hành trình kế hoạch chọn mục nhỏ điểm nhất). TH-02, TH-03 gắn vị trí "Chuyên viên
+-- tổng hợp" của canbo (org-du-lieu-thu.sql) để đăng ký nhiệm vụ theo vị trí (SCR-0503) có mục. Chỉ dữ liệu giả lập; chạy
 -- lại không sinh bản ghi trùng. Nạp bởi scripts/seed-org.sh sau migration task của mission-core.
 INSERT INTO task.work_catalog (id, tenant_id, created_by, updated_by, code, name, scope, org_unit_id, version, source,
                                status, version_no)
@@ -40,3 +40,10 @@ FROM (VALUES
    'Biên bản hội nghị', 'THEN_CHOT', 15)
 ) AS i(id, code, name, product, unit, difficulty, score, quality, evidence, task_group, days)
 ON CONFLICT (id) DO NOTHING;
+
+-- Mục đăng ký được theo vị trí việc làm (SCR-0503): chỉ gán khi còn trống, chạy lại không đổi gì.
+UPDATE task.catalog_item
+   SET position_id = 'd0000000-0000-4000-8000-000000000401', row_version = row_version + 1
+ WHERE tenant_id = 'd0000000-0000-4000-8000-000000000001'
+   AND id IN ('d0000000-0000-4000-8000-0000000d0102', 'd0000000-0000-4000-8000-0000000d0103')
+   AND position_id IS NULL;

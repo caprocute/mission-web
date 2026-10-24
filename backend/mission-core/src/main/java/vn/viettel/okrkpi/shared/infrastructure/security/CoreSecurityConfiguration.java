@@ -67,6 +67,30 @@ public class CoreSecurityConfiguration {
   }
 
   /**
+   * Cổng nội bộ {@code /internal/**} (SVC-10 hỏi tài liệu cần ký, SVC-11 lấy khoá tệp E2EE...): bảo
+   * vệ chính là xác thực dịch vụ của mesh, nhưng tenant vẫn phải đọc từ JWT như TL-01 (token người
+   * dùng được chuyển tiếp, hoặc token dịch vụ khai ở {@code okrkpi.tenant.delegating-clients} kèm
+   * {@code X-Tenant-Id}). Thiếu chuỗi này thì không lớp nào giải mã bearer trên /internal, {@code
+   * TenantContextFilter} không thấy tenant và mọi cổng nội bộ trả 403 (QA-05 HT-11). Không bắt buộc
+   * token để giữ nguyên lời gọi nội bộ đọc tenant từ tham số; token sai vẫn bị 401.
+   */
+  @Bean
+  SecurityFilterChain coreInternalSecurity(
+      HttpSecurity http, ProblemFactory problems, ObjectMapper json) throws Exception {
+    ProblemSecurityHandler handler = new ProblemSecurityHandler(problems, json);
+    http.securityMatcher("/internal/**")
+        .authorizeHttpRequests(a -> a.anyRequest().permitAll())
+        .oauth2ResourceServer(
+            o ->
+                o.jwt(j -> j.jwtAuthenticationConverter(realmRoles()))
+                    .authenticationEntryPoint(handler)
+                    .accessDeniedHandler(handler))
+        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .csrf(c -> c.ignoringRequestMatchers("/internal/**"));
+    return http.build();
+  }
+
+  /**
    * {@code unit_id} có mặt thì phải là UUID (mã đơn vị trong {@code org.org_unit}); Spring Boot gắn
    * bean này vào bộ giải mã JWT tự cấu hình cùng kiểm hạn và {@code iss}.
    */

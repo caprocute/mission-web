@@ -1,4 +1,10 @@
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import {
+  HttpErrorResponse,
+  HttpInterceptorFn,
+  provideHttpClient,
+  withInterceptors,
+} from '@angular/common/http';
+import { throwError } from 'rxjs';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import {
@@ -15,7 +21,17 @@ import { EvidenceReviewPage } from './evidence-review.page';
 /** WEB-033: SCR-0703 trên dữ liệu giả lập: mở và kiểm toàn vẹn, đối chiếu, chọn mức, xem trước điểm, quyết định. */
 const R = '0192a1b2-0000-7000-8000-000000000138';
 
-async function render(id = R, can: (k: string) => boolean = () => true) {
+/** Máy chủ chưa có lần tính điểm nào chứa nhiệm vụ: `score-preview` trả 422. */
+const previewUnavailable: HttpInterceptorFn = (req, next) =>
+  req.url.endsWith('/appraisals/score-preview')
+    ? throwError(() => new HttpErrorResponse({ status: 422, url: req.url }))
+    : next(req);
+
+async function render(
+  id = R,
+  can: (k: string) => boolean = () => true,
+  extra: HttpInterceptorFn[] = [],
+) {
   const stepUp = vi.fn(async () => {
     (await import('@vt/api-client')).mockStepUp();
     return true;
@@ -24,7 +40,7 @@ async function render(id = R, can: (k: string) => boolean = () => true) {
     imports: [EvidenceReviewPage],
     providers: [
       provideRouter([]),
-      provideHttpClient(withInterceptors([idempotencyInterceptor, mockApiInterceptor])),
+      provideHttpClient(withInterceptors([...extra, idempotencyInterceptor, mockApiInterceptor])),
       { provide: RUNTIME_CONFIG, useValue: DEFAULT_RUNTIME_CONFIG },
       {
         provide: MOCK_API_OPTIONS,
@@ -100,6 +116,18 @@ describe('EvidenceReviewPage (SCR-0703)', () => {
     );
     await until(() => el.querySelector('#dec-h'));
     expect(text(el.querySelector('.meta'))).toContain('Đã xác nhận');
+  });
+
+  it('xem trước điểm chưa có dữ liệu: báo rõ, vẫn xác nhận được (QA-05 HT-21)', async () => {
+    const { el } = await render(R, () => true, [previewUnavailable]);
+    passAll(el);
+    await until(() => !(el.querySelector('.levels') as HTMLFieldSetElement).disabled);
+    radios(el, 'level')[0].click();
+    await until(() => text(el).includes('Chưa xem trước được điểm'));
+    expect(el.querySelector('.kpi')).toBeNull();
+    radios(el, 'cause')[0]?.click();
+    await until(() => !button(el, 'Xác nhận nghiệm thu').disabled);
+    expect(button(el, 'Xác nhận nghiệm thu').disabled).toBe(false);
   });
 
   it('yêu cầu bổ sung bắt buộc nhận xét (BR-07-08)', async () => {

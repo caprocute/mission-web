@@ -564,3 +564,33 @@ test_client_cannot_self_service if {
 	d := api({"kind": "client", "tenant_id": "t1", "user_id": "svc"}, "config", "PUT", {"tenant_id": "t1", "type": "user_preference"})
 	not d.allow
 }
+
+# QA-03 HT-08: quyền POST module okr của AC-05, AC-06 không mở đường duyệt hay trả lại OKR; máy chủ
+# gửi kèm khoá chức năng SCR-0203 nên chỉ AC-04 qua được.
+test_okr_review_needs_scr0203_function if {
+	every act in ["SCR-0203.duyet", "SCR-0203.duyet-lo", "SCR-0203.tra-lai"] {
+		d := authz.decision with input as {
+			"subject": user(["manager", "member"]),
+			"action": act,
+			"request": {"module": "okr", "method": "POST"},
+			"resource": {"tenant_id": "t1", "owner_unit_id": "u1"},
+			"context": {"now": now},
+		}
+			with data.org as org
+		not d.allow
+	}
+}
+
+test_okr_review_leader_allowed if {
+	every act in ["SCR-0203.duyet", "SCR-0203.duyet-lo", "SCR-0203.tra-lai"] {
+		d := authz.decision with input as {
+			"subject": user(["leader"]),
+			"action": act,
+			"request": {"module": "okr", "method": "POST"},
+			"resource": {"tenant_id": "t1", "owner_unit_id": "u1"},
+			"context": {"now": now},
+		}
+			with data.org as org
+		d.allow
+	}
+}

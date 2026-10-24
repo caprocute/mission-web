@@ -119,6 +119,21 @@ SELECT md5('assignment-version:' || p.id)::uuid, md5('assignment:' || p.id)::uui
 FROM seed_person p
 ON CONFLICT DO NOTHING;
 
+-- Vị trí việc làm "Chuyên viên tổng hợp" của Phòng Tổng hợp gắn cho canbo, để đăng ký nhiệm vụ từ danh mục theo vị
+-- trí (SCR-0503, HT-15) có mục để chọn; danh mục công việc thử gắn vị trí này cho TH-02, TH-03
+-- (task-danh-muc-thu.sql). Câu UPDATE tăng row_version để org-republish ghi đè bản sao org_replica.
+INSERT INTO org.position (version_id, id, tenant_id, org_unit_id, code, name, headcount, valid_from, created_by,
+                          updated_by)
+VALUES (md5('position-version:d0000000-0000-4000-8000-000000000401')::uuid,
+        'd0000000-0000-4000-8000-000000000401', 'd0000000-0000-4000-8000-000000000001',
+        'd0000000-0000-4000-8000-000000000101', 'CV-TONG-HOP', 'Chuyên viên tổng hợp', 2, '2000-01-01'::date,
+        '00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-000000000000')
+ON CONFLICT DO NOTHING;
+
+UPDATE org.assignment a SET position_id = 'd0000000-0000-4000-8000-000000000401', row_version = a.row_version + 1
+FROM seed_person p
+WHERE a.person_id = p.id AND a.kind = 'CHINH' AND a.position_id IS NULL AND p.username = 'canbo';
+
 -- Trưởng đơn vị (is_head): lanhdao đứng đầu phòng 101, giamdocso đứng đầu Sở 100. Màn soạn mục tiêu lấy người xác
 -- nhận KR từ trưởng đơn vị sở hữu và đơn vị cấp trên (SCR-0202 trường 14), thiếu trưởng đơn vị thì không trình được.
 -- Câu UPDATE giữ cho lần seed lại trên dữ liệu cũ (chèn trước đây bỏ qua khi đã có bản ghi); tăng row_version để

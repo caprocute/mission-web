@@ -66,6 +66,8 @@ import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.outbox.OutboxHeaders;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
+import vn.viettel.okrkpi.task.application.assign.TaskDraftService;
+import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository;
 import vn.viettel.okrkpi.task.application.fromplan.LeadConfirmationService;
 import vn.viettel.okrkpi.task.application.fromplan.PlanTaskGenerator;
 import vn.viettel.okrkpi.task.application.fromplan.port.PlanTaskNotices;
@@ -104,6 +106,7 @@ class PlanTaskGenerationIT {
   }
 
   @Autowired private PlanTaskGenerator generator;
+  @Autowired private TaskDraftService drafts;
   @Autowired private LeadConfirmationService confirmations;
   @Autowired private PlanChecker checker;
   @Autowired private PlanRepository plans;
@@ -221,6 +224,11 @@ class PlanTaskGenerationIT {
                 PERSON))
         .isEqualTo(1);
     verify(notices).generated(tenant, plan, v1, AUTHOR, 3, 0, 0);
+
+    // Mở nháp để giao (SCR-0501): chưa có người nghiệm thu thì mặc định là người giao (BR-05-02).
+    TaskDraftRepository.DraftRow opened =
+        TenantContext.call(tenant, () -> drafts.getDraft(tenant, taskOf(i1))).draft();
+    assertThat(opened.spec().acceptorId()).isNotNull().isEqualTo(opened.assignerId());
 
     // Nhiệm vụ dòng 2 đã giao, dòng 3 đang thực hiện.
     UUID task1 = taskOf(i1);

@@ -1,5 +1,6 @@
 package vn.viettel.okrkpi.task.infrastructure.client;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -48,12 +49,7 @@ public class HttpPlanSignatures implements PlanSignatures {
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_JSON);
     headers.setBearerAuth(request.callerToken());
-    headers.set(
-        ResilientClient.IDEMPOTENCY_KEY,
-        "ke-hoach:"
-            + request.versionId()
-            + ":"
-            + (request.idempotencyKey() == null ? request.approver() : request.idempotencyKey()));
+    headers.set(ResilientClient.IDEMPOTENCY_KEY, idempotencyKey(request));
     Map<String, Object> body =
         Map.of(
             "purpose", purpose,
@@ -95,5 +91,18 @@ public class HttpPlanSignatures implements PlanSignatures {
       }
     }
     return new BusinessException("COMMON-422-VALIDATION", message);
+  }
+
+  /**
+   * esign-service nhận Idempotency-Key tối đa 64 ký tự; ghép "ke-hoach:" + id phiên bản + khoá gốc
+   * dài hơn thế nên băm thành UUID theo tên (xác định, cùng đầu vào cho cùng khoá).
+   */
+  static String idempotencyKey(Request request) {
+    String origin =
+        "ke-hoach:"
+            + request.versionId()
+            + ":"
+            + (request.idempotencyKey() == null ? request.approver() : request.idempotencyKey());
+    return UUID.nameUUIDFromBytes(origin.getBytes(StandardCharsets.UTF_8)).toString();
   }
 }

@@ -214,7 +214,13 @@ function proxyRequest(req, res, targetBaseUrl) {
         proxyRes.pipe(res);
       },
     );
+    // Trình duyệt đóng trang hay huỷ luồng SSE thì đóng luôn kết nối lên APISIX; nếu không, notification-service
+    // giữ luồng cũ và trả 429 khi một tài khoản vượt 5 luồng đồng thời (NOTIFY-429-TOO-MANY-STREAMS).
+    res.on('close', () => {
+      if (!res.writableFinished) proxyReq.destroy();
+    });
     proxyReq.on('error', (err) => {
+      if (res.destroyed) return;
       if (HE_THONG) {
         res.writeHead(502, { 'content-type': 'application/problem+json; charset=utf-8' });
         res.end(

@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.transaction.annotation.Transactional;
@@ -91,6 +92,52 @@ public class EvidenceAcceptanceService {
     this.audit = Objects.requireNonNull(audit, "audit");
     this.clock = Objects.requireNonNull(clock, "clock");
     this.authority = ReviewerAuthority.withoutDelegations(tasks);
+  }
+
+  /**
+   * Quyết định nghiệm thu gần nhất của phiên bản cho {@code GET} phiên bản (SCR-0701, SCR-0703).
+   * Nhận xét C2 chỉ giải mã cho người nghiệm thu, người được nghiệm thu thay và người nộp (người
+   * nộp cần biết phải bổ sung gì); người khác nhận quyết định không kèm nhận xét.
+   */
+  @Transactional(value = TX, readOnly = true)
+  public Optional<AcceptanceView> latestOf(TenantId tenant, VersionView v, UUID me) {
+    return acceptances
+        .latestOfVersion(tenant, v.periodBucket(), v.id())
+        .map(
+            a -> {
+              boolean party =
+                  me != null
+                      && (me.equals(a.reviewerId())
+                          || me.equals(a.onBehalfOf())
+                          || me.equals(v.submittedBy()));
+              String comment =
+                  party && a.commentCipher() != null
+                      ? sealer.open(tenant, a.id(), a.commentCipher())
+                      : null;
+              return new AcceptanceView(
+                  a.id(),
+                  a.versionId(),
+                  a.decision(),
+                  a.qualityLevel(),
+                  a.criteria(),
+                  a.revisionCause(),
+                  a.objectiveRevision(),
+                  a.revisionCount(),
+                  comment,
+                  a.reviewerId(),
+                  a.decidedAt(),
+                  a.onBehalfOf(),
+                  a.delegationId());
+            });
+  }
+
+  /**
+   * Minh chứng đã có phiên bản trước bị yêu cầu bổ sung: SCR-0703 hỏi nguyên nhân chỉnh sửa và xác
+   * nhận bắt buộc có (bước 9 của QT-07).
+   */
+  @Transactional(value = TX, readOnly = true)
+  public boolean hasPriorRevision(TenantId tenant, VersionView v) {
+    return acceptances.priorRevisions(tenant, v.periodBucket(), v.evidenceId(), v.versionNo()) > 0;
   }
 
   /** Cho phép người nhận uỷ quyền nghiệm thu thay quyết định (CORE-03-08). */

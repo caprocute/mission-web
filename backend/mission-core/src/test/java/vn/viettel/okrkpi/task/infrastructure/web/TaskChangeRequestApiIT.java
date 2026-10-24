@@ -206,6 +206,17 @@ class TaskChangeRequestApiIT extends ContractConformanceTest {
     assertThat(p.get("subjective").get("delayDays").asInt())
         .isEqualTo(p.get("extraWorkingDays").asInt());
     assertThat(p.get("overThreshold").asBoolean()).isFalse();
+    // Xem trước khi mới nhập hạn mới, chưa chọn nguyên nhân, chưa viết lý do (SCR-0602)
+    assertThat(
+            perform(
+                    post("/api/v1/tasks/" + task + "/change-requests/preview")
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            "{\"type\":\"GIA_HAN\",\"newDueDate\":\"2029-12-05\",\"reason\":\"\"}"))
+                .getResponse()
+                .getStatus())
+        .isEqualTo(200);
     assertThat(
             this.<Long>inTask(
                 jdbc ->

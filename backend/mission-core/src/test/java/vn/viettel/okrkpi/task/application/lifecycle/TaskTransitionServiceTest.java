@@ -176,13 +176,15 @@ class TaskTransitionServiceTest {
     assertThat(asMap(a.get("task")))
         .containsEntry("chu_tri_id", "")
         .containsEntry("nguoi_giao_id", assigner.toString())
-        .containsEntry("nguoi_nghiem_thu_id", "")
+        .containsEntry("nguoi_nghiem_thu_id", assigner.toString())
         .containsEntry("ke_hoach", 2L)
         .containsEntry("so_san_pham_da_nop", 2L);
     assertThat(asMap(a.get("change_request")))
         .containsEntry("request_type", "")
         .containsEntry("status", "");
     assertThat(guards.test("task.so_san_pham_da_nop >= task.ke_hoach", a)).isTrue();
+    // Chưa chỉ định người nghiệm thu: người giao là người nghiệm thu, guard REWORK qua được
+    assertThat(guards.test("actor.person_id == task.nguoi_nghiem_thu_id", a)).isTrue();
 
     UUID lead = UUID.randomUUID();
     repo.lead = lead;

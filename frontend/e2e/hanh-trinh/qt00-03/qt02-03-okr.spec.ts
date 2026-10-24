@@ -186,12 +186,16 @@ test.describe('QT-02 QT-03 Mục tiêu, OKR và check-in', { tag: '@qa-04' }, ()
       await kiemAxe(page, 'trang không có quyền');
       await chiHeThong('approveOkrObjective bằng tài khoản quanly trả 403', async () => {
         const c = await api(rieng, 'quanly');
-        const ds = await c.can<{ items: { id: string }[] }>('GET', 'okr/objectives', {
+        // Ưu tiên mục tiêu đang chờ duyệt; không còn thì lấy mục tiêu bất kỳ, vì quyền chức năng
+        // SCR-0203.duyet được kiểm trước trạng thái nên người không có quyền vẫn nhận 403, không phải 409
+        let ds = await c.can<{ items: { id: string }[] }>('GET', 'okr/objectives', {
           query: { limit: '1', status: 'CHO_DUYET' },
         });
-        // Mục tiêu phải đang chờ duyệt: mục tiêu đã duyệt bị từ chối 409 vì sai trạng thái
         if (!ds.body.items.length)
-          cho('chưa có mục tiêu chờ duyệt nào trên dev để thử phê duyệt trái quyền');
+          ds = await c.can<{ items: { id: string }[] }>('GET', 'okr/objectives', {
+            query: { limit: '1' },
+          });
+        if (!ds.body.items.length) cho('chưa có mục tiêu nào trên dev để thử phê duyệt trái quyền');
         // Gửi đúng If-Match để máy chủ đi tới bước kiểm quyền (thiếu If-Match bị chặn 428 trước)
         const mt = await c.can('GET', `okr/objectives/${ds.body.items[0].id}`);
         const kq = await c.goi('POST', `okr/objectives/${ds.body.items[0].id}/approve`, {

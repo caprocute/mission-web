@@ -600,6 +600,23 @@
       ]
     },
     {
+      "clientId": "workflow-service",
+      "name": "workflow-service (tài khoản dịch vụ, SVC-06)",
+      "description": "Saga chốt kỳ gọi cổng nội bộ MOD-08 của mission-core, tenant đích ở X-Tenant-Id.",
+      "bearerOnly": false,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${WORKFLOW_SERVICE_CLIENT_SECRET}",
+      "defaultClientScopes": [
+        "basic",
+        "profile"
+      ]
+    },
+    {
       "clientId": "mission-zap",
       "name": "Quét bảo mật OWASP ZAP (chỉ dev, QA-13)",
       "description": "Client credentials cho infra/security/zap; tài khoản dịch vụ mang vai trò cán bộ (member) của tenant thử, không dùng ngoài dev.",

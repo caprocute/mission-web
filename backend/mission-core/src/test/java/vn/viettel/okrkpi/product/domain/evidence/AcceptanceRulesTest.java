@@ -62,7 +62,9 @@ class AcceptanceRulesTest {
 
   @Test
   void tieuChuanChuaDanhGiaHet() {
-    assertThat(accept("1", List.of(), Set.of(), false, null, null, null))
+    // Không có tiêu chuẩn bắt buộc: danh sách rỗng hợp lệ; còn tiêu chuẩn bắt buộc thì phải đủ
+    assertThat(accept("1", List.of(), Set.of(), false, null, null, null)).isNull();
+    assertThat(accept("1", List.of(), Set.of("TC-1"), false, null, null, null))
         .isEqualTo(EvidenceRuleViolation.CRITERIA_INCOMPLETE);
     assertThat(accept("1", null, Set.of(), false, null, null, null))
         .isEqualTo(EvidenceRuleViolation.CRITERIA_INCOMPLETE);

@@ -145,6 +145,70 @@ public class EvidenceSubmissionService {
 
   // ---------------------------------------------------------------- sản phẩm
 
+  /**
+   * Giao việc xong thì khai báo sẵn sản phẩm đầu ra ghi lúc soạn, để người chủ trì có sản phẩm cần
+   * nộp ở SCR-0701 (hợp đồng {@code createDeliverable}: "sản phẩm thường được sinh khi giao việc").
+   * Nhiệm vụ đã có sản phẩm, hoặc bản soạn không ghi sản phẩm thì bỏ qua; nhận lại sự kiện không
+   * sinh thêm dòng.
+   *
+   * @return {@code true} khi vừa khai báo
+   */
+  @Transactional(TX)
+  public boolean declareAssigned(
+      TenantId tenant, UUID taskId, String productName, String unit, BigDecimal quantity, UUID by) {
+    if (productName == null || productName.isBlank()) {
+      return false;
+    }
+    if (!repository.listDeliverables(tenant, taskId, null, 1).isEmpty()) {
+      return false;
+    }
+    Optional<TaskSummary> task = tasks.find(tenant, taskId);
+    if (task.isEmpty()) {
+      return false;
+    }
+    TaskSummary t = task.get();
+    String name = productName.strip();
+    String u = unit == null || unit.isBlank() ? "sản phẩm" : unit.strip();
+    repository.insertDeliverable(
+        tenant,
+        new NewDeliverable(
+            UUID.randomUUID(),
+            t.periodId(),
+            t.periodBucket(),
+            t.id(),
+            name.length() > 500 ? name.substring(0, 500) : name,
+            "KHAC",
+            u.length() > 32 ? u.substring(0, 32) : u,
+            quantity == null || quantity.signum() <= 0 ? BigDecimal.ONE : quantity),
+        by == null ? t.assignerId() : by,
+        clock.instant());
+    return true;
+  }
+
+  /** Số sản phẩm đã xác nhận, đang chờ nghiệm thu và cần nộp của nhiệm vụ (SCR-0601). */
+  @Transactional(value = TX, readOnly = true)
+  public int[] productCounts(TenantId tenant, UUID taskId) {
+    List<DeliverableView> all = repository.listDeliverables(tenant, taskId, null, 200);
+    Set<UUID> pending = new HashSet<>();
+    repository
+        .listEvidences(
+            tenant,
+            new EvidenceFilter(taskId, null, Set.of("DA_NOP", "DANG_NGHIEM_THU"), null, null, null),
+            null,
+            200)
+        .forEach(e -> pending.add(e.deliverableId()));
+    int confirmed = 0;
+    int review = 0;
+    for (DeliverableView d : all) {
+      if ("DA_XAC_NHAN".equals(d.status())) {
+        confirmed++;
+      } else if (pending.contains(d.id())) {
+        review++;
+      }
+    }
+    return new int[] {confirmed, review, all.size()};
+  }
+
   @Transactional(value = TX, readOnly = true)
   public List<DeliverableView> listDeliverables(
       TenantId tenant, UUID taskId, UUID afterId, int limit) {

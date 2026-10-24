@@ -42,6 +42,7 @@ import vn.viettel.okrkpi.contract.tasks.model.PlanDiffLine;
 import vn.viettel.okrkpi.contract.tasks.model.PlanItem;
 import vn.viettel.okrkpi.contract.tasks.model.PlanItemInput;
 import vn.viettel.okrkpi.contract.tasks.model.PlanItemRef;
+import vn.viettel.okrkpi.contract.tasks.model.PlanItemScoreRequest;
 import vn.viettel.okrkpi.contract.tasks.model.PlanRemovedItem;
 import vn.viettel.okrkpi.contract.tasks.model.PlanVersion;
 import vn.viettel.okrkpi.contract.tasks.model.PlanVersionGroupWeights;
@@ -280,7 +281,7 @@ public class PlanController {
       @PathVariable("v") int v,
       @RequestHeader(value = "If-Match", required = false) String ifMatch,
       @RequestBody PlanVersionInput body) {
-    long expected = ETags.expectedVersion(ifMatch, "PLAN_VERSION");
+    long expected = ETags.expectedVersion(ifMatch, "TASK");
     if (body == null || body.getItems() == null) {
       throw invalid("items");
     }
@@ -306,7 +307,7 @@ public class PlanController {
       @PathVariable("v") int v,
       @RequestHeader(value = "If-Match", required = false) String ifMatch,
       @RequestBody(required = false) CopyPlanFromPreviousPeriodRequest body) {
-    long expected = ETags.expectedVersion(ifMatch, "PLAN_VERSION");
+    long expected = ETags.expectedVersion(ifMatch, "TASK");
     UUID source = body == null ? null : body.getSourcePeriodId();
     UUID actor = callers.current().personId();
     VersionView view =
@@ -324,7 +325,7 @@ public class PlanController {
       @PathVariable("id") UUID id,
       @PathVariable("v") int v,
       @RequestHeader(value = "If-Match", required = false) String ifMatch) {
-    long expected = ETags.expectedVersion(ifMatch, "PLAN_VERSION");
+    long expected = ETags.expectedVersion(ifMatch, "TASK");
     UUID actor = callers.current().personId();
     VersionView view =
         found(() -> reviews.submitVersion(TenantContext.require(), id, v, expected, actor));
@@ -339,12 +340,44 @@ public class PlanController {
       @PathVariable("v") int v,
       @RequestHeader(value = "If-Match", required = false) String ifMatch,
       @RequestBody ReturnPlanVersionRequest body) {
-    long expected = ETags.expectedVersion(ifMatch, "PLAN_VERSION");
+    long expected = ETags.expectedVersion(ifMatch, "TASK");
     String comment = body == null ? null : body.getComment();
     UUID actor = callers.current().personId();
     VersionView view =
         found(
             () -> reviews.returnVersion(TenantContext.require(), id, v, expected, comment, actor));
+    return ETags.ok(versionDto(view), view.version().rowVersion());
+  }
+
+  @PostMapping("/{id}/versions/{v}/items/{itemId}/score")
+  @Idempotent
+  @RequiresPermission(
+      operationId = "scoreOffCatalogPlanItem",
+      module = "plans",
+      resourceType = "plan")
+  public ResponseEntity<PlanVersion> scoreOffCatalogPlanItem(
+      @PathVariable("id") UUID id,
+      @PathVariable("v") int v,
+      @PathVariable("itemId") UUID itemId,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody PlanItemScoreRequest body) {
+    long expected = ETags.expectedVersion(ifMatch, "TASK");
+    if (body == null) {
+      throw invalid("difficulty");
+    }
+    UUID actor = callers.current().personId();
+    VersionView view =
+        found(
+            () ->
+                reviews.scoreItem(
+                    TenantContext.require(),
+                    id,
+                    v,
+                    itemId,
+                    expected,
+                    body.getDifficulty(),
+                    body.getStandardScore(),
+                    actor));
     return ETags.ok(versionDto(view), view.version().rowVersion());
   }
 
@@ -415,6 +448,7 @@ public class PlanController {
     dto.setEffectiveVersionNo(v.effectiveVersionNo());
     dto.setPreviousPeriod(v.previousPeriod() == null ? null : period(v.previousPeriod()));
     dto.setAdjustmentsUsed(v.adjustmentsUsed());
+    dto.setAdjustmentsMax(v.adjustmentsMax());
     return dto;
   }
 
@@ -452,6 +486,7 @@ public class PlanController {
     dto.setContentHash(r.contentHash() == null ? null : HexFormat.of().formatHex(r.contentHash()));
     dto.setReviewComment(r.reviewComment());
     dto.setChangeReason(r.changeReason());
+    dto.setSignRequestId(v.signRequestId());
     return dto;
   }
 

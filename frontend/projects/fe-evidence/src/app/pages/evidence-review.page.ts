@@ -322,11 +322,17 @@ const fmtDateTime = (iso?: string | null) => {
               <section class="box" aria-labelledby="pv-h" aria-live="polite">
                 <h2 class="h" id="pv-h">
                   <span class="num" aria-hidden="true">4</span> Xem trước điểm
-                  @if (preview.value()?.policyVersion; as pv) {
+                  @if (preview.hasValue() && preview.value()?.policyVersion; as pv) {
                     <span class="muted small">({{ pv }})</span>
                   }
                 </h2>
-                @if (preview.value(); as p) {
+                @if (preview.error()) {
+                  <!-- score-preview 422 khi kỳ chưa có lần tính điểm nào chứa nhiệm vụ (wiki 14) -->
+                  <p class="muted">
+                    Chưa xem trước được điểm của nhiệm vụ này; điểm được tính sau khi xác nhận
+                    nghiệm thu.
+                  </p>
+                } @else if (preview.hasValue() && preview.value(); as p) {
                   <dl class="meta">
                     <dt>Khối lượng (A)</dt>
                     <dd>{{ fmt(p.a) }}</dd>

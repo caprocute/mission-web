@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { donTheoTienTo, giaoNhiemVu, kyDangMo } from '../ho-tro/du-lieu';
+import { cho } from '../ho-tro/moi-truong';
 import {
   HE_THONG,
   PhienQt,
@@ -75,13 +76,29 @@ test.describe('Tiến độ từ trang chủ', { tag: '@qa-05' }, () => {
       .filter({ has: page.getByRole('link') });
     await expect(khoi.first()).toBeVisible();
     await kiemTruyCap(page, 'trang chủ chế độ cao tuổi');
-    let link = ten ? page.getByRole('link', { name: ten }) : khoi.first().getByRole('link');
+    let link = ten
+      ? page.getByRole('link', { name: ten, exact: true })
+      : khoi.first().getByRole('link');
     if (ten && !(await link.isVisible())) {
       // khối chỉ hiện bảy việc gần hạn nhất; việc vừa dựng có thể nằm ngoài, khi đó lấy việc đầu
       ghiCho(
         'nhiệm vụ vừa dựng không nằm trong bảy việc gần hạn nhất của trang chủ; dùng việc đầu khối',
       );
       link = khoi.first().getByRole('link');
+      if (HE_THONG) {
+        // dữ liệu dev tích từ các lượt chạy trước: chọn việc chủ trì còn dưới 90% trong khối
+        const ds = await (
+          await s.apiCua('canbo')
+        ).can<{
+          items: { title: string; dueDate: string; progress: number; role: string }[];
+        }>('GET', 'tasks/mine', { query: { status: 'DA_GIAO,DANG_THUC_HIEN', limit: '200' } });
+        const viec = ds.body.items
+          .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+          .slice(0, 7)
+          .find((t) => t.role === 'CHU_TRI' && t.progress < 90);
+        if (!viec) cho('trang chủ của canbo không còn việc chủ trì nào dưới 90% tiến độ');
+        link = page.getByRole('link', { name: viec.title, exact: true }).first();
+      }
     }
 
     s.batDauDem();

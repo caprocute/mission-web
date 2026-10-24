@@ -227,6 +227,14 @@ public final class PeriodLockOrder {
     rowVersion++;
   }
 
+  /** Saga chốt kỳ hoàn tất (kỳ {@code DA_KHOA}): lệnh chuyển {@code HOAN_TAT}. */
+  public void completed() {
+    move(LockOrderStatus.HOAN_TAT);
+    status = LockOrderStatus.HOAN_TAT;
+    pauseRequested = false;
+    rowVersion++;
+  }
+
   /** Saga đã bù trừ xong theo đề nghị huỷ đã duyệt: lệnh chuyển {@code DA_HUY}. */
   public void cancelled() {
     if (cancelRequest == null || !cancelRequest.approved()) {

@@ -257,4 +257,76 @@ class PlanReviewServiceTest {
             Optional::empty);
     assertThat(noInbox.approvals(TENANT, AUTHOR, null, 51)).isEmpty();
   }
+
+  private static PlanRepository.ItemRow offCatalog(UUID id, UUID catalog) {
+    return new PlanRepository.ItemRow(
+        id,
+        1,
+        catalog,
+        null,
+        null,
+        "Xuất bản bản tin",
+        "THUONG_XUYEN",
+        new PlanRepository.Assignee("UNIT", UNIT, "Phòng"),
+        List.of(),
+        "Bản tin",
+        java.math.BigDecimal.ONE,
+        "bản tin",
+        null,
+        null,
+        LocalDate.parse("2027-03-01"),
+        null,
+        null,
+        null);
+  }
+
+  @Test
+  void dinhDiemViecNgoaiDanhMucGhiDiemVaMaBamMoi() {
+    VersionRow v = version(PlanVersionStatus.CHO_DUYET, 3);
+    given(v, List.of());
+    UUID item = UUID.randomUUID();
+    when(repo.items(TENANT, 20271, v.id())).thenReturn(List.of(offCatalog(item, null)));
+    service.scoreItem(TENANT, PLAN.id(), 1, item, 3, 3, new java.math.BigDecimal("7.5"), HEAD);
+    verify(repo)
+        .scoreItem(
+            eq(TENANT),
+            eq(PLAN),
+            eq(v),
+            eq(item),
+            eq(3),
+            ArgumentMatchers.argThat(x -> x.compareTo(new java.math.BigDecimal("7.5")) == 0),
+            ArgumentMatchers.argThat(h -> h.length == 32),
+            eq(HEAD));
+  }
+
+  @Test
+  void dinhDiemBiChanKhiSaiTrangThaiNguoiHoacDong() {
+    UUID item = UUID.randomUUID();
+    java.math.BigDecimal score = java.math.BigDecimal.TEN;
+    assertThatThrownBy(() -> service.scoreItem(TENANT, PLAN.id(), 1, item, 1, 9, score, HEAD))
+        .isInstanceOf(BusinessException.class);
+    assertThatThrownBy(
+            () ->
+                service.scoreItem(
+                    TENANT, PLAN.id(), 1, item, 1, 2, new java.math.BigDecimal("0.1"), HEAD))
+        .isInstanceOf(BusinessException.class);
+    VersionRow nhap = version(PlanVersionStatus.NHAP, 1);
+    given(nhap, List.of());
+    assertThatThrownBy(() -> service.scoreItem(TENANT, PLAN.id(), 1, item, 2, 2, score, HEAD))
+        .isInstanceOf(VersionConflictException.class);
+    assertThatThrownBy(() -> service.scoreItem(TENANT, PLAN.id(), 1, item, 1, 2, score, HEAD))
+        .isInstanceOf(BusinessException.class);
+    VersionRow cho = version(PlanVersionStatus.CHO_DUYET, 1);
+    given(cho, List.of());
+    assertThatThrownBy(() -> service.scoreItem(TENANT, PLAN.id(), 1, item, 1, 2, score, AUTHOR))
+        .isInstanceOf(BusinessException.class);
+    when(repo.items(TENANT, 20271, cho.id()))
+        .thenReturn(List.of(offCatalog(item, UUID.randomUUID())));
+    assertThatThrownBy(() -> service.scoreItem(TENANT, PLAN.id(), 1, item, 1, 2, score, HEAD))
+        .isInstanceOf(BusinessException.class);
+    assertThatThrownBy(
+            () -> service.scoreItem(TENANT, PLAN.id(), 1, UUID.randomUUID(), 1, 2, score, HEAD))
+        .isInstanceOf(java.util.NoSuchElementException.class);
+    verify(repo, never()).scoreItem(any(), any(), any(), any(), anyInt(), any(), any(), any());
+  }
 }

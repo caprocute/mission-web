@@ -66,6 +66,7 @@ import vn.viettel.okrkpi.product.infrastructure.persistence.EvidenceSubmissionCo
 import vn.viettel.okrkpi.product.infrastructure.persistence.FieldEncryptorCommentSealer;
 import vn.viettel.okrkpi.product.infrastructure.persistence.OutboxEvidenceEvents;
 import vn.viettel.okrkpi.shared.crypto.DekCache.CachedDek;
+import vn.viettel.okrkpi.shared.crypto.DekPurpose;
 import vn.viettel.okrkpi.shared.crypto.DekService;
 import vn.viettel.okrkpi.shared.crypto.DekStatus;
 import vn.viettel.okrkpi.shared.crypto.FieldEncryptor;
@@ -251,6 +252,17 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
                       dekId,
                       inv.getArgument(0),
                       inv.getArgument(1),
+                      LocalDate.of(2027, 1, 1),
+                      DekStatus.ACTIVE,
+                      KEY.clone()));
+      // GET phiên bản giải mã nhận xét cho người nộp và người nghiệm thu
+      Mockito.when(deks.getDekForDecryption(Mockito.any(), Mockito.eq(dekId)))
+          .thenAnswer(
+              inv ->
+                  new CachedDek(
+                      dekId,
+                      inv.getArgument(0),
+                      DekPurpose.NHAN_XET_DANH_GIA,
                       LocalDate.of(2027, 1, 1),
                       DekStatus.ACTIVE,
                       KEY.clone()));
@@ -567,6 +579,9 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
     assertResponseConforms(
         opened, "/evidences/{id}/versions/{v}/open-review", PathItem.HttpMethod.POST);
     assertThat(body(opened).get("status").asText()).isEqualTo("DANG_NGHIEM_THU");
+    // SCR-0703 chỉ mở đánh giá khi lần mở có kết quả kiểm toàn vẹn đạt (QA-05 HT-21).
+    assertThat(body(opened).get("integrity").get("verified").asBoolean()).isTrue();
+    assertThat(body(opened).get("permittedActions").toString()).contains("SCR-0703.xac-nhan");
     String inReview = opened.getResponse().getHeader("ETag");
     MvcResult again = openReview(evidence, inReview);
     assertThat(again.getResponse().getStatus()).isEqualTo(200);
@@ -674,6 +689,11 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
     assertThat(body(decide(evidence, "accept", inReview, key, acceptBody))).isEqualTo(result);
     assertThat(outbox(EventTopics.EVT_08_MINH_CHUNG_DA_XAC_NHAN)).isEqualTo(1);
     assertThat(taskStatus(task)).isEqualTo("HOAN_THANH");
+    // GET phiên bản sau xác nhận mang kết quả đọc lại từ CSDL (mức 0.75 lưu dạng numeric)
+    JsonNode reread =
+        body(perform(get("/api/v1/evidences/" + evidence + "/versions/1"))).get("acceptance");
+    assertThat(reread.get("decision").asText()).isEqualTo("DA_XAC_NHAN");
+    assertThat(reread.get("qualityLevel").decimalValue()).isEqualByComparingTo("0.75");
     byte[] cipher =
         in(
             productTm,
@@ -691,8 +711,11 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
     assertThat(as(() -> evidenceQuery.acceptors(tenant, period, ACTOR))).containsExactly(ASSIGNER);
     assertThat(as(() -> evidenceQuery.acceptors(tenant, period, ASSIGNER))).isEmpty();
 
-    // Yêu cầu bổ sung: nhiệm vụ về đang thực hiện, người nộp được báo.
-    UUID task2 = task(ACTOR);
+    // Yêu cầu bổ sung: nhiệm vụ về đang thực hiện, người nộp được báo. Nhiệm vụ không chỉ định
+    // người
+    // nghiệm thu: người giao là người nghiệm thu mặc định, guard REWORK của MOD-02 phải nhận
+    // (QA-05).
+    UUID task2 = task(ACTOR, null);
     caller = ACTOR;
     String[] second = submitted(task2, 23);
     String evidence2 = second[0];
@@ -722,6 +745,16 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
     assertThat(body(revision).get("acceptance").get("revisionCount").asInt()).isEqualTo(1);
     assertThat(taskStatus(task2)).isEqualTo("DANG_THUC_HIEN");
     assertThat(outbox(EventTopics.EVT_21_YEU_CAU_THONG_BAO)).isEqualTo(notices + 1);
+
+    // GET phiên bản mang quyết định gần nhất; người nộp đọc được nhận xét để biết phải bổ sung gì
+    caller = ACTOR;
+    MvcResult seen = perform(get("/api/v1/evidences/" + evidence2 + "/versions/1"));
+    assertResponseConforms(seen, "/evidences/{id}/versions/{v}", PathItem.HttpMethod.GET);
+    JsonNode seenAcceptance = body(seen).get("acceptance");
+    assertThat(seenAcceptance.get("decision").asText()).isEqualTo("YEU_CAU_BO_SUNG");
+    assertThat(seenAcceptance.get("comment").asText())
+        .isEqualTo("Đề nghị bổ sung số liệu chi bộ 3");
+    assertThat(body(seen).get("hasPriorRevisionRequest").asBoolean()).isFalse();
   }
 
   /**
@@ -969,6 +1002,10 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
   // ---------------------------------------------------------------- dữ liệu
 
   private UUID task(UUID lead) throws Exception {
+    return task(lead, ASSIGNER);
+  }
+
+  private UUID task(UUID lead, UUID acceptor) throws Exception {
     UUID id = UUID.randomUUID();
     in(
         taskTm,
@@ -988,7 +1025,7 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
                   BUCKET,
                   "NV-" + id.toString().substring(0, 8),
                   ASSIGNER,
-                  ASSIGNER,
+                  acceptor,
                   id.toString().getBytes(StandardCharsets.UTF_8))
               .update();
           jdbc.sql(

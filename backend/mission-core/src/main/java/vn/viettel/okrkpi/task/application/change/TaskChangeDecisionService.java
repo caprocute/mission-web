@@ -135,7 +135,9 @@ public class TaskChangeDecisionService {
     if (d.causeDecided() == null || !ChangeRules.CAUSES.contains(d.causeDecided())) {
       throw invalid("causeDecided", "Chưa xác định nguyên nhân khách quan hay chủ quan");
     }
-    if (d.note() == null || d.note().isBlank() || d.note().length() > 2000) {
+    // Ý kiến không bắt buộc khi duyệt, bắt buộc khi từ chối (hợp đồng ChangeRequestDecision.note)
+    boolean noNote = d.note() == null || d.note().isBlank();
+    if (noNote && !Boolean.TRUE.equals(d.approve()) || !noNote && d.note().length() > 2000) {
       throw invalid("note", "Vui lòng ghi lý do của quyết định (tối đa 2.000 ký tự)");
     }
     try {
@@ -150,7 +152,7 @@ public class TaskChangeDecisionService {
         requestId,
         outcome,
         d.causeDecided(),
-        d.note().strip(),
+        noNote ? null : d.note().strip(),
         me,
         now)) {
       throw new BusinessException(INVALID_STATE, "Đề nghị đã được xử lý");
@@ -248,7 +250,7 @@ public class TaskChangeDecisionService {
               locked.status().name(),
               transition,
               locked.overdue(),
-              d.note().strip(),
+              reason(d, r),
               actor.personId(),
               v,
               locked.stateMachineVersion(),
@@ -257,8 +259,8 @@ public class TaskChangeDecisionService {
     }
     TaskCommand command =
         "TAM_DUNG".equals(r.type())
-            ? new TaskCommand.Suspend(d.note().strip())
-            : new TaskCommand.Cancel(d.note().strip());
+            ? new TaskCommand.Suspend(reason(d, r))
+            : new TaskCommand.Cancel(reason(d, r));
     if ("HUY".equals(r.type())
         && deliverables != null
         && deliverables.of(tenant, task.id()).stream()
@@ -360,5 +362,10 @@ public class TaskChangeDecisionService {
   private static BusinessException invalid(String field, String message) {
     return new BusinessException(
         VALIDATION, message, List.of(new ProblemFieldError(field, message, null)));
+  }
+
+  /** Lý do ghi vào nhật ký trạng thái: ý kiến của người duyệt, không có thì lý do của đề nghị. */
+  private static String reason(Decision d, ChangeRow r) {
+    return d.note() == null || d.note().isBlank() ? r.reason() : d.note().strip();
   }
 }

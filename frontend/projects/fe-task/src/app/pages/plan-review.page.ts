@@ -32,7 +32,7 @@ import { formatDate } from '../task-ui';
 import { PLAN_STEP_UP } from './plan/step-up';
 
 type View = 'changes' | 'all';
-type Busy = 'approve' | 'return' | 'stepup' | null;
+type Busy = 'approve' | 'return' | 'stepup' | 'score' | null;
 
 /** Phương thức đã liên kết chứng thư; còn lại hiện để biết nhưng chưa chọn được (suy luận, xem wiki/05a). */
 const LINKED: SignMethod[] = ['MYSIGN'];
@@ -214,6 +214,51 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
           @for (c of blocking(); track $index) {
             <p class="msg err">{{ c.message }}</p>
           }
+          @if (unscored().length && t.status === 'CHO_DUYET' && can('SCR-0403.duyet-ky')) {
+            <section class="score" aria-labelledby="score-h">
+              <h3 class="h3" id="score-h">Định điểm việc ngoài danh mục</h3>
+              <p class="muted small">
+                Công việc ngoài danh mục cần được định mức khó và điểm chuẩn trước khi duyệt kế
+                hoạch.
+              </p>
+              @for (i of unscored(); track i.id) {
+                @let f = scoreForm(i.id!);
+                <div class="score-row" role="group" [attr.aria-label]="'Định điểm: ' + i.title">
+                  <span class="score-title">{{ i.title }}</span>
+                  <label>
+                    Mức khó
+                    <select
+                      [ngModel]="f.difficulty"
+                      (ngModelChange)="setScore(i.id!, 'difficulty', $event)"
+                    >
+                      <option [ngValue]="null" disabled>Chọn</option>
+                      @for (d of difficulties; track d) {
+                        <option [ngValue]="d">Mức {{ d }}</option>
+                      }
+                    </select>
+                  </label>
+                  <label>
+                    Điểm chuẩn
+                    <input
+                      type="number"
+                      min="0.5"
+                      max="50"
+                      step="0.5"
+                      [ngModel]="f.standardScore"
+                      (ngModelChange)="setScore(i.id!, 'standardScore', $event)"
+                    />
+                  </label>
+                  <p-button
+                    label="Lưu điểm"
+                    [outlined]="true"
+                    [loading]="busy() === 'score'"
+                    [disabled]="!!busy() || !validScore(f)"
+                    (onClick)="saveScore(i)"
+                  />
+                </div>
+              }
+            </section>
+          }
           @if (d.base && !simple()) {
             <p class="msg info note">
               Việc đã có minh chứng được xác nhận không được bỏ khỏi kế hoạch. Hạn của việc đang
@@ -349,7 +394,9 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
                   <p-button
                     label="Duyệt và ký số"
                     [loading]="busy() === 'approve' || waiting()"
-                    [disabled]="!!busy() || waiting() || blocking().length > 0"
+                    [disabled]="
+                      !!busy() || waiting() || blocking().length > 0 || unscored().length > 0
+                    "
                     (onClick)="approve()"
                   />
                 }
@@ -597,6 +644,30 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
       background: #eff6ff;
       border-color: #1d4ed8;
     }
+    .score {
+      margin-top: 16px;
+    }
+    .h3 {
+      font-size: 1em;
+      margin: 0 0 4px;
+    }
+    .score-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 8px 16px;
+      padding: 8px 0;
+      border-top: 1px solid #e5e7eb;
+    }
+    .score-row label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .score-title {
+      flex: 1 1 240px;
+      font-weight: 600;
+    }
     .err-text {
       color: #b91c1c;
       margin: 4px 0 0;
@@ -684,6 +755,52 @@ export class PlanReviewPage {
   protected readonly blocking = computed(() =>
     (this.review.value()?.version.checks ?? []).filter((c) => c.level === 'CHAN'),
   );
+  /** Việc ngoài danh mục chưa có điểm, người duyệt định điểm trước khi duyệt (BR-04-05). */
+  protected readonly unscored = computed(() =>
+    (this.review.value()?.version.items ?? []).filter(
+      (i) => !i.catalogItemId && i.standardScore == null,
+    ),
+  );
+  protected readonly difficulties = [1, 2, 3, 4, 5];
+  private readonly scores = signal<
+    Record<string, { difficulty: number | null; standardScore: number | null }>
+  >({});
+
+  protected scoreForm(id: string) {
+    return this.scores()[id] ?? { difficulty: null, standardScore: null };
+  }
+
+  protected setScore(id: string, field: 'difficulty' | 'standardScore', value: number | null) {
+    this.scores.update((m) => ({ ...m, [id]: { ...this.scoreForm(id), [field]: value } }));
+  }
+
+  protected validScore(f: { difficulty: number | null; standardScore: number | null }) {
+    const s = Number(f.standardScore);
+    return f.difficulty != null && f.standardScore != null && s >= 0.5 && s <= 50;
+  }
+
+  protected async saveScore(i: PlanItem) {
+    const d = this.review.value();
+    const f = this.scoreForm(i.id!);
+    if (!d || !this.validScore(f)) return;
+    this.busy.set('score');
+    this.error.set(null);
+    try {
+      await firstValueFrom(
+        this.api.scoreItem(d.planId, d.version.versionNo, i.id!, d.version.rowVersion, {
+          difficulty: f.difficulty!,
+          standardScore: Number(f.standardScore),
+        }),
+      );
+      this.notice.set(`Đã định điểm cho công việc "${i.title}".`);
+      this.review.reload();
+    } catch (e) {
+      this.error.set(this.message(e));
+    } finally {
+      this.busy.set(null);
+    }
+  }
+
   /** Điểm tối đa nhóm then chốt ở phiên bản gốc và phiên bản trình (tỷ trọng Policy Pack, BR-04-06). */
   protected readonly keyMax = computed(() => {
     const d = this.review.value();

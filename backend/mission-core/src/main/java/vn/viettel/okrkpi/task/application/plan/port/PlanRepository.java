@@ -165,6 +165,22 @@ public interface PlanRepository {
   long markSubmitted(
       TenantId tenant, PlanRow plan, VersionRow version, byte[] contentHash, UUID actor);
 
+  /**
+   * Định độ khó và điểm chuẩn của một dòng ngoài danh mục ở phiên bản {@code CHO_DUYET} (BR-04-05),
+   * ghi lại mã băm nội dung để bước ký số khớp nội dung đã định điểm; trả {@code row_version} mới.
+   */
+  default long scoreItem(
+      TenantId tenant,
+      PlanRow plan,
+      VersionRow version,
+      UUID itemId,
+      int difficulty,
+      BigDecimal standardScore,
+      byte[] contentHash,
+      UUID actor) {
+    throw new UnsupportedOperationException("scoreItem");
+  }
+
   /** Chuyển phiên bản sang {@code TRA_LAI} kèm ý kiến; trả người lập phiên bản. */
   UUID markReturned(TenantId tenant, PlanRow plan, VersionRow version, String comment, UUID actor);
 

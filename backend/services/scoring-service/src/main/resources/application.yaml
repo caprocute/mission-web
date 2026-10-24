@@ -111,6 +111,12 @@ mission:
 # SVC-07 tính điểm (DV-07-01): outbox, idempotency trong schema scoring; migration chạy ở InitContainer
 # vt-db-migration bằng mig_scoring (db/common, db/common-business, db/migration/scoring).
 okrkpi:
+  # OPA chạy cùng pod (ADR-21); dev trỏ container opa qua OPA_BASE_URL. Không khai thì bộ uỷ quyền gọi
+  # 127.0.0.1:8181 và mọi thao tác có @RequiresPermission bị từ chối (fail-closed).
+  opa:
+    base-url: ${OPA_BASE_URL:http://127.0.0.1:8181}
+    connect-timeout: ${OPA_CONNECT_TIMEOUT:50ms}
+    read-timeout: ${OPA_READ_TIMEOUT:100ms}
   outbox:
     schema: scoring
     registry:

@@ -17,6 +17,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.web.client.RestClient;
 import vn.viettel.okrkpi.workflow.application.periodclose.PeriodCloseAlarms;
 import vn.viettel.okrkpi.workflow.application.periodclose.PeriodCloseControlService;
 import vn.viettel.okrkpi.workflow.application.periodclose.PeriodCloseSaga;
@@ -51,7 +52,7 @@ public class PeriodCloseConfiguration {
 
   @Bean
   @ConditionalOnMissingBean(PeriodCloseGateway.class)
-  PeriodCloseGateway periodCloseGateway(Environment env) {
+  PeriodCloseGateway periodCloseGateway(Environment env, RestClient.Builder rest, Clock clock) {
     Map<Participant, GatedPeriodCloseGateway.Mode> modes = new EnumMap<>(Participant.class);
     for (Participant p : Participant.values()) {
       String key =
@@ -61,7 +62,30 @@ public class PeriodCloseConfiguration {
           env.getProperty(
               key, GatedPeriodCloseGateway.Mode.class, GatedPeriodCloseGateway.Mode.CHUA_NOI));
     }
-    return new GatedPeriodCloseGateway(modes);
+    Map<Participant, PeriodCloseGateway> connected = new EnumMap<>(Participant.class);
+    if (modes.get(Participant.MOD_08) == GatedPeriodCloseGateway.Mode.NOI) {
+      connected.put(Participant.MOD_08, mod08(env, rest, clock));
+    }
+    return new GatedPeriodCloseGateway(modes, connected);
+  }
+
+  /**
+   * Adapter MOD-08 ({@code okrkpi.saga.period-close.mod-08-endpoint.*}): địa chỉ mission-core và
+   * client credentials của client {@code workflow-service}; bí mật đọc từ môi trường.
+   */
+  static PeriodCloseGateway mod08(Environment env, RestClient.Builder rest, Clock clock) {
+    String prefix = "okrkpi.saga.period-close.mod-08-endpoint.";
+    String baseUrl = env.getRequiredProperty(prefix + "base-url");
+    RestClient tokens = rest.clone().build();
+    ServiceToken token =
+        new ServiceToken(
+            tokens,
+            env.getRequiredProperty(prefix + "token-url"),
+            env.getRequiredProperty(prefix + "client-id"),
+            env.getProperty(prefix + "client-secret", ""),
+            clock);
+    LOG.info("Saga chốt kỳ nối MOD-08 tại {}", baseUrl);
+    return new HttpMod08PeriodCloseGateway(rest.clone().baseUrl(baseUrl).build(), token::bearer);
   }
 
   @Bean

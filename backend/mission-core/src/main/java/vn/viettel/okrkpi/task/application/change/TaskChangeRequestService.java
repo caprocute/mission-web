@@ -141,7 +141,7 @@ public class TaskChangeRequestService {
   public Preview previewChangeRequest(TenantId tenant, UUID taskId, Draft d, TaskActor actor) {
     TaskRow task = tasks.find(tenant, taskId).orElseThrow(NoSuchElementException::new);
     requireLead(tenant, task, actor);
-    validate(tenant, task, d);
+    validate(tenant, task, d, false);
     return preview(tenant, task, d);
   }
 
@@ -162,7 +162,7 @@ public class TaskChangeRequestService {
     } catch (PeriodLockedException e) {
       throw new BusinessException(PERIOD_LOCKED, "Kỳ đã khoá, không gửi được đề nghị");
     }
-    validate(tenant, task, d);
+    validate(tenant, task, d, true);
     if ("TAM_DUNG".equals(d.type()) && "TAM_DUNG".equals(task.status().name())) {
       throw new BusinessException(INVALID_STATE, "Nhiệm vụ đang tạm dừng");
     }
@@ -310,7 +310,11 @@ public class TaskChangeRequestService {
         lateDays);
   }
 
-  private void validate(TenantId tenant, TaskRow task, Draft d) {
+  /**
+   * Kiểm nội dung đề nghị. Xem trước chạy khi cán bộ mới nhập hạn mới, nên chỉ kiểm các trường dùng
+   * để tính hệ quả; nguyên nhân và lý do chỉ bắt buộc khi gửi ({@code full}).
+   */
+  private void validate(TenantId tenant, TaskRow task, Draft d, boolean full) {
     List<ProblemFieldError> errors = new ArrayList<>();
     if (d == null) {
       throw invalid("type", "Thiếu nội dung đề nghị");
@@ -318,10 +322,11 @@ public class TaskChangeRequestService {
     if (d.type() == null || !ChangeRules.TYPES.contains(d.type())) {
       errors.add(field("type", "Loại đề nghị không hợp lệ"));
     }
-    if (d.causeClaimed() == null || !ChangeRules.CAUSES.contains(d.causeClaimed())) {
+    if (d.causeClaimed() != null && !ChangeRules.CAUSES.contains(d.causeClaimed())
+        || full && d.causeClaimed() == null) {
       errors.add(field("causeClaimed", "Chưa chọn nguyên nhân khách quan hay chủ quan"));
     }
-    if (!ChangeRules.validReason(d.reason())) {
+    if (full && !ChangeRules.validReason(d.reason())) {
       errors.add(field("reason", "Lý do cần từ 20 đến 2.000 ký tự"));
     }
     LocalDate due = task.extendedDueDate() != null ? task.extendedDueDate() : task.dueDate();

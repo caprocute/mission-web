@@ -71,6 +71,7 @@ class TaskRegistrationApiIT extends ContractConformanceTest {
 
   static final UUID REG = UUID.fromString("01927a02-0000-7000-8000-00000000c217");
   static final UUID HEAD = UUID.fromString("01927a02-0000-7000-8000-00000000e217");
+  static final UUID MANAGER = UUID.fromString("01927a02-0000-7000-8000-00000000b217");
   static final UUID UNIT = UUID.fromString("01927a02-0000-7000-8000-00000000d217");
   static final UUID POSITION = UUID.fromString("01927a02-0000-7000-8000-00000000f217");
 
@@ -248,9 +249,14 @@ class TaskRegistrationApiIT extends ContractConformanceTest {
     assertThat(perform(decide(r1, etag, Map.of("approve", true))).getResponse().getStatus())
         .isEqualTo(403);
 
+    // Cán bộ cùng đơn vị không giữ vai trò quản lý không duyệt được.
+    as(MANAGER, "member");
+    assertThat(perform(decide(r1, etag, Map.of("approve", true))).getResponse().getStatus())
+        .isEqualTo(403);
+
     // Duyệt khi chưa có điều chỉnh kế hoạch: giao, báo người lập (người quản lý vì chưa có kế
-    // hoạch).
-    as(HEAD, "manager");
+    // hoạch). Người duyệt là quản lý (AC-05) của đơn vị dù không phải trưởng đơn vị (QA-05 HT-15).
+    as(MANAGER, "manager");
     MvcResult approved = perform(decide(r1, etag, Map.of("approve", true, "quantity", 2)));
     assertThat(approved.getResponse().getStatus())
         .as(approved.getResponse().getContentAsString(StandardCharsets.UTF_8))

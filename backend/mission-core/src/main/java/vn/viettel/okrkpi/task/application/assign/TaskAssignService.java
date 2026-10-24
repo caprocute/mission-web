@@ -374,7 +374,15 @@ public class TaskAssignService {
     assignees.stream().filter(a -> "PERSON".equals(a.kind())).forEach(a -> people.add(a.id()));
     publisher.publishEvent(
         new NhiemVuDaGiao(
-            tenant, draft.periodId(), draft.id(), actor.personId(), people, clock.instant()));
+            tenant,
+            draft.periodId(),
+            draft.id(),
+            actor.personId(),
+            people,
+            clock.instant(),
+            draft.spec().productName(),
+            draft.spec().unit(),
+            draft.spec().quantity()));
     return new Assigned(task, lead);
   }
 

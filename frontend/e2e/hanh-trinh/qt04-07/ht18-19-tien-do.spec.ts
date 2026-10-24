@@ -114,8 +114,10 @@ test.describe('Tiến độ và điều chỉnh', { tag: '@qa-05' }, () => {
     await kiemTruyCap(page, 'điểm nghẽn của nhiệm vụ');
     let blockerId = '';
     if (gui) {
-      const ct = (await (await gui).json()) as NhiemVu;
-      blockerId = ct.blockers.find((b) => b.content === TD.diemNghen)!.id;
+      // Đọc lại qua API: trang làm mới sau khi gửi nên trình duyệt có thể đã bỏ thân phản hồi
+      await gui;
+      const ct = await (await s.apiCua('canbo')).can<NhiemVu>('GET', `tasks/${nv!.id}`);
+      blockerId = ct.body.blockers.find((b) => b.content === TD.diemNghen)!.id;
     }
     // EVT-21: người giao nhận thông báo điểm nghẽn
     await kiemSuKien('EVT-21', nv?.id ?? '', tu);

@@ -128,6 +128,12 @@ const fmtSize = (n?: number | null) =>
       @if (error(); as err) {
         <p class="msg err" role="alert">{{ err }}</p>
       }
+      @if (returnedComment(); as rc) {
+        <section class="msg warn" aria-labelledby="ret-h">
+          <h2 class="h" id="ret-h">{{ rc.title }}</h2>
+          <p>{{ rc.comment }}</p>
+        </section>
+      }
       @if (!editable()) {
         @if (latest(); as l) {
           <p class="msg info">
@@ -615,6 +621,19 @@ export class EvidenceSubmitPage {
   });
 
   protected readonly isLead = computed(() => this.task.value()?.role === 'CHU_TRI');
+  /** Ý kiến của người nghiệm thu khi phiên bản cuối bị yêu cầu bổ sung hay từ chối (BR-07-08). */
+  protected readonly returnedComment = computed(() => {
+    const v = this.latestRes.value();
+    const comment = v?.acceptance?.comment;
+    if (!v || !comment || !REOPEN.includes(v.status)) return null;
+    return {
+      title:
+        v.status === 'TU_CHOI'
+          ? 'Lý do người nghiệm thu từ chối'
+          : 'Ý kiến người nghiệm thu đề nghị bổ sung',
+      comment,
+    };
+  });
 
   /** Phiên bản đang soạn: đã lưu (`NHAP`) hoặc n+1 chưa lưu. Đã nộp thì chỉ đọc (BR-07-01). */
   protected readonly editable = computed(() => {
