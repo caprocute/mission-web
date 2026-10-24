@@ -29,6 +29,9 @@ pgbouncer:
 placement:
   app: { nodeSelector: null, tolerations: [] }
 externalSecrets: { enabled: false }
+# Không có OpenBao trên kind: bỏ khối initdb tạo bao_admin (Secret pg-core-bao-admin-khoi-tao chỉ do ESO sinh; thiếu
+# nó thì Job initdb treo ở bước gắn volume).
+baoAdmin: { enabled: false }
 grantsJob:
   image:
     repository: ghcr.io/cloudnative-pg/postgresql

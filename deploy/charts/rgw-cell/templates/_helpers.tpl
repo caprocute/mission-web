@@ -58,6 +58,12 @@ vòng đời donPhienBanCuSauNgay dọn sau hạn khoá (kho snapshot OpenSearch
 {{- if $doiTuong -}}
 {{- $cau = append $cau (dict "Sid" (printf "%s-doi-tuong" $uid | replace "-" "") "Effect" "Allow" "Principal" $nguoi "Action" $doiTuong "Resource" (list (printf "arn:aws:s3:::%s/%s*" $ten $tienTo))) -}}
 {{- end -}}
+{{- if has "ghi" $q -}}
+{{- /* RGW 19 (squid) kiểm CreateMultipartUpload bằng s3:PutObject trên ARN của bucket, không phải của đối tượng: chỉ cấp
+trên "<bucket>/*" thì tệp lớn (bản nền Barman Cloud, minh chứng nhiều phần) bị AccessDenied dù PutObject một phần vẫn qua
+(kiểm trên kind, INF-17). CompleteMultipartUpload vẫn kiểm s3:PutObject trên ARN đối tượng nên tiền tố tenant còn nguyên. */}}
+{{- $cau = append $cau (dict "Sid" (printf "%s-ghi-nhieu-phan" $uid | replace "-" "") "Effect" "Allow" "Principal" $nguoi "Action" (list "s3:PutObject") "Resource" (list (printf "arn:aws:s3:::%s" $ten))) -}}
+{{- end -}}
 {{- if has "liet-ke" $q -}}
 {{- $c := dict "Sid" (printf "%s-liet-ke" $uid | replace "-" "") "Effect" "Allow" "Principal" $nguoi "Action" (list "s3:ListBucket" "s3:ListBucketVersions" "s3:ListBucketMultipartUploads") "Resource" (list (printf "arn:aws:s3:::%s" $ten)) -}}
 {{- if $tienTo }}{{ $_ := set $c "Condition" (dict "StringLike" (dict "s3:prefix" (list (printf "%s*" $tienTo)))) }}{{ end -}}

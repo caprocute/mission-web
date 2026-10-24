@@ -4,7 +4,9 @@
 # deploy/charts/backup-cell/anh, đẩy qua pipeline ký ảnh (SEC-55) rồi ghim digest vào values.
 # Ảnh nền ghim digest ngay trên dòng FROM (không qua ARG) để cổng Dockerfile của thư viện pipeline đọc được (SEC-55).
 FROM registry.k8s.io/kubectl:v1.33.5@sha256:126d8f5898d19973cf0e2f7b89f06bd5338eaa11cba9b8a8a95985058af6012f AS kubectl
-FROM registry.k8s.io/etcd:3.6.4-0@sha256:e36c081683425b5b3bc1425bc508b37e7107bb65dfa9367bf5a80125d431fa19 AS etcd
+# Ảnh etcd của registry.k8s.io (dùng cho kubeadm) chỉ có etcd và etcdctl, không có etcdutl mà chup-etcd.sh cần cho
+# "snapshot status"; ảnh phát hành của dự án etcd có đủ cả ba (kiểm khi dựng trên kind, INF-17).
+FROM gcr.io/etcd-development/etcd:v3.6.4@sha256:5d10878e4fd4ebfdf82bc142fb044542a3ca514c0ee169277643a84d6816892a AS etcd
 
 FROM alpine:3.22@sha256:2e0b81d60597f449baa56dc25d355367869d2dca4cd57e866f1e2b52af3eb55f
 RUN apk add --no-cache bash coreutils jq curl postgresql17-client aws-cli age rclone git gzip tzdata ca-certificates

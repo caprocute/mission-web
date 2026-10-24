@@ -35,6 +35,8 @@ ket_thuc() {
     echo "backup_restore_check_success $dat"
     echo "# TYPE backup_restore_duration_seconds gauge"
     echo "backup_restore_duration_seconds $tg"
+    echo "# TYPE backup_restore_check_target_reached gauge"
+    echo "backup_restore_check_target_reached ${toi_moc:-0}"
     echo "# TYPE backup_restore_check_last_run_timestamp_seconds gauge"
     echo "backup_restore_check_last_run_timestamp_seconds $(bay_gio)"
     if [ "$dat" = 1 ]; then
@@ -68,11 +70,28 @@ $ca
       accessKeyId: { name: $CRED_SECRET, key: ACCESS_KEY_ID }
       secretAccessKey: { name: $CRED_SECRET, key: ACCESS_SECRET_KEY }
 YAML
-kubectl apply -f - <<YAML
+# Khối affinity của cụm tạm. nodeSelector {} hay tolerations [] rỗng thì bỏ hẳn: CNPG so PodSpec mong muốn (có trường
+# rỗng) với pod thật (API server bỏ trường rỗng) thấy khác mãi nên khởi động lại primary liên tục (gặp trên kind).
+dat_cho() {
+  local ns_ tl_
+  ns_=$(printf '%s' "$NODE_SELECTOR" | tr -d ' ')
+  tl_=$(printf '%s' "$TOLERATIONS" | tr -d ' ')
+  { [ -n "$ns_" ] && [ "$ns_" != '{}' ]; } || { [ -n "$tl_" ] && [ "$tl_" != '[]' ]; } || return 0
+  echo "  affinity:"
+  [ -n "$ns_" ] && [ "$ns_" != '{}' ] && echo "    nodeSelector: $NODE_SELECTOR"
+  [ -n "$tl_" ] && [ "$tl_" != '[]' ] && echo "    tolerations: $TOLERATIONS"
+  return 0
+}
+# tao_cum <tên> <mốc|"">: cụm tạm khôi phục tới mốc, hoặc tới hết WAL khi mốc rỗng.
+tao_cum() {
+  local muc_tieu=""
+  [ -n "$2" ] && muc_tieu="      recoveryTarget:
+        targetTime: \"$2\""
+  kubectl apply -f - <<YAML
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: $tam
+  name: $1
   namespace: $NS
   labels: { vt.io/restore-check: "true", vt.io/restore-nguon: $ten }
 spec:
@@ -80,17 +99,14 @@ spec:
   imageName: $IMAGE_PG
   enableSuperuserAccess: false
   resources: $RESOURCES
-  affinity:
-    nodeSelector: $NODE_SELECTOR
-    tolerations: $TOLERATIONS
+$(dat_cho)
   storage:
     storageClass: $STORAGE_CLASS
     size: $kich
   bootstrap:
     recovery:
       source: nguon
-      recoveryTarget:
-        targetTime: "$moc"
+$muc_tieu
   externalClusters:
     - name: nguon
       plugin:
@@ -99,14 +115,33 @@ spec:
           barmanObjectName: $kho
           serverName: $ten${HAU_TO_SERVER:-}
 YAML
+}
+tao_cum "$tam" "$moc"
+toi_moc=1
 
-# Chờ cụm tạm sẵn sàng; Job khôi phục của CNPG thất bại (bản nền hỏng, thiếu WAL) thì dừng sớm.
+# Chờ cụm tạm sẵn sàng; Job khôi phục của CNPG thất bại (bản nền hỏng, thiếu WAL) thì dừng sớm. Riêng trường hợp
+# PostgreSQL báo "recovery ended before configured recovery target was reached": cụm nguồn không ghi gì từ trước mốc nên
+# WAL không có giao dịch nào sau mốc (cụm nhàn rỗi, archive_timeout chỉ đổi đoạn WAL khi có ghi), trạng thái ở mốc
+# trùng trạng thái cuối WAL; dựng lại cụm tạm tới hết WAL (một lần) và ghi backup_restore_check_target_reached 0.
 han=$(( $(bay_gio) + CHO_GIAY ))
 while :; do
   san_sang=$(kubectl -n "$NS" get cluster "$tam" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || true)
   [ "$san_sang" = True ] && break
   that_bai=$(kubectl -n "$NS" get jobs -l "cnpg.io/cluster=$tam" -o jsonpath='{range .items[*]}{.status.failed}{"\n"}{end}' 2>/dev/null | awk '$1 > 0' | wc -l)
-  if [ "$that_bai" -gt 0 ]; then echo "LỖI: job khôi phục của $tam thất bại" >&2; kubectl -n "$NS" get cluster "$tam" -o jsonpath='{.status.phaseReason}' >&2 || true; exit 1; fi
+  if [ "$that_bai" -gt 0 ]; then
+    nhat_ky=$(kubectl -n "$NS" logs -l "cnpg.io/cluster=$tam" --all-containers --tail=-1 2>&1 || true)
+    if [ "$toi_moc" = 1 ] && [[ "$nhat_ky" == *"recovery ended before configured recovery target was reached"* ]]; then
+      echo "WAL không có giao dịch sau mốc $moc (cụm nguồn nhàn rỗi): khôi phục tới hết WAL"
+      kubectl -n "$NS" delete cluster "$tam" --ignore-not-found --wait=false || true
+      tam="$tam-cuoi"
+      toi_moc=0
+      tao_cum "$tam" ""
+      continue
+    fi
+    # Vài dòng lỗi cuối của Job khôi phục để người trực biết nguyên nhân mà không cần vào namespace cách ly.
+    printf '%s\n' "$nhat_ky" | grep -iE 'error|fatal|panic' | tail -5 | cut -c1-400 >&2 || true
+    echo "LỖI: job khôi phục của $tam thất bại" >&2; kubectl -n "$NS" get cluster "$tam" -o jsonpath='{.status.phaseReason}' >&2 || true; exit 1
+  fi
   if [ "$(bay_gio)" -ge "$han" ]; then echo "LỖI: $tam chưa sẵn sàng sau ${CHO_GIAY}s" >&2; exit 1; fi
   sleep "$NGHI"
 done

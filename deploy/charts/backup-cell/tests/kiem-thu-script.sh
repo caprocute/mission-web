@@ -27,7 +27,8 @@ cp "$GOC"/files/* "$W/cfg/"
 export CFG=$W/cfg PATH="$W/bin:$PATH" GL=$W
 
 # kubectl giả: ghi lệnh vào $GL/kubectl.log; apply ghi manifest vào $GL/apply.yaml; exec psql chạy psql thật trên cụm
-# kiểm thử; get backups đọc $GL/backups.json; trạng thái cụm tạm theo GIA_LAP_SAN_SANG, Job khôi phục theo GIA_LAP_JOB_HONG.
+# kiểm thử; get backups đọc $GL/backups.json; trạng thái cụm tạm theo GIA_LAP_SAN_SANG, Job khôi phục theo GIA_LAP_JOB_HONG,
+# cụm nguồn nhàn rỗi (WAL không có giao dịch sau mốc) theo GIA_LAP_KHONG_TOI_MOC.
 cat > "$W/bin/kubectl" <<'EOF'
 #!/usr/bin/env bash
 echo "kubectl $*" >> "$GL/kubectl.log"
@@ -36,8 +37,12 @@ case " $* " in
   *" exec "*)
     while [ "$1" != -- ]; do shift; done; shift; shift   # bỏ tới "-- psql"
     exec psql "$@" ;;
-  *" get cluster "*) [ "${GIA_LAP_SAN_SANG:-True}" = True ] && echo True ;;
-  *" get jobs "*) [ "${GIA_LAP_JOB_HONG:-0}" = 1 ] && echo 1; true ;;
+  # GIA_LAP_KHONG_TOI_MOC=1: cụm nguồn nhàn rỗi, cụm tạm tới mốc hỏng (log PostgreSQL báo chưa tới mốc), cụm "-cuoi" tới hết WAL đạt.
+  *" get cluster "*-cuoi" "*) echo True ;;
+  *" get cluster "*) [ "${GIA_LAP_KHONG_TOI_MOC:-0}" = 0 ] && [ "${GIA_LAP_SAN_SANG:-True}" = True ] && echo True; true ;;
+  *" get jobs "*-cuoi" "*) ;;
+  *" get jobs "*) { [ "${GIA_LAP_JOB_HONG:-0}" = 1 ] || [ "${GIA_LAP_KHONG_TOI_MOC:-0}" = 1 ]; } && echo 1; true ;;
+  *" logs "*) [ "${GIA_LAP_KHONG_TOI_MOC:-0}" = 1 ] && echo "FATAL: recovery ended before configured recovery target was reached"; true ;;
   *" get backups.postgresql.cnpg.io "*) cat "$GL/backups.json" ;;
   *" get pods -A -o json "*) cat "$GIA_LAP_PODS" ;;
   *" delete "*) ;;
@@ -159,6 +164,11 @@ kiem "kiểm sổ cái chạy trên bkt_ledger" grep -q "sổ cái bkt_ledger: �
 moi
 CUMS="pg-core:data-pg pg-ledger:secure-data" HAU_TO_SERVER=-sn bash "$CFG/restore-check.sh" > "$W/rc-sn.out" 2>&1 || cat "$W/rc-sn.out"
 kiem "TTDL sn: cụm tạm khôi phục từ serverName pg-ledger-sn" grep -q "serverName: pg-ledger-sn$" "$GL/apply.yaml"
+kiem "nodeSelector {} và tolerations [] rỗng: cụm tạm không có khối affinity (tránh CNPG khởi động lại mãi)" bash -c "! grep -q 'affinity:' '$GL/apply.yaml'"
+moi
+NODE_SELECTOR='{"vt.io/pool":"data-pg"}' TOLERATIONS='[{"key":"vt.io/pool","operator":"Equal","value":"data-pg","effect":"NoSchedule"}]' \
+  CUMS="pg-core:data-pg pg-ledger:secure-data" bash "$CFG/restore-check.sh" > "$W/rc.out" 2>&1 || cat "$W/rc.out"
+kiem "nodeSelector, tolerations có giá trị: cụm tạm mang đủ hai trường" bash -c "grep -q 'nodeSelector: {\"vt.io/pool\":\"data-pg\"}' '$GL/apply.yaml' && grep -q 'tolerations: \[{' '$GL/apply.yaml'"
 
 ca_hong() { # <mô tả> <SQL làm hỏng> <SQL sửa lại> <CSDL> <thông điệp mong đợi>
   psql -X -q -v ON_ERROR_STOP=1 -d "$4" -c "$2"
@@ -185,6 +195,12 @@ moi
 if GIA_LAP_SAN_SANG=False GIA_LAP_JOB_HONG=1 CUMS="pg-core:data-pg pg-ledger:secure-data" bash "$CFG/restore-check.sh" > "$W/rc.out" 2>&1; then
   loi "Job khôi phục hỏng: không bị phát hiện"
 else kiem "Job khôi phục hỏng (bản nền hỏng): dừng sớm, success 0" grep -q '^backup_restore_check_success 0$' "$GL/chi-so-job_restore-check_cell_g4_cluster_pg-ledger"; fi
+moi
+if GIA_LAP_KHONG_TOI_MOC=1 CUMS="pg-core:data-pg pg-ledger:secure-data" bash "$CFG/restore-check.sh" > "$W/rc.out" 2>&1; then
+  kiem "cụm nguồn nhàn rỗi (chưa tới mốc): dựng lại tới hết WAL, success 1" grep -q '^backup_restore_check_success 1$' "$GL/chi-so-job_restore-check_cell_g4_cluster_pg-ledger"
+  kiem "  và target_reached 0" grep -q '^backup_restore_check_target_reached 0$' "$GL/chi-so-job_restore-check_cell_g4_cluster_pg-ledger"
+  kiem "  cụm tạm tới mốc bị xoá, cụm -cuoi không có recoveryTarget" bash -c "grep -q 'delete cluster rc-pg-ledger-20261023 ' '$GL/kubectl.log' && [ \$(grep -c targetTime '$GL/apply.yaml') = 1 ]"
+else loi "cụm nguồn nhàn rỗi: không đạt"; cat "$W/rc.out"; fi
 moi
 if GIA_LAP_SAN_SANG=False CHO_GIAY=0 CUMS="pg-core:data-pg" bash "$CFG/restore-check.sh" > "$W/rc.out" 2>&1; then loi "quá hạn chờ: không bị phát hiện"
 else kiem "quá hạn chờ sẵn sàng: hỏng, cụm tạm rc-pg-core-20261023 bị xoá" grep -q "delete cluster rc-pg-core-20261023" "$GL/kubectl.log"; fi
@@ -394,7 +410,7 @@ case "$m $p" in
   "GET /_snapshot/bk-sn/_all") echo '{"snapshots":[{"snapshot":"daily-to-sn-cu","state":"SUCCESS","start_time_in_millis":1},{"snapshot":"daily-to-sn-moi","state":"SUCCESS","start_time_in_millis":5},{"snapshot":"daily-to-sn-hong","state":"FAILED","start_time_in_millis":9}]}' ;;
   "GET /_snapshot/bk-sn/daily-to-sn-moi") echo '{"snapshots":[{"indices":["okr-2026","okr-2025","org-don-vi","mission-2026"]}]}' ;;
   "POST /_snapshot/bk-sn/daily-to-sn-moi/_restore"*) echo "{\"snapshot\":{\"shards\":{\"failed\":${GIA_LAP_OS_HONG:-0}}}}" ;;
-  "GET /_cat/count/"*) i=${p#/_cat/count/}; i=${i%%\?*}; echo "[{\"count\":\"$(cat "$GL/os-$i" 2>/dev/null || echo 0)\"}]" ;;
+  "GET /_cat/indices/"*) i=${p#/_cat/indices/}; i=${i%%\?*}; echo "[{\"docs.count\":\"$(cat "$GL/os-$i" 2>/dev/null || echo 0)\"}]" ;;
   DELETE*) echo '{"acknowledged":true}' ;;
   *) exit 22 ;;
 esac

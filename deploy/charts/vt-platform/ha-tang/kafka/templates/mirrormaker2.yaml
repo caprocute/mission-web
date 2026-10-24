@@ -111,9 +111,9 @@ spec:
       type: tls
       certificateAndKey: { secretName: {{ $m.dich.user }}, certificate: user.crt, key: user.key }
     config:
-      config.storage.replication.factor: 3
-      offset.storage.replication.factor: 3
-      status.storage.replication.factor: 3
+      config.storage.replication.factor: {{ $m.heSoNhanBan }}
+      offset.storage.replication.factor: {{ $m.heSoNhanBan }}
+      status.storage.replication.factor: {{ $m.heSoNhanBan }}
   mirrors:
     - source:
         alias: {{ $nguon.alias }}
@@ -132,8 +132,8 @@ spec:
         tasksMax: {{ $m.sourceTasksMax }}
         config:
           replication.policy.class: org.apache.kafka.connect.mirror.IdentityReplicationPolicy
-          replication.factor: 3
-          offset-syncs.topic.replication.factor: 3
+          replication.factor: {{ $m.heSoNhanBan }}
+          offset-syncs.topic.replication.factor: {{ $m.heSoNhanBan }}
           offset-syncs.topic.location: target
           sync.topic.acls.enabled: "false"
           refresh.topics.interval.seconds: 60
@@ -141,11 +141,14 @@ spec:
         tasksMax: {{ $m.checkpointTasksMax }}
         config:
           replication.policy.class: org.apache.kafka.connect.mirror.IdentityReplicationPolicy
-          checkpoints.topic.replication.factor: 3
+          checkpoints.topic.replication.factor: {{ $m.heSoNhanBan }}
           offset-syncs.topic.location: target
           sync.group.offsets.enabled: "true"
           sync.group.offsets.interval.seconds: {{ $m.dongBoOffsetGiay }}
           emit.checkpoints.interval.seconds: {{ $m.dongBoOffsetGiay }}
+          # Nhóm tiêu thụ mới được phát hiện cùng nhịp đồng bộ offset; mặc định của MM2 là 600 s nên nhóm mới chưa có
+          # offset ở cụm đích tới 10 phút (kiểm trên kind, INF-18).
+          refresh.groups.interval.seconds: {{ $m.dongBoOffsetGiay }}
   resources:
     {{- toYaml $m.resources | nindent 4 }}
   metricsConfig:
