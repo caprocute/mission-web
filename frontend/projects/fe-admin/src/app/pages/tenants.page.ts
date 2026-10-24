@@ -20,26 +20,8 @@ import { Component, computed, inject, linkedSignal, signal } from '@angular/core
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import {
-  CellLoad,
-  JOB_STATUS_LABEL,
-  Job,
-  JobTracker,
-  TENANCY_MODELS,
-  TENANCY_MODEL_LABEL,
-  TENANT_ONBOARDING_STATUSES,
-  TENANT_STATUS_LABEL,
-  TenancyModel,
-  TenantApi,
-  TenantQuery,
-  TenantRow,
-  TenantStats,
-  TenantStatus,
-  FILTER_QUERY_PARAM,
-  createListPersonalization,
-  decodeCriteria,
-  encodeCriteria,
-} from '@vt/api-client';
+import { JOB_STATUS_LABEL, Job, JobTracker } from '@vt/api-client';
+import { CellLoad, TENANCY_MODELS, TENANCY_MODEL_LABEL, TENANT_ONBOARDING_STATUSES, TENANT_STATUS_LABEL, TenancyModel, TenantApi, TenantQuery, TenantRow, TenantStats, TenantStatus, FILTER_QUERY_PARAM, createListPersonalization, decodeCriteria, encodeCriteria } from '@vt/api-client/domains';
 import { ThemeService, VtColumnPickerComponent, VtSavedFiltersComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';

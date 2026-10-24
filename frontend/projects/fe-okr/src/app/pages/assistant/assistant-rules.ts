@@ -1,12 +1,5 @@
-import type {
-  KeyResultDraft,
-  ObjectiveDetail,
-  NewObjectiveDraft,
-  ObjectiveDraft,
-  OkrAssistSuggestion,
-  OkrComposeContext,
-  OkrOwnerType,
-} from '@vt/api-client';
+import type { KeyResultDraft, ObjectiveDetail, NewObjectiveDraft, ObjectiveDraft, OkrComposeContext, OkrOwnerType } from '@vt/api-client';
+import type { OkrAssistSuggestion } from '@vt/api-client/domains';
 
 /** Thông báo của QT-17 (TL-02b). */
 export const MSG_17_03 =

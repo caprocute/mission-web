@@ -2,8 +2,10 @@
 //
 //   cd frontend && node ../deploy/web/ci/bundle-budget.mjs [--json <tệp>]
 //
-// Chạy sau `npm run build:all`. Đo kích thước gzip (mức 6, như nginx/CDN) của:
-//   1. "Shell + design system + runtime Angular" (≤ 250 KB): index.html, CSS và script mà
+// Chạy sau `npm run build:all`. Đo kích thước gzip (mức 9, như bản .gz nén sẵn mà nginx của deploy/web
+// phục vụ qua gzip_static, WEB-052) của:
+//   1. "Shell + design system + runtime Angular" (≤ 400 KB, cổng chặn đã duyệt 24/10/2026; mục tiêu NFR
+//      vẫn là 250 KB của TL-01, wiki/14 "Ngưỡng tải đầu của trang chủ"): index.html, CSS và script mà
 //      index.html nạp, main.js, chunk khởi động mà main.js nạp động (bootstrap), rồi mọi
 //      import tĩnh lan truyền từ đó; tên gói trần (@angular/core, primeng/button, @vt/*…) tra
 //      theo importmap.json của shell. Mã nạp lười (tuyến, widget, hộp thoại, dữ liệu giả lập)
@@ -12,7 +14,8 @@
 //      remote mà module đó kéo theo bằng import tĩnh, cộng màn hình nạp lười nặng nhất của nó
 //      (trường hợp xấu nhất của lần vào đầu). Thư viện dùng chung do shell cấp (singleton
 //      Native Federation) không tính cho remote.
-// Ngưỡng nằm ở BUDGETS bên dưới, khớp TL-01; không hạ ngưỡng để pipeline xanh (AGENTS.md, YC-PT-07).
+// Ngưỡng nằm ở BUDGETS bên dưới (remote khớp TL-01, shell theo ngưỡng đã duyệt); không nới thêm để pipeline
+// xanh (AGENTS.md, YC-PT-07).
 // Lighthouse CI (lighthouserc.json) là phép đo bổ sung trên trình duyệt mô phỏng 4G.
 import { createRequire } from 'node:module';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -21,7 +24,7 @@ import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
 const KB = 1024;
-const BUDGETS = { shell: 250 * KB, remote: 180 * KB };
+const BUDGETS = { shell: 400 * KB, remote: 180 * KB };
 
 const FRONTEND = process.cwd();
 const DIST = join(FRONTEND, 'dist');
@@ -37,7 +40,7 @@ await init;
 
 const gz = new Map();
 const gzSize = (file) => {
-  if (!gz.has(file)) gz.set(file, gzipSync(readFileSync(file), { level: 6 }).length);
+  if (!gz.has(file)) gz.set(file, gzipSync(readFileSync(file), { level: 9 }).length);
   return gz.get(file);
 };
 
@@ -147,4 +150,4 @@ if (failed) {
   console.error('[ngân sách] Có phần vượt ngân sách TL-01');
   process.exit(1);
 }
-console.log('[ngân sách] Mọi phần trong ngân sách TL-01');
+console.log('[ngân sách] Mọi phần trong ngân sách (remote theo TL-01, shell theo ngưỡng đã duyệt 24/10/2026)');

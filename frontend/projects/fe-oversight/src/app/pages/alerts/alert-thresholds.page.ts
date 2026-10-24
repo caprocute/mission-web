@@ -7,13 +7,8 @@ import { Component, computed, inject, linkedSignal, signal } from '@angular/core
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  ANOMALY_SIGNAL_LABEL,
-  AlertApi,
-  AnomalySignalThreshold,
-  THRESHOLD_PARAM_LABEL,
-  toProblem,
-} from '@vt/api-client';
+import { toProblem } from '@vt/api-client';
+import { ANOMALY_SIGNAL_LABEL, AlertApi, AnomalySignalThreshold, THRESHOLD_PARAM_LABEL } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { InputTextModule } from 'primeng/inputtext';

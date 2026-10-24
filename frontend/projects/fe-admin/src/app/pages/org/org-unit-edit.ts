@@ -1,19 +1,8 @@
 import { Component, inject, input, linkedSignal, output, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import {
-  ORG_FLOW_LABEL,
-  ORG_UNIT_LEVEL_LABEL,
-  ORG_UNIT_TYPE_LABEL,
-  OrgFlow,
-  OrgTreeApi,
-  OrgUnitDetail,
-  OrgUnitInput,
-  OrgUnitLevel,
-  OrgUnitType,
-  fieldErrors,
-  toProblem,
-} from '@vt/api-client';
+import { fieldErrors, toProblem } from '@vt/api-client';
+import { ORG_FLOW_LABEL, ORG_UNIT_LEVEL_LABEL, ORG_UNIT_TYPE_LABEL, OrgFlow, OrgTreeApi, OrgUnitDetail, OrgUnitInput, OrgUnitLevel, OrgUnitType } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 

@@ -1,10 +1,5 @@
-import {
-  COMPLAINT_RESOLUTION_LABEL,
-  PERIOD_STATUS_LABEL,
-  RATING_LEVEL_LABEL,
-  REOPEN_STATUS_LABEL,
-  TASK_STATUS_LABEL,
-} from '@vt/api-client';
+import { TASK_STATUS_LABEL } from '@vt/api-client';
+import { COMPLAINT_RESOLUTION_LABEL, PERIOD_STATUS_LABEL, RATING_LEVEL_LABEL, REOPEN_STATUS_LABEL } from '@vt/api-client/domains';
 
 /**
  * Tên nghiệp vụ của các sự kiện hay tra ở SCR-1302 (danh sách gợi ý theo bảng EVT của baseline, suy luận).

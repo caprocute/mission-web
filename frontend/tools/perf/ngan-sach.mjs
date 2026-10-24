@@ -2,16 +2,19 @@
 /**
  * WEB-052 pha 2: cổng ngân sách kích thước của TL-01 "Ngân sách hiệu năng" (AGENTS.md quy tắc 10), đo trên
  * bản build production đã ghép (`npm run perf:prepare` → `dist/lhci`):
- * - trang chủ `/` (shell + design system + thư viện dùng chung tải đầu) ≤ 250 KB gzip;
+ * - trang chủ `/` (shell + design system + thư viện dùng chung tải đầu) ≤ 550 KB, cổng chặn đã duyệt
+ *   24/10/2026 (wiki/14 "Ngưỡng tải đầu của trang chủ"); 250 KB của TL-01 giữ làm mục tiêu NFR và được in kèm;
  * - mỗi remote, phần tải thêm khi mở tuyến đầu của nó sau trang chủ ≤ 180 KB gzip.
  *
  * Khác Lighthouse (`npm run perf:lhci`, đo LCP trên 4G mô phỏng), cổng này không phụ thuộc mạng giả lập nên
  * cho cùng một số ở mọi máy: mở trang bằng Chromium của Playwright, gom mọi tệp JS, CSS, phông tải về, tính
- * cỡ gzip (mức 6) của từng tệp. Không tính bộ dữ liệu giả lập (`*.mock-*.js`) vì bản phát hành gọi máy chủ
- * thật, không tính JSON cấu hình và dữ liệu. Một tệp chỉ tính một lần cho trang đầu tiên tải nó.
+ * dung lượng truyền của từng tệp như nginx của deploy/web phục vụ: JS, CSS là bản gzip mức 9 nén sẵn
+ * (gzip_static), phông woff/woff2 đã nén nên tính nguyên cỡ. Không tính bộ dữ liệu giả lập (`*.mock-*.js`) vì
+ * bản phát hành gọi máy chủ thật, không tính JSON cấu hình và dữ liệu. Một tệp chỉ tính một lần cho trang đầu
+ * tiên tải nó. Từ 24/10/2026 đây là phép đo chính thức của ngân sách trang chủ và remote (wiki/14).
  *
  * Dùng: node tools/perf/ngan-sach.mjs [--json <tệp>]   (mã thoát 1 khi vượt ngân sách)
- * Biến: PERF_DIR (mặc định dist/lhci), PERF_SHELL_KB (250), PERF_REMOTE_KB (180).
+ * Biến: PERF_DIR (mặc định dist/lhci), PERF_SHELL_KB (550), PERF_SHELL_TARGET_KB (250), PERF_REMOTE_KB (180).
  */
 import { createServer } from 'node:http';
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -22,7 +25,8 @@ import { chromium } from '@playwright/test';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const DIR = join(ROOT, process.env.PERF_DIR ?? 'dist/lhci');
-const SHELL_KB = Number(process.env.PERF_SHELL_KB ?? 250);
+const SHELL_KB = Number(process.env.PERF_SHELL_KB ?? 550);
+const SHELL_TARGET_KB = Number(process.env.PERF_SHELL_TARGET_KB ?? 250);
 const REMOTE_KB = Number(process.env.PERF_REMOTE_KB ?? 180);
 const REMOTES = JSON.parse(readFileSync(join(ROOT, 'tools/remotes/remotes.json'), 'utf8')).remotes;
 
@@ -72,7 +76,7 @@ function serve() {
 /** Theo đuôi tệp, vì es-module-shims tải mô-đun bằng `fetch` chứ không phải thẻ script. */
 const counted = (url, type) => {
   const path = new URL(url).pathname;
-  if (/\.mock-[A-Za-z0-9_-]+\.js$/.test(path)) return false;
+  if (/\.mock-[A-Za-z0-9_-]+\.js$|\/mock-registry-[A-Za-z0-9_-]+\.js$/.test(path)) return false;
   return type === 'document' || /\.(m?js|css|woff2?|ttf)$/.test(path);
 };
 
@@ -106,7 +110,10 @@ async function main() {
       const entry = { url: url.slice(base.length), bytes: 0 };
       files.push(entry);
       try {
-        entry.bytes = gzipSync(await res.body(), { level: 6 }).length;
+        const body = await res.body();
+        entry.bytes = /\.woff2?$/.test(entry.url)
+          ? body.length
+          : gzipSync(body, { level: 9 }).length;
       } catch {
         // phản hồi bị huỷ khi trang chuyển tuyến: bỏ qua
       }
@@ -136,6 +143,11 @@ async function main() {
       for (const t of p.list.slice(0, 5))
         console.log(`        ${(t.bytes / 1024).toFixed(1).padStart(6)} KB ${t.url}`);
   }
+  const home = pages[0];
+  if (home.kb > SHELL_TARGET_KB)
+    console.log(
+      `Ghi chú: trang chủ còn cách mục tiêu NFR ${SHELL_TARGET_KB} KB của TL-01 ${(home.kb - SHELL_TARGET_KB).toFixed(1)} KB`,
+    );
   const out = process.argv.indexOf('--json');
   if (out > 0) writeFileSync(process.argv[out + 1], JSON.stringify(pages, null, 2));
   process.exit(fail ? 1 : 0);

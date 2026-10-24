@@ -16,18 +16,8 @@ import { Component, computed, inject, linkedSignal, signal } from '@angular/core
 import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import {
-  CATALOG_ITEM_STATUS_LABEL,
-  CatalogApi,
-  CatalogImportJob,
-  CatalogItem,
-  CatalogItemSaveResult,
-  CatalogItemStatus,
-  TASK_GROUP_LABEL,
-  WORK_CATALOG_STATUS_LABEL,
-  WorkCatalog,
-  toProblem,
-} from '@vt/api-client';
+import { TASK_GROUP_LABEL, toProblem } from '@vt/api-client';
+import { CATALOG_ITEM_STATUS_LABEL, CatalogApi, CatalogImportJob, CatalogItem, CatalogItemSaveResult, CatalogItemStatus, WORK_CATALOG_STATUS_LABEL, WorkCatalog } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';

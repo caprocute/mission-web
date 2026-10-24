@@ -1,16 +1,7 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import {
-  Job,
-  JobAccepted,
-  JobTracker,
-  PackVersionRef,
-  PolicyApi,
-  PolicyPackVersion,
-  PolicyPackVersionSummary,
-  PolicyTestRunSummary,
-  isPolicyVersionEditable,
-} from '@vt/api-client';
+import { Job, JobAccepted, JobTracker } from '@vt/api-client';
+import { PackVersionRef, PolicyApi, PolicyPackVersion, PolicyPackVersionSummary, PolicyTestRunSummary, isPolicyVersionEditable } from '@vt/api-client/domains';
 import { last, map, switchMap, tap } from 'rxjs';
 import { errorText, jobErrorText } from '../../studio-ui';
 

@@ -6,7 +6,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { AnalyticsApi, SHARE_SCOPE_LABEL } from '@vt/api-client';
+import { AnalyticsApi, SHARE_SCOPE_LABEL } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { DASHBOARD_CAN, DASHBOARD_USER_ID } from '../dashboard-permissions';

@@ -1,22 +1,8 @@
 import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import {
-  OVERDUE_ACTION_LABEL,
-  PeriodApi,
-  PolicyApi,
-  PolicyWorkflowTemplateSummary,
-  PolicyWorkflowTemplateVersion,
-  WorkflowBinding,
-  WorkflowLevelParam,
-  WorkflowLintResult,
-  WorkflowSimulateResult,
-  WorkflowStepPreview,
-  stepsForLevels,
-  toProblem,
-  workDays,
-  workDaysParam,
-} from '@vt/api-client';
+import { toProblem } from '@vt/api-client';
+import { OVERDUE_ACTION_LABEL, PeriodApi, PolicyApi, PolicyWorkflowTemplateSummary, PolicyWorkflowTemplateVersion, WorkflowBinding, WorkflowLevelParam, WorkflowLintResult, WorkflowSimulateResult, WorkflowStepPreview, stepsForLevels, workDays, workDaysParam } from '@vt/api-client/domains';
 import { ROLE_LABEL } from '@vt/auth';
 import { ButtonModule } from 'primeng/button';
 import { STUDIO_ACCESS } from '../../studio-permissions';
@@ -49,6 +35,7 @@ function choices(s: Schema | undefined, labels: Record<string, string> = {}): Ch
   if (one)
     return one.map((o) => ({ value: o.const, label: o.title ?? labels[o.const] ?? o.const }));
   const en = s?.['enum'] as string[] | undefined;
+  // ui-text-ok: tham số, giá trị và lựa chọn do người soạn chính sách tự đặt, không có bảng nhãn cố định
   return (en ?? []).map((v) => ({ value: v, label: labels[v] ?? v }));
 }
 

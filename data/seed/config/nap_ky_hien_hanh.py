@@ -24,6 +24,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+from typing import List, Optional, Tuple
 
 LA_MA = {1: "I", 2: "II", 3: "III", 4: "IV"}
 
@@ -34,7 +35,7 @@ class LoiApi(Exception):
         self.status = status
 
 
-def goi(method: str, url: str, token: str, body: dict | None = None):
+def goi(method: str, url: str, token: str, body: Optional[dict] = None):
     """Gọi API JSON; trả (mã, nội dung đã giải JSON hoặc None)."""
     data = None if body is None else json.dumps(body, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(url, data=data, method=method)
@@ -52,14 +53,14 @@ def goi(method: str, url: str, token: str, body: dict | None = None):
         raise LoiApi(e.code, e.read().decode("utf-8", "replace")) from None
 
 
-def quy_hien_hanh(hom_nay: dt.date) -> tuple[int, dt.date, dt.date]:
+def quy_hien_hanh(hom_nay: dt.date) -> Tuple[int, dt.date, dt.date]:
     q = (hom_nay.month - 1) // 3 + 1
     bat_dau = dt.date(hom_nay.year, 3 * q - 2, 1)
     ket_thuc = (dt.date(hom_nay.year + (q == 4), 1 if q == 4 else 3 * q + 1, 1)) - dt.timedelta(days=1)
     return q, bat_dau, ket_thuc
 
 
-def ky_bao_trum(api: str, token: str, hom_nay: dt.date) -> list[dict]:
+def ky_bao_trum(api: str, token: str, hom_nay: dt.date) -> List[dict]:
     """Các kỳ của năm hiện tại có khoảng ngày chứa hôm nay (đọc hết các trang)."""
     ket_qua, con_tro = [], None
     while True:

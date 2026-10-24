@@ -133,7 +133,7 @@ public class UiFormController {
   }
 
   @GetMapping("/{key}/current")
-  @RequiresPermission(operationId = "getCurrentUiForm", module = "config")
+  @RequiresPermission(operationId = "getCurrentUiForm", module = "ui")
   public ResponseEntity<JsonNode> getCurrentUiForm(
       @PathVariable("key") String key,
       @RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch) {

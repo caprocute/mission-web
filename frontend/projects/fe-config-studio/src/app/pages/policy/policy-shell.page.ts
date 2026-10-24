@@ -1,6 +1,6 @@
 import { Component, computed, effect, inject, input } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { POLICY_VERSION_STATUS_LABEL, policyVersionLabel } from '@vt/api-client';
+import { POLICY_VERSION_STATUS_LABEL, policyVersionLabel } from '@vt/api-client/domains';
 import { STUDIO_ACCESS } from '../../studio-permissions';
 import { fmtDate } from '../../studio-ui';
 import { POLICY_TABS } from './policy-tabs';

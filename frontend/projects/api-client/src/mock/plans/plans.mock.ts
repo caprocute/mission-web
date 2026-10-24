@@ -30,6 +30,7 @@ import okrFixture from '../okr/okr.json';
 import orgFixture from '../org/org.json';
 import { MOCK_ME, mockSession } from '../mock-session';
 import { workingDaysBetween } from '../tasks/working-days';
+import { mockPeriodInfo } from '../periods/periods.mock';
 import fixture from './plans.json';
 
 /**
@@ -672,6 +673,37 @@ function approve(req: MockRequest): MockResponse {
   };
 }
 
+/**
+ * Lập kế hoạch (`createPlan`): kỳ phải đang mở, mỗi đơn vị một kế hoạch mỗi kỳ (409 `TASK-409-PLAN-EXISTS`);
+ * bỏ trống đơn vị thì lấy đơn vị của phân công đang chọn (giả lập: đơn vị của kế hoạch mẫu).
+ */
+function createPlan(req: MockRequest): MockResponse {
+  const body = (req.body ?? {}) as { periodId?: string; unitId?: string };
+  if (!body.periodId)
+    return problem(422, 'Dữ liệu không hợp lệ', {
+      errors: [{ field: 'periodId', message: 'Chọn kỳ kế hoạch' }],
+    });
+  const info = mockPeriodInfo(body.periodId);
+  if (!info) return problem(404, 'Không tìm thấy kỳ');
+  if (info.status !== 'MO') return problem(409, 'Kỳ đã đóng, không lập được kế hoạch mới');
+  const unit = unitRef(body.unitId ?? fixture.plans[0].unitId);
+  if (store().some((p) => p.period.id === info.ref.id && p.unitId === unit.id))
+    return problem(409, 'Đơn vị đã có kế hoạch cho kỳ này', { code: 'TASK-409-PLAN-EXISTS' });
+  const deadline = new Date(`${info.ref.startDate}T00:00:00Z`);
+  deadline.setUTCDate(deadline.getUTCDate() + 10);
+  const p: StoredPlan = {
+    id: `plan-${info.ref.id}-${unit.id}`,
+    code: `KH-${info.ref.id.toUpperCase()}`,
+    period: info.ref,
+    approvalDeadline: deadline.toISOString().slice(0, 10),
+    unitId: unit.id,
+    unitName: unit.name,
+    versions: [{ versionNo: 1, status: 'NHAP', rowVersion: 1, items: [] }],
+  };
+  store().push(p);
+  return { status: 201, body: planOf(p), headers: { Location: `/api/v1/plans/${p.id}` } };
+}
+
 /** Trạng thái yêu cầu ký: lần hỏi thứ hai coi như người duyệt đã xác nhận trên MySign (EVT-18, EVT-03). */
 function signStatus(req: MockRequest): MockResponse {
   const s = signs.find((x) => x.id === req.pathParams['id']);
@@ -722,6 +754,7 @@ export const PLANS_MOCK: MockModule = {
         return ok({ items, nextCursor: null });
       },
     },
+    { method: 'POST', pattern: '/api/v1/plans', handle: createPlan },
     {
       method: 'GET',
       pattern: '/api/v1/plans/:id/versions',

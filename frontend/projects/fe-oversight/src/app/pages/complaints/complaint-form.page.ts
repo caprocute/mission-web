@@ -18,23 +18,8 @@ import { Component, computed, inject, input, linkedSignal, signal } from '@angul
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import {
-  COMPLAINT_KIND_HINT,
-  COMPLAINT_KIND_LABEL,
-  COMPLAINT_LIMITS,
-  COMPLAINT_OPEN_STATUSES,
-  COMPLAINT_RESOLUTION_LABEL,
-  COMPLAINT_STATUS_LABEL,
-  ComplainableProfile,
-  Complaint,
-  ComplaintApi,
-  ComplaintInput,
-  ComplaintKind,
-  FileApi,
-  FileRejectedError,
-  RATING_LEVEL_LABEL,
-  toProblem,
-} from '@vt/api-client';
+import { toProblem } from '@vt/api-client';
+import { COMPLAINT_KIND_HINT, COMPLAINT_KIND_LABEL, COMPLAINT_LIMITS, COMPLAINT_OPEN_STATUSES, COMPLAINT_RESOLUTION_LABEL, COMPLAINT_STATUS_LABEL, ComplainableProfile, Complaint, ComplaintApi, ComplaintInput, ComplaintKind, FileApi, FileRejectedError, RATING_LEVEL_LABEL } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';

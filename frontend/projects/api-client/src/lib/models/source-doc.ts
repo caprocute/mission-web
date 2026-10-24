@@ -1,5 +1,5 @@
-import { AssigneeRef, SimilarTask } from './task-assign';
-import { TaskStatus } from './task';
+import { AssigneeRef, SimilarTask } from '@vt/api-client';
+import { TaskStatus } from '@vt/api-client';
 
 /** Hệ nguồn của văn bản (`task.task_source_doc.source_system`, TL-03). */
 export type SourceSystem = 'VOFFICE' | 'IOFFICE' | 'EDXML' | 'LGSP' | 'THU_CONG';

@@ -1,4 +1,5 @@
-import { AnnualRatingRow, Period, ProblemDetails } from '@vt/api-client';
+import { ProblemDetails } from '@vt/api-client';
+import { AnnualRatingRow, Period } from '@vt/api-client/domains';
 
 /**
  * Quy tắc trình bày của SCR-1001 Xếp loại năm. Mức năm, cờ liên thông và câu giải thích do máy chủ tính

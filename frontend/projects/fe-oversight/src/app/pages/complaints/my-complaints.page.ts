@@ -1,13 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import {
-  COMPLAINT_KIND_LABEL,
-  COMPLAINT_STATUS_LABEL,
-  ComplaintApi,
-  ComplaintSummary,
-  RATING_LEVEL_LABEL,
-} from '@vt/api-client';
+import { COMPLAINT_KIND_LABEL, COMPLAINT_STATUS_LABEL, ComplaintApi, ComplaintSummary, RATING_LEVEL_LABEL } from '@vt/api-client/domains';
 import { MessageModule } from 'primeng/message';
 import { TagModule } from 'primeng/tag';
 import { OVERSIGHT_CAN, OVERSIGHT_USER_ID } from '../../oversight-permissions';

@@ -6,12 +6,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import {
-  DossierApi,
-  DossierPackageStatus,
-  PACKAGE_KIND_LABEL,
-  PACKAGE_STATUS_LABEL,
-} from '@vt/api-client';
+import { DossierApi, DossierPackageStatus, PACKAGE_KIND_LABEL, PACKAGE_STATUS_LABEL } from '@vt/api-client/domains';
 import { DossierTabs } from '../dossier-tabs';
 
 @Component({

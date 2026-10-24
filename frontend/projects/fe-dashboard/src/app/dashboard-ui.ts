@@ -1,4 +1,5 @@
-import { AnalyticsFilter, Period, toProblem } from '@vt/api-client';
+import { toProblem } from '@vt/api-client';
+import { AnalyticsFilter, Period } from '@vt/api-client/domains';
 import { TEXT_FORBIDDEN } from '@vt/auth';
 
 /** Ngày giờ kiểu Việt Nam: 16/11/2026 08:55. */

@@ -11,16 +11,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import {
-  ACCESS_EVENT_KIND_LABEL,
-  DELEGATION_KIND_LABEL,
-  DELEGATION_STATUS_LABEL,
-  ROLE_BINDING_STATUS_LABEL,
-  ROLE_CODE_LABEL,
-  ROLE_SCOPE_LABEL,
-  RoleAdminApi,
-  RoleBinding,
-} from '@vt/api-client';
+import { ACCESS_EVENT_KIND_LABEL, DELEGATION_KIND_LABEL, DELEGATION_STATUS_LABEL, ROLE_BINDING_STATUS_LABEL, ROLE_CODE_LABEL, ROLE_SCOPE_LABEL, RoleAdminApi, RoleBinding } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { map } from 'rxjs';

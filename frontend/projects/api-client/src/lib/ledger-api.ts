@@ -1,8 +1,8 @@
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { apiUrl } from './api-path';
-import { Job } from './models/job';
+import { apiUrl } from '@vt/api-client';
+import { Job } from '@vt/api-client';
 import {
   LedgerEntry,
   LedgerEntryDetail,
@@ -12,7 +12,7 @@ import {
   LedgerVerifyRun,
   LedgerVerifyRunInput,
 } from './models/ledger';
-import { CursorPage, MAX_PAGE_LIMIT } from './paging';
+import { CursorPage, MAX_PAGE_LIMIT } from '@vt/api-client';
 
 /** Tác vụ nền của sổ cái (202): địa chỉ theo dõi `/api/v1/jobs/{id}` và job ban đầu. */
 export interface LedgerJobAccepted {

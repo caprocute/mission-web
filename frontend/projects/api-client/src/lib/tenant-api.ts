@@ -1,9 +1,9 @@
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map, of, switchMap } from 'rxjs';
-import { CursorQuery, MAX_PAGE_LIMIT } from './paging';
-import { jobLocation } from './job-tracker';
-import { Job } from './models/job';
+import { CursorQuery, MAX_PAGE_LIMIT } from '@vt/api-client';
+import { jobLocation } from '@vt/api-client';
+import { Job } from '@vt/api-client';
 import {
   CellOption,
   PolicyPackOption,
@@ -28,8 +28,8 @@ import {
   TenantPage,
   TenantStatus,
 } from './models/tenant';
-import { UiPackSummary } from './models/ui-pack';
-import { apiUrl } from './api-path';
+import { UiPackSummary } from '@vt/api-client';
+import { apiUrl } from '@vt/api-client';
 
 /** Lọc danh sách tenant (SCR-0101 vùng 1). */
 export interface TenantQuery extends CursorQuery {

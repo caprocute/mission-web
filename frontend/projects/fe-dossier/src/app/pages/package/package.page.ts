@@ -17,20 +17,8 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import {
-  DossierApi,
-  DossierForm,
-  DossierTransferDestination,
-  FORM_CODE_LABEL,
-  FORM_STATUS_LABEL,
-  Job,
-  JobTracker,
-  PACKAGE_KIND_LABEL,
-  PACKAGE_STATUS_LABEL,
-  TRANSFER_DESTINATION_LABEL,
-  TRANSFER_STATUS_LABEL,
-  toProblem,
-} from '@vt/api-client';
+import { Job, JobTracker, toProblem } from '@vt/api-client';
+import { DossierApi, DossierForm, DossierTransferDestination, FORM_CODE_LABEL, FORM_STATUS_LABEL, PACKAGE_KIND_LABEL, PACKAGE_STATUS_LABEL, TRANSFER_DESTINATION_LABEL, TRANSFER_STATUS_LABEL } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { firstValueFrom, last } from 'rxjs';
 import { DOSSIER_CAN } from '../../dossier-permissions';

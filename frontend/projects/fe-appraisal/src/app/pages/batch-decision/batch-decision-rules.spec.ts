@@ -1,4 +1,4 @@
-import { AppraisalProfileRow } from '@vt/api-client';
+import { AppraisalProfileRow } from '@vt/api-client/domains';
 import {
   certificateInfo,
   certificateValid,

@@ -1,14 +1,7 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
-import {
-  AnalyticsApi,
-  AnalyticsRow,
-  DIMENSION,
-  DashboardWidget,
-  DashboardWidgetData,
-  SemanticModel,
-} from '@vt/api-client';
+import { AnalyticsApi, AnalyticsRow, DIMENSION, DashboardWidget, DashboardWidgetData, SemanticModel } from '@vt/api-client/domains';
 import { errorText } from '../dashboard-ui';
 import { ChartHost } from './charts';
 

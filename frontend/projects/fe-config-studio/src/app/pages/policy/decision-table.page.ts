@@ -1,23 +1,8 @@
 import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import {
-  DecisionRule,
-  DecisionTable,
-  DecisionTableSaved,
-  EXPLANATION_VARIABLES,
-  HIT_POLICY_LABEL,
-  POLICY_VERSION_STATUS_LABEL,
-  PolicyApi,
-  PolicyRule,
-  RATING_LEVELS,
-  GENERAL_CRITERIA_LEVEL_LABEL,
-  RATING_LEVEL_LABEL,
-  RatingLevel,
-  shadowedDecisionRows,
-  toProblem,
-  unknownTemplateVariables,
-} from '@vt/api-client';
+import { toProblem } from '@vt/api-client';
+import { DecisionRule, DecisionTable, DecisionTableSaved, EXPLANATION_VARIABLES, HIT_POLICY_LABEL, POLICY_VERSION_STATUS_LABEL, PolicyApi, PolicyRule, RATING_LEVELS, GENERAL_CRITERIA_LEVEL_LABEL, RATING_LEVEL_LABEL, RatingLevel, shadowedDecisionRows, unknownTemplateVariables } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { Observable, concatMap, from, of, tap, toArray } from 'rxjs';
 import { STUDIO_ACCESS } from '../../studio-permissions';

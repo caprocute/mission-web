@@ -21,13 +21,14 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from typing import List, Optional, Tuple
 
 EVENTS = Path(__file__).resolve().parents[3] / "contracts" / "events"
 REGISTRY = os.environ.get("REGISTRY_URL", "http://127.0.0.1:35081/apis/registry/v3").rstrip("/")
 GROUP = "default"
 
 
-def goi(method: str, path: str, body: bytes | None = None, ctype: str = "application/json"):
+def goi(method: str, path: str, body: Optional[bytes] = None, ctype: str = "application/json"):
     req = urllib.request.Request(REGISTRY + path, data=body, method=method)
     req.add_header("Content-Type", ctype)
     req.add_header("Accept", "application/json")
@@ -38,7 +39,7 @@ def goi(method: str, path: str, body: bytes | None = None, ctype: str = "applica
         return e.code, e.read()[:400].decode("utf-8", "replace")
 
 
-def cap_luoc_do() -> list[tuple[str, str]]:
+def cap_luoc_do() -> List[Tuple[str, str]]:
     text = (EVENTS / "catalog.yaml").read_text(encoding="utf-8")
     return re.findall(r"^\s+schema:\s*(\S+)\s*\n\s+artifactId:\s*(\S+)", text, re.M)
 

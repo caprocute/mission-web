@@ -1,9 +1,9 @@
 import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { apiUrl } from './api-path';
-import { JobAccepted, acceptedJob } from './job-tracker';
-import { Job } from './models/job';
+import { apiUrl } from '@vt/api-client';
+import { JobAccepted, acceptedJob } from '@vt/api-client';
+import { Job } from '@vt/api-client';
 import {
   DecisionTable,
   DecisionTableSaved,

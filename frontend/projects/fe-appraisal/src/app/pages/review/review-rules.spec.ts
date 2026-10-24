@@ -1,4 +1,4 @@
-import { AppraisalProfile, AppraisalScoreView } from '@vt/api-client';
+import { AppraisalProfile, AppraisalScoreView } from '@vt/api-client/domains';
 import { checkReview, compareRows, returnReasonError, selfLevel, shortHash } from './review-rules';
 
 const COMMENT = 'Hoàn thành tốt các nhiệm vụ then chốt.';

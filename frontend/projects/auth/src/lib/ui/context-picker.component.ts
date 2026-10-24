@@ -117,7 +117,7 @@ export class ContextPickerComponent {
     return ASSIGNMENT_KIND_LABEL[a.kind];
   }
   protected rolesLabel(a: Assignment): string {
-    return a.roles.map((r) => ROLE_LABEL[r] ?? r).join(', ');
+    return a.roles.map((r) => ROLE_LABEL[r] ?? 'Vai trò khác').join(', ');
   }
   protected needsMfa(a: Assignment): boolean {
     return requiresAal2(a) && !this.session.canUse(a);

@@ -1,15 +1,6 @@
 import { NgComponentOutlet } from '@angular/common';
 import { Component, Type, computed, input } from '@angular/core';
-import {
-  AnalyticsCell,
-  AnalyticsColumn,
-  AnalyticsRow,
-  DashboardChartType,
-  PREVIOUS_SUFFIX,
-  cellNumber,
-  formatCell,
-  resultRows,
-} from '@vt/api-client';
+import { AnalyticsCell, AnalyticsColumn, AnalyticsRow, DashboardChartType, PREVIOUS_SUFFIX, cellNumber, formatCell, resultRows } from '@vt/api-client/domains';
 
 /**
  * Biểu đồ của bảng điều hành và dashboard tự dựng (SCR-1601, SCR-1602), vẽ bằng SVG và CSS qua liên kết

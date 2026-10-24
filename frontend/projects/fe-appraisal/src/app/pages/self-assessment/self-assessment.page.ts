@@ -34,19 +34,8 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import {
-  APPRAISAL_FLOW_LABEL,
-  APPRAISAL_STATUS_LABEL,
-  AppraisalApi,
-  AppraisalFlow,
-  AppraisalProfile,
-  AppraisalSelfAssessmentInput,
-  EvidenceApi,
-  JobTracker,
-  RatingLevel,
-  UiFormApi,
-  toProblem,
-} from '@vt/api-client';
+import { JobTracker, UiFormApi, toProblem } from '@vt/api-client';
+import { APPRAISAL_FLOW_LABEL, APPRAISAL_STATUS_LABEL, AppraisalApi, AppraisalFlow, AppraisalProfile, AppraisalSelfAssessmentInput, EvidenceApi, RatingLevel } from '@vt/api-client/domains';
 import { permittedOn } from '@vt/auth';
 import { ThemeService } from '@vt/design-system';
 import { firstValueFrom, map } from 'rxjs';

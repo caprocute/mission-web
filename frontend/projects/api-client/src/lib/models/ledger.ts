@@ -73,7 +73,15 @@ export const LEDGER_AGGREGATE_TYPE_LABEL: Record<string, string> = {
   evidence: 'Minh chứng',
   period: 'Kỳ đánh giá',
   reopen_request: 'Yêu cầu mở lại kỳ',
+  kiem_tra_so_cai: 'Kiểm tra sổ cái',
 };
+
+/**
+ * Tên nghiệp vụ của loại đối tượng; máy chủ trả mã viết hoa (`TASK`, `KIEM_TRA_SO_CAI`) nên tra không
+ * phân biệt hoa thường, loại chưa có tên thì hiện tên chung, không bao giờ hiện mã thô (YC-PT-10).
+ */
+export const ledgerAggregateTypeLabel = (t: string): string =>
+  LEDGER_AGGREGATE_TYPE_LABEL[t.toLowerCase()] ?? 'Đối tượng khác';
 
 /** Số phân vùng chuỗi mỗi tenant (ADR-09, BR-13-09). */
 export const LEDGER_PARTITIONS = 64;

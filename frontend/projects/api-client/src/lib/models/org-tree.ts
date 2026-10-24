@@ -1,6 +1,6 @@
 import type { components as CommonComponents } from '../generated/common';
 import type { components } from '../generated/org';
-import { AssignmentKind } from './org';
+import { AssignmentKind } from '@vt/api-client';
 
 /**
  * Cây tổ chức có lịch sử (SCR-0103, QT-01 bước 6) của SVC-04 org-service: bảng `org.org_unit`,

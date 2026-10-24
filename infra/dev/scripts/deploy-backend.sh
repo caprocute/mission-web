@@ -95,6 +95,21 @@ compose() {
     --profile backend "$@"
 }
 
+# Secret openbao_token của compose là tệp (docker-compose.yml): ghi từ OPENBAO_DEV_ROOT_TOKEN, thư mục 700 để chỉ chủ
+# máy đọc được; tệp 644 để người dùng 10001 trong container đọc qua điểm gắn. Không in giá trị.
+if [[ -z "${OPENBAO_TOKEN_FILE:-}" ]]; then
+  if [[ -n "${OPENBAO_DEV_ROOT_TOKEN:-}" ]]; then
+    install -d -m 700 "${INFRA_DIR}/secrets"
+    (umask 022 && printf '%s' "${OPENBAO_DEV_ROOT_TOKEN}" >"${INFRA_DIR}/secrets/openbao_token.tmp")
+    chmod 644 "${INFRA_DIR}/secrets/openbao_token.tmp"
+    mv "${INFRA_DIR}/secrets/openbao_token.tmp" "${INFRA_DIR}/secrets/openbao_token"
+  elif [[ ! -f "${INFRA_DIR}/secrets/openbao_token" ]]; then
+    echo "  Cảnh báo: chưa đặt OPENBAO_DEV_ROOT_TOKEN; org-service, integration-gateway không mã hoá được trường C2." >&2
+    install -d -m 700 "${INFRA_DIR}/secrets"
+    : >"${INFRA_DIR}/secrets/openbao_token"
+  fi
+fi
+
 echo "==> Container trước khi áp: $(docker ps -q | wc -l) đang chạy, $(docker ps -q --filter "label=com.docker.compose.project=${PROJECT}" | wc -l) thuộc ${PROJECT}"
 
 # --- (1) jar Java ------------------------------------------------------------
