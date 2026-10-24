@@ -88,12 +88,23 @@ test.describe('Giao việc', { tag: '@qa-05' }, () => {
     let page = await s.as('quanly', '/tasks/assign');
     let m = main(page);
     await expect(m.getByRole('heading', { level: 1, name: 'Giao nhiệm vụ' })).toBeVisible();
+    // khung soạn của máy chủ mặc định "Phát sinh" (nguồn theo đường vào, TL-02 SCR-0501 trường 2)
+    await m.getByRole('button', { name: 'Từ kế hoạch quý' }).click();
     await expect(m.getByRole('button', { name: 'Từ kế hoạch quý' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
     await kiemTruyCap(page, 'giao nhiệm vụ');
     await chon(page, m.getByRole('combobox', { name: 'Chọn dòng kế hoạch đã duyệt' }));
+    if (HE_THONG) {
+      // duyệt kế hoạch (EVT-03) đã sinh sẵn nhiệm vụ nháp cho từng dòng (QT-05 bước 3): chọn dòng là
+      // mở nháp đó để giao
+      await page.waitForURL(/\/tasks\/assign\/[^/?]+/);
+      await expect(m.getByRole('button', { name: 'Từ kế hoạch quý' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+    }
     await m.getByRole('textbox', { name: 'Tên nhiệm vụ *' }).fill(GV.ten);
     await chon(
       page,
@@ -128,6 +139,15 @@ test.describe('Giao việc', { tag: '@qa-05' }, () => {
       await chon(page, nghiemThu, new RegExp(`^${nguoiNghiemThu.split('·')[0].trim()}`));
     }
     await expect(kiem.getByRole('listitem').filter({ hasText: /^Chưa đạt/ })).toHaveCount(0);
+    // Trên hệ thống thật các lần chạy trước để lại nhiệm vụ cùng tên: màn hình báo nhiệm vụ tương tự và cần lý do
+    const lyDoTrung = m.getByRole('textbox', { name: /^Lý do vẫn tạo nhiệm vụ mới/ });
+    await expect(kiem.getByText('Đang kiểm tra…')).toBeHidden();
+    await expect(
+      lyDoTrung.or(m.getByRole('button', { name: 'Giao việc', disabled: false })).first(),
+    ).toBeVisible();
+    if (HE_THONG && (await lyDoTrung.isVisible())) {
+      await lyDoTrung.fill('Kiểm thử đầu cuối, mỗi lần chạy giao một nhiệm vụ mới');
+    }
 
     // Giao việc (`checkTaskAssignment`, `assignTask`); máy chủ phát EVT-04
     const tu = new Date(Date.now() - 5_000);
@@ -293,10 +313,14 @@ test.describe('Giao việc', { tag: '@qa-05' }, () => {
     await expect(
       dk.getByText('Đã gửi đăng ký nhiệm vụ. Người quản lý trực tiếp sẽ xem xét.'),
     ).toBeVisible();
-    let taskId: string;
-    if (gui) {
-      taskId = ((await (await gui).json()) as { id: string }).id;
-    } else {
+    // Trang làm mới danh sách ngay sau khi gửi nên trình duyệt có thể đã bỏ thân phản hồi; khi đó lấy mã từ dòng
+    let taskId = gui
+      ? await (await gui)
+          .json()
+          .then((b: { id: string }) => b.id)
+          .catch(() => '')
+      : '';
+    if (!taskId) {
       // giả lập chạy API trong trình duyệt: lấy mã từ dòng "Chờ duyệt đăng ký" vừa thêm vào danh sách
       await m
         .getByRole('region', { name: 'Danh sách nhiệm vụ' })

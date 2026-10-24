@@ -171,10 +171,10 @@ class TaskChangeDecisionApiIT extends ContractConformanceTest {
     assertThat(perform(decide(task, first, true, "KHACH_QUAN", REASON)).getResponse().getStatus())
         .isEqualTo(403);
     TestTaskCallers.current = ASSIGNER_ACTOR;
-    assertThat(perform(decide(task, first, true, "KHACH_QUAN", " ")).getResponse().getStatus())
+    // Từ chối phải có lý do; duyệt thì ý kiến không bắt buộc (ChangeRequestDecision.note)
+    assertThat(perform(decide(task, first, false, "KHACH_QUAN", " ")).getResponse().getStatus())
         .isEqualTo(422);
-    MvcResult ok =
-        perform(decide(task, first, true, "KHACH_QUAN", "Đồng ý, nguyên nhân khách quan"));
+    MvcResult ok = perform(decide(task, first, true, "KHACH_QUAN", null));
     assertThat(ok.getResponse().getStatus()).isEqualTo(200);
     assertThat(body(ok).get("dueDate").asText()).isEqualTo("2029-12-07");
     assertThat(body(ok).get("scoreDueDate").asText()).isEqualTo("2029-12-07");

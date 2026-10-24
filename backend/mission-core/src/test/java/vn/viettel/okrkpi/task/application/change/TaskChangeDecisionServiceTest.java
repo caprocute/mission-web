@@ -175,6 +175,17 @@ class TaskChangeDecisionServiceTest {
   }
 
   @Test
+  void approveWithoutNoteKeepsRequestReasonInLog() {
+    // Ý kiến chỉ bắt buộc khi từ chối (hợp đồng ChangeRequestDecision.note, hộp duyệt SCR-0601)
+    pending("GIA_HAN", false);
+    service.decide(
+        TENANT, TASK, REQ, null, new Decision(true, "KHACH_QUAN", null), manager(ASSIGNER));
+    verify(changes)
+        .decide(eq(TENANT), anyInt(), eq(REQ), any(), eq("KHACH_QUAN"), isNull(), any(), any());
+    assertThat(applied().extendedDueDate()).isEqualTo(LocalDate.of(2026, 11, 6));
+  }
+
+  @Test
   void subjectiveExtensionKeepsScoreDueDate() {
     pending("GIA_HAN", false);
     service.decide(TENANT, TASK, REQ, null, approve("CHU_QUAN"), manager(ASSIGNER));

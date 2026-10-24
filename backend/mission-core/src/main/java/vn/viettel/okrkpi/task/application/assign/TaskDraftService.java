@@ -259,7 +259,53 @@ public class TaskDraftService {
             .findDraft(tenant, taskId)
             .filter(d -> "NHAP".equals(d.status()))
             .orElseThrow(NoSuchElementException::new);
-    return new Template(period(tenant, row.periodId()), row);
+    return new Template(period(tenant, row.periodId()), withDefaultAcceptor(row));
+  }
+
+  /**
+   * Nháp sinh từ kế hoạch đã duyệt (EVT-03, CORE-02-11) chưa có người nghiệm thu: mặc định là người
+   * giao như khung soạn mới ({@link #newDraft}), người giao vẫn đổi được trước khi giao (BR-05-02).
+   */
+  static DraftRow withDefaultAcceptor(DraftRow row) {
+    TaskDraftSpec s = row.spec();
+    if (s.acceptorId() != null || row.assignerId() == null) {
+      return row;
+    }
+    TaskDraftSpec spec =
+        new TaskDraftSpec(
+            s.periodId(),
+            s.source(),
+            s.planItemId(),
+            s.catalogItemId(),
+            s.title(),
+            s.taskGroup(),
+            s.keyResultId(),
+            s.priority(),
+            s.leadPersonId(),
+            s.coAssignees(),
+            s.dueDate(),
+            row.assignerId(),
+            s.milestones(),
+            s.productName(),
+            s.quantity(),
+            s.unit(),
+            s.evidenceRequired(),
+            s.qualityCriteria(),
+            s.sourceDocNumber(),
+            s.sourceDocTitle(),
+            s.basis(),
+            s.node());
+    return new DraftRow(
+        row.id(),
+        row.code(),
+        row.status(),
+        row.periodId(),
+        row.periodBucket(),
+        row.orgUnitId(),
+        row.assignerId(),
+        row.restricted(),
+        spec,
+        row.rowVersion());
   }
 
   static void requireDraft(DraftRow current, long expected) {

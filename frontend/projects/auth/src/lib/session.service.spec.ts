@@ -5,7 +5,7 @@ import { Subject, of, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Assignment, DEFAULT_RUNTIME_CONFIG, OrgApi, RUNTIME_CONFIG } from '@vt/api-client';
 import { MSG_00_06, MSG_00_07, TEXT_SESSION_EXPIRED } from './messages';
-import { AAL2_TTL_MS, SessionService, isLoopbackHttp, requiresAal2 } from './session.service';
+import { AAL2_TTL_MS, SessionService, hoTen, isLoopbackHttp, requiresAal2 } from './session.service';
 
 /** WEB-006: phiên OIDC, chọn phân công khi kiêm nhiệm, bước lên AAL2 (QT-00, BR-00-01, BR-00-02). */
 const A = (id: string, roles: string[], kind: Assignment['kind'] = 'KIEM_NHIEM'): Assignment =>
@@ -378,5 +378,18 @@ describe('isLoopbackHttp: issuer HTTP chỉ được miễn TLS trên máy cục
     expect(isLoopbackHttp('http://127.0.0.1.example.vn/realms/mission')).toBe(false);
     expect(isLoopbackHttp('https://sso.example.vn/realms/mission')).toBe(false);
     expect(isLoopbackHttp('')).toBe(false);
+  });
+});
+
+describe('hoTen', () => {
+  it('ghép họ, đệm rồi tên theo thứ tự tiếng Việt từ family_name và given_name', () => {
+    expect(
+      hoTen({ name: 'Bộ Nguyễn Văn Cán', given_name: 'Bộ', family_name: 'Nguyễn Văn Cán' }),
+    ).toBe('Nguyễn Văn Cán Bộ');
+  });
+
+  it('thiếu họ hoặc tên thì dùng claim name, rồi preferred_username', () => {
+    expect(hoTen({ name: 'Nguyễn Văn Minh', given_name: 'Minh' })).toBe('Nguyễn Văn Minh');
+    expect(hoTen({ preferred_username: 'canbo' })).toBe('canbo');
   });
 });

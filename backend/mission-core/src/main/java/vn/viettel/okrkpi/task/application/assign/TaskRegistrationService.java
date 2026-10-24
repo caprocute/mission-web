@@ -168,7 +168,7 @@ public class TaskRegistrationService {
     if (actor.personId().equals(registrant) || actor.personId().equals(draft.assignerId())) {
       throw new BusinessException(FORBIDDEN, "Người đăng ký không tự duyệt được đăng ký của mình");
     }
-    if (!org.headsOf(tenant, draft.orgUnitId(), today()).contains(actor.personId())) {
+    if (!managesUnit(tenant, draft.orgUnitId(), actor)) {
       throw new BusinessException(
           FORBIDDEN, "Chỉ người quản lý trực tiếp của cán bộ được duyệt đăng ký");
     }
@@ -294,5 +294,18 @@ public class TaskRegistrationService {
 
   private static String nz(String s) {
     return s == null ? "" : s;
+  }
+
+  /**
+   * Người quản lý trực tiếp: trưởng đơn vị, hoặc người giữ vai trò quản lý (AC-05) có phân công
+   * hiệu lực tại chính đơn vị đó. Ma trận phân quyền chỉ cho AC-05 giao việc (SCR-0501 {@code
+   * giao}), nên chỉ dựa vào cờ trưởng đơn vị sẽ chặn đúng người duyệt đăng ký (suy luận, wiki 14).
+   */
+  private boolean managesUnit(TenantId tenant, UUID unit, TaskActor actor) {
+    LocalDate on = today();
+    return org.headsOf(tenant, unit, on).contains(actor.personId())
+        || actor.roles().contains("manager")
+            && org.assignmentsOf(tenant, actor.personId(), on).stream()
+                .anyMatch(a -> unit.equals(a.orgUnitId()));
   }
 }

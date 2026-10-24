@@ -945,6 +945,12 @@ services:
       EVIDENCE_SCAN_ENABLED: ${EVIDENCE_SCAN_ENABLED:-true}
       CLAMD_HOST: clamav
       CLAMD_PORT: "3310"
+      # Phiên tải tệp bọc khoá tệp qua OpenBao Transit (vt-platform-starter); thiếu cấu hình thì tạo phiên tải
+      # trả 500 (QA-05 HT-20). KEK mỗi tenant tự tạo ở dev.
+      OKRKPI_CRYPTO_OPENBAOBASEURL: http://openbao:8200
+      OKRKPI_CRYPTO_TOKENFILE: /run/secrets/openbao_token
+      OKRKPI_CRYPTO_AUTOCREATEKEK: "true"
+    secrets: [openbao_token]
     ports:
       - "${EVIDENCE_SERVICE_PORT:-35115}:8080"
 

@@ -5,7 +5,7 @@ import {
   MA_LAN_CHAY,
   PhienQt,
   choTrangThai,
-  eicar,
+  eicarDocx,
   ghiCho,
   kiemSuKien,
   kiemTruyCap,
@@ -79,11 +79,15 @@ async function moNop(page: Page) {
 }
 
 /** Chọn tệp, chờ quét xong và trả dòng của tệp trong bảng. */
-async function taiTep(page: Page, ten: string, noiDung: Buffer, ketQua: 'Sạch' | RegExp) {
+async function taiTep(
+  page: Page,
+  ten: string,
+  noiDung: Buffer,
+  ketQua: 'Sạch' | RegExp,
+  mimeType = 'application/pdf',
+) {
   const m = main(page);
-  await m
-    .getByLabel('chọn tệp')
-    .setInputFiles({ name: ten, mimeType: 'application/pdf', buffer: noiDung });
+  await m.getByLabel('chọn tệp').setInputFiles({ name: ten, mimeType, buffer: noiDung });
   const dong = m.getByRole('row').filter({ hasText: ten });
   await expect(dong.getByRole('cell', { name: ketQua })).toBeVisible({ timeout: 90_000 });
   return dong;
@@ -162,8 +166,14 @@ test.describe('Minh chứng và nghiệm thu', { tag: '@qa-05' }, () => {
     const m = main(page);
 
     // Ca phủ định: tệp thử EICAR bị đánh dấu nhiễm, bị cách ly và không nộp được
-    const tenNhiem = `eicar-${MA_LAN_CHAY}.pdf`;
-    await taiTep(page, tenNhiem, eicar(), /Nhiễm|Không an toàn|cách ly/i);
+    const tenNhiem = `eicar-${MA_LAN_CHAY}.docx`;
+    await taiTep(
+      page,
+      tenNhiem,
+      eicarDocx(),
+      /Nhiễm|Không an toàn|cách ly/i,
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    );
     await expect(
       m.getByRole('alert').filter({ hasText: `Tệp "${tenNhiem}" không an toàn` }),
     ).toBeVisible();

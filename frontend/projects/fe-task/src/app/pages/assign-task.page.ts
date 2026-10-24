@@ -53,6 +53,8 @@ import { AssignSidePanel } from './assign/assign-side.panel';
 const opts = <K extends string>(m: Record<K, string>) =>
   (Object.keys(m) as K[]).map((value) => ({ value, label: m[value] }));
 const SOURCES: TaskSource[] = ['KE_HOACH', 'VAN_BAN', 'DOT_XUAT'];
+/** Giá trị lựa chọn trỏ tới nhiệm vụ nháp đã sinh từ kế hoạch, phân biệt với mã dòng kế hoạch. */
+const DRAFT_PREFIX = 'nhap:';
 const MAX_MILESTONES = 10;
 
 /** Nhóm cán bộ theo đơn vị cho ô chọn người (bản sao cây tổ chức `org_replica`). */
@@ -892,12 +894,27 @@ export class AssignTaskPage {
     stream: () => this.catalogApi.items({ limit: 200 }).pipe(map((p) => p.items)),
   });
 
-  protected readonly planOptions = computed(() =>
-    (this.plans.value() ?? []).map((i) => ({
+  /**
+   * Nhiệm vụ nháp đã sinh từ kế hoạch đã duyệt (EVT-03, QT-05 bước 3): dòng kế hoạch đó không còn trong
+   * `approvedItems` nên đưa nháp vào cùng danh sách chọn, chọn thì mở nháp để giao (chỉ khi soạn mới).
+   */
+  private readonly planDrafts = rxResource({
+    params: () => (!this.id() && this.period() ? this.period()!.id : undefined),
+    stream: ({ params }) =>
+      this.api
+        .unitTasks({ status: ['NHAP'], source: 'KE_HOACH', period: params, limit: 200 })
+        .pipe(map((p) => p.items)),
+  });
+  protected readonly planOptions = computed(() => [
+    ...(this.plans.value() ?? []).map((i) => ({
       value: i.id,
       label: `${i.planCode} · dòng ${i.lineNo} · ${i.title} (phiên bản ${i.version})`,
     })),
-  );
+    ...(this.planDrafts.hasValue() ? this.planDrafts.value() : []).map((t) => ({
+      value: DRAFT_PREFIX + t.id,
+      label: `${t.code} · ${t.title} (nhiệm vụ nháp từ kế hoạch)`,
+    })),
+  ]);
   protected readonly catalogOptions = computed(() =>
     (this.catalog.value() ?? []).map((c) => ({
       value: c.id,
@@ -956,10 +973,19 @@ export class AssignTaskPage {
     ),
     { initialValue: null },
   );
-  protected readonly check = rxResource({
-    params: () => this.checkInput() ?? undefined,
+  /** Máy chủ bắt buộc tên nhiệm vụ (422 khi trống), nên chỉ kiểm khi đã có tên. */
+  private readonly check$ = rxResource({
+    params: () => {
+      const f = this.checkInput();
+      return f && f.title.trim() ? f : undefined;
+    },
     stream: ({ params }) => this.api.assignCheck(params),
   });
+  /** Đọc an toàn: `value()` của resource lỗi sẽ ném lỗi (lỗi console khi máy chủ trả 4xx). */
+  protected readonly check = {
+    value: computed(() => (this.check$.hasValue() ? this.check$.value() : undefined)),
+    isLoading: this.check$.isLoading,
+  };
 
   private readonly blocking = computed(() => {
     const r = this.check.value();
@@ -994,6 +1020,10 @@ export class AssignTaskPage {
   }
   /** Chọn dòng kế hoạch: sao chép sản phẩm, số lượng, hạn, tiêu chuẩn từ dòng kế hoạch (QT-05 bước 1a). */
   protected applyPlanItem(id: string) {
+    if (id?.startsWith(DRAFT_PREFIX)) {
+      void this.router.navigate(['/tasks/assign', id.slice(DRAFT_PREFIX.length)]);
+      return;
+    }
     const i: PlanItemRef | undefined = this.plans.value()?.find((x) => x.id === id);
     this.form.update((f) =>
       f && i

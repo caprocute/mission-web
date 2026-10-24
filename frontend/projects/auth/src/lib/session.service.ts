@@ -482,7 +482,7 @@ export class SessionService {
     this._expired.set(false);
     this._user.set({
       id: String(c['sub']),
-      name: String(c['name'] ?? c['preferred_username'] ?? ''),
+      name: hoTen(c),
       email: c['email'] as string | undefined,
       tenant: String(c['tenant'] ?? this.cfg.tenant),
       unitId: current?.orgUnitId ?? (c['unit_id'] as string | undefined),
@@ -529,4 +529,16 @@ export function isLoopbackHttp(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Họ tên theo thứ tự tiếng Việt (họ, đệm rồi tên). Keycloak ghép claim `name` thành "tên họ" từ
+ * `firstName` (tên) và `lastName` (họ, đệm), nên "Nguyễn Văn Cán Bộ" hiện thành "Bộ Nguyễn Văn Cán";
+ * có đủ `family_name` và `given_name` thì ghép lại đúng thứ tự.
+ */
+export function hoTen(c: Record<string, unknown>): string {
+  const ho = typeof c['family_name'] === 'string' ? c['family_name'].trim() : '';
+  const ten = typeof c['given_name'] === 'string' ? c['given_name'].trim() : '';
+  if (ho && ten) return `${ho} ${ten}`;
+  return String(c['name'] ?? c['preferred_username'] ?? '');
 }

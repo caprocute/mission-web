@@ -78,7 +78,11 @@ function giaiMa(token: string): DanhTinh {
   const claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
   return {
     sub: claims.sub,
-    ten: claims.name ?? claims.preferred_username ?? '',
+    // họ tên theo thứ tự tiếng Việt như shell hiển thị (claim `name` của Keycloak là "tên họ")
+    ten:
+      claims.family_name && claims.given_name
+        ? `${claims.family_name} ${claims.given_name}`
+        : (claims.name ?? claims.preferred_username ?? ''),
     donVi: claims.unit_id ?? null,
     tenant: claims.tenant ?? null,
   };
@@ -237,17 +241,20 @@ async function chonPhanCongChinh(page: Page) {
  */
 export async function spaGoto(page: Page, url: string) {
   // So đường dẫn, bỏ tham số: màn hình tự thêm tham số (ví dụ `?period=`) vẫn là cùng một tuyến
-  if (new URL(page.url()).pathname === new URL(url, page.url()).pathname) {
+  const dich = new URL(url, page.url()).pathname;
+  if (new URL(page.url()).pathname === dich) {
+    // đích là trang chủ thì đi vòng qua "Việc của tôi" (đẩy "/" khi đang ở "/" không đổi tuyến)
+    const vong = dich === '/' ? '/tasks' : '/';
     // Đánh dấu nội dung đang hiện rồi chờ nó bị gỡ: nếu chuyển tiếp ngay, router có thể huỷ lượt về
     // trang chủ chưa xong và dùng lại component cũ (màn hình không tải lại dữ liệu)
-    await page.evaluate(() => {
+    await page.evaluate((v) => {
       document
         .querySelectorAll('main#main router-outlet ~ *')
         .forEach((e) => e.setAttribute('data-e2e-cu', ''));
-      history.pushState(null, '', '/');
+      history.pushState(null, '', v);
       dispatchEvent(new PopStateEvent('popstate', { state: null }));
-    });
-    await page.waitForURL((u) => u.pathname === '/' || u.pathname !== new URL(url, u).pathname);
+    }, vong);
+    await page.waitForURL((u) => u.pathname === vong || u.pathname !== dich);
     await page.waitForFunction(() => !document.querySelector('main#main [data-e2e-cu]'));
     await main(page).waitFor();
   }
