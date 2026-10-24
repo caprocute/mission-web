@@ -19,7 +19,7 @@ public final class PostgresSupport {
   public static final PostgreSQLContainer<?> PG = new PostgreSQLContainer<>("postgres:17")
       .withDatabaseName("td_test")
       .withUrlParam("reWriteBatchedInserts", "true")
-      .withCommand("postgres", "-c", "max_connections=200", "-c", "fsync=off");
+      .withCommand("postgres", "-c", "max_connections=400", "-c", "fsync=off");
 
   public static final String SVC_PASSWORD = random();
   public static final String MIG_PASSWORD = random();
