@@ -1,22 +1,8 @@
 import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import {
-  OVERDUE_ACTION_LABEL,
-  PeriodApi,
-  PolicyApi,
-  PolicyWorkflowTemplateSummary,
-  PolicyWorkflowTemplateVersion,
-  WorkflowBinding,
-  WorkflowLevelParam,
-  WorkflowLintResult,
-  WorkflowSimulateResult,
-  WorkflowStepPreview,
-  stepsForLevels,
-  toProblem,
-  workDays,
-  workDaysParam,
-} from '@vt/api-client';
+import { toProblem } from '@vt/api-client';
+import { OVERDUE_ACTION_LABEL, PeriodApi, PolicyApi, PolicyWorkflowTemplateSummary, PolicyWorkflowTemplateVersion, WorkflowBinding, WorkflowLevelParam, WorkflowLintResult, WorkflowSimulateResult, WorkflowStepPreview, stepsForLevels, workDays, workDaysParam } from '@vt/api-client/domains';
 import { ROLE_LABEL } from '@vt/auth';
 import { ButtonModule } from 'primeng/button';
 import { STUDIO_ACCESS } from '../../studio-permissions';

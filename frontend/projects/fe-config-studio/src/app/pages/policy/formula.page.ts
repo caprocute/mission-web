@@ -1,22 +1,8 @@
 import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import {
-  DAY_KIND_LABEL,
-  POLICY_VERSION_STATUS_LABEL,
-  PolicyApi,
-  PolicyRounding,
-  PolicyRule,
-  PolicyRuleSaved,
-  QUALITY_METHOD_LABEL,
-  RATING_LEVEL_LABEL,
-  RETURN_REASON_LABEL,
-  ROUNDING_MODE_LABEL,
-  RatingLevel,
-  fieldErrors,
-  policyVersionLabel,
-  toProblem,
-} from '@vt/api-client';
+import { fieldErrors, toProblem } from '@vt/api-client';
+import { DAY_KIND_LABEL, POLICY_VERSION_STATUS_LABEL, PolicyApi, PolicyRounding, PolicyRule, PolicyRuleSaved, QUALITY_METHOD_LABEL, RATING_LEVEL_LABEL, RETURN_REASON_LABEL, ROUNDING_MODE_LABEL, RatingLevel, policyVersionLabel } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { concatMap, from, tap, toArray } from 'rxjs';
 import { STUDIO_ACCESS } from '../../studio-permissions';

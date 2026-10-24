@@ -1,14 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import {
-  APPRAISAL_FLOW_LABEL,
-  AppraisalApi,
-  AppraisalProfileRow,
-  AppraisalProfileStatus,
-  RATING_LEVEL_LABEL,
-  RatingLevel,
-} from '@vt/api-client';
+import { APPRAISAL_FLOW_LABEL, AppraisalApi, AppraisalProfileRow, AppraisalProfileStatus, RATING_LEVEL_LABEL, RatingLevel } from '@vt/api-client/domains';
 import { map } from 'rxjs';
 import { APPRAISAL_CAN } from '../../appraisal-permissions';
 import { vn } from '../self-assessment/self-assessment-rules';

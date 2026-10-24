@@ -10,7 +10,7 @@ import {
   untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { OrgTimeQuery, OrgTreeApi, OrgTreeNode, OrgUnitSearchHit } from '@vt/api-client';
+import { OrgTimeQuery, OrgTreeApi, OrgTreeNode, OrgUnitSearchHit } from '@vt/api-client/domains';
 import { InputTextModule } from 'primeng/inputtext';
 import { Subscription, debounceTime, forkJoin, of, Subject, switchMap } from 'rxjs';
 import { errorText } from '../../admin-ui';

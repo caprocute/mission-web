@@ -7,8 +7,10 @@
  *
  * Khác Lighthouse (`npm run perf:lhci`, đo LCP trên 4G mô phỏng), cổng này không phụ thuộc mạng giả lập nên
  * cho cùng một số ở mọi máy: mở trang bằng Chromium của Playwright, gom mọi tệp JS, CSS, phông tải về, tính
- * cỡ gzip (mức 6) của từng tệp. Không tính bộ dữ liệu giả lập (`*.mock-*.js`) vì bản phát hành gọi máy chủ
- * thật, không tính JSON cấu hình và dữ liệu. Một tệp chỉ tính một lần cho trang đầu tiên tải nó.
+ * dung lượng truyền của từng tệp như nginx của deploy/web phục vụ: JS, CSS là bản gzip mức 9 nén sẵn
+ * (gzip_static), phông woff/woff2 đã nén nên tính nguyên cỡ. Không tính bộ dữ liệu giả lập (`*.mock-*.js`) vì
+ * bản phát hành gọi máy chủ thật, không tính JSON cấu hình và dữ liệu. Một tệp chỉ tính một lần cho trang đầu
+ * tiên tải nó. Từ 24/10/2026 đây là phép đo chính thức của ngưỡng 250 KB và 180 KB (wiki/14).
  *
  * Dùng: node tools/perf/ngan-sach.mjs [--json <tệp>]   (mã thoát 1 khi vượt ngân sách)
  * Biến: PERF_DIR (mặc định dist/lhci), PERF_SHELL_KB (250), PERF_REMOTE_KB (180).
@@ -72,7 +74,7 @@ function serve() {
 /** Theo đuôi tệp, vì es-module-shims tải mô-đun bằng `fetch` chứ không phải thẻ script. */
 const counted = (url, type) => {
   const path = new URL(url).pathname;
-  if (/\.mock-[A-Za-z0-9_-]+\.js$/.test(path)) return false;
+  if (/\.mock-[A-Za-z0-9_-]+\.js$|\/mock-registry-[A-Za-z0-9_-]+\.js$/.test(path)) return false;
   return type === 'document' || /\.(m?js|css|woff2?|ttf)$/.test(path);
 };
 
@@ -106,7 +108,10 @@ async function main() {
       const entry = { url: url.slice(base.length), bytes: 0 };
       files.push(entry);
       try {
-        entry.bytes = gzipSync(await res.body(), { level: 6 }).length;
+        const body = await res.body();
+        entry.bytes = /\.woff2?$/.test(entry.url)
+          ? body.length
+          : gzipSync(body, { level: 9 }).length;
       } catch {
         // phản hồi bị huỷ khi trang chuyển tuyến: bỏ qua
       }

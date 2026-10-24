@@ -7,8 +7,15 @@ import { loadRemote } from './federation-remotes';
  * Remote lỗi hoặc chưa triển khai thì chuyển sang trang báo tạm thời, không làm hỏng shell.
  */
 export function remoteRoutes(remoteName: string, exposed = './routes'): () => Promise<Routes> {
-  return () =>
-    loadRemote<{ default?: Routes; TASK_ROUTES?: Routes; ROUTES?: Routes }>(remoteName, exposed)
+  return () => {
+    // WEB-052: màn hình của remote dùng client nghiệp vụ ở entry phụ `@vt/api-client/domains` (trang chủ
+    // không cần); tải song song với remote. Shell import entry này nên nó nằm trong import map của shell
+    // (ignoreUnusedDeps) và mọi remote dùng chung một bản.
+    import('@vt/api-client/domains').catch(() => undefined);
+    return loadRemote<{ default?: Routes; TASK_ROUTES?: Routes; ROUTES?: Routes }>(
+      remoteName,
+      exposed,
+    )
       .then((m) => (m.default ?? m.TASK_ROUTES ?? m.ROUTES) as Routes)
       .catch((err) => {
         console.error(`[federation] Không nạp được ${remoteName}`, err);
@@ -16,4 +23,5 @@ export function remoteRoutes(remoteName: string, exposed = './routes'): () => Pr
           { path: '**', component: p.RemoteUnavailablePage, data: { remoteName } },
         ]);
       });
+  };
 }

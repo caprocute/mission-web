@@ -1,18 +1,7 @@
 import { Component, computed, effect, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import {
-  JobAccepted,
-  PackVersionRef,
-  PeriodApi,
-  PolicyApi,
-  PolicyDiffChange,
-  PolicyPackVersion,
-  PolicyTestCaseResult,
-  PolicyTestRunSummary,
-  RATING_LEVEL_LABEL,
-  RatingLevel,
-  policyVersionLabel,
-} from '@vt/api-client';
+import { JobAccepted } from '@vt/api-client';
+import { PackVersionRef, PeriodApi, PolicyApi, PolicyDiffChange, PolicyPackVersion, PolicyTestCaseResult, PolicyTestRunSummary, RATING_LEVEL_LABEL, RatingLevel, policyVersionLabel } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { combineLatest, map, of } from 'rxjs';
 import { STUDIO_ACCESS } from '../../studio-permissions';

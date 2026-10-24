@@ -1,12 +1,5 @@
-import {
-  CONFLICT_TITLE,
-  DossierDeadlineCheck,
-  DossierMeeting,
-  DossierParticipantStatus,
-  DossierVote,
-  ProblemDetails,
-  RatingLevel,
-} from '@vt/api-client';
+import { CONFLICT_TITLE, ProblemDetails } from '@vt/api-client';
+import { DossierDeadlineCheck, DossierMeeting, DossierParticipantStatus, DossierVote, RatingLevel } from '@vt/api-client/domains';
 import { DossierPermissionKey } from '../../dossier-permissions';
 
 /**

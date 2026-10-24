@@ -1,9 +1,9 @@
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, forkJoin, map, of, switchMap } from 'rxjs';
-import { apiUrl } from './api-path';
-import { Job } from './models/job';
-import { CursorPage, MAX_PAGE_LIMIT } from './paging';
+import { apiUrl } from '@vt/api-client';
+import { Job } from '@vt/api-client';
+import { CursorPage, MAX_PAGE_LIMIT } from '@vt/api-client';
 import {
   Plan,
   PlanCheck,

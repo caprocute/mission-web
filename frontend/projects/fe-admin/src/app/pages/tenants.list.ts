@@ -1,11 +1,4 @@
-import {
-  FilterCodec,
-  ListColumnDef,
-  TENANCY_MODELS,
-  TENANT_STATUS_LABEL,
-  TenancyModel,
-  TenantStatus,
-} from '@vt/api-client';
+import { FilterCodec, ListColumnDef, TENANCY_MODELS, TENANT_STATUS_LABEL, TenancyModel, TenantStatus } from '@vt/api-client/domains';
 
 /** Mã màn hình dùng cho tuỳ chọn cột và bộ lọc đã lưu (CNH-04). */
 export const TENANTS_SCREEN = 'SCR-0101';

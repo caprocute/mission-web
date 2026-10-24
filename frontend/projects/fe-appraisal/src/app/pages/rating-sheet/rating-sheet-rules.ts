@@ -1,16 +1,4 @@
-import {
-  AppraisalProfile,
-  AppraisalProfileStatus,
-  AppraisalRatingProposal,
-  AppraisalRuleCheck,
-  AppraisalScoreGroup,
-  AppraisalScoreSnapshot,
-  AppraisalScoreTraceStep,
-  AppraisalScoreView,
-  RATING_LEVELS,
-  RATING_LEVEL_LABEL,
-  RatingLevel,
-} from '@vt/api-client';
+import { AppraisalProfile, AppraisalProfileStatus, AppraisalRatingProposal, AppraisalRuleCheck, AppraisalScoreGroup, AppraisalScoreSnapshot, AppraisalScoreTraceStep, AppraisalScoreView, RATING_LEVELS, RATING_LEVEL_LABEL, RatingLevel } from '@vt/api-client/domains';
 
 /**
  * Quy tắc và cách trình bày của SCR-0903 chạy trên trình duyệt để phản hồi tức thì; máy chủ kiểm lại khi

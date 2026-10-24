@@ -13,18 +13,19 @@ import pathlib
 import sys
 
 import yaml
+from typing import Dict
 
 GOC = pathlib.Path(__file__).resolve().parents[3]
 DANH_MUC = GOC / "deploy/charts/vt-platform/ha-tang/kafka/files/danh-muc.yaml"
 DICH = GOC / "infra/dev/kafka/topics.txt"
 
 # Topic có trong mã nhưng chưa có trong contracts/events (cần bổ sung hợp đồng); giữ ở dev để luồng chạy được.
-NGOAI_DANH_MUC: dict[str, str] = {}
+NGOAI_DANH_MUC: Dict[str, str] = {}
 
 
 def sinh() -> str:
     dm = yaml.safe_load(DANH_MUC.read_text(encoding="utf-8"))
-    dong: dict[str, str] = {}
+    dong: Dict[str, str] = {}
     for t in dm["topics"]:
         if t.get("nenTheoKhoa"):
             cs = "compact,delete"

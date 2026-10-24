@@ -1,12 +1,7 @@
 import { Component, computed, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import {
-  AssigneeRef,
-  SUGGESTION_DECISION_LABEL,
-  SuggestionField,
-  TaskSuggestion,
-  TaskSuggestionFields,
-} from '@vt/api-client';
+import { AssigneeRef } from '@vt/api-client';
+import { SUGGESTION_DECISION_LABEL, SuggestionField, TaskSuggestion, TaskSuggestionFields } from '@vt/api-client/domains';
 import { InputTextModule } from 'primeng/inputtext';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { SelectModule } from 'primeng/select';

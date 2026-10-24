@@ -1,4 +1,4 @@
-import { TaskGroup } from './task';
+import { TaskGroup } from '@vt/api-client';
 
 /** Trạng thái phiên bản danh mục (`task.work_catalog.status`, suy luận: TL-03 chỉ ghi "một phiên bản áp dụng mỗi kỳ"). */
 export type WorkCatalogStatus = 'NHAP' | 'AP_DUNG' | 'HET_HIEU_LUC';

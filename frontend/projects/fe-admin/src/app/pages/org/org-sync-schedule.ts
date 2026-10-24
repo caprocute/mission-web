@@ -1,15 +1,8 @@
 import { Component, computed, inject, linkedSignal, output, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import {
-  OrgSyncApi,
-  OrgSyncSchedule,
-  SYNC_SOURCE_TITLE,
-  ScheduleSet,
-  cronToTime,
-  timeToCron,
-  toProblem,
-} from '@vt/api-client';
+import { toProblem } from '@vt/api-client';
+import { OrgSyncApi, OrgSyncSchedule, SYNC_SOURCE_TITLE, ScheduleSet, cronToTime, timeToCron } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { errorText } from '../../admin-ui';
 

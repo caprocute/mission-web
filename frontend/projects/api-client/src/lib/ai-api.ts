@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { AiSuggestionDecisionRequest, OkrAssistRequest, OkrAssistResult } from './models/ai-assist';
 import { AiSuggestion } from './models/analytics';
-import { Job } from './models/job';
+import { Job } from '@vt/api-client';
 import { DocExtraction, TaskSuggestion } from './models/source-doc';
 
 /** Kết quả hỏi trợ lý: trả lời ngay, hoặc đã xếp hàng (202, MSG-17-03) kèm `Location` của job. */

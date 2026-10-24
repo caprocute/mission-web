@@ -18,20 +18,7 @@ import { Component, DestroyRef, computed, effect, inject, signal, untracked } fr
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import {
-  LEDGER_ACTOR_KIND_LABEL,
-  LEDGER_AGGREGATE_TYPE_LABEL,
-  ledgerAggregateTypeLabel,
-  LEDGER_ANCHOR_TARGET_LABEL,
-  LEDGER_DEFAULT_RANGE_DAYS,
-  LEDGER_VERIFY_KIND_LABEL,
-  LedgerApi,
-  LedgerEntry,
-  LedgerEntryFilter,
-  LedgerVerifyKind,
-  LedgerVerifyRun,
-  verifyRunIdOf,
-} from '@vt/api-client';
+import { LEDGER_ACTOR_KIND_LABEL, LEDGER_AGGREGATE_TYPE_LABEL, ledgerAggregateTypeLabel, LEDGER_ANCHOR_TARGET_LABEL, LEDGER_DEFAULT_RANGE_DAYS, LEDGER_VERIFY_KIND_LABEL, LedgerApi, LedgerEntry, LedgerEntryFilter, LedgerVerifyKind, LedgerVerifyRun, verifyRunIdOf } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';

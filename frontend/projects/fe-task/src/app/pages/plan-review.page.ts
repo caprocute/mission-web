@@ -20,19 +20,8 @@ import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import {
-  EsignRequestStatus,
-  PLAN_CHANGE_LABEL,
-  PLAN_RECURRENCE_LABEL,
-  PlanApi,
-  PlanDiffLine,
-  PlanItem,
-  PlanSignRequest,
-  SIGN_METHOD_LABEL,
-  SignMethod,
-  TASK_GROUP_LABEL,
-  toProblem,
-} from '@vt/api-client';
+import { TASK_GROUP_LABEL, toProblem } from '@vt/api-client';
+import { EsignRequestStatus, PLAN_CHANGE_LABEL, PLAN_RECURRENCE_LABEL, PlanApi, PlanDiffLine, PlanItem, PlanSignRequest, SIGN_METHOD_LABEL, SignMethod } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { SelectButtonModule } from 'primeng/selectbutton';

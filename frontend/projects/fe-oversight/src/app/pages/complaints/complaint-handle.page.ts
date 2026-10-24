@@ -22,26 +22,8 @@ import { Component, computed, inject, input, linkedSignal, signal } from '@angul
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  AppraisalSimulationResult,
-  COMPLAINT_KIND_LABEL,
-  COMPLAINT_REJECT_REASON_LABEL,
-  COMPLAINT_RESOLUTION_LABEL,
-  COMPLAINT_STATUS_LABEL,
-  COMPLAINT_STAGE_LABEL,
-  Complaint,
-  ComplaintAdjustment,
-  ComplaintApi,
-  ComplaintRejectReasonCode,
-  ComplaintResolution,
-  ComplaintResponseRecord,
-  ComplaintStatus,
-  ExplanationParty,
-  OrgApi,
-  RATING_LEVEL_LABEL,
-  RatingLevel,
-  toProblem,
-} from '@vt/api-client';
+import { OrgApi, toProblem } from '@vt/api-client';
+import { AppraisalSimulationResult, COMPLAINT_KIND_LABEL, COMPLAINT_REJECT_REASON_LABEL, COMPLAINT_RESOLUTION_LABEL, COMPLAINT_STATUS_LABEL, COMPLAINT_STAGE_LABEL, Complaint, ComplaintAdjustment, ComplaintApi, ComplaintRejectReasonCode, ComplaintResolution, ComplaintResponseRecord, ComplaintStatus, ExplanationParty, RATING_LEVEL_LABEL, RatingLevel } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';

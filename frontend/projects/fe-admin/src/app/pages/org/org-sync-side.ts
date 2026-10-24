@@ -1,12 +1,5 @@
 import { Component, computed, input, output } from '@angular/core';
-import {
-  OrgDiscrepancy,
-  OrgSyncRun,
-  SUGGESTED_ACTION_LABEL,
-  SYNC_RUN_STATUS_LABEL,
-  SYNC_SOURCE_LABEL,
-  hasDeadLetters,
-} from '@vt/api-client';
+import { OrgDiscrepancy, OrgSyncRun, SUGGESTED_ACTION_LABEL, SYNC_RUN_STATUS_LABEL, SYNC_SOURCE_LABEL, hasDeadLetters } from '@vt/api-client/domains';
 import { fmtDate, fmtDateTime } from '../../admin-ui';
 
 /**

@@ -9,19 +9,8 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import {
-  CATALOG_ITEM_STATUS_LABEL,
-  CatalogApi,
-  CatalogItem,
-  CatalogItemInput,
-  CatalogItemSaveResult,
-  CatalogItemStatus,
-  Position,
-  TASK_GROUP_LABEL,
-  TaskGroup,
-  WorkCatalog,
-  toProblem,
-} from '@vt/api-client';
+import { TASK_GROUP_LABEL, TaskGroup, toProblem } from '@vt/api-client';
+import { CATALOG_ITEM_STATUS_LABEL, CatalogApi, CatalogItem, CatalogItemInput, CatalogItemSaveResult, CatalogItemStatus, Position, WorkCatalog } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';

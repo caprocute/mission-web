@@ -29,16 +29,8 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import {
-  AppraisalApi,
-  PeriodApi,
-  PolicyApi,
-  ProspectCriteria,
-  ProspectGroupBoard,
-  ProspectGroupCode,
-  RATING_LEVEL_LABEL,
-  toProblem,
-} from '@vt/api-client';
+import { toProblem } from '@vt/api-client';
+import { AppraisalApi, PeriodApi, PolicyApi, ProspectCriteria, ProspectGroupBoard, ProspectGroupCode, RATING_LEVEL_LABEL } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { catchError, firstValueFrom, map, of, switchMap } from 'rxjs';
 import { APPRAISAL_CAN } from '../../appraisal-permissions';

@@ -1,8 +1,8 @@
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { apiUrl } from './api-path';
-import { Job } from './models/job';
+import { apiUrl } from '@vt/api-client';
+import { Job } from '@vt/api-client';
 import {
   AppraisalSimulationInput,
   AppraisalSimulationResult,
@@ -18,7 +18,7 @@ import {
   ComplaintResponseRecord,
   ComplaintSummary,
 } from './models/complaint';
-import { CursorPage, MAX_PAGE_LIMIT } from './paging';
+import { CursorPage, MAX_PAGE_LIMIT } from '@vt/api-client';
 
 const ifMatch = (c: { rowVersion: number }) => ({ 'If-Match': `"${c.rowVersion}"` });
 

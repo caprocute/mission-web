@@ -21,17 +21,8 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import {
-  COMMENT_KIND_LABEL,
-  DossierApi,
-  DossierCommentKind,
-  JobTracker,
-  MEETING_ROLE_LABEL,
-  MEETING_STATUS_LABEL,
-  PARTICIPANT_STATUS_LABEL,
-  RATING_LEVEL_LABEL,
-  toProblem,
-} from '@vt/api-client';
+import { JobTracker, toProblem } from '@vt/api-client';
+import { COMMENT_KIND_LABEL, DossierApi, DossierCommentKind, MEETING_ROLE_LABEL, MEETING_STATUS_LABEL, PARTICIPANT_STATUS_LABEL, RATING_LEVEL_LABEL } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { firstValueFrom, last, map } from 'rxjs';
 import { DOSSIER_CAN } from '../../dossier-permissions';

@@ -18,3 +18,4 @@ frontend/.lighthouseci
 __pycache__/
 *.pyc
 frontend/dist-web/
+infra/dev/secrets/

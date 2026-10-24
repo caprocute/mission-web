@@ -15,26 +15,8 @@ import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import {
-  AssigneeRef,
-  CatalogApi,
-  OkrApi,
-  OrgApi,
-  OrgPerson,
-  PlanApi,
-  PlanItemRef,
-  SimilarTask,
-  TASK_GROUP_LABEL,
-  TASK_PRIORITY_LABEL,
-  TASK_SOURCE_LABEL,
-  TASK_STATUS_LABEL,
-  TaskApi,
-  TaskDraft,
-  TaskGroup,
-  TaskPriority,
-  TaskSource,
-  toProblem,
-} from '@vt/api-client';
+import { AssigneeRef, OkrApi, OrgApi, OrgPerson, SimilarTask, TASK_GROUP_LABEL, TASK_PRIORITY_LABEL, TASK_SOURCE_LABEL, TASK_STATUS_LABEL, TaskApi, TaskDraft, TaskGroup, TaskPriority, TaskSource, toProblem } from '@vt/api-client';
+import { CatalogApi, PlanApi, PlanItemRef } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';

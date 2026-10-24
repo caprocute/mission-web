@@ -1,11 +1,6 @@
 import { Component, computed, input, linkedSignal, model, output, untracked } from '@angular/core';
-import {
-  AppraisalRatingExplanation,
-  Evidence,
-  RATING_LEVEL_LABEL,
-  RatingLevel,
-  UiFormVersion,
-} from '@vt/api-client';
+import { UiFormVersion } from '@vt/api-client';
+import { AppraisalRatingExplanation, Evidence, RATING_LEVEL_LABEL, RatingLevel } from '@vt/api-client/domains';
 import { FormUi, VtFormComponent } from '@vt/form-engine';
 import type { JSONSchema7 } from 'json-schema';
 import { SelfForm, compareRating, formRules } from './self-assessment-rules';

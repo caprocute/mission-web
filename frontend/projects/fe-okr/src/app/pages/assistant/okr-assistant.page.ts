@@ -16,15 +16,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import {
-  AiApi,
-  JobTracker,
-  ObjectiveDetail,
-  OkrApi,
-  OkrAssistResult,
-  OkrAssistSuggestion,
-  ProblemPresenter,
-} from '@vt/api-client';
+import { JobTracker, ObjectiveDetail, OkrApi, ProblemPresenter } from '@vt/api-client';
+import { AiApi, OkrAssistResult, OkrAssistSuggestion } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { Observable, catchError, forkJoin, last, map, of, switchMap, throwError } from 'rxjs';
 import { OKR_CAN } from '../../okr-permissions';

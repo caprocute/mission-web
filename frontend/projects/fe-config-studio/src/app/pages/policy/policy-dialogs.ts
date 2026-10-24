@@ -10,18 +10,7 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import {
-  DAY_KIND_LABEL,
-  PERIOD_KIND_LABEL,
-  PeriodApi,
-  PolicyApi,
-  PolicyDiffChange,
-  PolicyPackVersion,
-  PolicyRule,
-  QUALITY_METHOD_LABEL,
-  RETURN_REASON_LABEL,
-  policyVersionLabel,
-} from '@vt/api-client';
+import { DAY_KIND_LABEL, PERIOD_KIND_LABEL, PeriodApi, PolicyApi, PolicyDiffChange, PolicyPackVersion, PolicyRule, QUALITY_METHOD_LABEL, RETURN_REASON_LABEL, policyVersionLabel } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { TextareaModule } from 'primeng/textarea';

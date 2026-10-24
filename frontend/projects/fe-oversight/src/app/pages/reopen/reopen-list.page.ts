@@ -9,13 +9,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  REOPEN_BASIS_LABEL,
-  REOPEN_STATUS_LABEL,
-  ReopenApi,
-  ReopenRequest,
-  ReopenRequestFilter,
-} from '@vt/api-client';
+import { REOPEN_BASIS_LABEL, REOPEN_STATUS_LABEL, ReopenApi, ReopenRequest, ReopenRequestFilter } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
