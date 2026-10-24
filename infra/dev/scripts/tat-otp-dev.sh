@@ -3,11 +3,12 @@
 # Tắt (hoặc bật lại) bước nhập mã OTP khi đăng nhập realm mission trên Keycloak dev đang chạy. Chỉ dùng cho môi
 # trường dev theo yêu cầu của người phụ trách (24/10/2026); realm production giữ MFA theo SEC và wiki 07.
 #
-#   ./infra/dev/scripts/tat-otp-dev.sh          # tắt OTP: auth-otp-form và direct-grant-validate-otp -> DISABLED
-#   ./infra/dev/scripts/tat-otp-dev.sh --bat    # bật lại: các bước trên -> REQUIRED
+#   ./infra/dev/scripts/tat-otp-dev.sh          # tắt OTP
+#   ./infra/dev/scripts/tat-otp-dev.sh --bat    # bật lại
 #
-# Chỉ đổi mức yêu cầu của bước nhập OTP. Điều kiện vai trò và mức LoA (aal1, aal2, step-up) giữ nguyên, nên luồng
-# step-up vẫn trả acr aal2, chỉ không hỏi mã. Khoá OTP của tài khoản thử được giữ, script cũ gửi kèm mã OTP vẫn chạy.
+# Khi tắt: bước auth-otp-form, direct-grant-validate-otp và các nhánh phụ OTP theo vai trò -> DISABLED; nhánh step-up
+# aal2 thêm bước "Allow access" nên vẫn trả acr aal2 mà không hỏi mã. Khi bật: đưa về REQUIRED, CONDITIONAL và xoá
+# bước "Allow access". Khoá OTP của tài khoản thử được giữ, script cũ gửi kèm mã OTP vẫn chạy.
 # Keycloak chỉ nhập keycloak/realm-mission.json ở lần khởi động đầu, nên thay đổi này tồn tại qua các lần triển khai
 # lại; chỉ khi xoá dữ liệu Keycloak mới phải chạy lại script. Đọc KEYCLOAK_ADMIN, KEYCLOAK_ADMIN_PASSWORD từ
 # infra/dev/.env; không in mật khẩu.
@@ -39,19 +40,52 @@ BROWSER_FLOW="$(kc get "realms/${REALM}" --fields browserFlow | python3 -I -c 'i
 DIRECT_FLOW="$(kc get "realms/${REALM}" --fields directGrantFlow | python3 -I -c 'import json,sys; print(json.load(sys.stdin)["directGrantFlow"])')"
 
 doi=0
+dat_muc() { # $1 flow_url, $2 id, $3 mức
+  kc update "authentication/flows/${1}/executions" -r "${REALM}" -b "{\"id\":\"${2}\",\"requirement\":\"${3}\"}" >/dev/null
+  doi=$((doi + 1))
+}
+url() { python3 -I -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$1"; }
+
+# Danh sách (id, mức) cần đổi, mỗi dòng "id mức". Bước nhập OTP: DISABLED khi tắt, REQUIRED khi bật. Nhánh phụ
+# "<luồng> otp <vai trò>" chỉ gồm điều kiện vai trò, điều kiện LoA và một bước OTP: tắt riêng bước OTP làm nhánh
+# không còn bước xác thực nên đăng nhập hỏng, vì vậy tắt cả nhánh (DISABLED) và bật lại về CONDITIONAL.
 for flow in "${BROWSER_FLOW}" "${DIRECT_FLOW}"; do
-  flow_url="$(python3 -I -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "${flow}")"
-  ids="$(kc get "authentication/flows/${flow_url}/executions" -r "${REALM}" | python3 -I -c '
+  flow_url="$(url "${flow}")"
+  doi_list="$(kc get "authentication/flows/${flow_url}/executions" -r "${REALM}" | python3 -I -c '
 import json, sys
-muc = sys.argv[1]
+tat = sys.argv[1] == "DISABLED"
+goc = sys.argv[2]
 for e in json.load(sys.stdin):
-    if e.get("providerId") in ("auth-otp-form", "direct-grant-validate-otp") and e.get("requirement") != muc:
-        print(e["id"])
-' "${MUC}")"
-  for id in ${ids}; do
-    kc update "authentication/flows/${flow_url}/executions" -r "${REALM}" \
-      -b "{\"id\":\"${id}\",\"requirement\":\"${MUC}\"}" >/dev/null
-    doi=$((doi + 1))
-  done
+    pid, ten, muc = e.get("providerId"), e.get("displayName", ""), e.get("requirement")
+    if pid in ("auth-otp-form", "direct-grant-validate-otp"):
+        can = "DISABLED" if tat else "REQUIRED"
+    elif e.get("authenticationFlow") and ten.startswith(goc + " otp "):
+        can = "DISABLED" if tat else "CONDITIONAL"
+    else:
+        continue
+    if muc != can:
+        print(e["id"], can)
+' "${MUC}" "${BROWSER_FLOW}")"
+  while read -r id can; do
+    [[ -n "${id}" ]] && dat_muc "${flow_url}" "${id}" "${can}"
+  done <<<"${doi_list}"
 done
-echo "Realm ${REALM}: đã đặt ${doi} bước nhập OTP thành ${MUC} (luồng ${BROWSER_FLOW}, ${DIRECT_FLOW})"
+
+# Nhánh "<luồng> aal2" (step-up) chỉ có bước OTP: khi tắt OTP, thêm bước "Allow access" để nhánh vẫn đạt và token
+# vẫn mang acr aal2 mà không hỏi mã; khi bật lại thì xoá bước này.
+AAL2_URL="$(url "${BROWSER_FLOW} aal2")"
+allow_id="$(kc get "authentication/flows/${AAL2_URL}/executions" -r "${REALM}" | python3 -I -c '
+import json, sys
+print(next((e["id"] for e in json.load(sys.stdin) if e.get("providerId") == "allow-access-authenticator"), ""))')"
+if [[ "${MUC}" == "DISABLED" && -z "${allow_id}" ]]; then
+  kc create "authentication/flows/${AAL2_URL}/executions/execution" -r "${REALM}" \
+    -b '{"provider":"allow-access-authenticator"}' >/dev/null
+  allow_id="$(kc get "authentication/flows/${AAL2_URL}/executions" -r "${REALM}" | python3 -I -c '
+import json, sys
+print(next(e["id"] for e in json.load(sys.stdin) if e.get("providerId") == "allow-access-authenticator"))')"
+  dat_muc "${AAL2_URL}" "${allow_id}" "REQUIRED"
+elif [[ "${MUC}" == "REQUIRED" && -n "${allow_id}" ]]; then
+  kc delete "authentication/executions/${allow_id}" -r "${REALM}" >/dev/null
+  doi=$((doi + 1))
+fi
+echo "Realm ${REALM}: đã đổi ${doi} bước (OTP $([[ "${MUC}" == DISABLED ]] && echo tắt || echo bật); luồng ${BROWSER_FLOW}, ${DIRECT_FLOW})"
