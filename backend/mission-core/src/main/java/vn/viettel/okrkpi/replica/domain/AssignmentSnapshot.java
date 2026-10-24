@@ -32,8 +32,18 @@ public record AssignmentSnapshot(
       LocalDate validTo,
       long sourceVersion) {
     this(
-        id, personId, orgUnitId, positionId, jobTitleId, kind, primary, head, validFrom, validTo,
-        sourceVersion, null);
+        id,
+        personId,
+        orgUnitId,
+        positionId,
+        jobTitleId,
+        kind,
+        primary,
+        head,
+        validFrom,
+        validTo,
+        sourceVersion,
+        null);
   }
 
   /**
