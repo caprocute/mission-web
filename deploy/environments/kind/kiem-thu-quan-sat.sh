@@ -58,7 +58,7 @@ spec:
         - { name: KAFKA_NODE_ID, value: "1" }
         - { name: KAFKA_PROCESS_ROLES, value: "broker,controller" }
         - { name: KAFKA_LISTENERS, value: "PLAINTEXT://:9093,CONTROLLER://:9094" }
-        - { name: KAFKA_ADVERTISED_LISTENERS, value: "PLAINTEXT://kafka-kafka-bootstrap.data-kafka.svc:9093" }
+        - { name: KAFKA_ADVERTISED_LISTENERS, value: "PLAINTEXT://kafka-cell-kafka-bootstrap.data-kafka.svc:9093" }
         - { name: KAFKA_CONTROLLER_LISTENER_NAMES, value: CONTROLLER }
         - { name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP, value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT" }
         - { name: KAFKA_CONTROLLER_QUORUM_VOTERS, value: "1@localhost:9094" }
@@ -73,7 +73,7 @@ spec:
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: kafka-kafka-bootstrap }
+metadata: { name: kafka-cell-kafka-bootstrap }
 spec: { selector: { strimzi.io/cluster: kafka-cell }, ports: [{ port: 9093 }] }
 YAML
 kubectl -n core delete pod mission-core --ignore-not-found >/dev/null
@@ -94,7 +94,7 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - { name: OTLP_ENDPOINT, value: "otel-agent.observability.svc:4317" }
-            - { name: KAFKA_BROKERS, value: "kafka-kafka-bootstrap.data-kafka.svc:9093" }
+            - { name: KAFKA_BROKERS, value: "kafka-cell-kafka-bootstrap.data-kafka.svc:9093" }
             - { name: CELL, value: kind }
           ports: [{ name: http, containerPort: 8080 }, { name: mgmt, containerPort: 8081 }]
           securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: ["ALL"] } }

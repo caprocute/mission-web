@@ -51,7 +51,7 @@ fluent-bit:
       [OUTPUT]
           Name                kafka
           Match               audit.*
-          Brokers             kafka-kafka-bootstrap.data-kafka.svc:9093
+          Brokers             kafka-cell-kafka-bootstrap.data-kafka.svc:9093
           Topics              sys.audit.v1
           rdkafka.acks                all
           rdkafka.enable.idempotence  true

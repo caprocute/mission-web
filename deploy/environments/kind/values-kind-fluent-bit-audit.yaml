@@ -1,0 +1,36 @@
+# Fluent Bit của observability-cell trên kind chỉ cho luồng kiểm toán (INF-19): đọc nhật ký kiểm toán API ở control
+# plane (/var/log/kubernetes/audit/audit.log, cluster-gon.yaml hoặc cluster-an-ninh.yaml) và ghi sys.audit.v1 vào Kafka
+# của cell bằng mTLS (Secret fluent-bit-kafka từ KafkaUser audit-writer), đúng khối [OUTPUT] k8saudit của values.yaml.
+# Không Loki, không đọc log container. kiem-thu-an-ninh.sh render riêng phần charts/fluent-bit với tệp này.
+cell: kind
+fluent-bit:
+  serviceMonitor: { enabled: false }
+  env:
+    - { name: CELL, value: kind }
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+  config:
+    inputs: |
+      [INPUT]
+          Name                tail
+          Tag                 k8saudit
+          Path                /var/log/kubernetes/audit/audit.log
+          Parser              json
+          DB                  /var/fluent-bit/audit.db
+          storage.type        filesystem
+          Read_from_Head      On
+    filters: ""
+    outputs: |
+      [OUTPUT]
+          Name                kafka
+          Match               k8saudit
+          Brokers             kafka-cell-kafka-bootstrap.data-kafka.svc:9093
+          Topics              sys.audit.v1
+          rdkafka.security.protocol   ssl
+          rdkafka.ssl.ca.location     /etc/fluent-bit/kafka/ca.crt
+          rdkafka.ssl.certificate.location /etc/fluent-bit/kafka/user.crt
+          rdkafka.ssl.key.location    /etc/fluent-bit/kafka/user.key
+          rdkafka.acks                all
+          Retry_Limit         no_limits
+          storage.total_limit_size 256M
