@@ -8,7 +8,9 @@ thử (RFC 6238, SHA-1, 6 số, bước 30 giây, khoá dạng chuỗi như fron
 Biến môi trường: KC_URL (gốc Keycloak trình duyệt dùng, quyết định claim iss; mặc định KEYCLOAK_PUBLIC_URL, rồi
 http://127.0.0.1:35080), KC_REALM (mission),
 KC_CLIENT_ID (mission-web), KC_REDIRECT_URI (http://localhost:4200/), SMOKE_USER (canbo),
-KC_TEST_USER_PASSWORD, KC_TEST_OTP_SECRET. In access token ra stdout; lỗi in ra stderr, mã thoát 1.
+KC_TEST_USER_PASSWORD, KC_TEST_OTP_SECRET, KC_ACR_VALUES (mặc định aal2; đặt rỗng để không xin). Xin aal2 vì khi
+server dev tắt OTP (tat-otp-dev.sh) nhánh OTP theo vai trò không còn tự nâng phiên quản trị lên aal2, mà API quản trị
+đòi aal2; khi OTP còn bật, biểu mẫu OTP vẫn được điền như cũ. In access token ra stdout; lỗi in ra stderr, mã thoát 1.
 Không in mật khẩu, mã OTP hay token vào nhật ký.
 """
 import base64
@@ -104,6 +106,9 @@ def main() -> int:
             "code_challenge_method": "S256",
         }
     )
+    acr_values = os.environ.get("KC_ACR_VALUES", "aal2")
+    if acr_values:
+        query += "&" + urllib.parse.urlencode({"acr_values": acr_values})
 
     def post(url: str, fields: dict) -> Optional[str]:
         try:
