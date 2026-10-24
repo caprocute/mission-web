@@ -109,8 +109,8 @@ function_failures(group) := {c |
 	not decision_ok(c, function_decision(c))
 }
 
-api_failures contains c if {
-	some c in api_cases
+api_failures(mod) := {c |
+	some c in api_cases[mod]
 	not decision_ok(c, api_decision(c))
 }
 
@@ -124,8 +124,12 @@ function_group_ok(group) if {
 
 test_matrix_has_every_function_group if count(function_cases) >= 19
 
-test_api_matrix if {
-	count(api_cases) > 0
-	print("ca API sai:", api_failures)
-	count(api_failures) == 0
+# Mỗi module API là một test, cùng lý do thời hạn.
+api_group_ok(mod) if {
+	count(api_cases[mod]) > 0
+	failures := api_failures(mod)
+	print("ca API sai:", failures)
+	count(failures) == 0
 }
+
+test_matrix_has_every_api_module if count(api_cases) >= 20

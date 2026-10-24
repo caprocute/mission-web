@@ -29,4 +29,9 @@ public class KeycloakRealmRoles implements RealmRoles {
   public void remove(UUID userId, String role) {
     keycloak.removeRealmRole(userId, role);
   }
+
+  @Override
+  public void ensure(String role, String description) {
+    keycloak.ensureRealmRole(role, description);
+  }
 }

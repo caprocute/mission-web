@@ -1,0 +1,3347 @@
+{
+ "version": "1.1 (24/10/2026)",
+ "roles": [
+  {
+   "code": "platform_admin",
+   "name": "Quản trị nền tảng",
+   "description": "Khởi tạo đơn vị triển khai, chọn cụm máy chủ và mô hình thuê bao, gắn bộ quy định đánh giá gốc và bộ giao diện, theo dõi dung lượng cụm máy chủ.",
+   "aal2": true,
+   "customizable": false
+  },
+  {
+   "code": "tenant_admin",
+   "name": "Quản trị đơn vị",
+   "description": "Khai báo IdP, nhập cây tổ chức, đối soát nhân sự, tạo kỳ đánh giá, khởi chạy khoá kỳ, cấu hình giao diện và biểu mẫu động.",
+   "aal2": true,
+   "customizable": false
+  },
+  {
+   "code": "policy_author",
+   "name": "Quản trị nghiệp vụ",
+   "description": "Soạn danh mục công việc mẫu, công thức, bảng quyết định, test case vàng và tham số luồng duyệt của bộ quy định đánh giá; không tự phát hành.",
+   "aal2": false,
+   "customizable": false
+  },
+  {
+   "code": "leader",
+   "name": "Lãnh đạo đơn vị",
+   "description": "Duyệt OKR, duyệt kế hoạch quý có ký số, phê duyệt lệnh khoá kỳ, phân nhóm triển vọng, chỉ đạo trên bảng điều hành.",
+   "aal2": false,
+   "customizable": true
+  },
+  {
+   "code": "manager",
+   "name": "Cán bộ quản lý trực tiếp",
+   "description": "Soạn OKR đơn vị, lập kế hoạch, giao việc, duyệt đề nghị gia hạn, nghiệm thu sản phẩm, ghi mức đề xuất xếp loại.",
+   "aal2": false,
+   "customizable": true
+  },
+  {
+   "code": "member",
+   "name": "Cán bộ, công chức, viên chức",
+   "description": "Check-in KR, nhận việc, cập nhật tiến độ, báo điểm nghẽn, nộp minh chứng, đăng ký nhiệm vụ, tự đánh giá, gửi khiếu nại.",
+   "aal2": false,
+   "customizable": true
+  },
+  {
+   "code": "appraiser",
+   "name": "Cán bộ thẩm định",
+   "description": "Thẩm định hồ sơ, xếp loại năm, chuẩn bị gói hồ sơ số, xử lý khiếu nại, xử lý cảnh báo, tạo yêu cầu mở lại kỳ.",
+   "aal2": true,
+   "customizable": true
+  },
+  {
+   "code": "decider",
+   "name": "Người có thẩm quyền quyết định",
+   "description": "Quyết định xếp loại và ký lô, ký gói hồ sơ số, ký văn bản trả lời khiếu nại, duyệt thứ nhất mở lại kỳ, ký phê duyệt phát hành bộ quy định đánh giá.",
+   "aal2": true,
+   "customizable": false
+  },
+  {
+   "code": "second_approver",
+   "name": "Người duyệt thứ hai",
+   "description": "Duyệt thứ hai khi huỷ và bù trừ tiến trình khoá kỳ, duyệt thứ hai yêu cầu mở lại kỳ.",
+   "aal2": true,
+   "customizable": false
+  },
+  {
+   "code": "inspector",
+   "name": "Cán bộ kiểm tra, giám sát",
+   "description": "Đọc sổ cái, kiểm tra toàn vẹn, kết luận cảnh báo, tạo yêu cầu mở lại kỳ, đọc tiến trình khoá kỳ và nhật ký đồng bộ.",
+   "aal2": false,
+   "customizable": true
+  }
+ ],
+ "groups": [
+  {
+   "code": "QT-00",
+   "name": "Đăng nhập, chọn đơn vị và vai trò",
+   "screens": [
+    {
+     "code": "SCR-0001",
+     "name": "Đăng nhập",
+     "functions": [
+      {
+       "key": "SCR-0001.dang-nhap",
+       "name": "Đăng nhập bằng tài khoản cơ quan, VNeID hoặc chứng thư số, xác thực nhiều lớp",
+       "grants": {
+        "appraiser": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "decider": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "inspector": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "leader": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "manager": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "platform_admin": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "policy_author": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "second_approver": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "tenant_admin": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0001.chon-phan-cong",
+       "name": "Chọn phân công (đơn vị, vai trò) sau đăng nhập",
+       "grants": {
+        "appraiser": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "decider": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "inspector": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "leader": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "manager": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "platform_admin": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "policy_author": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "second_approver": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "tenant_admin": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0001.bao-bat-thuong",
+       "name": "Báo cáo truy cập bất thường (thu hồi phiên, đổi mật khẩu)",
+       "grants": {
+        "appraiser": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "decider": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "inspector": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "leader": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "manager": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "platform_admin": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "policy_author": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "second_approver": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "tenant_admin": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0001.khoa-thiet-bi",
+       "name": "Đăng ký, thu hồi khoá mã hoá đầu cuối của thiết bị hoặc chứng thư số",
+       "grants": {
+        "appraiser": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        },
+        "decider": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        },
+        "inspector": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        },
+        "leader": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        },
+        "manager": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        },
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        },
+        "platform_admin": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        },
+        "policy_author": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        },
+        "second_approver": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        },
+        "tenant_admin": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0002",
+     "name": "Trang chủ \"Việc của tôi hôm nay\"",
+     "functions": [
+      {
+       "key": "SCR-0002.xem",
+       "name": "Xem trang chủ \"Việc của tôi hôm nay\" (bố cục theo vai trò)",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "B",
+         "inferred": false
+        },
+        "decider": {
+         "level": "R",
+         "scope": "B",
+         "inferred": true
+        },
+        "inspector": {
+         "level": "R",
+         "scope": "B",
+         "inferred": true
+        },
+        "leader": {
+         "level": "R",
+         "scope": "B",
+         "inferred": false
+        },
+        "manager": {
+         "level": "R",
+         "scope": "B",
+         "inferred": false
+        },
+        "member": {
+         "level": "R",
+         "scope": "B",
+         "inferred": false
+        },
+        "platform_admin": {
+         "level": "R",
+         "scope": "B",
+         "inferred": true
+        },
+        "policy_author": {
+         "level": "R",
+         "scope": "B",
+         "inferred": true
+        },
+        "second_approver": {
+         "level": "R",
+         "scope": "B",
+         "inferred": true
+        },
+        "tenant_admin": {
+         "level": "R",
+         "scope": "B",
+         "inferred": true
+        }
+       }
+      },
+      {
+       "key": "SCR-0002.doi-phan-cong",
+       "name": "Đổi phân công (ngữ cảnh) trên thanh trên",
+       "grants": {
+        "appraiser": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "decider": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "inspector": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "leader": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "manager": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "platform_admin": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "policy_author": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "second_approver": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "tenant_admin": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0002.cap-nhat-nhanh",
+       "name": "Cập nhật nhanh tiến độ, mở check-in, nộp sản phẩm từ trang chủ",
+       "grants": {
+        "manager": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0002.doc-thong-bao",
+       "name": "Đánh dấu thông báo đã đọc",
+       "grants": {
+        "appraiser": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        },
+        "decider": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        },
+        "inspector": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        },
+        "leader": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        },
+        "manager": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        },
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        },
+        "platform_admin": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        },
+        "policy_author": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        },
+        "second_approver": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        },
+        "tenant_admin": {
+         "level": "T",
+         "scope": "B",
+         "inferred": true
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QT-01",
+   "name": "Khởi tạo đơn vị triển khai, cây tổ chức và đồng bộ nhân sự",
+   "screens": [
+    {
+     "code": "SCR-0101",
+     "name": "Danh sách đơn vị triển khai",
+     "functions": [
+      {
+       "key": "SCR-0101.xem",
+       "name": "Xem, lọc danh sách đơn vị triển khai và tải theo cụm máy chủ",
+       "grants": {
+        "platform_admin": {
+         "level": "R",
+         "scope": "N",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0101.xuat",
+       "name": "Xuất danh sách đơn vị triển khai",
+       "grants": {
+        "platform_admin": {
+         "level": "R",
+         "scope": "N",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0102",
+     "name": "Khởi tạo đơn vị triển khai",
+     "functions": [
+      {
+       "key": "SCR-0102.buoc-1-3",
+       "name": "Khởi tạo đơn vị triển khai bước 1, 2, 3 và khởi chạy tiến trình cấp phát",
+       "grants": {
+        "platform_admin": {
+         "level": "X",
+         "scope": "N",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0102.buoc-4-5",
+       "name": "Khai báo đăng nhập tập trung, kiểm tra kết nối, nhập tổ chức ban đầu",
+       "grants": {
+        "platform_admin": {
+         "level": "R",
+         "scope": "N",
+         "inferred": true
+        },
+        "tenant_admin": {
+         "level": "T",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0102.kich-hoat",
+       "name": "Kích hoạt đơn vị triển khai",
+       "grants": {
+        "platform_admin": {
+         "level": "D",
+         "scope": "N",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0102.huy",
+       "name": "Huỷ yêu cầu khởi tạo đơn vị triển khai",
+       "grants": {
+        "platform_admin": {
+         "level": "X",
+         "scope": "N",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0103",
+     "name": "Cây tổ chức có lịch sử",
+     "functions": [
+      {
+       "key": "SCR-0103.xem",
+       "name": "Xem cây tổ chức hiện tại và tại một ngày trong quá khứ",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": true
+        },
+        "inspector": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        },
+        "tenant_admin": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0103.nhap-excel",
+       "name": "Nhập cây tổ chức từ Excel",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0103.thay-doi",
+       "name": "Thay đổi tổ chức (thành lập, sáp nhập, chia tách, giải thể) và sửa đơn vị",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0103.khoa-phuc-hoi",
+       "name": "Thay khoá phục hồi của tổ chức, ghi biên bản khôi phục và nạp khoá bọc cho thiết bị mới khi mất khoá",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": true
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0104",
+     "name": "Đồng bộ và đối soát nhân sự",
+     "functions": [
+      {
+       "key": "SCR-0104.xem",
+       "name": "Xem lần đồng bộ và danh sách lệch nhân sự",
+       "grants": {
+        "inspector": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        },
+        "tenant_admin": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0104.dong-bo",
+       "name": "Đồng bộ ngay, lịch đồng bộ, chạy lại thông điệp lỗi",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0104.xu-ly-lech",
+       "name": "Xử lý lệch: lấy theo nguồn, giữ nội bộ, ánh xạ thủ công",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0104.giao-xu-ly",
+       "name": "Giao cán bộ tổ chức đơn vị kiểm tra dòng lệch",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Gn",
+         "inferred": true
+        },
+        "tenant_admin": {
+         "level": "T",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0105",
+     "name": "Vai trò theo đơn vị (cấp, duyệt thứ hai, thu hồi)",
+     "functions": [
+      {
+       "key": "SCR-0105.xem",
+       "name": "Xem vai trò đã cấp theo đơn vị (lọc vai trò, còn hiệu lực, sắp hết hạn, chờ duyệt)",
+       "grants": {
+        "inspector": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        },
+        "leader": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": true
+        },
+        "tenant_admin": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0105.cap",
+       "name": "Cấp vai trò có thời hạn, đơn vị phạm vi, phạm vi và luồng",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0105.duyet",
+       "name": "Duyệt thứ hai hoặc từ chối đề nghị cấp vai trò cần duyệt",
+       "grants": {
+        "leader": {
+         "level": "D",
+         "scope": "Cd",
+         "inferred": true
+        },
+        "tenant_admin": {
+         "level": "D",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0105.thu-hoi",
+       "name": "Thu hồi vai trò trước hạn, lý do bắt buộc",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0106",
+     "name": "Hồ sơ quyền của một người",
+     "functions": [
+      {
+       "key": "SCR-0106.xem",
+       "name": "Xem hồ sơ quyền của một người: vai trò hiện hành, uỷ quyền đã giao và đã nhận, lịch sử",
+       "grants": {
+        "inspector": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        },
+        "leader": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": true
+        },
+        "tenant_admin": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0106.xuat",
+       "name": "Xuất lịch sử quyền của một người ra CSV",
+       "grants": {
+        "inspector": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        },
+        "tenant_admin": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0107",
+     "name": "Uỷ quyền khi vắng mặt",
+     "functions": [
+      {
+       "key": "SCR-0107.xem",
+       "name": "Xem uỷ quyền khi vắng mặt đang hiệu lực và đã kết thúc của đơn vị",
+       "grants": {
+        "inspector": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        },
+        "leader": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "tenant_admin": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        }
+       }
+      },
+      {
+       "key": "SCR-0107.tao",
+       "name": "Khai báo duyệt thay, nghiệm thu thay, check-in KR thay có thời hạn",
+       "grants": {
+        "leader": {
+         "level": "T",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0107.thu-hoi",
+       "name": "Thu hồi uỷ quyền trước hạn",
+       "grants": {
+        "leader": {
+         "level": "T",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0108",
+     "name": "Người dùng (danh sách tài khoản, thêm, khoá, mở khoá)",
+     "functions": [
+      {
+       "key": "SCR-0108.xem",
+       "name": "Xem danh sách tài khoản theo đơn vị, tìm theo tên hoặc tên đăng nhập, lọc trạng thái",
+       "grants": {
+        "inspector": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        },
+        "tenant_admin": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0108.them",
+       "name": "Thêm người dùng: họ tên, tên đăng nhập, thư điện tử, đơn vị công tác, chức danh, mật khẩu tạm",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0108.khoa",
+       "name": "Khoá, mở khoá tài khoản có lý do, thu hồi mọi phiên đăng nhập",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0109",
+     "name": "Hồ sơ người dùng (thông tin, phân công, kiêm nhiệm, vai trò, đặt lại mật khẩu)",
+     "functions": [
+      {
+       "key": "SCR-0109.xem",
+       "name": "Xem hồ sơ người dùng: thông tin tài khoản, phân công, vai trò đang giữ, lịch sử",
+       "grants": {
+        "inspector": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        },
+        "tenant_admin": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0109.sua",
+       "name": "Sửa họ tên, thư điện tử của người dùng",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0109.phan-cong",
+       "name": "Gán đơn vị công tác, chức danh; thêm, sửa, kết thúc kiêm nhiệm, biệt phái",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0109.dat-lai-mat-khau",
+       "name": "Đặt lại mật khẩu, cấp mật khẩu tạm phải đổi khi đăng nhập",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0110",
+     "name": "Vai trò và quyền (vai trò tuỳ chỉnh, ma trận chức năng)",
+     "functions": [
+      {
+       "key": "SCR-0110.xem",
+       "name": "Xem vai trò hệ thống, vai trò tuỳ chỉnh và ma trận chức năng theo vai trò",
+       "grants": {
+        "inspector": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        },
+        "tenant_admin": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0110.sua",
+       "name": "Tạo, sửa, ngừng vai trò tuỳ chỉnh: chọn vai trò gốc, bật tắt từng chức năng, phạm vi",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QT-02",
+   "name": "Lập và phê duyệt mục tiêu, OKR",
+   "screens": [
+    {
+     "code": "SCR-0201",
+     "name": "Cây mục tiêu OKR",
+     "functions": [
+      {
+       "key": "SCR-0201.xem",
+       "name": "Xem cây mục tiêu, bảng, bản đồ liên kết, xuất mẫu báo cáo OKR",
+       "grants": {
+        "leader": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": true
+        },
+        "manager": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        },
+        "member": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0201.them",
+       "name": "Thêm mục tiêu của đơn vị",
+       "grants": {
+        "manager": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0201.check-in",
+       "name": "Check-in KR từ cây mục tiêu",
+       "grants": {
+        "manager": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0202",
+     "name": "Tạo/sửa O và KR",
+     "functions": [
+      {
+       "key": "SCR-0202.soan-don-vi",
+       "name": "Soạn, lưu nháp mục tiêu và KR của đơn vị",
+       "grants": {
+        "manager": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0202.soan-ca-nhan",
+       "name": "Soạn, lưu nháp OKR cá nhân",
+       "grants": {
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0202.ai-soat",
+       "name": "Trợ lý AI soát KR và dùng gợi ý vào ô",
+       "grants": {
+        "manager": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        },
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0202.trinh",
+       "name": "Trình phê duyệt OKR",
+       "grants": {
+        "manager": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        },
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0203",
+     "name": "Phê duyệt OKR",
+     "functions": [
+      {
+       "key": "SCR-0203.xem",
+       "name": "Xem hàng chờ OKR, kết quả kiểm tra tự động, cây ở chế độ chỉ đọc",
+       "grants": {
+        "leader": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0203.duyet",
+       "name": "Phê duyệt OKR",
+       "grants": {
+        "leader": {
+         "level": "D",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0203.tra-lai",
+       "name": "Trả lại OKR để sửa",
+       "grants": {
+        "leader": {
+         "level": "D",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0203.duyet-lo",
+       "name": "Duyệt hàng loạt các bộ OKR đủ điều kiện",
+       "grants": {
+        "leader": {
+         "level": "D",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QT-03",
+   "name": "Check-in KR",
+   "screens": [
+    {
+     "code": "SCR-0301",
+     "name": "Check-in KR",
+     "functions": [
+      {
+       "key": "SCR-0301.check-in",
+       "name": "Check-in KR: lưu nháp, gửi, lấy lại số liệu nguồn",
+       "grants": {
+        "manager": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0301.lich-su",
+       "name": "Xem lịch sử check-in",
+       "grants": {
+        "leader": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": true
+        },
+        "manager": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": true
+        },
+        "member": {
+         "level": "R",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0301.giao-check-in-thay",
+       "name": "Giao quyền check-in tạm thời khi chủ sở hữu KR vắng mặt dài ngày",
+       "grants": {
+        "leader": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": true
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QT-04",
+   "name": "Lập và phê duyệt kế hoạch công tác quý",
+   "screens": [
+    {
+     "code": "SCR-0401",
+     "name": "Thư viện danh mục công việc",
+     "functions": [
+      {
+       "key": "SCR-0401.xem",
+       "name": "Xem thư viện danh mục công việc",
+       "grants": {
+        "leader": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": true
+        },
+        "manager": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        },
+        "member": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        },
+        "policy_author": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        }
+       }
+      },
+      {
+       "key": "SCR-0401.sua",
+       "name": "Thêm, sửa mục, nhân bản phiên bản, nhập Excel danh mục",
+       "grants": {
+        "manager": {
+         "level": "X",
+         "scope": "Gn",
+         "inferred": false
+        },
+        "policy_author": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": true
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0402",
+     "name": "Lập kế hoạch quý",
+     "functions": [
+      {
+       "key": "SCR-0402.xem",
+       "name": "Xem kế hoạch quý của đơn vị",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "leader": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": true
+        },
+        "manager": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        },
+        "member": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": true
+        }
+       }
+      },
+      {
+       "key": "SCR-0402.lap",
+       "name": "Lập kế hoạch: sao chép quý trước, gợi ý từ OKR, thêm dòng, lưu nháp",
+       "grants": {
+        "manager": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0402.gui-duyet",
+       "name": "Gửi duyệt kế hoạch",
+       "grants": {
+        "manager": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0402.dieu-chinh",
+       "name": "Tạo điều chỉnh kế hoạch",
+       "grants": {
+        "manager": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0403",
+     "name": "Phê duyệt kế hoạch (so sánh phiên bản)",
+     "functions": [
+      {
+       "key": "SCR-0403.so-sanh",
+       "name": "So sánh phiên bản kế hoạch",
+       "grants": {
+        "leader": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0403.tra-lai",
+       "name": "Trả lại kế hoạch với ý kiến",
+       "grants": {
+        "leader": {
+         "level": "D",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0403.duyet-ky",
+       "name": "Duyệt và ký số kế hoạch",
+       "grants": {
+        "leader": {
+         "level": "D",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QT-05",
+   "name": "Giao việc, đăng ký nhiệm vụ, nhận nhiệm vụ từ văn bản",
+   "screens": [
+    {
+     "code": "SCR-0501",
+     "name": "Giao việc",
+     "functions": [
+      {
+       "key": "SCR-0501.soan",
+       "name": "Soạn, lưu nháp, huỷ nháp nhiệm vụ",
+       "grants": {
+        "manager": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0501.giao",
+       "name": "Giao việc",
+       "grants": {
+        "manager": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0501.giao-dong-loat",
+       "name": "Giao đồng loạt cho nhiều đơn vị",
+       "grants": {
+        "manager": {
+         "level": "T",
+         "scope": "Cd",
+         "inferred": true
+        }
+       }
+      },
+      {
+       "key": "SCR-0501.trung",
+       "name": "Xem nhiệm vụ gần giống",
+       "grants": {
+        "manager": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0501.khoa-nguoi-nhan",
+       "name": "Tra khoá công khai người nhận, khoá ký danh bạ và khoá phục hồi để mã hoá nội dung mật",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        },
+        "decider": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        },
+        "inspector": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        },
+        "leader": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        },
+        "manager": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        },
+        "member": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        },
+        "platform_admin": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        },
+        "policy_author": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        },
+        "second_approver": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        },
+        "tenant_admin": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0502",
+     "name": "Tạo nhiệm vụ từ văn bản chỉ đạo",
+     "functions": [
+      {
+       "key": "SCR-0502.nhan-van-ban",
+       "name": "Nhận văn bản chỉ đạo từ hệ thống văn phòng điện tử",
+       "grants": {
+        "manager": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0502.xac-nhan",
+       "name": "Sửa, bỏ, gộp, xác nhận nhiệm vụ trích; bỏ qua văn bản",
+       "grants": {
+        "manager": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0502.xac-nhan-giao",
+       "name": "Xác nhận và giao các nhiệm vụ đã xác nhận",
+       "grants": {
+        "manager": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0503",
+     "name": "Việc của tôi",
+     "functions": [
+      {
+       "key": "SCR-0503.xem",
+       "name": "Xem, lọc việc của tôi, xuất Excel",
+       "grants": {
+        "member": {
+         "level": "R",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0503.nhan-viec",
+       "name": "Nhận việc",
+       "grants": {
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0503.tien-do",
+       "name": "Cập nhật tiến độ một nhiệm vụ hoặc hàng loạt",
+       "grants": {
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0503.dang-ky",
+       "name": "Gửi đăng ký nhiệm vụ cho người quản lý",
+       "grants": {
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QT-06",
+   "name": "Cập nhật tiến độ, điểm nghẽn, đề nghị gia hạn/điều chỉnh",
+   "screens": [
+    {
+     "code": "SCR-0601",
+     "name": "Chi tiết nhiệm vụ",
+     "functions": [
+      {
+       "key": "SCR-0601.xem",
+       "name": "Xem chi tiết nhiệm vụ, tiến độ, sản phẩm, lịch sử",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": true
+        },
+        "inspector": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        },
+        "leader": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "manager": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        },
+        "member": {
+         "level": "R",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0601.tien-do",
+       "name": "Cập nhật tiến độ",
+       "grants": {
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0601.bao-nghen",
+       "name": "Báo điểm nghẽn",
+       "grants": {
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0601.xu-ly-nghen",
+       "name": "Xử lý điểm nghẽn: giao người xử lý, đặt hạn, đóng",
+       "grants": {
+        "manager": {
+         "level": "D",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0601.duyet-de-nghi",
+       "name": "Duyệt đề nghị gia hạn, điều chỉnh (chọn nguyên nhân, chấp nhận, từ chối)",
+       "grants": {
+        "leader": {
+         "level": "D",
+         "scope": "Cd",
+         "inferred": true
+        },
+        "manager": {
+         "level": "D",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0601.nop-sp",
+       "name": "Nộp sản phẩm",
+       "grants": {
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0602",
+     "name": "Đề nghị gia hạn, điều chỉnh",
+     "functions": [
+      {
+       "key": "SCR-0602.gui",
+       "name": "Lập, xem trước hệ quả, đính kèm, gửi đề nghị gia hạn, điều chỉnh, tạm dừng, huỷ",
+       "grants": {
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0602.rut",
+       "name": "Rút lại đề nghị đang chờ duyệt của mình",
+       "grants": {
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QT-07",
+   "name": "Nộp và nghiệm thu sản phẩm, minh chứng",
+   "screens": [
+    {
+     "code": "SCR-0701",
+     "name": "Nộp minh chứng",
+     "functions": [
+      {
+       "key": "SCR-0701.soan",
+       "name": "Tải tệp, chọn văn bản, lưu nháp minh chứng",
+       "grants": {
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0701.nop",
+       "name": "Nộp minh chứng để nghiệm thu",
+       "grants": {
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0701.xem",
+       "name": "Xem minh chứng đã nộp",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "manager": {
+         "level": "R",
+         "scope": "Gn",
+         "inferred": true
+        },
+        "member": {
+         "level": "R",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0703",
+     "name": "Nghiệm thu chất lượng 5 mức",
+     "functions": [
+      {
+       "key": "SCR-0703.mo",
+       "name": "Mở minh chứng, kiểm toàn vẹn, xem trước điểm",
+       "grants": {
+        "manager": {
+         "level": "R",
+         "scope": "Gn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0703.xac-nhan",
+       "name": "Xác nhận nghiệm thu chất lượng 5 mức",
+       "grants": {
+        "manager": {
+         "level": "D",
+         "scope": "Gn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0703.bo-sung-tu-choi",
+       "name": "Yêu cầu bổ sung hoặc từ chối minh chứng",
+       "grants": {
+        "manager": {
+         "level": "D",
+         "scope": "Gn",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QT-08",
+   "name": "Khoá kỳ",
+   "screens": [
+    {
+     "code": "SCR-0801",
+     "name": "Quản lý kỳ và tiến trình khoá kỳ",
+     "functions": [
+      {
+       "key": "SCR-0801.xem",
+       "name": "Xem danh sách kỳ, lệnh khoá kỳ và tiến trình chốt kỳ",
+       "grants": {
+        "inspector": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        },
+        "leader": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        },
+        "second_approver": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        },
+        "tenant_admin": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0801.tao-ky",
+       "name": "Tạo kỳ, lịch ngày nghỉ và làm bù",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0801.lap-lenh",
+       "name": "Lập lệnh khoá kỳ",
+       "grants": {
+        "tenant_admin": {
+         "level": "T",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0801.duyet-lenh",
+       "name": "Phê duyệt lệnh khoá kỳ",
+       "grants": {
+        "leader": {
+         "level": "D",
+         "scope": "Tn",
+         "inferred": true
+        }
+       }
+      },
+      {
+       "key": "SCR-0801.khoi-chay",
+       "name": "Khởi chạy tiến trình khoá kỳ",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0801.dieu-khien",
+       "name": "Tạm dừng sau bước hiện tại, chạy lại hồ sơ lỗi",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0801.de-nghi-huy",
+       "name": "Đề nghị huỷ và bù trừ toàn bộ tiến trình",
+       "grants": {
+        "tenant_admin": {
+         "level": "T",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0801.duyet-huy",
+       "name": "Duyệt thứ hai huỷ và bù trừ",
+       "grants": {
+        "second_approver": {
+         "level": "D",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QT-09",
+   "name": "Tự đánh giá, thẩm định, đề xuất, quyết định xếp loại quý",
+   "screens": [
+    {
+     "code": "SCR-0901",
+     "name": "Phiếu tự đánh giá",
+     "functions": [
+      {
+       "key": "SCR-0901.xem",
+       "name": "Xem kết quả hệ thống tính, vết tính, xem trước Mẫu 1B, chuyển luồng",
+       "grants": {
+        "manager": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        },
+        "member": {
+         "level": "R",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0901.luu",
+       "name": "Lưu nháp phiếu tự đánh giá",
+       "grants": {
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0901.ky-nop",
+       "name": "Ký số và nộp phiếu tự đánh giá",
+       "grants": {
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0902",
+     "name": "Thẩm định",
+     "functions": [
+      {
+       "key": "SCR-0902.xem",
+       "name": "Xem hàng đợi, chi tiết hồ sơ, mở minh chứng",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0902.tra-lai",
+       "name": "Trả lại hồ sơ bổ sung",
+       "grants": {
+        "appraiser": {
+         "level": "D",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0902.ky",
+       "name": "Ký số kết quả thẩm định và chuyển đề xuất",
+       "grants": {
+        "appraiser": {
+         "level": "D",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0902.xuat",
+       "name": "Xuất danh sách hàng đợi",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0903",
+     "name": "Phiếu xếp loại có giải thích",
+     "functions": [
+      {
+       "key": "SCR-0903.xem",
+       "name": "Xem phiếu xếp loại, vết tính, luồng Nhà nước",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "decider": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "manager": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        },
+        "member": {
+         "level": "R",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0903.de-xuat",
+       "name": "Ghi mức đề xuất xếp loại",
+       "grants": {
+        "manager": {
+         "level": "D",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0903.tai-mau-1b",
+       "name": "Tải Mẫu 1B đã ký",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": true
+        },
+        "decider": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": true
+        },
+        "manager": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": true
+        },
+        "member": {
+         "level": "R",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0903.khieu-nai",
+       "name": "Gửi khiếu nại",
+       "grants": {
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-0904",
+     "name": "Quyết định xếp loại hàng loạt và ký số",
+     "functions": [
+      {
+       "key": "SCR-0904.xem",
+       "name": "Xem hồ sơ chờ quyết định, phân bố mức, xuất Mẫu 3",
+       "grants": {
+        "decider": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0904.doi-muc",
+       "name": "Đổi mức quyết định có lý do",
+       "grants": {
+        "decider": {
+         "level": "D",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0904.ky-lo",
+       "name": "Quyết định và ký lô",
+       "grants": {
+        "decider": {
+         "level": "D",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-0904.theo-doi-huy",
+       "name": "Theo dõi tiến độ và huỷ lô chưa hoàn tất",
+       "grants": {
+        "decider": {
+         "level": "D",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QT-10",
+   "name": "Xếp loại năm, liên thông quý–năm, phân nhóm triển vọng",
+   "screens": [
+    {
+     "code": "SCR-1001",
+     "name": "Xếp loại năm",
+     "functions": [
+      {
+       "key": "SCR-1001.xem",
+       "name": "Xem tổng hợp bốn quý, mức năm và giải thích, lọc cảnh báo liên thông",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "decider": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "leader": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1001.tham-dinh-nam",
+       "name": "Chuyển thẩm định năm",
+       "grants": {
+        "appraiser": {
+         "level": "D",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1001.bo-tri-lai",
+       "name": "Lập đề xuất bố trí lại",
+       "grants": {
+        "appraiser": {
+         "level": "T",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-1002",
+     "name": "Phân nhóm triển vọng",
+     "functions": [
+      {
+       "key": "SCR-1002.xem",
+       "name": "Xem danh sách phân nhóm và tiêu chí PL 5",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        },
+        "leader": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1002.xep-nhom",
+       "name": "Kéo thả xếp nhóm, ghi lý do, lưu nháp",
+       "grants": {
+        "appraiser": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        },
+        "leader": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1002.trinh",
+       "name": "Trình tập thể lãnh đạo",
+       "grants": {
+        "leader": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QT-11",
+   "name": "Kiểm điểm và hồ sơ số",
+   "screens": [
+    {
+     "code": "SCR-1101",
+     "name": "Hội nghị kiểm điểm",
+     "functions": [
+      {
+       "key": "SCR-1101.tao",
+       "name": "Tạo hội nghị kiểm điểm",
+       "grants": {
+        "appraiser": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": true
+        }
+       }
+      },
+      {
+       "key": "SCR-1101.gui-du-thao",
+       "name": "Gửi dự thảo bản kiểm điểm",
+       "grants": {
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1101.gop-y",
+       "name": "Tải dự thảo Mẫu 1B, gửi góp ý",
+       "grants": {
+        "appraiser": {
+         "level": "T",
+         "scope": "Gn",
+         "inferred": true
+        },
+        "leader": {
+         "level": "T",
+         "scope": "Gn",
+         "inferred": true
+        },
+        "manager": {
+         "level": "T",
+         "scope": "Gn",
+         "inferred": true
+        },
+        "member": {
+         "level": "T",
+         "scope": "Gn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1101.thu-ky",
+       "name": "Ghi ý kiến tại hội nghị, lập biên bản",
+       "grants": {
+        "appraiser": {
+         "level": "T",
+         "scope": "Gn",
+         "inferred": false
+        },
+        "member": {
+         "level": "T",
+         "scope": "Gn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1101.ket-thuc",
+       "name": "Kết thúc hội nghị, khởi động ký biên bản",
+       "grants": {
+        "leader": {
+         "level": "D",
+         "scope": "Gn",
+         "inferred": true
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-1102",
+     "name": "Gói hồ sơ số và ký số",
+     "functions": [
+      {
+       "key": "SCR-1102.chuan-bi",
+       "name": "Theo dõi sinh biểu mẫu, sinh lại mẫu lỗi, xem biểu mẫu",
+       "grants": {
+        "appraiser": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        },
+        "decider": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1102.tai-goi",
+       "name": "Tải gói hồ sơ hội nghị",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        },
+        "decider": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1102.ky-goi",
+       "name": "Ký số gói và nộp cấp trên",
+       "grants": {
+        "decider": {
+         "level": "D",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1102.goi-con",
+       "name": "Gửi gói con diện Trung ương",
+       "grants": {
+        "appraiser": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": true
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QT-12",
+   "name": "Khiếu nại, giải trình",
+   "screens": [
+    {
+     "code": "SCR-0103",
+     "name": "Cây tổ chức có lịch sử",
+     "functions": [
+      {
+       "key": "SCR-0103.nhat-ky-phuc-hoi",
+       "name": "Xem nhật ký khôi phục khoá mã hoá đầu cuối",
+       "grants": {
+        "inspector": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        },
+        "tenant_admin": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-1201",
+     "name": "Gửi khiếu nại",
+     "functions": [
+      {
+       "key": "SCR-1201.soan",
+       "name": "Soạn, lưu nháp, đính kèm khiếu nại (mã hoá nội dung)",
+       "grants": {
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1201.ky-gui",
+       "name": "Ký số và gửi khiếu nại",
+       "grants": {
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1201.rut-bao-luu",
+       "name": "Rút khiếu nại, xác nhận bảo lưu ý kiến",
+       "grants": {
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-1202",
+     "name": "Xử lý khiếu nại",
+     "functions": [
+      {
+       "key": "SCR-1202.tiep-nhan",
+       "name": "Tiếp nhận hoặc không thụ lý khiếu nại",
+       "grants": {
+        "appraiser": {
+         "level": "D",
+         "scope": "Gn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1202.giai-trinh",
+       "name": "Yêu cầu giải trình; bên liên quan gửi giải trình",
+       "grants": {
+        "appraiser": {
+         "level": "T",
+         "scope": "Gn",
+         "inferred": false
+        },
+        "manager": {
+         "level": "T",
+         "scope": "Gn",
+         "inferred": true
+        }
+       }
+      },
+      {
+       "key": "SCR-1202.tinh-thu",
+       "name": "Tính thử điều chỉnh, xem văn bản trả lời",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Gn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1202.ky-tra-loi",
+       "name": "Ký số văn bản trả lời khiếu nại",
+       "grants": {
+        "decider": {
+         "level": "D",
+         "scope": "Gn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1202.mo-lai",
+       "name": "Tạo yêu cầu mở lại kỳ từ kết luận khiếu nại",
+       "grants": {
+        "appraiser": {
+         "level": "T",
+         "scope": "Gn",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QT-13",
+   "name": "Hậu kiểm, mở lại kỳ (hai người duyệt)",
+   "screens": [
+    {
+     "code": "SCR-1301",
+     "name": "Yêu cầu mở lại kỳ",
+     "functions": [
+      {
+       "key": "SCR-1301.tao",
+       "name": "Tạo yêu cầu mở lại kỳ, tính thử ảnh hưởng",
+       "grants": {
+        "appraiser": {
+         "level": "T",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "inspector": {
+         "level": "T",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1301.duyet-1",
+       "name": "Phê duyệt thứ nhất, ký số",
+       "grants": {
+        "decider": {
+         "level": "D",
+         "scope": "Gn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1301.duyet-2",
+       "name": "Phê duyệt thứ hai, ký số, mở lại kỳ",
+       "grants": {
+        "second_approver": {
+         "level": "D",
+         "scope": "Gn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1301.tu-choi",
+       "name": "Từ chối yêu cầu mở lại kỳ",
+       "grants": {
+        "decider": {
+         "level": "D",
+         "scope": "Gn",
+         "inferred": false
+        },
+        "second_approver": {
+         "level": "D",
+         "scope": "Gn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1301.huy",
+       "name": "Huỷ yêu cầu trước khi đủ phê duyệt",
+       "grants": {
+        "appraiser": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        },
+        "inspector": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-1302",
+     "name": "Tra cứu sổ cái và kiểm tra toàn vẹn",
+     "functions": [
+      {
+       "key": "SCR-1302.tra-cuu",
+       "name": "Tra cứu sổ cái, xem bản ghi, niêm phong, bản neo",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        },
+        "inspector": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1302.kiem-tra",
+       "name": "Chạy kiểm tra toàn vẹn chuỗi băm",
+       "grants": {
+        "inspector": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1302.xuat",
+       "name": "Xuất bằng chứng kèm chữ ký",
+       "grants": {
+        "inspector": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QT-14",
+   "name": "Cảnh báo bất thường",
+   "screens": [
+    {
+     "code": "SCR-1401",
+     "name": "Trung tâm cảnh báo",
+     "functions": [
+      {
+       "key": "SCR-1401.xem",
+       "name": "Xem, lọc cảnh báo, xem chuỗi bằng chứng, mở sổ cái",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "inspector": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1401.xu-ly",
+       "name": "Xác nhận hợp lệ hoặc giao kiểm tra",
+       "grants": {
+        "appraiser": {
+         "level": "D",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "inspector": {
+         "level": "D",
+         "scope": "Cd",
+         "inferred": true
+        }
+       }
+      },
+      {
+       "key": "SCR-1401.ket-luan",
+       "name": "Kết luận kiểm tra",
+       "grants": {
+        "inspector": {
+         "level": "D",
+         "scope": "Cd",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1401.nguong",
+       "name": "Cấu hình ngưỡng phát hiện",
+       "grants": {
+        "policy_author": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QT-15",
+   "name": "Soạn, kiểm thử và phát hành bộ quy định đánh giá",
+   "screens": [
+    {
+     "code": "SCR-1501",
+     "name": "Config Studio – công thức",
+     "functions": [
+      {
+       "key": "SCR-1501.soan",
+       "name": "Soạn công thức, lưu nháp, xem trước, so sánh phiên bản",
+       "grants": {
+        "policy_author": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        },
+        "tenant_admin": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": true
+        }
+       }
+      },
+      {
+       "key": "SCR-1501.gui-duyet",
+       "name": "Gửi phê duyệt phát hành bộ quy định đánh giá",
+       "grants": {
+        "policy_author": {
+         "level": "T",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-1502",
+     "name": "Bảng quyết định xếp loại",
+     "functions": [
+      {
+       "key": "SCR-1502.soan",
+       "name": "Soạn bảng quyết định, lưu nháp, xuất tệp",
+       "grants": {
+        "policy_author": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-1503",
+     "name": "Chạy test case vàng",
+     "functions": [
+      {
+       "key": "SCR-1503.chay",
+       "name": "Thêm ca kiểm thử, chạy lại bộ test case vàng",
+       "grants": {
+        "policy_author": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1503.xem-duyet",
+       "name": "Xem kết quả test khi phê duyệt",
+       "grants": {
+        "decider": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1503.ky-duyet",
+       "name": "Ký số phê duyệt phát hành bộ quy định đánh giá",
+       "grants": {
+        "decider": {
+         "level": "D",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-1504",
+     "name": "Cấu hình luồng duyệt",
+     "functions": [
+      {
+       "key": "SCR-1504.cau-hinh",
+       "name": "Chọn mẫu luồng, mô phỏng, lưu tham số luồng duyệt",
+       "grants": {
+        "policy_author": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-1505",
+     "name": "Thư viện và trình soạn mẫu luồng",
+     "functions": [
+      {
+       "key": "SCR-1505.thu-vien",
+       "name": "Xem thư viện mẫu luồng: phiên bản, trạng thái, số đơn vị triển khai đang dùng, số test",
+       "grants": {
+        "second_approver": {
+         "level": "R",
+         "scope": "N",
+         "inferred": true
+        },
+        "wf_template_author": {
+         "level": "R",
+         "scope": "N",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1505.soan",
+       "name": "Soạn, sửa mẫu luồng bằng bpmn-js, khai báo tham số; linter bpmnlint chạy ngay trên trình duyệt",
+       "grants": {
+        "wf_template_author": {
+         "level": "T",
+         "scope": "N",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1505.chay-test",
+       "name": "Chạy bộ test kịch bản và thử tải rút gọn trên môi trường kiểm thử riêng",
+       "grants": {
+        "wf_template_author": {
+         "level": "T",
+         "scope": "N",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1505.de-nghi-phat-hanh",
+       "name": "Đề nghị phát hành mẫu luồng kèm tham số và kiểm thử",
+       "grants": {
+        "wf_template_author": {
+         "level": "T",
+         "scope": "N",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1505.phe-duyet",
+       "name": "Phê duyệt phát hành mẫu luồng (bốn mắt), ký số gói mẫu",
+       "grants": {
+        "second_approver": {
+         "level": "D",
+         "scope": "N",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1505.trien-khai-cell",
+       "name": "Theo dõi tiến trình triển khai cuốn chiếu trên từng cụm máy chủ, bù trừ về phiên bản trước",
+       "grants": {
+        "wf_template_author": {
+         "level": "X",
+         "scope": "N",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-1506",
+     "name": "Giám sát tiến trình theo mẫu",
+     "functions": [
+      {
+       "key": "SCR-1506.xem",
+       "name": "Xem tiến trình đang chạy theo mẫu, phát hiện tiến trình kẹt",
+       "grants": {
+        "platform_admin": {
+         "level": "R",
+         "scope": "N",
+         "inferred": false
+        },
+        "tenant_admin": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1506.chuyen-nguoi-xu-ly",
+       "name": "Chuyển người xử lý của user task khi cán bộ nghỉ hoặc chuyển công tác",
+       "grants": {
+        "platform_admin": {
+         "level": "T",
+         "scope": "N",
+         "inferred": true
+        },
+        "tenant_admin": {
+         "level": "T",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1506.gia-han-buoc",
+       "name": "Gia hạn thời hạn của một bước",
+       "grants": {
+        "platform_admin": {
+         "level": "T",
+         "scope": "N",
+         "inferred": true
+        },
+        "tenant_admin": {
+         "level": "T",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1506.so-do",
+       "name": "Xem sơ đồ tiến trình với bước hiện tại",
+       "grants": {
+        "platform_admin": {
+         "level": "R",
+         "scope": "N",
+         "inferred": false
+        },
+        "tenant_admin": {
+         "level": "R",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QT-16",
+   "name": "Bảng điều hành và báo cáo",
+   "screens": [
+    {
+     "code": "SCR-1601",
+     "name": "Bảng điều hành lãnh đạo",
+     "functions": [
+      {
+       "key": "SCR-1601.xem",
+       "name": "Xem bảng điều hành, so với quý trước, xuất báo cáo",
+       "grants": {
+        "inspector": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": true
+        },
+        "leader": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "manager": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1601.nhac",
+       "name": "Nhắc người chủ trì việc chậm",
+       "grants": {
+        "leader": {
+         "level": "T",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "manager": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1601.giao-lai",
+       "name": "Giao lại nhiệm vụ trong phạm vi",
+       "grants": {
+        "leader": {
+         "level": "T",
+         "scope": "Cd",
+         "inferred": true
+        },
+        "manager": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1601.nguon-ai",
+       "name": "Xem dữ liệu AI đã dùng cho tóm tắt",
+       "grants": {
+        "leader": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "manager": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-1602",
+     "name": "Trình dựng dashboard",
+     "functions": [
+      {
+       "key": "SCR-1602.dung",
+       "name": "Dựng, xem trước, lưu dashboard",
+       "grants": {
+        "leader": {
+         "level": "T",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "manager": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1602.chia-se",
+       "name": "Chia sẻ bảng theo dõi (riêng, đơn vị, toàn đơn vị triển khai)",
+       "grants": {
+        "leader": {
+         "level": "T",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "manager": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-1603",
+     "name": "Đi xuống tới minh chứng",
+     "functions": [
+      {
+       "key": "SCR-1603.xem",
+       "name": "Xem chuỗi truy vết từ điểm tới minh chứng và ngược lên mục tiêu",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "inspector": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "leader": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "manager": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1603.mo-c2",
+       "name": "Mở tệp minh chứng (ghi nhật ký truy cập)",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "inspector": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "leader": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "manager": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1603.xuat",
+       "name": "Xuất chuỗi bằng chứng",
+       "grants": {
+        "appraiser": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "inspector": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "leader": {
+         "level": "R",
+         "scope": "Cd",
+         "inferred": false
+        },
+        "manager": {
+         "level": "R",
+         "scope": "Dv",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QT-17",
+   "name": "Trợ lý AI",
+   "screens": [
+    {
+     "code": "SCR-1701",
+     "name": "Trợ lý AI soạn OKR và soát KR",
+     "functions": [
+      {
+       "key": "SCR-1701.hoi",
+       "name": "Hỏi trợ lý AI, nhận gợi ý OKR, cảnh báo KR mơ hồ",
+       "grants": {
+        "manager": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        },
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1701.dung-goi-y",
+       "name": "Dùng hoặc bỏ gợi ý, lưu nháp, xem lịch sử nháp",
+       "grants": {
+        "manager": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        },
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1701.trinh",
+       "name": "Trình phê duyệt OKR từ trợ lý",
+       "grants": {
+        "manager": {
+         "level": "T",
+         "scope": "Dv",
+         "inferred": false
+        },
+        "member": {
+         "level": "T",
+         "scope": "B",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QT-18",
+   "name": "Cấu hình giao diện đơn vị triển khai",
+   "screens": [
+    {
+     "code": "SCR-1801",
+     "name": "Cấu hình giao diện đơn vị triển khai",
+     "functions": [
+      {
+       "key": "SCR-1801.soan",
+       "name": "Soạn token, bố cục, chế độ cao tuổi, thêm widget, xem trước",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1801.gui-duyet",
+       "name": "Gửi duyệt bộ giao diện",
+       "grants": {
+        "tenant_admin": {
+         "level": "T",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1801.duyet",
+       "name": "Duyệt và phát hành bộ giao diện",
+       "grants": {
+        "tenant_admin": {
+         "level": "D",
+         "scope": "Tn",
+         "inferred": true
+        }
+       }
+      },
+      {
+       "key": "SCR-1801.quay-lui",
+       "name": "Quay lui về phiên bản tương thích",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "code": "SCR-1802",
+     "name": "Trình dựng biểu mẫu động",
+     "functions": [
+      {
+       "key": "SCR-1802.dung",
+       "name": "Dựng biểu mẫu, lưu nháp, chạy bộ test biểu mẫu",
+       "grants": {
+        "policy_author": {
+         "level": "T",
+         "scope": "Tn",
+         "inferred": false
+        },
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      },
+      {
+       "key": "SCR-1802.dua-vao-pack",
+       "name": "Đưa biểu mẫu vào bộ giao diện nháp",
+       "grants": {
+        "tenant_admin": {
+         "level": "X",
+         "scope": "Tn",
+         "inferred": false
+        }
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

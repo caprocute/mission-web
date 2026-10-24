@@ -39,6 +39,15 @@ export type PermissionKey =
   | 'SCR-0107.xem'
   | 'SCR-0107.tao'
   | 'SCR-0107.thu-hoi'
+  | 'SCR-0108.xem'
+  | 'SCR-0108.them'
+  | 'SCR-0108.khoa'
+  | 'SCR-0109.xem'
+  | 'SCR-0109.sua'
+  | 'SCR-0109.phan-cong'
+  | 'SCR-0109.dat-lai-mat-khau'
+  | 'SCR-0110.xem'
+  | 'SCR-0110.sua'
   | 'SCR-0201.xem'
   | 'SCR-0201.them'
   | 'SCR-0201.check-in'
@@ -227,6 +236,15 @@ export const PERMISSION_TABLE: Readonly<Record<PermissionKey, string>> = {
   'SCR-0107.xem': 'tenant_admin* leader inspector*',
   'SCR-0107.tao': 'leader',
   'SCR-0107.thu-hoi': 'leader',
+  'SCR-0108.xem': 'tenant_admin inspector',
+  'SCR-0108.them': 'tenant_admin',
+  'SCR-0108.khoa': 'tenant_admin',
+  'SCR-0109.xem': 'tenant_admin inspector',
+  'SCR-0109.sua': 'tenant_admin',
+  'SCR-0109.phan-cong': 'tenant_admin',
+  'SCR-0109.dat-lai-mat-khau': 'tenant_admin',
+  'SCR-0110.xem': 'tenant_admin inspector',
+  'SCR-0110.sua': 'tenant_admin',
   'SCR-0201.xem': 'leader* manager member',
   'SCR-0201.them': 'manager',
   'SCR-0201.check-in': 'manager member',
@@ -482,7 +500,7 @@ export const API_PERMISSION_TABLE: Readonly<
     GET: 'platform_admin* tenant_admin policy_author* leader manager member appraiser decider second_approver inspector',
     POST: 'platform_admin* tenant_admin policy_author* leader* manager* member* appraiser* decider* second_approver* inspector*',
     PUT: 'platform_admin* tenant_admin policy_author* leader manager member appraiser decider second_approver inspector',
-    PATCH: 'tenant_admin*',
+    PATCH: 'tenant_admin',
   },
   files: {
     GET: 'leader manager member appraiser decider inspector',

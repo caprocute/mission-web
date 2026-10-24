@@ -2,11 +2,11 @@
  "nguon": {
   "contracts/openapi/common/common.yaml": "63da29c718eec4e25da12d05c89fa470e28c80488cbfc2d365558188f6ac2f4c",
   "contracts/openapi/modules/appraisals.yaml": "4adbba75a7a05240ac19a441b0d062cdeebd031576fd83ca52cc5467f14a549c",
-  "contracts/openapi/modules/config.yaml": "c141dc049d2458b4216060294e1a38be50abaa12278846294e0d0ec95af6f95d",
+  "contracts/openapi/modules/config.yaml": "3497e9241c36975c744a31f4033ced4271f1715a4bf69588f1d9be3f60df9a9a",
   "contracts/openapi/modules/dossiers.yaml": "0bff8d5db23e5dc1b7ddac0b0a1360befc4431539d8df71f090fa36af54a5ebe",
   "contracts/openapi/modules/jobs.yaml": "437a610d30b202a36e221f7284fbe43c38fea4ae71d082fca1fb54d546bc1c91",
   "contracts/openapi/modules/okr.yaml": "b2b7d9d7406f15d3e1cba1a1511cdafe5817e9d3e84b4e4ae879ee037dc37794",
-  "contracts/openapi/modules/org.yaml": "bb16ae3020cc8843e33ee719595cb360cce391ee29dd6f6c04faae64b6407b37",
+  "contracts/openapi/modules/org.yaml": "17f1291f3f024a32f3f5dbe8dece9a4e61ad02c101a97b6b602b2addc952df82",
   "contracts/openapi/modules/oversight.yaml": "633c9da557b8e7b5d714514347b1b6bdebe2770f88216590a3d157346250bccc",
   "contracts/openapi/modules/platform.yaml": "461312c0012bc563e8b5542d4d7a49c3245166dd3beb761393971cc176d05cd4",
   "contracts/openapi/modules/policies.yaml": "93d3338282d2ea664ba02730cca8a75064fea844bad737b1fcb3f35607912f95",
@@ -14,7 +14,7 @@
   "contracts/openapi/modules/scim.yaml": "e7a560b74af11e5c1a444ea081b02cd497e42a2108c448d511b51f2580a56f8d",
   "contracts/openapi/modules/tasks.yaml": "92996bb8fc94c049c3f8a51b8d8679490c33cd540eac723c8acf6b092bf91614",
   "infra/dev/apisix/apisix.yaml": "b0de0fbedc936988ab3d46a44b6c7bf93500d7edf8853ec025d6ef67259a61dc",
-  "infra/dev/docker-compose.yml": "698cb29e9e05bd5e36bfd2e0dae7653b9003a1b3fc04218940a5d97a7fcfe884"
+  "infra/dev/docker-compose.yml": "935d0e3fe76a8abd1bcd7ca36afad4aac697703c3d2552e747fbad2fb24d0a28"
  },
  "operations": [
   {
@@ -132,6 +132,24 @@
    "path": "/api/v1/config/delegations"
   },
   {
+   "id": "getPermissionCatalog",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/config/permission-catalog"
+  },
+  {
+   "id": "listCustomRoles",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/config/custom-roles"
+  },
+  {
+   "id": "listMyCustomRoles",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/config/me/custom-roles"
+  },
+  {
    "id": "listDossierMeetings",
    "module": "dossiers",
    "owner": "MOD-06",
@@ -220,6 +238,18 @@
    "module": "org",
    "owner": "SVC-04",
    "path": "/api/v1/org/persons"
+  },
+  {
+   "id": "listUserAccounts",
+   "module": "org",
+   "owner": "SVC-04",
+   "path": "/api/v1/org/users"
+  },
+  {
+   "id": "listJobTitles",
+   "module": "org",
+   "owner": "SVC-04",
+   "path": "/api/v1/org/job-titles"
   },
   {
    "id": "listOrgUnits",

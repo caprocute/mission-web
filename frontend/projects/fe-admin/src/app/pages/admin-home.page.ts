@@ -1,5 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { EXTERNAL_SYNC_FLAG, FeatureFlagService } from '@vt/api-client';
 import { ADMIN_CAN } from '../admin-permissions';
 
 /** Trang đầu của remote fe-admin cho vai trò không vào thẳng Danh sách tenant (quản trị tenant, thẩm định). */
@@ -10,7 +11,7 @@ import { ADMIN_CAN } from '../admin-permissions';
     <header class="vt-page-head">
       <div>
         <h1>Quản trị</h1>
-        <p>Tổ chức, nhân sự, phân quyền và kỳ đánh giá của đơn vị.</p>
+        <p>Tổ chức, người dùng, vai trò và quyền, uỷ quyền và kỳ đánh giá của đơn vị.</p>
       </div>
     </header>
 
@@ -26,7 +27,29 @@ import { ADMIN_CAN } from '../admin-permissions';
           </a>
         </li>
       }
-      @if (can('SCR-0104.xem')) {
+      @if (can('SCR-0108.xem')) {
+        <li>
+          <a routerLink="users" class="vt-hub-card">
+            <i class="pi pi-users" aria-hidden="true"></i>
+            <div>
+              <strong>Người dùng</strong>
+              <span>Tạo tài khoản, giao đơn vị công tác, đặt lại mật khẩu, khoá tài khoản.</span>
+            </div>
+          </a>
+        </li>
+      }
+      @if (can('SCR-0110.xem')) {
+        <li>
+          <a routerLink="roles" class="vt-hub-card">
+            <i class="pi pi-key" aria-hidden="true"></i>
+            <div>
+              <strong>Vai trò và quyền</strong>
+              <span>Tạo vai trò riêng của đơn vị từ vai trò có sẵn.</span>
+            </div>
+          </a>
+        </li>
+      }
+      @if (sync() && can('SCR-0104.xem')) {
         <li>
           <a routerLink="org/sync" class="vt-hub-card">
             <i class="pi pi-sync" aria-hidden="true"></i>
@@ -75,4 +98,7 @@ import { ADMIN_CAN } from '../admin-permissions';
 })
 export class AdminHomePage {
   protected readonly can = inject(ADMIN_CAN);
+  private readonly flags = inject(FeatureFlagService);
+  /** Đồng bộ nhân sự từ hệ thống ngoài là tính năng tuỳ chọn, mặc định tắt (ADR-34). */
+  protected readonly sync = computed(() => this.flags.isEnabled(EXTERNAL_SYNC_FLAG));
 }

@@ -23,8 +23,12 @@ tags:
     description: Cán bộ và đơn vị trong phạm vi người dùng, dùng cho hộp chọn ở các màn hình nghiệp vụ.
   - name: Cây tổ chức
     description: Cây đơn vị có lịch sử và thay đổi tổ chức (SCR-0103).
+  - name: Quản trị tài khoản
+    description: Tài khoản người dùng do quản trị tạo, sửa, khoá ngay trong ứng dụng (SCR-0108, SCR-0109; BS-04, ADR-34).
   - name: Đồng bộ nhân sự
-    description: Đồng bộ từ CSDL CBCCVC, CSDL đảng viên, SCIM và đối soát lệch (SCR-0104).
+    description: >-
+      Đồng bộ từ CSDL CBCCVC, CSDL đảng viên, SCIM và đối soát lệch (SCR-0104). Tính năng tuỳ chọn, mặc định tắt
+      (ADR-34): khi tắt, các thao tác ghi của nhóm này trả 404 `feature-disabled`.
   - name: Khoá mã hoá đầu cuối
     description: Danh bạ khoá công khai có ký, khoá phục hồi tổ chức và nhật ký phục hồi cho dữ liệu C3 (ADR-27).
 
@@ -162,6 +166,306 @@ paths:
         roles: [tenant_admin, appraiser, manager, leader]
         scope: Đv
         source: 'TL-02a SCR-0103 trường 13'
+
+  # ---------------------------------------------------------------- Quản trị tài khoản (BS-04, ADR-34)
+  /org/users:
+    get:
+      tags: [Quản trị tài khoản]
+      operationId: listUserAccounts
+      summary: Tài khoản người dùng theo đơn vị
+      description: >-
+        Danh sách tài khoản cán bộ của tenant (SCR-0108): mỗi dòng là một cán bộ có tài khoản đăng nhập, kèm
+        đơn vị công tác chính, chức danh, số kiêm nhiệm và trạng thái tài khoản. Lọc theo đơn vị (`unit`, kèm
+        `includeSubunits`), từ khoá trên họ tên hoặc tên đăng nhập, trạng thái. Không chứa dữ liệu C2 (thư điện
+        tử chỉ có ở `getUserAccount`). Tài khoản đã có trên Keycloak từ trước (dữ liệu nạp sẵn) được ghi bù vào
+        `org.user_account` ở lần đọc đầu.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+        - name: includeSubunits
+          in: query
+          schema: { type: boolean, default: true }
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/UserAccountStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang tài khoản.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserAccountPage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0108]
+        owner: SVC-04
+        roles: [tenant_admin, inspector]
+        scope: Tn
+        source: 'BS-04 SCR-0108'
+    post:
+      tags: [Quản trị tài khoản]
+      operationId: createUserAccount
+      summary: Thêm người dùng
+      description: >-
+        Tạo hồ sơ cán bộ (`org.person`, nguồn `QUAN_TRI`), phân công chính tại đơn vị và chức danh đã chọn, và
+        tài khoản Keycloak có `id` bằng mã cán bộ, mật khẩu tạm buộc đổi ở lần đăng nhập đầu (BR-01-19, BR-01-20).
+        Phản hồi trả mật khẩu tạm đúng một lần (`temporaryPassword`), máy chủ không lưu và không ghi nhật ký giá
+        trị này (BR-01-22). Phát EVT-16 và EVT-15 qua outbox.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserAccountCreate' }
+      responses:
+        '201':
+          description: Tài khoản mới kèm mật khẩu tạm.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserAccountCreated' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409':
+          description: Tên đăng nhập hoặc thư điện tử đã được dùng (`ORG-409-USERNAME-TAKEN`, MSG-01-20).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '503': { $ref: '../common/common.yaml#/components/responses/ServiceUnavailable' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0108]
+        owner: SVC-04
+        evt: [EVT-15, EVT-16]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-01-19, BR-01-20, BR-01-22]
+        source: 'BS-04 SCR-0108 "Thêm người dùng"'
+
+  /org/users/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Quản trị tài khoản]
+      operationId: getUserAccount
+      summary: Hồ sơ tài khoản của một người dùng
+      description: >-
+        Thông tin tài khoản (SCR-0109) kèm thư điện tử đọc từ Keycloak. `id` là mã cán bộ (`org.person.id`),
+        cũng là `id` người dùng Keycloak. Phân công xem ở `listPersonAssignments`, vai trò ở `listRoleBindings`.
+      responses:
+        '200':
+          description: Tài khoản.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserAccount' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0109]
+        owner: SVC-04
+        roles: [tenant_admin, inspector]
+        scope: Tn
+        source: 'BS-04 SCR-0109'
+    patch:
+      tags: [Quản trị tài khoản]
+      operationId: updateUserAccount
+      summary: Sửa thông tin người dùng
+      description: >-
+        Đổi họ tên (phiên bản mới của `org.person` từ hôm nay, phát EVT-16) hoặc thư điện tử (Keycloak). Tên đăng
+        nhập không đổi được (BR-01-19).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserAccountUpdate' }
+      responses:
+        '200':
+          description: Tài khoản sau khi sửa.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserAccount' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0109]
+        owner: SVC-04
+        evt: [EVT-16]
+        roles: [tenant_admin]
+        scope: Tn
+        rules: [BR-01-19]
+        source: 'BS-04 SCR-0109 "Sửa thông tin"'
+
+  /org/users/{id}/lock:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Quản trị tài khoản]
+      operationId: lockUserAccount
+      summary: Khoá tài khoản
+      description: >-
+        Vô hiệu hoá người dùng trên Keycloak và thu hồi mọi phiên (BR-01-21), ghi lý do vào `org.user_account`.
+        Không khoá được tài khoản của chính mình.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserAccountReason' }
+      responses:
+        '200':
+          description: Tài khoản đã khoá.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserAccount' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0108, SCR-0109]
+        owner: SVC-04
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-01-21, BR-01-22]
+        source: 'BS-04 SCR-0108 "Khoá"'
+
+  /org/users/{id}/unlock:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Quản trị tài khoản]
+      operationId: unlockUserAccount
+      summary: Mở khoá tài khoản
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserAccountReason' }
+      responses:
+        '200':
+          description: Tài khoản đã mở khoá.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserAccount' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0108, SCR-0109]
+        owner: SVC-04
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-01-21, BR-01-22]
+        source: 'BS-04 SCR-0108 "Mở khoá"'
+
+  /org/users/{id}/reset-password:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Quản trị tài khoản]
+      operationId: resetUserPassword
+      summary: Đặt lại mật khẩu
+      description: >-
+        Cấp mật khẩu tạm mới trên Keycloak, buộc đổi khi đăng nhập (BR-01-22). Mật khẩu tạm trả đúng một lần trong
+        phản hồi.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Mật khẩu tạm.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PasswordResetResult' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '503': { $ref: '../common/common.yaml#/components/responses/ServiceUnavailable' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0109]
+        owner: SVC-04
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-01-22]
+        source: 'BS-04 SCR-0109 "Đặt lại mật khẩu"'
+
+  /org/job-titles:
+    get:
+      tags: [Tra cứu]
+      operationId: listJobTitles
+      summary: Danh mục chức danh còn hiệu lực
+      description: Chức danh (`org.job_title`) cho hộp chọn khi thêm người dùng và phân công (SCR-0108, SCR-0109).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+      responses:
+        '200':
+          description: Danh mục chức danh.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/JobTitle' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0108, SCR-0109]
+        owner: SVC-04
+        roles: [tenant_admin, inspector]
+        scope: Tn
+        source: 'BS-04; TL-03 org.job_title'
 
   /org/units:
     get:
@@ -1529,6 +1833,12 @@ components:
           items: { type: string }
         validFrom: { $ref: '../common/common.yaml#/components/schemas/Date' }
         validTo: { type: [string, 'null'], format: date }
+        rowVersion:
+          description: >-
+            Phiên bản hiện hành của phân công (`row_version` lớn nhất của các phiên bản đang hiệu lực), gửi trong
+            `If-Match` khi sửa hoặc kết thúc phân công (`updateOrgAssignment`, `endOrgAssignment`; BS-04). Chỉ có ở
+            `listPersonAssignments`.
+          allOf: [{ $ref: '../common/common.yaml#/components/schemas/RowVersion' }]
     MyOrgProfile:
       type: object
       required: [personId, fullName, assignments]
@@ -2054,3 +2364,109 @@ components:
         performedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
         recordedBy: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         recordedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+    # ---------------------------------------------------------------- Quản trị tài khoản (BS-04)
+    UserAccountStatus:
+      description: Trạng thái tài khoản (`org.user_account.status`); `KHOA` là đã vô hiệu hoá trên Keycloak.
+      type: string
+      enum: [HOAT_DONG, KHOA]
+    UserAccount:
+      description: Tài khoản đăng nhập của một cán bộ (`org.user_account` cùng `org.person`, phân công chính).
+      type: object
+      required: [id, username, fullName, status, concurrentCount, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        username:
+          type: string
+          description: Tên đăng nhập (BR-01-19), không đổi sau khi tạo.
+        fullName: { type: string }
+        email:
+          type: [string, 'null']
+          description: Thư điện tử (C2), chỉ có ở `getUserAccount` và phản hồi ghi.
+        status: { $ref: '#/components/schemas/UserAccountStatus' }
+        primaryUnitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        primaryUnitName: { type: [string, 'null'] }
+        jobTitleName: { type: [string, 'null'] }
+        concurrentCount:
+          type: integer
+          minimum: 0
+          description: Số phân công kiêm nhiệm, biệt phái còn hiệu lực.
+        lockedAt: { type: [string, 'null'], format: date-time }
+        lockReason: { type: [string, 'null'] }
+        passwordResetAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: [string, 'null'], format: date-time }
+        source:
+          type: string
+          enum: [QUAN_TRI, DONG_BO, NAP_SAN]
+          description: Tài khoản do quản trị tạo, đồng bộ từ hệ thống ngoài hay nạp sẵn.
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+        permittedActions: { $ref: '../common/common.yaml#/components/schemas/PermittedActions' }
+    UserAccountCounts:
+      type: object
+      required: [total, active, locked]
+      properties:
+        total: { type: integer, minimum: 0 }
+        active: { type: integer, minimum: 0 }
+        locked: { type: integer, minimum: 0 }
+    UserAccountPage:
+      type: object
+      required: [items, nextCursor, counts]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/UserAccount' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        counts: { $ref: '#/components/schemas/UserAccountCounts' }
+    UserAccountCreate:
+      type: object
+      required: [fullName, username, orgUnitId, jobTitleId]
+      properties:
+        fullName: { type: string, minLength: 2, maxLength: 200 }
+        username:
+          type: string
+          pattern: '^[a-z][a-z0-9._-]{2,63}$'
+          description: Tên đăng nhập (BR-01-19).
+        email: { type: [string, 'null'], format: email, maxLength: 254 }
+        orgUnitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        jobTitleId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        gender: { type: [string, 'null'], enum: [NAM, NU, KHAC, null] }
+        partyMember: { type: boolean, default: false }
+        validFrom:
+          description: Ngày bắt đầu phân công chính; mặc định hôm nay.
+          type: [string, 'null']
+          format: date
+    UserAccountCreated:
+      allOf:
+        - $ref: '#/components/schemas/UserAccount'
+        - type: object
+          required: [temporaryPassword]
+          properties:
+            temporaryPassword:
+              type: string
+              description: Mật khẩu tạm, chỉ trả một lần (BR-01-22).
+    UserAccountUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        fullName: { type: string, minLength: 2, maxLength: 200 }
+        email: { type: [string, 'null'], format: email, maxLength: 254 }
+    UserAccountReason:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 5, maxLength: 500 }
+    PasswordResetResult:
+      type: object
+      required: [temporaryPassword]
+      properties:
+        temporaryPassword:
+          type: string
+          description: Mật khẩu tạm, chỉ trả một lần; người dùng phải đổi khi đăng nhập.
+    JobTitle:
+      description: Chức danh (`org.job_title`).
+      type: object
+      required: [id, code, name]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string }
+        name: { type: string }
+        level: { type: integer }

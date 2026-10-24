@@ -470,6 +470,76 @@ def ts_source(d):
 REGO_DIR = ROOT / "backend" / "opa" / "okrkpi"
 REGO_DATA = REGO_DIR / "generated" / "data.json"
 REGO_CASES = REGO_DIR / "matrix_cases_test.rego"
+# Danh mục quyền cho vai trò tuỳ chỉnh (CORE-08-18, BS-04): GET /config/permission-catalog của MOD-08
+CATALOG = (ROOT / "backend" / "mission-core" / "src" / "main" / "resources" / "vn" / "viettel" / "okrkpi" / "config"
+           / "domain" / "permission-catalog.json")
+# Bản sao cho dữ liệu giả lập của web (`useMockApi`), cùng nội dung với bản của mission-core.
+MOCK_CATALOG = ROOT / "frontend" / "projects" / "api-client" / "src" / "mock" / "custom-roles" / "permission-catalog.json"
+# Vai trò không dùng làm vai trò gốc của vai trò tuỳ chỉnh (BS-04 mục giới hạn; ba vai trò cần duyệt thứ hai)
+NOT_CUSTOMIZABLE = {"tenant_admin", "platform_admin", "decider", "second_approver", "policy_author"}
+# Tên chức năng hiển thị cho người quản trị (YC-PT-24): bỏ ghi chú kỹ thuật trong ngoặc, mã trạng thái, mã màn hình.
+TECH_PAREN_RE = re.compile(r"\s*\((?:[^()]*(?:`|SCR-|tác vụ|bước \d|phiên bản n|JSON|PDF/A|C2|step-up|thư ký|chủ trì)[^()]*)\)")
+TEN_HIEN_THI = {
+    "SCR-0102.buoc-4-5": "Khai báo đăng nhập tập trung, kiểm tra kết nối, nhập tổ chức ban đầu",
+    "SCR-0102.kich-hoat": "Kích hoạt tenant",
+    "SCR-0102.huy": "Huỷ yêu cầu khởi tạo tenant",
+    "SCR-0105.duyet": "Duyệt thứ hai hoặc từ chối đề nghị cấp vai trò cần duyệt",
+    "SCR-0503.nhan-viec": "Nhận việc",
+    "SCR-0602.rut": "Rút lại đề nghị đang chờ duyệt của mình",
+    "SCR-0902.xem": "Xem hàng đợi, chi tiết hồ sơ, mở minh chứng",
+    "SCR-0902.xuat": "Xuất danh sách hàng đợi",
+    "SCR-0903.tai-mau-1b": "Tải Mẫu 1B đã ký",
+    "SCR-1101.thu-ky": "Ghi ý kiến tại hội nghị, lập biên bản",
+    "SCR-1101.ket-thuc": "Kết thúc hội nghị, khởi động ký biên bản",
+    "SCR-1301.duyet-1": "Phê duyệt thứ nhất, ký số",
+    "SCR-1301.duyet-2": "Phê duyệt thứ hai, ký số, mở lại kỳ",
+    "SCR-1302.xuat": "Xuất bằng chứng kèm chữ ký",
+    "SCR-1602.chia-se": "Chia sẻ bảng theo dõi (riêng, đơn vị, toàn tenant)",
+    "SCR-1603.xuat": "Xuất chuỗi bằng chứng",
+    "SCR-1801.quay-lui": "Quay lui về phiên bản tương thích",
+    "SCR-0801.xem": "Xem danh sách kỳ, lệnh khoá kỳ và tiến trình chốt kỳ",
+    "SCR-1102.tai-goi": "Tải gói hồ sơ hội nghị",
+    "SCR-1502.soan": "Soạn bảng quyết định, lưu nháp, xuất tệp",
+    "SCR-1505.de-nghi-phat-hanh": "Đề nghị phát hành mẫu luồng kèm tham số và kiểm thử",
+}
+
+
+# Ngoặc chứa từ kỹ thuật bị bỏ hẳn; từ kỹ thuật ngoài ngoặc thay theo bảng từ của wiki/16 (YC-PT-24).
+TECH_WORD_PAREN_RE = re.compile(r"\s*\((?:[^()]*(?:SSO|VNeID|MFA|wizard|desktop|saga|BS-\d|four-eyes|UI Pack|"
+                                r"mẫu \+ tham số|nội bộ nền tảng|Viettel|BA cấu hình)[^()]*)\)")
+TU_THAY_THE = [("Policy Pack", "bộ quy định đánh giá"), ("UI Pack", "bộ giao diện"), ("tenant", "đơn vị triển khai"),
+               ("Tenant", "Đơn vị triển khai"), (", BA cấu hình", ""), (" (four-eyes)", ""),
+               ("lên engine từng cell", "trên từng cụm máy chủ"), ("saga", "tiến trình"),
+               ("xác thực MFA", "xác thực nhiều lớp"), ("tải theo cell", "tải theo cụm máy chủ"),
+               ("trên engine kiểm thử riêng", "trên môi trường kiểm thử riêng"), (" cell", " cụm máy chủ")]
+
+
+# Tên vai trò trên giao diện, trùng ROLE_CODE_LABEL của @vt/api-client (baseline mục 10).
+TEN_VAI_TRO = {
+    "platform_admin": "Quản trị nền tảng",
+    "tenant_admin": "Quản trị đơn vị",
+    "policy_author": "Quản trị nghiệp vụ",
+    "leader": "Lãnh đạo đơn vị",
+    "manager": "Cán bộ quản lý trực tiếp",
+    "member": "Cán bộ, công chức, viên chức",
+    "appraiser": "Cán bộ thẩm định",
+    "decider": "Người có thẩm quyền quyết định",
+    "second_approver": "Người duyệt thứ hai",
+    "inspector": "Cán bộ kiểm tra, giám sát",
+}
+
+
+def clean_name(ten):
+    """Tên hiển thị không còn mã thiết kế hay từ kỹ thuật (YC-PT-10, YC-PT-24; wiki/16)."""
+    out = TECH_WORD_PAREN_RE.sub("", TECH_PAREN_RE.sub("", ten))
+    for a, b in TU_THAY_THE:
+        out = out.replace(a, b)
+    out = out.strip()
+    return out[:1].upper() + out[1:]
+
+
+def display_name(key, ten):
+    return clean_name(TEN_HIEN_THI.get(key, ten))
 
 SCOPE_CODES = ("B", "Gn", "Đv", "Cd", "Tn", "N")
 SCOPE_TOKEN_RE = re.compile(r"(?<![\w-])(B|Gn|Đv|Cd|Tn|N)(?![\w-])")
@@ -780,16 +850,54 @@ def rego_cases(data):
                 f"function_cases[\"{g}\"] := ["]
         out += [f"\t{_rego_obj(c)}," for c in groups[g]]
         out += ["]"]
-    out += ["", f"# {len(acases)} ca API: module x vai trò x phương thức", "api_cases := ["]
-    out += [f"\t{_rego_obj(c)}," for c in acases]
-    out += ["]", ""]
+    # Ca API chia theo module, cùng lý do thời hạn như trên
+    out += ["", f"# {len(acases)} ca API: module x vai trò x phương thức"]
+    for mod in sorted({c["module"] for c in acases}):
+        out += ["", f"test_api_matrix_{mod} if api_group_ok(\"{mod}\")", "", f"api_cases[\"{mod}\"] := ["]
+        out += [f"\t{_rego_obj(c)}," for c in acases if c["module"] == mod]
+        out += ["]"]
+    out += [""]
     return "\n".join(out)
+
+
+def catalog(d, data):
+    """Danh mục quyền theo nhóm quy trình > màn hình > chức năng, dạng `PermissionCatalog` của config.yaml.
+    Phạm vi viết theo hợp đồng (`Dv` thay cho `Đv`)."""
+    api_scope = lambda s: "Dv" if s == "Đv" else s
+    roles = []
+    for r in d["vai_tro"]:
+        meta = data["roles"][r["role"]]
+        if meta["kind"] != "user":
+            continue
+        roles.append({"code": r["role"], "name": TEN_VAI_TRO.get(r["role"], clean_name(r["ten"])), "description": clean_name(r["mo_ta"]), "aal2": meta["aal2"],
+                      "customizable": r["role"] not in NOT_CUSTOMIZABLE})
+    groups = []
+    for qt, qt_name in d["quy_trinh"].items():
+        screens = []
+        for scr, scr_name in d["man_hinh"].items():
+            fns = []
+            for f in d["chuc_nang"]:
+                if f["qt"] != qt or f["scr"] != scr or not f["web"]:
+                    continue
+                g = data["functions"][f["key"]]["grants"]
+                grants = {role: {"level": v["level"], "scope": api_scope(v["scope"]), "inferred": v["inferred"]}
+                          for role, v in sorted(g.items())
+                          if role in data["roles"] and data["roles"][role]["kind"] == "user" and v["scope"]}
+                if grants:
+                    fns.append({"key": f["key"], "name": display_name(f["key"], f["ten"]), "grants": grants})
+            if fns:
+                screens.append({"code": scr, "name": clean_name(scr_name), "functions": fns})
+        if screens:
+            groups.append({"code": qt, "name": clean_name(qt_name), "screens": screens})
+    return {"version": data["meta"]["matrix_version"], "roles": roles, "groups": groups}
 
 
 def rego_outputs(d):
     data = rego_data(d)
     return {REGO_DATA: json.dumps(data, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-            REGO_CASES: rego_cases(data)}
+            REGO_CASES: rego_cases(data),
+            CATALOG: json.dumps(catalog(d, data), ensure_ascii=False, indent=1) + "\n",
+            MOCK_CATALOG: json.dumps(catalog(d, data), ensure_ascii=False, indent=1) + "\n"}
 
 
 def main(argv):
@@ -815,7 +923,7 @@ def main(argv):
             p.parent.mkdir(parents=True, exist_ok=True)
             if not p.exists() or p.read_text(encoding="utf-8") != t:
                 p.write_text(t, encoding="utf-8")
-        print(f"Đã sinh dữ liệu OPA: {len(outs)} tệp trong {REGO_DIR.relative_to(ROOT)}.")
+        print(f"Đã sinh dữ liệu OPA và danh mục quyền: {len(outs)} tệp.")
         return 0
     blocks = md_blocks(d, acs)
     old = WIKI.read_text(encoding="utf-8")

@@ -99,7 +99,7 @@ class DevSeedApiIT extends IntegrationTestBase {
     List<TestUser> out = new ArrayList<>();
     for (JsonNode u : realm.path("users")) {
       JsonNode attrs = u.path("attributes");
-      if (!attrs.has("unit_id")) {
+      if (!attrs.has("unit_id") || !u.hasNonNull("id")) {
         continue;
       }
       out.add(new TestUser(u.path("username").asText(), UUID.fromString(u.path("id").asText()),

@@ -33,6 +33,7 @@ import vn.viettel.okrkpi.config.application.AccessActor;
 import vn.viettel.okrkpi.config.application.AccessHistoryService;
 import vn.viettel.okrkpi.config.application.DelegationService;
 import vn.viettel.okrkpi.config.application.RoleBindingService;
+import vn.viettel.okrkpi.config.domain.CustomRole;
 import vn.viettel.okrkpi.config.domain.Delegation;
 import vn.viettel.okrkpi.config.domain.RoleBinding;
 import vn.viettel.okrkpi.contract.config.model.AccessEndInput;
@@ -52,7 +53,6 @@ import vn.viettel.okrkpi.contract.config.model.RoleBindingCreate;
 import vn.viettel.okrkpi.contract.config.model.RoleBindingPage;
 import vn.viettel.okrkpi.contract.config.model.RoleBindingScope;
 import vn.viettel.okrkpi.contract.config.model.RoleBindingStatus;
-import vn.viettel.okrkpi.contract.config.model.RoleCode;
 import vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver;
 import vn.viettel.okrkpi.shared.authz.RequiresPermission;
 import vn.viettel.okrkpi.shared.error.BusinessException;
@@ -124,7 +124,7 @@ public class AccessController {
     TenantId tenant = TenantContext.require();
     AccessActor actor = callers.accessActor();
     PageRequest page = cursors.pageRequest(limit, cursor, "role-bindings");
-    if (role != null && !RoleBinding.ROLES.contains(role)) {
+    if (role != null && !RoleBinding.ROLES.contains(role) && !CustomRole.isCustomCode(role)) {
       throw invalid("role", "Vai trò không hợp lệ.");
     }
     RoleBindingService.Page result =
@@ -182,7 +182,7 @@ public class AccessController {
                   actor,
                   new RoleBindingService.Grant(
                       body.getPersonId(),
-                      body.getRoleCode().getValue(),
+                      body.getRoleCode(),
                       body.getOrgUnitId(),
                       RoleBinding.Scope.valueOf(body.getScope().getValue()),
                       body.getFlow() == null ? null : body.getFlow().getValue(),
@@ -525,7 +525,7 @@ public class AccessController {
         new vn.viettel.okrkpi.contract.config.model.RoleBinding(
             b.id(),
             names.person(b.personId()),
-            RoleCode.fromValue(b.roleCode()),
+            b.roleCode(),
             names.unit(b.orgUnitId()),
             RoleBindingScope.fromValue(b.scope().name()),
             time(b.validFrom()),

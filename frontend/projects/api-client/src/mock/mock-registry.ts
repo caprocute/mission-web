@@ -37,6 +37,8 @@ export const MOCK_LOADERS = {
   workflowInstances: () =>
     import('./workflow-instances/workflow-instances.mock').then((m) => m.WORKFLOW_INSTANCES_MOCK),
   roleAdmin: () => import('./role-admin/role-admin.mock').then((m) => m.ROLE_ADMIN_MOCK),
+  customRoles: () => import('./custom-roles/custom-roles.mock').then((m) => m.CUSTOM_ROLES_MOCK),
+  userAdmin: () => import('./user-admin/user-admin.mock').then((m) => m.USER_ADMIN_MOCK),
   alerts: () => import('./oversight/alerts.mock').then((m) => m.ALERTS_MOCK),
   featureFlags: () =>
     import('./feature-flags/feature-flags.mock').then((m) => m.FEATURE_FLAGS_MOCK),
@@ -60,7 +62,7 @@ export const MOCK_PREFIXES: Record<string, MockLoaderKey[]> = {
   analytics: ['analytics'],
   appraisals: ['evidence', 'appraisals', 'complaints'],
   catalog: ['catalog'],
-  config: ['tenants', 'roleAdmin', 'alerts', 'featureFlags', 'mePreferences'],
+  config: ['tenants', 'roleAdmin', 'customRoles', 'alerts', 'featureFlags', 'mePreferences'],
   dossiers: ['dossiers'],
   esign: ['plans', 'dossiers'],
   evidences: ['evidence'],
@@ -69,7 +71,7 @@ export const MOCK_PREFIXES: Record<string, MockLoaderKey[]> = {
   ledger: ['ledger'],
   notifications: ['notifications'],
   okr: ['okr'],
-  org: ['org', 'orgTree', 'orgSync'],
+  org: ['org', 'orgTree', 'orgSync', 'userAdmin'],
   oversight: ['reopen', 'complaints', 'alerts'],
   periods: ['periods'],
   policies: ['policies'],

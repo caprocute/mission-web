@@ -13,6 +13,8 @@ import org.springframework.test.context.DynamicPropertySource;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK, properties = {
     "logging.structured.format.console=",
     "management.server.port=",
+    // Kiểm thử phủ cả phần đồng bộ ngoài; công tắc tắt có kiểm thử riêng ở ExternalSyncGateTest (ADR-34)
+    "okrkpi.org.external-sync.enabled=true",
     "okrkpi.org.locked-periods[0].label=Quý I/2027",
     "okrkpi.org.locked-periods[0].start-date=2027-01-01",
     "okrkpi.org.locked-periods[0].end-date=2027-03-31"

@@ -594,3 +594,80 @@ test_okr_review_leader_allowed if {
 		d.allow
 	}
 }
+
+# ------------------------------------------------------------------ Vai trò tuỳ chỉnh (BS-04, BR-01-23)
+
+tenant_roles := {"t1": {
+	"tc_t1_lanh_dao_hep": {
+		"base": "leader",
+		"status": "HIEU_LUC",
+		"permissions": {"SCR-0203.duyet": "Dv"},
+	},
+	"tc_t1_ngung": {
+		"base": "leader",
+		"status": "NGUNG",
+		"permissions": {"SCR-0203.duyet": "Cd"},
+	},
+	"tc_t1_mo_rong": {
+		"base": "member",
+		"status": "HIEU_LUC",
+		"permissions": {"SCR-0203.duyet": "Tn"},
+	},
+	"tc_t1_quan_tri": {
+		"base": "tenant_admin",
+		"status": "HIEU_LUC",
+		"permissions": {"SCR-0108.xem": "Tn"},
+	},
+}}
+
+decide_custom(subject, action, resource) := d if {
+	d := authz.decision with input as {
+		"subject": subject,
+		"action": action,
+		"resource": object.union({"tenant_id": "t1", "classification": "C1"}, resource),
+		"context": {"now": now},
+	}
+		with data.org as org
+		with data.tenant_roles as tenant_roles
+}
+
+test_custom_role_allows_listed_function_in_narrowed_scope if {
+	d := decide_custom(user(["tc_t1_lanh_dao_hep"]), "SCR-0203.duyet", {"owner_unit_id": "u1"})
+	d.allow == true
+}
+
+test_custom_role_narrowed_scope_denies_subtree if {
+	d := decide_custom(user(["tc_t1_lanh_dao_hep"]), "SCR-0203.duyet", {"owner_unit_id": "u11"})
+	d.allow == false
+	"out_of_scope" in d.deny
+}
+
+test_custom_role_denies_function_not_listed if {
+	d := decide_custom(user(["tc_t1_lanh_dao_hep"]), "SCR-0204.xem", {"owner_unit_id": "u1"})
+	d.allow == false
+	"role_not_allowed" in d.deny
+}
+
+test_retired_custom_role_has_no_effect if {
+	d := decide_custom(user(["tc_t1_ngung"]), "SCR-0203.duyet", {"owner_unit_id": "u1"})
+	"role_not_allowed" in d.deny
+}
+
+test_custom_role_cannot_exceed_base_role if {
+	d := decide_custom(user(["tc_t1_mo_rong"]), "SCR-0203.duyet", {"owner_unit_id": "u1"})
+	"role_not_allowed" in d.deny
+}
+
+test_custom_role_of_other_tenant_ignored if {
+	s := object.union(user(["tc_t1_lanh_dao_hep"]), {"tenant_id": "t2"})
+	d := decide_custom(s, "SCR-0203.duyet", {"tenant_id": "t2", "owner_unit_id": "u1"})
+	"role_not_allowed" in d.deny
+}
+
+test_custom_role_inherits_aal2_of_base if {
+	s := object.union(user(["tc_t1_quan_tri"]), {"acr": "aal1"})
+	d := decide_custom(s, "SCR-0108.xem", {"owner_unit_id": "u1"})
+	d.allow == false
+	d2 := decide_custom(user(["tc_t1_quan_tri"]), "SCR-0108.xem", {"owner_unit_id": "u1"})
+	d2.allow == true
+}

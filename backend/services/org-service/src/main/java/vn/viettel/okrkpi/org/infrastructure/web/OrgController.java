@@ -22,6 +22,7 @@ import org.springframework.web.multipart.MultipartHttpServletRequest;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.util.WebUtils;
+import vn.viettel.okrkpi.org.domain.OrgNotFoundException;
 import vn.viettel.okrkpi.org.application.Actor;
 import vn.viettel.okrkpi.org.application.ChangeResult;
 import vn.viettel.okrkpi.org.application.MyContextService;
@@ -87,6 +88,22 @@ import vn.viettel.okrkpi.org.infrastructure.web.model.RecoveryKey;
 import vn.viettel.okrkpi.org.infrastructure.web.model.RecoveryKeyInput;
 import vn.viettel.okrkpi.org.infrastructure.web.model.RecoveryRecord;
 import vn.viettel.okrkpi.org.infrastructure.web.model.RecoveryRecordInput;
+import vn.viettel.okrkpi.org.application.AssignmentAdminService;
+import vn.viettel.okrkpi.org.application.UserAccountService;
+import vn.viettel.okrkpi.org.infrastructure.web.model.ListJobTitles200Response;
+import vn.viettel.okrkpi.org.infrastructure.web.model.OrgAssignmentCreateInput;
+import vn.viettel.okrkpi.org.infrastructure.web.model.OrgAssignmentCreateRequest;
+import vn.viettel.okrkpi.org.infrastructure.web.model.OrgAssignmentEndRequest;
+import vn.viettel.okrkpi.org.infrastructure.web.model.OrgAssignmentUpdateRequest;
+import vn.viettel.okrkpi.org.infrastructure.web.model.OrgUnitAssignment;
+import vn.viettel.okrkpi.org.infrastructure.web.model.PasswordResetResult;
+import vn.viettel.okrkpi.org.infrastructure.web.model.UserAccount;
+import vn.viettel.okrkpi.org.infrastructure.web.model.UserAccountCreate;
+import vn.viettel.okrkpi.org.infrastructure.web.model.UserAccountCreated;
+import vn.viettel.okrkpi.org.infrastructure.web.model.UserAccountPage;
+import vn.viettel.okrkpi.org.infrastructure.web.model.UserAccountReason;
+import vn.viettel.okrkpi.org.infrastructure.web.model.UserAccountStatus;
+import vn.viettel.okrkpi.org.infrastructure.web.model.UserAccountUpdate;
 
 /**
  * Hiện thực giao diện {@link OrgApi} sinh từ {@code contracts/openapi/modules/org.yaml} (ADR-32, interfaceOnly) cho
@@ -109,11 +126,15 @@ public class OrgController implements OrgApi {
   private final MyContextService contexts;
   private final PublicKeyDirectoryService publicKeys;
   private final RecoveryKeyService recovery;
+  private final UserAccountService users;
+  private final AssignmentAdminService assignmentAdmin;
 
   public OrgController(OrgUnitQueryService queries, OrgUnitCommandService commands, RequestHasher hasher,
       HttpServletRequest request, DiscrepancyService discrepancies, SyncRunService syncRuns,
       OrgImportService imports, MyContextService contexts, PublicKeyDirectoryService publicKeys,
-      RecoveryKeyService recovery) {
+      RecoveryKeyService recovery, UserAccountService users, AssignmentAdminService assignmentAdmin) {
+    this.users = users;
+    this.assignmentAdmin = assignmentAdmin;
     this.publicKeys = publicKeys;
     this.recovery = recovery;
     this.imports = imports;
@@ -241,6 +262,14 @@ public class OrgController implements OrgApi {
     ListPersonAssignments200Response body = new ListPersonAssignments200Response();
     body.setItems(queries.listPersonAssignments(actor(), id, asOf, recordedAsOf).stream()
         .map(OrgWebMapper::toDto).toList());
+    // BS-04: kèm phiên bản hiện hành để màn hình quản trị gửi If-Match khi sửa, kết thúc phân công.
+    for (var a : body.getItems()) {
+      try {
+        a.setRowVersion(assignmentAdmin.version(UUID.fromString(a.getId())));
+      } catch (OrgNotFoundException notCurrent) {
+        a.setRowVersion(null);
+      }
+    }
     return ResponseEntity.ok(body);
   }
 
@@ -455,6 +484,116 @@ public class OrgController implements OrgApi {
   @Override
   public ResponseEntity<RecoveryRecord> getE2eeRecovery(UUID id) {
     return ResponseEntity.ok(E2eeWebMapper.toDto(recovery.recovery(actor(), id)));
+  }
+
+  // DV-04-09 · BS-04 ADR-34, QT-01, SCR-0108, SCR-0109: quản trị tài khoản và phân công trong ứng dụng.
+
+  @Override
+  public ResponseEntity<UserAccountPage> listUserAccounts(UUID unit, Boolean includeSubunits, String q,
+      UserAccountStatus status, Integer limit, String cursor) {
+    return ResponseEntity.ok(UserAccountWebMapper.toDto(users.list(actor(), unit,
+        includeSubunits == null || includeSubunits, q, status == null ? null : status.getValue(),
+        limit == null ? 50 : limit, cursor)));
+  }
+
+  @Override
+  public ResponseEntity<UserAccountCreated> createUserAccount(String idempotencyKey, UserAccountCreate input) {
+    UserAccountService.Created created = users.create(actor(),
+        hasher.of(idempotencyKey, "POST", request.getRequestURI(), input),
+        new UserAccountService.CreateCommand(input.getFullName(), input.getUsername(), input.getEmail(),
+            input.getOrgUnitId(), input.getJobTitleId(),
+            input.getGender() == null ? null : input.getGender().getValue(),
+            Boolean.TRUE.equals(input.getPartyMember()), input.getValidFrom()));
+    return ResponseEntity.created(URI.create(request.getRequestURI() + "/" + created.account().id()))
+        .eTag(etag(created.account().rowVersion()))
+        .header(HttpHeaders.CACHE_CONTROL, "no-store")
+        .body(UserAccountWebMapper.toDto(created));
+  }
+
+  @Override
+  public ResponseEntity<UserAccount> getUserAccount(UUID id) {
+    UserAccountService.UserAccountView view = users.get(actor(), id);
+    return ResponseEntity.ok().eTag(etag(view.rowVersion())).body(UserAccountWebMapper.toDto(view));
+  }
+
+  @Override
+  public ResponseEntity<UserAccount> updateUserAccount(String idempotencyKey, String ifMatch, UUID id,
+      UserAccountUpdate input) {
+    UserAccountService.UserAccountView view = users.update(actor(), id, IfMatch.parse(ifMatch),
+        hasher.of(idempotencyKey, "PATCH", request.getRequestURI(), input), input.getFullName(), input.getEmail());
+    return ResponseEntity.ok().eTag(etag(view.rowVersion())).body(UserAccountWebMapper.toDto(view));
+  }
+
+  @Override
+  public ResponseEntity<UserAccount> lockUserAccount(String idempotencyKey, String ifMatch, UUID id,
+      UserAccountReason input) {
+    UserAccountService.UserAccountView view = users.lock(actor(), id, IfMatch.parse(ifMatch),
+        hasher.of(idempotencyKey, "POST", request.getRequestURI(), input), input.getReason());
+    return ResponseEntity.ok().eTag(etag(view.rowVersion())).body(UserAccountWebMapper.toDto(view));
+  }
+
+  @Override
+  public ResponseEntity<UserAccount> unlockUserAccount(String idempotencyKey, String ifMatch, UUID id,
+      UserAccountReason input) {
+    UserAccountService.UserAccountView view = users.unlock(actor(), id, IfMatch.parse(ifMatch),
+        hasher.of(idempotencyKey, "POST", request.getRequestURI(), input), input.getReason());
+    return ResponseEntity.ok().eTag(etag(view.rowVersion())).body(UserAccountWebMapper.toDto(view));
+  }
+
+  @Override
+  public ResponseEntity<PasswordResetResult> resetUserPassword(String idempotencyKey, UUID id) {
+    String password = users.resetPassword(actor(), id,
+        hasher.of(idempotencyKey, "POST", request.getRequestURI(), Map.of()));
+    PasswordResetResult body = new PasswordResetResult();
+    body.setTemporaryPassword(password);
+    return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "no-store").body(body);
+  }
+
+  @Override
+  public ResponseEntity<ListJobTitles200Response> listJobTitles(String q) {
+    ListJobTitles200Response body = new ListJobTitles200Response();
+    body.setItems(users.jobTitles(actor(), q).stream().map(UserAccountWebMapper::toDto).toList());
+    return ResponseEntity.ok(body);
+  }
+
+  @Override
+  public ResponseEntity<OrgUnitAssignment> createOrgAssignment(String idempotencyKey,
+      OrgAssignmentCreateInput input) {
+    AssignmentAdminService.AssignmentView view = assignmentAdmin.create(actor(), "createOrgAssignment",
+        hasher.of(idempotencyKey, "POST", request.getRequestURI(), input),
+        new AssignmentAdminService.NewAssignment(input.getPersonId(), input.getOrgUnitId(), input.getJobTitleId(),
+            input.getAssignmentKind().getValue(), input.getValidFrom(), input.getValidTo(),
+            input.getSignedDocRef()));
+    return ResponseEntity.created(URI.create(request.getRequestURI() + "/" + view.id()))
+        .eTag(etag(view.rowVersion())).body(UserAccountWebMapper.toDto(view));
+  }
+
+  @Override
+  public ResponseEntity<OrgUnitAssignment> createOrgUnitAssignment(String idempotencyKey, UUID id,
+      OrgAssignmentCreateRequest input) {
+    AssignmentAdminService.AssignmentView view = assignmentAdmin.create(actor(), "createOrgUnitAssignment",
+        hasher.of(idempotencyKey, "POST", request.getRequestURI(), input),
+        new AssignmentAdminService.NewAssignment(input.getPersonId(), id, input.getJobTitleId(),
+            input.getAssignmentKind().getValue(), input.getValidFrom(), input.getValidTo(),
+            input.getSignedDocRef()));
+    return ResponseEntity.status(201).eTag(etag(view.rowVersion())).body(UserAccountWebMapper.toDto(view));
+  }
+
+  @Override
+  public ResponseEntity<OrgUnitAssignment> updateOrgAssignment(String idempotencyKey, String ifMatch, UUID id,
+      OrgAssignmentUpdateRequest input) {
+    AssignmentAdminService.AssignmentView view = assignmentAdmin.update(actor(), id, IfMatch.parse(ifMatch),
+        hasher.of(idempotencyKey, "PATCH", request.getRequestURI(), input), input.getJobTitleId(),
+        input.getAssignmentKind() == null ? null : input.getAssignmentKind().getValue(), input.getEffectiveFrom());
+    return ResponseEntity.ok().eTag(etag(view.rowVersion())).body(UserAccountWebMapper.toDto(view));
+  }
+
+  @Override
+  public ResponseEntity<OrgUnitAssignment> endOrgAssignment(String idempotencyKey, String ifMatch, UUID id,
+      OrgAssignmentEndRequest input) {
+    AssignmentAdminService.AssignmentView view = assignmentAdmin.end(actor(), id, IfMatch.parse(ifMatch),
+        hasher.of(idempotencyKey, "POST", request.getRequestURI(), input), input.getValidTo());
+    return ResponseEntity.ok().eTag(etag(view.rowVersion())).body(UserAccountWebMapper.toDto(view));
   }
 
   private Actor actor() {

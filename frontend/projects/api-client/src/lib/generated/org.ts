@@ -83,6 +83,139 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/org/users': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Tài khoản người dùng theo đơn vị
+     * @description Danh sách tài khoản cán bộ của tenant (SCR-0108): mỗi dòng là một cán bộ có tài khoản đăng nhập, kèm đơn vị công tác chính, chức danh, số kiêm nhiệm và trạng thái tài khoản. Lọc theo đơn vị (`unit`, kèm `includeSubunits`), từ khoá trên họ tên hoặc tên đăng nhập, trạng thái. Không chứa dữ liệu C2 (thư điện tử chỉ có ở `getUserAccount`). Tài khoản đã có trên Keycloak từ trước (dữ liệu nạp sẵn) được ghi bù vào `org.user_account` ở lần đọc đầu.
+     */
+    get: operations['listUserAccounts'];
+    put?: never;
+    /**
+     * Thêm người dùng
+     * @description Tạo hồ sơ cán bộ (`org.person`, nguồn `QUAN_TRI`), phân công chính tại đơn vị và chức danh đã chọn, và tài khoản Keycloak có `id` bằng mã cán bộ, mật khẩu tạm buộc đổi ở lần đăng nhập đầu (BR-01-19, BR-01-20). Phản hồi trả mật khẩu tạm đúng một lần (`temporaryPassword`), máy chủ không lưu và không ghi nhật ký giá trị này (BR-01-22). Phát EVT-16 và EVT-15 qua outbox.
+     */
+    post: operations['createUserAccount'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/org/users/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Hồ sơ tài khoản của một người dùng
+     * @description Thông tin tài khoản (SCR-0109) kèm thư điện tử đọc từ Keycloak. `id` là mã cán bộ (`org.person.id`), cũng là `id` người dùng Keycloak. Phân công xem ở `listPersonAssignments`, vai trò ở `listRoleBindings`.
+     */
+    get: operations['getUserAccount'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Sửa thông tin người dùng
+     * @description Đổi họ tên (phiên bản mới của `org.person` từ hôm nay, phát EVT-16) hoặc thư điện tử (Keycloak). Tên đăng nhập không đổi được (BR-01-19).
+     */
+    patch: operations['updateUserAccount'];
+    trace?: never;
+  };
+  '/org/users/{id}/lock': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Khoá tài khoản
+     * @description Vô hiệu hoá người dùng trên Keycloak và thu hồi mọi phiên (BR-01-21), ghi lý do vào `org.user_account`. Không khoá được tài khoản của chính mình.
+     */
+    post: operations['lockUserAccount'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/org/users/{id}/unlock': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Mở khoá tài khoản */
+    post: operations['unlockUserAccount'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/org/users/{id}/reset-password': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Đặt lại mật khẩu
+     * @description Cấp mật khẩu tạm mới trên Keycloak, buộc đổi khi đăng nhập (BR-01-22). Mật khẩu tạm trả đúng một lần trong phản hồi.
+     */
+    post: operations['resetUserPassword'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/org/job-titles': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Danh mục chức danh còn hiệu lực
+     * @description Chức danh (`org.job_title`) cho hộp chọn khi thêm người dùng và phân công (SCR-0108, SCR-0109).
+     */
+    get: operations['listJobTitles'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/org/units': {
     parameters: {
       query?: never;
@@ -737,6 +870,8 @@ export interface components {
       validFrom: components['schemas']['Date'];
       /** Format: date */
       validTo?: string | null;
+      /** @description Phiên bản hiện hành của phân công (`row_version` lớn nhất của các phiên bản đang hiệu lực), gửi trong `If-Match` khi sửa hoặc kết thúc phân công (`updateOrgAssignment`, `endOrgAssignment`; BS-04). Chỉ có ở `listPersonAssignments`. */
+      rowVersion?: components['schemas']['RowVersion'];
     };
     /**
      * @example {
@@ -1210,6 +1345,91 @@ export interface components {
       recordedBy: components['schemas']['Uuid'];
       recordedAt: components['schemas']['DateTime'];
     };
+    /**
+     * @description Trạng thái tài khoản (`org.user_account.status`); `KHOA` là đã vô hiệu hoá trên Keycloak.
+     * @enum {string}
+     */
+    UserAccountStatus: 'HOAT_DONG' | 'KHOA';
+    /** @description Tài khoản đăng nhập của một cán bộ (`org.user_account` cùng `org.person`, phân công chính). */
+    UserAccount: {
+      id: components['schemas']['Uuid'];
+      /** @description Tên đăng nhập (BR-01-19), không đổi sau khi tạo. */
+      username: string;
+      fullName: string;
+      /** @description Thư điện tử (C2), chỉ có ở `getUserAccount` và phản hồi ghi. */
+      email?: string | null;
+      status: components['schemas']['UserAccountStatus'];
+      primaryUnitId?: components['schemas']['Uuid'];
+      primaryUnitName?: string | null;
+      jobTitleName?: string | null;
+      /** @description Số phân công kiêm nhiệm, biệt phái còn hiệu lực. */
+      concurrentCount: number;
+      /** Format: date-time */
+      lockedAt?: string | null;
+      lockReason?: string | null;
+      /** Format: date-time */
+      passwordResetAt?: string | null;
+      /** Format: date-time */
+      createdAt?: string | null;
+      /**
+       * @description Tài khoản do quản trị tạo, đồng bộ từ hệ thống ngoài hay nạp sẵn.
+       * @enum {string}
+       */
+      source?: 'QUAN_TRI' | 'DONG_BO' | 'NAP_SAN';
+      rowVersion: components['schemas']['RowVersion'];
+      permittedActions?: components['schemas']['PermittedActions'];
+    };
+    UserAccountCounts: {
+      total: number;
+      active: number;
+      locked: number;
+    };
+    UserAccountPage: {
+      items: components['schemas']['UserAccount'][];
+      nextCursor: components['schemas']['NextCursor'];
+      counts: components['schemas']['UserAccountCounts'];
+    };
+    UserAccountCreate: {
+      fullName: string;
+      /** @description Tên đăng nhập (BR-01-19). */
+      username: string;
+      /** Format: email */
+      email?: string | null;
+      orgUnitId: components['schemas']['Uuid'];
+      jobTitleId: components['schemas']['Uuid'];
+      /** @enum {string|null} */
+      gender?: 'NAM' | 'NU' | 'KHAC' | null;
+      /** @default false */
+      partyMember: boolean;
+      /**
+       * Format: date
+       * @description Ngày bắt đầu phân công chính; mặc định hôm nay.
+       */
+      validFrom?: string | null;
+    };
+    UserAccountCreated: components['schemas']['UserAccount'] & {
+      /** @description Mật khẩu tạm, chỉ trả một lần (BR-01-22). */
+      temporaryPassword: string;
+    };
+    UserAccountUpdate: {
+      fullName?: string;
+      /** Format: email */
+      email?: string | null;
+    };
+    UserAccountReason: {
+      reason: string;
+    };
+    PasswordResetResult: {
+      /** @description Mật khẩu tạm, chỉ trả một lần; người dùng phải đổi khi đăng nhập. */
+      temporaryPassword: string;
+    };
+    /** @description Chức danh (`org.job_title`). */
+    JobTitle: {
+      id: components['schemas']['Uuid'];
+      code: string;
+      name: string;
+      level?: number;
+    };
     FieldError: {
       /** @description Tên trường theo JSON của thân yêu cầu, dạng đường dẫn chấm */
       field: string;
@@ -1246,6 +1466,11 @@ export interface components {
      */
     Date: string;
     /**
+     * @description Giá trị `row_version` (khoá lạc quan). Cùng giá trị với ETag, gửi lại trong `If-Match`.
+     * @example 7
+     */
+    RowVersion: number;
+    /**
      * Format: uuid
      * @description Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).
      * @example 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a77
@@ -1260,15 +1485,18 @@ export interface components {
      */
     DateTime: string;
     /**
+     * @description Thao tác người gọi được làm trên chính đối tượng này, dạng khoá chức năng của ma trận phân quyền `SCR-qqnn.<khoá>` (docs/phan-quyen/ma-tran.json). Máy chủ tính bằng OPA với cùng đầu vào như khi thực hiện thao tác (vai trò, phạm vi đơn vị, người tham gia, trạng thái, tách vai trò), để giao diện ẩn nút trước thay vì để người dùng bấm rồi nhận 403 (YC-PT-21). Chỉ là gợi ý hiển thị: thao tác vẫn được kiểm lại khi gọi. Không gửi trường này nghĩa là giao diện chỉ xét vai trò.
+     * @example [
+     *       "SCR-1601.nhac",
+     *       "SCR-1601.giao-lai"
+     *     ]
+     */
+    PermittedActions: string[];
+    /**
      * @description Luồng đánh giá (baseline mục 9.1).
      * @enum {string}
      */
     Flow: 'DANG' | 'NHA_NUOC';
-    /**
-     * @description Giá trị `row_version` (khoá lạc quan). Cùng giá trị với ETag, gửi lại trong `If-Match`.
-     * @example 7
-     */
-    RowVersion: number;
     /**
      * @description Trạng thái tác vụ dài. TL chưa đặc tả lược đồ job; hợp đồng giữ bộ giá trị WEB-007 đã dùng (lấy từ các trạng thái job trong TL-03).
      * @enum {string}
@@ -1335,9 +1563,19 @@ export interface components {
         'application/problem+json': components['schemas']['ProblemDetails'];
       };
     };
-    /** @description Yêu cầu sai cú pháp hoặc tham số không hợp lệ. */
-    BadRequest: {
+    /** @description Dữ liệu không hợp lệ theo quy tắc nghiệp vụ (BR), thiếu lý do bắt buộc, hoặc `Idempotency-Key` dùng lại với nội dung khác. Lỗi theo trường nằm trong `errors[]`. */
+    UnprocessableEntity: {
       headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/problem+json': components['schemas']['ProblemDetails'];
+      };
+    };
+    /** @description Cắt tải khi cell gần bão hoà; thử lại có giãn cách. */
+    ServiceUnavailable: {
+      headers: {
+        'Retry-After': components['headers']['RetryAfter'];
         [name: string]: unknown;
       };
       content: {
@@ -1346,15 +1584,6 @@ export interface components {
     };
     /** @description Xung đột. Hai nghĩa phân biệt bằng `code`: xung đột ghi đồng thời (`<MODULE>-409-VERSION-CONFLICT`, `type` kết thúc bằng `concurrent-modification`) hoặc vi phạm trạng thái nghiệp vụ (ví dụ `TASK-409-PERIOD-LOCKED`). Với xung đột ghi, giao diện giữ dữ liệu đang nhập và hiện khác biệt. */
     Conflict: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        'application/problem+json': components['schemas']['ProblemDetails'];
-      };
-    };
-    /** @description Dữ liệu không hợp lệ theo quy tắc nghiệp vụ (BR), thiếu lý do bắt buộc, hoặc `Idempotency-Key` dùng lại với nội dung khác. Lỗi theo trường nằm trong `errors[]`. */
-    UnprocessableEntity: {
       headers: {
         [name: string]: unknown;
       };
@@ -1371,6 +1600,15 @@ export interface components {
         'application/problem+json': components['schemas']['ProblemDetails'];
       };
     };
+    /** @description Yêu cầu sai cú pháp hoặc tham số không hợp lệ. */
+    BadRequest: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/problem+json': components['schemas']['ProblemDetails'];
+      };
+    };
     /** @description Tác vụ nền đã nhận (trả trong 200 ms, NFR-03). Theo dõi bằng `Location` hoặc luồng SSE `/api/v1/notifications/stream`. */
     Accepted: {
       headers: {
@@ -1380,16 +1618,6 @@ export interface components {
       };
       content: {
         'application/json': components['schemas']['Job'];
-      };
-    };
-    /** @description Cắt tải khi cell gần bão hoà; thử lại có giãn cách. */
-    ServiceUnavailable: {
-      headers: {
-        'Retry-After': components['headers']['RetryAfter'];
-        [name: string]: unknown;
-      };
-      content: {
-        'application/problem+json': components['schemas']['ProblemDetails'];
       };
     };
   };
@@ -1544,6 +1772,284 @@ export interface operations {
       };
       401: components['responses']['Unauthorized'];
       404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listUserAccounts: {
+    parameters: {
+      query?: {
+        /** @description Đơn vị (`org.org_unit.id`); máy chủ kiểm phạm vi theo ABAC. */
+        unit?: components['parameters']['UnitId'];
+        includeSubunits?: boolean;
+        /** @description Từ khoá tìm kiếm, không phân biệt dấu. */
+        q?: components['parameters']['Q'];
+        status?: components['schemas']['UserAccountStatus'];
+        /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
+        limit?: components['parameters']['Limit'];
+        /** @description Con trỏ mờ lấy từ `nextCursor` của trang trước. Không tự dựng giá trị. */
+        cursor?: components['parameters']['Cursor'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Một trang tài khoản. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UserAccountPage'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      default: components['responses']['Problem'];
+    };
+  };
+  createUserAccount: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UserAccountCreate'];
+      };
+    };
+    responses: {
+      /** @description Tài khoản mới kèm mật khẩu tạm. */
+      201: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          Location: components['headers']['Location'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UserAccountCreated'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      /** @description Tên đăng nhập hoặc thư điện tử đã được dùng (`ORG-409-USERNAME-TAKEN`, MSG-01-20). */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      422: components['responses']['UnprocessableEntity'];
+      503: components['responses']['ServiceUnavailable'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getUserAccount: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Tài khoản. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UserAccount'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  updateUserAccount: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UserAccountUpdate'];
+      };
+    };
+    responses: {
+      /** @description Tài khoản sau khi sửa. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UserAccount'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  lockUserAccount: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UserAccountReason'];
+      };
+    };
+    responses: {
+      /** @description Tài khoản đã khoá. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UserAccount'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  unlockUserAccount: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UserAccountReason'];
+      };
+    };
+    responses: {
+      /** @description Tài khoản đã mở khoá. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UserAccount'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  resetUserPassword: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Mật khẩu tạm. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PasswordResetResult'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      503: components['responses']['ServiceUnavailable'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listJobTitles: {
+    parameters: {
+      query?: {
+        /** @description Từ khoá tìm kiếm, không phân biệt dấu. */
+        q?: components['parameters']['Q'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Danh mục chức danh. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: components['schemas']['JobTitle'][];
+          };
+        };
+      };
+      401: components['responses']['Unauthorized'];
       default: components['responses']['Problem'];
     };
   };

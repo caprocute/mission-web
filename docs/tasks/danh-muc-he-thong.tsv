@@ -34,6 +34,7 @@ NEN-022	Công cụ phát lại outbox và cấu hình connector Debezium outbox 
 NEN-042	Sửa hợp đồng OpenAPI phần nghiệp vụ: thêm thao tác còn thiếu (huỷ OKR, phiên bản điều chỉnh mục tiêu, uỷ quyền check-in, kích hoạt danh mục, chấm việc ngoài danh mục, ngoại lệ điều chỉnh, xác nhận dòng kế hoạch, duyệt nhiệm vụ đăng ký, chuyển điểm nghẽn, danh bạ khoá E2EE và chia sẻ CEK, ghi trường hợp đặc thù, gợi ý khiếu nại trùng) và sửa mô tả `acceptComplaint`	M	NEN-001	ADR-32; YC-PT-09	B1		Bổ sung sau khi viết thẻ; người phụ trách hợp đồng duyệt
 NEN-043	Sửa hợp đồng OpenAPI phần nền tảng: cờ tính năng cho mọi người dùng, cấu hình tenant, thiết bị nhận thông báo đẩy, tuỳ chọn kênh, mã khôi phục MFA, `POST /org/assignments`, guest token Superset, kiểm quyền theo lô cho tìm kiếm, ký nội bộ cho sổ cái, OCR cho tài khoản dịch vụ, đề nghị chuyển cell	M	NEN-001, NEN-042	ADR-32; YC-PT-09	B1		Bổ sung sau khi viết thẻ; người phụ trách hợp đồng duyệt
 NEN-044	Sửa hợp đồng OpenAPI theo BS-03: hồ sơ tập khách hàng, khung tham số, điểm công việc và phạm vi phụ trách trong `inputs`, kiểu đo mốc, cây KPI, chế độ phân công, sự việc	M	NEN-043; người phụ trách hợp đồng duyệt	ADR-33; BS-03	B1		Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng
+NEN-045	Chính sách OPA cho vai trò tuỳ chỉnh theo tenant (`data.tenant_roles`): vai trò `tc_…` hiệu lực như vai trò gốc bị thu hẹp	S	NEN-040, NEN-044	ADR-34; BS-04; BR-01-23	B1		Bổ sung theo BS-04 (24/10/2026), quản trị người dùng và phân quyền trong ứng dụng
 ## CORE-00	mission-core: phần dùng chung
 CORE-00-01	Khung ứng dụng mission-core: Spring Boot 3.5, luồng ảo, tám DataSource riêng theo module, actuator, cấu hình mẫu	L	NEN-019, NEN-031, NEN-006, NEN-013, NEN-030	SVC-05; TL-01 ch.5	B2	tl01-thanh-phan §A1, A10, A14
 CORE-00-02	Tám module lục giác, khai báo Spring Modulith, ma trận phụ thuộc, ArchUnit, sinh tài liệu module	M	CORE-00-01	ADR-01, ADR-23	B2	tl01-thanh-phan §A3-A6
@@ -58,6 +59,7 @@ CORE-08-14	Bộ kiểm tra JSON Schema có `x-cel`, `x-classification` dùng chu
 CORE-08-15	Manifest plugin theo tenant và kiểm chữ ký bản dựng plugin	S	CORE-08-11	ADR-05 lớp 4	B2	tl02b §QT-18 BE-Q18-09
 CORE-08-16	Lưu phân công vai trò và uỷ quyền (`config.role_binding`) theo đề xuất WEB-058	M	CORE-08-01, NEN-040, NEN-043	WEB-058	B2	tl05 §4.8	Chờ người dùng duyệt đề xuất WEB-058
 CORE-08-17	Lưu định nghĩa dashboard `config.dashboard_def` và cổng `api` cho analytics-api	S	CORE-08-01	SCR-1602; MOD-08	B2		Bổ sung sau khi viết thẻ
+CORE-08-18	Vai trò tuỳ chỉnh `config.custom_role`, danh mục quyền, đẩy định nghĩa sang OPA và realm role Keycloak, cấp vai trò `tc_…`	M	CORE-08-16, NEN-045	SCR-0110; ADR-34; BR-01-23, 24	B2		Bổ sung theo BS-04 (24/10/2026), quản trị người dùng và phân quyền trong ứng dụng
 ## CORE-05	MOD-05 policy: Policy Pack
 CORE-05-01	Migration schema `policy` và trigger đóng băng phiên bản đã phát hành	M	CORE-00-02, NEN-033	MOD-05; TL-03 schema policy	B2	tl03-phan1 §C5
 CORE-05-02	Mô hình phiên bản gói, nhân bản, máy trạng thái, kế thừa theo cờ `overridable`	M	CORE-05-01	QT-15; baseline §9.1	B2	tl02b §QT-15 BE-Q15-01, 11
@@ -191,6 +193,8 @@ DV-04-05	Nhập cây tổ chức từ Excel (202, báo cáo lỗi)	S	DV-04-02	SC
 DV-04-06	SCIM 2.0 cho HRM và IdP khách hàng	M	DV-04-04	SVC-04	B5	tl01-thanh-phan §C4.4
 DV-04-07	Đối soát nhân sự: khớp người bằng HMAC và ngày sinh, bảng lệch, phân loại, API giải quyết	L	DV-04-04, DV-13-06	QT-01 → SCR-0104; BR-01-10..12	B5	tl02a §QT-01 BE-01-14, 15
 DV-04-08	Lệnh phát lại sự kiện tổ chức (`org-republish`) cho bên nhận bị lệch	S	DV-04-03, NEN-022	EVT-14..16	B5		Bổ sung sau khi viết thẻ
+DV-04-09	Quản trị tài khoản trong org-service: tạo, sửa, khoá, mở khoá, đặt lại mật khẩu, chức danh, sửa và kết thúc phân công	M	DV-04-04	SCR-0108, SCR-0109; ADR-34; BR-01-19..22	B5		Bổ sung theo BS-04 (24/10/2026), quản trị người dùng và phân quyền trong ứng dụng
+DV-04-10	Công tắc đồng bộ nhân sự ngoài (SCIM, CSDL cán bộ, HRM, nguồn giả lập), mặc định tắt	S	DV-04-06, DV-04-07, DV-13-06	ADR-34	B5		Bổ sung theo BS-04 (24/10/2026), đồng bộ ngoài thành tính năng tuỳ chọn
 ## DV-06	SVC-06 workflow-service (Flowable)
 DV-06-01	Khung Flowable 7 nhúng Spring Boot, CSDL `flowable`, lịch sử mức audit, tách API và async executor	L	NEN-019	ADR-04; TL-01 ch.8	B6	tl01-xuyen-suot §2; tl01-thanh-phan §C5
 DV-06-02	`wf_template`, `wf_binding`, `wf_task_projection`; API hộp việc, hoàn thành, hoàn thành hàng loạt	M	DV-06-01	SVC-06	B6	tl01-thanh-phan §C5.2-C5.3; tl03-phan2 §A4
@@ -350,6 +354,9 @@ WEB-073	Xử lý 429 và 503 có `Retry-After`, thử lại có backoff, giữ b
 WEB-074	Gắn `traceparent` vào mọi lời gọi của `@vt/api-client` và liên kết với telemetry	S	WEB-011	NFR-10	W	tl04-phan2 §G
 WEB-075	Khám phá cell khi đăng nhập (chuyển hướng 307, mã 421)	S	WEB-006, DV-01-04	ADR-07	W	tl04-phan1 §I
 WEB-076	Đọc cờ tính năng phía web	S	CORE-08-07, NEN-043	MOD-08	W	tl04-phan2 §G
+WEB-077	Màn hình Người dùng và Chi tiết người dùng: danh sách theo đơn vị, thêm, khoá, mở khoá, đặt lại mật khẩu, kiêm nhiệm	M	DV-04-09, WEB-058	SCR-0108, SCR-0109	W		Bổ sung theo BS-04 (24/10/2026)
+WEB-078	Màn hình Vai trò và quyền, cấp vai trò tuỳ chỉnh, `PermissionService` áp vai trò tuỳ chỉnh của người dùng	M	CORE-08-18, WEB-054	SCR-0110; BR-01-23	W		Bổ sung theo BS-04 (24/10/2026)
+WEB-079	Ẩn màn hình và thẻ đồng bộ nhân sự ngoài theo cờ `org.externalSync`	S	WEB-076, DV-04-10	SCR-0104; ADR-34	W		Bổ sung theo BS-04 (24/10/2026)
 ## CNH	Cá nhân hoá theo người dùng (chờ người dùng chốt)
 CNH-01	Đề xuất bổ sung thiết kế cá nhân hoá: mã màn hình, API, bảng `config.user_preference`	M	–	ADR-05	B2	–	Người dùng đã đồng ý làm (20/10); CNH-01 bổ sung thiết kế trước
 CNH-02	Backend lưu tuỳ chọn cá nhân: bố cục trang chủ, cột, bộ lọc đã lưu, chế độ người cao tuổi	M	CNH-01, CORE-08-01, CORE-08-11	NFR-11	B2	–	Người dùng đã đồng ý làm (20/10); CNH-01 bổ sung thiết kế trước

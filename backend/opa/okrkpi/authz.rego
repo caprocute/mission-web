@@ -37,17 +37,43 @@ held_roles contains r if {
 	gen.roles[r].kind != "client"
 }
 
+# Vai trò tuỳ chỉnh của tenant (BS-04, ADR-34, BR-01-23): realm role `tc_…` mà người dùng giữ, định nghĩa ở
+# data.tenant_roles[tenant][mã] = {base, status, permissions: {khoá chức năng: phạm vi}} do MOD-08 nạp qua Data API
+# (ngoài gốc bundle `okrkpi`). Vai trò tuỳ chỉnh là vai trò gốc bị thu hẹp: chỉ những chức năng có trong
+# permissions, với phạm vi đã chọn; mức xác thực, mức dữ liệu, ràng buộc và lớp API kế thừa vai trò gốc.
+default tenant_roles := {}
+
+tenant_roles := data.tenant_roles[subject.tenant_id]
+
+custom_held contains r if {
+	subject_kind != "client"
+	some r in object.get(subject, "roles", [])
+	startswith(r, "tc_")
+	def := tenant_roles[r]
+	def.status == "HIEU_LUC"
+	gen.roles[def.base].kind == "user"
+}
+
+held_roles contains r if some r in custom_held
+
+# Vai trò hệ thống đứng sau một vai trò đang giữ (chính nó, hoặc vai trò gốc của vai trò tuỳ chỉnh).
+base_of(r) := tenant_roles[r].base if r in custom_held
+
+base_of(r) := r if not r in custom_held
+
+role_meta(r) := gen.roles[base_of(r)]
+
 aal2_session if subject.acr == gen.params.aal2_acr
 
 # BR-00-01: vai trò AAL2 chỉ có hiệu lực trong phiên AAL2.
 effective_roles contains r if {
 	some r in held_roles
-	not gen.roles[r].aal2
+	not role_meta(r).aal2
 }
 
 effective_roles contains r if {
 	some r in held_roles
-	gen.roles[r].aal2
+	role_meta(r).aal2
 	aal2_session
 }
 
@@ -146,19 +172,42 @@ has_request if {
 
 fn := gen.functions[input.action]
 
+# Ô quyền của vai trò r với chức năng đang hỏi; vai trò tuỳ chỉnh lấy ô của vai trò gốc với phạm vi đã thu hẹp.
+role_grant(r) := fn.grants[r] if not r in custom_held
+
+role_grant(r) := object.union(g, {"scope": chosen}) if {
+	r in custom_held
+	g := fn.grants[tenant_roles[r].base]
+	chosen := scope_code(tenant_roles[r].permissions[input.action])
+	scope_within(chosen, g.scope)
+}
+
+# Hợp đồng API viết phạm vi đơn vị là "Dv" (ASCII); ma trận viết "Đv".
+scope_code(s) := "Đv" if s == "Dv"
+
+scope_code(s) := s if s != "Dv"
+
+# BR-01-23: phạm vi của vai trò tuỳ chỉnh không rộng hơn vai trò gốc (N > Tn > Cd > Đv > B; Gn chỉ giữ nguyên).
+# MOD-08 đã kiểm khi lưu; ở đây kiểm lại để dữ liệu nạp sai không mở rộng quyền.
+scope_rank := {"B": 1, "Đv": 2, "Cd": 3, "Tn": 4, "N": 5}
+
+scope_within(chosen, base) if chosen == base
+
+scope_within(chosen, base) if scope_rank[chosen] < scope_rank[base]
+
 fn_grant_roles contains r if {
 	some r in held_roles
-	fn.grants[r]
+	role_grant(r)
 }
 
 fn_effective contains r if {
 	some r in effective_roles
-	fn.grants[r]
+	role_grant(r)
 }
 
 fn_in_scope contains r if {
 	some r in fn_effective
-	grant_in_scope(fn.grants[r])
+	grant_in_scope(role_grant(r))
 }
 
 fn_ok if {
@@ -213,14 +262,17 @@ sod_violation contains c if {
 
 api_row := gen.api[input.request.module]
 
+# Lớp API thô của vai trò tuỳ chỉnh kế thừa vai trò gốc; thu hẹp nằm ở lớp chức năng (BS-04).
+api_role(r) := api_row.roles[base_of(r)]
+
 api_grant_roles contains r if {
 	some r in held_roles
-	input.request.method in api_row.roles[r].methods
+	input.request.method in api_role(r).methods
 }
 
 api_effective contains r if {
 	some r in effective_roles
-	input.request.method in api_row.roles[r].methods
+	input.request.method in api_role(r).methods
 }
 
 api_tenant_ok if not resource.tenant_id
@@ -229,7 +281,7 @@ api_tenant_ok if same_tenant
 
 api_tenant_ok if {
 	some r in api_effective
-	gen.roles[r].default_scope == "N"
+	role_meta(r).default_scope == "N"
 }
 
 api_ok if {
@@ -243,9 +295,9 @@ granting_roles contains r if some r in fn_in_scope
 
 granting_roles contains r if some r in api_effective
 
-class_role(r) := gen.roles[r].parent
+class_role(r) := role_meta(r).parent
 
-class_role(r) := r if not gen.roles[r].parent
+class_role(r) := base_of(r) if not role_meta(r).parent
 
 class_allowed(cls) if {
 	some r in granting_roles
@@ -355,14 +407,14 @@ deny contains "classification_denied" if {
 flags contains "inferred_grant" if {
 	count(fn_in_scope) > 0
 	every r in fn_in_scope {
-		fn.grants[r].inferred
+		role_grant(r).inferred
 	}
 }
 
 flags contains "inferred_grant" if {
 	count(api_effective) > 0
 	every r in api_effective {
-		input.request.method in api_row.roles[r].inferred_methods
+		input.request.method in api_role(r).inferred_methods
 	}
 }
 

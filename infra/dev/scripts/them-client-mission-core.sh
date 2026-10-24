@@ -50,8 +50,10 @@ else
 fi
 kc add-roles -r mission --uusername "service-account-${CID}" --rolename "${ROLE}"
 kc add-roles -r mission --uusername "service-account-${CID}" --cclientid realm-management \
-  --rolename view-users --rolename query-users --rolename manage-users
-echo "Đã gán ${ROLE} và quyền người dùng của realm-management cho service-account-${CID}"
+  --rolename view-users --rolename query-users --rolename manage-users \
+  --rolename view-realm --rolename manage-realm
+# view-realm, manage-realm: mission-core tạo vai trò realm cho vai trò tuỳ chỉnh của đơn vị (BS-04, CORE-08-18).
+echo "Đã gán ${ROLE} và quyền người dùng, vai trò realm của realm-management cho service-account-${CID}"
 # Token client credentials cần preferred_username "service-account-mission-core" để workflow-service nhận tenant đích
 # ở X-Tenant-Id (okrkpi.tenant.delegating-clients); preferred_username đến từ phạm vi profile.
 scope="$(kc get client-scopes -r mission --fields id,name --format csv --noquotes | awk -F, '$2=="profile"{print $1}')"

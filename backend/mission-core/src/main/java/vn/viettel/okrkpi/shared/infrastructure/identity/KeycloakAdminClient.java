@@ -169,6 +169,37 @@ public class KeycloakAdminClient {
         });
   }
 
+  /**
+   * Tạo realm role {@code role} nếu chưa có, đã có thì cập nhật mô tả (vai trò tuỳ chỉnh
+   * CORE-08-18). Cần quyền {@code manage-realm} của tài khoản dịch vụ.
+   */
+  public void ensureRealmRole(String role, String description) {
+    call(
+        () -> {
+          Map<String, Object> rep = new LinkedHashMap<>();
+          rep.put("name", role);
+          rep.put("description", description == null ? "" : description);
+          try {
+            admin()
+                .post()
+                .uri("/roles")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(rep)
+                .retrieve()
+                .toBodilessEntity();
+          } catch (HttpClientErrorException.Conflict exists) {
+            admin()
+                .put()
+                .uri("/roles/{role}", role)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(rep)
+                .retrieve()
+                .toBodilessEntity();
+          }
+          return null;
+        });
+  }
+
   public String passwordChangeUrl() {
     return "/realms/" + props.realm() + "/login-actions/required-action?execution=UPDATE_PASSWORD";
   }

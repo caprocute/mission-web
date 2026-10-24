@@ -1,4 +1,4 @@
-import { Injectable, InjectionToken, computed, inject } from '@angular/core';
+import { Injectable, InjectionToken, computed, inject, signal } from '@angular/core';
 import {
   API_PERMISSION_TABLE,
   ApiModule,
@@ -23,6 +23,13 @@ export const VT_PERMISSION_OPTIONS = new InjectionToken<VtPermissionOptions>(
   'vt.permissionOptions',
   { providedIn: 'root', factory: () => ({ allowInferred: true }) },
 );
+
+/** Một vai trò tuỳ chỉnh của tenant: mã `tc_…`, vai trò gốc và các khoá chức năng được mở. */
+export interface CustomRoleGrant {
+  code: string;
+  baseRole: string;
+  keys: readonly string[];
+}
 
 export interface PermissionRule {
   /** Vai trò có ô khác `-` (đã bỏ AC-11, AC-12). */
@@ -128,6 +135,7 @@ export function permittedOn(target: WithPermittedActions | null | undefined, key
 export class PermissionService {
   private readonly session = inject(SessionService);
   private readonly options = inject(VT_PERMISSION_OPTIONS);
+  private readonly custom = signal<readonly CustomRoleGrant[]>([]);
 
   /** Tập khoá được phép, tính lại khi người dùng hoặc phân công đang chọn thay đổi. */
   readonly granted = computed<ReadonlySet<PermissionKey>>(() => {
@@ -137,8 +145,21 @@ export class PermissionService {
     for (const key of PERMISSION_KEYS) {
       if (rolesCan(roles, key, this.options.allowInferred)) set.add(key);
     }
+    for (const def of this.custom()) {
+      if (!roles.includes(def.code as VtRole)) continue;
+      for (const key of def.keys)
+        if (PERMISSIONS.has(key as PermissionKey)) set.add(key as PermissionKey);
+    }
     return set;
   });
+
+  /**
+   * Định nghĩa vai trò tuỳ chỉnh mà người dùng đang giữ (`GET /config/me/custom-roles`, BS-04): mỗi vai
+   * trò `tc_…` chỉ mở đúng các chức năng đã chọn, máy chủ đã kiểm không rộng hơn vai trò gốc.
+   */
+  setCustomRoles(defs: readonly CustomRoleGrant[]): void {
+    this.custom.set(defs);
+  }
 
   can(key: PermissionKey): boolean {
     return this.granted().has(key);
@@ -162,7 +183,11 @@ export class PermissionService {
   canApi(module: ApiModule, method = 'GET'): boolean {
     const roles = this.session.user()?.roles ?? [];
     const allowed = apiRolesFor(module, method, this.options.allowInferred);
-    return roles.some((r) => allowed.includes(r));
+    // vai trò tuỳ chỉnh gọi API trong giới hạn vai trò gốc; OPA kiểm phạm vi chi tiết
+    const bases = this.custom()
+      .filter((d) => roles.includes(d.code as VtRole))
+      .map((d) => d.baseRole as VtRole);
+    return [...roles, ...bases].some((r) => allowed.includes(r));
   }
 
   canAll(...keys: PermissionKey[]): boolean {

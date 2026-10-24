@@ -27,6 +27,12 @@ public interface SyncPersonStore {
 
   void insert(NewPerson person, Actor actor);
 
+  /** Như {@link #insert(NewPerson, Actor)}, kèm giới tính ({@code NAM}, {@code NU}, {@code KHAC}; null là chưa rõ). */
+  void insert(NewPerson person, String gender, Actor actor);
+
+  /** Ghi phiên bản mới từ {@code from} với họ tên mới, như {@link #changeFrom}. Trả {@code sourceVersion} mới. */
+  int renameFrom(UUID id, LocalDate from, String fullName, Actor actor);
+
   /**
    * Ghi phiên bản mới từ {@code from} với trạng thái công tác hoặc đảng tịch mới (null là giữ nguyên); phiên bản cũ
    * bị đóng trên trục ghi nhận, không ghi đè. Trả {@code sourceVersion} mới.
