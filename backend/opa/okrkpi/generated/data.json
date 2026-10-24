@@ -79,10 +79,13 @@
       "outside_baseline": false,
       "roles": {
         "appraiser": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "PUT"
+          ],
           "methods": [
             "GET",
-            "POST"
+            "POST",
+            "PUT"
           ]
         },
         "decider": {
@@ -130,6 +133,14 @@
       "outside_baseline": false,
       "roles": {
         "ai_readonly": {
+          "inferred_methods": [
+            "GET"
+          ],
+          "methods": [
+            "GET"
+          ]
+        },
+        "appraiser": {
           "inferred_methods": [
             "GET"
           ],
@@ -236,7 +247,68 @@
           ]
         },
         "tenant_admin": {
+          "inferred_methods": [
+            "DELETE"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE"
+          ]
+        }
+      }
+    },
+    "dossiers": {
+      "outside_baseline": false,
+      "roles": {
+        "appraiser": {
+          "inferred_methods": [
+            "PATCH"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "PATCH"
+          ]
+        },
+        "decider": {
           "inferred_methods": [],
+          "methods": [
+            "GET",
+            "POST"
+          ]
+        },
+        "leader": {
+          "inferred_methods": [
+            "POST",
+            "PUT",
+            "PATCH"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH"
+          ]
+        },
+        "manager": {
+          "inferred_methods": [
+            "POST",
+            "PUT"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "PUT"
+          ]
+        },
+        "member": {
+          "inferred_methods": [
+            "PUT",
+            "PATCH"
+          ],
           "methods": [
             "GET",
             "POST",
@@ -246,88 +318,58 @@
         }
       }
     },
-    "dossiers": {
-      "outside_baseline": false,
-      "roles": {
-        "appraiser": {
-          "inferred_methods": [],
-          "methods": [
-            "GET",
-            "POST"
-          ]
-        },
-        "decider": {
-          "inferred_methods": [],
-          "methods": [
-            "GET",
-            "POST"
-          ]
-        },
-        "leader": {
-          "inferred_methods": [
-            "POST"
-          ],
-          "methods": [
-            "GET",
-            "POST"
-          ]
-        },
-        "manager": {
-          "inferred_methods": [
-            "POST"
-          ],
-          "methods": [
-            "GET",
-            "POST"
-          ]
-        },
-        "member": {
-          "inferred_methods": [],
-          "methods": [
-            "GET",
-            "POST"
-          ]
-        }
-      }
-    },
     "esign": {
       "outside_baseline": false,
       "roles": {
         "appraiser": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "DELETE"
+          ],
           "methods": [
             "GET",
-            "POST"
+            "POST",
+            "DELETE"
           ]
         },
         "decider": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "DELETE"
+          ],
           "methods": [
             "GET",
-            "POST"
+            "POST",
+            "DELETE"
           ]
         },
         "leader": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "DELETE"
+          ],
           "methods": [
             "GET",
-            "POST"
+            "POST",
+            "DELETE"
           ]
         },
         "member": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "DELETE"
+          ],
           "methods": [
             "GET",
-            "POST"
+            "POST",
+            "DELETE"
           ]
         },
         "second_approver": {
           "inferred_methods": [
-            "GET"
+            "GET",
+            "DELETE"
           ],
           "methods": [
             "GET",
-            "POST"
+            "POST",
+            "DELETE"
           ]
         }
       }
@@ -375,6 +417,14 @@
             "POST",
             "PUT"
           ]
+        },
+        "tenant_admin": {
+          "inferred_methods": [
+            "POST"
+          ],
+          "methods": [
+            "POST"
+          ]
         }
       }
     },
@@ -413,11 +463,35 @@
           ]
         },
         "member": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "DELETE"
+          ],
           "methods": [
             "GET",
             "POST",
-            "PUT"
+            "PUT",
+            "DELETE"
+          ]
+        },
+        "tenant_admin": {
+          "inferred_methods": [
+            "POST"
+          ],
+          "methods": [
+            "POST"
+          ]
+        }
+      }
+    },
+    "iam": {
+      "outside_baseline": true,
+      "roles": {
+        "tenant_admin": {
+          "inferred_methods": [
+            "POST"
+          ],
+          "methods": [
+            "POST"
           ]
         }
       }
@@ -426,63 +500,93 @@
       "outside_baseline": true,
       "roles": {
         "appraiser": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "DELETE"
+          ],
           "methods": [
-            "GET"
+            "GET",
+            "DELETE"
           ]
         },
         "decider": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "DELETE"
+          ],
           "methods": [
-            "GET"
+            "GET",
+            "DELETE"
           ]
         },
         "inspector": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "DELETE"
+          ],
           "methods": [
-            "GET"
+            "GET",
+            "DELETE"
           ]
         },
         "leader": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "DELETE"
+          ],
           "methods": [
-            "GET"
+            "GET",
+            "DELETE"
           ]
         },
         "manager": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "DELETE"
+          ],
           "methods": [
-            "GET"
+            "GET",
+            "DELETE"
           ]
         },
         "member": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "DELETE"
+          ],
           "methods": [
-            "GET"
+            "GET",
+            "DELETE"
           ]
         },
         "platform_admin": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "DELETE"
+          ],
           "methods": [
-            "GET"
+            "GET",
+            "DELETE"
           ]
         },
         "policy_author": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "DELETE"
+          ],
           "methods": [
-            "GET"
+            "GET",
+            "DELETE"
           ]
         },
         "second_approver": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "DELETE"
+          ],
           "methods": [
-            "GET"
+            "GET",
+            "DELETE"
           ]
         },
         "tenant_admin": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "DELETE"
+          ],
           "methods": [
-            "GET"
+            "GET",
+            "DELETE"
           ]
         }
       }
@@ -509,75 +613,124 @@
       "outside_baseline": false,
       "roles": {
         "appraiser": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "PUT",
+            "DELETE"
+          ],
           "methods": [
             "GET",
-            "POST"
+            "POST",
+            "PUT",
+            "DELETE"
           ]
         },
         "decider": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "PUT",
+            "DELETE"
+          ],
           "methods": [
             "GET",
-            "POST"
+            "POST",
+            "PUT",
+            "DELETE"
           ]
         },
         "inspector": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "PUT",
+            "DELETE"
+          ],
           "methods": [
             "GET",
-            "POST"
+            "POST",
+            "PUT",
+            "DELETE"
           ]
         },
         "leader": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "PUT",
+            "DELETE"
+          ],
           "methods": [
             "GET",
-            "POST"
+            "POST",
+            "PUT",
+            "DELETE"
           ]
         },
         "manager": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "PUT",
+            "DELETE"
+          ],
           "methods": [
             "GET",
-            "POST"
+            "POST",
+            "PUT",
+            "DELETE"
           ]
         },
         "member": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "PUT",
+            "DELETE"
+          ],
           "methods": [
             "GET",
-            "POST"
+            "POST",
+            "PUT",
+            "DELETE"
           ]
         },
         "platform_admin": {
           "inferred_methods": [
-            "POST"
+            "POST",
+            "PUT",
+            "DELETE"
           ],
           "methods": [
             "GET",
-            "POST"
+            "POST",
+            "PUT",
+            "DELETE"
           ]
         },
         "policy_author": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "PUT",
+            "DELETE"
+          ],
           "methods": [
             "GET",
-            "POST"
+            "POST",
+            "PUT",
+            "DELETE"
           ]
         },
         "second_approver": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "PUT",
+            "DELETE"
+          ],
           "methods": [
             "GET",
-            "POST"
+            "POST",
+            "PUT",
+            "DELETE"
           ]
         },
         "tenant_admin": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "PUT",
+            "DELETE"
+          ],
           "methods": [
             "GET",
-            "POST"
+            "POST",
+            "PUT",
+            "DELETE"
           ]
         }
       }
@@ -609,19 +762,25 @@
           ]
         },
         "manager": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "DELETE"
+          ],
           "methods": [
             "GET",
             "POST",
-            "PUT"
+            "PUT",
+            "DELETE"
           ]
         },
         "member": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "DELETE"
+          ],
           "methods": [
             "GET",
             "POST",
-            "PUT"
+            "PUT",
+            "DELETE"
           ]
         }
       }
@@ -630,68 +789,108 @@
       "outside_baseline": false,
       "roles": {
         "appraiser": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "POST"
+          ],
           "methods": [
             "GET",
+            "POST",
             "PUT"
           ]
         },
         "decider": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "POST"
+          ],
           "methods": [
             "GET",
+            "POST",
             "PUT"
           ]
         },
         "inspector": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "POST"
+          ],
           "methods": [
             "GET",
+            "POST",
             "PUT"
           ]
         },
         "leader": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "POST"
+          ],
           "methods": [
             "GET",
+            "POST",
             "PUT"
           ]
         },
         "manager": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "POST"
+          ],
           "methods": [
             "GET",
+            "POST",
             "PUT"
           ]
         },
         "member": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "POST"
+          ],
           "methods": [
             "GET",
+            "POST",
             "PUT"
           ]
         },
         "platform_admin": {
           "inferred_methods": [
-            "GET"
-          ],
-          "methods": [
-            "GET"
-          ]
-        },
-        "second_approver": {
-          "inferred_methods": [],
-          "methods": [
             "GET",
+            "POST",
             "PUT"
-          ]
-        },
-        "tenant_admin": {
-          "inferred_methods": [],
+          ],
           "methods": [
             "GET",
             "POST",
             "PUT"
+          ]
+        },
+        "policy_author": {
+          "inferred_methods": [
+            "GET",
+            "POST",
+            "PUT"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "PUT"
+          ]
+        },
+        "second_approver": {
+          "inferred_methods": [
+            "POST"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "PUT"
+          ]
+        },
+        "tenant_admin": {
+          "inferred_methods": [
+            "PATCH"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH"
           ]
         }
       }
@@ -700,10 +899,13 @@
       "outside_baseline": false,
       "roles": {
         "appraiser": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "PUT"
+          ],
           "methods": [
             "GET",
-            "POST"
+            "POST",
+            "PUT"
           ]
         },
         "decider": {
@@ -715,6 +917,16 @@
         },
         "inspector": {
           "inferred_methods": [],
+          "methods": [
+            "GET",
+            "POST"
+          ]
+        },
+        "manager": {
+          "inferred_methods": [
+            "GET",
+            "POST"
+          ],
           "methods": [
             "GET",
             "POST"
@@ -813,9 +1025,12 @@
           ]
         },
         "appraiser": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "POST"
+          ],
           "methods": [
-            "GET"
+            "GET",
+            "POST"
           ]
         },
         "leader": {
@@ -879,10 +1094,12 @@
         },
         "tenant_admin": {
           "inferred_methods": [
-            "GET"
+            "GET",
+            "PUT"
           ],
           "methods": [
-            "GET"
+            "GET",
+            "PUT"
           ]
         }
       }
@@ -985,6 +1202,14 @@
             "GET"
           ]
         },
+        "decider": {
+          "inferred_methods": [
+            "GET"
+          ],
+          "methods": [
+            "GET"
+          ]
+        },
         "inspector": {
           "inferred_methods": [
             "GET"
@@ -994,10 +1219,17 @@
           ]
         },
         "leader": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "PUT",
+            "PATCH",
+            "DELETE"
+          ],
           "methods": [
             "GET",
-            "POST"
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE"
           ]
         },
         "manager": {
@@ -1011,7 +1243,44 @@
           ]
         },
         "member": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "PUT"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "PUT"
+          ]
+        },
+        "platform_admin": {
+          "inferred_methods": [
+            "GET"
+          ],
+          "methods": [
+            "GET"
+          ]
+        },
+        "policy_author": {
+          "inferred_methods": [
+            "GET"
+          ],
+          "methods": [
+            "GET"
+          ]
+        },
+        "second_approver": {
+          "inferred_methods": [
+            "GET"
+          ],
+          "methods": [
+            "GET"
+          ]
+        },
+        "tenant_admin": {
+          "inferred_methods": [
+            "GET",
+            "POST"
+          ],
           "methods": [
             "GET",
             "POST"
@@ -1068,10 +1337,12 @@
         },
         "policy_author": {
           "inferred_methods": [
+            "POST",
             "PUT"
           ],
           "methods": [
             "GET",
+            "POST",
             "PUT"
           ]
         },
@@ -1134,6 +1405,18 @@
           "methods": [
             "GET",
             "POST"
+          ]
+        },
+        "platform_admin": {
+          "inferred_methods": [
+            "GET",
+            "POST",
+            "PUT"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "PUT"
           ]
         },
         "policy_author": {
@@ -5426,7 +5709,7 @@
   },
   "meta": {
     "generated_by": "python3 docs/phan-quyen/gen_matrix.py --rego",
-    "matrix_version": "1.0 (19/10/2026)",
+    "matrix_version": "1.1 (24/10/2026)",
     "note": "TỆP SINH TỰ ĐỘNG, KHÔNG SỬA TAY",
     "source": "docs/phan-quyen/ma-tran.json"
   },
