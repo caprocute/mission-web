@@ -1373,7 +1373,7 @@ export class TenantOnboardingPage {
   protected readonly msg0103 = MSG_01_03;
   protected readonly msg0104 = MSG_01_04;
   protected readonly min100 = (r: number) => Math.min(100, r * 100);
-  protected readonly dc = (code: string) => DC_LABEL[code] ?? code;
+  protected readonly dc = (code: string) => DC_LABEL[code] ?? 'Trung tâm dữ liệu khác';
   protected readonly kindOf = (i: Pick<IdpRow, 'protocol' | 'isVneid'>) => idpKind(i);
 
   protected readonly record = rxResource({

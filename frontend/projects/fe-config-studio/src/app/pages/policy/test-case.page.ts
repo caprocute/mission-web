@@ -822,12 +822,14 @@ export class TestCasePage {
 
   protected changeTitle(c: PolicyDiffChange) {
     const p = (c.path ?? '').replace(/^params\./, '');
+    // ui-text-ok: tham số, giá trị và lựa chọn do người soạn chính sách tự đặt, không có bảng nhãn cố định
     return c.kind === 'PARAM' ? (PARAM_LABEL[p] ?? p) : this.ws.label(c.key);
   }
 
   protected value(v: unknown): string {
     if (v === null || v === undefined) return '—';
     if (typeof v === 'number') return fmtNum(v, 3);
+    // ui-text-ok: tham số, giá trị và lựa chọn do người soạn chính sách tự đặt, không có bảng nhãn cố định
     if (typeof v === 'string') return VALUE_LABEL[v] ?? v;
     return JSON.stringify(v);
   }

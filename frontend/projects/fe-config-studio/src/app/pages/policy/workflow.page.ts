@@ -49,6 +49,7 @@ function choices(s: Schema | undefined, labels: Record<string, string> = {}): Ch
   if (one)
     return one.map((o) => ({ value: o.const, label: o.title ?? labels[o.const] ?? o.const }));
   const en = s?.['enum'] as string[] | undefined;
+  // ui-text-ok: tham số, giá trị và lựa chọn do người soạn chính sách tự đặt, không có bảng nhãn cố định
   return (en ?? []).map((v) => ({ value: v, label: labels[v] ?? v }));
 }
 

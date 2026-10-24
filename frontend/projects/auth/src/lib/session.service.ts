@@ -393,7 +393,7 @@ export class SessionService {
 
   aal2Reason(a: Assignment): string {
     const role = a.roles.find((r) => (AAL2_ROLES as readonly string[]).includes(r)) ?? '';
-    return MSG_00_05(ROLE_LABEL[role] ?? role);
+    return MSG_00_05(ROLE_LABEL[role] ?? 'được giao');
   }
 
   /** Ghi ngữ cảnh phiên rồi làm mới token để nhận claim `org` (SCR-0001 "Chọn phân công"). */

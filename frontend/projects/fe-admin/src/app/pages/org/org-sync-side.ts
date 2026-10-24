@@ -174,7 +174,8 @@ export class OrgSyncSide {
   readonly canRetryRun = input(false);
   readonly retry = output<OrgSyncRun>();
 
-  protected readonly actText = (a: string) => SUGGESTED_ACTION_LABEL[a] ?? a;
+  protected readonly actText = (a: string) =>
+    SUGGESTED_ACTION_LABEL[a] ?? 'Xem xét, xử lý thủ công';
   protected readonly src = SYNC_SOURCE_LABEL;
   protected readonly date = fmtDate;
   protected readonly dateTime = fmtDateTime;

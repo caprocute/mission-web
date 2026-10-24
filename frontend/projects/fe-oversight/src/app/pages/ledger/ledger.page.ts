@@ -21,6 +21,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   LEDGER_ACTOR_KIND_LABEL,
   LEDGER_AGGREGATE_TYPE_LABEL,
+  ledgerAggregateTypeLabel,
   LEDGER_ANCHOR_TARGET_LABEL,
   LEDGER_DEFAULT_RANGE_DAYS,
   LEDGER_VERIFY_KIND_LABEL,
@@ -864,7 +865,7 @@ export class LedgerPage {
     return values((e.metadata as { after?: unknown } | undefined)?.after);
   }
   protected typeLabel(t: string) {
-    return LEDGER_AGGREGATE_TYPE_LABEL[t] ?? t;
+    return ledgerAggregateTypeLabel(t);
   }
   protected event(t: string) {
     return eventLabel(t);

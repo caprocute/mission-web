@@ -25,7 +25,9 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 API = os.environ.get("SEED_API", "http://127.0.0.1:35000/api/v1").rstrip("/")
-TIEN_TO = "[Mẫu dev]"
+# Nhiệm vụ mẫu nhận theo đúng tên; bản ghi do bản cũ tạo (có tiền tố) vẫn được nhận để không sinh trùng.
+TEN_MAU = "Rà soát số liệu báo cáo tháng"
+TEN_MAU_CU = "[Mẫu dev] " + TEN_MAU
 
 
 def nap_env() -> dict:
@@ -107,7 +109,7 @@ def main() -> int:
     t_cb = token("canbo", env)
     ql, cb = claims(t_ql), claims(t_cb)
     _, viec, _ = goi(t_ql, "GET", f"/tasks?period={ky['id']}&limit=200")
-    mau = next((v for v in viec["items"] if v["title"].startswith(TIEN_TO)), None)
+    mau = next((v for v in viec["items"] if v["title"] in (TEN_MAU, TEN_MAU_CU)), None)
     if mau and mau["status"] != "NHAP":
         print("Đã có nhiệm vụ mẫu trong kỳ")
         return 0
@@ -131,7 +133,7 @@ def main() -> int:
             "unitName": "",
             "assignerId": ql["sub"],
             "assignerName": ql.get("name", "quanly"),
-            "title": f"{TIEN_TO} Rà soát số liệu báo cáo tháng",
+            "title": TEN_MAU,
             "taskGroup": "THUONG_XUYEN",
             "priority": "TRUNG_BINH",
             "productName": "Bảng số liệu đã rà soát",

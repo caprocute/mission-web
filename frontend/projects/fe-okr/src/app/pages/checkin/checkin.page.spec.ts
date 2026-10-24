@@ -1,4 +1,9 @@
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import {
+  HttpInterceptorFn,
+  HttpResponse,
+  provideHttpClient,
+  withInterceptors,
+} from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
@@ -11,7 +16,7 @@ import {
   mockApiInterceptor,
 } from '@vt/api-client';
 import { ThemeService } from '@vt/design-system';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, map } from 'rxjs';
 import { resetMockData } from '../../../../../api-client/src/mock/mock-registry';
 import { OKR_CAN, OkrPermissionKey } from '../../okr-permissions';
 import { OkrCheckinPage } from './checkin.page';
@@ -21,6 +26,7 @@ async function render(
   url = '/checkin',
   can: (k: OkrPermissionKey) => boolean = () => true,
   elderly = false,
+  extra: HttpInterceptorFn[] = [],
 ) {
   resetMockData();
   TestBed.configureTestingModule({
@@ -29,7 +35,7 @@ async function render(
         { path: 'checkin', component: OkrCheckinPage },
         { path: '**', children: [] },
       ]),
-      provideHttpClient(withInterceptors([idempotencyInterceptor, mockApiInterceptor])),
+      provideHttpClient(withInterceptors([idempotencyInterceptor, ...extra, mockApiInterceptor])),
       { provide: RUNTIME_CONFIG, useValue: DEFAULT_RUNTIME_CONFIG },
       {
         provide: MOCK_API_OPTIONS,
@@ -181,5 +187,30 @@ describe('OkrCheckinPage (SCR-0301)', () => {
     expect(buttons(el)).not.toContain('Lưu nháp');
     expect(buttons(el)).not.toContain('Lịch sử');
     expect(el.querySelector('vt-checkin-trend')).toBeNull();
+  });
+
+  it('chế độ cao tuổi: KR chưa từng check-in được chọn sẵn mức Trung bình, gửi ngay (NFR-11)', async () => {
+    // giả như KR chưa có lần check-in nào và chưa có nháp
+    const chuaCheckin: HttpInterceptorFn = (req, next) =>
+      next(req).pipe(
+        map((e) =>
+          e instanceof HttpResponse && /\/okr\/key-results\/[^/]+$/.test(req.url)
+            ? e.clone({
+                body: { ...(e.body as object), lastCheckin: undefined, myDraftCheckin: undefined },
+              })
+            : e,
+        ),
+      );
+    let el = await render('/checkin', () => true, false, [chuaCheckin]);
+    expect([...el.querySelectorAll<HTMLInputElement>('.level input')].some((i) => i.checked)).toBe(
+      false,
+    );
+    TestBed.resetTestingModule();
+    el = await render('/checkin', () => true, true, [chuaCheckin]);
+    await until(el, 'small', (s) => text(s).includes('cập nhật lúc'));
+    expect(radio(el, 'Trung bình').checked).toBe(true);
+    button(el, 'Gửi check-in')!.click();
+    const msg = await until(el, '[role="status"]', (e) => text(e).startsWith('Đã gửi'));
+    expect(text(msg)).toContain('Đã gửi check-in KR 1.1');
   });
 });

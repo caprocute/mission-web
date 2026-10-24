@@ -123,6 +123,7 @@ export class PolicyDiffDialog {
     if (c.kind === 'DECISION_TABLE') return 'Bảng quyết định xếp loại';
     if (c.kind === 'PARAM') {
       const p = (c.path ?? '').replace(/^params\./, '');
+      // ui-text-ok: tham số, giá trị và lựa chọn do người soạn chính sách tự đặt, không có bảng nhãn cố định
       return `${what}: ${PARAM_LABEL[p] ?? p}`;
     }
     return c.change === 'THEM' ? `${what} (thêm mới)` : `${what}: biểu thức`;
@@ -131,6 +132,7 @@ export class PolicyDiffDialog {
   protected show(v: unknown): string {
     if (v === null || v === undefined) return '—';
     if (typeof v === 'number') return fmtNum(v);
+    // ui-text-ok: tham số, giá trị và lựa chọn do người soạn chính sách tự đặt, không có bảng nhãn cố định
     if (typeof v === 'string') return VALUE_LABEL[v] ?? v;
     if (typeof v === 'object') {
       return Object.entries(v as Record<string, unknown>)

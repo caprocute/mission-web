@@ -630,8 +630,9 @@ export class ReopenDetailPage {
     const u = this.unitsRes.hasValue() ? this.unitsRes.value() : undefined;
     return u?.items.find((x) => x.id === id)?.name ?? 'Đơn vị trong phạm vi';
   }
-  /** Giá trị xếp loại trả về dạng mã được đổi sang tên đầy đủ. */
+  /** Giá trị xếp loại trả về dạng mã được đổi sang tên đầy đủ; giá trị số (điểm) giữ nguyên. */
   protected metricValue(v?: string | null) {
+    // ui-text-ok: giá trị không phải mã xếp loại là số điểm đã định dạng, hiện nguyên
     return v ? ((RATING_LEVEL_LABEL as Record<string, string>)[v] ?? v) : '—';
   }
   protected table(t: string) {

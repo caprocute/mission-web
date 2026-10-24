@@ -338,8 +338,9 @@ export class OrgSyncList {
   protected readonly sevs = Object.keys(SEVERITY_LABEL) as DiscrepancySeverity[];
   protected readonly int = fmtInt;
   protected readonly err = errorText;
-  protected readonly fieldText = (f: string) => DISCREPANCY_FIELD_LABEL[f] ?? f;
-  protected readonly actText = (a: string) => SUGGESTED_ACTION_LABEL[a] ?? a;
+  protected readonly fieldText = (f: string) => DISCREPANCY_FIELD_LABEL[f] ?? 'Thông tin khác';
+  protected readonly actText = (a: string) =>
+    SUGGESTED_ACTION_LABEL[a] ?? 'Xem xét, xử lý thủ công';
 
   readonly field = signal<string | null>(null);
   readonly severity = signal<DiscrepancySeverity | null>(null);

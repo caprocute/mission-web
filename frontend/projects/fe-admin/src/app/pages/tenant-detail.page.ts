@@ -248,14 +248,14 @@ export class TenantDetailPage {
 
   protected readonly domainKind = DOMAIN_KIND_LABEL;
   protected readonly modelLabel = TENANCY_MODEL_LABEL;
-  protected dc = (code: string) => DATA_CENTER_LABEL[code] ?? code;
+  protected dc = (code: string) => DATA_CENTER_LABEL[code] ?? 'Trung tâm dữ liệu khác';
   protected readonly int = fmtInt;
   protected readonly date = fmtDate;
   protected readonly dateTime = fmtDateTime;
   protected readonly err = errorText;
   protected readonly msg = MSG_01_02;
   protected status = (s: TenantStatus) => TENANT_STATUS_LABEL[s];
-  protected sector = (s: string) => TENANT_SECTOR_LABEL[s] ?? s;
+  protected sector = (s: string) => TENANT_SECTOR_LABEL[s] ?? 'Lĩnh vực khác';
   protected uiPack = (p: { name: string; version: string }) =>
     p.version ? `${p.name} v${p.version}` : p.name;
 }

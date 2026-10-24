@@ -7,7 +7,7 @@ Chạy sau `seed-org.sh`, `dong-bo-to-chuc.sh` và khi đã có kỳ đang mở 
      Mục tiêu phòng ban soạn ở HT-08 chọn được mục tiêu cấp trên đã duyệt (BR-02-02).
   2. `canbo` soạn mục tiêu cá nhân ở Phòng Tổng hợp phân rã từ mục tiêu của Sở, trình; `lanhdao` phê duyệt.
      `canbo` có KR đã duyệt để check-in ở HT-09 (SCR-0301).
-Chạy lại không sinh bản ghi trùng: mục tiêu mẫu (tên bắt đầu bằng "[Mẫu dev]") đã duyệt thì bỏ qua, còn nháp hay chờ
+Chạy lại không sinh bản ghi trùng: mục tiêu mẫu (nhận theo đúng tên trong tệp này) đã duyệt thì bỏ qua, còn nháp hay chờ
 duyệt thì đi tiếp từ bước dở. Gọi API như người dùng nên kiểm tra nghiệp vụ, kiểm toán và sự kiện chạy như trên màn
 hình. Chỉ dùng thư viện chuẩn, không in token.
 
@@ -25,7 +25,8 @@ _base = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_base)
 nap_env, token, claims, goi = _base.nap_env, _base.token, _base.claims, _base.goi
 
-TIEN_TO = "[Mẫu dev]"
+# Tên hiển thị như dữ liệu thật; bản ghi do bản cũ tạo (có tiền tố) vẫn được nhận để không sinh trùng.
+TIEN_TO_CU = "[Mẫu dev] "
 SO = "d0000000-0000-4000-8000-000000000100"
 PHONG_TH = "d0000000-0000-4000-8000-000000000101"
 
@@ -36,7 +37,7 @@ def etag(o: dict, e) -> str:
 
 def mau(tok: str, ky: dict, unit: str, ten: str):
     _, ds, _ = goi(tok, "GET", f"/okr/objectives?period={ky['id']}&unit={unit}&view=table&limit=200")
-    return next((o for o in ds["items"] if o["title"] == ten), None)
+    return next((o for o in ds["items"] if o["title"] in (ten, TIEN_TO_CU + ten)), None)
 
 
 def lap(tac_gia: str, duyet: str, ky: dict, can_cu: str, ten: str, than: dict) -> dict:
@@ -77,10 +78,10 @@ def main() -> int:
     if not cc["items"]:
         sys.exit("Chưa có căn cứ OKR: chạy seed-org.sh (okr-can-cu-thu.sql) trước")
     can_cu = cc["items"][0]["id"]
-    so = lap(t_pgd, t_gd, ky, can_cu, f"{TIEN_TO} Nâng cao chất lượng tham mưu của Sở",
+    so = lap(t_pgd, t_gd, ky, can_cu, "Nâng cao chất lượng tham mưu của Sở",
              {"ownerType": "TAP_THE", "ownerUnitId": SO,
               "keyResults": [kr("Tỷ lệ văn bản tham mưu đúng hạn", claims(t_gd)["sub"])]})
-    lap(t_cb, t_ld, ky, can_cu, f"{TIEN_TO} Hoàn thành đúng hạn báo cáo tổng hợp",
+    lap(t_cb, t_ld, ky, can_cu, "Hoàn thành đúng hạn báo cáo tổng hợp",
         {"ownerType": "CA_NHAN", "ownerUnitId": PHONG_TH, "ownerPersonId": claims(t_cb)["sub"],
          "parentObjectiveId": so["id"],
          "keyResults": [kr("Tỷ lệ báo cáo tổng hợp nộp đúng hạn", claims(t_ql)["sub"])]})

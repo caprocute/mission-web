@@ -650,7 +650,7 @@ export class OrgTreePage {
   protected readonly canChange = computed(() => !!this.u() && !this.ended());
 
   protected flows(u: OrgUnitDetail) {
-    return u.flows.map((f) => FLOW_LABEL[f] ?? f).join(' và ');
+    return u.flows.map((f) => FLOW_LABEL[f] ?? 'luồng khác').join(' và ');
   }
   protected versionTitle(h: OrgUnitVersion) {
     if (h.changeType) return this.kindLabel[h.changeType];
