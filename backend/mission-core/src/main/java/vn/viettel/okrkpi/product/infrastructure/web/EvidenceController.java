@@ -57,6 +57,7 @@ import vn.viettel.okrkpi.contract.products.model.EvidenceVersion;
 import vn.viettel.okrkpi.contract.products.model.EvidenceVersionDraft;
 import vn.viettel.okrkpi.contract.products.model.EvidenceVersionFile;
 import vn.viettel.okrkpi.contract.products.model.EvidenceVersionFileInput;
+import vn.viettel.okrkpi.contract.products.model.EvidenceVersionIntegrity;
 import vn.viettel.okrkpi.contract.products.model.EvidenceVersionSource;
 import vn.viettel.okrkpi.contract.products.model.EvidenceVersionStatus;
 import vn.viettel.okrkpi.contract.products.model.EvidenceVersionSummary;
@@ -376,6 +377,12 @@ public class EvidenceController {
     VersionDetail v = found(() -> service.getVersion(tenant, id, versionNo));
     EvidenceVersion dto = version(v);
     dto.permittedActions(reviews.permittedOn(tenant, v.version(), actor().personId()));
+    // Màn hình nghiệm thu và màn hình nộp hiện kết quả, nhận xét yêu cầu bổ sung từ trường này
+    // (QA-05)
+    acceptances
+        .latestOf(tenant, v.version(), actor().personId())
+        .ifPresent(a -> dto.acceptance(acceptance(a)));
+    dto.hasPriorRevisionRequest(acceptances.hasPriorRevision(tenant, v.version()));
     if (v.version().hasE2ee()) {
       dto.setKeyWrap(
           keyWraps
@@ -539,7 +546,23 @@ public class EvidenceController {
     TenantId tenant = TenantContext.require();
     found(() -> reviews.openReview(tenant, id, versionNo, expected, actor));
     VersionDetail v = found(() -> service.getVersion(tenant, id, versionNo));
-    return ETags.ok(version(v), v.version().rowVersion());
+    // Mở nghiệm thu đã kiểm mã băm từng tệp (lệch thì ném lỗi), nên kết quả lần mở này là đạt;
+    // SCR-0703 chỉ cho đánh giá khi có kết quả này.
+    EvidenceVersion dto =
+        version(v)
+            .integrity(
+                new EvidenceVersionIntegrity()
+                    .verified(true)
+                    .checkedAt(OffsetDateTime.now(ZoneOffset.UTC)));
+    // Mở thành công nghĩa là người gọi là người nghiệm thu và phiên bản đang nghiệm thu (YC-PT-21).
+    dto.permittedActions(
+        new java.util.LinkedHashSet<>(
+            List.of(
+                EvidenceReviewService.MO,
+                EvidenceReviewService.XAC_NHAN,
+                EvidenceReviewService.BO_SUNG_TU_CHOI)));
+    dto.hasPriorRevisionRequest(acceptances.hasPriorRevision(tenant, v.version()));
+    return ETags.ok(dto, v.version().rowVersion());
   }
 
   @PostMapping("/evidences/{id}/versions/{v}/accept")
@@ -642,36 +665,40 @@ public class EvidenceController {
   }
 
   static EvidenceDecisionResult decision(Decision d) {
-    AcceptanceView a = d.acceptance();
-    EvidenceAcceptance dto =
-        new EvidenceAcceptance()
-            .id(a.id())
-            .evidenceVersionId(a.versionId())
-            .decision(EvidenceAcceptanceDecision.fromValue(a.decision()))
-            .qualityLevel(
-                a.qualityLevel() == null ? null : QualityLevel.fromValue(a.qualityLevel()))
-            .criteriaResults(
-                a.criteria().stream()
-                    .map(
-                        c ->
-                            new EvidenceCriterionResult()
-                                .criterionCode(c.code())
-                                .passed(c.passed())
-                                .note(c.note()))
-                    .toList())
-            .revisionCause(
-                a.revisionCause() == null ? null : RevisionCause.fromValue(a.revisionCause()))
-            .isObjectiveRevision(a.objectiveRevision())
-            .revisionCount(a.revisionCount())
-            .comment(a.comment())
-            .reviewer(new Ref().id(a.reviewerId()).name(""))
-            .onBehalfOf(a.onBehalfOf() == null ? null : new Ref().id(a.onBehalfOf()).name(""))
-            .delegationId(a.delegationId())
-            .decidedAt(time(a.decidedAt()));
     return new EvidenceDecisionResult()
-        .acceptance(dto)
+        .acceptance(acceptance(d.acceptance()))
         .versionStatus(EvidenceVersionStatus.fromValue(d.versionStatus()))
         .taskStatusChanged(d.taskStatusChanged());
+  }
+
+  static EvidenceAcceptance acceptance(AcceptanceView a) {
+    return new EvidenceAcceptance()
+        .id(a.id())
+        .evidenceVersionId(a.versionId())
+        .decision(EvidenceAcceptanceDecision.fromValue(a.decision()))
+        // Cột numeric trả 1.00, 0.50: bỏ số 0 thừa để khớp năm mức của hợp đồng
+        .qualityLevel(
+            a.qualityLevel() == null
+                ? null
+                : QualityLevel.fromValue(a.qualityLevel().stripTrailingZeros()))
+        .criteriaResults(
+            a.criteria().stream()
+                .map(
+                    c ->
+                        new EvidenceCriterionResult()
+                            .criterionCode(c.code())
+                            .passed(c.passed())
+                            .note(c.note()))
+                .toList())
+        .revisionCause(
+            a.revisionCause() == null ? null : RevisionCause.fromValue(a.revisionCause()))
+        .isObjectiveRevision(a.objectiveRevision())
+        .revisionCount(a.revisionCount())
+        .comment(a.comment())
+        .reviewer(new Ref().id(a.reviewerId()).name(""))
+        .onBehalfOf(a.onBehalfOf() == null ? null : new Ref().id(a.onBehalfOf()).name(""))
+        .delegationId(a.delegationId())
+        .decidedAt(time(a.decidedAt()));
   }
 
   static Deliverable deliverable(DeliverableView d) {

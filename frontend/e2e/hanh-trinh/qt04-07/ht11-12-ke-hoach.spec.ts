@@ -40,6 +40,8 @@ const KH = seed<{
 interface KeHoach {
   id: string;
   currentVersion: { versionNo: number; status: string };
+  adjustmentsUsed?: number;
+  adjustmentsMax?: number;
 }
 
 /**
@@ -388,6 +390,11 @@ test.describe('Kế hoạch quý', { tag: '@qa-05' }, () => {
       });
       const kh = ds.body.items[0];
       if (!kh) test.skip(true, 'Chờ: chưa có kế hoạch đã duyệt trong kỳ (chạy HT-11 trước)');
+      // BR-04-10: mỗi kỳ chỉ điều chỉnh một số lần; dev chạy lại nhiều lượt có thể đã dùng hết
+      test.skip(
+        kh.adjustmentsMax != null && (kh.adjustmentsUsed ?? 0) >= kh.adjustmentsMax,
+        'Chờ: kế hoạch đã dùng hết số lần điều chỉnh của kỳ ở các lượt chạy trước',
+      );
       planId = kh.id;
       planUrl = `/plans?plan=${kh.id}&v=${kh.currentVersion.versionNo}`;
     }

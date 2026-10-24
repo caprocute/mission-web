@@ -1,4 +1,10 @@
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import {
+  HttpInterceptorFn,
+  HttpResponse,
+  provideHttpClient,
+  withInterceptors,
+} from '@angular/common/http';
+import { map } from 'rxjs';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import {
@@ -15,12 +21,16 @@ import { EVIDENCE_SCAN_POLL_MS, EvidenceSubmitPage } from './evidence-submit.pag
 /** WEB-032: SCR-0701 trên dữ liệu giả lập: phiên bản 2 như Hình 8.13, quét, trùng mã băm, nộp, chỉ đọc. */
 const EV = '0192a1b2-0000-7000-8000-000000000142';
 
-async function render(can: (k: string) => boolean = () => true, elderly = false) {
+async function render(
+  can: (k: string) => boolean = () => true,
+  elderly = false,
+  extra: HttpInterceptorFn[] = [],
+) {
   TestBed.configureTestingModule({
     imports: [EvidenceSubmitPage],
     providers: [
       provideRouter([]),
-      provideHttpClient(withInterceptors([idempotencyInterceptor, mockApiInterceptor])),
+      provideHttpClient(withInterceptors([...extra, idempotencyInterceptor, mockApiInterceptor])),
       { provide: RUNTIME_CONFIG, useValue: DEFAULT_RUNTIME_CONFIG },
       {
         provide: MOCK_API_OPTIONS,
@@ -72,6 +82,22 @@ function pick(el: HTMLElement, file: File) {
   Object.defineProperty(input, 'files', { value: [file], configurable: true });
   input.dispatchEvent(new Event('change'));
 }
+
+/** Phiên bản cuối vừa bị yêu cầu bổ sung, máy chủ trả kèm quyết định nghiệm thu gần nhất. */
+const returned: HttpInterceptorFn = (req, next) =>
+  next(req).pipe(
+    map((ev) =>
+      ev instanceof HttpResponse && req.method === 'GET' && /\/versions\/\d+$/.test(req.url)
+        ? ev.clone({
+            body: {
+              ...(ev.body as object),
+              status: 'YEU_CAU_BO_SUNG',
+              acceptance: { decision: 'YEU_CAU_BO_SUNG', comment: 'Bổ sung bảng tổng hợp quý.' },
+            },
+          })
+        : ev,
+    ),
+  );
 
 describe('EvidenceSubmitPage (SCR-0701)', () => {
   beforeEach(async () => (await import('@vt/api-client')).resetMockApi());
@@ -135,5 +161,12 @@ describe('EvidenceSubmitPage (SCR-0701)', () => {
     expect(button(el, 'Lưu nháp')).toBeUndefined();
     expect(el.querySelector('#file-in')).toBeNull();
     expect([...el.querySelectorAll('.tbl th')].map(text)).not.toContain('Mã kiểm tra toàn vẹn');
+  });
+
+  it('phiên bản bị yêu cầu bổ sung: hiện ý kiến người nghiệm thu cho người nộp', async () => {
+    const el = await render(() => true, false, [returned]);
+    await until(() => el.querySelector('#ret-h'));
+    expect(text(el.querySelector('#ret-h'))).toBe('Ý kiến người nghiệm thu đề nghị bổ sung');
+    expect(text(el.querySelector('#ret-h + p'))).toBe('Bổ sung bảng tổng hợp quý.');
   });
 });

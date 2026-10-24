@@ -41,4 +41,15 @@ public class FieldEncryptorCommentSealer implements CommentSealer {
             plain.getBytes(StandardCharsets.UTF_8));
     return new SealedComment(f.ciphertext(), f.dekId());
   }
+
+  @Override
+  public String open(TenantId tenant, UUID acceptanceId, byte[] cipher) {
+    FieldEncryptor e =
+        Objects.requireNonNull(encryptor.get(), "Chưa cấu hình mã hoá trường C2 (FieldEncryptor)");
+    return e.decryptToString(
+        tenant.value(),
+        DekPurpose.NHAN_XET_DANH_GIA,
+        List.of(COLUMN, acceptanceId.toString()),
+        cipher);
+  }
 }

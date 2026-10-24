@@ -48,7 +48,10 @@ public final class AcceptanceRules {
       throw new EvidenceRuleViolation(
           EvidenceRuleViolation.VALIDATION, "Mức chất lượng chỉ nhận 1; 0,75; 0,5; 0,25 hoặc 0");
     }
-    checkCriteria(criteria, true);
+    // Phải đánh giá đủ các tiêu chuẩn bắt buộc; nhiệm vụ không có tiêu chuẩn có cấu trúc nào (danh
+    // sách
+    // tiêu chuẩn của phiên bản rỗng) thì danh sách kết quả rỗng là đủ (QA-05 HT-21).
+    checkCriteria(criteria, false);
     Set<String> given = new HashSet<>();
     criteria.forEach(c -> given.add(c.code().strip()));
     if (!given.containsAll(required)) {

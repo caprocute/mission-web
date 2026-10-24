@@ -807,6 +807,12 @@ services:
       ESIGN_URL: http://esign-service:8080
       MISSION_APPRAISAL_ESIGN_BASEURL: http://esign-service:8080
       MISSION_OVERSIGHT_ESIGN_BASEURL: http://esign-service:8080
+      # Mã hoá trường C2 (nhận xét nghiệm thu, tự đánh giá) bọc DEK qua OpenBao Transit; thiếu cấu hình thì
+      # "Yêu cầu bổ sung" minh chứng trả 500 (QA-05 HT-21). KEK mỗi tenant tự tạo ở dev.
+      OKRKPI_CRYPTO_OPENBAOBASEURL: http://openbao:8200
+      OKRKPI_CRYPTO_TOKENFILE: /run/secrets/openbao_token
+      OKRKPI_CRYPTO_AUTOCREATEKEK: "true"
+    secrets: [openbao_token]
     ports:
       - "${MISSION_CORE_PORT:-35100}:8080"
       # Cổng quản trị chỉ mở trên loopback của máy chủ (health.sh, Prometheus cục bộ).

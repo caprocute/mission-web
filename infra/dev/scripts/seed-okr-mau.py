@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Nạp OKR mẫu đã phê duyệt cho dev qua API thật (APISIX → mission-core), để hành trình HT-08, HT-09 chạy được.
 
-Chạy sau `seed-org.sh`, `dong-bo-to-chuc.sh` và khi đã có kỳ đang mở bao trùm hôm nay (`seed-ky-hien-hanh.sh` hoặc
+Chạy sau `seed-org.sh`, `dong-bo-to-chuc.sh` và khi đã có kỳ đang mở bao trùm hôm nay (nạp cho mọi kỳ như vậy) (`seed-ky-hien-hanh.sh` hoặc
 `seed-ky-nhiem-vu.py`):
   1. `phogiamdocso` soạn mục tiêu tập thể của Sở Thử nghiệm (đơn vị cấp cao nhất), trình; `giamdocso` phê duyệt.
      Mục tiêu phòng ban soạn ở HT-08 chọn được mục tiêu cấp trên đã duyệt (BR-02-02).
@@ -78,19 +78,7 @@ def kr(ten: str, nguoi_xac_nhan: str) -> dict:
             "direction": "TANG", "weight": 1, "verifierPersonId": nguoi_xac_nhan, "checkinFrequency": "TUAN"}
 
 
-def main() -> int:
-    env = nap_env()
-    hom = dt.date.today().isoformat()
-    t_pgd, t_gd = token("phogiamdocso", env), token("giamdocso", env)
-    t_cb, t_ld, t_ql = token("canbo", env), token("lanhdao", env), token("quanly", env)
-    _, ds, _ = goi(t_pgd, "GET", "/periods?status=MO&limit=200")
-    ky = next((k for k in ds["items"] if k["startDate"] <= hom <= k["endDate"]), None)
-    if not ky:
-        sys.exit("Chưa có kỳ đang mở bao trùm hôm nay: chạy seed-ky-hien-hanh.sh trước")
-    _, cc, _ = goi(t_pgd, "GET", "/okr/bases?limit=20")
-    if not cc["items"]:
-        sys.exit("Chưa có căn cứ OKR: chạy seed-org.sh (okr-can-cu-thu.sql) trước")
-    can_cu = cc["items"][0]["id"]
+def nap_ky(ky: dict, can_cu: str, t_pgd: str, t_gd: str, t_cb: str, t_ld: str, t_ql: str) -> None:
     so = lap(t_pgd, t_gd, ky, can_cu, f"{TIEN_TO} Nâng cao chất lượng tham mưu của Sở",
              {"ownerType": "TAP_THE", "ownerUnitId": SO,
               "keyResults": [kr("Tỷ lệ văn bản tham mưu đúng hạn", claims(t_gd)["sub"])]})
@@ -103,6 +91,25 @@ def main() -> int:
           {"ownerType": "CA_NHAN", "ownerUnitId": PHONG_TH, "ownerPersonId": claims(t_cb)["sub"],
            "parentObjectiveId": so["id"],
            "keyResults": [kr("Tỷ lệ mẫu biểu được chuẩn hoá", claims(t_ql)["sub"])]})
+
+
+def main() -> int:
+    env = nap_env()
+    hom = dt.date.today().isoformat()
+    t_pgd, t_gd = token("phogiamdocso", env), token("giamdocso", env)
+    t_cb, t_ld, t_ql = token("canbo", env), token("lanhdao", env), token("quanly", env)
+    _, ds, _ = goi(t_pgd, "GET", "/periods?status=MO&limit=200")
+    # Mọi kỳ đang mở bao trùm hôm nay (kỳ tháng, kỳ quý của e2e): màn hình soạn mục tiêu mặc định chọn một kỳ
+    # trong số đó, nên mỗi kỳ cần đủ bộ mẫu.
+    kys = [k for k in ds["items"] if k["startDate"] <= hom <= k["endDate"]]
+    if not kys:
+        sys.exit("Chưa có kỳ đang mở bao trùm hôm nay: chạy seed-ky-hien-hanh.sh trước")
+    _, cc, _ = goi(t_pgd, "GET", "/okr/bases?limit=20")
+    if not cc["items"]:
+        sys.exit("Chưa có căn cứ OKR: chạy seed-org.sh (okr-can-cu-thu.sql) trước")
+    can_cu = cc["items"][0]["id"]
+    for ky in kys:
+        nap_ky(ky, can_cu, t_pgd, t_gd, t_cb, t_ld, t_ql)
     return 0
 
 

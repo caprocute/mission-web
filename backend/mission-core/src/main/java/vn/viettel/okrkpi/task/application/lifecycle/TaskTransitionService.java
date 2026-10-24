@@ -344,7 +344,11 @@ public class TaskTransitionService {
         "chu_tri_id",
         tasks.leadAssignee(tenant, task.periodBucket(), task.id()).map(UUID::toString).orElse(""));
     t.put("nguoi_giao_id", task.assignerId() == null ? "" : task.assignerId().toString());
-    t.put("nguoi_nghiem_thu_id", task.acceptorId() == null ? "" : task.acceptorId().toString());
+    // Trường 12 của SCR-0501: người nghiệm thu mặc định là người giao khi chưa chỉ định riêng, khớp
+    // người MOD-03 cho mở nghiệm thu; thiếu mặc định này thì "Yêu cầu bổ sung" bị guard chặn
+    // (QA-05).
+    UUID acceptor = task.acceptorId() != null ? task.acceptorId() : task.assignerId();
+    t.put("nguoi_nghiem_thu_id", acceptor == null ? "" : acceptor.toString());
     t.put("ke_hoach", whole(task.plannedQuantity()));
     long submitted =
         items.isEmpty()
