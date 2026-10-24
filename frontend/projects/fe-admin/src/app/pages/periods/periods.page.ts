@@ -1297,7 +1297,9 @@ export class PeriodsPage {
       .pipe(last(), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (job) => {
-          if (job.status !== 'HOAN_TAT') this.actionError.set(job.problem?.detail ?? failText);
+          // Tiến trình bị huỷ theo đề nghị đã duyệt (BR-08-09) kết thúc DA_HUY: không phải lỗi, kết
+          // quả hoàn tác hiện ở MSG-08-08 của tiến trình.
+          if (job.status === 'THAT_BAI') this.actionError.set(job.problem?.detail ?? failText);
           this.periods.reload();
           if (this.lockId()) this.reloadSaga();
         },
