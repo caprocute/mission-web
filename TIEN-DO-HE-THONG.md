@@ -13,8 +13,8 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 391 task)
 
 - **Tổng tiến độ đã gộp `main`**: **379 / 391 task (96.9%)** — Khối lượng quy đổi đã gộp: **453 / 471 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **379 / 391 task (96.9%)** (gồm **379** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **12 task** (1 đang làm, 11 làm một phần).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **380 / 391 task (97.2%)** (gồm **379** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **11 task** (1 đang làm, 10 làm một phần).
 - **Chưa bắt đầu**: **0 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **21 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: `VH-08`).
 
@@ -29,9 +29,9 @@
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **13** | 0 | 0 | 0 | **100.0%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **22** | 0 | 6 | 0 | **78.6%** |
 | **QA** | Kiểm thử tích hợp, ATTT và chấp nhận nghiệp vụ (`QA-01..07`, `QA-13`, `QA-16`) | 9 | 13.5 | **6** | 0 | 3 | 0 | **66.7%** |
-| **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **7** | 0 | 2 | 0 | **77.8%** |
+| **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **7** | 1 | 1 | 0 | **77.8%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **391** | **471** | **379** | **0** | **12** | **0** | **96.9%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **391** | **471** | **379** | **1** | **11** | **0** | **96.9%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -44,7 +44,7 @@
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E & ATTT** | 37 | **27** | 0 | 10 | 0 | **73.0%** |
 | **M6 – Dữ liệu chính thức & Vận hành** | 11 | **11** | 0 | 0 | 0 | **100.0%** |
-| **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **2** | 0 | 2 | 0 | **50.0%** |
+| **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **2** | 1 | 1 | 0 | **50.0%** |
 
 ### 1.3. Trạng thái 23 task trên Đường găng
 
@@ -588,7 +588,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [QA-13](docs/tasks/QA-13-asvs-zap.md) | Kiểm thử ATTT: OWASP ASVS 4.0.3 mức 2 (L3 cho xác thực, phiên, mật mã) và OWASP ZAP toàn hệ thống | L | B9 | 12 | QA-03 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
 | [QA-16](docs/tasks/QA-16-uat-tenant-thi-diem.md) | Kiểm thử chấp nhận nghiệp vụ: tenant thí điểm chạy trọn một kỳ đánh giá | L | B9 | 24 | QA-07 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
 
-### VH · Vận hành và đưa vào sử dụng (7/9 đã gộp `main`, 0 chờ gộp, 2 đang làm)
+### VH · Vận hành và đưa vào sử dụng (7/9 đã gộp `main`, 1 chờ gộp, 1 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -596,7 +596,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [VH-02](docs/tasks/VH-02-runbook-ops-14-26.md) | Runbook OPS-14..OPS-26 | L | B11 | 4 | INF-17 | **Đã gộp main** | Gộp 07c879b3; chưa chạy thử trên cụm |
 | [VH-03](docs/tasks/VH-03-truc-su-co-cab.md) | Trực vận hành, mức sự cố SEV-1..SEV-4, quy trình thay đổi, đóng băng thay đổi | M | B11 | 5 | VH-01 | **Đã gộp main** | Gộp 8d327008 |
 | [VH-04](docs/tasks/VH-04-dien-tap-onboarding.md) | Diễn tập vòng đời tenant: đưa tenant mới vào vận hành trong một ngày (OPS-07) | M | B11 | 13 | DV-03-05, INF-04 | **Đã gộp main** | Gộp 17bda177 + terminate tenant 5654cbfd + saga dev 4a5c5261 |
-| [VH-05](docs/tasks/VH-05-huong-dan-su-dung.md) | Hướng dẫn sử dụng theo vai trò (AC-01..AC-10) | L | B11 | 24 | QA-07 | **Làm một phần** | Gộp cc710104; còn ảnh trên dev thật và đọc thử AC-06 |
+| [VH-05](docs/tasks/VH-05-huong-dan-su-dung.md) | Hướng dẫn sử dụng theo vai trò (AC-01..AC-10) | L | B11 | 24 | QA-07 | **Xong, chờ gộp** | Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: 24 ảnh AC-02..AC-10 chụp lại từ stack thật trong container (backend, Keycloak, seed); bước thiếu dữ liệu dev giữ ảnh giả lập; AC-01 bỏ qua vì quản trị nền tảng chưa có phân công; đọc thử AC-06 bằng kịch bản mô phỏng trên hệ thống thật và đã sửa nội dung; chưa có người dùng thật ngoài nhóm đọc thử |
 | [VH-06](docs/tasks/VH-06-tai-lieu-quan-tri.md) | Tài liệu quản trị, cài đặt cho ba mô hình phân phối | M | B11 | 6 | INF-23 | **Đã gộp main** | Gộp sau bản phát hành; chưa chạy trên cụm thật |
 | [VH-07](docs/tasks/VH-07-ho-so-cap-do-4.md) | Hồ sơ đề xuất cấp độ 4 theo TCVN 11930:2017 | M | B11 | 13 | QA-13, INF-19 | **Đã gộp main** | Gộp e1b6490e |
 | [VH-08](docs/tasks/VH-08-thi-diem-chuyen-tenant.md) | Kế hoạch đưa tenant thí điểm vào sử dụng và mở rộng theo nhóm tenant (hệ thống mới độc lập, không chuyển từ hệ cũ) | M | B11 | 25 | QA-16 | **Đang làm** | Giao B2 |
@@ -1035,4 +1035,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 23:13 | B1 (Claude) | `QA-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: org-service dùng FieldEncryptor NEN-015 thật, HT-07 đạt trên dev |
 | 24/10/2026 00:29 | Điều phối (main) | `QA-04` | Chuyển trạng thái sang **Đã gộp main** — FieldEncryptor thật ở org-service, thư chết integration-gateway, tên chức danh; HT-07..09 Đạt trên dev |
 | 24/10/2026 00:29 | Điều phối (main) | `QA-03` | Chuyển trạng thái sang **Làm một phần** — HT-07/08/09 Đạt trên dev; ca phủ định HT-08 chờ dữ liệu CHO_DUYET |
+| 24/10/2026 03:57 | B2 (luồng B6) | `VH-05` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: 24 ảnh AC-02..AC-10 chụp lại từ stack thật trong container (backend, Keycloak, seed); bước thiếu dữ liệu dev giữ ảnh giả lập; AC-01 bỏ qua vì quản trị nền tảng chưa có phân công; đọc thử AC-06 bằng kịch bản mô phỏng trên hệ thống thật và đã sửa nội dung; chưa có người dùng thật ngoài nhóm đọc thử |
 <!-- PROGRESS_LOG_END -->
