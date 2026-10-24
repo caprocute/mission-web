@@ -26,8 +26,8 @@ describe('fe-admin', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('h1')?.textContent).toBe(
       'Quản trị',
     );
-    expect((fixture.nativeElement as HTMLElement).querySelector('a')?.textContent).toBe(
-      'Cây tổ chức',
-    );
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('a strong')?.textContent?.trim(),
+    ).toBe('Cây tổ chức');
   });
 });

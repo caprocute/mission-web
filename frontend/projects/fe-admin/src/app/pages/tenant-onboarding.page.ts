@@ -37,7 +37,39 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { Job, JobTracker, fieldErrors, toProblem } from '@vt/api-client';
-import { CHECK_RESULT_LABEL, CellOption, CheckResult, ConfigTenant, IDP_KIND_LABEL, IdpKind, KEK_MODE_LABEL, KekMode, ONBOARDING_STEPS, PROVISION_STEPS, PolicyPackOption, READINESS_CHECK_LABEL, STAFF_SOURCE_LABEL, StaffSourceType, TENANCY_MODEL_LABEL, TENANT_FLOW_LABEL, TENANT_SECTOR_LABEL, TENANT_STATUS_LABEL, TenancyModel, TenantApi, TenantFlow, TenantIdp, TenantOnboarding, TenantOnboardingInput, TenantOnboardingPatch, TenantSector, UiPackOption, idpKind, modelAllowed, packNotReady, tenantSuggestion } from '@vt/api-client/domains';
+import {
+  CHECK_RESULT_LABEL,
+  CellOption,
+  CheckResult,
+  ConfigTenant,
+  IDP_KIND_LABEL,
+  IdpKind,
+  KEK_MODE_LABEL,
+  KekMode,
+  ONBOARDING_STEPS,
+  PROVISION_STEPS,
+  PolicyPackOption,
+  READINESS_CHECK_LABEL,
+  STAFF_SOURCE_LABEL,
+  StaffSourceType,
+  TENANCY_MODEL_LABEL,
+  TENANT_FLOW_LABEL,
+  TENANT_SECTOR_LABEL,
+  TENANT_STATUS_LABEL,
+  TenancyModel,
+  TenantApi,
+  TenantFlow,
+  TenantIdp,
+  TenantOnboarding,
+  TenantOnboardingInput,
+  TenantOnboardingPatch,
+  TenantSector,
+  UiPackOption,
+  idpKind,
+  modelAllowed,
+  packNotReady,
+  tenantSuggestion,
+} from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
@@ -605,11 +637,8 @@ function provisionMinutes(t: ConfigTenant): number {
               @if (job(); as j) {
                 <section class="box" aria-labelledby="prov-title" aria-live="polite">
                   <h2 id="prov-title" class="h">Tiến trình cấp phát hạ tầng</h2>
-                  <p class="muted">
-                    <!-- NFR-07 -->
-                    Đơn vị mới sẵn sàng trong vòng một ngày (CSDL riêng không quá 2 giờ, dùng chung
-                    không quá 5 phút). Việc cấp phát vẫn tiếp tục khi đồng chí đóng màn hình.
-                  </p>
+                  <!-- NFR-07: sẵn sàng ≤ 1 ngày (CSDL riêng ≤ 2 giờ, dùng chung ≤ 5 phút) -->
+                  <p class="muted">Việc cấp phát vẫn tiếp tục khi đồng chí đóng màn hình.</p>
                   <ol class="saga">
                     @for (p of provisionSteps; track p; let i = $index) {
                       <li
@@ -681,11 +710,6 @@ function provisionMinutes(t: ConfigTenant): number {
                       }
                     </label>
                   </fieldset>
-                  <p class="muted small">
-                    Nút "Tiếp tục" lưu lựa chọn rồi bắt đầu cấp phát hạ tầng: tạo vùng lưu trữ dữ
-                    liệu, khoá mã hoá, không gian đăng nhập, tên miền, chứng chỉ TLS và cài đặt bộ
-                    quy định đánh giá, bộ giao diện cho đơn vị.
-                  </p>
                 </section>
               }
             }
@@ -1587,7 +1611,7 @@ export class TenantOnboardingPage {
     });
     const d = this.s2().domain.trim();
     out.push({
-      label: 'Tên miền đúng định dạng, chưa dùng; chứng chỉ TLS cấp tự động',
+      label: 'Tên miền đúng định dạng và chưa được sử dụng',
       result: this.domainOk() === false || !d || !this.domainFormatOk() ? 'LOI' : 'DAT',
     });
     const flows = this.ob()?.flows ?? this.s1().flows;

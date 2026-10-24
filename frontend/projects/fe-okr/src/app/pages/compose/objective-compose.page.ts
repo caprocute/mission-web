@@ -507,17 +507,6 @@ const newKey = () => `k${++seq}`;
                 </li>
               }
             </ul>
-            <p class="muted small">
-              Khi trình, hệ thống kiểm tra lại toàn bộ quy tắc, kể cả quy tắc người xác nhận phải
-              khác chủ sở hữu KR. Bộ quy tắc OKR phiên bản {{ c.policy.version }}.
-            </p>
-          </section>
-          <section class="box" aria-labelledby="pr-h">
-            <h2 id="pr-h" class="sec">Phân rã</h2>
-            <p class="small">
-              Sau khi duyệt, mỗi KR có thể gắn chương trình (Tầng 2) và nhiệm vụ trong Kế hoạch quý
-              (Tầng 3). Một nhiệm vụ chỉ tính điểm ở một nhóm.
-            </p>
           </section>
         </aside>
       </div>

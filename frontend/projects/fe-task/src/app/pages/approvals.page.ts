@@ -24,10 +24,7 @@ type Queue = 'DANG_KY' | 'DE_NGHI';
   imports: [FormsModule, RouterLink, MessageModule, SelectButtonModule],
   template: `
     <h1>Chờ duyệt</h1>
-    <p class="muted">
-      Nhiệm vụ cán bộ đăng ký và đề nghị gia hạn, điều chỉnh đang chờ đồng chí xem xét. Mở từng
-      nhiệm vụ để duyệt hoặc từ chối.
-    </p>
+    <p class="muted">Đăng ký nhiệm vụ và đề nghị gia hạn, điều chỉnh đang chờ đồng chí duyệt.</p>
     @if (queues().length > 1) {
       <p-selectbutton
         [options]="queues()"
@@ -82,7 +79,10 @@ type Queue = 'DANG_KY' | 'DE_NGHI';
               <td>{{ date(t.dueDate) }}</td>
               <td>{{ t.plannedQuantity }} {{ t.unit }}</td>
               <td>
-                <a [routerLink]="['/tasks', t.id]" class="act" [attr.aria-label]="'Xem xét ' + t.title"
+                <a
+                  [routerLink]="['/tasks', t.id]"
+                  class="act"
+                  [attr.aria-label]="'Xem xét ' + t.title"
                   >Xem xét</a
                 >
               </td>
@@ -95,7 +95,6 @@ type Queue = 'DANG_KY' | 'DE_NGHI';
   styles: `
     :host {
       display: block;
-      padding: 16px 24px;
       --p-togglebutton-color: #374151;
     }
     h1 {

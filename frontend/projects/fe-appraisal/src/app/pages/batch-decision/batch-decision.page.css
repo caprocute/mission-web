@@ -149,9 +149,14 @@ thead th {
   color: #4b5563;
   border-top: 0;
 }
+/* giữ ô là table-cell (display: grid làm ô co lại, tên bị ngắt từng chữ) */
 .who {
-  display: grid;
   font-weight: 400;
+  min-width: 12rem;
+}
+.who b,
+.who span {
+  display: block;
 }
 .num {
   text-align: right;

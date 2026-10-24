@@ -18,7 +18,17 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { OrgApi, TaskApi, TaskSummary } from '@vt/api-client';
-import { AiSourceList, AnalyticsApi, AnalyticsQueryResult, DIMENSION, MEASURE, PREVIOUS_SUFFIX, PeriodApi, cellNumber, resultRows } from '@vt/api-client/domains';
+import {
+  AiSourceList,
+  AnalyticsApi,
+  AnalyticsQueryResult,
+  DIMENSION,
+  MEASURE,
+  PREVIOUS_SUFFIX,
+  PeriodApi,
+  cellNumber,
+  resultRows,
+} from '@vt/api-client/domains';
 import { permittedOn } from '@vt/auth';
 import { MenuItem } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -68,11 +78,7 @@ interface Kpi {
       <div>
         <h1>Bảng điều hành</h1>
         <p class="muted">
-          {{ periodName() }}
-          @if (week(); as w) {
-            , {{ w }}
-          }
-          .
+          {{ periodName() }}{{ week() ? ', ' + week() : '' }}.
           @if (asOf(); as t) {
             Số liệu cập nhật lúc {{ dt(t) }}, theo phạm vi đơn vị đồng chí phụ trách.
           }

@@ -11,7 +11,13 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { DELEGATION_KIND_LABEL, DELEGATION_STATUS_LABEL, Delegation, OrgTreeApi, RoleAdminApi } from '@vt/api-client/domains';
+import {
+  DELEGATION_KIND_LABEL,
+  DELEGATION_STATUS_LABEL,
+  Delegation,
+  OrgTreeApi,
+  RoleAdminApi,
+} from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
@@ -32,9 +38,7 @@ import { ReasonDialog } from './reason.dialog';
     <header class="head">
       <div>
         <h1>Uỷ quyền khi vắng mặt</h1>
-        <p class="muted">
-          Uỷ quyền phải có thời hạn và người nhận không được uỷ quyền lại cho người khác.
-        </p>
+        <p class="muted">Giao người khác xử lý thay công việc trong thời gian đồng chí vắng mặt.</p>
       </div>
       @if (can('SCR-0107.tao')) {
         <p-button

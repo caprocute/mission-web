@@ -84,7 +84,7 @@ describe('TaskDetailPage (SCR-0601)', () => {
   it('nhiệm vụ quá hạn hiện MSG-06-03 với hệ số C', async () => {
     const el = (await render(ID('142'))).nativeElement as HTMLElement;
     expect(text(el)).toMatch(
-      /Nhiệm vụ đã quá hạn \d+ ngày làm việc\. Hệ số tiến độ dự kiến C = \d,\d\d\./,
+      /Nhiệm vụ đã quá hạn \d+ ngày làm việc; điểm tiến độ dự kiến còn \d,\d\d\./,
     );
   });
 

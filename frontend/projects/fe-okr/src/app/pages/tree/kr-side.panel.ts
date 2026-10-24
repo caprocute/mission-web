@@ -74,8 +74,7 @@ import { CONFIDENCE_SHORT, confidenceSeverity, formatDate, formatValue } from '.
             Xem tất cả {{ taskCount }} nhiệm vụ liên kết
           </a>
         }
-        <!-- BR-03-07 -->
-        <p class="note">Tiến độ nhiệm vụ không tự cộng vào giá trị KR.</p>
+        <!-- BR-03-07: tiến độ nhiệm vụ không tự cộng vào KR; nhắc ở màn hình check-in, không lặp ở đây -->
       }
       @if (canCheckIn()) {
         <p-button
@@ -92,19 +91,12 @@ import { CONFIDENCE_SHORT, confidenceSeverity, formatDate, formatValue } from '.
         @for (l of peerLinks(); track l.id) {
           <p>
             {{ l.fromLabel }} phối hợp với
-            <strong>{{ l.peerUnitName }} · {{ l.peerCode }} "{{ l.peerTitle }}"</strong>. Thay đổi
-            của bên kia được thông báo cho chủ sở hữu KR.
+            <strong>{{ l.peerUnitName }} · {{ l.peerCode }} "{{ l.peerTitle }}"</strong>.
           </p>
         }
       </section>
     }
-    <section class="box" aria-labelledby="rule-title">
-      <h2 class="h" id="rule-title">Mức tự tin thấp</h2>
-      <p>
-        KR có mức tự tin <strong>Thấp</strong> hai tuần liên tiếp được đưa lên bảng điều hành của
-        lãnh đạo đơn vị.
-      </p>
-    </section>
+    <!-- Quy tắc "tự tin Thấp hai tuần liên tiếp thì đưa lên bảng điều hành" chỉ báo khi xảy ra (okr-tree), không in thường trực -->
   `,
   styles: `
     /* Đỏ thương hiệu đậm hơn token chính (#ee0033 chỉ đạt 4,48:1 với nền trắng, xem WEB-059) để chữ và nền màu đạt WCAG AA */

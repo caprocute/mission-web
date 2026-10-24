@@ -17,7 +17,16 @@
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Job, JobTracker } from '@vt/api-client';
-import { OrgDiscrepancy, OrgSyncApi, OrgSyncRun, SYNC_RUN_STATUS_LABEL, SYNC_SOURCE_LABEL, SYNC_SOURCE_TITLE, SyncSource, hasDeadLetters } from '@vt/api-client/domains';
+import {
+  OrgDiscrepancy,
+  OrgSyncApi,
+  OrgSyncRun,
+  SYNC_RUN_STATUS_LABEL,
+  SYNC_SOURCE_LABEL,
+  SYNC_SOURCE_TITLE,
+  SyncSource,
+  hasDeadLetters,
+} from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { Observable, Subscription } from 'rxjs';
@@ -44,8 +53,7 @@ export const MSG_01_14 = (source: string, at: string, reason: string) =>
       <div>
         <h1>Đồng bộ và đối soát nhân sự</h1>
         <p class="muted">
-          Đồng bộ nhân sự từ các CSDL nguồn và đối soát dữ liệu lệch; dữ liệu nguồn chỉ được sửa tại
-          nơi quản lý nguồn.
+          Cập nhật nhân sự từ các cơ sở dữ liệu nguồn và xử lý thông tin chưa khớp.
         </p>
       </div>
       @if (can('SCR-0104.dong-bo')) {

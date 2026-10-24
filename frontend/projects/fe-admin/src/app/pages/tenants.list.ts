@@ -1,4 +1,11 @@
-import { FilterCodec, ListColumnDef, TENANCY_MODELS, TENANT_STATUS_LABEL, TenancyModel, TenantStatus } from '@vt/api-client/domains';
+import {
+  FilterCodec,
+  ListColumnDef,
+  TENANCY_MODELS,
+  TENANT_STATUS_LABEL,
+  TenancyModel,
+  TenantStatus,
+} from '@vt/api-client/domains';
 
 /** Mã màn hình dùng cho tuỳ chọn cột và bộ lọc đã lưu (CNH-04). */
 export const TENANTS_SCREEN = 'SCR-0101';
@@ -10,7 +17,7 @@ export const TENANTS_COLUMNS: ListColumnDef[] = [
   { key: 'tenancyModel', label: 'Mức cô lập' },
   { key: 'accountCount', label: 'Tài khoản' },
   { key: 'policyPacks', label: 'Bộ quy định đánh giá' },
-  { key: 'uiPack', label: 'Bộ giao diện' },
+  { key: 'uiPack', label: 'Bộ giao diện', hiddenByDefault: true },
   { key: 'status', label: 'Trạng thái' },
 ];
 
