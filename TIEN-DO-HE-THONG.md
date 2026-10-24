@@ -12,8 +12,8 @@
 
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
-- **Tổng tiến độ đã gộp `main`**: **378 / 408 task (92.6%)** — Khối lượng quy đổi đã gộp: **452 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **379 / 408 task (92.9%)** (gồm **378** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ đã gộp `main`**: **379 / 408 task (92.9%)** — Khối lượng quy đổi đã gộp: **453 / 492.5 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **379 / 408 task (92.9%)** (gồm **379** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **16 task** (1 đang làm, 15 làm một phần).
 - **Chưa bắt đầu**: **13 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **21 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: `VH-08`).
@@ -28,11 +28,11 @@
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **104** | 0 | 0 | 0 | **100.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **13** | 0 | 0 | 0 | **100.0%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **22** | 0 | 6 | 0 | **78.6%** |
-| **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **5** | 1 | 4 | 6 | **31.2%** |
+| **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **6** | 0 | 4 | 6 | **37.5%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 3 | 7 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **7** | 0 | 2 | 0 | **77.8%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **378** | **1** | **16** | **13** | **92.6%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **379** | **0** | **16** | **13** | **92.9%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -43,7 +43,7 @@
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **120** | 0 | 0 | 0 | **100.0%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
-| **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **26** | 1 | 10 | 5 | **61.9%** |
+| **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **27** | 0 | 10 | 5 | **64.3%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **11** | 0 | 4 | 8 | **47.8%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **2** | 0 | 2 | 0 | **50.0%** |
 
@@ -575,14 +575,14 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [INF-27](docs/tasks/INF-27-quan-ly-truy-cap-dac-quyen.md) | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | B8 | 3 | INF-13 | **Đã gộp main** | Warpgate, SA kubectl, dba_ops, ghi phiên RGW (895eaaa2); chưa chạy cụm thật |
 | [INF-28](docs/tasks/INF-28-cum-cho-am-ttdl-hai.md) | Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite | L | B8 | 9 | INF-11, INF-18, INF-20, INF-04, INF-08, INF-09, INF-17 | **Đã gộp main** | MM2, walArchive, chế độ chờ, siteRole toàn cục (948aa4cb); chưa chạy cụm thật |
 
-### QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng (5/16 đã gộp `main`, 1 chờ gộp, 4 đang làm)
+### QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng (6/16 đã gộp `main`, 0 chờ gộp, 4 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [QA-01](docs/tasks/QA-01-chien-luoc-kiem-thu.md) | Chiến lược kiểm thử toàn hệ thống và danh mục khoảng 40 hành trình đầu cuối | S | B9 | 1 | – | **Đã gộp main** | Gộp 0fb85523 |
 | [QA-02](docs/tasks/QA-02-pact-hop-dong.md) | Pact Broker và kiểm thử hợp đồng frontend với API, service với service | M | B9 | 4 | NEN-006, INF-05 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
-| [QA-03](docs/tasks/QA-03-e2e-he-thong-that.md) | Bộ kiểm thử đầu cuối với hệ thống thật trên server dev (backend thật, Keycloak, APISIX) | M | B9 | 11 | INF-22, QA-01 | **Làm một phần** | B1 4228f0d5: HT-08, HT-09 đạt trên dev; HT-07 chờ mã hoá C2 ở org-service |
-| [QA-04](docs/tasks/QA-04-hanh-trinh-okr.md) | Hành trình đầu cuối: đăng nhập, khởi tạo tenant, tổ chức, OKR, check-in | M | B9 | 14 | QA-03, CORE-01-08, DV-03-05 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: org-service dùng FieldEncryptor NEN-015 thật, HT-07 đạt trên dev |
+| [QA-03](docs/tasks/QA-03-e2e-he-thong-that.md) | Bộ kiểm thử đầu cuối với hệ thống thật trên server dev (backend thật, Keycloak, APISIX) | M | B9 | 11 | INF-22, QA-01 | **Làm một phần** | HT-07/08/09 Đạt trên dev; ca phủ định HT-08 chờ dữ liệu CHO_DUYET |
+| [QA-04](docs/tasks/QA-04-hanh-trinh-okr.md) | Hành trình đầu cuối: đăng nhập, khởi tạo tenant, tổ chức, OKR, check-in | M | B9 | 14 | QA-03, CORE-01-08, DV-03-05 | **Đã gộp main** | FieldEncryptor thật ở org-service, thư chết integration-gateway, tên chức danh; HT-07..09 Đạt trên dev |
 | [QA-05](docs/tasks/QA-05-hanh-trinh-giao-viec.md) | Hành trình đầu cuối: kế hoạch, giao việc, tiến độ, minh chứng, nghiệm thu | L | B9 | 20 | QA-03, CORE-03-07, CORE-02-22 | **Làm một phần** | Sửa phát hiện gộp fdc5c81a; giả lập 10/10; chế độ thật chờ env dev |
 | [QA-06](docs/tasks/QA-06-hanh-trinh-danh-gia.md) | Hành trình đầu cuối: khoá kỳ, tự đánh giá, thẩm định, quyết định ký số, xếp loại năm | L | B9 | 21 | QA-05, DV-06-06, CORE-04-10 | **Làm một phần** | Đã gộp phần repo; còn chạy thật trên dev/kind |
 | [QA-07](docs/tasks/QA-07-hanh-trinh-giam-sat.md) | Hành trình đầu cuối: kiểm điểm, hồ sơ số, khiếu nại, mở lại kỳ, cảnh báo, Policy Pack, bảng điều hành, AI, UI Pack | L | B9 | 23 | QA-06, CORE-06-08, CORE-07-11, DV-15-06 | **Đã gộp main** | Gộp 8d327008 |
@@ -1056,4 +1056,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 22:35 | B1 (Claude) | `QA-03` | Chuyển trạng thái sang **Làm một phần** — B1 4228f0d5: HT-08, HT-09 đạt trên dev; HT-07 chờ mã hoá C2 ở org-service |
 | 23/10/2026 22:35 | B1 (Claude) | `QA-04` | Chuyển trạng thái sang **Làm một phần** — B1 4228f0d5: HT-08, HT-09 đạt trên dev; HT-07 chờ mã hoá C2 ở org-service |
 | 23/10/2026 23:13 | B1 (Claude) | `QA-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: org-service dùng FieldEncryptor NEN-015 thật, HT-07 đạt trên dev |
+| 24/10/2026 00:29 | Điều phối (main) | `QA-04` | Chuyển trạng thái sang **Đã gộp main** — FieldEncryptor thật ở org-service, thư chết integration-gateway, tên chức danh; HT-07..09 Đạt trên dev |
+| 24/10/2026 00:29 | Điều phối (main) | `QA-03` | Chuyển trạng thái sang **Làm một phần** — HT-07/08/09 Đạt trên dev; ca phủ định HT-08 chờ dữ liệu CHO_DUYET |
 <!-- PROGRESS_LOG_END -->
