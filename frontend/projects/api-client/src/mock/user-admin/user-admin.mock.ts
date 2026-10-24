@@ -124,10 +124,10 @@ const stepUpRequired = (): MockResponse => {
     type: 'https://datatracker.ietf.org/doc/html/rfc9470',
     code: 'insufficient_user_authentication',
   });
-  // ui-text-ok: tiêu đề HTTP, không hiện lên màn hình
   r.headers = {
     ...r.headers,
     'WWW-Authenticate':
+      // ui-text-ok: tiêu đề HTTP theo RFC 9470, không hiện lên màn hình
       'Bearer error="insufficient_user_authentication", acr_values="aal2", max_age=900',
   };
   return r;

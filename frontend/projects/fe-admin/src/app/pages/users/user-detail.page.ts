@@ -33,7 +33,10 @@ import { AssignmentDialog } from './assignment.dialog';
 import { PasswordDialog } from './password.dialog';
 import { PAGE_STYLES, adminError } from './users-ui';
 
-type Notice = { kind: 'success' | 'warn' | 'error'; text: string };
+interface Notice {
+  kind: 'success' | 'warn' | 'error';
+  text: string;
+}
 type Pending =
   { kind: 'lock' } | { kind: 'unlock' } | { kind: 'end'; assignment: PersonAssignment } | null;
 
