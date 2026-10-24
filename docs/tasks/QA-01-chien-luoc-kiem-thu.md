@@ -1,10 +1,12 @@
 # QA-01 · TL-01 ch.18 Chiến lược kiểm thử toàn hệ thống và danh mục khoảng 40 hành trình đầu cuối
 
 > ### 0. QUY ĐỊNH CHUNG – BẮT BUỘC ĐỌC TRƯỚC KHI LÀM
-> Trước khi đọc tiếp, mở và đọc toàn bộ `AGENTS.md` ở gốc repo (quy tắc không được vi phạm, quy trình, mẫu báo cáo), rồi đọc quy định riêng của phân hệ: `docs/quy-dinh/BACKEND.md` (task NEN, CORE, DV, DL), `docs/quy-dinh/HA-TANG.md` (task INF, VH), `docs/quy-dinh/DI-DONG.md` (task MOB). Nhắc nhanh:
+> Trước khi đọc tiếp, mở và đọc toàn bộ `AGENTS.md` ở gốc repo (quy tắc không được vi phạm, quy trình, mẫu báo cáo), rồi đọc quy định riêng của phân hệ: `docs/quy-dinh/BACKEND.md` (task NEN, CORE, DV, DL), `docs/quy-dinh/HA-TANG.md` (task INF, VH). Nhắc nhanh:
 > bám baseline và TL-01..TL-05, giữ nguyên mã định danh, tên schema, bảng, trạng thái; API-first, sửa mã chứ không sửa hợp đồng; chỉ sửa tệp trong phạm vi;
 > không commit bí mật; máy chủ là nguồn sự thật, quyền theo ma trận `wiki/15a`; ghi kèm Idempotency-Key, cập nhật kèm If-Match (409); outbox trong cùng giao dịch;
 > build + kiểm thử thật trước khi báo xong; báo cáo trung thực theo AGENTS.md mục 6. Chạy `./scripts/agent-task.sh QA-01` để có prompt đầy đủ.
+
+> **Cập nhật 24/10/2026 (wiki 14, mục "Quyết định điều chỉnh phạm vi của chủ dự án"):** ứng dụng di động (SVC-18, MOB-01..10) và đo tải, diễn tập DR (QA-08..QA-12, QA-14, QA-15) đã bỏ khỏi phạm vi; các chỗ nhắc tới chúng trong thẻ này chỉ còn giá trị lịch sử.
 
 | Thuộc tính | Giá trị |
 |---|---|
@@ -24,7 +26,7 @@ Viết chiến lược kiểm thử chung cho toàn hệ thống (web, backend, 
 - `/mnt/project-files/kien-truc-okr-kpi/src/TL-01-thiet-ke-kien-truc.md` "Tháp kiểm thử" (3124–3128), "Đường ống CI/CD" (3130–3138), "Trục J: Kiểm thử và chất lượng" (3355–3369).
 - `/mnt/project-files/kien-truc-okr-kpi/src/TL-04-trien-khai-van-hanh.md` "Danh mục kịch bản thử tải PERF" (1743–1776), "Kiểm thử bảo mật: ASVS mức 2 và OWASP ZAP" (3173–3206), "Diễn tập khôi phục" (2431–2437).
 - `/mnt/project-files/kien-truc-okr-kpi/src/00-co-so-thiet-ke-chung.md` mục 10 (AC), mục 11 (QT, SCR).
-- `wiki/11-kiem-thu-va-chat-luong.md`, `docs/quy-dinh/BACKEND.md` mục 4, `docs/quy-dinh/HA-TANG.md` mục 4, `docs/quy-dinh/DI-DONG.md`, `frontend/e2e/` (bộ Playwright ma trận phân quyền đã có).
+- `wiki/11-kiem-thu-va-chat-luong.md`, `docs/quy-dinh/BACKEND.md` mục 4, `docs/quy-dinh/HA-TANG.md` mục 4, `frontend/e2e/` (bộ Playwright ma trận phân quyền đã có).
 
 ## 3. Phạm vi công việc
 

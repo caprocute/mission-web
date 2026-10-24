@@ -6,7 +6,7 @@ Mỗi tệp `WEB-xxx-*.md` là một task đủ nhỏ để một AI agent làm 
 
 Thứ tự thực hiện đi theo cột Phụ thuộc: một task chỉ bắt đầu khi các task nó phụ thuộc đã xong. Những task cùng giai đoạn không phụ thuộc nhau có thể giao cho nhiều agent chạy song song, mỗi agent một nhánh `feat/WEB-xxx-…`. Cỡ việc S/M/L ước lượng cho một agent; người phụ trách duyệt PR của từng task trước khi gộp.
 
-Danh mục này chỉ gồm task của phân hệ web. Danh mục task của toàn hệ thống (backend, dữ liệu, hạ tầng, di động, kiểm thử, vận hành) nằm ở [`DANH-MUC-TOAN-HE-THONG.md`](DANH-MUC-TOAN-HE-THONG.md), được sinh từ `danh-muc-he-thong.tsv` bằng `scripts/sinh-danh-muc.py` theo kế hoạch tổng thể `docs/KE-HOACH-TONG-THE-HE-THONG.md`.
+Danh mục này chỉ gồm task của phân hệ web. Danh mục task của toàn hệ thống (backend, dữ liệu, hạ tầng, kiểm thử, vận hành) nằm ở [`DANH-MUC-TOAN-HE-THONG.md`](DANH-MUC-TOAN-HE-THONG.md), được sinh từ `danh-muc-he-thong.tsv` bằng `scripts/sinh-danh-muc.py` theo kế hoạch tổng thể `docs/KE-HOACH-TONG-THE-HE-THONG.md`.
 
 ## Phân luồng phát triển song song (cập nhật 19/10/2026, năm luồng)
 
@@ -132,4 +132,4 @@ Nhóm này hiện thực ma trận phân quyền ở [wiki/15a](../../wiki/15a-m
 
 ## Màn hình không thuộc phân hệ web
 
-SCR-0302, SCR-0504, SCR-0702 và SCR-1803 là màn hình di động của ứng dụng Flutter (SVC-18) nên không có task ở đây; phân hệ web chỉ bảo đảm dùng chung API, UI Pack và token với ứng dụng di động.
+SCR-0302, SCR-0504, SCR-0702 và SCR-1803 là màn hình di động của ứng dụng Flutter (SVC-18) nên không có task ở đây. Ứng dụng di động đã bỏ khỏi phạm vi theo quyết định ngày 24/10/2026 (wiki 14); web đáp ứng toàn bộ nghiệp vụ.

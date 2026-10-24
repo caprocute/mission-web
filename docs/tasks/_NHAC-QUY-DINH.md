@@ -8,6 +8,6 @@ Trước khi làm task: đọc AGENTS.md (12 quy tắc bắt buộc) và các tr
 8. Angular hiện đại: standalone, signals, inject(), @if/@for; không ghi signal trong computed.
 9. WCAG 2.1 AA, ≤ 3 chạm, chế độ Đảng viên cao tuổi.   10. Giữ ngân sách hiệu năng.
 10. 11. Build + test + mở màn hình thật trước khi báo xong.   12. Cập nhật tiến độ vào `TIEN-DO-HE-THONG.md` (`python3 scripts/cap-nhat-tien-do.py set <MÃ> ...`) và báo cáo trung thực theo mẫu AGENTS.md mục 6.
-11. Task máy chủ, hạ tầng, di động: đọc thêm docs/quy-dinh/BACKEND.md, HA-TANG.md, DI-DONG.md (API-first, outbox, RLS, Idempotency-Key, If-Match 409, Testcontainers).
+11. Task máy chủ, hạ tầng: đọc thêm docs/quy-dinh/BACKEND.md, HA-TANG.md (API-first, outbox, RLS, Idempotency-Key, If-Match 409, Testcontainers).
 12. Không đụng container ngoài project mission-dev trên server dev. Mọi agent BẮT BUỘC cập nhật tiến độ vào tệp duy nhất `TIEN-DO-HE-THONG.md` khi nhận việc, khi xong trên nhánh và khi gộp main.
 ===========================================================================

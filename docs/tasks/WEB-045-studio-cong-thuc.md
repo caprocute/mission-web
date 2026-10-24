@@ -36,7 +36,7 @@ Hiện thực màn hình SCR-1501 "Config Studio – công thức và SCR-1502 B
 ## 4. Ngoài phạm vi
 
 - Mọi logic nghiệp vụ phía máy chủ (mission-core, workflow-service).
-- Phiên bản di động Flutter (SVC-18).
+- Phiên bản di động (ứng dụng di động đã bỏ khỏi phạm vi ngày 24/10/2026).
 
 ## 5. Tệp được phép sửa
 

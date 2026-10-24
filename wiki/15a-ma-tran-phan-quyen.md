@@ -39,7 +39,7 @@ Dữ liệu hiện có 179 chức năng trên 53 màn hình, trong đó 175 ch�
 
 ## Ma trận chính: chức năng theo màn hình
 
-Các dòng có tiền tố "[Di động]" là màn hình của ứng dụng Flutter (SVC-18), ghi để đối chiếu vì dùng chung API và quyền; phân hệ web không làm các màn hình này. Khoá trong ngoặc là phần sau dấu chấm của khoá chức năng đầy đủ dạng `SCR-qqnn.<khoá>`, dùng làm tên quyền ở phía giao diện (WEB-054).
+Các dòng có tiền tố "[Di động]" là màn hình của ứng dụng Flutter (SVC-18), ghi để đối chiếu vì dùng chung API và quyền; phân hệ web không làm các màn hình này. Ứng dụng di động đã bỏ khỏi phạm vi ngày 24/10/2026, wiki 14; các dòng này giữ trong ma trận vì đã sinh vào gói OPA và chính sách thao tác API mà web vẫn dùng. Khoá trong ngoặc là phần sau dấu chấm của khoá chức năng đầy đủ dạng `SCR-qqnn.<khoá>`, dùng làm tên quyền ở phía giao diện (WEB-054).
 
 <!-- BEGIN GEN:ma-tran-chinh -->
 Dòng tiêu đề cột: AC-01 `platform_admin`, AC-02 `tenant_admin`, AC-03 `policy_author`, AC-04 `leader`, AC-05 `manager`, AC-06 `member`, AC-07 `appraiser`, AC-08 `decider`, AC-09 `second_approver`, AC-10 `inspector`, AC-11 `(client credentials)`, AC-12 `ai_readonly`.

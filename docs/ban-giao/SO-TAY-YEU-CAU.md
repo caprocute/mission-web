@@ -287,6 +287,22 @@ Nguyên tắc chung của nhóm: không được bắt đầu viết mã khi b�
 - **Kiểm tra:** Thứ tự ưu tiên trên bảng điều phối (`TIEN-DO-HE-THONG.md`) và danh sách các luồng đang chạy luôn ưu tiên hoàn tất các nhóm task nền tảng (`NEN-*`, `DV-02/03/04`, `DV-06` luồng động BPMN, `DV-10` UI Pack/Form động, `CORE-00`, `fe-shell`, `fe-admin`, `fe-config-studio`, `WEB-020`, `WEB-036`) trước các màn hình nghiệp vụ thứ cấp.
 - **Nguồn:** Dự án Mission, ngày 20/10/2026, kênh điều phối Antigravity (anh Hiếu: "trước mắt tập trung vào xây dựng khung nền tảng, tức là các tính năng nền tảng (ví dụ luồng động, quản lý người dùng,...) để chạy được nghiệp vụ về sau, các tính năng nghiệp vụ thì bố trí làm sau").
 
+> Bản sổ tay trong repo trước đây dừng ở YC-PT-18; YC-PT-19 và YC-PT-22 được chép vào dưới đây (tóm theo cách các tệp trong repo đã dẫn) để ghi cập nhật ngày 24/10/2026. YC-PT-20, YC-PT-21 xem bản sổ tay chung của dự án.
+
+#### YC-PT-19 – Giai đoạn hiện tại chỉ phát triển: không đo tải, không diễn tập DR trên hạ tầng thật
+
+- **Nội dung:** Giai đoạn hiện tại chỉ phát triển và kiểm thử chức năng; không dựng `CELL-PERF`, cụm sinh tải, không chạy kịch bản PERF và không đo hiệu năng trong kiểm thử (bài đo hiệu năng tắt mặc định, bật bằng `-Dmission.perf=true`). **Cập nhật 24/10/2026:** chủ dự án bỏ hẳn đo tải và diễn tập DR khỏi phạm vi vì chưa có hạ tầng: task QA-08, QA-09, QA-10, QA-11, QA-12, QA-14, QA-15 đã xoá khỏi danh mục, kịch bản chỉ phục vụ diễn tập mô phỏng đã xoá. Giữ lại hạ tầng sao lưu và khôi phục (INF-17, INF-18: Barman, MirrorMaker 2, `restore-check`), sổ tay vận hành và sổ tay DR, cảnh báo, bộ điều khiển suy giảm, và chỉ tiêu NFR/PERF trong tài liệu thiết kế (wiki 14, mục quyết định ngày 24/10/2026).
+- **Lý do:** Chưa có hạ tầng tương đương sản xuất (CELL-PERF, TTDL thứ hai) nên số đo và diễn tập trên môi trường thử không có giá trị nghiệm thu.
+- **Kiểm tra:** `TIEN-DO-HE-THONG.md` và `docs/tasks/danh-muc-he-thong.tsv` không còn các task trên; không có pipeline hay kiểm thử mặc định nào chạy đo tải.
+- **Nguồn:** Dự án Mission; cập nhật ngày 24/10/2026 (chủ dự án: "bỏ cả phần đo tải diễn tập DR nhé, hiện chưa có hạ tầng").
+
+#### YC-PT-22 – Ứng dụng di động (SVC-18)
+
+- **Nội dung:** Ngày 23/10/2026 nhóm task MOB được hoãn. **Cập nhật 24/10/2026: phần di động đã loại bỏ hoàn toàn theo quyết định 24/10/2026.** Ứng dụng di động Flutter (SVC-18, task MOB-01..MOB-10) không còn trong phạm vi, mã và danh mục; web đáp ứng toàn bộ nghiệp vụ. Đã xoá thư mục `mobile/`, quy định `docs/quy-dinh/DI-DONG.md`, pipeline Flutter của `ci/vt-pipeline`, bộ quy tắc Semgrep Dart, client Keycloak `mission-mobile` và cờ `publicMobileApp`. Giữ để tương thích hợp đồng và dữ liệu: giá trị `MOBILE` của enum `channel` (check-in, tiến độ) trong CSDL và OpenAPI, trường `mobile` của registry thành phần và UI Pack, kênh đẩy và bộ giả lập đẩy (FCM/APNs) của notification-service, OCR phía máy chủ, các dòng cờ tính năng.
+- **Lý do:** Chủ dự án quyết định; phân hệ web đáp ứng toàn bộ nghiệp vụ.
+- **Kiểm tra:** Không còn task `MOB-` trong danh mục và `TIEN-DO-HE-THONG.md`; `git grep -i flutter` chỉ còn trong tài liệu thiết kế và nhật ký; hợp đồng OpenAPI, Avro không đổi.
+- **Nguồn:** Dự án Mission, quyết định của chủ dự án ngày 24/10/2026 (wiki 14).
+
 ### 2.4. Nhóm HT – Hạ tầng và bảo mật
 
 #### YC-HT-01 – Hạ tầng dùng chung triển khai bằng Docker Compose trên server dev
@@ -318,9 +334,9 @@ Nguyên tắc chung của nhóm: không được bắt đầu viết mã khi b�
 |---|---|---|
 | GT | Giao tiếp và cách làm việc | 4 |
 | TK | Bộ tài liệu thiết kế | 13 |
-| PT | Tổ chức phát triển | 18 |
+| PT | Tổ chức phát triển | 20 |
 | HT | Hạ tầng và bảo mật | 3 |
-| | **Tổng cộng** | **38** |
+| | **Tổng cộng** | **40** |
 
 ---
 
@@ -341,3 +357,4 @@ Nguyên tắc chung của nhóm: không được bắt đầu viết mã khi b�
 | 20/10/2026 | YC-PT-17 | Duy trì một tệp theo dõi tiến độ tổng hợp duy nhất cho toàn hệ thống (`TIEN-DO-HE-THONG.md`) kèm công cụ `scripts/cap-nhat-tien-do.py`, bắt buộc mọi AI agent phải cập nhật trạng thái vào tệp này khi nhận task, khi hoàn thành trên nhánh và khi gộp vào `main`. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, kênh điều phối Antigravity |
 | 20/10/2026 | YC-TK-11, YC-TK-12, YC-PT-18 | Tư duy lại UX và giải pháp màn hình nghiệp vụ trên cơ sở tham khảo Top 10 ứng dụng OKR/KPI quốc tế kết hợp quy định Việt Nam (QĐ 366, NĐ 335, NĐ 233); thiết kế lại UI/CSS/Responsive ấn tượng và tùy biến trang đăng nhập Keycloak; ưu tiên tập trung xây dựng hoàn chỉnh khung nền tảng (luồng động BPMN, quản lý người dùng/tổ chức, biểu mẫu/cấu hình động) trước khi mở rộng các tính năng nghiệp vụ. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, kênh điều phối Antigravity |
 | 21/10/2026 | YC-TK-13, YC-PT-12 | Việt hóa toàn bộ ngôn ngữ của Keycloak/IdP (`login`, `account`, `admin`, `email`, `common`), đưa vào Git quản lý phiên bản và tối ưu từ ngữ ngắn gọn vừa khít khung hiển thị giao diện; cập nhật ghi chú ngoại lệ mở luồng thứ 6 theo chỉ đạo trực tiếp của người giao việc. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, kênh điều phối Antigravity |
+| 24/10/2026 | YC-PT-19, YC-PT-22 | Chép YC-PT-19, YC-PT-22 vào bản sổ tay trong repo; ghi quyết định bỏ hẳn ứng dụng di động (SVC-18, MOB-01..10) và bỏ đo tải, diễn tập DR (QA-08..12, QA-14, QA-15) khỏi phạm vi. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, quyết định của chủ dự án ngày 24/10/2026 |

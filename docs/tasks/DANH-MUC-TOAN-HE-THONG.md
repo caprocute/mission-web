@@ -2,7 +2,7 @@
 
 # Danh mục task toàn hệ thống Mission
 
-Danh mục có 336 task ngoài các task web WEB-001..065 đã có trong `docs/tasks/README.md`. Tổng khối lượng quy đổi là 408 đơn vị (S = 0,5; M = 1; L = 2), đường găng dài 23 task với 31.5 đơn vị. Cột "Tầng" là số bước phụ thuộc dài nhất tính từ gốc: các task cùng tầng và khác luồng có thể chạy song song. Thẻ task chi tiết nằm cạnh tệp này, theo mẫu `_MAU-TASK-HE-THONG.md`. Trạng thái thật của từng task xem trong git và `docs/tasks/README.md` do thread điều phối cập nhật.
+Danh mục có 326 task ngoài các task web WEB-001..065 đã có trong `docs/tasks/README.md`. Tổng khối lượng quy đổi là 396.5 đơn vị (S = 0,5; M = 1; L = 2), đường găng dài 23 task với 31.5 đơn vị. Cột "Tầng" là số bước phụ thuộc dài nhất tính từ gốc: các task cùng tầng và khác luồng có thể chạy song song. Thẻ task chi tiết nằm cạnh tệp này, theo mẫu `_MAU-TASK-HE-THONG.md`. Trạng thái thật của từng task xem trong git và `docs/tasks/README.md` do thread điều phối cập nhật.
 
 ## Đường găng
 
@@ -13,17 +13,16 @@ NEN-001 → [NEN-005](NEN-005-khung-maven-backend.md) → [NEN-030](NEN-030-quy-
 | Luồng | Phạm vi | Số task | Khối lượng |
 |---|---|---|---|
 | DP | Điều phối (thread chính) | 1 | 0.5 |
-| B1 | Nền móng backend và CSDL | 30 | 32 |
-| B2 | Cấu hình, Policy Pack, OKR | 47 | 51 |
-| B3 | Kế hoạch, giao việc, minh chứng | 41 | 46 |
-| B4 | Đánh giá, hồ sơ số, giám sát, tính điểm | 41 | 48.5 |
+| B1 | Nền móng backend và CSDL | 31 | 33 |
+| B2 | Cấu hình, Policy Pack, OKR | 49 | 54 |
+| B3 | Kế hoạch, giao việc, minh chứng | 43 | 48 |
+| B4 | Đánh giá, hồ sơ số, giám sát, tính điểm | 42 | 50.5 |
 | B5 | Định danh, tổ chức, tenant, tích hợp | 38 | 46 |
 | B6 | Quy trình, sổ cái, ký số, tài liệu | 27 | 39 |
 | B7 | Thông báo, tìm kiếm, phân tích, AI | 25 | 29 |
 | B8 | Hạ tầng, CI/CD, quan sát, dự phòng | 28 | 44 |
-| B9 | Kiểm thử tích hợp, hiệu năng, ATTT, DR | 18 | 26.5 |
-| B10 | Di động | 10 | 10.5 |
-| B11 | Dữ liệu nghiệp vụ, vận hành | 20 | 24.5 |
+| B9 | Kiểm thử tích hợp, ATTT, chấp nhận nghiệp vụ | 11 | 15.5 |
+| B11 | Dữ liệu nghiệp vụ, vận hành | 21 | 26.5 |
 | W | Phân hệ web (các luồng web hiện có) | 10 | 10.5 |
 
 ## NEN · Nền móng hệ thống: repo, quy định, wiki, khung mã, thư viện nền, nền CSDL
@@ -63,6 +62,7 @@ NEN-001 → [NEN-005](NEN-005-khung-maven-backend.md) → [NEN-030](NEN-030-quy-
 | [NEN-022](NEN-022-phat-lai-outbox-connector.md) | Công cụ phát lại outbox và cấu hình connector Debezium outbox theo schema | M | NEN-011 | ADR-03; TL-03 ch.11 | B1 | 7 | Bổ sung sau khi viết thẻ |
 | [NEN-042](NEN-042-sua-hop-dong-nghiep-vu.md) | Sửa hợp đồng OpenAPI phần nghiệp vụ: thêm thao tác còn thiếu (huỷ OKR, phiên bản điều chỉnh mục tiêu, uỷ quyền check-in, kích hoạt danh mục, chấm việc ngoài danh mục, ngoại lệ điều chỉnh, xác nhận dòng kế hoạch, duyệt nhiệm vụ đăng ký, chuyển điểm nghẽn, danh bạ khoá E2EE và chia sẻ CEK, ghi trường hợp đặc thù, gợi ý khiếu nại trùng) và sửa mô tả `acceptComplaint` | M | NEN-001 | ADR-32; YC-PT-09 | B1 | 2 | Bổ sung sau khi viết thẻ; người phụ trách hợp đồng duyệt |
 | [NEN-043](NEN-043-sua-hop-dong-nen-tang.md) | Sửa hợp đồng OpenAPI phần nền tảng: cờ tính năng cho mọi người dùng, cấu hình tenant, thiết bị nhận thông báo đẩy, tuỳ chọn kênh, mã khôi phục MFA, `POST /org/assignments`, guest token Superset, kiểm quyền theo lô cho tìm kiếm, ký nội bộ cho sổ cái, OCR cho tài khoản dịch vụ, đề nghị chuyển cell | M | NEN-001, NEN-042 | ADR-32; YC-PT-09 | B1 | 3 | Bổ sung sau khi viết thẻ; người phụ trách hợp đồng duyệt |
+| [NEN-044](NEN-044-hop-dong-ho-so-tap-khach-hang.md) | Sửa hợp đồng OpenAPI theo BS-03: hồ sơ tập khách hàng, khung tham số, điểm công việc và phạm vi phụ trách trong `inputs`, kiểu đo mốc, cây KPI, chế độ phân công, sự việc | M | NEN-043; người phụ trách hợp đồng duyệt | ADR-33; BS-03 | B1 | 4 | Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng |
 
 ## CORE-00 · mission-core: phần dùng chung
 
@@ -111,6 +111,7 @@ NEN-001 → [NEN-005](NEN-005-khung-maven-backend.md) → [NEN-030](NEN-030-quy-
 | [CORE-05-09](CORE-05-09-trinh-phe-duyet-ky-so.md) | Trình và phê duyệt: người duyệt khác người soạn, ký số, ghi sổ cái | M | CORE-05-07, DV-10-01 | QT-15 | B2 | 15 |  |
 | [CORE-05-10](CORE-05-10-saga-phat-hanh-chinh-sach.md) | Phát hành: saga đa cell có bù trừ, `policy_binding`, EVT-13 | L | CORE-05-09, DV-06-05, CORE-08-12 | EVT-13 | B2 | 16 |  |
 | [CORE-05-11](CORE-05-11-cong-bo-workflow-bindings.md) | Lớp công bố `/policies/.../workflow-bindings` thuộc MOD-05, gọi API `wf_binding` của workflow-service | S | CORE-05-02, DV-06-08 | SCR-1504 | B2 | 13 | Bổ sung sau khi viết thẻ |
+| [CORE-05-12](CORE-05-12-ho-so-tap-khach-hang.md) | Hồ sơ tập khách hàng có phiên bản (bản kê, ký, hai người), khung tham số kế thừa có giới hạn, ghim phiên bản hồ sơ vào `policy_binding` | L | NEN-044, CORE-05-02, CORE-05-04 | ADR-33; BS-03 | B2 | 14 | Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng |
 
 ## CORE-01 · MOD-01 okr
 
@@ -129,6 +130,7 @@ NEN-001 → [NEN-005](NEN-005-khung-maven-backend.md) → [NEN-030](NEN-030-quy-
 | [CORE-01-11](CORE-01-11-nhac-check-in-han-okr.md) | Nhắc check-in, nhắc trước hạn và quá hạn OKR | S | CORE-01-08, DV-12-01 | BR-03-08 | B2 | 14 |  |
 | [CORE-01-12](CORE-01-12-uy-quyen-check-in.md) | Uỷ quyền check-in thay và chuyển giá trị khi phiên bản mục tiêu mới được duyệt | S | CORE-01-08, CORE-01-07, NEN-042 | QT-03 | B2 | 21 |  |
 | [CORE-01-13](CORE-01-13-tro-ly-ai-okr.md) | Trợ lý AI cho OKR qua ai-gateway: soát KR, ghi `ai.suggestion_log`, cờ `content_source` | M | CORE-01-04, DV-14-04 | QT-17 → SCR-1701; BR-02-11 | B2 | 18 |  |
+| [CORE-01-14](CORE-01-14-kieu-do-moc.md) | Kiểu đo `MOC` với bảng `okr.kr_milestone`, chiều `TOI_DA`, nhãn tử số và mẫu số cho KR tỷ lệ; ghi ngày đạt và số ngày làm việc chậm | M | NEN-044, CORE-01-01, CORE-08-04 | ADR-33; BS-03 | B2 | 13 | Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng |
 
 ## CORE-02 · MOD-02 task: danh mục, kế hoạch, nhiệm vụ
 
@@ -160,6 +162,8 @@ NEN-001 → [NEN-005](NEN-005-khung-maven-backend.md) → [NEN-030](NEN-030-quy-
 | [CORE-02-24](CORE-02-24-noi-dung-mat-c3-nhiem-vu.md) | Nội dung mật C3 của nhiệm vụ: `task.task_secret_content`, `task.e2ee_key_wrap`, chia sẻ và thu hồi khoá | M | CORE-02-02, CORE-07-06, NEN-042 | ADR-27; C3 | B3 | 22 | Bổ sung sau khi viết thẻ |
 | [CORE-02-25](CORE-02-25-nhac-viec-giao-lai.md) | Nhắc việc, giao lại (`remindTask`, `reassignTask`) và đổi người chủ trì khi điều động | M | CORE-02-14, CORE-00-03 | QT-16; QT-05 | B3 | 17 | Bổ sung sau khi viết thẻ |
 | [CORE-02-26](CORE-02-26-cong-ghi-delay-risk.md) | Cột `delay_risk` và cổng ghi nội bộ cho dự báo nguy cơ trễ | S | CORE-02-02 | QT-06 | B3 | 13 | Bổ sung sau khi viết thẻ |
+| [CORE-02-27](CORE-02-27-danh-muc-pham-vi-khoi-tinh-he-so.md) | Danh mục bốn cấp kế thừa (thêm `KHOI`, `TINH`), khoảng chỉnh điểm chuẩn so với dòng cha, `coefficient_levels` và `axis_code` trên mục danh mục, kế hoạch, nhiệm vụ | M | NEN-044, CORE-02-03, CORE-05-12 | ADR-33; BS-03 | B3 | 17 | Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng |
+| [CORE-02-28](CORE-02-28-cay-kpi-che-do-phan-cong.md) | Cây nhiệm vụ nhiều bậc (`node_kind`), điểm thành phần của công việc con, chế độ phân công `MOT_NGUOI_MOT_VIEC` theo tham số hồ sơ | M | NEN-044, CORE-02-13, CORE-05-12 | ADR-33; BS-03 | B3 | 16 | Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng |
 
 ## CORE-03 · MOD-03 product: sản phẩm, minh chứng, nghiệm thu
 
@@ -190,6 +194,7 @@ NEN-001 → [NEN-005](NEN-005-khung-maven-backend.md) → [NEN-030](NEN-030-quy-
 | [CORE-04-10](CORE-04-10-xep-loai-nam.md) | Xếp loại năm: lập từ bốn quý, xử lý thiếu quý, chặn khi còn khiếu nại, tính lại | L | CORE-04-08, DV-07-07 | QT-10 → SCR-1001 | B4 | 20 |  |
 | [CORE-04-11](CORE-04-11-co-bo-tri-lai.md) | Cờ "không hoàn thành hai năm liền" và đề xuất bố trí lại sang MOD-02 | S | CORE-04-10 | QT-10 | B4 | 21 |  |
 | [CORE-04-12](CORE-04-12-phan-nhom-trien-vong.md) | Phân nhóm triển vọng: lưu nháp, BR-10-07..09, trình tập thể, ký danh sách | M | CORE-04-10 | SCR-1002 | B4 | 21 |  |
+| [CORE-04-13](CORE-04-13-dau-vao-diem-cong-viec-su-viec.md) | Đầu vào `workItems` và `responsibilityScope` trong `inputs`, bảng `appraisal.incident`, bắt buộc lý do khi mức của `rating_proposal` khác mức gợi ý | L | NEN-044, CORE-04-06, CORE-02-27, CORE-02-28, CORE-01-14 | ADR-33; BS-03 | B4 | 18 | Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng |
 
 ## CORE-06 · MOD-06 dossier: kiểm điểm, hồ sơ số
 
@@ -416,6 +421,7 @@ NEN-001 → [NEN-005](NEN-005-khung-maven-backend.md) → [NEN-030](NEN-030-quy-
 | [DL-13](DL-13-luu-giu-xoa-mat-ma.md) | Lưu giữ, lưu trữ lạnh, giữ pháp lý, xoá bằng mật mã theo bảy lớp lưu giữ | M | NEN-015, INF-18, CORE-08-07 | NFR-09; TL-03 ch.16 | B11 | 13 |  |
 | [DL-14](DL-14-xoay-vong-dek-kek.md) | Xoay vòng DEK định kỳ và bọc lại khoá theo KEK mới | M | NEN-015, INF-13 | ADR-17 | B11 | 7 | Bổ sung sau khi viết thẻ |
 | [DL-15](DL-15-an-danh-hoa-phi-san-xuat.md) | Tác vụ ẩn danh hoá dữ liệu cho môi trường phi sản xuất (`anonymize`) | M | NEN-015, DL-08, NEN-005, NEN-006 | SEC-52 | B11 | 14 | Bổ sung sau khi viết thẻ |
+| [DL-16](DL-16-ho-so-twd.md) | Hồ sơ TWĐ (giả lập theo UEB): Policy Pack điểm công việc, bảng hệ số, chuỗi xếp loại, ca vàng UEB, danh mục dự thảo số 25, chín quy tắc điểm nghẽn, tham số thẩm quyền và hạn | L | CORE-05-12, CORE-02-27, CORE-02-28, CORE-01-14, CORE-04-13, DV-07-03, DV-07-05 | ADR-33; BS-03 | B11 | 19 | Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng |
 
 ## INF · Hạ tầng, CI/CD, bảo mật nền, quan sát, dự phòng
 
@@ -426,7 +432,7 @@ NEN-001 → [NEN-005](NEN-005-khung-maven-backend.md) → [NEN-030](NEN-030-quy-
 | [INF-03](INF-03-values-dinh-co-cell.md) | Values định cỡ bốn hồ sơ cell, `capacity/assumptions.yaml`, script tính bảng, kiểm ngân sách kết nối trong CI | M | INF-02 | TL-05; TL-04 ch.4 | B8 | 3 |  |
 | [INF-04](INF-04-gitops-argo-cd.md) | Kho GitOps: Argo CD ApplicationSet theo cell và môi trường, sync window, Argo Rollouts canary có phân tích SLI | L | INF-02 | ADR-16; OPS-02, 03, 05 | B8 | 3 |  |
 | [INF-05](INF-05-pipeline-jenkins-java.md) | Thư viện pipeline Jenkins `vt-pipeline` cho Java: build, test, ArchUnit, Sonar, Semgrep, gitleaks, Trivy, openapi-diff, Pact, SBOM, Jib, cosign, provenance SLSA 3 | L | NEN-005 | ADR-16; SEC-37..39 | B8 | 3 |  |
-| [INF-06](INF-06-pipeline-ngon-ngu-noi-dung.md) | Pipeline cho Go, Python, Flutter, Helm và nội dung (Policy Pack, UI Pack) | M | INF-05 | OPS-10 | B8 | 4 |  |
+| [INF-06](INF-06-pipeline-ngon-ngu-noi-dung.md) | Pipeline cho Go, Python, Helm và nội dung (Policy Pack, UI Pack) | M | INF-05 | OPS-10 | B8 | 4 |  |
 | [INF-07](INF-07-harbor-kyverno.md) | Harbor và chính sách Kyverno: chỉ ảnh có ký, không root, có giới hạn và probe, `vt-require-ha` | M | INF-05 | SEC-28, SEC-38 | B8 | 4 |  |
 | [INF-08](INF-08-cum-cell-phan-1.md) | Cụm Kubernetes của cell phần 1: node pool, taint, 13 namespace, NetworkPolicy mặc định từ chối, APISIX ingress | L | – | TL-04 ch.3 | B8 | 1 | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần cụm K8s thật hoặc kind cho dev |
 | [INF-09](INF-09-cum-cell-phan-2.md) | Cụm Kubernetes của cell phần 2: Istio ambient mTLS STRICT, StorageClass Ceph RBD và NVMe cục bộ, egress gateway | L | INF-08 | ADR-11; SEC-32..36 | B8 | 2 |  |
@@ -450,7 +456,7 @@ NEN-001 → [NEN-005](NEN-005-khung-maven-backend.md) → [NEN-030](NEN-030-quy-
 | [INF-27](INF-27-quan-ly-truy-cap-dac-quyen.md) | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | INF-13 | SEC-42 | B8 | 3 | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần giải pháp PAM |
 | [INF-28](INF-28-cum-cho-am-ttdl-hai.md) | Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite | L | INF-11, INF-18, INF-20, INF-04, INF-08, INF-09, INF-17 | NFR-05; DR | B8 | 9 | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần TTDL thứ hai |
 
-## QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng
+## QA · Kiểm thử tích hợp, an toàn thông tin, chấp nhận nghiệp vụ
 
 | Mã | Tên | Cỡ | Phụ thuộc | Truy vết | Luồng | Tầng | Ghi chú |
 |---|---|---|---|---|---|---|---|
@@ -461,30 +467,8 @@ NEN-001 → [NEN-005](NEN-005-khung-maven-backend.md) → [NEN-030](NEN-030-quy-
 | [QA-05](QA-05-hanh-trinh-giao-viec.md) | Hành trình đầu cuối: kế hoạch, giao việc, tiến độ, minh chứng, nghiệm thu | L | QA-03, CORE-03-07, CORE-02-22 | QT-04..QT-07 | B9 | 20 |  |
 | [QA-06](QA-06-hanh-trinh-danh-gia.md) | Hành trình đầu cuối: khoá kỳ, tự đánh giá, thẩm định, quyết định ký số, xếp loại năm | L | QA-05, DV-06-06, CORE-04-10 | QT-08..QT-10 | B9 | 21 |  |
 | [QA-07](QA-07-hanh-trinh-giam-sat.md) | Hành trình đầu cuối: kiểm điểm, hồ sơ số, khiếu nại, mở lại kỳ, cảnh báo, Policy Pack, bảng điều hành, AI, UI Pack | L | QA-06, CORE-06-08, CORE-07-11, DV-15-06 | QT-11..QT-18 | B9 | 23 |  |
-| [QA-08](QA-08-k6-perf-01-10.md) | Kịch bản k6 PERF-01..PERF-10 | L | QA-03, DL-08 | TL-04 ch.7 | B9 | 14 |  |
-| [QA-09](QA-09-gatling-luong-flowable.md) | Kịch bản góp ý G2: PERF-11..PERF-13 (Gatling cho Flowable) | M | QA-08, DV-06-04 | G2 | B9 | 15 |  |
-| [QA-10](QA-10-chi-phi-bao-ve-g3.md) | Kịch bản góp ý G3: PERF-14..PERF-18, PERF-25 | M | QA-08, NEN-015 | G3 | B9 | 15 |  |
-| [QA-11](QA-11-lo-frontend-sse-ai.md) | Kịch bản PERF-19..PERF-24, PERF-26 | M | QA-08 | TL-04 ch.7 | B9 | 15 |  |
-| [QA-12](QA-12-chien-dich-cell-perf.md) | Chiến dịch thử tải trên CELL-PERF và hiệu chuẩn bảng định cỡ theo hồ sơ cell | L | QA-09, QA-10, QA-11, INF-21 | TL-05 hiệu chuẩn | B9 | 16 | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần CELL-PERF |
 | [QA-13](QA-13-asvs-zap.md) | Kiểm thử ATTT: OWASP ASVS 4.0.3 mức 2 (L3 cho xác thực, phiên, mật mã) và OWASP ZAP toàn hệ thống | L | QA-03 | NFR-08; TL-04 mục 9.8 | B9 | 12 |  |
-| [QA-14](QA-14-thu-hong-dr-01-09.md) | Thử hỏng PERF-07 và diễn tập khôi phục DR-01..DR-09 | L | INF-17, QA-08 | TL-04 ch.8 | B9 | 15 |  |
-| [QA-15](QA-15-dr-chuyen-vung.md) | Diễn tập khôi phục DR-10..DR-16, chuyển vùng giữa hai trung tâm dữ liệu | L | QA-14, INF-18, INF-20 | NFR-05 | B9 | 16 | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần TTDL thứ hai |
 | [QA-16](QA-16-uat-tenant-thi-diem.md) | Kiểm thử chấp nhận nghiệp vụ: tenant thí điểm chạy trọn một kỳ đánh giá | L | QA-07 | Đợt 2 | B9 | 24 | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần tenant và người dùng thật |
-
-## MOB · SVC-18 mobile-app (Flutter)
-
-| Mã | Tên | Cỡ | Phụ thuộc | Truy vết | Luồng | Tầng | Ghi chú |
-|---|---|---|---|---|---|---|---|
-| [MOB-01](MOB-01-khung-flutter.md) | Khung Flutter: token thiết kế sang ThemeData, đăng nhập OIDC PKCE, client API sinh từ hợp đồng | M | NEN-006, DV-02-01 | SVC-18; ADR-10 | B10 | 4 |  |
-| [MOB-02](MOB-02-ngoai-tuyen-sqlcipher.md) | Lưu trữ ngoại tuyến SQLCipher, khoá trong Keystore/Keychain, hàng đợi đồng bộ có Idempotency-Key | M | MOB-01 | SVC-18 | B10 | 5 |  |
-| [MOB-03](MOB-03-viec-cua-toi-di-dong.md) | SCR-0504 Việc của tôi và cập nhật tiến độ trên di động | M | MOB-02, CORE-02-19, CORE-02-18 | QT-05, QT-06 | B10 | 18 |  |
-| [MOB-04](MOB-04-check-in-kr-di-dong.md) | SCR-0302 Check-in KR trên di động | M | MOB-02, CORE-01-08 | QT-03 | B10 | 14 |  |
-| [MOB-05](MOB-05-nop-minh-chung-ocr.md) | SCR-0702 Nộp minh chứng trên di động có OCR, tải theo khối | M | MOB-02, DV-08-02, CORE-03-05 | QT-07 | B10 | 19 |  |
-| [MOB-06](MOB-06-bieu-mau-dong-tu-danh-gia.md) | Bộ dựng biểu mẫu từ JSON Schema và CEL trên Flutter, phiếu tự đánh giá | L | MOB-02, CORE-08-13, CORE-04-04 | QT-09 | B10 | 17 |  |
-| [MOB-07](MOB-07-ky-so-mysign.md) | Ký số MySign trên di động | M | MOB-06, DV-10-02 | QT-09 | B10 | 18 |  |
-| [MOB-08](MOB-08-che-do-cao-tuoi.md) | SCR-1803 Chế độ Đảng viên cao tuổi trên di động | M | MOB-03, MOB-06, DL-06 | NFR-11 | B10 | 19 |  |
-| [MOB-09](MOB-09-thong-bao-day.md) | Thông báo đẩy FCM, APNs | S | MOB-01, DV-12-03, DV-12-05 | SVC-12 | B10 | 9 |  |
-| [MOB-10](MOB-10-pipeline-phat-hanh.md) | Pipeline build, ký và phát hành ứng dụng; kiểm thử đầu cuối và khả năng truy cập trên di động | M | MOB-03, INF-06 | NFR-11 | B10 | 19 | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần tài khoản cửa hàng ứng dụng |
 
 ## VH · Vận hành và đưa vào sử dụng
 

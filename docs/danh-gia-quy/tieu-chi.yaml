@@ -783,9 +783,8 @@ tieu_chi:
   bang_chung_nghiem_thu: Báo cáo PERF-03, PERF-04, PERF-06
   nguon_bang_chung: TL-04 chương 13
   loai_bang_chung: thu-tai
+  # QA-08, QA-12 (thử tải) bỏ khỏi phạm vi ngày 24/10/2026 vì chưa có hạ tầng (wiki 14).
   task:
-  - QA-08
-  - QA-12
   - DL-08
   co_so: Chưa đạt
 - ma: E8
@@ -1335,9 +1334,9 @@ tieu_chi:
   bang_chung_nghiem_thu: Báo cáo trong repo `perf-results`
   nguon_bang_chung: TL-04 chương 13
   loai_bang_chung: thu-tai
+  # QA-08, QA-12 (thử tải) bỏ khỏi phạm vi ngày 24/10/2026 vì chưa có hạ tầng (wiki 14); còn môi trường thử tải của INF-21.
   task:
-  - QA-08
-  - QA-12
+  - INF-21
   co_so: Một phần
 - ma: J8
   ten: Phân tích tĩnh

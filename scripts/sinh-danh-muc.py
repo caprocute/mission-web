@@ -27,8 +27,7 @@ STREAMS = {
     "B6": "Quy trình, sổ cái, ký số, tài liệu",
     "B7": "Thông báo, tìm kiếm, phân tích, AI",
     "B8": "Hạ tầng, CI/CD, quan sát, dự phòng",
-    "B9": "Kiểm thử tích hợp, hiệu năng, ATTT, DR",
-    "B10": "Di động",
+    "B9": "Kiểm thử tích hợp, ATTT, chấp nhận nghiệp vụ",
     "B11": "Dữ liệu nghiệp vụ, vận hành",
     "W": "Phân hệ web (các luồng web hiện có)",
 }
@@ -50,7 +49,8 @@ deps, external = {}, set()
 for r in rows:
     ds = [d.strip() for d in re.split(r"[,;]", r[3]) if d.strip() and d.strip() not in ("–", "-")]
     deps[r[0]] = [d for d in ds if d in ids]
-    external |= {d for d in ds if d not in ids and not d.startswith("WEB-0")}
+    # Ô phụ thuộc có thể kèm điều kiện bằng lời (ví dụ "người phụ trách hợp đồng duyệt"): chỉ kiểm các mã task.
+    external |= {d for d in ds if re.fullmatch(r"[A-Z]+(?:-\d+)+", d) and d not in ids and not d.startswith("WEB-0")}
 if external:
     sys.exit(f"Phụ thuộc trỏ tới mã không có trong danh mục: {sorted(external)}")
 

@@ -1,10 +1,12 @@
 # DV-12-05 · SVC-12 Đăng ký thiết bị nhận thông báo đẩy và tuỳ chọn kênh: bảng `notify`, API
 
 > ### 0. QUY ĐỊNH CHUNG – BẮT BUỘC ĐỌC TRƯỚC KHI LÀM
-> Trước khi đọc tiếp, mở và đọc toàn bộ `AGENTS.md` ở gốc repo (quy tắc không được vi phạm, quy trình, mẫu báo cáo), rồi đọc quy định riêng của phân hệ: `docs/quy-dinh/BACKEND.md` (task NEN, CORE, DV, DL), `docs/quy-dinh/HA-TANG.md` (task INF, VH), `docs/quy-dinh/DI-DONG.md` (task MOB). Nhắc nhanh:
+> Trước khi đọc tiếp, mở và đọc toàn bộ `AGENTS.md` ở gốc repo (quy tắc không được vi phạm, quy trình, mẫu báo cáo), rồi đọc quy định riêng của phân hệ: `docs/quy-dinh/BACKEND.md` (task NEN, CORE, DV, DL), `docs/quy-dinh/HA-TANG.md` (task INF, VH). Nhắc nhanh:
 > bám baseline và TL-01..TL-05, giữ nguyên mã định danh, tên schema, bảng, trạng thái; API-first, sửa mã chứ không sửa hợp đồng; chỉ sửa tệp trong phạm vi;
 > không commit bí mật; máy chủ là nguồn sự thật, quyền theo ma trận `wiki/15a`; ghi kèm Idempotency-Key, cập nhật kèm If-Match (409); outbox trong cùng giao dịch;
 > build + kiểm thử thật trước khi báo xong; báo cáo trung thực theo AGENTS.md mục 6. Chạy `./scripts/agent-task.sh DV-12-05` để có prompt đầy đủ.
+
+> **Cập nhật 24/10/2026 (wiki 14, mục "Quyết định điều chỉnh phạm vi của chủ dự án"):** ứng dụng di động (SVC-18, MOB-01..10) và đo tải, diễn tập DR (QA-08..QA-12, QA-14, QA-15) đã bỏ khỏi phạm vi; các chỗ nhắc tới chúng trong thẻ này chỉ còn giá trị lịch sử.
 
 | Thuộc tính | Giá trị |
 |---|---|
@@ -24,7 +26,7 @@
 - `/mnt/project-files/kien-truc-okr-kpi/src/TL-03-thiet-ke-csdl.md` "Schema notify (SVC-12)" (L3797–3854: `channel_pref` PK (`tenant_id`, `user_id`, `category`), `channels[]`, `quiet_from/to`; `delivery.channel` có `PUSH`, `address_bidx`), "Thời hạn lưu giữ" (L4622).
 - `/mnt/project-files/kien-truc-okr-kpi/src/TL-01-thiet-ke-kien-truc.md` "SVC-12 notification-service" (L1156–1168), "SVC-18 mobile-app" (L1220–1226).
 - `contracts/openapi/modules/platform.yaml` sau NEN-043 (năm thao tác ở trên).
-- Thẻ `docs/tasks/DV-12-01-khung-notification-consumer.md`, `DV-12-03-kenh-email-sms-day.md` (định tuyến theo `channel_pref`, giờ yên lặng), `MOB-09-thong-bao-day.md`, `NEN-043-sua-hop-dong-nen-tang.md`.
+- Thẻ `docs/tasks/DV-12-01-khung-notification-consumer.md`, `DV-12-03-kenh-email-sms-day.md` (định tuyến theo `channel_pref`, giờ yên lặng), MOB-09, `NEN-043-sua-hop-dong-nen-tang.md`.
 
 ## 3. Phạm vi công việc
 

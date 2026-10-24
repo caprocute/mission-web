@@ -109,7 +109,7 @@ Bảng sau tóm tắt các service ngoài mission-core. Cột ngôn ngữ, kho v
 | SVC-15 | analytics | ClickHouse, Cube, Superset, Python | ClickHouse `analytics_<cell>` | EVT-20 (không qua outbox PostgreSQL) | CDC từ các schema | theo shard ClickHouse |
 | SVC-16 | search | OpenSearch 2.x, indexer Kafka | chỉ mục OpenSearch (không phải nguồn sự thật) | không | EVT-04, 05, 06, 14, 24 | theo shard |
 | SVC-17 | web-frontend | Angular 21, PrimeNG, Formly, cel-js | không có kho máy chủ | không | EVT-23 (qua CDN) | CDN |
-| SVC-18 | mobile-app | Flutter 3 | SQLite mã hoá cục bộ | không | thông báo đẩy từ SVC-12 | không áp dụng |
+| SVC-18 | mobile-app (đã bỏ khỏi phạm vi ngày 24/10/2026, wiki 14) | Flutter 3 | SQLite mã hoá cục bộ | không | thông báo đẩy từ SVC-12 | không áp dụng |
 
 Bốn microservice SVC-04, SVC-07, SVC-08, SVC-11 đặt schema trong cùng CSDL dữ liệu tenant `td_<mã>` với mission-core, mỗi schema một vai trò riêng; TL-03 giải thích lý do là giảm số slot sao chép logic và giữ giao dịch cục bộ với outbox. Các service vốn phục vụ nhiều tenant cùng lúc (thông báo, tích hợp) dùng CSDL `cell_shared` tách tenant bằng RLS; các service cần cô lập tải hoặc bảo mật (iam, workflow, ledger, esign, ai) có CSDL và cụm riêng.
 
