@@ -12,9 +12,9 @@
 
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 391 task)
 
-- **Tổng tiến độ đã gộp `main`**: **384 / 391 task (98.2%)** — Khối lượng quy đổi đã gộp: **460 / 471 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **384 / 391 task (98.2%)** (gồm **384** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **7 task** (0 đang làm, 7 làm một phần).
+- **Tổng tiến độ đã gộp `main`**: **385 / 391 task (98.5%)** — Khối lượng quy đổi đã gộp: **461 / 471 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **385 / 391 task (98.5%)** (gồm **385** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **6 task** (0 đang làm, 6 làm một phần).
 - **Chưa bắt đầu**: **0 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **22 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
@@ -27,11 +27,11 @@
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **117** | 0 | 0 | 0 | **100.0%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **104** | 0 | 0 | 0 | **100.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **13** | 0 | 0 | 0 | **100.0%** |
-| **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **24** | 0 | 4 | 0 | **85.7%** |
+| **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **25** | 0 | 3 | 0 | **89.3%** |
 | **QA** | Kiểm thử tích hợp, ATTT và chấp nhận nghiệp vụ (`QA-01..07`, `QA-13`, `QA-16`) | 9 | 13.5 | **6** | 0 | 3 | 0 | **66.7%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **9** | 0 | 0 | 0 | **100.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **391** | **471** | **384** | **0** | **7** | **0** | **98.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **391** | **471** | **385** | **0** | **6** | **0** | **98.5%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -42,7 +42,7 @@
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **120** | 0 | 0 | 0 | **100.0%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
-| **M5 – Hạ tầng Production, Tích hợp E2E & ATTT** | 37 | **30** | 0 | 7 | 0 | **81.1%** |
+| **M5 – Hạ tầng Production, Tích hợp E2E & ATTT** | 37 | **31** | 0 | 6 | 0 | **83.8%** |
 | **M6 – Dữ liệu chính thức & Vận hành** | 11 | **11** | 0 | 0 | 0 | **100.0%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **4** | 0 | 0 | 0 | **100.0%** |
 
@@ -541,7 +541,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DL-15](docs/tasks/DL-15-an-danh-hoa-phi-san-xuat.md) | Tác vụ ẩn danh hoá dữ liệu cho môi trường phi sản xuất (`anonymize`) | M | B11 | 14 | NEN-015, DL-08, NEN-005, NEN-006 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DL-16](docs/tasks/DL-16-ho-so-twd.md) | Hồ sơ TWĐ (giả lập theo UEB): Policy Pack điểm công việc, bảng hệ số, chuỗi xếp loại, ca vàng UEB, danh mục dự thảo số 25, chín quy tắc điểm nghẽn, tham số thẩm quyền và hạn | L | B11 | 19 | CORE-05-12, CORE-02-27, CORE-02-28, CORE-01-14, CORE-04-13, DV-07-03, DV-07-05 | **Đã gộp main** | Đã gộp main (6afcdf05) |
 
-### INF · Hạ tầng, CI/CD, bảo mật nền, quan sát, dự phòng (24/28 đã gộp `main`, 0 chờ gộp, 4 đang làm)
+### INF · Hạ tầng, CI/CD, bảo mật nền, quan sát, dự phòng (25/28 đã gộp `main`, 0 chờ gộp, 3 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -566,7 +566,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [INF-19](docs/tasks/INF-19-bao-mat-nen-tang.md) | Bảo mật nền: Falco, nhật ký kiểm toán API Kubernetes và luồng `sys.audit.v1` tới SIEM, Pod Security, chính sách egress | M | B8 | 3 | INF-09 | **Làm một phần** | Đã gộp phần repo; còn chạy thật trên dev/kind |
 | [INF-20](docs/tasks/INF-20-vung-dieu-phoi-toan-cuc.md) | Vùng điều phối toàn cục: cụm quản trị, PostgreSQL toàn cục, GeoDNS PowerDNS, `dns-sync`, CDN tài nguyên tĩnh | L | B8 | 4 | INF-04 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
 | [INF-21](docs/tasks/INF-21-moi-truong-phi-san-xuat.md) | Môi trường phi sản xuất: staging, CELL-PERF, cụm sinh tải, môi trường tạm theo nhánh cho E2E | M | B8 | 4 | INF-04 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
-| [INF-22](docs/tasks/INF-22-backend-tren-server-dev.md) | Triển khai backend lên server dev bằng Docker Compose (profile backend, cổng 35xxx) để kiểm thử tích hợp thật | M | B8 | 10 | CORE-00-01, NEN-020 | **Làm một phần** | Đã gộp phần repo; còn chạy thật trên dev/kind |
+| [INF-22](docs/tasks/INF-22-backend-tren-server-dev.md) | Triển khai backend lên server dev bằng Docker Compose (profile backend, cổng 35xxx) để kiểm thử tích hợp thật | M | B8 | 10 | CORE-00-01, NEN-020 | **Đã gộp main** | Chạy thật trên server dev 24/10: backend, web, APISIX healthy, kiểm thử khói đạt; còn sửa script lược đồ, KC_URL (B8) |
 | [INF-23](docs/tasks/INF-23-goi-cai-cach-ly.md) | Gói cài cách ly LTS: đóng gói Helm ngoại tuyến, Harbor nội bộ, kiểm chữ ký | L | B8 | 5 | INF-02, INF-07 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
 | [INF-24](docs/tasks/INF-24-audit-archiver.md) | Dịch vụ `audit-archiver`: chuyển nhật ký kiểm toán sang kho lưu trữ bất biến theo thời hạn lưu giữ | M | B8 | 4 | INF-12, INF-19 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
 | [INF-25](docs/tasks/INF-25-bo-dieu-khien-suy-giam.md) | Bộ điều khiển suy giảm ba mức khi quá tải (tắt tính năng phụ, cắt tải theo ưu tiên) | M | B8 | 4 | DV-01-02, INF-15 | **Đã gộp main** | Gộp B7: chạy thật trên kube-apiserver envtest, 20/20 và 28/28; APISIX cần Docker chưa chạy |
@@ -1045,4 +1045,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 24/10/2026 04:10 | B3 (Claude) | `WEB-052` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/project-thread-gmqu4z: làm ba hướng theo chốt 24/10 — đo chính thức perf:budget theo dung lượng truyền gzip (nginx deploy/web nén sẵn mức 9), tách @vt/api-client/domains, giữ es-module-shims (Firefox chưa hỗ trợ nhiều import map); trang chủ 545→519 KB/250 KB, remote ĐẠT; đề xuất ngưỡng 400/550 KB chờ duyệt (wiki/14); lint, api:check, check:permissions, check:ui-text, test:all, build:all, e2e xanh |
 | 24/10/2026 04:35 | B3 (Claude) | `WEB-052` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-gmqu4z: anh Hiếu duyệt 24/10 ngưỡng chặn 400 KB (cổng tĩnh) và 550 KB (perf:budget), 250 KB giữ làm mục tiêu NFR; đã đưa vào bundle-budget.mjs và perf:budget; trang chủ 373,6/400 KB và 519,4/550 KB ĐẠT, remote ĐẠT 180 KB |
 | 24/10/2026 04:45 | Điều phối (main) | `WEB-052` | Chuyển trạng thái sang **Đã gộp main** — Gộp 778a7a43: ngưỡng 400/550 KB anh Hiếu duyệt 24/10, hai cổng đạt; mục tiêu NFR 250 KB |
+| 24/10/2026 04:51 | Điều phối (main) | `INF-22` | Chuyển trạng thái sang **Đã gộp main** — Chạy thật trên server dev 24/10: backend, web, APISIX healthy, kiểm thử khói đạt; còn sửa script lược đồ, KC_URL (B8) |
 <!-- PROGRESS_LOG_END -->
