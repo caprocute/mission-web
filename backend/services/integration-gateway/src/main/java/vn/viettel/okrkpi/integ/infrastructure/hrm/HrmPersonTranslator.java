@@ -138,15 +138,17 @@ class HrmPersonTranslator implements Translator {
       int rejected = 0;
       for (int from = 0; from < persons.size(); from += batchSize) {
         int to = Math.min(persons.size(), from + batchSize);
-        rejected += sink.forward(
-            ctx.tenant(),
-            code,
-            run,
-            persons.subList(from, to),
-            inRun.isEmpty() && to == persons.size());
+        rejected +=
+            sink.forward(
+                ctx.tenant(),
+                code,
+                run,
+                persons.subList(from, to),
+                inRun.isEmpty() && to == persons.size());
       }
       // org-service nhận lô nhưng không ghi được một phần bản ghi: thông điệp không được coi là đã
-      // xử lý, mà vào thư chết để phát lại sau khi khắc phục (bản ghi đã ghi khớp lại theo mã ánh xạ)
+      // xử lý, mà vào thư chết để phát lại sau khi khắc phục (bản ghi đã ghi khớp lại theo mã ánh
+      // xạ)
       if (rejected > 0) {
         throw new TranslationRejectedException(
             ORG_REJECTED,
