@@ -376,6 +376,9 @@ export const PERMISSION_TABLE: Readonly<Record<PermissionKey, string>> = {
 /** Khoá năng lực nền, không mở màn hình: `screenKeys()` bỏ qua khi gom khoá cho menu và tuyến. */
 export const NON_ENTRY_KEYS: readonly PermissionKey[] = ['SCR-0501.khoa-nguoi-nhan'];
 
+/** Vai trò phạm vi nền tảng (vùng điều phối toàn cục): không cần phân công đơn vị trong tenant. */
+export const PLATFORM_SCOPE_ROLES: readonly string[] = ['platform_admin'];
+
 /** Module API của ma trận (`/api/v1/<module>`). */
 export type ApiModule =
   | 'okr'
@@ -461,14 +464,14 @@ export const API_PERMISSION_TABLE: Readonly<
     PUT: 'member',
   },
   config: {
-    GET: 'platform_admin tenant_admin leader manager member appraiser decider second_approver inspector',
+    GET: 'platform_admin tenant_admin policy_author* leader manager member appraiser decider second_approver inspector',
     POST: 'platform_admin tenant_admin leader',
     PUT: 'tenant_admin policy_author',
     PATCH: 'platform_admin tenant_admin',
     DELETE: 'platform_admin',
   },
   periods: {
-    GET: 'tenant_admin leader manager member appraiser decider second_approver inspector',
+    GET: 'tenant_admin policy_author* leader manager member appraiser decider second_approver inspector',
     POST: 'tenant_admin leader second_approver',
   },
   org: {

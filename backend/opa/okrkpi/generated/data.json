@@ -221,8 +221,11 @@
           ]
         },
         "policy_author": {
-          "inferred_methods": [],
+          "inferred_methods": [
+            "GET"
+          ],
           "methods": [
+            "GET",
             "PUT"
           ]
         },
@@ -770,6 +773,14 @@
         },
         "member": {
           "inferred_methods": [],
+          "methods": [
+            "GET"
+          ]
+        },
+        "policy_author": {
+          "inferred_methods": [
+            "GET"
+          ],
           "methods": [
             "GET"
           ]
