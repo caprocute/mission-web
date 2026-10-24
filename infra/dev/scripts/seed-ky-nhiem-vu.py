@@ -42,7 +42,7 @@ def nap_env() -> dict:
 def token(user: str, env: dict) -> str:
     e = dict(env, SMOKE_USER=user)
     kq = subprocess.run(
-        [sys.executable, "-I", str(HERE / "lay-token-thu.py")], env=e, capture_output=True, text=True
+        [sys.executable, "-I", str(HERE / "lay-token-thu.py")], env=e, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
     )
     if kq.returncode != 0 or not kq.stdout.strip():
         sys.exit(f"Không lấy được token của {user}: {kq.stderr.strip()[:300]}")
@@ -118,7 +118,7 @@ def main() -> int:
             if_match=etag or f'"{ct["rowVersion"]}"')
         print(f"Đã giao nhiệm vụ mẫu {ct.get('code', '')} (bản nháp có sẵn)")
         return 0
-    han = min(hom + dt.timedelta(days=14), dt.date.fromisoformat(ky["endDate"]))
+    han = min(hom + dt.timedelta(days=14), dt.datetime.strptime(ky["endDate"][:10], "%Y-%m-%d").date())
     moc = min(hom + dt.timedelta(days=7), han)
     _, nhap, etag = goi(
         t_ql,

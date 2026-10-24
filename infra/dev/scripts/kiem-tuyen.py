@@ -206,12 +206,12 @@ def docker_images():
     try:
         names = subprocess.run(
             ["docker", "ps", "-a", "--filter", "name=mission-dev-", "--format", "{{.Names}}"],
-            capture_output=True, text=True, timeout=20, check=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, timeout=20, check=True,
         ).stdout.split()
         if not names:
             return []
         out = subprocess.run(
-            ["docker", "inspect", "--format", fmt, *names], capture_output=True, text=True, timeout=20, check=True
+            ["docker", "inspect", "--format", fmt, *names], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, timeout=20, check=True
         ).stdout
     except (subprocess.SubprocessError, OSError):
         return []
@@ -227,7 +227,7 @@ def get_token(no_token: bool) -> str:
     os.environ.setdefault("KC_URL", os.environ.get("KEYCLOAK_PUBLIC_URL") or f"http://{host}:{os.environ.get('KEYCLOAK_PORT', '35080')}")
     try:
         res = subprocess.run(
-            [sys.executable, str(SCRIPTS / "lay-token-thu.py")], capture_output=True, text=True, timeout=60
+            [sys.executable, str(SCRIPTS / "lay-token-thu.py")], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, timeout=60
         )
     except (subprocess.SubprocessError, OSError):
         return ""
