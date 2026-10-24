@@ -266,13 +266,7 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
                 </li>
               }
             </ol>
-            @if (!simple()) {
-              <p class="small muted">
-                <!-- BR-13-02, BR-13-03 -->
-                Hai người duyệt phải là hai người khác nhau, khác người tạo yêu cầu và chưa tham gia
-                thẩm định, quyết định hồ sơ được mở lại. Yêu cầu luôn cần đủ hai người duyệt.
-              </p>
-            }
+            <!-- BR-13-02, BR-13-03: hai người duyệt khác nhau, khác người tạo; máy chủ kiểm khi ghi -->
           </section>
 
           <!-- vùng 5 -->
@@ -293,10 +287,6 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
               ></textarea>
               <p id="dec-hint" class="small muted">
                 {{ msg1302 }}
-                @if (r.status === 'CHO_DUYET_2' && !simple()) {
-                  Khi đủ hai phê duyệt, hệ thống mở lại kỳ {{ r.period.label }} chỉ trong phạm vi đã
-                  duyệt đến hết thời hạn, ghi sổ cái và thông báo người được giao sửa dữ liệu.
-                }
               </p>
               <div class="actions">
                 @if (can('SCR-1301.tu-choi')) {

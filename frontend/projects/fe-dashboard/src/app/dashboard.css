@@ -139,7 +139,11 @@ label,
   border-radius: 8px;
   background: var(--p-content-background, #fff);
 }
+.kpi p {
+  margin: 0;
+}
 .kpi .v {
+  margin: 6px 0 4px;
   font-size: 2rem;
   font-weight: 700;
   line-height: 1.2;

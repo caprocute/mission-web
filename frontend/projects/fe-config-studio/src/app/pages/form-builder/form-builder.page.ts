@@ -68,9 +68,8 @@ const CLASSIFICATIONS = [
           <p class="sub" data-testid="form-bar">
             Bản {{ f.version }} · {{ statusLabel[f.status] }}
             @if (f.policyPack; as pp) {
-              · gắn bộ chính sách đánh giá {{ pp.packCode }} bản {{ pp.version }}
+              · áp dụng cùng chính sách đánh giá bản {{ pp.version }}
             }
-            · kiểm tra tức thời trên trình duyệt, máy chủ kiểm tra lại khi lưu và khi nộp phiếu
           </p>
         }
       </div>

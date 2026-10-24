@@ -1,5 +1,12 @@
 import { Component, computed, input, output } from '@angular/core';
-import { OrgDiscrepancy, OrgSyncRun, SUGGESTED_ACTION_LABEL, SYNC_RUN_STATUS_LABEL, SYNC_SOURCE_LABEL, hasDeadLetters } from '@vt/api-client/domains';
+import {
+  OrgDiscrepancy,
+  OrgSyncRun,
+  SUGGESTED_ACTION_LABEL,
+  SYNC_RUN_STATUS_LABEL,
+  SYNC_SOURCE_LABEL,
+  hasDeadLetters,
+} from '@vt/api-client/domains';
 import { fmtDate, fmtDateTime } from '../../admin-ui';
 
 /**
@@ -37,8 +44,8 @@ import { fmtDate, fmtDateTime } from '../../admin-ui';
           <p class="info">
             <!-- EVT-15: máy chủ ghi phiên bản mới valid_from = hiệu lực, recorded_from = lúc duyệt -->
             Khi chấp nhận, phân công được cập nhật có hiệu lực từ ngày
-            {{ d.effectiveFrom ? date(d.effectiveFrom) : 'ghi trong quyết định' }}, thời điểm ghi
-            nhận là lúc duyệt; các bên liên quan nhận được thông báo thay đổi phân công.
+            {{ d.effectiveFrom ? date(d.effectiveFrom) : 'ghi trong quyết định' }}; các bên liên
+            quan nhận được thông báo thay đổi phân công.
           </p>
         }
       } @else {

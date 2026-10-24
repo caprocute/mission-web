@@ -86,7 +86,7 @@ const CLOSED_STATUSES: AnomalyAlertStatus[] = [
       <div>
         <h1>Trung tâm cảnh báo bất thường</h1>
         <p class="muted">
-          Hệ thống rà soát dữ liệu đánh giá lúc 02:00 hằng đêm để phát hiện tám dấu hiệu bất thường.
+          Các dấu hiệu bất thường được phát hiện từ dữ liệu đánh giá.
           @if (counts(); as k) {
             Trong 90 ngày qua có {{ k.newCount }} cảnh báo mới.
           }

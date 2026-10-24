@@ -1,7 +1,16 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { DATA_CENTER_LABEL, TENANCY_MODEL_LABEL, TENANT_ONBOARDING_STATUSES, TENANT_SECTOR_LABEL, TENANT_STATUS_LABEL, TenantApi, TenantStatus } from '@vt/api-client/domains';
+import {
+  DATA_CENTER_LABEL,
+  PERIOD_FLOW_LABEL,
+  TENANCY_MODEL_LABEL,
+  TENANT_ONBOARDING_STATUSES,
+  TENANT_SECTOR_LABEL,
+  TENANT_STATUS_LABEL,
+  TenantApi,
+  TenantStatus,
+} from '@vt/api-client/domains';
 import { MessageModule } from 'primeng/message';
 import { errorText, fmtDate, fmtDateTime, fmtInt } from '../admin-ui';
 import { MSG_01_02 } from './tenants.page';
@@ -224,7 +233,7 @@ export class TenantDetailPage {
   protected readonly packs = computed(() =>
     (this.t()?.policyBindings ?? [])
       .filter((b) => !!b.packCode)
-      .map((b) => (b.version ? `${b.packCode} v${b.version}` : b.packCode))
+      .map((b) => PERIOD_FLOW_LABEL[b.flow] + (b.version ? ` phiên bản ${b.version}` : ''))
       .join(' + '),
   );
   protected readonly onboarding = computed(() => {
