@@ -11,8 +11,6 @@ Chỉ dùng thư viện chuẩn để chạy được trong Job Kubernetes tối
     python3 migrate.py --dry-run       # in danh sách tệp sẽ áp
 """
 
-from __future__ import annotations
-
 import argparse
 import base64
 import hashlib
@@ -23,8 +21,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections.abc import Mapping
-from dataclasses import dataclass
+from typing import Dict, List, Mapping, NamedTuple, Tuple
 
 MIGRATIONS = pathlib.Path(__file__).resolve().parent / "migrations"
 FILE_RE = re.compile(r"^V(\d{3})__([a-z0-9_]+)\.sql$")
@@ -33,14 +30,14 @@ SECRET_PARAMS = frozenset({"cube_password", "anomaly_password", "dict_password"}
 NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,40}$")
 
 
-@dataclass(frozen=True)
-class Migration:
+# NamedTuple thay dataclass để chạy được trên Python 3.6 của máy chủ dev (CentOS 7).
+class Migration(NamedTuple):
     version: int
     name: str
     path: pathlib.Path
 
 
-def discover(folder: pathlib.Path = MIGRATIONS) -> list[Migration]:
+def discover(folder: pathlib.Path = MIGRATIONS) -> List[Migration]:
     out = []
     for p in sorted(folder.glob("*.sql")):
         m = FILE_RE.match(p.name)
@@ -53,7 +50,7 @@ def discover(folder: pathlib.Path = MIGRATIONS) -> list[Migration]:
     return sorted(out, key=lambda m: m.version)
 
 
-def params_from_env(env: Mapping[str, str]) -> dict[str, str]:
+def params_from_env(env: Mapping[str, str]) -> Dict[str, str]:
     """Tham số của một cell. Tên CSDL, cụm, nhóm tiêu thụ phải là định danh an toàn vì được ghép vào DDL."""
     cell = env.get("ANALYTICS_CELL", "dev")
     p = {
@@ -86,7 +83,7 @@ def params_from_env(env: Mapping[str, str]) -> dict[str, str]:
     return p
 
 
-def render(sql: str, params: Mapping[str, str]) -> tuple[str, str]:
+def render(sql: str, params: Mapping[str, str]) -> Tuple[str, str]:
     """Trả về (câu lệnh đã thế đủ tham số, tổng kiểm). Tổng kiểm tính trên bản thế tham số không bí mật để đổi mật
     khẩu không làm tệp bị coi là đã sửa."""
     missing = sorted({k for k in PARAM_RE.findall(sql) if k not in params})
@@ -97,7 +94,7 @@ def render(sql: str, params: Mapping[str, str]) -> tuple[str, str]:
     return full, hashlib.sha256(masked.encode()).hexdigest()
 
 
-def statements(sql: str) -> list[str]:
+def statements(sql: str) -> List[str]:
     """Tách câu lệnh theo dấu ';' ở cuối dòng, bỏ dòng chú thích. Câu lệnh trong migrations không chứa ';' giữa dòng."""
     out, cur = [], []
     for line in sql.splitlines():
@@ -136,13 +133,13 @@ class ClickHouse:
 
 
 def migrate(ch: ClickHouse, params: Mapping[str, str], folder: pathlib.Path = MIGRATIONS,
-            dry_run: bool = False) -> list[str]:
+            dry_run: bool = False) -> List[str]:
     db, cluster = params["db"], params["cluster"]
     ch.run(f"CREATE DATABASE IF NOT EXISTS {db} ON CLUSTER '{cluster}'")
     ch.run(f"""CREATE TABLE IF NOT EXISTS {db}._schema_migrations ON CLUSTER '{cluster}'
                (version UInt32, name String, checksum String, applied_at DateTime64(3) DEFAULT now64(3))
                ENGINE = ReplicatedReplacingMergeTree(applied_at) ORDER BY version""")
-    done: dict[int, str] = {}
+    done: Dict[int, str] = {}
     for line in ch.run(f"SELECT version, checksum FROM {db}._schema_migrations FINAL FORMAT TSV").splitlines():
         v, c = line.split("\t")
         done[int(v)] = c
