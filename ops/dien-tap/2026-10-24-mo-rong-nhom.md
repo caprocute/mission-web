@@ -8,7 +8,7 @@
 | Người thực hiện | Luồng B2 (AI agent), chưa có người duyệt |
 | Môi trường | Máy cloud của luồng. Bản giả lập kế hoạch (`docs/van-hanh/dua_vao_su_dung.py`); kiểm thử tích hợp của `tenant-registry` trên PostgreSQL chạy bằng Testcontainers; kiểm thử của `vtctl` và của bộ lọc định tuyến tenant trong `vt-platform-starter`. **Chưa phải staging**: staging vẫn chưa có |
 | Nhóm thử | N-THU: Huyện Thử nghiệm Một (pool, CELL-SH, 40 tài khoản), Tỉnh Thử nghiệm Hai (bridge, CELL-G1, 60 tài khoản); tenant và người hư cấu |
-| Kết luận | Bản giả lập đạt lần thứ hai. Mã thật đã chuyển được tenant sang `TAM_NGUNG`, và các dịch vụ Java từ chối yêu cầu của tenant đó. Mã thật chưa chặn đăng nhập ở Keycloak. Vẫn phải chạy lại trên staging |
+| Kết luận | Bản giả lập đạt lần thứ hai. Mã thật đã chuyển được tenant sang `TAM_NGUNG`, và các dịch vụ Java từ chối yêu cầu của tenant đó. Lúc diễn tập, mã thật chưa chặn đăng nhập ở Keycloak; hai phát hiện đã được sửa cùng ngày (mục 7). Vẫn phải chạy lại trên staging |
 
 ## 1. Mục tiêu
 
@@ -66,3 +66,15 @@ TL-04 mục 11.4 yêu cầu trạng thái `TAM_NGUNG` chặn đăng nhập ở K
 ## 6. Ký xác nhận
 
 Chưa có. Đây là biên bản diễn tập của AI agent, không có chữ ký của đại diện tenant hay của người phụ trách vận hành.
+
+## 7. Xử lý hai phát hiện sau diễn tập (24/10/2026)
+
+Các mục 3 và 4 giữ nguyên để làm dấu vết của buổi diễn tập. Mục này ghi phần mã đã sửa ngay sau đó, theo yêu cầu của luồng điều phối: sửa mã, không đổi hợp đồng.
+
+| Phát hiện | Mã đã sửa | Kiểm thử | Kết quả |
+|---|---|---|---|
+| 1. Keycloak chưa chặn đăng nhập của tenant tạm ngừng | Bước `mission-tenant-status` trong `mission-keycloak-events` (lớp `MissionTenantStatusAuthenticator`, `TenantStatusLookup`). Bước này tra trạng thái tenant ở tenant-registry, lưu đệm 30 giây, và đứng sau bước xác định người dùng của luồng `mission-browser` (gồm cả phiên SSO còn hạn) và của hai luồng sau môi giới VNeID. Người dùng thuộc tenant `TAM_NGUNG` hoặc `DA_CHAM_DUT` thấy MSG-00-07, Keycloak ghi sự kiện `LOGIN_ERROR` với lỗi `tenant_suspended`; quản trị nền tảng vẫn đăng nhập được. Registry gián đoạn thì không chặn, vì tầng dịch vụ vẫn chặn ghi | `TenantStatusLookupTest` (3/3), `RealmTemplateStaticTest` (7/7), `VneidBrokerKeycloakIT` (15/15, Keycloak 26.4 thật, tenant-registry giả lập: tenant đang vận hành vào được; tenant tạm ngừng, đã chấm dứt bị chặn kể cả phiên SSO cũ và đăng nhập VNeID; quản trị nền tảng vào được; registry gián đoạn không chặn), `RealmTemplateKeycloakIT` (17/17) | Đạt |
+| 2. Dịch vụ chặn cả lệnh đọc của tenant tạm ngừng; APISIX chưa chặn ghi | `TenantCellRoute.isSuspended`, `TenantCellRoutingFilter` (Java) và `CellRoutingMiddleware` (Go): tenant `TAM_NGUNG` đọc được bằng GET, HEAD, OPTIONS; lệnh ghi nhận 403 Problem Details mã `COMMON-403-FORBIDDEN`, kèm `tenantStatus`. Plugin `vt-cell-router` của APISIX chặn ghi theo cùng quy tắc, trừ biểu mẫu đăng nhập Keycloak. Giao diện nhận 403 có `tenantStatus` và hiện MSG-00-07 | `TenantCellRoutingFilterTest` (6/6), `TenantRoutingDataSourceTest`, `go test ./db/` của `vtplatform`, `tests/kiem-thu-docker.sh` của chart `api-gateway-global` với APISIX 3.13 thật (29/29), `ng test auth` (60/60) | Đạt |
+
+Những điểm còn lại: realm nền tảng toàn cục phải có client `keycloak-tenant-status` mang vai trò `service_client` và bí mật ở OpenBao (`iam/tenant-status`), vì tenant-registry chỉ nhận token của realm đó; repo hiện chưa có định nghĩa realm nền tảng. Đăng nhập qua IdP riêng của tenant (Organization do saga tạo) chưa có luồng sau môi giới riêng, nên chỉ bị chặn khi luồng `mission-browser` chạy lại; lệnh ghi của tenant đó vẫn bị chặn ở APISIX và dịch vụ. Trạng thái ở APISIX có hiệu lực chậm nhất sau thời gian đệm phân giải (300 giây ở production), ở Keycloak sau 30 giây; dịch vụ ở cell chặn ghi theo đệm định tuyến riêng của nó.
+
