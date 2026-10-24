@@ -538,8 +538,24 @@ class NapTenant:
                 print("  Đã gửi duyệt kèm ký số kế hoạch (tác vụ nền)")
                 trang_thai = "DA_DUYET (đang ký)"
             except LoiApi as ex:
-                self.dem("Kế hoạch quý (%s)" % trang_thai, moi)
-                raise RuntimeError("Duyệt kế hoạch cần ký số và xác thực bước lên trên dev: %s" % ex)
+                if ex.code == 422 and "định điểm" in ex.body:
+                    # Bản chờ duyệt còn dòng ngoài danh mục từ lần nạp trước: trả lại, nhập lại dòng theo nguồn, trình, duyệt.
+                    ver, e = goi(t_duyet, "POST", "/plans/%s/versions/%s/return" % (plan["id"], v),
+                                 {"comment": "Dòng ngoài danh mục chưa định điểm, đề nghị thay bằng dòng danh mục."},
+                                 if_match=etag(ver, e))
+                    ver, e = goi(t_lap, "GET", "/plans/%s/versions/%s" % (plan["id"], v))
+                    ver, e = goi(t_lap, "PUT", "/plans/%s/versions/%s" % (plan["id"], v),
+                                 {"items": self.dong_ke_hoach(kh)}, if_match=etag(ver, e))
+                    ver, e = goi(t_lap, "POST", "/plans/%s/versions/%s/submit" % (plan["id"], v), None,
+                                 if_match=etag(ver, e))
+                    ver, e = goi(t_duyet, "GET", "/plans/%s/versions/%s" % (plan["id"], v))
+                    goi(t_duyet, "POST", "/plans/%s/versions/%s/approve" % (plan["id"], v),
+                        {"signMethod": "MYSIGN", "comment": "Đồng ý kế hoạch, đề nghị triển khai."}, if_match=etag(ver, e))
+                    print("  Đã thay dòng ngoài danh mục, trình lại và gửi duyệt kèm ký số kế hoạch")
+                    trang_thai = "DA_DUYET (đang ký)"
+                else:
+                    self.dem("Kế hoạch quý (%s)" % trang_thai, moi)
+                    raise RuntimeError("Duyệt kế hoạch cần ký số và xác thực bước lên trên dev: %s" % ex)
         self.dem("Kế hoạch quý (%s)" % trang_thai, moi)
 
     def dong_ke_hoach(self, kh):
