@@ -7,6 +7,7 @@ Chạy sau `seed-org.sh`, `dong-bo-to-chuc.sh` và khi đã có kỳ đang mở 
      Mục tiêu phòng ban soạn ở HT-08 chọn được mục tiêu cấp trên đã duyệt (BR-02-02).
   2. `canbo` soạn mục tiêu cá nhân ở Phòng Tổng hợp phân rã từ mục tiêu của Sở, trình; `lanhdao` phê duyệt.
      `canbo` có KR đã duyệt để check-in ở HT-09 (SCR-0301).
+  3. `canbo` soạn thêm một mục tiêu cá nhân và trình, để ở chờ duyệt cho ca phủ định HT-08.
 Chạy lại không sinh bản ghi trùng: mục tiêu mẫu (tên bắt đầu bằng "[Mẫu dev]") đã duyệt thì bỏ qua, còn nháp hay chờ
 duyệt thì đi tiếp từ bước dở. Gọi API như người dùng nên kiểm tra nghiệp vụ, kiểm toán và sự kiện chạy như trên màn
 hình. Chỉ dùng thư viện chuẩn, không in token.
@@ -59,6 +60,19 @@ def lap(tac_gia: str, duyet: str, ky: dict, can_cu: str, ten: str, than: dict) -
     return o
 
 
+def trinh(tac_gia: str, ky: dict, can_cu: str, ten: str, than: dict) -> dict:
+    """Soạn (nếu chưa có) và trình một mục tiêu mẫu, để ở trạng thái chờ duyệt (ca phủ định HT-08)."""
+    o = mau(tac_gia, ky, than["ownerUnitId"], ten)
+    if not o:
+        _, o, _ = goi(tac_gia, "POST", "/okr/objectives",
+                      dict(than, periodId=ky["id"], title=ten, basisIds=[can_cu]))
+    if o["status"] in ("NHAP", "TRA_LAI"):
+        _, o, e = goi(tac_gia, "GET", f"/okr/objectives/{o['id']}")
+        _, o, _ = goi(tac_gia, "POST", f"/okr/objectives/{o['id']}/submit", if_match=etag(o, e))
+    print(f"Mục tiêu mẫu chờ duyệt: {ten} ({o['status']})")
+    return o
+
+
 def kr(ten: str, nguoi_xac_nhan: str) -> dict:
     return {"title": ten, "metricType": "TY_LE", "unit": "%", "baselineValue": 0, "targetValue": 100,
             "direction": "TANG", "weight": 1, "verifierPersonId": nguoi_xac_nhan, "checkinFrequency": "TUAN"}
@@ -84,6 +98,11 @@ def main() -> int:
         {"ownerType": "CA_NHAN", "ownerUnitId": PHONG_TH, "ownerPersonId": claims(t_cb)["sub"],
          "parentObjectiveId": so["id"],
          "keyResults": [kr("Tỷ lệ báo cáo tổng hợp nộp đúng hạn", claims(t_ql)["sub"])]})
+    # 3. Một mục tiêu cá nhân để ở chờ duyệt: ca phủ định HT-08 thử phê duyệt trái quyền bằng `quanly` (403)
+    trinh(t_cb, ky, can_cu, f"{TIEN_TO} Chuẩn hoá mẫu biểu báo cáo của phòng",
+          {"ownerType": "CA_NHAN", "ownerUnitId": PHONG_TH, "ownerPersonId": claims(t_cb)["sub"],
+           "parentObjectiveId": so["id"],
+           "keyResults": [kr("Tỷ lệ mẫu biểu được chuẩn hoá", claims(t_ql)["sub"])]})
     return 0
 
 
