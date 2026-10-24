@@ -251,7 +251,7 @@ cmd_apply() {
   echo "==> Kiểm compose config sau khi chép"
   remote "$(compose_cmd) config -q"
   echo "==> Kiểm gói chính sách OPA mà compose sẽ gắn"
-  remote "$(compose_cmd) config --format json | python3 scripts/kiem-goi-opa.py"
+  remote "cd $(printf '%q' "${DEV_SERVER_INFRA_DIR}") && python3 scripts/kiem-goi-opa.py .env"
   retire_services
   echo "==> Áp lại project ${PROJECT}, profile: ${DEV_SERVER_PROFILES}"
   remote "$(compose_cmd) up -d --build"
