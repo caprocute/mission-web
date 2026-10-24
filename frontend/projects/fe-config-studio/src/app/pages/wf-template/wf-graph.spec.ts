@@ -1,4 +1,4 @@
-import { lintBpmn } from '@vt/api-client';
+import { lintBpmn } from '@vt/api-client/domains';
 import { buildBpmn } from '../../../../../api-client/src/mock/workflow-templates/workflow-templates.mock';
 import {
   addNode,

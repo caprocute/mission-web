@@ -36,43 +36,8 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import {
-  CHECK_RESULT_LABEL,
-  CellOption,
-  CheckResult,
-  ConfigTenant,
-  IDP_KIND_LABEL,
-  IdpKind,
-  Job,
-  JobTracker,
-  KEK_MODE_LABEL,
-  KekMode,
-  ONBOARDING_STEPS,
-  PROVISION_STEPS,
-  PolicyPackOption,
-  READINESS_CHECK_LABEL,
-  STAFF_SOURCE_LABEL,
-  StaffSourceType,
-  TENANCY_MODEL_LABEL,
-  TENANT_FLOW_LABEL,
-  TENANT_SECTOR_LABEL,
-  TENANT_STATUS_LABEL,
-  TenancyModel,
-  TenantApi,
-  TenantFlow,
-  TenantIdp,
-  TenantOnboarding,
-  TenantOnboardingInput,
-  TenantOnboardingPatch,
-  TenantSector,
-  UiPackOption,
-  fieldErrors,
-  idpKind,
-  modelAllowed,
-  packNotReady,
-  tenantSuggestion,
-  toProblem,
-} from '@vt/api-client';
+import { Job, JobTracker, fieldErrors, toProblem } from '@vt/api-client';
+import { CHECK_RESULT_LABEL, CellOption, CheckResult, ConfigTenant, IDP_KIND_LABEL, IdpKind, KEK_MODE_LABEL, KekMode, ONBOARDING_STEPS, PROVISION_STEPS, PolicyPackOption, READINESS_CHECK_LABEL, STAFF_SOURCE_LABEL, StaffSourceType, TENANCY_MODEL_LABEL, TENANT_FLOW_LABEL, TENANT_SECTOR_LABEL, TENANT_STATUS_LABEL, TenancyModel, TenantApi, TenantFlow, TenantIdp, TenantOnboarding, TenantOnboardingInput, TenantOnboardingPatch, TenantSector, UiPackOption, idpKind, modelAllowed, packNotReady, tenantSuggestion } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';

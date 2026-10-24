@@ -1,4 +1,4 @@
-import { DossierMeetingCreate, DossierMeetingType } from '@vt/api-client';
+import { DossierMeetingCreate, DossierMeetingType } from '@vt/api-client/domains';
 
 /** Dữ liệu của hộp "Lập hội nghị" (QT-11 bước 1). */
 export interface CreateForm {

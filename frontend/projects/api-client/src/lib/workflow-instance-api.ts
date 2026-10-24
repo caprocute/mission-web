@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { apiUrl } from './api-path';
+import { apiUrl } from '@vt/api-client';
 import {
   WorkflowDiagram,
   WorkflowHistory,

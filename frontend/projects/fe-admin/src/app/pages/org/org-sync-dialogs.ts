@@ -1,7 +1,8 @@
 import { Component, inject, input, linkedSignal, model, output, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { OrgApi, OrgDiscrepancy, OrgSyncApi, fieldErrors, toProblem } from '@vt/api-client';
+import { OrgApi, fieldErrors, toProblem } from '@vt/api-client';
+import { OrgDiscrepancy, OrgSyncApi } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';

@@ -32,20 +32,8 @@ import {
 } from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import {
-  APPRAISAL_FLOW_LABEL,
-  AppraisalApi,
-  AppraisalBatchDecision,
-  AppraisalProfileRow,
-  DossierApi,
-  Job,
-  JobTracker,
-  RATING_LEVELS,
-  RATING_LEVEL_LABEL,
-  RatingLevel,
-  formIdOf,
-  toProblem,
-} from '@vt/api-client';
+import { Job, JobTracker, toProblem } from '@vt/api-client';
+import { APPRAISAL_FLOW_LABEL, AppraisalApi, AppraisalBatchDecision, AppraisalProfileRow, DossierApi, RATING_LEVELS, RATING_LEVEL_LABEL, RatingLevel, formIdOf } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import {
   EMPTY,

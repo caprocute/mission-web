@@ -19,18 +19,8 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import {
-  DossierApi,
-  DossierMeetingStatus,
-  DossierMeetingType,
-  MEETING_ROLE_LABEL,
-  MEETING_STATUS_LABEL,
-  MEETING_TYPE_LABEL,
-  OrgApi,
-  PeriodApi,
-  fieldErrors,
-  toProblem,
-} from '@vt/api-client';
+import { OrgApi, fieldErrors, toProblem } from '@vt/api-client';
+import { DossierApi, DossierMeetingStatus, DossierMeetingType, MEETING_ROLE_LABEL, MEETING_STATUS_LABEL, MEETING_TYPE_LABEL, PeriodApi } from '@vt/api-client/domains';
 import { firstValueFrom, map } from 'rxjs';
 import { DOSSIER_CAN } from '../../dossier-permissions';
 import { DossierTabs } from '../dossier-tabs';

@@ -1,6 +1,6 @@
 import { Component, computed, input, linkedSignal, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { CatalogItem } from '@vt/api-client';
+import { CatalogItem } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DialogModule } from 'primeng/dialog';

@@ -1,17 +1,7 @@
 import { Component, computed, inject, linkedSignal, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import {
-  JobAccepted,
-  GOLDEN_CASE_SOURCE_LABEL,
-  GoldenTestCase,
-  GoldenTestCaseSource,
-  PolicyApi,
-  PolicyPackVersion,
-  RATING_LEVELS,
-  RATING_LEVEL_LABEL,
-  fieldErrors,
-  policyVersionLabel,
-} from '@vt/api-client';
+import { JobAccepted, fieldErrors } from '@vt/api-client';
+import { GOLDEN_CASE_SOURCE_LABEL, GoldenTestCase, GoldenTestCaseSource, PolicyApi, PolicyPackVersion, RATING_LEVELS, RATING_LEVEL_LABEL, policyVersionLabel } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { TextareaModule } from 'primeng/textarea';

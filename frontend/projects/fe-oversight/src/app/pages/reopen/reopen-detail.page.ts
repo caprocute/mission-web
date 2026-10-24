@@ -19,21 +19,8 @@ import { Component, computed, inject, input, linkedSignal, signal } from '@angul
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  PERIOD_STATUS_LABEL,
-  REOPEN_APPROVER_ROLE_LABEL,
-  REOPEN_AUDIT_KIND_LABEL,
-  REOPEN_BASIS_LABEL,
-  REOPEN_LIMITS,
-  REOPEN_PENDING_STATUSES,
-  REOPEN_STATUS_LABEL,
-  OrgApi,
-  RATING_LEVEL_LABEL,
-  ReopenApi,
-  ReopenApproverSlot,
-  ReopenRequest,
-  toProblem,
-} from '@vt/api-client';
+import { OrgApi, toProblem } from '@vt/api-client';
+import { PERIOD_STATUS_LABEL, REOPEN_APPROVER_ROLE_LABEL, REOPEN_AUDIT_KIND_LABEL, REOPEN_BASIS_LABEL, REOPEN_LIMITS, REOPEN_PENDING_STATUSES, REOPEN_STATUS_LABEL, RATING_LEVEL_LABEL, ReopenApi, ReopenApproverSlot, ReopenRequest } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';

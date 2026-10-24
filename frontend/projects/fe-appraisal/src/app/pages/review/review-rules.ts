@@ -1,11 +1,4 @@
-import {
-  AppraisalProfile,
-  AppraisalProfileStatus,
-  AppraisalScoreTaskLineView,
-  AppraisalScoreView,
-  AppraisalSelfAssessmentView,
-  RatingLevel,
-} from '@vt/api-client';
+import { AppraisalProfile, AppraisalProfileStatus, AppraisalScoreTaskLineView, AppraisalScoreView, AppraisalSelfAssessmentView, RatingLevel } from '@vt/api-client/domains';
 import { FormRule, evaluateRules } from '@vt/form-engine';
 
 /**

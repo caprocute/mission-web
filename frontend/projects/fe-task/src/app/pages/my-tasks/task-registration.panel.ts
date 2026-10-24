@@ -1,7 +1,8 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { CatalogApi, PeriodRef, TaskApi, TaskSummary, toProblem } from '@vt/api-client';
+import { PeriodRef, TaskApi, TaskSummary, toProblem } from '@vt/api-client';
+import { CatalogApi } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';

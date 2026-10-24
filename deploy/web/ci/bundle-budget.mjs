@@ -2,7 +2,8 @@
 //
 //   cd frontend && node ../deploy/web/ci/bundle-budget.mjs [--json <tệp>]
 //
-// Chạy sau `npm run build:all`. Đo kích thước gzip (mức 6, như nginx/CDN) của:
+// Chạy sau `npm run build:all`. Đo kích thước gzip (mức 9, như bản .gz nén sẵn mà nginx của deploy/web
+// phục vụ qua gzip_static, WEB-052) của:
 //   1. "Shell + design system + runtime Angular" (≤ 250 KB): index.html, CSS và script mà
 //      index.html nạp, main.js, chunk khởi động mà main.js nạp động (bootstrap), rồi mọi
 //      import tĩnh lan truyền từ đó; tên gói trần (@angular/core, primeng/button, @vt/*…) tra
@@ -37,7 +38,7 @@ await init;
 
 const gz = new Map();
 const gzSize = (file) => {
-  if (!gz.has(file)) gz.set(file, gzipSync(readFileSync(file), { level: 6 }).length);
+  if (!gz.has(file)) gz.set(file, gzipSync(readFileSync(file), { level: 9 }).length);
   return gz.get(file);
 };
 

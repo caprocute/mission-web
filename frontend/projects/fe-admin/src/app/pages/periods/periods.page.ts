@@ -30,27 +30,8 @@ import {
 } from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import {
-  JobTracker,
-  LOCK_ORDER_STATUS_LABEL,
-  LOCK_STEP_STATUS_LABEL,
-  PERIOD_FLOW_LABEL,
-  PERIOD_KIND_LABEL,
-  PERIOD_STATUS_LABEL,
-  Period,
-  PeriodApi,
-  PeriodJobAccepted,
-  PeriodLockDiagram,
-  PeriodLockProgress,
-  PeriodLockStep,
-  PeriodLockStepStatus,
-  SAGA_ACTIVE_STATUSES,
-  SAGA_STATUS_LABEL,
-  SCORE_BATCH_STATUS_LABEL,
-  SagaStatus,
-  fieldErrors,
-  toProblem,
-} from '@vt/api-client';
+import { JobTracker, fieldErrors, toProblem } from '@vt/api-client';
+import { LOCK_ORDER_STATUS_LABEL, LOCK_STEP_STATUS_LABEL, PERIOD_FLOW_LABEL, PERIOD_KIND_LABEL, PERIOD_STATUS_LABEL, Period, PeriodApi, PeriodJobAccepted, PeriodLockDiagram, PeriodLockProgress, PeriodLockStep, PeriodLockStepStatus, SAGA_ACTIVE_STATUSES, SAGA_STATUS_LABEL, SCORE_BATCH_STATUS_LABEL, SagaStatus } from '@vt/api-client/domains';
 import { TEXT_FORBIDDEN } from '@vt/auth';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';

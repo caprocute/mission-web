@@ -1,4 +1,4 @@
-import { AnnualRatingRow, Period } from '@vt/api-client';
+import { AnnualRatingRow, Period } from '@vt/api-client/domains';
 import {
   annualPeriodOf,
   hasAwaitingAppraisal,

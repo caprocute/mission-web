@@ -14,15 +14,7 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import {
-  AnalyticsApi,
-  FileApi,
-  TRACE_OBJECT_LABEL,
-  TRACE_OBJECT_NOUN,
-  TRACE_STATUS_LABEL,
-  TraceLink,
-  TraceObjectType,
-} from '@vt/api-client';
+import { AnalyticsApi, FileApi, TRACE_OBJECT_LABEL, TRACE_OBJECT_NOUN, TRACE_STATUS_LABEL, TraceLink, TraceObjectType } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { TagModule } from 'primeng/tag';

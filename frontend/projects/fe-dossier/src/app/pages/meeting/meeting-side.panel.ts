@@ -1,17 +1,7 @@
 import { Component, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import {
-  DossierApi,
-  DossierAttendance,
-  DossierMeeting,
-  DossierMinutesRequest,
-  DossierRemediationItem,
-  DossierRemediationStatus,
-  DossierVote,
-  RATING_LEVEL_LABEL,
-  REMEDIATION_STATUS_LABEL,
-  toProblem,
-} from '@vt/api-client';
+import { toProblem } from '@vt/api-client';
+import { DossierApi, DossierAttendance, DossierMeeting, DossierMinutesRequest, DossierRemediationItem, DossierRemediationStatus, DossierVote, RATING_LEVEL_LABEL, REMEDIATION_STATUS_LABEL } from '@vt/api-client/domains';
 import { firstValueFrom } from 'rxjs';
 import { LEVELS, isPresent, problemMessage, voteError, voteTotal } from './meeting-rules';
 

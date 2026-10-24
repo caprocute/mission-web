@@ -14,22 +14,8 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  AiApi,
-  AssignBatchResult,
-  CatalogApi,
-  OkrApi,
-  OrgApi,
-  SOURCE_DOC_STATUS_LABEL,
-  SOURCE_SYSTEM_LABEL,
-  SimilarTask,
-  SourceDocApi,
-  TASK_STATUS_LABEL,
-  TaskApi,
-  TaskSuggestion,
-  TaskSuggestionFields,
-  toProblem,
-} from '@vt/api-client';
+import { OkrApi, OrgApi, SimilarTask, TASK_STATUS_LABEL, TaskApi, toProblem } from '@vt/api-client';
+import { AiApi, AssignBatchResult, CatalogApi, SOURCE_DOC_STATUS_LABEL, SOURCE_SYSTEM_LABEL, SourceDocApi, TaskSuggestion, TaskSuggestionFields } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';

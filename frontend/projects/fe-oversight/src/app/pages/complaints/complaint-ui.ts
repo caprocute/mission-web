@@ -1,4 +1,4 @@
-import { ComplaintStatus, ComplaintTarget } from '@vt/api-client';
+import { ComplaintStatus, ComplaintTarget } from '@vt/api-client/domains';
 
 /** Màu nhãn trạng thái khiếu nại (PrimeNG `p-tag`); nháp (`null`) là xám. */
 export function complaintSeverity(

@@ -1,14 +1,8 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
-import {
-  DEFAULT_RUNTIME_CONFIG,
-  MOCK_API_OPTIONS,
-  PlanApi,
-  RUNTIME_CONFIG,
-  idempotencyInterceptor,
-  mockApiInterceptor,
-} from '@vt/api-client';
+import { DEFAULT_RUNTIME_CONFIG, MOCK_API_OPTIONS, RUNTIME_CONFIG, idempotencyInterceptor, mockApiInterceptor } from '@vt/api-client';
+import { PlanApi } from '@vt/api-client/domains';
 import { firstValueFrom, of } from 'rxjs';
 import { TASK_CAN } from '../task-permissions';
 import { PlanPage } from './plan.page';

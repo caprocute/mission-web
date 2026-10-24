@@ -10,17 +10,7 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import {
-  DISCREPANCY_FIELD_LABEL,
-  DiscrepancyResolution,
-  DiscrepancySeverity,
-  FIELD_PERSON_MATCH,
-  OrgDiscrepancy,
-  OrgSyncApi,
-  SEVERITY_LABEL,
-  SUGGESTED_ACTION_LABEL,
-  SYNC_SOURCE_LABEL,
-} from '@vt/api-client';
+import { DISCREPANCY_FIELD_LABEL, DiscrepancyResolution, DiscrepancySeverity, FIELD_PERSON_MATCH, OrgDiscrepancy, OrgSyncApi, SEVERITY_LABEL, SUGGESTED_ACTION_LABEL, SYNC_SOURCE_LABEL } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { ADMIN_CAN } from '../../admin-permissions';
 import { errorText, fmtInt } from '../../admin-ui';

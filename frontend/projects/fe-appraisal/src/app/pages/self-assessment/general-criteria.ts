@@ -1,5 +1,5 @@
 import { Component, computed, input, output } from '@angular/core';
-import { GENERAL_CRITERIA_LEVEL_LABEL, GeneralCriteriaItem } from '@vt/api-client';
+import { GENERAL_CRITERIA_LEVEL_LABEL, GeneralCriteriaItem } from '@vt/api-client/domains';
 import { criteriaLevel } from './self-assessment-rules';
 
 /**

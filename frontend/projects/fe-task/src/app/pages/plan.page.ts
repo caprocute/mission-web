@@ -24,24 +24,8 @@ import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import {
-  CatalogApi,
-  CatalogItem,
-  OkrApi,
-  OrgApi,
-  PLAN_CHECK_RULES,
-  PLAN_RECURRENCE_LABEL,
-  PLAN_VERSION_STATUS_LABEL,
-  PlanApi,
-  PlanItem,
-  PlanItemInput,
-  PlanRemovedItem,
-  PlanVersion,
-  PlanWorkspace,
-  TASK_GROUP_LABEL,
-  TaskGroup,
-  toProblem,
-} from '@vt/api-client';
+import { OkrApi, OrgApi, TASK_GROUP_LABEL, TaskGroup, toProblem } from '@vt/api-client';
+import { CatalogApi, CatalogItem, PLAN_CHECK_RULES, PLAN_RECURRENCE_LABEL, PLAN_VERSION_STATUS_LABEL, PlanApi, PlanItem, PlanItemInput, PlanRemovedItem, PlanVersion, PlanWorkspace } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';

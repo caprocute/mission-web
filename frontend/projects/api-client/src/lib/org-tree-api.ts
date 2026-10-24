@@ -1,8 +1,8 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { JobAccepted, acceptedJob } from './job-tracker';
-import { Job } from './models/job';
+import { JobAccepted, acceptedJob } from '@vt/api-client';
+import { Job } from '@vt/api-client';
 import {
   OrgChangeOrder,
   OrgChangeRequest,
@@ -14,7 +14,7 @@ import {
   OrgUnitVersion,
   SubjectGroup,
 } from './models/org-tree';
-import { CursorPage, CursorQuery, MAX_PAGE_LIMIT } from './paging';
+import { CursorPage, CursorQuery, MAX_PAGE_LIMIT } from '@vt/api-client';
 
 /**
  * Hai trục thời gian khi xem: `asOf` (ngày hiệu lực, `Date`) và `recordedAsOf` (đã ghi nhận đến,
