@@ -27,8 +27,10 @@ tickInterval: 15s
 # Ánh xạ tên cảnh báo sang mức cho luật không mang nhãn degrade_level, ví dụ { MissionCoreSaturated: 1 }.
 alertLevels: {}
 
-# Namespace có ApisixPluginConfig gắn nhãn vt.io/degrade-managed=true.
-gatewayNamespaces: [edge]
+# Namespace có ApisixPluginConfig gắn nhãn vt.io/degrade-managed=true: chart api-gateway đặt ApisixRoute và
+# ApisixPluginConfig ở namespace của backend (CRD chỉ trỏ Service cùng namespace), không ở edge; khớp các namespace
+# trong routes của api-gateway/values.yaml. Thiếu một namespace thì tuyến ở đó không bị cắt tải.
+gatewayNamespaces: [analytics, core, identity, platform, secure, workers]
 # Namespace có ScaledObject của tác vụ nền gắn nhãn vt.io/degrade-pause-from=<mức>; rỗng thì không tạm dừng gì.
 jobNamespaces: []
 levelsConfigMap: apisix-degrade-levels
@@ -45,6 +47,10 @@ webhookToken:
     property: token
     secretStore: { kind: ClusterSecretStore, name: openbao-cell }
     refreshInterval: 1h
+  # Người trực đặt, ghim, bỏ mức bằng tay (OPS-14, `vtctl degrade set|pin|clear`) cần đọc token này. Vai trò thường
+  # trực operate-app của security-cell không cho đọc Secret và không phủ namespace edge, nên chart cấp riêng quyền get
+  # đúng một Secret này cho nhóm OIDC của ca trực (khớp security-cell rbac.bindings.operate-app); rỗng thì không cấp.
+  nguoiDoc: ["oidc:platform-ops-sre-truc"]
 
 # Kênh trực: URL nhận thông báo JSON (notification-service hoặc cầu nối chat); rỗng thì chỉ ghi nhật ký.
 notify:
