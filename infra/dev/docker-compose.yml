@@ -1231,6 +1231,28 @@ services:
     networks:
       - mission-net
 
+  # Thay refreshable materialized view ở cell dev (nhân CentOS 7 là 3.10, ClickHouse đòi 3.15 trở lên): khi kho được
+  # áp với ANALYTICS_REFRESHABLE_MV=false, job này tính lại các view trong analytics_dev._lam_moi_dinh_ky theo chu kỳ
+  # gốc bằng INSERT … SELECT (analytics/clickhouse/migrate.py --lam-moi). Kho áp ở chế độ mặc định thì job không làm gì.
+  clickhouse-lam-moi:
+    image: python:3.13-alpine
+    container_name: mission-dev-clickhouse-lam-moi
+    restart: unless-stopped
+    profiles: ["analytics", "all"]
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    command: ["python", "-I", "/srv/clickhouse/migrate.py", "--lam-moi", "--lap"]
+    environment:
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?Đặt CLICKHOUSE_PASSWORD trong .env}
+      ANALYTICS_CELL: dev
+    volumes:
+      - ../../analytics/clickhouse:/srv/clickhouse:ro
+    networks:
+      - mission-net
+
   # Lớp ngữ nghĩa Cube (DV-15-03): mô hình và cấu hình ở analytics/cube. Chạy sau khi đã áp migration kho
   # (analytics/clickhouse/migrate.py). Bộ đệm và hàng đợi trong bộ nhớ, một tiến trình; Cube Store và nhiều bản sao
   # là phần triển khai cụm (INF).

@@ -41,6 +41,8 @@ python3 analytics/clickhouse/migrate.py
 
 Các biến khác: `ANALYTICS_DB` (mặc định `analytics_<cell>`), `ANALYTICS_CLUSTER` (mặc định `cell_<cell>`), `ANALYTICS_KAFKA_GROUP`, `ANALYTICS_KAFKA_CONSUMERS`, `ANALYTICS_KAFKA_FLUSH_MS`, `ANALYTICS_CORE_DB` (CSDL của mission-core, mặc định `tenant_data`), `ANALYTICS_ORG_DB` (CSDL của org-service, mặc định `org`). Ở dev, ClickHouse chạy bằng `docker compose --profile analytics up -d` trong `infra/dev`, cụm tên `cell_dev`.
 
+Refreshable materialized view (bảng dẫn xuất của V008, bảng `agg_*` của V015) cần nhân Linux 3.15 trở lên. Cell chạy trên nhân cũ hơn, hiện chỉ có máy chủ dev CentOS 7 (nhân 3.10), đặt `ANALYTICS_REFRESHABLE_MV=false` trước khi áp: bộ áp dựng mỗi câu `CREATE MATERIALIZED VIEW … REFRESH EVERY … [APPEND] TO <đích>` thành view thường cùng tên và ghi lịch vào `<db>._lam_moi_dinh_ky` (view, bảng đích, chu kỳ giây, có APPEND hay không). `python3 migrate.py --lam-moi` tính lại các view đến hạn bằng `INSERT … SELECT` vào bảng đích, ghi đè thì `TRUNCATE` trước nên bảng trống trong chốc lát; `--tat-ca` bỏ qua hạn, `--lap` chạy mãi (job `clickhouse-lam-moi` của compose dev). Tổng kiểm vẫn tính trên tệp gốc nên chế độ này không làm lịch sử migration lệch, nhưng đổi chế độ trên một kho đã áp thì phải xoá kho rồi áp lại. Production giữ mặc định `true`.
+
 Tệp đã áp không được sửa: thay đổi lược đồ viết thành tệp số tiếp theo. Bộ áp dừng khi phát hiện tổng kiểm của một tệp đã áp khác đi.
 
 ## Hợp đồng với connector phân tích (DV-15-02)

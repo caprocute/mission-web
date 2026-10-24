@@ -20,6 +20,8 @@ Các bước, mỗi bước chạy lại an toàn:
    Mật khẩu vai trò CDC và khoá giả danh nằm ở dạng `${env:...}`: worker Debezium đọc từ biến môi trường của
    container (docker-compose.yml), không lưu giá trị vào topic cấu hình của Connect.
 4. Chờ bảng `dim_org_scope` (làm mới mỗi phút) có dòng, tức analytics-api đã dựng được phạm vi theo cây tổ chức.
+   Khi .env đặt ANALYTICS_REFRESHABLE_MV=false (máy chủ nhân cũ hơn 3.15), kho dùng view thường thay refreshable MV;
+   job compose `clickhouse-lam-moi` tính lại định kỳ, còn script này tự tính lại ngay ở mỗi lần kiểm.
 
     python3 -I infra/dev/scripts/noi-cdc-phan-tich.py            # mọi bước
     python3 -I infra/dev/scripts/noi-cdc-phan-tich.py --kiem     # chỉ in trạng thái connector và số dòng kho
@@ -194,10 +196,7 @@ def http(method: str, url: str, body=None, timeout: float = 30):
 
 
 def ap_kho(env: dict) -> None:
-    e = dict(env)
-    e.setdefault("CLICKHOUSE_URL", f"http://127.0.0.1:{env.get('CLICKHOUSE_HTTP_PORT', '35123')}")
-    e.setdefault("CLICKHOUSE_USER", "default")
-    e.setdefault("ANALYTICS_CELL", "dev")
+    e = migrate_env(env)
     e["ANALYTICS_CORE_DB"] = DEV_DB
     e["ANALYTICS_ORG_DB"] = DEV_DB
     e["ANALYTICS_WORKFLOW_DB"] = "flowable"
@@ -252,6 +251,26 @@ def chup_lai(connect: str, ten: str) -> None:
     print(f"  {ten}: đã xoá offset, chụp lại ảnh ban đầu")
 
 
+def migrate_env(env: dict) -> dict:
+    e = dict(env)
+    e.setdefault("CLICKHOUSE_URL", f"http://127.0.0.1:{env.get('CLICKHOUSE_HTTP_PORT', '35123')}")
+    e.setdefault("CLICKHOUSE_USER", "default")
+    e.setdefault("ANALYTICS_CELL", "dev")
+    return e
+
+
+def lam_moi(env: dict) -> None:
+    """Chế độ ANALYTICS_REFRESHABLE_MV=false: tính lại ngay mọi view thay refreshable MV (migrate.py --lam-moi)."""
+    if env.get("ANALYTICS_REFRESHABLE_MV", "true").strip().lower() != "false":
+        return
+    kq = subprocess.run(
+        [sys.executable, "-I", str(REPO / "analytics" / "clickhouse" / "migrate.py"), "--lam-moi", "--tat-ca"],
+        env=migrate_env(env), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
+    )
+    if kq.returncode != 0:
+        print(f"  Làm mới bảng dẫn xuất lỗi: {(kq.stderr or kq.stdout).strip()[-400:]}")
+
+
 def ch(env: dict, sql: str) -> str:
     url = f"http://127.0.0.1:{env.get('CLICKHOUSE_HTTP_PORT', '35123')}/"
     req = urllib.request.Request(url, data=sql.encode("utf-8"), method="POST")
@@ -269,9 +288,11 @@ def kiem(env: dict, connect: str, cho: bool) -> int:
     db = env.get("ANALYTICS_DB", "analytics_dev")
     if not re.fullmatch(r"[A-Za-z0-9_]+", db):
         sys.exit("ANALYTICS_DB không hợp lệ")
-    # dim_org_scope là refreshable materialized view (mỗi phút) dựng từ bảng đơn vị và bao đóng cây đã nạp từ CDC.
+    # dim_org_scope là refreshable materialized view (mỗi phút) dựng từ bảng đơn vị và bao đóng cây đã nạp từ CDC,
+    # hoặc view thường do job clickhouse-lam-moi tính lại khi ANALYTICS_REFRESHABLE_MV=false.
     han = time.time() + (240 if cho else 0)
     while True:
+        lam_moi(env)
         try:
             don_vi = int(ch(env, f"SELECT count() FROM {db}.dim_org_scope"))
         except (urllib.error.URLError, OSError, ValueError) as e:

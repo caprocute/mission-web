@@ -53,6 +53,15 @@ value_for() {
   esac
   if [[ -n "${mapped}" && -f "${ENV}" ]] && grep -qE "^${mapped}=.+" "${ENV}"; then
     grep -E "^${mapped}=" "${ENV}" | tail -1 | cut -d= -f2-
+  elif [[ "${key}" == ANALYTICS_REFRESHABLE_MV ]]; then
+    # Refreshable materialized view của ClickHouse cần nhân 3.15 trở lên (máy chủ dev CentOS 7 là 3.10).
+    local k maj min
+    k="$(uname -r)"; maj="${k%%.*}"; min="${k#*.}"; min="${min%%.*}"
+    if [[ "${maj}" =~ ^[0-9]+$ && "${min}" =~ ^[0-9]+$ ]] && (( maj < 3 || (maj == 3 && min < 15) )); then
+      printf 'false'
+    else
+      printf '%s' "${sample}"
+    fi
   elif [[ "${sample}" == "<FILL_IN>" || "${sample}" == "__GENERATE__" ]]; then
     if [[ "${key}" == *OTP_SECRET ]]; then
       gen_b32

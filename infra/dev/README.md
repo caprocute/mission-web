@@ -227,6 +227,15 @@ python3 -I infra/dev/scripts/noi-cdc-phan-tich.py --chup-lai  # chụp lại ả
 
 Dev gộp CSDL của mission-core và org-service thành một CSDL `mission`, nên script dựng connector `cdc-mission` (topic `cdc.mission.*`) từ hai tệp sinh `analytics/cdc/generated/tenant_data` và `org`, connector `cdc-flowable` giữ nguyên tệp sinh, và áp kho với `ANALYTICS_CORE_DB=ANALYTICS_ORG_DB=mission`. Ảnh Debezium dev (`infra/dev/debezium/Dockerfile`) có sẵn plugin giả danh `TenantPseudonymize`; mật khẩu vai trò CDC và `ANALYTICS_PSEUDONYM_KEY` chỉ nằm trong biến môi trường của container. Kho đã được áp trước đây với topic mặc định `cdc.tenant_data.*` thì bộ áp báo lệch tổng kiểm: xoá CSDL kho dev (`DROP DATABASE analytics_dev ON CLUSTER cell_dev SYNC`) rồi chạy lại, dữ liệu dựng lại được từ CDC. `smoke-backend.sh` mục 5 kiểm cả hai luồng.
 
+Máy chủ dev chạy CentOS 7 với nhân 3.10, còn refreshable materialized view của ClickHouse cần nhân 3.15 trở lên, nên `.env` của máy chủ đặt `ANALYTICS_REFRESHABLE_MV=false` (`gen-env.sh --bo-sung` tự chọn `false` khi `uname -r` nhỏ hơn 3.15). Khi đó bộ áp dựng `dim_org_scope`, `data_freshness` và các bảng `agg_*` từ view thường, job `clickhouse-lam-moi` (profile `analytics`) tính lại chúng theo chu kỳ gốc bằng `INSERT … SELECT`, còn `noi-cdc-phan-tich.py` tự tính lại ngay ở bước chờ cây tổ chức. Kho đã áp dở ở chế độ mặc định (lỗi "Linux kernel 3.15+ is required") thì xoá kho rồi chạy lại với `--chup-lai`, vì nhóm tiêu thụ Kafka của kho cũ đã ghi offset:
+
+```bash
+docker compose exec clickhouse clickhouse-client --password "$CLICKHOUSE_PASSWORD" \
+  -q "DROP DATABASE IF EXISTS analytics_dev ON CLUSTER cell_dev SYNC"
+python3 -I infra/dev/scripts/noi-cdc-phan-tich.py --chup-lai
+docker compose --profile analytics up -d clickhouse-lam-moi
+```
+
 ### 3.3. Chẩn đoán tuyến API (`kiem-tuyen.py`)
 
 Khi màn hình hiện trống hay API trả 404, chạy một lệnh trên máy chủ dev (cần Python 3.10 trở lên và PyYAML; thiếu thì cài bằng `python3 -m pip install --user pyyaml`):
