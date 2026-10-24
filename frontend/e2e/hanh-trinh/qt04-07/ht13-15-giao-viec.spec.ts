@@ -315,7 +315,9 @@ test.describe('Giao việc', { tag: '@qa-05' }, () => {
     ).toBeVisible();
     // Trang làm mới danh sách ngay sau khi gửi nên trình duyệt có thể đã bỏ thân phản hồi; khi đó lấy mã từ dòng
     let taskId = gui
-      ? await (await gui)
+      ? await (
+          await gui
+        )
           .json()
           .then((b: { id: string }) => b.id)
           .catch(() => '')

@@ -81,7 +81,14 @@ export class PeriodApi {
       .post<Job>(
         apiUrl('/periods/{id}/lock', { id: periodId }),
         { lockOrderId: order.id },
-        { headers: ifMatch(order.rowVersion), observe: 'response' },
+        {
+          // Máy chủ đòi đúng khoá chống lặp của lệnh (`CK-{năm}{kỳ}`), không nhận UUID ngẫu nhiên
+          headers: {
+            ...ifMatch(order.rowVersion),
+            ...(order.idempotencyKey ? { 'Idempotency-Key': order.idempotencyKey } : {}),
+          },
+          observe: 'response',
+        },
       )
       .pipe(map(accepted));
   }

@@ -227,6 +227,15 @@ public class PeriodLockService {
         .map(o -> new Progress(o, sixSteps(orders.steps(tenantId, o.id()))));
   }
 
+  /**
+   * Lệnh khoá hiện hành của kỳ (chưa huỷ) cho trường {@code currentLockOrder} của {@code Period}:
+   * SCR-0801 hiện người lập, người duyệt và trạng thái lệnh từ trường này (QA-06 HT-23).
+   */
+  @Transactional(value = TX, readOnly = true)
+  public Optional<PeriodLockOrder> current(TenantId tenantId, PeriodId periodId) {
+    return orders.active(tenantId, periodId);
+  }
+
   /** Lệnh của kỳ theo mã (để phát lại phản hồi đã lưu). */
   @Transactional(value = TX, readOnly = true)
   public Optional<PeriodLockOrder> find(TenantId tenantId, PeriodId periodId, UUID orderId) {
