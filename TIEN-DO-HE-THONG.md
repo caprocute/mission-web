@@ -13,8 +13,8 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 391 task)
 
 - **Tổng tiến độ đã gộp `main`**: **380 / 391 task (97.2%)** — Khối lượng quy đổi đã gộp: **454 / 471 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **381 / 391 task (97.4%)** (gồm **380** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **10 task** (0 đang làm, 10 làm một phần).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **380 / 391 task (97.2%)** (gồm **380** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **11 task** (0 đang làm, 11 làm một phần).
 - **Chưa bắt đầu**: **0 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **22 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
@@ -22,7 +22,7 @@
 
 | Mã nhóm | Phân hệ / Phạm vi | Tổng task | Khối lượng | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tỷ lệ gộp `main` |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **71** | 1 | 0 | 0 | **98.6%** |
+| **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **71** | 0 | 1 | 0 | **98.6%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **117** | 0 | 0 | 0 | **100.0%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **104** | 0 | 0 | 0 | **100.0%** |
@@ -31,7 +31,7 @@
 | **QA** | Kiểm thử tích hợp, ATTT và chấp nhận nghiệp vụ (`QA-01..07`, `QA-13`, `QA-16`) | 9 | 13.5 | **6** | 0 | 3 | 0 | **66.7%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **8** | 0 | 1 | 0 | **88.9%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **391** | **471** | **380** | **1** | **10** | **0** | **97.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **391** | **471** | **380** | **0** | **11** | **0** | **97.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -42,7 +42,7 @@
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **120** | 0 | 0 | 0 | **100.0%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
-| **M5 – Hạ tầng Production, Tích hợp E2E & ATTT** | 37 | **27** | 1 | 9 | 0 | **73.0%** |
+| **M5 – Hạ tầng Production, Tích hợp E2E & ATTT** | 37 | **27** | 0 | 10 | 0 | **73.0%** |
 | **M6 – Dữ liệu chính thức & Vận hành** | 11 | **11** | 0 | 0 | 0 | **100.0%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **3** | 0 | 1 | 0 | **75.0%** |
 
@@ -73,7 +73,7 @@ Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 
 Mọi thay đổi trạng thái task đều được cập nhật trực tiếp vào bảng dưới đây. Các giá trị cột **Trạng thái** hợp lệ: `Đã gộp main`, `Xong, chờ gộp`, `Đang làm`, `Làm một phần`, `Chưa bắt đầu`.
 
-### WEB-001..065 · Phân hệ giao diện Web (Kế hoạch Web GĐ0–GĐ4) (64/65 đã gộp `main`, 1 chờ gộp, 0 đang làm)
+### WEB-001..065 · Phân hệ giao diện Web (Kế hoạch Web GĐ0–GĐ4) (64/65 đã gộp `main`, 0 chờ gộp, 1 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -128,7 +128,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [WEB-049](docs/tasks/WEB-049-tro-ly-ai.md) | SCR-1701 Trợ lý AI soạn OKR và soát KR | M | W-OKR/Đánh giá | – | WEB-022 | **Đã gộp main** | Đã gộp main (f4fca53) |
 | [WEB-050](docs/tasks/WEB-050-studio-giao-dien.md) | SCR-1801 Cấu hình giao diện tenant và SCR-1802 Trình dựng biểu mẫu động | L | W-Giám sát/CH | – | WEB-004, WEB-009, WEB-010 | **Đã gộp main** | Đã gộp main (f4fca53) |
 | [WEB-051](docs/tasks/WEB-051-plugin-chuyen-nganh.md) | Plugin chuyên ngành mẫu và manifest theo tenant | M | W-Nền tảng | – | WEB-015 | **Đã gộp main** | Đã gộp main (f74d95f1) |
-| [WEB-052](docs/tasks/WEB-052-toi-uu-hieu-nang.md) | Kiểm thử và tối ưu hiệu năng frontend | M | W-Nền tảng | – | WEB-003, WEB-011 | **Xong, chờ gộp** | Nhánh claude/project-thread-gmqu4z: thêm perf:budget (đo ngân sách trên trình duyệt), perf:prepare tự đặt cấu hình đo, số đo main 24/10 ghi vào wiki/09; remote ĐẠT, trang chủ 545 KB/250 KB và LCP 7,66 s vẫn VƯỢT, ba hướng còn lại cần quyết định; lint, api:check, check:permissions, check:ui-text, test, build:all xanh |
+| [WEB-052](docs/tasks/WEB-052-toi-uu-hieu-nang.md) | Kiểm thử và tối ưu hiệu năng frontend | M | W-Nền tảng | – | WEB-003, WEB-011 | **Làm một phần** | Gộp 17f38395: perf:budget, Lighthouse CI cục bộ; remote đạt 180 KB, trang chủ còn vượt 250 KB |
 | [WEB-053](docs/tasks/WEB-053-danh-gia-attt.md) | Đánh giá ATTT frontend: OWASP ZAP và ASVS mức 2 | M | W-Nền tảng | – | WEB-014 | **Đã gộp main** | Đã gộp main (984a7ba1) |
 | [WEB-054](docs/tasks/WEB-054-bang-quyen-frontend.md) | Bảng quyền phía giao diện sinh từ ma trận (`can()`, `*vtCan`, `permissionGuard`) | M | W-Phân quyền | – | WEB-001, WEB-006 | **Đã gộp main** | Đã gộp `main` (bảng quyền sinh từ `ma-tran.json`: `can()`, `*vtCan`, `permissionGuard`) |
 | [WEB-055](docs/tasks/WEB-055-ap-ma-tran-shell-remote.md) | Áp ma trận vào menu, tuyến và nút của shell và các remote hiện có | M | W-Phân quyền | – | WEB-054, WEB-015 | **Đã gộp main** | Đã gộp `main` (áp ma trận phân quyền vào menu, tuyến và nút của shell/remote) |
@@ -1038,4 +1038,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 24/10/2026 02:49 | B2 | `VH-08` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-n43ag0: bổ sung bảng đối chiếu TL-01/TL-04 (docs/dua-vao-su-dung), diễn tập lần 2 kiểm chuỗi tạm ngừng bằng mã thật; bỏ bước di động; staging chưa có, chặn đăng nhập Keycloak khi TAM_NGUNG chưa có mã |
 | 24/10/2026 02:51 | Điều phối (main) | `VH-08` | Chuyển trạng thái sang **Đã gộp main** — Gộp db49b2e1: đối chiếu TL-01/TL-04, diễn tập lần 2 chuỗi tạm ngừng |
 | 24/10/2026 03:16 | B3 (Claude) | `WEB-052` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-gmqu4z: thêm perf:budget (đo ngân sách trên trình duyệt), perf:prepare tự đặt cấu hình đo, số đo main 24/10 ghi vào wiki/09; remote ĐẠT, trang chủ 545 KB/250 KB và LCP 7,66 s vẫn VƯỢT, ba hướng còn lại cần quyết định; lint, api:check, check:permissions, check:ui-text, test, build:all xanh |
+| 24/10/2026 03:19 | Điều phối (main) | `WEB-052` | Chuyển trạng thái sang **Làm một phần** — Gộp 17f38395: perf:budget, Lighthouse CI cục bộ; remote đạt 180 KB, trang chủ còn vượt 250 KB |
 <!-- PROGRESS_LOG_END -->
