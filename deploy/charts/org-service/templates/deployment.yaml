@@ -49,6 +49,17 @@ spec:
                   key: password
             - name: OIDC_ISSUER_URI
               value: {{ .Values.oidc.issuerUri | quote }}
+            - name: OKRKPI_ORG_KEYCLOAK_BASE_URL
+              value: {{ .Values.keycloak.baseUrl | quote }}
+            - name: OKRKPI_ORG_KEYCLOAK_REALM
+              value: {{ .Values.keycloak.realm | quote }}
+            - name: OKRKPI_ORG_KEYCLOAK_CLIENT_ID
+              value: {{ .Values.keycloak.clientId | quote }}
+            - name: OKRKPI_ORG_KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.keycloak.clientSecret.name }}
+                  key: {{ .Values.keycloak.clientSecret.key }}
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: {{ .Values.otel.endpoint | quote }}
             - name: JAVA_TOOL_OPTIONS

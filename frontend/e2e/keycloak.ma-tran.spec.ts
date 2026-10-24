@@ -11,7 +11,7 @@ import { OTP_SECRET, PASSWORD, completeKeycloak, completePopup } from './dang-nh
  */
 const REALM = JSON.parse(
   readFileSync(join(__dirname, '..', '..', 'infra/dev/keycloak/realm-mission.json'), 'utf8'),
-) as { users: { username: string; realmRoles: string[] }[] };
+) as { users: { username: string; realmRoles: string[]; serviceAccountClientId?: string }[] };
 
 /** Đọc claim của JWT (không kiểm chữ ký, chỉ để kiểm `acr` trong kiểm thử). */
 function claims(jwt: string): Record<string, unknown> {
@@ -23,7 +23,8 @@ test.beforeEach(() => {
   test.skip(!PASSWORD || !OTP_SECRET, 'Thiếu KC_TEST_USER_PASSWORD hoặc KC_TEST_OTP_SECRET');
 });
 
-for (const u of REALM.users) {
+// Tài khoản dịch vụ (client credentials) không đăng nhập qua trình duyệt.
+for (const u of REALM.users.filter((x) => !x.serviceAccountClientId)) {
   const label = `${u.username} (${u.realmRoles.join(', ')})`;
   test(`tài khoản ${label}`, async ({ page }, info) => {
     await page.goto('/');

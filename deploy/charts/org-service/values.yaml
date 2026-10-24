@@ -16,6 +16,22 @@ database:
 oidc:
   issuerUri: https://sso.invalid/realms/mission
 
+# DV-04-07: ghi ngữ cảnh làm việc (PUT /org/me/context) qua Admin API Keycloak bằng client org-service (realm-cell.yaml
+# của chart iam, quyền view-users, manage-users). Bí mật client do External Secrets đồng bộ từ OpenBao
+# (iam/org-service, cùng khoá chart iam dùng khi nạp realm); để trống baseUrl thì PUT /org/me/context trả 503.
+keycloak:
+  baseUrl: https://sso.invalid
+  realm: okrkpi
+  clientId: org-service
+  clientSecret:
+    name: org-service-keycloak
+    key: client-secret
+    externalSecret:
+      enabled: true
+      refreshInterval: 1h
+      secretStoreRef: { kind: ClusterSecretStore, name: openbao }
+      remoteRef: { key: iam/org-service, property: client-secret }
+
 otel:
   endpoint: http://otel-collector.observability:4318
 

@@ -29,7 +29,7 @@ Khi không có `ZAP_CLIENT_SECRET` hay `ZAP_REFRESH_TOKEN`, `chay-zap.sh` lấy 
 
 Chạy trực tiếp `zap.sh -cmd -autorun infra/security/zap/okr-api.yaml` cũng được nếu đã đặt đủ biến `ZAP_*` (xem đầu tệp kế hoạch); khi đó `exitStatus` của kế hoạch trả 1 khi có High, 2 khi có Medium, và cần chạy thêm `node infra/security/zap/kiem-ngoai-le.mjs <tệp sarif>` để xét ngoại lệ.
 
-Trong pipeline, bước `vtZapScan` của `ci/vt-pipeline` gọi `chay-zap.sh`, lấy client secret từ Jenkins credentials và lưu báo cáo làm artifact. Client `mission-zap` cho grant `client_credentials` trên staging cần được tạo trong realm (thuộc task IAM), với vai trò người dùng thử và claim `tenant` của tenant kiểm thử.
+Trong pipeline, bước `vtZapScan` của `ci/vt-pipeline` gọi `chay-zap.sh`, lấy client secret từ Jenkins credentials và lưu báo cáo làm artifact. Realm dev (`infra/dev/keycloak/realm-mission.json`) có client `mission-zap` cho grant `client_credentials` (anh Hiếu duyệt 24/10/2026): tài khoản dịch vụ mang vai trò `member` và claim `tenant`, `unit_id` của cán bộ thử, bí mật `ZAP_CLIENT_SECRET` trong `infra/dev/.env` (`gen-env.sh --bo-sung` tự sinh); Keycloak dev đã nhập realm trước đó thì chạy `infra/dev/scripts/them-client-zap.sh`. Khi đó đặt `ZAP_CLIENT_ID=mission-zap` và `ZAP_CLIENT_SECRET` thay cho việc tự đăng nhập người dùng thử. Client này chỉ có ở dev; realm của cell không có tài khoản quét, staging cần tạo client riêng theo cùng mẫu.
 
 ## Tiêu chí và ngoại lệ
 

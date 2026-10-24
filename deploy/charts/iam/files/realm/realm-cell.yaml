@@ -528,6 +528,31 @@ clients:
     defaultClientScopes:
       - roles
 
+  # DV-04-07 · QT-00 bước 7: tài khoản dịch vụ của org-service ghi ngữ cảnh làm việc vào thuộc tính người
+  # dùng qua Admin API (PUT /org/me/context, SCR-0003) bằng client credentials. Quyền chỉ là view-users, manage-users
+  # của realm-management (anh Hiếu duyệt 24/10/2026, YC cấp quyền QA-13), không có quyền client hay vai trò.
+  - clientId: org-service
+    name: org-service (tài khoản dịch vụ)
+    protocol: openid-connect
+    enabled: true
+    publicClient: false
+    clientAuthenticatorType: client-secret
+    secret: $(env:MISSION_ORG_SERVICE_CLIENT_SECRET)
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+    fullScopeAllowed: true
+    redirectUris: []
+    webOrigins: []
+    attributes:
+      oauth2.device.authorization.grant.enabled: "false"
+      oidc.ciba.grant.enabled: "false"
+      access.token.signed.response.alg: ES256
+    defaultClientScopes:
+      - roles
+      - profile
+
   # Cổng APISIX (SVC-01) chỉ kiểm token (introspection, JWKS); không phát token cho người dùng.
   - clientId: apisix-gateway
     name: Cổng API (SVC-01), chỉ kiểm token
@@ -548,10 +573,18 @@ clients:
       oauth2.device.authorization.grant.enabled: "false"
       oidc.ciba.grant.enabled: "false"
 
-# DV-02-04: vai trò của tài khoản dịch vụ mission-iam-broker (không phải tài khoản người, không có mật khẩu).
+# Vai trò của tài khoản dịch vụ (không phải tài khoản người, không có mật khẩu): mission-iam-broker (DV-02-04) và
+# org-service (DV-04-07, chỉ xem và sửa người dùng để ghi ngữ cảnh làm việc).
 users:
   - username: service-account-mission-iam-broker
     enabled: true
     serviceAccountClientId: mission-iam-broker
     realmRoles:
       - svc_iam
+  - username: service-account-org-service
+    enabled: true
+    serviceAccountClientId: org-service
+    clientRoles:
+      realm-management:
+        - view-users
+        - manage-users

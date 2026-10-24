@@ -478,6 +478,25 @@
         "basic",
         "profile"
       ]
+    },
+    {
+      "clientId": "mission-zap",
+      "name": "Quét bảo mật OWASP ZAP (chỉ dev, QA-13)",
+      "description": "Client credentials cho infra/security/zap; tài khoản dịch vụ mang vai trò cán bộ (member) của tenant thử, không dùng ngoài dev.",
+      "enabled": true,
+      "bearerOnly": false,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${ZAP_CLIENT_SECRET}",
+      "defaultClientScopes": [
+        "basic",
+        "profile",
+        "mission-context"
+      ]
     }
   ],
   "components": {
@@ -1386,6 +1405,22 @@
       "serviceAccountClientId": "integration-gateway",
       "realmRoles": [
         "svc_integration_gateway"
+      ]
+    },
+    {
+      "username": "service-account-mission-zap",
+      "enabled": true,
+      "serviceAccountClientId": "mission-zap",
+      "attributes": {
+        "tenant": [
+          "d0000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "d0000000-0000-4000-8000-000000000101"
+        ]
+      },
+      "realmRoles": [
+        "member"
       ]
     },
     {

@@ -102,6 +102,7 @@ secrets:
     apisixClientSecret: apisix-gateway-client-secret
     vneidClientSecret: vneid-client-secret
     iamBrokerClientSecret: iam-broker-client-secret
+    orgServiceClientSecret: org-service-client-secret
 
 externalSecret:
   enabled: true
@@ -122,6 +123,10 @@ externalSecret:
       property: client-secret
     iamBrokerClientSecret:
       key: iam/iam-broker
+      property: client-secret
+    # DV-04-07: client org-service ghi ngữ cảnh làm việc qua Admin API; chart org-service đọc cùng khoá OpenBao.
+    orgServiceClientSecret:
+      key: iam/org-service
       property: client-secret
 
 job:

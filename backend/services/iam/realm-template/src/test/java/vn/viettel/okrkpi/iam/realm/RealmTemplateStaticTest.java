@@ -95,7 +95,7 @@ class RealmTemplateStaticTest {
     Map<String, JsonNode> clients = new LinkedHashMap<>();
     r.path("clients").forEach(c -> clients.put(c.path("clientId").asText(), c));
     assertThat(clients.keySet())
-        .containsExactlyInAnyOrder("mission-web", "apisix-gateway", "mission-iam-broker");
+        .containsExactlyInAnyOrder("mission-web", "apisix-gateway", "mission-iam-broker", "org-service");
     for (String id : new String[] {"mission-web"}) {
       JsonNode c = clients.get(id);
       assertThat(c.path("publicClient").asBoolean()).as(id).isTrue();
@@ -118,6 +118,23 @@ class RealmTemplateStaticTest {
     assertThat(broker.path("serviceAccountsEnabled").asBoolean()).isTrue();
     assertThat(broker.path("standardFlowEnabled").asBoolean()).isFalse();
     assertThat(broker.path("directAccessGrantsEnabled").asBoolean()).isFalse();
+    // DV-04-07: org-service chỉ dùng client credentials, tài khoản dịch vụ chỉ xem và sửa người dùng.
+    JsonNode org = clients.get("org-service");
+    assertThat(org.path("publicClient").asBoolean()).isFalse();
+    assertThat(org.path("serviceAccountsEnabled").asBoolean()).isTrue();
+    assertThat(org.path("standardFlowEnabled").asBoolean()).isFalse();
+    assertThat(org.path("directAccessGrantsEnabled").asBoolean()).isFalse();
+    JsonNode sa = null;
+    for (JsonNode u : r.path("users")) {
+      if ("org-service".equals(u.path("serviceAccountClientId").asText())) {
+        sa = u;
+      }
+    }
+    assertThat(sa).isNotNull();
+    assertThat(sa.path("realmRoles").isMissingNode() || sa.path("realmRoles").isEmpty()).isTrue();
+    assertThat(RepoFiles.JSON.convertValue(sa.path("clientRoles").path("realm-management"), String[].class))
+        .containsExactlyInAnyOrder("view-users", "manage-users");
+    assertThat(sa.path("clientRoles").size()).isEqualTo(1);
   }
 
   @Test

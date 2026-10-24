@@ -147,6 +147,7 @@ final class RepoFiles {
     env.put("MISSION_VNEID_BREAKER_OPEN_SECONDS", v.path("breaker").path("openSeconds").asText());
     env.put("MISSION_VNEID_CLIENT_SECRET", "vneid-" + apisixSecret);
     env.put("MISSION_IAM_BROKER_CLIENT_SECRET", "broker-" + apisixSecret);
+    env.put("MISSION_ORG_SERVICE_CLIENT_SECRET", "org-" + apisixSecret);
     env.putAll(overrides);
     return env;
   }
