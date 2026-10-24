@@ -225,6 +225,7 @@ services:
       ORG_SERVICE_CLIENT_SECRET: ${ORG_SERVICE_CLIENT_SECRET:-}
       PROVISION_CLIENT_SECRET: ${PROVISION_CLIENT_SECRET:-}
       INTEGRATION_GATEWAY_CLIENT_SECRET: ${INTEGRATION_GATEWAY_CLIENT_SECRET:-}
+      ZAP_CLIENT_SECRET: ${ZAP_CLIENT_SECRET:-}
       # Gốc web thêm vào redirect URI của client mission-web; thiếu biến thì Keycloak 26 từ chối nhập realm
       # vì "${WEB_ORIGIN}/*" không phải URI hợp lệ.
       WEB_ORIGIN: ${WEB_ORIGIN:-http://127.0.0.1:35000}

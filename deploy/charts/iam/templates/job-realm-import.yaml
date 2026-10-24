@@ -172,6 +172,11 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.name }}
                   key: {{ .Values.secrets.keys.iamBrokerClientSecret }}
+            - name: MISSION_ORG_SERVICE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: {{ .Values.secrets.keys.orgServiceClientSecret }}
           resources:
             {{- toYaml .Values.job.resources | nindent 12 }}
           volumeMounts:
