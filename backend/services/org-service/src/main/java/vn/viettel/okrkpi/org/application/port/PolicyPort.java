@@ -11,6 +11,21 @@ public interface PolicyPort {
 
   void authorize(Actor actor, String operationId);
 
+  /**
+   * Chủ thể có vai trò được làm thao tác không (để tính {@code permittedActions}); thiếu bước lên vẫn tính là được vì
+   * lúc thực hiện máy chủ sẽ yêu cầu bước lên.
+   */
+  default boolean permits(Actor actor, String operationId) {
+    try {
+      authorize(actor, operationId);
+      return true;
+    } catch (vn.viettel.okrkpi.org.application.StepUpRequiredException e) {
+      return true;
+    } catch (vn.viettel.okrkpi.org.application.ForbiddenOperationException e) {
+      return false;
+    }
+  }
+
   default boolean hasTenantScope(Actor actor) {
     return false;
   }

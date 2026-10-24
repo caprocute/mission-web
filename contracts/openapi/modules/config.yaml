@@ -5413,7 +5413,7 @@ components:
         Mã vai trò trong bản ghi cấp vai trò: một trong chín vai trò hệ thống (`RoleCode`) hoặc mã vai trò tuỳ chỉnh
         của tenant dạng `tc_…` (BS-04, ADR-34).
       type: string
-      pattern: '^(tenant_admin|policy_author|leader|manager|member|appraiser|decider|second_approver|inspector|tc_[a-z0-9_]{3,40})$'
+      pattern: '^(tenant_admin|policy_author|leader|manager|member|appraiser|decider|second_approver|inspector|tc_[a-z0-9_]{3,29})$'
     PermissionScope:
       description: >-
         Phạm vi của một quyền theo ma trận (wiki/15a): `N` nền tảng, `Tn` toàn tenant, `Cd` đơn vị và cấp dưới, `Dv`

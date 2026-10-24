@@ -60,6 +60,12 @@ public class OutboxAccessEvents implements AccessEvents {
   }
 
   @Override
+  public void customRoleChanged(
+      TenantId tenantId, String action, UUID roleId, int version, UUID actorId) {
+    audit(tenantId, action, "config.custom_role", roleId, version, actorId);
+  }
+
+  @Override
   public void delegationChanged(
       TenantId tenantId,
       vn.viettel.okrkpi.config.domain.AccessChange change,
@@ -112,9 +118,14 @@ public class OutboxAccessEvents implements AccessEvents {
       UUID id,
       int version,
       UUID actorId) {
+    audit(tenantId, change.name(), objectType, id, version, actorId);
+  }
+
+  private void audit(
+      TenantId tenantId, String action, String objectType, UUID id, int version, UUID actorId) {
     AuditEvent payload =
         AuditEvent.newBuilder()
-            .setAction(change.name())
+            .setAction(action)
             .setObjectType(objectType)
             .setObjectId(id.toString())
             .setOutcome("THANH_CONG")

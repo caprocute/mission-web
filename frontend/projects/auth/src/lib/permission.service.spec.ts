@@ -31,8 +31,8 @@ function setup(current: VtUser | null, allowInferred = true) {
 }
 
 describe('bảng quyền sinh từ ma trận', () => {
-  it('có đủ 175 khoá chức năng web, đúng dạng SCR-qqnn.<khoá>', () => {
-    expect(PERMISSION_KEYS.length).toBe(175);
+  it('có đủ 184 khoá chức năng web, đúng dạng SCR-qqnn.<khoá>', () => {
+    expect(PERMISSION_KEYS.length).toBe(184);
     for (const k of PERMISSION_KEYS) expect(k).toMatch(/^SCR-\d{4}\.[a-z0-9-]+$/);
   });
 
@@ -138,6 +138,24 @@ describe('PermissionService', () => {
   it('canAll với danh sách rỗng trả false', () => {
     const { perms } = setup(user('leader'));
     expect(perms.canAll()).toBe(false);
+  });
+});
+
+describe('vai trò tuỳ chỉnh của đơn vị (BS-04)', () => {
+  it('mở đúng các chức năng đã chọn của vai trò tc_ mà người dùng giữ', () => {
+    const { perms } = setup(user('tc_ab12cd34_tong_hop' as VtRole));
+    expect(perms.can('SCR-0110.xem')).toBe(false);
+    perms.setCustomRoles([
+      {
+        code: 'tc_ab12cd34_tong_hop',
+        baseRole: 'tenant_admin',
+        keys: ['SCR-0110.xem', 'SCR-9999.khong-co'],
+      },
+      { code: 'tc_ab12cd34_khac', baseRole: 'tenant_admin', keys: ['SCR-0108.xem'] },
+    ]);
+    expect(perms.can('SCR-0110.xem')).toBe(true);
+    expect(perms.can('SCR-0110.sua')).toBe(false);
+    expect(perms.can('SCR-0108.xem')).toBe(false);
   });
 });
 

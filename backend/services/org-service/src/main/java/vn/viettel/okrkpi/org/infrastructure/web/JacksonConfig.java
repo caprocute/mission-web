@@ -31,6 +31,7 @@ public class JacksonConfig {
         .mixIn(ListOrgDiscrepancies200Response.class, NextCursorAlways.class)
         .mixIn(ListOrgSyncRuns200Response.class, NextCursorAlways.class)
         .mixIn(ListE2eeRecoveries200Response.class, NextCursorAlways.class)
+        .mixIn(vn.viettel.okrkpi.org.infrastructure.web.model.UserAccountPage.class, NextCursorAlways.class)
         .mixIn(OrgUnitRef.class, ParentIdAlways.class);
   }
 

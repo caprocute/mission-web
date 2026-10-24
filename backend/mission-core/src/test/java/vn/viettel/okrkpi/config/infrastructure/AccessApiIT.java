@@ -315,6 +315,84 @@ class AccessApiIT extends ContractConformanceTest {
                     }));
   }
 
+  /** CORE-08-18: vai trò tuỳ chỉnh tạo, sửa, cấp cho người dùng, ngừng thì thu hồi bản ghi cấp. */
+  @Test
+  void customRoleLifecycle() throws Exception {
+    seedDirectory();
+    String roles = "/api/v1/config/custom-roles";
+
+    act(ADMIN, List.of("tenant_admin"), true);
+    MvcResult catalog = perform(get("/api/v1/config/permission-catalog"));
+    assertThat(status(catalog)).as(text(catalog)).isEqualTo(200);
+    assertResponseConforms(catalog, "/config/permission-catalog", PathItem.HttpMethod.GET);
+
+    String body =
+        "{\"name\":\"Cán bộ chỉ xem\",\"baseRole\":\"member\","
+            + "\"permissions\":[{\"key\":\"SCR-0201.xem\",\"scope\":\"B\"}]}";
+    MvcResult created = perform(write(post(roles), body));
+    assertThat(status(created)).as(text(created)).isEqualTo(201);
+    assertResponseConforms(created, "/config/custom-roles", PathItem.HttpMethod.POST);
+    String id = body(created).get("id").asText();
+    String code = body(created).get("code").asText();
+    assertThat(code).startsWith("tc_").hasSizeLessThanOrEqualTo(32);
+    assertThat(status(perform(write(post(roles), body)))).isEqualTo(409);
+    String wider =
+        "{\"name\":\"Rộng hơn\",\"baseRole\":\"member\","
+            + "\"permissions\":[{\"key\":\"SCR-0201.xem\",\"scope\":\"Tn\"}]}";
+    MvcResult rejected = perform(write(post(roles), wider));
+    assertThat(status(rejected)).as(text(rejected)).isEqualTo(422);
+    assertThat(body(rejected).get("code").asText()).isEqualTo("CONFIG-422-CUSTOM-ROLE-WIDER");
+
+    // Cấp vai trò tuỳ chỉnh như vai trò hệ thống; danh sách đếm người giữ.
+    MvcResult granted = perform(write(post(BINDINGS), grant(GRANTEE, code, unit)));
+    assertThat(status(granted)).as(text(granted)).isEqualTo(201);
+    assertResponseConforms(granted, "/config/role-bindings", PathItem.HttpMethod.POST);
+    String bindingId = body(granted).get("id").asText();
+    MvcResult list = perform(get(roles));
+    assertThat(status(list)).as(text(list)).isEqualTo(200);
+    assertResponseConforms(list, "/config/custom-roles", PathItem.HttpMethod.GET);
+    assertThat(body(list).at("/items/0/holderCount").asInt()).isEqualTo(1);
+
+    act(GRANTEE, List.of("member", code), false);
+    MvcResult mine = perform(get("/api/v1/config/me/custom-roles"));
+    assertThat(status(mine)).as(text(mine)).isEqualTo(200);
+    assertResponseConforms(mine, "/config/me/custom-roles", PathItem.HttpMethod.GET);
+    assertThat(body(mine).get("items").size()).isEqualTo(1);
+
+    act(ADMIN, List.of("tenant_admin"), true);
+    String update =
+        "{\"name\":\"Cán bộ xem đơn vị\","
+            + "\"permissions\":[{\"key\":\"SCR-0201.xem\",\"scope\":\"Dv\"}]}";
+    assertThat(
+            status(
+                perform(
+                    write(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                            roles + "/" + id),
+                        update,
+                        "\"5\""))))
+        .isEqualTo(409);
+    MvcResult updated =
+        perform(
+            write(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                    roles + "/" + id),
+                update,
+                "\"0\""));
+    assertThat(status(updated)).as(text(updated)).isEqualTo(200);
+    assertResponseConforms(updated, "/config/custom-roles/{id}", PathItem.HttpMethod.PUT);
+    assertThat(updated.getResponse().getHeader("ETag")).isEqualTo("\"1\"");
+
+    MvcResult retired = perform(write(post(roles + "/" + id + "/retire"), reason(), "\"1\""));
+    assertThat(status(retired)).as(text(retired)).isEqualTo(200);
+    assertResponseConforms(retired, "/config/custom-roles/{id}/retire", PathItem.HttpMethod.POST);
+    assertThat(body(retired).get("status").asText()).isEqualTo("NGUNG");
+    assertThat(body(perform(get(BINDINGS + "/" + bindingId))).get("status").asText())
+        .isEqualTo("DA_THU_HOI");
+    // Vai trò đã ngừng không cấp được nữa.
+    assertThat(status(perform(write(post(BINDINGS), grant(OTHER, code, unit))))).isEqualTo(422);
+  }
+
   private static void unit(JdbcClient jdbc, UUID id, String name) {
     jdbc.sql(
             "INSERT INTO org_replica.org_unit_v (id, valid_from, code, name, unit_type,"

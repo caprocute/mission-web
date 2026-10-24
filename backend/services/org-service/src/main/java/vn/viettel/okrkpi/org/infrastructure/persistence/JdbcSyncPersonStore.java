@@ -56,10 +56,17 @@ public class JdbcSyncPersonStore implements SyncPersonStore {
 
   @Override
   public void insert(NewPerson p, Actor actor) {
-    jdbc.sql("INSERT INTO org.person (version_id, id, tenant_id, full_name, birth_date_enc, national_id_enc, "
+    insert(p, null, actor);
+  }
+
+  @Override
+  public void insert(NewPerson p, String gender, Actor actor) {
+    jdbc.sql("INSERT INTO org.person (version_id, id, tenant_id, full_name, gender, birth_date_enc, national_id_enc, "
             + "national_id_bidx, is_party_member, employment_status, dek_id, valid_from, created_by, updated_by) "
-            + "VALUES (:vid, :id, :tenant, :name, :birth, :nid, :bidx, :party, :status, :dek, :from, :actor, :actor)")
+            + "VALUES (:vid, :id, :tenant, :name, :gender, :birth, :nid, :bidx, :party, :status, :dek, :from, :actor, "
+            + ":actor)")
         .param("vid", p.versionId()).param("id", p.id()).param("tenant", Sql.tenant()).param("name", p.fullName())
+        .param("gender", gender)
         .param("birth", p.birthDateEnc()).param("nid", p.nationalIdEnc()).param("bidx", p.nationalIdBidx())
         .param("party", p.partyMember()).param("status", p.employmentStatus()).param("dek", p.dekId())
         .param("from", p.validFrom()).param("actor", actor.actorId())
@@ -68,6 +75,16 @@ public class JdbcSyncPersonStore implements SyncPersonStore {
 
   @Override
   public int changeFrom(UUID id, LocalDate from, String employmentStatus, Boolean partyMember, Actor actor) {
+    return versionFrom(id, from, null, employmentStatus, partyMember, actor);
+  }
+
+  @Override
+  public int renameFrom(UUID id, LocalDate from, String fullName, Actor actor) {
+    return versionFrom(id, from, fullName, null, null, actor);
+  }
+
+  private int versionFrom(UUID id, LocalDate from, String fullName, String employmentStatus, Boolean partyMember,
+      Actor actor) {
     List<Map<String, Object>> slices = jdbc.sql("SELECT version_id, valid_from, valid_to FROM org.person "
             + "WHERE tenant_id = :tenant AND id = :id AND recorded_to = 'infinity' AND valid_to > :from "
             + "ORDER BY valid_from FOR UPDATE")
@@ -83,10 +100,10 @@ public class JdbcSyncPersonStore implements SyncPersonStore {
       LocalDate vf = ((java.sql.Date) s.get("valid_from")).toLocalDate();
       writer.close("person", List.of(versionId), actor);
       if (vf.isBefore(from)) {
-        copy(versionId, vf, from, null, null, next, actor);
-        copy(versionId, from, null, employmentStatus, partyMember, next, actor);
+        copy(versionId, vf, from, null, null, null, next, actor);
+        copy(versionId, from, null, fullName, employmentStatus, partyMember, next, actor);
       } else {
-        copy(versionId, vf, null, employmentStatus, partyMember, next, actor);
+        copy(versionId, vf, null, fullName, employmentStatus, partyMember, next, actor);
       }
     }
     return next;
@@ -94,20 +111,20 @@ public class JdbcSyncPersonStore implements SyncPersonStore {
 
   /**
    * Chép phiên bản {@code source} thành lát {@code [from, to)} (to null là giữ ngày hết hiệu lực cũ), thay trạng thái
-   * hoặc đảng tịch nếu có; cột C2 giữ nguyên bản mã cùng DEK.
+   * hoặc đảng tịch, họ tên nếu có; cột C2 giữ nguyên bản mã cùng DEK.
    */
-  private void copy(UUID source, LocalDate from, LocalDate to, String status, Boolean party, int rowVersion,
-      Actor actor) {
+  private void copy(UUID source, LocalDate from, LocalDate to, String name, String status, Boolean party,
+      int rowVersion, Actor actor) {
     jdbc.sql("INSERT INTO org.person (version_id, id, tenant_id, full_name, gender, birth_date_enc, national_id_enc, "
             + "national_id_bidx, party_member_no_enc, party_member_no_bidx, is_party_member, cbccvc_code, "
             + "employment_status, dek_id, change_order_id, valid_from, valid_to, created_by, updated_by, row_version) "
-            + "SELECT :vid, id, tenant_id, full_name, gender, birth_date_enc, national_id_enc, national_id_bidx, "
+            + "SELECT :vid, id, tenant_id, coalesce(:name, full_name), gender, birth_date_enc, national_id_enc, national_id_bidx, "
             + "party_member_no_enc, party_member_no_bidx, coalesce(:party, is_party_member), cbccvc_code, "
             + "coalesce(:status, employment_status), dek_id, change_order_id, :from, "
             + "CASE WHEN CAST(:to AS date) IS NULL THEN valid_to ELSE CAST(:to AS date) END, :actor, :actor, :rv "
             + "FROM org.person WHERE tenant_id = :tenant AND version_id = :source")
         .param("vid", vn.viettel.okrkpi.org.domain.UuidV7.next(java.time.Clock.systemUTC()))
-        .param("party", party).param("status", status).param("from", from).param("to", to)
+        .param("name", name).param("party", party).param("status", status).param("from", from).param("to", to)
         .param("actor", actor.actorId()).param("rv", rowVersion).param("tenant", Sql.tenant())
         .param("source", source)
         .update();

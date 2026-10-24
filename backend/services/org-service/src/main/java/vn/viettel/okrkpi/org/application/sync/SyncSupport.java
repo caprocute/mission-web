@@ -86,7 +86,7 @@ public class SyncSupport {
   }
 
   /** EVT-16: trạng thái hiện hành của nhân sự (không có trường C2). */
-  void emitPersonChanged(UUID personId, Actor actor) {
+  public void emitPersonChanged(UUID personId, Actor actor) {
     PersonRow p = persons.findById(personId, today())
         .orElseThrow(() -> new OrgNotFoundException("Không tìm thấy cán bộ."));
     int version = persons.entityVersion(personId);

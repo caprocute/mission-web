@@ -84,6 +84,15 @@ public class ProblemAdvice {
     return send(problem(HttpStatus.CONFLICT, "conflict", "Xung đột dữ liệu", e.getMessage(), e.code(), req));
   }
 
+  @ExceptionHandler(vn.viettel.okrkpi.org.application.port.AccountDirectoryPort.UsernameTakenException.class)
+  ResponseEntity<ProblemDetail> usernameTaken(RuntimeException e, HttpServletRequest req) {
+    ProblemDetail p = problem(HttpStatus.CONFLICT, "conflict", "Tên đăng nhập đã được sử dụng",
+        "Tên đăng nhập này đã được sử dụng. Vui lòng chọn tên khác.", "ORG-409-USERNAME-TAKEN", req);
+    p.setProperty("msg", "MSG-01-20");
+    p.setProperty("errors", List.of(fieldError("username", "Tên đăng nhập này đã được sử dụng.", "BR-01-19")));
+    return send(p);
+  }
+
   @ExceptionHandler(ForbiddenOperationException.class)
   ResponseEntity<ProblemDetail> forbidden(ForbiddenOperationException e, HttpServletRequest req) {
     return send(problem(HttpStatus.FORBIDDEN, "forbidden", "Không có quyền thực hiện thao tác này", null,

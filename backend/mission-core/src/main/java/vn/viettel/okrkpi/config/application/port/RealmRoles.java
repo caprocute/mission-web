@@ -11,4 +11,7 @@ public interface RealmRoles {
   void add(UUID userId, String role);
 
   void remove(UUID userId, String role);
+
+  /** Tạo realm role nếu chưa có (vai trò tuỳ chỉnh, CORE-08-18); đã có thì cập nhật mô tả. */
+  default void ensure(String role, String description) {}
 }

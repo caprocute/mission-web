@@ -1833,6 +1833,12 @@ components:
           items: { type: string }
         validFrom: { $ref: '../common/common.yaml#/components/schemas/Date' }
         validTo: { type: [string, 'null'], format: date }
+        rowVersion:
+          description: >-
+            Phiên bản hiện hành của phân công (`row_version` lớn nhất của các phiên bản đang hiệu lực), gửi trong
+            `If-Match` khi sửa hoặc kết thúc phân công (`updateOrgAssignment`, `endOrgAssignment`; BS-04). Chỉ có ở
+            `listPersonAssignments`.
+          allOf: [{ $ref: '../common/common.yaml#/components/schemas/RowVersion' }]
     MyOrgProfile:
       type: object
       required: [personId, fullName, assignments]

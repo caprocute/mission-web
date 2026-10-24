@@ -13,6 +13,13 @@ public interface AccessEvents {
   void roleChanged(
       TenantId tenantId, AccessChange change, RoleBinding binding, UUID actorId, Instant now);
 
+  /**
+   * Thay đổi định nghĩa vai trò tuỳ chỉnh (CORE-08-18): chỉ ghi sự kiện kiểm toán {@code
+   * sys.audit.v1}; người giữ vai trò thay đổi theo EVT-27 của bản ghi cấp như cũ.
+   */
+  default void customRoleChanged(
+      TenantId tenantId, String action, UUID roleId, int version, UUID actorId) {}
+
   void delegationChanged(
       TenantId tenantId, AccessChange change, Delegation delegation, UUID actorId, Instant now);
 }

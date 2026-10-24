@@ -1,6 +1,8 @@
 package vn.viettel.okrkpi.config.infrastructure.persistence;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URI;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import javax.sql.DataSource;
@@ -23,12 +25,17 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.PlatformTransactionManager;
 import vn.viettel.okrkpi.config.api.AccessDirectory;
 import vn.viettel.okrkpi.config.application.AccessHistoryService;
+import vn.viettel.okrkpi.config.application.CustomRoleService;
 import vn.viettel.okrkpi.config.application.DelegationService;
 import vn.viettel.okrkpi.config.application.RealmRoleSync;
 import vn.viettel.okrkpi.config.application.RoleBindingService;
+import vn.viettel.okrkpi.config.application.port.TenantRolePublisher;
+import vn.viettel.okrkpi.config.infrastructure.authz.ClasspathPermissionCatalog;
 import vn.viettel.okrkpi.config.infrastructure.client.KeycloakRealmRoles;
+import vn.viettel.okrkpi.config.infrastructure.client.OpaTenantRolePublisher;
 import vn.viettel.okrkpi.config.infrastructure.listener.RealmRoleSyncListener;
 import vn.viettel.okrkpi.config.infrastructure.scheduling.AccessMaintenanceJob;
+import vn.viettel.okrkpi.config.infrastructure.scheduling.CustomRolePublishJob;
 import vn.viettel.okrkpi.events.EventTopics;
 import vn.viettel.okrkpi.shared.inbox.InboxEndpoint;
 import vn.viettel.okrkpi.shared.inbox.InboxEnvelope;
@@ -84,9 +91,57 @@ public class AccessConfiguration {
   RoleBindingService roleBindingService(
       JdbcRoleBindingRepository roleBindingRepository,
       OutboxAccessEvents accessEvents,
-      ObjectProvider<AccessDirectory> directory) {
+      ObjectProvider<AccessDirectory> directory,
+      JdbcCustomRoleRepository customRoleRepository) {
     return new RoleBindingService(
-        roleBindingRepository, accessEvents, directory.getIfAvailable(), Clock.systemUtc());
+        roleBindingRepository,
+        accessEvents,
+        directory.getIfAvailable(),
+        Clock.systemUtc(),
+        customRoleRepository);
+  }
+
+  @Bean
+  JdbcCustomRoleRepository customRoleRepository(
+      @Qualifier("configDataSource") DataSource dataSource, ObjectProvider<ObjectMapper> json) {
+    return new JdbcCustomRoleRepository(
+        JdbcClient.create(dataSource), json.getIfAvailable(ObjectMapper::new));
+  }
+
+  @Bean
+  ClasspathPermissionCatalog permissionCatalog(ObjectProvider<ObjectMapper> json) {
+    return new ClasspathPermissionCatalog(json.getIfAvailable(ObjectMapper::new));
+  }
+
+  /**
+   * CORE-08-18: định nghĩa vai trò tuỳ chỉnh ghi sang OPA khi OPA bật ({@code okrkpi.opa.enabled});
+   * realm role Keycloak tạo khi có Admin API.
+   */
+  @Bean
+  CustomRoleService customRoleService(
+      JdbcCustomRoleRepository customRoleRepository,
+      JdbcRoleBindingRepository roleBindingRepository,
+      ClasspathPermissionCatalog permissionCatalog,
+      OutboxAccessEvents accessEvents,
+      ObjectProvider<ObjectMapper> json,
+      ObjectProvider<KeycloakAdminClient> keycloak,
+      @Value("${okrkpi.opa.enabled:false}") boolean opaEnabled,
+      @Value("${okrkpi.opa.base-url:http://127.0.0.1:8181}") URI opaBaseUrl,
+      @Value("${mission.config.keycloak-admin.base-url:}") String keycloakBaseUrl) {
+    TenantRolePublisher publisher =
+        opaEnabled
+            ? new OpaTenantRolePublisher(
+                opaBaseUrl, json.getIfAvailable(ObjectMapper::new), Duration.ofSeconds(5))
+            : (tenant, roles) -> {};
+    KeycloakAdminClient admin = keycloakBaseUrl.isBlank() ? null : keycloak.getIfAvailable();
+    return new CustomRoleService(
+        customRoleRepository,
+        roleBindingRepository,
+        permissionCatalog,
+        publisher,
+        admin == null ? null : new KeycloakRealmRoles(admin),
+        accessEvents,
+        Clock.systemUtc());
   }
 
   @Bean
@@ -207,6 +262,14 @@ public class AccessConfiguration {
         @Value("${mission.config.period-opening.cell:${CELL_ID:}}") String cell) {
       return new AccessMaintenanceJob(
           roleBindingService, delegationService, realmRoleSync, directory, tm, cell);
+    }
+
+    @Bean
+    CustomRolePublishJob customRolePublishJob(
+        CustomRoleService customRoleService,
+        ObjectProvider<TenantDirectory> directory,
+        @Value("${mission.config.period-opening.cell:${CELL_ID:}}") String cell) {
+      return new CustomRolePublishJob(customRoleService, directory, cell);
     }
   }
 }

@@ -84,6 +84,24 @@ export const ROUTES: Routes = [
     title: 'Uỷ quyền khi vắng mặt',
   },
   {
+    path: 'users',
+    canActivate: [permissionGuard('SCR-0108.xem')],
+    loadComponent: () => import('./pages/users/users.page').then((m) => m.UsersPage),
+    title: 'Người dùng',
+  },
+  {
+    path: 'users/:id',
+    canActivate: [permissionGuard('SCR-0109.xem')],
+    loadComponent: () => import('./pages/users/user-detail.page').then((m) => m.UserDetailPage),
+    title: 'Chi tiết người dùng',
+  },
+  {
+    path: 'roles',
+    canActivate: [permissionGuard('SCR-0110.xem')],
+    loadComponent: () => import('./pages/access/custom-roles.page').then((m) => m.CustomRolesPage),
+    title: 'Vai trò và quyền',
+  },
+  {
     path: 'tenants/:id',
     canActivate: [permissionGuard('SCR-0101.xem')],
     loadComponent: () => import('./pages/tenant-detail.page').then((m) => m.TenantDetailPage),

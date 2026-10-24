@@ -30,6 +30,7 @@ Bảng dưới liệt kê các ADR của baseline có tác động trực tiếp
 | ADR-31 | Ký lô và niêm phong sổ cái | Màn hình ký lô, tra cứu sổ cái |
 | ADR-32 | Hợp đồng API trước (bổ sung BS-02, đã chấp nhận 19/10/2026) | Mọi lời gọi API: kiểu sinh từ `contracts/openapi/`, đổi API bắt đầu bằng PR sửa hợp đồng |
 | ADR-33 | Hồ sơ tập khách hàng trên một lõi chung (bổ sung BS-03, đã chấp nhận 22/10/2026) | Màn hình đánh giá, giao việc, OKR đọc cờ điểm cắm DC-01..DC-06 của hồ sơ qua API, không giả định một cách chấm cố định |
+| ADR-34 | Định danh và phân quyền quản trị ngay trong Mission, đồng bộ nhân sự ngoài là tính năng tuỳ chọn mặc định tắt (bổ sung BS-04, chủ dự án quyết định 24/10/2026) | SCR-0108 Người dùng, SCR-0109 Chi tiết người dùng, SCR-0110 Vai trò và quyền; `PermissionService` áp vai trò tuỳ chỉnh `tc_…`; màn hình đồng bộ SCR-0104 ẩn theo cờ `org.externalSync` |
 
 ## Quyết định riêng của dự án web đã chốt
 
@@ -209,6 +210,10 @@ ZAP baseline chạy trên bản dựng đầy đủ sau nginx tại chỗ, vì m
 - Giữ mục tiêu LCP 2,5 s, nhưng đo trên thiết bị thật hoặc dữ liệu người dùng thật (Faro, WEB-011) ở giai đoạn đo hiệu năng sau (theo quyết định 22/10/2026 chỉ tập trung phát triển). Lighthouse mô phỏng CPU chậm 4 lần chỉ dùng để theo dõi xu hướng, không làm cổng chặn. Lý do là 94 % thời gian LCP hiện nay là thời gian chờ khởi động JavaScript trên CPU mô phỏng, không phải thời gian chờ mạng.
 
 Hai số 400 KB và 550 KB là cổng chặn hiện hành; 250 KB của TL-01 giữ làm mục tiêu NFR. Mã đã cập nhật: `BUDGETS.shell` của `deploy/web/ci/bundle-budget.mjs` là 400 KB; `PERF_SHELL_KB` mặc định của `tools/perf/ngan-sach.mjs` là 550 KB, và lệnh in kèm khoảng cách tới mục tiêu 250 KB (`PERF_SHELL_TARGET_KB`). `lighthouserc.json` giữ nguyên, vì tổng tải của Lighthouse tính cả JSON giả lập và chỉ dùng theo dõi xu hướng như đề xuất về LCP ở trên.
+
+### Quản trị người dùng và vai trò tuỳ chỉnh (BS-04, ADR-34, đã chốt 24/10/2026)
+
+Chủ dự án quyết định ngày 24/10/2026 không dùng đồng bộ nhân sự ngoài trong giai đoạn này: đồng bộ thành công tắc, mặc định tắt, mã giữ nguyên; tài khoản cán bộ do quản trị đơn vị tạo trong ứng dụng, và phân quyền chi tiết làm bằng vai trò tuỳ chỉnh theo tenant. Vai trò tuỳ chỉnh chỉ thu hẹp một trong năm vai trò gốc `leader`, `manager`, `member`, `appraiser`, `inspector`; ba vai trò nhạy cảm và hai vai trò quản trị chưa làm vai trò gốc. Định nghĩa vai trò nằm ở `config.custom_role`, được đẩy sang OPA tại `data.tenant_roles` (khi lưu, khi khởi động, mỗi phút) và thành realm role Keycloak, nên tài khoản dịch vụ `mission-core` cần `manage-realm`. Tạo, sửa, ngừng vai trò chỉ ghi kiểm toán, không phát sự kiện mới. Danh sách phân công của một cán bộ trả thêm `rowVersion` để sửa và kết thúc có `If-Match`. Còn mở: kiểm tổng tỷ lệ kiêm nhiệm không vượt 100%, phân quyền quản trị theo nhánh đơn vị (cần org-service hỏi OPA), phát hành định nghĩa vai trò thành bundle trên cụm thật.
 
 ## Khoảng trống trong mã so với thiết kế
 

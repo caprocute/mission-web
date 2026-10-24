@@ -7,6 +7,7 @@ import java.util.TreeSet;
 import java.util.UUID;
 import vn.viettel.okrkpi.config.application.port.RealmRoles;
 import vn.viettel.okrkpi.config.application.port.RoleBindingRepository;
+import vn.viettel.okrkpi.config.domain.CustomRole;
 import vn.viettel.okrkpi.config.domain.RoleBinding;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
@@ -44,7 +45,7 @@ public class RealmRoleSync {
     }
     Set<String> current = new TreeSet<>();
     for (String r : realm.rolesOf(personId)) {
-      if (RoleBinding.ROLES.contains(r)) {
+      if (RoleBinding.ROLES.contains(r) || CustomRole.isCustomCode(r)) {
         current.add(r);
       }
     }

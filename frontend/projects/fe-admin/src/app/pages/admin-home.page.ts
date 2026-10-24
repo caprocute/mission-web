@@ -1,5 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { EXTERNAL_SYNC_FLAG, FeatureFlagService } from '@vt/api-client';
 import { ADMIN_CAN } from '../admin-permissions';
 
 /** Trang đầu của remote fe-admin cho vai trò không vào thẳng Danh sách tenant (quản trị tenant, thẩm định). */
@@ -11,15 +12,15 @@ import { ADMIN_CAN } from '../admin-permissions';
       <div>
         <span class="vt-hero-kicker">Khung nền tảng lõi · Quản trị hệ thống</span>
         <h1>Quản trị</h1>
-        <p>
-          Quản lý cơ cấu tổ chức, đồng bộ nhân sự, phân quyền theo đơn vị, ủy quyền và kỳ đánh giá.
-        </p>
+        <p>Quản lý cơ cấu tổ chức, người dùng, vai trò và quyền, ủy quyền và kỳ đánh giá.</p>
       </div>
     </header>
 
     @if (
       can('SCR-0103.xem') ||
-      can('SCR-0104.xem') ||
+      can('SCR-0108.xem') ||
+      can('SCR-0110.xem') ||
+      (sync() && can('SCR-0104.xem')) ||
       can('SCR-0801.xem') ||
       can('SCR-0105.xem') ||
       can('SCR-0107.xem')
@@ -32,7 +33,25 @@ import { ADMIN_CAN } from '../admin-permissions';
             <p>Xem, nhập và thay đổi cơ cấu tổ chức theo thời gian hiệu lực.</p>
           </li>
         }
-        @if (can('SCR-0104.xem')) {
+        @if (can('SCR-0108.xem')) {
+          <li class="admin-card">
+            <span class="admin-card__badge">Người dùng</span>
+            <a routerLink="users">Người dùng</a>
+            <p>
+              Tạo tài khoản, giao đơn vị công tác và kiêm nhiệm, đặt lại mật khẩu, khoá tài khoản.
+            </p>
+          </li>
+        }
+        @if (can('SCR-0110.xem')) {
+          <li class="admin-card">
+            <span class="admin-card__badge">Phân quyền</span>
+            <a routerLink="roles">Vai trò và quyền</a>
+            <p>
+              Tạo vai trò riêng của đơn vị bằng cách chọn chức năng và phạm vi từ vai trò có sẵn.
+            </p>
+          </li>
+        }
+        @if (sync() && can('SCR-0104.xem')) {
           <li class="admin-card">
             <span class="admin-card__badge">Nhân sự</span>
             <a routerLink="org/sync">Đồng bộ nhân sự</a>
@@ -120,4 +139,7 @@ import { ADMIN_CAN } from '../admin-permissions';
 })
 export class AdminHomePage {
   protected readonly can = inject(ADMIN_CAN);
+  private readonly flags = inject(FeatureFlagService);
+  /** Đồng bộ nhân sự từ hệ thống ngoài là tính năng tuỳ chọn, mặc định tắt (ADR-34). */
+  protected readonly sync = computed(() => this.flags.isEnabled(EXTERNAL_SYNC_FLAG));
 }

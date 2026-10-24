@@ -1414,6 +1414,115 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/config/permission-catalog': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Danh mục chức năng và quyền của vai trò hệ thống
+     * @description Danh mục chức năng web theo nhóm nghiệp vụ (quy trình, màn hình) cùng mức và phạm vi mà từng vai trò hệ thống có theo ma trận phân quyền (sinh từ `docs/phan-quyen/ma-tran.json`), để SCR-0110 dựng ma trận và soạn vai trò tuỳ chỉnh. Không phụ thuộc tenant; ETag theo phiên bản ma trận.
+     */
+    get: operations['getPermissionCatalog'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/custom-roles': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Vai trò tuỳ chỉnh của tenant
+     * @description Mọi vai trò tuỳ chỉnh (`config.custom_role`) của tenant, kèm số người đang giữ.
+     */
+    get: operations['listCustomRoles'];
+    put?: never;
+    /**
+     * Tạo vai trò tuỳ chỉnh từ một vai trò gốc
+     * @description Vai trò tuỳ chỉnh chỉ thu hẹp vai trò gốc (BR-01-23): mọi chức năng phải thuộc vai trò gốc, phạm vi không rộng hơn. Tạo realm role Keycloak cùng mã, đẩy định nghĩa sang OPA ngay và phát EVT-27 (BR-01-24). Vi phạm thu hẹp trả 422 mã `CONFIG-422-CUSTOM-ROLE-WIDER`; trùng tên trả 409 `CONFIG-409-CUSTOM-ROLE-NAME`.
+     */
+    post: operations['createCustomRole'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/custom-roles/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    /** Chi tiết một vai trò tuỳ chỉnh */
+    get: operations['getCustomRole'];
+    /**
+     * Sửa tên, mô tả và quyền của vai trò tuỳ chỉnh
+     * @description Thay cả bộ quyền; vai trò gốc không đổi được. Có hiệu lực ngay với mọi người đang giữ (BR-01-24). Vai trò đã ngừng trả 409 `CONFIG-409-CUSTOM-ROLE-RETIRED`.
+     */
+    put: operations['updateCustomRole'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/custom-roles/{id}/retire': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Ngừng sử dụng vai trò tuỳ chỉnh
+     * @description Đặt trạng thái `NGUNG`, thu hồi mọi bản ghi cấp còn hiệu lực của vai trò (lý do "Vai trò đã ngừng sử dụng"), gỡ khỏi OPA và Keycloak (BR-01-24).
+     */
+    post: operations['retireCustomRole'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/me/custom-roles': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Định nghĩa vai trò tuỳ chỉnh mà người gọi đang giữ
+     * @description Giao diện dùng để ẩn hiện menu, tuyến, nút theo vai trò tuỳ chỉnh (YC-PT-21). Chỉ trả vai trò có trong token của người gọi và đang hiệu lực; người không có vai trò tuỳ chỉnh nhận danh sách rỗng.
+     */
+    get: operations['listMyCustomRoles'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/config/dashboard-defs': {
     parameters: {
       query?: never;
@@ -3540,7 +3649,7 @@ export interface components {
       person: components['schemas']['Ref'];
       /** @description Chức danh của phân công chính */
       personTitle?: string | null;
-      roleCode: components['schemas']['RoleCode'];
+      roleCode: components['schemas']['RoleRef'];
       orgUnit: components['schemas']['Ref'];
       scope: components['schemas']['RoleBindingScope'];
       /** @description Giới hạn theo luồng; `null` là cả hai luồng. */
@@ -3566,7 +3675,7 @@ export interface components {
     };
     RoleBindingCreate: {
       personId: components['schemas']['Uuid'];
-      roleCode: components['schemas']['RoleCode'];
+      roleCode: components['schemas']['RoleRef'];
       orgUnitId: components['schemas']['Uuid'];
       scope: components['schemas']['RoleBindingScope'];
       flow?: components['schemas']['Flow'] | null;
@@ -3754,6 +3863,88 @@ export interface components {
         [key: string]: unknown;
       };
       reason?: string;
+    };
+    /** @description Mã vai trò trong bản ghi cấp vai trò: một trong chín vai trò hệ thống (`RoleCode`) hoặc mã vai trò tuỳ chỉnh của tenant dạng `tc_…` (BS-04, ADR-34). */
+    RoleRef: string;
+    /**
+     * @description Phạm vi của một quyền theo ma trận (wiki/15a): `N` nền tảng, `Tn` toàn tenant, `Cd` đơn vị và cấp dưới, `Dv` đơn vị (Đv), `Gn` được giao hoặc uỷ quyền, `B` bản thân. Thứ tự rộng hẹp N > Tn > Cd > Dv > B; Gn đứng riêng.
+     * @enum {string}
+     */
+    PermissionScope: 'N' | 'Tn' | 'Cd' | 'Dv' | 'Gn' | 'B';
+    PermissionGrant: {
+      /** @description Ký hiệu mức (X toàn quyền, R xem, D duyệt…, `ky_hieu` của ma trận). */
+      level: string;
+      scope: components['schemas']['PermissionScope'];
+      /** @description Ô suy luận (`*` trong ma trận). */
+      inferred?: boolean;
+    };
+    PermissionFunction: {
+      key: string;
+      name: string;
+      /** @description Vai trò hệ thống có quyền → mức và phạm vi. */
+      grants: {
+        [key: string]: components['schemas']['PermissionGrant'];
+      };
+    };
+    PermissionScreen: {
+      code: string;
+      name: string;
+      functions: components['schemas']['PermissionFunction'][];
+    };
+    PermissionGroup: {
+      /** @description Mã quy trình QT. */
+      code: string;
+      name: string;
+      screens: components['schemas']['PermissionScreen'][];
+    };
+    SystemRole: {
+      code: string;
+      name: string;
+      description?: string;
+      /** @description Chỉ hiệu lực trong phiên AAL2 (BR-00-01). */
+      aal2?: boolean;
+      /** @description Dùng được làm vai trò gốc của vai trò tuỳ chỉnh. */
+      customizable: boolean;
+    };
+    PermissionCatalog: {
+      /** @description Phiên bản ma trận phân quyền. */
+      version: string;
+      roles: components['schemas']['SystemRole'][];
+      groups: components['schemas']['PermissionGroup'][];
+    };
+    /** @enum {string} */
+    CustomRoleStatus: 'HIEU_LUC' | 'NGUNG';
+    CustomRolePermission: {
+      key: string;
+      scope: components['schemas']['PermissionScope'];
+    };
+    /** @description Vai trò tuỳ chỉnh của tenant (`config.custom_role`), thu hẹp từ một vai trò hệ thống. */
+    CustomRole: {
+      id: components['schemas']['Uuid'];
+      code: components['schemas']['RoleRef'];
+      name: string;
+      description?: string | null;
+      baseRole: components['schemas']['RoleCode'];
+      permissions: components['schemas']['CustomRolePermission'][];
+      status: components['schemas']['CustomRoleStatus'];
+      /** @description Số người đang giữ (bản ghi cấp còn hiệu lực). */
+      holderCount: number;
+      /** Format: date-time */
+      createdAt?: string | null;
+      /** Format: date-time */
+      updatedAt?: string | null;
+      rowVersion: components['schemas']['RowVersion'];
+    };
+    CustomRoleCreate: {
+      name: string;
+      description?: string | null;
+      baseRole: components['schemas']['RoleCode'];
+      permissions: components['schemas']['CustomRolePermission'][];
+    };
+    CustomRoleUpdate: {
+      name: string;
+      description?: string | null;
+      permissions: components['schemas']['CustomRolePermission'][];
     };
     FieldError: {
       /** @description Tên trường theo JSON của thân yêu cầu, dạng đường dẫn chấm */
@@ -6292,7 +6483,7 @@ export interface operations {
         includeSubunits?: boolean;
         /** @description Người được cấp. */
         personId?: components['schemas']['Uuid'];
-        role?: components['schemas']['RoleCode'];
+        role?: components['schemas']['RoleRef'];
         /** @description Trạng thái suy ra; bỏ trống là mọi trạng thái trừ `TU_CHOI`. */
         status?: components['schemas']['RoleBindingStatus'];
         /** @description Chỉ đề nghị đang chờ người gọi duyệt thứ hai (người gọi khác người cấp và người được cấp). */
@@ -6657,6 +6848,219 @@ export interface operations {
       409: components['responses']['Conflict'];
       422: components['responses']['UnprocessableEntity'];
       428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getPermissionCatalog: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Danh mục. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PermissionCatalog'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listCustomRoles: {
+    parameters: {
+      query?: {
+        status?: components['schemas']['CustomRoleStatus'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Danh sách vai trò tuỳ chỉnh. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: components['schemas']['CustomRole'][];
+          };
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      default: components['responses']['Problem'];
+    };
+  };
+  createCustomRole: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CustomRoleCreate'];
+      };
+    };
+    responses: {
+      /** @description Vai trò đã tạo, có hiệu lực ngay. */
+      201: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          Location: components['headers']['Location'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CustomRole'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getCustomRole: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Vai trò. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CustomRole'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  updateCustomRole: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CustomRoleUpdate'];
+      };
+    };
+    responses: {
+      /** @description Vai trò sau khi sửa. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CustomRole'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  retireCustomRole: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AccessEndInput'];
+      };
+    };
+    responses: {
+      /** @description Vai trò đã ngừng. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CustomRole'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listMyCustomRoles: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Định nghĩa vai trò tuỳ chỉnh của người gọi. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: components['schemas']['CustomRole'][];
+          };
+        };
+      };
+      401: components['responses']['Unauthorized'];
       default: components['responses']['Problem'];
     };
   };

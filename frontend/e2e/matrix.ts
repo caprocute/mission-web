@@ -182,7 +182,8 @@ export function childRoutes(file: string, base: string): ChildRoute[] {
   for (const m of src.matchAll(
     /path: '([^']*)',[^{}]*?canActivate: \[permissionGuard\(([^\]]*)\)\]/g,
   ))
-    add(m[1], m.index, m[2]);
+    // Tuyến của tính năng tuỳ chọn (cờ tắt mặc định, ví dụ đồng bộ nhân sự ngoài) không có trong bản giả lập
+    if (!m[0].includes('featureFlagGuard(')) add(m[1], m.index, m[2]);
   // Nhiều tuyến chung guard: `...['a', 'a/:id'].map((path) => ({ path, canActivate: [...] }))`
   for (const m of src.matchAll(
     /\.\.\.\[([^\]]*)\]\.map\(\(path\) => \(\{\s*path,[^{}]*?canActivate: \[permissionGuard\(([^\]]*)\)\]/g,

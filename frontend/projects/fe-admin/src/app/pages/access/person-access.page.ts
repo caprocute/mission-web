@@ -11,13 +11,22 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { ACCESS_EVENT_KIND_LABEL, DELEGATION_KIND_LABEL, DELEGATION_STATUS_LABEL, ROLE_BINDING_STATUS_LABEL, ROLE_CODE_LABEL, ROLE_SCOPE_LABEL, RoleAdminApi, RoleBinding } from '@vt/api-client/domains';
+import {
+  ACCESS_EVENT_KIND_LABEL,
+  DELEGATION_KIND_LABEL,
+  DELEGATION_STATUS_LABEL,
+  ROLE_BINDING_STATUS_LABEL,
+  ROLE_SCOPE_LABEL,
+  RoleAdminApi,
+  RoleBinding,
+} from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { map } from 'rxjs';
 import { ADMIN_CAN } from '../../admin-permissions';
 import { fmtDate, fmtDateTime } from '../../admin-ui';
 import { ACCESS_STEP_UP, ACCESS_STYLES, accessError, statusTone } from './access-ui';
+import { RoleNames } from './role-names';
 
 const LIVE = ['HIEU_LUC', 'SAP_HIEU_LUC', 'CHO_DUYET'];
 
@@ -66,7 +75,7 @@ const LIVE = ['HIEU_LUC', 'SAP_HIEU_LUC', 'CHO_DUYET'];
             @for (b of sorted(); track b.id) {
               <tr [class.ended]="!live(b)">
                 <td>
-                  {{ roleLabel[b.roleCode] }}
+                  {{ names.label(b.roleCode) }}
                 </td>
                 <td>
                   {{ b.orgUnit.name }}
@@ -179,7 +188,7 @@ export class PersonAccessPage {
   private readonly stepUp = inject(ACCESS_STEP_UP);
   protected readonly can = inject(ADMIN_CAN);
 
-  protected readonly roleLabel = ROLE_CODE_LABEL;
+  protected readonly names = inject(RoleNames);
   protected readonly scopeLabel = ROLE_SCOPE_LABEL;
   protected readonly statusLabel = ROLE_BINDING_STATUS_LABEL;
   protected readonly kindLabel = DELEGATION_KIND_LABEL;
