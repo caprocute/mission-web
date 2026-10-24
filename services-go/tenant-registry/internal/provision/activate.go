@@ -100,6 +100,9 @@ func (s *Saga) Evaluate(ctx context.Context, q store.Querier, t *store.Tenant) (
 	}
 	domOK, tlsOK := len(ds) > 0, len(ds) > 0
 	domDetail, tlsDetail := "Tên miền đã trỏ về cell", "Chứng chỉ bảo mật đã sẵn sàng"
+	if len(ds) == 0 {
+		domDetail, tlsDetail = "Chưa khai báo tên miền cho tenant", "Chưa có chứng chỉ bảo mật vì chưa khai báo tên miền"
+	}
 	for _, d := range ds {
 		cctx, cancel := context.WithTimeout(ctx, checkTimeout)
 		got, err := s.DNS.LookupCNAME(cctx, d.Domain)

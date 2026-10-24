@@ -16,18 +16,8 @@
  */
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import {
-  Job,
-  JobTracker,
-  OrgDiscrepancy,
-  OrgSyncApi,
-  OrgSyncRun,
-  SYNC_RUN_STATUS_LABEL,
-  SYNC_SOURCE_LABEL,
-  SYNC_SOURCE_TITLE,
-  SyncSource,
-  hasDeadLetters,
-} from '@vt/api-client';
+import { Job, JobTracker } from '@vt/api-client';
+import { OrgDiscrepancy, OrgSyncApi, OrgSyncRun, SYNC_RUN_STATUS_LABEL, SYNC_SOURCE_LABEL, SYNC_SOURCE_TITLE, SyncSource, hasDeadLetters } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { Observable, Subscription } from 'rxjs';

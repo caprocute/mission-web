@@ -28,4 +28,8 @@ for s in ${SCHEMAS}; do
 done
 
 chmod 600 "${USERLIST_FILE}"
+# Container khởi động lại sau khi máy hoặc Docker dừng đột ngột vẫn giữ /tmp cũ: pidfile còn lại làm pgbouncer từ chối
+# chạy ("pidfile exists, another instance running?") và mọi service backend mất kết nối CSDL. Lúc này chưa có tiến
+# trình pgbouncer nào trong container, nên xoá pidfile cũ là an toàn.
+rm -f /tmp/pgbouncer.pid
 exec pgbouncer /etc/pgbouncer/pgbouncer.ini

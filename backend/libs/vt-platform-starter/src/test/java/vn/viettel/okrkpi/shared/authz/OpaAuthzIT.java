@@ -230,6 +230,47 @@ class OpaAuthzIT {
     assertThat(denyStepUp.deny()).contains("step_up_required");
   }
 
+  /**
+   * QA-05 (23/10/2026): quản trị nghiệp vụ (AC-03) mở trang chủ đọc bố cục, cờ tính năng (dòng API
+   * {@code ui}), ngưỡng bất thường (dòng {@code config}) và kỳ đang mở (dòng {@code periods}) theo
+   * ma trận sinh ra; không được ghi kỳ.
+   */
+  @Test
+  void quanTriNghiepVuDocTrangChuNguongVaKyKhongGhiKy() {
+    HttpOpaClient client = newClient(false);
+    long now = Instant.now().getEpochSecond();
+    OpaInput.Subject author =
+        OpaInput.Subject.user(
+            LEADER_ROOT.toString(),
+            TENANT_A.toString(),
+            UNIT_ROOT.toString(),
+            List.of("policy_author"),
+            "aal2",
+            now,
+            List.of("NHA_NUOC"));
+    for (String module : List.of("ui", "config", "periods")) {
+      OpaDecision read =
+          client.decide(
+              new OpaInput(
+                  author,
+                  null,
+                  new OpaInput.Request(module, "GET"),
+                  null,
+                  new OpaInput.Context(now)));
+      assertThat(read.isPermitted()).as("GET %s: %s", module, read).isTrue();
+    }
+    OpaDecision write =
+        client.decide(
+            new OpaInput(
+                author,
+                null,
+                new OpaInput.Request("periods", "POST"),
+                null,
+                new OpaInput.Context(now)));
+    assertThat(write.isPermitted()).isFalse();
+    assertThat(write.deny()).contains("role_not_allowed");
+  }
+
   @Test
   void partialCompileToSqlFiltersRowsCorrectlyInPostgresWithRls() throws Exception {
     HttpOpaClient client = newClient(true);

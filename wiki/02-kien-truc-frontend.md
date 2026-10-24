@@ -37,7 +37,7 @@ Baseline mục 5.2 liệt kê đầy đủ các thành phần của SVC-17. Bả
 | `@vt/telemetry` | Thư viện | OTel web + Faro (hiện có `traceparent` và đo LCP/INP tối thiểu) | Bản tối thiểu |
 | `@vt/api-client` | Thư viện | Cấu hình lúc chạy, interceptor, client API, mock | Có trong mã, không có trong baseline 5.2 |
 
-Hai điểm trong bảng cần lưu ý. SCR-1803 (chế độ Đảng viên cao tuổi trên di động) và SCR-0302, SCR-0504, SCR-0702 là màn hình di động thuộc SVC-18 Flutter, nhưng web vẫn phải có bố cục co giãn và chế độ cao tuổi tương đương (TL-02 SCR-1803 ghi thiết bị "Điện thoại (Flutter); web di động"). Thư viện `@vt/api-client` là bổ sung của mã, không có trong baseline 5.2; TL-01 còn nêu thêm `@vt/e2ee` cho mã hoá đầu cuối C3, cũng chưa có trong baseline. Hai điểm lệch này được ghi ở trang 14.
+Hai điểm trong bảng cần lưu ý. SCR-1803 (chế độ Đảng viên cao tuổi trên di động) và SCR-0302, SCR-0504, SCR-0702 là màn hình di động thuộc SVC-18 Flutter (ứng dụng di động đã bỏ khỏi phạm vi ngày 24/10/2026, wiki 14), nên web phải có bố cục co giãn và chế độ cao tuổi tương đương (TL-02 SCR-1803 ghi thiết bị "Điện thoại (Flutter); web di động"). Thư viện `@vt/api-client` là bổ sung của mã, không có trong baseline 5.2; TL-01 còn nêu thêm `@vt/e2ee` cho mã hoá đầu cuối C3, cũng chưa có trong baseline. Hai điểm lệch này được ghi ở trang 14.
 
 ## Tệp kê khai Native Federation
 

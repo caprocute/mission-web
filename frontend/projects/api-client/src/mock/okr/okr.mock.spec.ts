@@ -113,7 +113,7 @@ describe('mock okr – SCR-0202 (WEB-022)', () => {
   it('trình: máy chủ kiểm lại quy tắc (422), sửa xong thì chuyển CHO_DUYET và báo người duyệt', async () => {
     const api = setup();
     const d = await firstValueFrom(api.objective('o-3'));
-    const bad = await err(firstValueFrom(api.submitObjective('o-3')));
+    const bad = await err(firstValueFrom(api.submitObjective('o-3', 1)));
     expect(bad.status).toBe(422);
     expect(JSON.stringify(bad.error)).toContain('KPI mơ hồ');
     const fixed = {
@@ -133,7 +133,7 @@ describe('mock okr – SCR-0202 (WEB-022)', () => {
       ),
     };
     await firstValueFrom(api.saveObjective('o-3', d.rowVersion, fixed));
-    const res = await firstValueFrom(api.submitObjective('o-3'));
+    const res = await firstValueFrom(api.submitObjective('o-3', 1));
     expect(res.status).toBe('CHO_DUYET');
     expect(res.reviewerName).toContain('Đinh Văn Sơn');
     const again = await err(firstValueFrom(api.saveObjective('o-3', d.rowVersion + 2, fixed)));
@@ -146,6 +146,7 @@ describe('mock okr – SCR-0202 (WEB-022)', () => {
       api.createObjective({
         periodId: 'p-2027-q1',
         ownerType: 'TAP_THE',
+        ownerUnitId: 'u-1',
         basisIds: ['b-kh-05'],
         parentObjectiveId: 'o-duk-1',
         title: 'Mục tiêu thử',
@@ -156,7 +157,14 @@ describe('mock okr – SCR-0202 (WEB-022)', () => {
     expect(created.code).toBe('O1');
     expect(created.status).toBe('NHAP');
     const locked = await err(
-      firstValueFrom(api.createObjective({ ...created, id: undefined, periodId: 'p-2026-q3' })),
+      firstValueFrom(
+        api.createObjective({
+          ...created,
+          id: undefined,
+          ownerUnitId: 'u-1',
+          periodId: 'p-2026-q3',
+        }),
+      ),
     );
     expect(locked.status).toBe(409);
   });
@@ -200,7 +208,7 @@ describe('mock okr – SCR-0203 (WEB-023)', () => {
     const krs = d.keyResults.filter((k) => k.code !== 'KR 3.3');
     krs[0] = { ...krs[0], weight: 0.7 };
     await firstValueFrom(api.saveObjective('o-3', d.rowVersion, { ...d, keyResults: krs }));
-    await firstValueFrom(api.submitObjective('o-3'));
+    await firstValueFrom(api.submitObjective('o-3', 1));
     const q = await firstValueFrom(api.reviewQueue());
     const own = q.items.find((s) => s.unit.name === 'Ban Tổ chức Đảng uỷ khối')!;
     expect(own.objectives.map((o) => o.code)).toEqual(['O3']);

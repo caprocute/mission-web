@@ -327,6 +327,10 @@ class PolicyPreviewServiceTest {
                         ((Map<?, ?>) t).containsKey("ma")
                             && ((Map<?, ?>) t).containsKey("kpi_nhiem_vu"))
                     .isTrue());
+    // Gói mẫu đặt khoá kpi_A, kpi_B, kpi_C; phần xem trước trả theo tên A, B, C của hợp đồng.
+    assertThat((List<?>) q.outputs().get("nhiem_vu"))
+        .allSatisfy(
+            t -> assertThat(((Map<?, ?>) t).keySet().containsAll(List.of("A", "B", "C"))).isTrue());
 
     // Đo p95 để sau (YC-PT-19, wiki 14); ở đây chỉ kiểm đệm nóng không biên dịch lại.
     for (int i = 0; i < 3; i++) {

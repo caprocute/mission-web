@@ -72,6 +72,13 @@ public class JdbcSyncRunStore implements SyncRunStore {
   }
 
   @Override
+  public List<Run> startedTogether(UUID id) {
+    return jdbc.sql("SELECT " + COLS + " FROM org.sync_run WHERE tenant_id = :tenant AND (started_at, created_by) = "
+            + "(SELECT started_at, created_by FROM org.sync_run WHERE tenant_id = :tenant AND id = :id) ORDER BY id")
+        .param("tenant", Sql.tenant()).param("id", id).query(JdbcSyncRunStore::map).list();
+  }
+
+  @Override
   public List<Run> page(String connector, OffsetDateTime beforeStarted, UUID beforeId, int limit) {
     StringBuilder sql = new StringBuilder("SELECT " + COLS + " FROM org.sync_run WHERE tenant_id = :tenant");
     Map<String, Object> p = new HashMap<>();

@@ -1,16 +1,7 @@
 import { Component, effect, inject, model, output, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import {
-  PERIOD_FLOW_LABEL,
-  PERIOD_KIND_LABEL,
-  Period,
-  PeriodApi,
-  PeriodCreate,
-  PeriodFlow,
-  PeriodKind,
-  fieldErrors,
-  toProblem,
-} from '@vt/api-client';
+import { fieldErrors, toProblem } from '@vt/api-client';
+import { PERIOD_FLOW_LABEL, PERIOD_KIND_LABEL, Period, PeriodApi, PeriodCreate, PeriodFlow, PeriodKind } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';

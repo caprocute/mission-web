@@ -16,8 +16,6 @@ global:
     providers: [vneid, mysign, viettel-ca, ca-chinh-phu]
   updateChannel: lien-tuc
   sizing: L
-  featureFlags:
-    publicMobileApp: true
 integration-gateway:
   config:
     VT_KET_NOI_VNEID: "true"

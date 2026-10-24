@@ -4,7 +4,7 @@
 > TL-04 mục 9.6 "Chuỗi cung ứng phần mềm: SLSA, Jenkins, Argo CD" (Jenkinsfile mẫu) và "Đợt 0c";
 > SEC-05, SEC-07, SEC-09, SEC-20, SEC-23, SEC-37, SEC-38, SEC-39, SEC-49, SEC-55.
 
-Thư viện dùng chung Jenkins (shared library) cho các service Java của Mission. Pipeline Go, Python, Flutter,
+Thư viện dùng chung Jenkins (shared library) cho các service Java của Mission. Pipeline Go, Python,
 Helm, Policy Pack, UI Pack thuộc INF-06; pipeline frontend thuộc WEB-002.
 
 ## Cấu trúc
@@ -15,7 +15,6 @@ ci/vt-pipeline/
 │   ├── vtJavaPipeline.groovy   pipeline declarative đầy đủ cho service Java (Maven)
 │   ├── vtGoPipeline.groovy     service Go (INF-06)
 │   ├── vtPythonPipeline.groovy service Python (INF-06)
-│   ├── vtFlutterPipeline.groovy ứng dụng di động Flutter (INF-06)
 │   ├── vtHelmPipeline.groovy   chart Helm và chính sách Kyverno (INF-06)
 │   ├── vtPolicyPackPipeline.groovy gói chính sách chấm điểm (INF-06, QT-17)
 │   ├── vtUiPackPipeline.groovy gói giao diện tenant (INF-06, ADR-05)
@@ -126,15 +125,13 @@ từng loại nằm trong `CauHinhLoai.MAC_DINH`, tham số lạ hoặc ngưỡn
 |---|---|---|
 | `vtGoPipeline` | govulncheck (chạy song song với gitleaks, Semgrep, Trivy fs, Dockerfile), `go vet`, độ phủ | `examples/go.Jenkinsfile` |
 | `vtPythonPipeline` | pip-audit với `--require-hashes`, pytest trong venv với `--cov-fail-under` | `examples/python.Jenkinsfile` |
-| `vtFlutterPipeline` | `flutter analyze`, kiểm thử và độ phủ lcov; bản phát hành Android và iOS chỉ trên `main`, SBOM và `cosign sign-blob` | `examples/flutter.Jenkinsfile` |
 | `vtHelmPipeline` | cài Kyverno CLI và promtool đã ghim sha256 nếu ảnh chưa có (`resources/vn/vt/pipeline/cai-cong-cu-chart.sh`, gương qua `VT_CONG_CU_GUONG`), `kyverno test` và `kiem-ngoai-le.py`, `kiem-ba-mo-hinh.sh` (ba mô hình phân phối), các bộ kiểm thử chart trong `chartTests` (INF-28), ngân sách kết nối (INF-03); trên `main` đóng gói, `helm push`, ký chart | `examples/helm.Jenkinsfile`, `deploy/Jenkinsfile` |
 | `vtPolicyPackPipeline` | cú pháp quy tắc, kiểm thử đơn vị song song với ca mẫu vàng 100%; trên `main` kiểm chữ ký nghiệp vụ, đóng gói tất định, ký, chạy bóng, duyệt, gửi phát hành | `examples/policy-pack.Jenkinsfile`, `data/policy-pack/Jenkinsfile` |
 | `vtUiPackPipeline` | lược đồ, registry, an toàn, chế độ cao tuổi, CSS ≤ 30 KB gzip; axe-core; ảnh so sánh trên staging; ký; tải lên, gửi kiểm tra, duyệt, phát hành | `examples/ui-pack.Jenkinsfile` |
 
 Biến môi trường cấp controller thêm cho INF-06 (chỉ tên): `VT_IMAGE_BUILDER` (`buildkit` trên cụm, `docker` trên
 máy kiểm thử), `VT_API_BASE`, `VT_API_CA`, `VT_STAGING_URL`, `VT_CHART_REPO`, `VT_CHART_PUSH_FLAGS`. Credential
-thêm (chỉ tên): `mission-ci-policy-pack`, `mission-ci-ui-pack` (token API dịch vụ), `mobile-android-upload-keystore`,
-`mobile-android-key-properties`, `mobile-ios-export-options`. Bước duyệt phát hành dùng `input` với nhóm
+thêm (chỉ tên): `mission-ci-policy-pack`, `mission-ci-ui-pack` (token API dịch vụ). Bước duyệt phát hành dùng `input` với nhóm
 `policy-pack-approvers` hoặc `ui-pack-approvers`.
 
 Lưu ý khi dùng: cosign 3 phải ký với `--new-bundle-format=false` vì Kyverno 1.15 chưa đọc định dạng bundle mới;
@@ -159,6 +156,5 @@ SonarQube, Dependency-Track) ghi ở đầu script và ở wiki 11.
 Pipeline INF-06 kiểm bằng `tests/chay-kiem-thu-inf06.sh`: dựng repo mẫu từ `tests/fixture-inf06`, chạy từng
 Jenkinsfile trên Jenkinsfile Runner với registry cục bộ, API giả (`tests/jenkins/api-gia.py` kiểm xác thực,
 Idempotency-Key, If-Match và tác vụ 202), staging giả và khoá cosign tạm; mỗi loại có ca sạch, ca phải bị chặn
-(bí mật giả, govulncheck, kiểm thử hỏng, ca vàng sai, CSS 31 KB…) và ca nhánh `main`. Bước `input` được thay bằng
-bản tự duyệt trong `tests/jenkins/stub-lib`, Flutter dùng CLI giả `tests/jenkins/flutter-gia` vì máy kiểm thử
-không có SDK Flutter.
+(govulncheck, kiểm thử hỏng, ca vàng sai, CSS 31 KB…) và ca nhánh `main`. Bước `input` được thay bằng
+bản tự duyệt trong `tests/jenkins/stub-lib`.

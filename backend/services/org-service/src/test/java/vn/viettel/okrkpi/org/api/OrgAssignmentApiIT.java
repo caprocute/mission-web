@@ -214,6 +214,9 @@ class OrgAssignmentApiIT extends IntegrationTestBase {
     assertThat(primaryPartyId).isNotNull();
     assertThat(concurrentId).isNotNull();
     assertThat(fx.outboxCount(tenant, "org.assignment.changed.v1")).isEqualTo(3);
+    // bổ sung QA-03: EVT-15 mang tên chức danh để bản sao hiện chức danh
+    assertThat(fx.outboxPayloads(tenant, "org.assignment.changed.v1"))
+        .allMatch(p -> p.contains("jobTitleName") && p.contains("Chuyên viên"));
 
     // Kết thúc phân công kiêm nhiệm từ 01/08/2026
     inTenantTx(() -> {

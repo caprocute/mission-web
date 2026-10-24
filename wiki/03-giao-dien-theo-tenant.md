@@ -177,7 +177,7 @@ Tenant mới nhận UI Pack mặc định ở `data/seed/ui-pack/mac-dinh-<phiê
 
 **Bố cục trang chủ mặc định.** Lưới `vt.layout.grid` gồm "Việc của tôi hôm nay" (`id: myTasksToday`, `mandatory: true`, người dùng không ẩn được ở CNH-03), tiến độ OKR cá nhân, tiến độ OKR đơn vị (`id: okrProgressUnit`, chỉ lãnh đạo, quản lý) và việc chờ duyệt (quản lý). Hai khoá nút `id` và `mandatory` được lược đồ UI Pack 1.0 của máy chủ nhận từ DL-06; trước đó lược đồ từ chối chúng dù lớp phủ trang chủ của CNH-02 cần. Widget thông báo chưa đưa vào vì UI Pack phía máy chủ chưa có khối `i18n` để chứa khoá văn bản (suy luận về thứ tự làm).
 
-**Di động đọc cùng token.** Ứng dụng di động (MOB-01 chuyển token thiết kế sang ThemeData của Flutter, MOB-08 chế độ cao tuổi) lấy cùng UI Pack đã phát hành qua `getCurrentUiPack` và ánh xạ cùng tên token sang ThemeData, không giữ bộ màu riêng; chế độ cao tuổi trên di động dùng cùng ghi đè `modes.elderly` và cờ `reducedSteps`, nên một thay đổi token chỉ cần phát hành một lần cho cả web và di động (suy luận từ ADR-05 và kế hoạch MOB).
+**Di động đọc cùng token** (ứng dụng di động đã bỏ khỏi phạm vi ngày 24/10/2026, wiki 14, đoạn này chỉ còn giá trị tham khảo). Ứng dụng di động (MOB-01 chuyển token thiết kế sang ThemeData của Flutter, MOB-08 chế độ cao tuổi) lấy cùng UI Pack đã phát hành qua `getCurrentUiPack` và ánh xạ cùng tên token sang ThemeData, không giữ bộ màu riêng; chế độ cao tuổi trên di động dùng cùng ghi đè `modes.elderly` và cờ `reducedSteps`, nên một thay đổi token chỉ cần phát hành một lần cho cả web và di động (suy luận từ ADR-05 và kế hoạch MOB).
 
 ## Liên quan
 

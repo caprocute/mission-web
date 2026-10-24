@@ -31,15 +31,8 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import {
-  AnnualRatingPage,
-  AnnualRatingRow,
-  AppraisalApi,
-  PeriodApi,
-  RATING_LEVEL_LABEL,
-  RatingLevel,
-  toProblem,
-} from '@vt/api-client';
+import { toProblem } from '@vt/api-client';
+import { AnnualRatingPage, AnnualRatingRow, AppraisalApi, PeriodApi, RATING_LEVEL_LABEL, RatingLevel } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { EMPTY, Observable, expand, firstValueFrom, map, reduce } from 'rxjs';
 import { APPRAISAL_CAN } from '../../appraisal-permissions';

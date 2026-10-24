@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.json.ProblemDetailJacksonMixin;
@@ -22,9 +23,11 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
  * (ADR-07, TL-01 §4).
  *
  * <ul>
- *   <li>Nếu khách thuê đang ở trạng thái {@code DANG_CHUYEN_CELL}, {@code TAM_NGUNG} hoặc {@code
- *       DA_CHAM_DUT}: trả về {@code 503 Service Unavailable} chuẩn RFC 9457 (kèm {@code
- *       Retry-After}).
+ *   <li>Nếu khách thuê đang ở trạng thái {@code DANG_CHUYEN_CELL} hoặc {@code DA_CHAM_DUT}: trả về
+ *       {@code 503 Service Unavailable} chuẩn RFC 9457 (kèm {@code Retry-After}).
+ *   <li>Nếu khách thuê đang {@code TAM_NGUNG}: yêu cầu đọc ({@code GET}, {@code HEAD}, {@code
+ *       OPTIONS}) đi tiếp vì dữ liệu được giữ nguyên; lệnh ghi bị từ chối {@code 403} kèm {@code
+ *       tenantStatus = TAM_NGUNG} để giao diện hiện thông báo tạm ngừng (TL-04 mục 11.4).
  *   <li>Nếu khách thuê thuộc một cell khác với {@code localCellCode} của dịch vụ: trả về {@code 421
  *       Misdirected Request} với mã lỗi chuẩn {@code REGISTRY-421-TENANT-MOVED} để cổng API APISIX
  *       làm mới bảng định tuyến và chuyển tiếp sang đúng cell.
@@ -34,6 +37,7 @@ public final class TenantCellRoutingFilter extends OncePerRequestFilter {
 
   public static final String TENANT_MOVED_CODE = "REGISTRY-421-TENANT-MOVED";
   public static final String TARGET_CELL_HEADER = "X-Target-Cell";
+  private static final Set<String> READ_METHODS = Set.of("GET", "HEAD", "OPTIONS");
 
   private final TenantDirectory directory;
   private final String localCellCode;
@@ -87,6 +91,20 @@ public final class TenantCellRoutingFilter extends OncePerRequestFilter {
       problem.setProperty("tenantCode", route.tenantCode());
       problem.setProperty("tenantStatus", route.status());
       writeProblem(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, problem);
+      return;
+    }
+
+    if (route.isSuspended() && !READ_METHODS.contains(request.getMethod())) {
+      ProblemDetail problem =
+          problemFactory.standard(
+              HttpServletResponse.SC_FORBIDDEN,
+              "Đơn vị của bạn đang tạm ngừng sử dụng hệ thống. Bạn vẫn xem được dữ liệu nhưng chưa"
+                  + " thể cập nhật cho tới khi đơn vị được mở lại.",
+              List.of(),
+              request);
+      problem.setProperty("tenantCode", route.tenantCode());
+      problem.setProperty("tenantStatus", route.status());
+      writeProblem(response, HttpServletResponse.SC_FORBIDDEN, problem);
       return;
     }
 

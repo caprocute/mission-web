@@ -3,3 +3,4 @@ vn.viettel.okrkpi.iam.events.MissionDeviceRememberAuthenticatorFactory
 vn.viettel.okrkpi.iam.events.MissionNoSecondFactorConditionFactory
 vn.viettel.okrkpi.iam.events.RecoveryCodeAuthenticatorFactory
 vn.viettel.okrkpi.iam.vneid.VneidLinkAuthenticatorFactory
+vn.viettel.okrkpi.iam.events.MissionTenantStatusAuthenticatorFactory

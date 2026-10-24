@@ -1,10 +1,5 @@
-import {
-  AppraisalProfileRow,
-  EsignCertificate,
-  ProblemDetails,
-  RATING_LEVELS,
-  RatingLevel,
-} from '@vt/api-client';
+import { ProblemDetails } from '@vt/api-client';
+import { AppraisalProfileRow, EsignCertificate, RATING_LEVELS, RatingLevel } from '@vt/api-client/domains';
 
 /**
  * Quy tắc và cách trình bày của SCR-0904 chạy trên trình duyệt để phản hồi tức thì; máy chủ kiểm lại khi

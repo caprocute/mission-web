@@ -10,17 +10,7 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import {
-  DISCREPANCY_FIELD_LABEL,
-  DiscrepancyResolution,
-  DiscrepancySeverity,
-  FIELD_PERSON_MATCH,
-  OrgDiscrepancy,
-  OrgSyncApi,
-  SEVERITY_LABEL,
-  SUGGESTED_ACTION_LABEL,
-  SYNC_SOURCE_LABEL,
-} from '@vt/api-client';
+import { DISCREPANCY_FIELD_LABEL, DiscrepancyResolution, DiscrepancySeverity, FIELD_PERSON_MATCH, OrgDiscrepancy, OrgSyncApi, SEVERITY_LABEL, SUGGESTED_ACTION_LABEL, SYNC_SOURCE_LABEL } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { ADMIN_CAN } from '../../admin-permissions';
 import { errorText, fmtInt } from '../../admin-ui';
@@ -338,8 +328,9 @@ export class OrgSyncList {
   protected readonly sevs = Object.keys(SEVERITY_LABEL) as DiscrepancySeverity[];
   protected readonly int = fmtInt;
   protected readonly err = errorText;
-  protected readonly fieldText = (f: string) => DISCREPANCY_FIELD_LABEL[f] ?? f;
-  protected readonly actText = (a: string) => SUGGESTED_ACTION_LABEL[a] ?? a;
+  protected readonly fieldText = (f: string) => DISCREPANCY_FIELD_LABEL[f] ?? 'Thông tin khác';
+  protected readonly actText = (a: string) =>
+    SUGGESTED_ACTION_LABEL[a] ?? 'Xem xét, xử lý thủ công';
 
   readonly field = signal<string | null>(null);
   readonly severity = signal<DiscrepancySeverity | null>(null);

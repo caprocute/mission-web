@@ -38,6 +38,7 @@ class HrmPersonTranslator implements Translator {
   static final String BAD_STRUCTURE = "SAI_CAU_TRUC";
   static final String BAD_ROWS = "DONG_LOI";
   static final String UNMAPPED = "CHUA_ANH_XA";
+  static final String ORG_REJECTED = "ORG_TU_CHOI";
   static final int DETAIL_MAX = 900;
 
   private final String code;
@@ -134,14 +135,28 @@ class HrmPersonTranslator implements Translator {
       // ngoài lần chạy thì cả thông điệp là một lần chạy, chia lô để thân yêu cầu không quá lớn.
       Optional<UUID> inRun = running.of(ctx.tenant(), ctx.connector().id());
       UUID run = inRun.orElseGet(() -> runId(ctx, message));
+      int rejected = 0;
       for (int from = 0; from < persons.size(); from += batchSize) {
         int to = Math.min(persons.size(), from + batchSize);
-        sink.forward(
-            ctx.tenant(),
-            code,
-            run,
-            persons.subList(from, to),
-            inRun.isEmpty() && to == persons.size());
+        rejected +=
+            sink.forward(
+                ctx.tenant(),
+                code,
+                run,
+                persons.subList(from, to),
+                inRun.isEmpty() && to == persons.size());
+      }
+      // org-service nhận lô nhưng không ghi được một phần bản ghi: thông điệp không được coi là đã
+      // xử lý, mà vào thư chết để phát lại sau khi khắc phục (bản ghi đã ghi khớp lại theo mã ánh
+      // xạ)
+      if (rejected > 0) {
+        throw new TranslationRejectedException(
+            ORG_REJECTED,
+            "Dịch vụ tổ chức không ghi được "
+                + rejected
+                + "/"
+                + persons.size()
+                + " bản ghi của thông điệp");
       }
     }
     return List.of();

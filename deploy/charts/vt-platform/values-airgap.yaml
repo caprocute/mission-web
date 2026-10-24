@@ -18,9 +18,6 @@ global:
   updateChannel: lts
   # Cho phép 3 node, một vùng sự cố (TL-05 Phụ lục A).
   sizing: compact
-  featureFlags:
-    # Tắt ứng dụng di động công khai bằng cờ tính năng (TL-04 mục 2.4).
-    publicMobileApp: false
 integration-gateway:
   config:
     # Tắt các bộ kết nối không dùng ở mạng cách ly.

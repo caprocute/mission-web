@@ -1,9 +1,9 @@
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, forkJoin, map, of, switchMap } from 'rxjs';
-import { apiUrl } from './api-path';
-import { Job } from './models/job';
-import { CursorPage, MAX_PAGE_LIMIT } from './paging';
+import { apiUrl } from '@vt/api-client';
+import { Job } from '@vt/api-client';
+import { CursorPage, MAX_PAGE_LIMIT } from '@vt/api-client';
 import {
   Plan,
   PlanCheck,
@@ -65,6 +65,14 @@ export class PlanApi {
       string
     >;
     return this.http.get<CursorPage<Plan>>(apiUrl('/plans'), { params }).pipe(map((p) => p.items));
+  }
+
+  /**
+   * "Lập kế hoạch": tạo kế hoạch của đơn vị cho kỳ kèm phiên bản 1 `NHAP` (`POST /plans`, `createPlan`);
+   * bỏ trống đơn vị thì máy chủ lấy đơn vị của phân công đang chọn. `Idempotency-Key` do interceptor gắn.
+   */
+  create(periodId: string, unitId?: string): Observable<Plan> {
+    return this.http.post<Plan>(apiUrl('/plans'), unitId ? { periodId, unitId } : { periodId });
   }
 
   /** Phiên bản của kế hoạch, xếp tăng dần theo số phiên bản (hợp đồng trả mới nhất trước). */

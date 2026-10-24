@@ -1,4 +1,4 @@
-import { AppraisalProfile, AppraisalScoreView } from '@vt/api-client';
+import { AppraisalProfile, AppraisalScoreView } from '@vt/api-client/domains';
 import {
   checkProposal,
   complaintOpen,

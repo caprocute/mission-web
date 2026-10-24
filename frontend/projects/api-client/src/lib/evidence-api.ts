@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { CursorPage } from './paging';
+import { CursorPage } from '@vt/api-client';
 import {
   Deliverable,
   Evidence,

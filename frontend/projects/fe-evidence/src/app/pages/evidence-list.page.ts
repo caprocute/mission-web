@@ -8,18 +8,8 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import {
-  Deliverable,
-  EVIDENCE_STATUS_LABEL,
-  EvidenceApi,
-  EvidenceVersionStatus,
-  FILTER_QUERY_PARAM,
-  TaskApi,
-  createListPersonalization,
-  decodeCriteria,
-  encodeCriteria,
-  toProblem,
-} from '@vt/api-client';
+import { TaskApi, toProblem } from '@vt/api-client';
+import { Deliverable, EVIDENCE_STATUS_LABEL, EvidenceApi, EvidenceVersionStatus, FILTER_QUERY_PARAM, createListPersonalization, decodeCriteria, encodeCriteria } from '@vt/api-client/domains';
 import { VtColumnPickerComponent, VtSavedFiltersComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { firstValueFrom, forkJoin, map } from 'rxjs';

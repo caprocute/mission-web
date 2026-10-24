@@ -72,9 +72,10 @@ public class JdbcRepublishSource implements RepublishSource {
         SELECT a.*, max(a.row_version) OVER (PARTITION BY a.id) AS sv
         FROM org.assignment a
         WHERE a.tenant_id = :tenant AND a.recorded_from <= :asOf)
-      SELECT v.id, v.person_id, v.org_unit_id, v.position_id, v.job_title_id, v.kind, v.is_head, v.valid_from,
-        nullif(v.valid_to, 'infinity'::date) AS valid_to, v.sv
+      SELECT v.id, v.person_id, v.org_unit_id, v.position_id, v.job_title_id, jt.name AS job_title_name, v.kind,
+        v.is_head, v.valid_from, nullif(v.valid_to, 'infinity'::date) AS valid_to, v.sv
       FROM v
+      LEFT JOIN org.job_title jt ON jt.tenant_id = v.tenant_id AND jt.id = v.job_title_id
       WHERE v.recorded_period @> CAST(:asOf AS timestamptz)
       ORDER BY v.id, v.valid_from
       """;
@@ -142,6 +143,7 @@ public class JdbcRepublishSource implements RepublishSource {
         .setSourceVersion(sv)
         .setAggregateVersion(Math.toIntExact(sv))
         .setIsHead(rs.getBoolean("is_head"))
+        .setJobTitleName(rs.getString("job_title_name"))
         .build();
   }
 

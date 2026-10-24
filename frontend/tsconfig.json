@@ -7,7 +7,8 @@
       "@vt/sdui-renderer": ["./projects/sdui-renderer/src/public-api.ts"],
       "@vt/form-engine": ["./projects/form-engine/src/public-api.ts"],
       "@vt/telemetry": ["./projects/telemetry/src/public-api.ts"],
-      "@vt/api-client": ["./projects/api-client/src/public-api.ts"]
+      "@vt/api-client": ["./projects/api-client/src/public-api.ts"],
+      "@vt/api-client/domains": ["./projects/api-client/src/domains.ts"]
     },
     "strict": true,
     "noImplicitOverride": true,

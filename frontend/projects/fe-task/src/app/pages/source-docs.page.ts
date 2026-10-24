@@ -7,14 +7,8 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  SOURCE_DOC_STATUS_LABEL,
-  SOURCE_SYSTEM_LABEL,
-  SourceDocApi,
-  SourceDocStatus,
-  SourceDocSummary,
-  toProblem,
-} from '@vt/api-client';
+import { toProblem } from '@vt/api-client';
+import { SOURCE_DOC_STATUS_LABEL, SOURCE_SYSTEM_LABEL, SourceDocApi, SourceDocStatus, SourceDocSummary } from '@vt/api-client/domains';
 import { MessageModule } from 'primeng/message';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TagModule } from 'primeng/tag';

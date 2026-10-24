@@ -39,7 +39,7 @@ Dữ liệu hiện có 179 chức năng trên 53 màn hình, trong đó 175 ch�
 
 ## Ma trận chính: chức năng theo màn hình
 
-Các dòng có tiền tố "[Di động]" là màn hình của ứng dụng Flutter (SVC-18), ghi để đối chiếu vì dùng chung API và quyền; phân hệ web không làm các màn hình này. Khoá trong ngoặc là phần sau dấu chấm của khoá chức năng đầy đủ dạng `SCR-qqnn.<khoá>`, dùng làm tên quyền ở phía giao diện (WEB-054).
+Các dòng có tiền tố "[Di động]" là màn hình của ứng dụng Flutter (SVC-18), ghi để đối chiếu vì dùng chung API và quyền; phân hệ web không làm các màn hình này. Ứng dụng di động đã bỏ khỏi phạm vi ngày 24/10/2026, wiki 14; các dòng này giữ trong ma trận vì đã sinh vào gói OPA và chính sách thao tác API mà web vẫn dùng. Khoá trong ngoặc là phần sau dấu chấm của khoá chức năng đầy đủ dạng `SCR-qqnn.<khoá>`, dùng làm tên quyền ở phía giao diện (WEB-054).
 
 <!-- BEGIN GEN:ma-tran-chinh -->
 Dòng tiêu đề cột: AC-01 `platform_admin`, AC-02 `tenant_admin`, AC-03 `policy_author`, AC-04 `leader`, AC-05 `manager`, AC-06 `member`, AC-07 `appraiser`, AC-08 `decider`, AC-09 `second_approver`, AC-10 `inspector`, AC-11 `(client credentials)`, AC-12 `ai_readonly`.
@@ -399,8 +399,8 @@ Bảng dưới ghi các phương thức HTTP mà mỗi vai trò có thể gọi 
 | `/api/v1/policies` | - | GET* | GET POST PUT | GET* | - | - | GET* | GET POST | - | - | - | - | AC-08 POST = approve (TL-02) hoặc publish (TL-01, `policy_approver`). |
 | `/api/v1/dossiers` | - | - | - | GET POST* | GET POST* | GET POST | GET POST | GET POST | - | - | - | - | Góp ý, biên bản, gói; quyền thật theo thành phần hội nghị. |
 | `/api/v1/oversight` | - | - | - | - | - | GET POST PUT | GET POST | GET POST | GET POST | GET POST | - | - | AC-06 = khiếu nại của mình. |
-| `/api/v1/config` | GET POST PATCH DELETE | GET POST PUT PATCH | PUT | GET POST | GET | GET | GET | GET | GET | GET | - | - | AC-01 = tenants; AC-02 = bước 4, 5, feature-flags, holiday-calendars; AC-03 = anomaly-thresholds; người dùng khác GET lịch ngày làm việc. AC-02, AC-04 POST còn gồm role-bindings, delegations (SCR-0105, SCR-0107). |
-| `/api/v1/periods` | - | GET POST | - | GET POST | GET | GET | GET | GET | GET POST | GET | - | - | AC-04 POST = approve lệnh; AC-09 POST = duyệt huỷ. |
+| `/api/v1/config` | GET POST PATCH DELETE | GET POST PUT PATCH | GET* PUT | GET POST | GET | GET | GET | GET | GET | GET | - | - | AC-01 = tenants; AC-02 = bước 4, 5, feature-flags, holiday-calendars; AC-03 = anomaly-thresholds (GET suy luận: đọc bản hiện hành trước khi sửa ở SCR-1401, QA-05 23/10/2026); người dùng khác GET lịch ngày làm việc. AC-02, AC-04 POST còn gồm role-bindings, delegations (SCR-0105, SCR-0107). |
+| `/api/v1/periods` | - | GET POST | GET* | GET POST | GET | GET | GET | GET | GET POST | GET | - | - | AC-04 POST = approve lệnh; AC-09 POST = duyệt huỷ. AC-03 GET (suy luận, QA-05 23/10/2026): chọn kỳ áp dụng khi gửi phê duyệt bộ quy định (BR-15-10) và kỳ của luồng duyệt, ca thử. |
 | `/api/v1/org` | GET* | GET POST PUT | - | GET PUT | GET PUT | GET PUT | GET PUT | GET PUT | GET PUT | GET PUT | - | - | PUT `/org/me/context` cho mọi người dùng; AC-11 đẩy dữ liệu qua SVC-13. |
 | `/api/v1/files` | - | - | - | GET | GET POST | GET POST PUT | GET | GET | - | GET | - | - | URL tải xuống ký trước 5 phút theo quyền trên sản phẩm. |
 | `/api/v1/ledger` | - | - | - | - | - | - | GET | - | - | GET POST | - | - | AC-10 POST = verify-runs, exports. |

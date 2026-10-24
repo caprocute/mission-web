@@ -299,7 +299,7 @@ INF-02	Chart từng service, chart tổng `vt-platform` và values cho ba mô h�
 INF-03	Values định cỡ bốn hồ sơ cell, `capacity/assumptions.yaml`, script tính bảng, kiểm ngân sách kết nối trong CI	M	INF-02	TL-05; TL-04 ch.4	B8	tl05 §1.6, 1.13; tl04-phan1 §D
 INF-04	Kho GitOps: Argo CD ApplicationSet theo cell và môi trường, sync window, Argo Rollouts canary có phân tích SLI	L	INF-02	ADR-16; OPS-02, 03, 05	B8	tl04-phan2 §D.2
 INF-05	Thư viện pipeline Jenkins `vt-pipeline` cho Java: build, test, ArchUnit, Sonar, Semgrep, gitleaks, Trivy, openapi-diff, Pact, SBOM, Jib, cosign, provenance SLSA 3	L	NEN-005	ADR-16; SEC-37..39	B8	tl04-phan2 §B.5; tl01-xuyen-suot §12
-INF-06	Pipeline cho Go, Python, Flutter, Helm và nội dung (Policy Pack, UI Pack)	M	INF-05	OPS-10	B8	tl04-phan2 §B.5, §D.2
+INF-06	Pipeline cho Go, Python, Helm và nội dung (Policy Pack, UI Pack)	M	INF-05	OPS-10	B8	tl04-phan2 §B.5, §D.2
 INF-07	Harbor và chính sách Kyverno: chỉ ảnh có ký, không root, có giới hạn và probe, `vt-require-ha`	M	INF-05	SEC-28, SEC-38	B8	tl04-phan2 §B.2
 INF-08	Cụm Kubernetes của cell phần 1: node pool, taint, 13 namespace, NetworkPolicy mặc định từ chối, APISIX ingress	L	–	TL-04 ch.3	B8	tl04-phan1 §C	Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần cụm K8s thật hoặc kind cho dev
 INF-09	Cụm Kubernetes của cell phần 2: Istio ambient mTLS STRICT, StorageClass Ceph RBD và NVMe cục bộ, egress gateway	L	INF-08	ADR-11; SEC-32..36	B8	tl04-phan1 §C
@@ -322,7 +322,7 @@ INF-25	Bộ điều khiển suy giảm ba mức khi quá tải (tắt tính năn
 INF-26	Công cụ vận hành `vtctl` cho các thao tác trong runbook (tenant, cell, khoá kỳ, phát lại sự kiện)	L	INF-04, DV-03-03	TL-04 ch.11	B8		Bổ sung sau khi viết thẻ; nên tách theo nhóm lệnh
 INF-27	Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL	M	INF-13	SEC-42	B8		Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần giải pháp PAM
 INF-28	Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite	L	INF-11, INF-18, INF-20, INF-04, INF-08, INF-09, INF-17	NFR-05; DR	B8		Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần TTDL thứ hai
-## QA	Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng
+## QA	Kiểm thử tích hợp, an toàn thông tin, chấp nhận nghiệp vụ
 QA-01	Chiến lược kiểm thử toàn hệ thống và danh mục khoảng 40 hành trình đầu cuối	S	–	TL-01 ch.18	B9	tl01-xuyen-suot §12
 QA-02	Pact Broker và kiểm thử hợp đồng frontend với API, service với service	M	NEN-006, INF-05	ADR-32	B9	tl01-xuyen-suot §12
 QA-03	Bộ kiểm thử đầu cuối với hệ thống thật trên server dev (backend thật, Keycloak, APISIX)	M	INF-22, QA-01	YC-PT-08	B9	tl05 §4.2
@@ -330,26 +330,8 @@ QA-04	Hành trình đầu cuối: đăng nhập, khởi tạo tenant, tổ chứ
 QA-05	Hành trình đầu cuối: kế hoạch, giao việc, tiến độ, minh chứng, nghiệm thu	L	QA-03, CORE-03-07, CORE-02-22	QT-04..QT-07	B9	tl01-xuyen-suot §12
 QA-06	Hành trình đầu cuối: khoá kỳ, tự đánh giá, thẩm định, quyết định ký số, xếp loại năm	L	QA-05, DV-06-06, CORE-04-10	QT-08..QT-10	B9	tl01-xuyen-suot §12
 QA-07	Hành trình đầu cuối: kiểm điểm, hồ sơ số, khiếu nại, mở lại kỳ, cảnh báo, Policy Pack, bảng điều hành, AI, UI Pack	L	QA-06, CORE-06-08, CORE-07-11, DV-15-06	QT-11..QT-18	B9	tl01-xuyen-suot §12
-QA-08	Kịch bản k6 PERF-01..PERF-10	L	QA-03, DL-08	TL-04 ch.7	B9	tl04-phan1 §G
-QA-09	Kịch bản góp ý G2: PERF-11..PERF-13 (Gatling cho Flowable)	M	QA-08, DV-06-04	G2	B9	tl04-phan1 §G
-QA-10	Kịch bản góp ý G3: PERF-14..PERF-18, PERF-25	M	QA-08, NEN-015	G3	B9	tl04-phan1 §G
-QA-11	Kịch bản PERF-19..PERF-24, PERF-26	M	QA-08	TL-04 ch.7	B9	tl04-phan1 §G
-QA-12	Chiến dịch thử tải trên CELL-PERF và hiệu chuẩn bảng định cỡ theo hồ sơ cell	L	QA-09, QA-10, QA-11, INF-21	TL-05 hiệu chuẩn	B9	tl05 §1.12	Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần CELL-PERF
 QA-13	Kiểm thử ATTT: OWASP ASVS 4.0.3 mức 2 (L3 cho xác thực, phiên, mật mã) và OWASP ZAP toàn hệ thống	L	QA-03	NFR-08; TL-04 mục 9.8	B9	tl04-phan2 §B.7
-QA-14	Thử hỏng PERF-07 và diễn tập khôi phục DR-01..DR-09	L	INF-17, QA-08	TL-04 ch.8	B9	tl04-phan2 §A.2
-QA-15	Diễn tập khôi phục DR-10..DR-16, chuyển vùng giữa hai trung tâm dữ liệu	L	QA-14, INF-18, INF-20	NFR-05	B9	tl04-phan2 §A.2	Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần TTDL thứ hai
 QA-16	Kiểm thử chấp nhận nghiệp vụ: tenant thí điểm chạy trọn một kỳ đánh giá	L	QA-07	Đợt 2	B9	tl01-xuyen-suot §13	Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần tenant và người dùng thật
-## MOB	SVC-18 mobile-app (Flutter)
-MOB-01	Khung Flutter: token thiết kế sang ThemeData, đăng nhập OIDC PKCE, client API sinh từ hợp đồng	M	NEN-006, DV-02-01	SVC-18; ADR-10	B10	tl01-thanh-phan §C17
-MOB-02	Lưu trữ ngoại tuyến SQLCipher, khoá trong Keystore/Keychain, hàng đợi đồng bộ có Idempotency-Key	M	MOB-01	SVC-18	B10	tl01-thanh-phan §C17.2
-MOB-03	SCR-0504 Việc của tôi và cập nhật tiến độ trên di động	M	MOB-02, CORE-02-19, CORE-02-18	QT-05, QT-06	B10	tl02a §QT-05
-MOB-04	SCR-0302 Check-in KR trên di động	M	MOB-02, CORE-01-08	QT-03	B10	tl02a §QT-03
-MOB-05	SCR-0702 Nộp minh chứng trên di động có OCR, tải theo khối	M	MOB-02, DV-08-02, CORE-03-05	QT-07	B10	tl02a §QT-07
-MOB-06	Bộ dựng biểu mẫu từ JSON Schema và CEL trên Flutter, phiếu tự đánh giá	L	MOB-02, CORE-08-13, CORE-04-04	QT-09	B10	tl01-thanh-phan §C17.3
-MOB-07	Ký số MySign trên di động	M	MOB-06, DV-10-02	QT-09	B10	tl01-thanh-phan §C17.1
-MOB-08	SCR-1803 Chế độ Đảng viên cao tuổi trên di động	M	MOB-03, MOB-06, DL-06	NFR-11	B10	tl02b §QT-18
-MOB-09	Thông báo đẩy FCM, APNs	S	MOB-01, DV-12-03, DV-12-05	SVC-12	B10	tl01-thanh-phan §C11.2
-MOB-10	Pipeline build, ký và phát hành ứng dụng; kiểm thử đầu cuối và khả năng truy cập trên di động	M	MOB-03, INF-06	NFR-11	B10	tl01-thanh-phan §C17	Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần tài khoản cửa hàng ứng dụng
 ## VH	Vận hành và đưa vào sử dụng
 VH-01	Runbook OPS-01..OPS-13	L	INF-04	TL-04 ch.11	B11	tl04-phan2 §D.1
 VH-02	Runbook OPS-14..OPS-26	L	INF-17	TL-04 ch.11	B11	tl04-phan2 §D.1

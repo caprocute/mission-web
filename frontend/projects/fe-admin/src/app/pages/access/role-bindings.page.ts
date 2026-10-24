@@ -15,17 +15,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  MSG_01_17,
-  OrgTreeApi,
-  ROLE_BINDING_STATUS_LABEL,
-  ROLE_CODE_LABEL,
-  ROLE_SCOPE_LABEL,
-  RoleAdminApi,
-  RoleBinding,
-  RoleBindingStatus,
-  RoleCode,
-} from '@vt/api-client';
+import { MSG_01_17, OrgTreeApi, ROLE_BINDING_STATUS_LABEL, ROLE_CODE_LABEL, ROLE_SCOPE_LABEL, RoleAdminApi, RoleBinding, RoleBindingStatus, RoleCode } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';

@@ -85,6 +85,29 @@
       <artifactId>snakeyaml</artifactId>
     </dependency>
 
+    <!-- Mã hoá trường C2 và chỉ mục mù của NEN-015 (FieldEncryptor, BlindIndexer, keyring.dek, OpenBao Transit).
+         Service chỉ bật CryptoAutoConfiguration của starter (spring.autoconfigure.exclude trong application.yaml) và giữ
+         Logback như cũ, nên bỏ Log4j2 mà starter kéo theo. -->
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-platform-starter</artifactId>
+      <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-log4j2</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-layout-template-json</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.lmax</groupId>
+          <artifactId>disruptor</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
     <!-- DV-04-08: lệnh org-republish phát thẳng lên org.bootstrap.v1 bằng Avro sinh từ hợp đồng -->
     <dependency>
       <groupId>vn.viettel.okrkpi</groupId>
@@ -102,6 +125,20 @@
     </dependency>
 
     <!-- Kiểm thử -->
+    <!-- Mã hoá C2 thật (KeyringFieldEncryptorIT): bootstrap vai trò và migrate keyring như môi trường thật -->
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-db-migration</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-db-migration</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>

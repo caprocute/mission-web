@@ -1,21 +1,18 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import {
-  Job,
-  JobAccepted,
-  JobTracker,
-  PackVersionRef,
-  PolicyApi,
-  PolicyPackVersion,
-  PolicyPackVersionSummary,
-  PolicyTestRunSummary,
-  isPolicyVersionEditable,
-} from '@vt/api-client';
+import { Job, JobAccepted, JobTracker } from '@vt/api-client';
+import { PackVersionRef, PolicyApi, PolicyPackVersion, PolicyPackVersionSummary, PolicyTestRunSummary, isPolicyVersionEditable } from '@vt/api-client/domains';
 import { last, map, switchMap, tap } from 'rxjs';
 import { errorText, jobErrorText } from '../../studio-ui';
 
 /** Tên hiển thị của quy tắc không có nhãn trong `manifest.labels`. */
 export const RULE_TITLE: Record<string, string> = {
+  A: 'Số lượng',
+  B: 'Chất lượng',
+  C: 'Tiến độ',
+  kpi_A: 'Số lượng',
+  kpi_B: 'Chất lượng',
+  kpi_C: 'Tiến độ',
   kpi_nhiem_vu: 'Điểm KPI của nhiệm vụ',
   nhom: 'KPI nhóm nhiệm vụ',
   diem: 'Tổng hợp điểm',

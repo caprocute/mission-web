@@ -1,7 +1,7 @@
 # INF-25 · TL-04 cắt tải Bộ điều khiển suy giảm ba mức khi quá tải
 
 > ### 0. QUY ĐỊNH CHUNG – BẮT BUỘC ĐỌC TRƯỚC KHI LÀM
-> Trước khi đọc tiếp, mở và đọc toàn bộ `AGENTS.md` ở gốc repo (quy tắc không được vi phạm, quy trình, mẫu báo cáo), rồi đọc quy định riêng của phân hệ: `docs/quy-dinh/BACKEND.md` (task NEN, CORE, DV, DL), `docs/quy-dinh/HA-TANG.md` (task INF, VH), `docs/quy-dinh/DI-DONG.md` (task MOB). Nhắc nhanh:
+> Trước khi đọc tiếp, mở và đọc toàn bộ `AGENTS.md` ở gốc repo (quy tắc không được vi phạm, quy trình, mẫu báo cáo), rồi đọc quy định riêng của phân hệ: `docs/quy-dinh/BACKEND.md` (task NEN, CORE, DV, DL), `docs/quy-dinh/HA-TANG.md` (task INF, VH). Nhắc nhanh:
 > bám baseline và TL-01..TL-05, giữ nguyên mã định danh, tên schema, bảng, trạng thái; API-first, sửa mã chứ không sửa hợp đồng; chỉ sửa tệp trong phạm vi;
 > không commit bí mật; máy chủ là nguồn sự thật, quyền theo ma trận `wiki/15a`; ghi kèm Idempotency-Key, cập nhật kèm If-Match (409); outbox trong cùng giao dịch;
 > build + kiểm thử thật trước khi báo xong; báo cáo trung thực theo AGENTS.md mục 6. Chạy `./scripts/agent-task.sh INF-25` để có prompt đầy đủ.
@@ -55,3 +55,49 @@ Khi tải vượt năng lực, hệ thống phải suy giảm có thứ tự, gi
 ## 7. Báo cáo
 
 Theo AGENTS.md mục 6.
+
+## 8. Bằng chứng chạy thật (2026-10-24, B7)
+
+Container kiểm thử không có Docker daemon nên không dựng được kind. Thay vào đó, kịch bản chạy trên etcd và kube-apiserver thật (envtest v1.34.1) với tài nguyên render từ chart thật, bộ điều khiển Go thật và Alertmanager 0.28.1 thật dùng cấu hình của `observability-cell`. Cách dựng ở `deploy/environments/kind/van-hanh-api-server/README.md`. Tín hiệu giả `DegradeLevel1..3` được gửi bằng `amtool`. Không đo tải (YC-PT-19).
+
+Lệnh: `./dung-stack.sh && source $W/moi-truong.sh && python3 -I kiem_thu_suy_giam.py`
+
+```
+== Trạng thái đầu
+  [ĐẠT] mức 0, 18 ApisixPluginConfig ở 6 namespace mang bộ plugin mức 0
+== Mức 1: DegradeLevel1 qua Alertmanager của cell
+  [ĐẠT] Alertmanager gọi webhook, mọi ApisixPluginConfig lên mức 1 (sau 10 s)
+  [ĐẠT] mức 1 tắt tính năng phụ: /api/v1/ai/* trả 503 ở cả ba lớp, tuyến khác không bị chặn
+  [ĐẠT] upstream nhận X-Vt-Degrade-Level: 1 để rút gọn tìm kiếm, đọc tổng hợp sẵn
+  [ĐẠT] mức 1 chưa tạm dừng tác vụ nền
+== Mức 2: DegradeLevel2
+  [ĐẠT] mọi ApisixPluginConfig lên mức 2 (sau 10 s)
+  [ĐẠT] mức 2 giảm giới hạn tenant 30% (limit-req 400/200 → 280/140)
+  [ĐẠT] ScaledObject gắn vt.io/degrade-pause-from=2 bị tạm dừng, ScaledObject không gắn nhãn giữ nguyên (sau 0 s)
+== Mức 3: DegradeLevel3
+  [ĐẠT] mọi ApisixPluginConfig lên mức 3 (sau 10 s)
+  [ĐẠT] lớp 2 mức 3: mọi request nhận 503, Retry-After: 60, thân RFC 9457
+  [ĐẠT] lớp 3 mức 3: mọi request nhận 503, Retry-After: 60, thân RFC 9457
+  [ĐẠT] lớp 1 (nộp, ký hồ sơ, đăng nhập) mức 3 vẫn qua, chỉ chặn AI
+  [ĐẠT] mức ≥ 2 quá ESCALATE_AFTER: kênh trực nhận thông báo nâng SEV-2 (sau 5 s)
+  [ĐẠT] kênh trực nhận thông báo đổi mức (4 thông báo)
+== Hết cảnh báo: chống dao động rồi về mức 0
+  [ĐẠT] Alertmanager gửi resolved, mức mong muốn về 0 (sau 25 s)
+  [ĐẠT] trong thời gian chống dao động vẫn giữ mức 3 (có holdDownUntil) (sau 0 s)
+== Khởi động lại bộ điều khiển giữa thời gian chống dao động
+  [ĐẠT] sau khởi động lại đọc mức 3 từ ApisixPluginConfig, không tụt mức ngay (sau 1 s)
+  [ĐẠT] hết HOLD_DOWN thì hạ thẳng về mức 0, bộ plugin mức 0 (sau 22 s)
+  [ĐẠT] không hạ trước khi hết thời gian chống dao động
+  [ĐẠT] gỡ tạm dừng ScaledObject do bộ điều khiển đặt (sau 0 s)
+
+Tổng: 20 đạt, 0 hỏng
+```
+
+Lỗi phát hiện và đã sửa:
+
+1. Giá trị `gatewayNamespaces: [edge]` và RBAC của chart chỉ phủ `edge`, trong khi chart `api-gateway` đặt ApisixPluginConfig ở namespace của backend (analytics, core, identity, platform, secure, workers). Hậu quả là trên cụm thật, bộ điều khiển không cắt tải tuyến nào. Đã sửa `values.yaml` để liệt kê đúng sáu namespace. Bước kiểm chứng 2 của runbook cũng được đổi sang `-A`.
+2. Người trực có vai trò `operate-app` không đọc được Secret `edge/apisix-degrade-webhook`, nên không chạy được `vtctl degrade set|pin|clear` (OPS-14). Đã thêm Role `degrade-controller-token-reader`, chỉ cho `get` đúng Secret đó, cấp cho các nhóm ở `webhookToken.nguoiDoc` (mặc định `oidc:platform-ops-sre-truc`).
+
+Kiểm thử khác: `go vet ./...`, `go test ./...` của `services-go/degrade-controller` xanh; `helm lint` sạch; render có 7 RoleBinding (6 namespace cộng token-reader).
+
+Chưa làm: lưu lượng thật qua APISIX (cần Docker; bộ plugin từng mức đã được `kiem-thu-cuc-bo.sh` của api-gateway kiểm). Chưa chạy kubeconform (không có trong container). Chưa kiểm Argo CD `ignoreDifferences` trên cụm.

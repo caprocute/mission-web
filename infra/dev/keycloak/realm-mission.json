@@ -76,6 +76,14 @@
       {
         "name": "svc_org_service",
         "description": "Tài khoản dịch vụ org-service (SVC-03) gọi API nội bộ của integration-gateway: /internal/v1/integ/sync-runs, mapping-xref (DV-13-06)"
+      },
+      {
+        "name": "svc_integration_gateway",
+        "description": "Tài khoản dịch vụ integration-gateway (SVC-13) đẩy lô nhân sự và đóng lần đồng bộ ở API nội bộ của org-service: /internal/v1/org/sync-runs/{runId}/batches (DV-13-06, HT-07)"
+      },
+      {
+        "name": "service_client",
+        "description": "Client dịch vụ nội bộ được gọi API nội bộ và khởi động saga của workflow-service (SVC-06)"
       }
     ]
   },
@@ -424,6 +432,7 @@
       "secret": "${ORG_SERVICE_CLIENT_SECRET}",
       "defaultClientScopes": [
         "basic",
+        "profile",
         "mission-context"
       ],
       "protocolMappers": [
@@ -456,6 +465,41 @@
       "secret": "${PROVISION_CLIENT_SECRET}",
       "defaultClientScopes": [
         "basic"
+      ]
+    },
+    {
+      "clientId": "integration-gateway",
+      "name": "integration-gateway (tài khoản dịch vụ, SVC-13)",
+      "bearerOnly": false,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${INTEGRATION_GATEWAY_CLIENT_SECRET}",
+      "defaultClientScopes": [
+        "basic",
+        "profile"
+      ]
+    },
+    {
+      "clientId": "mission-zap",
+      "name": "Quét bảo mật OWASP ZAP (chỉ dev, QA-13)",
+      "description": "Client credentials cho infra/security/zap; tài khoản dịch vụ mang vai trò cán bộ (member) của tenant thử, không dùng ngoài dev.",
+      "enabled": true,
+      "bearerOnly": false,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${ZAP_CLIENT_SECRET}",
+      "defaultClientScopes": [
+        "basic",
+        "profile",
+        "mission-context"
       ]
     }
   ],
@@ -1278,6 +1322,74 @@
       ]
     },
     {
+      "id": "d0000000-0000-4000-8000-000000000312",
+      "username": "giamdocso",
+      "enabled": true,
+      "firstName": "Đốc",
+      "lastName": "Đặng Văn Giám",
+      "email": "giamdocso@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "d0000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "d0000000-0000-4000-8000-000000000100"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (WEB-056)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "leader"
+      ]
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000313",
+      "username": "phogiamdocso",
+      "enabled": true,
+      "firstName": "Đốc",
+      "lastName": "Hà Thị Phó Giám",
+      "email": "phogiamdocso@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "d0000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "d0000000-0000-4000-8000-000000000100"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (WEB-056)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager"
+      ]
+    },
+    {
       "username": "service-account-org-service",
       "enabled": true,
       "serviceAccountClientId": "org-service",
@@ -1290,6 +1402,45 @@
           "manage-users"
         ]
       }
+    },
+    {
+      "username": "service-account-mission-core",
+      "enabled": true,
+      "serviceAccountClientId": "mission-core",
+      "realmRoles": [
+        "service_client"
+      ],
+      "clientRoles": {
+        "realm-management": [
+          "view-users",
+          "query-users",
+          "manage-users"
+        ]
+      }
+    },
+    {
+      "username": "service-account-integration-gateway",
+      "enabled": true,
+      "serviceAccountClientId": "integration-gateway",
+      "realmRoles": [
+        "svc_integration_gateway"
+      ]
+    },
+    {
+      "username": "service-account-mission-zap",
+      "enabled": true,
+      "serviceAccountClientId": "mission-zap",
+      "attributes": {
+        "tenant": [
+          "d0000000-0000-4000-8000-000000000001"
+        ],
+        "unit_id": [
+          "d0000000-0000-4000-8000-000000000101"
+        ]
+      },
+      "realmRoles": [
+        "member"
+      ]
     },
     {
       "username": "service-account-tenant-registry-provisioner",

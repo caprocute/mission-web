@@ -39,6 +39,8 @@ export const TAI_KHOAN = {
   quanly: ['member', 'manager'],
   /** member + leader: phê duyệt, trả lại OKR (SCR-0203). */
   lanhdao: ['member', 'leader'],
+  /** member + leader cấp Sở: duyệt mục tiêu của phòng trực thuộc trên hệ thống thật (hàng chờ là đơn vị cấp dưới). */
+  giamdocso: ['member', 'leader'],
   /** member + appraiser: vai trò AAL2, bị hỏi OTP khi đăng nhập. */
   thamdinh: ['member', 'appraiser'],
   /** member: AC-06 "Việc của tôi", cập nhật tiến độ (SCR-0503, SCR-0601). */
@@ -228,8 +230,27 @@ async function chonPhanCongChinh(page: Page) {
   await expect(hop).toBeHidden();
 }
 
-/** Chuyển tuyến trong SPA (router Angular nghe `popstate`), không tải lại trang nên token còn. */
+/**
+ * Chuyển tuyến trong SPA (router Angular nghe `popstate`), không tải lại trang nên token còn. Khi trang đang ở
+ * đúng tuyến đích (ví dụ người duyệt quay lại hàng chờ), đi qua trang chủ trước: router dùng lại màn hình cùng
+ * tuyến nên không đọc lại dữ liệu.
+ */
 export async function spaGoto(page: Page, url: string) {
+  // So đường dẫn, bỏ tham số: màn hình tự thêm tham số (ví dụ `?period=`) vẫn là cùng một tuyến
+  if (new URL(page.url()).pathname === new URL(url, page.url()).pathname) {
+    // Đánh dấu nội dung đang hiện rồi chờ nó bị gỡ: nếu chuyển tiếp ngay, router có thể huỷ lượt về
+    // trang chủ chưa xong và dùng lại component cũ (màn hình không tải lại dữ liệu)
+    await page.evaluate(() => {
+      document
+        .querySelectorAll('main#main router-outlet ~ *')
+        .forEach((e) => e.setAttribute('data-e2e-cu', ''));
+      history.pushState(null, '', '/');
+      dispatchEvent(new PopStateEvent('popstate', { state: null }));
+    });
+    await page.waitForURL((u) => u.pathname === '/' || u.pathname !== new URL(url, u).pathname);
+    await page.waitForFunction(() => !document.querySelector('main#main [data-e2e-cu]'));
+    await main(page).waitFor();
+  }
   await page.evaluate((u) => {
     history.pushState(null, '', u);
     dispatchEvent(new PopStateEvent('popstate', { state: null }));

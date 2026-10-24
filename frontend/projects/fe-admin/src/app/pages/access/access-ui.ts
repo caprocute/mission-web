@@ -1,11 +1,6 @@
 import { InjectionToken, Injector, inject } from '@angular/core';
-import {
-  RUNTIME_CONFIG,
-  ROLE_ADMIN_MESSAGES,
-  fieldErrors,
-  mockStepUp,
-  toProblem,
-} from '@vt/api-client';
+import { RUNTIME_CONFIG, fieldErrors, mockStepUp, toProblem } from '@vt/api-client';
+import { ROLE_ADMIN_MESSAGES } from '@vt/api-client/domains';
 import { SessionService, TEXT_FORBIDDEN } from '@vt/auth';
 
 /** Cửa sổ MFA cho thao tác thay đổi quyền: 15 phút (BR-01-15, BR-00-02). */

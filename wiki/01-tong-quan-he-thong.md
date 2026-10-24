@@ -78,7 +78,7 @@ Baseline mục 5 liệt kê mười tám service. Bảng dưới rút gọn cộ
 | SVC-15 | analytics | CQRS phía đọc, ClickHouse, Cube, phát hiện bất thường | `/api/v1/analytics` |
 | SVC-16 | search (OpenSearch) | Tìm kiếm toàn văn (không chứa C2/C3) | `/api/v1/search` |
 | SVC-17 | web-frontend | Shell Angular 21 + remote Native Federation + plugin; phục vụ tĩnh qua CDN/nginx | Chính là phân hệ này |
-| SVC-18 | mobile-app (Flutter 3) | Ứng dụng di động cho cán bộ | Dùng chung API, token thiết kế |
+| SVC-18 | mobile-app (Flutter 3) | Ứng dụng di động cho cán bộ (đã bỏ khỏi phạm vi ngày 24/10/2026, wiki 14) | Không làm; web đáp ứng toàn bộ nghiệp vụ |
 
 Tám module của `mission-core` được baseline mục 5.1 gắn với nhóm tính năng: MOD-01 `okr`, MOD-02 `task`, MOD-03 `product`, MOD-04 `appraisal`, MOD-05 `policy`, MOD-06 `dossier`, MOD-07 `oversight`, MOD-08 `config`. Mỗi module sở hữu một schema PostgreSQL cùng tên. Nhóm tính năng "Phân tích, dashboard" nằm ở SVC-15 và trợ lý AI nằm ở SVC-14.
 

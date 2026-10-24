@@ -9,7 +9,6 @@ import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -44,6 +43,7 @@ import vn.viettel.okrkpi.org.application.Actor;
 import vn.viettel.okrkpi.org.application.port.FieldEncryptor;
 import vn.viettel.okrkpi.org.application.IdempotencyRequest;
 import vn.viettel.okrkpi.org.application.port.IntegrationGatewayPort;
+import vn.viettel.okrkpi.org.application.port.IntegrationUnavailableException;
 import vn.viettel.okrkpi.org.application.sync.DiscrepancyService;
 import vn.viettel.okrkpi.org.application.sync.ResolveResult;
 import vn.viettel.okrkpi.org.domain.OrgConflictException;
@@ -124,6 +124,12 @@ class OrgSyncApiIT extends IntegrationTestBase {
     assertThat(report.getMessages()).as(result.getRequest().getMethod() + " " + result.getRequest().getRequestURI()
         + " " + result.getResponse().getContentAsString()).isEmpty();
     return r;
+  }
+
+  /** Đọc tác vụ {@code /api/v1/jobs/{id}} ({@code jobs.yaml}, ngoài hợp đồng org mà bộ kiểm hợp đồng nạp). */
+  private ResultActions job(String location) throws Exception {
+    String token = "Bearer " + TestJwt.token(tenant, adminId, List.of("tenant_admin"), "aal2", null);
+    return mvc.perform(get(location).header(HttpHeaders.AUTHORIZATION, token));
   }
 
   private ResultActions internal(MockHttpServletRequestBuilder req, String role) throws Exception {
@@ -354,12 +360,36 @@ class OrgSyncApiIT extends IntegrationTestBase {
   }
 
   @Test
+  void syncJob_allSources_reportsDoneAndRejectedSources() throws Exception {
+    doThrow(new IntegrationUnavailableException("cổng tích hợp từ chối: Tenant chưa cấu hình kết nối", null))
+        .when(gateway).requestRun(eq(tenant), any(), eq("SCIM"));
+    String location = api(post("/api/v1/org/sync-runs").header("Idempotency-Key", UUID.randomUUID().toString())
+        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isAccepted()).andReturn().getResponse().getHeader(HttpHeaders.LOCATION);
+    job(location).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("DANG_CHAY"))
+        .andExpect(jsonPath("$.progress").value(25));
+
+    JsonNode runs = json.readTree(api(get("/api/v1/org/sync-runs?limit=10")).andExpect(status().isOk())
+        .andReturn().getResponse().getContentAsString()).get("items");
+    for (JsonNode r : runs) {
+      if (!"LOI".equals(r.get("status").asText())) {
+        batch(UUID.fromString(r.get("id").asText()), List.of(), true);
+      }
+    }
+    job(location).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("HOAN_TAT"))
+        .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("Đã đồng bộ 3/4 nguồn")));
+  }
+
+  @Test
   void syncRuns_startConflictRetryAndList() throws Exception {
     String body = json.writeValueAsString(Map.of("connector", "HRM"));
-    api(post("/api/v1/org/sync-runs").header("Idempotency-Key", UUID.randomUUID().toString())
+    String location = api(post("/api/v1/org/sync-runs").header("Idempotency-Key", UUID.randomUUID().toString())
         .contentType(MediaType.APPLICATION_JSON).content(body))
-        .andExpect(status().isAccepted()).andExpect(header().string("Location", "/api/v1/org/sync-runs"));
+        .andExpect(status().isAccepted()).andReturn().getResponse().getHeader(HttpHeaders.LOCATION);
+    assertThat(location).startsWith("/api/v1/jobs/org-");
     verify(gateway).requestRun(eq(tenant), any(), eq("HRM"));
+    job(location).andExpect(status().isOk()).andExpect(jsonPath("$.type").value("ORG_SYNC"))
+        .andExpect(jsonPath("$.status").value("DANG_CHAY"));
 
     api(post("/api/v1/org/sync-runs").header("Idempotency-Key", UUID.randomUUID().toString())
         .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isConflict());

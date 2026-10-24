@@ -149,6 +149,22 @@ class OrgReplicaConsumerIT {
   }
 
   @Test
+  void tenChucDanhTuSuKienPhanCongVaoBanSao() {
+    UUID person = UUID.randomUUID();
+    UUID unit = UUID.randomUUID();
+    assertThat(sendAssignment(UUID.randomUUID(), person, unit, "Giám đốc Sở"))
+        .isEqualTo(InboxOutcome.PROCESSED);
+    UUID other = UUID.randomUUID();
+    assertThat(sendAssignment(UUID.randomUUID(), other, unit)).isEqualTo(InboxOutcome.PROCESSED);
+    var titles =
+        new vn.viettel.okrkpi.replica.infrastructure.persistence.ReplicaAccessDirectory(
+                new vn.viettel.okrkpi.replica.infrastructure.persistence.OrgReplicaJdbc(jdbc), tm)
+            .personTitles(TENANT, List.of(person, other));
+    // sự kiện cũ không mang tên chức danh thì người đó vắng trong kết quả
+    assertThat(titles).containsExactly(Map.entry(person, "Giám đốc Sở"));
+  }
+
+  @Test
   void doiCapTrenCapNhatBaoDongCaCayCon() {
     UUID a = UUID.randomUUID();
     UUID b = UUID.randomUUID();
@@ -260,6 +276,10 @@ class OrgReplicaConsumerIT {
   }
 
   private static InboxOutcome sendAssignment(UUID id, UUID person, UUID unit) {
+    return sendAssignment(id, person, unit, null);
+  }
+
+  private static InboxOutcome sendAssignment(UUID id, UUID person, UUID unit, String title) {
     PhanCongDaThayDoi payload =
         PhanCongDaThayDoi.newBuilder()
             .setAssignmentId(id)
@@ -270,6 +290,7 @@ class OrgReplicaConsumerIT {
             .setKind("CHINH_THUC")
             .setIsPrimary(true)
             .setIsHead(false)
+            .setJobTitleName(title)
             .setValidFrom(FROM)
             .setValidTo(null)
             .setSourceVersion(1L)

@@ -10,6 +10,7 @@ import {
   mockApiInterceptor,
 } from '@vt/api-client';
 import { ThemeService } from '@vt/design-system';
+import { resetMockData } from '../../../../api-client/src/mock/mock-registry';
 import { OKR_CAN, OkrPermissionKey } from '../okr-permissions';
 import { OkrTreePage } from './okr-tree.page';
 
@@ -19,6 +20,8 @@ async function render(
   url = '/',
   elderly = false,
 ) {
+  // dữ liệu giả lập dùng chung giữa các tệp kiểm thử: check-in ở SCR-0301 đổi tiến độ KR
+  resetMockData();
   TestBed.configureTestingModule({
     providers: [
       provideRouter([

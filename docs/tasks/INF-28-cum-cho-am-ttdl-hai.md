@@ -1,10 +1,12 @@
 # INF-28 · NFR-05/DR Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, MirrorMaker 2, Ceph multisite
 
 > ### 0. QUY ĐỊNH CHUNG – BẮT BUỘC ĐỌC TRƯỚC KHI LÀM
-> Trước khi đọc tiếp, mở và đọc toàn bộ `AGENTS.md` ở gốc repo (quy tắc không được vi phạm, quy trình, mẫu báo cáo), rồi đọc quy định riêng của phân hệ: `docs/quy-dinh/BACKEND.md` (task NEN, CORE, DV, DL), `docs/quy-dinh/HA-TANG.md` (task INF, VH), `docs/quy-dinh/DI-DONG.md` (task MOB). Nhắc nhanh:
+> Trước khi đọc tiếp, mở và đọc toàn bộ `AGENTS.md` ở gốc repo (quy tắc không được vi phạm, quy trình, mẫu báo cáo), rồi đọc quy định riêng của phân hệ: `docs/quy-dinh/BACKEND.md` (task NEN, CORE, DV, DL), `docs/quy-dinh/HA-TANG.md` (task INF, VH). Nhắc nhanh:
 > bám baseline và TL-01..TL-05, giữ nguyên mã định danh, tên schema, bảng, trạng thái; API-first, sửa mã chứ không sửa hợp đồng; chỉ sửa tệp trong phạm vi;
 > không commit bí mật; máy chủ là nguồn sự thật, quyền theo ma trận `wiki/15a`; ghi kèm Idempotency-Key, cập nhật kèm If-Match (409); outbox trong cùng giao dịch;
 > build + kiểm thử thật trước khi báo xong; báo cáo trung thực theo AGENTS.md mục 6. Chạy `./scripts/agent-task.sh INF-28` để có prompt đầy đủ.
+
+> **Cập nhật 24/10/2026 (wiki 14, mục "Quyết định điều chỉnh phạm vi của chủ dự án"):** ứng dụng di động (SVC-18, MOB-01..10) và đo tải, diễn tập DR (QA-08..QA-12, QA-14, QA-15) đã bỏ khỏi phạm vi; các chỗ nhắc tới chúng trong thẻ này chỉ còn giá trị lịch sử.
 
 | Thuộc tính | Giá trị |
 |---|---|
@@ -23,7 +25,7 @@
 
 - `/mnt/project-files/kien-truc-okr-kpi/src/TL-04-trien-khai-van-hanh.md`: "Topology hai trung tâm dữ liệu" (L133–146: sao chép bất đồng bộ sang phía Nam, vai trò primary khai báo trong `cells/<cell>/cell.yaml`, đề xuất primary CELL-HCM phía Nam), bảng năng lực (L658–660: giữ chỗ khoảng 2.000 vCPU, AI tạm ngừng khi chuyển vùng), "PostgreSQL: CloudNativePG và Barman Cloud" (L2003–2112, values `values-cell-hcm-sn.yaml` L2083), "Kafka: MirrorMaker 2" (L2114–2174), "Ceph: multisite RGW và Object Lock" (L2176–2215), "Giữ outbox 72 giờ" (L2332), "Kịch bản DR" (L2336).
 - `/mnt/project-files/kien-truc-okr-kpi/src/TL-05-dinh-co-he-thong.md` phần định cỡ TTDL phía Nam (bảng tổng hợp theo bậc).
-- `docs/quy-dinh/HA-TANG.md`; thẻ `docs/tasks/INF-11-csdl-va-kho-du-lieu.md`, `INF-17-sao-luu-csdl.md`, `INF-18-sao-luu-du-lieu-khac.md`, `INF-20-vung-dieu-phoi-toan-cuc.md`, `QA-15-dr-chuyen-vung.md`.
+- `docs/quy-dinh/HA-TANG.md`; thẻ `docs/tasks/INF-11-csdl-va-kho-du-lieu.md`, `INF-17-sao-luu-csdl.md`, `INF-18-sao-luu-du-lieu-khac.md`, `INF-20-vung-dieu-phoi-toan-cuc.md`, QA-15.
 
 ## 3. Phạm vi công việc
 

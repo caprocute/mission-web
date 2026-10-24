@@ -4984,7 +4984,7 @@
    "quyen": {
     "AC-01": "GET POST PATCH DELETE",
     "AC-02": "GET POST PUT PATCH",
-    "AC-03": "PUT",
+    "AC-03": "GET* PUT",
     "AC-04": "GET POST",
     "AC-05": "GET",
     "AC-06": "GET",
@@ -4995,7 +4995,7 @@
     "AC-11": "-",
     "AC-12": "-"
    },
-   "ghi_chu": "AC-01 = tenants; AC-02 = bước 4, 5, feature-flags, holiday-calendars; AC-03 = anomaly-thresholds; người dùng khác GET lịch ngày làm việc. AC-02, AC-04 POST còn gồm role-bindings, delegations (SCR-0105, SCR-0107).",
+   "ghi_chu": "AC-01 = tenants; AC-02 = bước 4, 5, feature-flags, holiday-calendars; AC-03 = anomaly-thresholds (GET suy luận: đọc bản hiện hành trước khi sửa ở SCR-1401, QA-05 23/10/2026); người dùng khác GET lịch ngày làm việc. AC-02, AC-04 POST còn gồm role-bindings, delegations (SCR-0105, SCR-0107).",
    "nguon": "SCR-0101, SCR-0102, SCR-0801, SCR-1401, SCR-0105..SCR-0107",
    "ngoai_baseline": false
   },
@@ -5004,7 +5004,7 @@
    "quyen": {
     "AC-01": "-",
     "AC-02": "GET POST",
-    "AC-03": "-",
+    "AC-03": "GET*",
     "AC-04": "GET POST",
     "AC-05": "GET",
     "AC-06": "GET",
@@ -5015,7 +5015,7 @@
     "AC-11": "-",
     "AC-12": "-"
    },
-   "ghi_chu": "AC-04 POST = approve lệnh; AC-09 POST = duyệt huỷ.",
+   "ghi_chu": "AC-04 POST = approve lệnh; AC-09 POST = duyệt huỷ. AC-03 GET (suy luận, QA-05 23/10/2026): chọn kỳ áp dụng khi gửi phê duyệt bộ quy định (BR-15-10) và kỳ của luồng duyệt, ca thử.",
    "nguon": "SCR-0801",
    "ngoai_baseline": false
   },

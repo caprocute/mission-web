@@ -1,10 +1,12 @@
-# INF-06 · OPS-10, OPS-11 Pipeline cho Go, Python, Flutter, Helm và nội dung (Policy Pack, UI Pack)
+# INF-06 · OPS-10, OPS-11 Pipeline cho Go, Python, Helm và nội dung (Policy Pack, UI Pack)
 
 > ### 0. QUY ĐỊNH CHUNG – BẮT BUỘC ĐỌC TRƯỚC KHI LÀM
-> Trước khi đọc tiếp, mở và đọc toàn bộ `AGENTS.md` ở gốc repo (quy tắc không được vi phạm, quy trình, mẫu báo cáo), rồi đọc quy định riêng của phân hệ: `docs/quy-dinh/BACKEND.md` (task NEN, CORE, DV, DL), `docs/quy-dinh/HA-TANG.md` (task INF, VH), `docs/quy-dinh/DI-DONG.md` (task MOB). Nhắc nhanh:
+> Trước khi đọc tiếp, mở và đọc toàn bộ `AGENTS.md` ở gốc repo (quy tắc không được vi phạm, quy trình, mẫu báo cáo), rồi đọc quy định riêng của phân hệ: `docs/quy-dinh/BACKEND.md` (task NEN, CORE, DV, DL), `docs/quy-dinh/HA-TANG.md` (task INF, VH). Nhắc nhanh:
 > bám baseline và TL-01..TL-05, giữ nguyên mã định danh, tên schema, bảng, trạng thái; API-first, sửa mã chứ không sửa hợp đồng; chỉ sửa tệp trong phạm vi;
 > không commit bí mật; máy chủ là nguồn sự thật, quyền theo ma trận `wiki/15a`; ghi kèm Idempotency-Key, cập nhật kèm If-Match (409); outbox trong cùng giao dịch;
 > build + kiểm thử thật trước khi báo xong; báo cáo trung thực theo AGENTS.md mục 6. Chạy `./scripts/agent-task.sh INF-06` để có prompt đầy đủ.
+
+> **Cập nhật 24/10/2026 (wiki 14, mục "Quyết định điều chỉnh phạm vi của chủ dự án"):** ứng dụng di động (SVC-18, MOB-01..10) và đo tải, diễn tập DR (QA-08..QA-12, QA-14, QA-15) đã bỏ khỏi phạm vi; các chỗ nhắc tới chúng trong thẻ này chỉ còn giá trị lịch sử.
 
 | Thuộc tính | Giá trị |
 |---|---|
@@ -23,7 +25,7 @@ Mở rộng thư viện `vt-pipeline` của INF-05 cho các ngôn ngữ và lo�
 
 - `/mnt/project-files/kien-truc-okr-kpi/src/TL-04-trien-khai-van-hanh.md` mục "Phát hành Policy Pack, UI Pack và bản LTS" (3826–3833), "Chuỗi cung ứng phần mềm: SLSA, Jenkins, Argo CD" (3022–3138).
 - `/mnt/project-files/kien-truc-okr-kpi/src/TL-01-thiet-ke-kien-truc.md` mục "Đường ống CI/CD" (3130–3138); chương Policy Pack của TL-01 (ca vàng, J6).
-- `wiki/03-giao-dien-theo-tenant.md` (UI Pack, ngưỡng 30 KB), `wiki/11-kiem-thu-va-chat-luong.md` mục "Kiểm thử UI Pack bốn tầng", `docs/quy-dinh/DI-DONG.md`, `docs/quy-dinh/BACKEND.md` mục 4.
+- `wiki/03-giao-dien-theo-tenant.md` (UI Pack, ngưỡng 30 KB), `wiki/11-kiem-thu-va-chat-luong.md` mục "Kiểm thử UI Pack bốn tầng", `docs/quy-dinh/BACKEND.md` mục 4.
 - `contracts/openapi/modules/policies.yaml` (`runPolicyTests`, `submitPolicyPackVersion`) và `contracts/openapi/modules/config.yaml` (`createUiPackVersion`, `publishUiPackVersion`).
 
 ## 3. Phạm vi công việc
@@ -43,7 +45,7 @@ Mở rộng thư viện `vt-pipeline` của INF-05 cho các ngôn ngữ và lo�
 
 ## 5. Tệp được phép sửa
 
-- `ci/vt-pipeline/**`, `services-go/*/Jenkinsfile`, `services-py/*/Jenkinsfile`, `mobile/Jenkinsfile`, `deploy/Jenkinsfile`, `data/policy-pack/Jenkinsfile`.
+- `ci/vt-pipeline/**`, `services-go/*/Jenkinsfile`, `services-py/*/Jenkinsfile`, `deploy/Jenkinsfile`, `data/policy-pack/Jenkinsfile`.
 - `.semgrep/**` (thêm bộ quy tắc Go, Python, Dart nếu cần).
 - `wiki/11-kiem-thu-va-chat-luong.md`.
 

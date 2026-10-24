@@ -10,7 +10,7 @@
 # Các bước: (1) `mvnw package` các mô-đun Java; (2) `docker compose build`; (3) kiểm hạ tầng core, security,
 # events đang chạy (không bật hay dựng lại); (4) migration bằng tài khoản mig_<schema>; (5) `docker compose up -d` các service
 # backend; (6) chờ healthcheck; (7) seed khi có mission-core (lược đồ Avro, tổ chức và org-republish, kỳ hiện
-# hành, phân vùng theo kỳ, nhiệm vụ mẫu; bỏ bằng SKIP_SEED=1) rồi gọi health.sh. Chỉ thao tác project compose `mission-dev`: không dùng
+# hành, phân vùng theo kỳ, nhiệm vụ mẫu, OKR mẫu đã duyệt; bỏ bằng SKIP_SEED=1) rồi gọi health.sh. Chỉ thao tác project compose `mission-dev`: không dùng
 # --remove-orphans, không prune, không đụng container khác trên máy.
 #
 # Cách dùng:
@@ -94,6 +94,21 @@ compose() {
     --env-file "${ENV_FILE}" --profile core --profile security --profile events --profile search \
     --profile backend "$@"
 }
+
+# Secret openbao_token của compose là tệp (docker-compose.yml): ghi từ OPENBAO_DEV_ROOT_TOKEN, thư mục 700 để chỉ chủ
+# máy đọc được; tệp 644 để người dùng 10001 trong container đọc qua điểm gắn. Không in giá trị.
+if [[ -z "${OPENBAO_TOKEN_FILE:-}" ]]; then
+  if [[ -n "${OPENBAO_DEV_ROOT_TOKEN:-}" ]]; then
+    install -d -m 700 "${INFRA_DIR}/secrets"
+    (umask 022 && printf '%s' "${OPENBAO_DEV_ROOT_TOKEN}" >"${INFRA_DIR}/secrets/openbao_token.tmp")
+    chmod 644 "${INFRA_DIR}/secrets/openbao_token.tmp"
+    mv "${INFRA_DIR}/secrets/openbao_token.tmp" "${INFRA_DIR}/secrets/openbao_token"
+  elif [[ ! -f "${INFRA_DIR}/secrets/openbao_token" ]]; then
+    echo "  Cảnh báo: chưa đặt OPENBAO_DEV_ROOT_TOKEN; org-service, integration-gateway không mã hoá được trường C2." >&2
+    install -d -m 700 "${INFRA_DIR}/secrets"
+    : >"${INFRA_DIR}/secrets/openbao_token"
+  fi
+fi
 
 echo "==> Container trước khi áp: $(docker ps -q | wc -l) đang chạy, $(docker ps -q --filter "label=com.docker.compose.project=${PROJECT}" | wc -l) thuộc ${PROJECT}"
 
@@ -236,6 +251,11 @@ done
 canh_bao() { echo "  Cảnh báo: $1 chưa xong; chạy lại $2 khi APISIX, Keycloak và Apicurio sẵn sàng" >&2; }
 if selected mission-core && [[ "${SKIP_SEED:-0}" != "1" ]]; then
   python3 -I "${SCRIPT_DIR}/dang-ky-luoc-do.py" >/dev/null || canh_bao "đăng ký lược đồ sự kiện" "dang-ky-luoc-do.py"
+  # Realm đã nhập từ trước không tự có tài khoản thử, client dịch vụ mới của realm-mission.json (HT-07, HT-08).
+  "${SCRIPT_DIR}/them-tai-khoan-thu.sh" >/dev/null || canh_bao "tài khoản thử mới" "them-tai-khoan-thu.sh"
+  "${SCRIPT_DIR}/them-client-integration-gateway.sh" >/dev/null ||
+    canh_bao "client integration-gateway" "them-client-integration-gateway.sh"
+  "${SCRIPT_DIR}/them-client-mission-core.sh" >/dev/null || canh_bao "client mission-core" "them-client-mission-core.sh"
   "${SCRIPT_DIR}/seed-org.sh" || canh_bao "seed tổ chức" "seed-org.sh"
   if selected org-service || docker ps -q --filter name=mission-dev-org-service | grep -q .; then
     "${SCRIPT_DIR}/dong-bo-to-chuc.sh" || canh_bao "đồng bộ tổ chức sang mission-core" "dong-bo-to-chuc.sh"
@@ -245,6 +265,8 @@ if selected mission-core && [[ "${SKIP_SEED:-0}" != "1" ]]; then
   # Keycloak từ chối mã OTP đã dùng trong 30 giây của cùng tài khoản; bước sau đăng nhập lại quantri.
   sleep 31
   python3 -I "${SCRIPT_DIR}/seed-ky-nhiem-vu.py" || canh_bao "nhiệm vụ mẫu" "seed-ky-nhiem-vu.py"
+  sleep 31
+  python3 -I "${SCRIPT_DIR}/seed-okr-mau.py" || canh_bao "OKR mẫu đã duyệt" "seed-okr-mau.py"
 fi
 
 echo "==> Container sau khi áp: $(docker ps -q | wc -l) đang chạy, $(docker ps -q --filter "label=com.docker.compose.project=${PROJECT}" | wc -l) thuộc ${PROJECT}"

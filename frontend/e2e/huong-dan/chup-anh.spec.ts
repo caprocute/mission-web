@@ -31,11 +31,23 @@ interface Anh {
   caoTuoi?: boolean;
   /** Đường dẫn dùng mã bản ghi của dữ liệu giả lập; trên hệ thống thật bỏ qua. */
   chiGiaLap?: boolean;
+  /**
+   * Lý do bỏ qua bước trên hệ thống thật dù không cần mã bản ghi giả lập (ví dụ bảng điều hành cần kho phân
+   * tích có dữ liệu CDC, compose dev chưa nối luồng này); ảnh giữ bản chụp trên dữ liệu giả lập.
+   */
+  boQuaHeThong?: string;
+  /**
+   * Trên hệ thống thật, tìm đường dẫn từ dữ liệu thật thay cho mã bản ghi giả lập của `url`: mở trang nguồn rồi
+   * lấy liên kết đầu tiên khớp mẫu (bước có `timUrl` không bị bỏ qua dù đánh dấu `chiGiaLap`).
+   */
+  timUrl?: { tu: string; tieuDe: RegExp; lienKet: RegExp; duoi?: string };
 }
 
 interface VaiTro {
   ac: string;
   taiKhoan: string;
+  /** Lý do bỏ cả vai trò trên hệ thống thật; ảnh giữ bản chụp trên dữ liệu giả lập. */
+  boQuaHeThong?: string;
   anh: Anh[];
 }
 
@@ -48,10 +60,28 @@ const chonKy = (ten: string) => async (page: Page) => {
   await expect(m(page).getByRole('region', { name: `${ten}: lệnh khoá kỳ` })).toBeVisible();
 };
 
+/**
+ * Dữ liệu thử của dev chưa có bản ghi cho màn hình (hồ sơ đánh giá, hàng chờ duyệt, cảnh báo…), ảnh chụp thật chỉ là
+ * danh sách trống không minh hoạ được bước tài liệu mô tả, nên giữ ảnh chụp trên dữ liệu giả lập.
+ */
+const CHUA_CO_DU_LIEU = 'dữ liệu thử của dev chưa có bản ghi để màn hình có nội dung minh hoạ';
+
+/** Phiên bản đầu tiên của gói quy định đánh giá trong danh sách, mở thẳng thẻ con. */
+const GOI_THAT = (duoi: string) => ({
+  tu: '/config-studio',
+  tieuDe: /^Chính sách đánh giá/,
+  lienKet: /^\/config-studio\/goi\/[0-9a-f-]{36}\/[^/]+$/,
+  duoi,
+});
+
 const DANH_SACH: VaiTro[] = [
   {
     ac: 'ac-01',
     taiKhoan: 'nentang',
+    // Giao diện hiện đòi mọi tài khoản có phân công công tác trong tenant; quản trị nền tảng không thuộc tenant thử
+    // nào nên mọi trang chỉ hiện "Chưa có phân công công tác" (ghi ở báo cáo VH-05, chờ sửa phía web).
+    boQuaHeThong:
+      'quản trị nền tảng không có phân công công tác trong tenant nên giao diện chặn mọi trang',
     anh: [
       { ten: 'ac-01-01-trang-chu', url: '/', tieuDe: /^Xin chào/ },
       {
@@ -86,8 +116,14 @@ const DANH_SACH: VaiTro[] = [
         ten: 'ac-02-03-dong-bo-nhan-su',
         url: '/admin/org/sync',
         tieuDe: /^Đồng bộ và đối soát nhân sự/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
       },
-      { ten: 'ac-02-04-vai-tro-theo-don-vi', url: '/admin/access', tieuDe: /^Vai trò theo đơn vị/ },
+      {
+        ten: 'ac-02-04-vai-tro-theo-don-vi',
+        url: '/admin/access',
+        tieuDe: /^Vai trò theo đơn vị/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
+      },
       { ten: 'ac-02-05-ky-danh-gia', url: '/admin/periods', tieuDe: /^Kỳ đánh giá và khoá kỳ/ },
       {
         ten: 'ac-02-06-tien-trinh-khoa-ky',
@@ -101,7 +137,12 @@ const DANH_SACH: VaiTro[] = [
         url: '/config-studio/giao-dien',
         tieuDe: /^Giao diện đơn vị/,
       },
-      { ten: 'ac-02-08-bieu-mau-dong', url: '/config-studio/bieu-mau', tieuDe: /^Biểu mẫu động/ },
+      {
+        ten: 'ac-02-08-bieu-mau-dong',
+        url: '/config-studio/bieu-mau',
+        tieuDe: /^Biểu mẫu động/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
+      },
     ],
   },
   {
@@ -116,31 +157,42 @@ const DANH_SACH: VaiTro[] = [
       {
         ten: 'ac-03-02-cong-thuc',
         url: '/config-studio/goi/0192a1b0-3c4d-7e5f-8a9b-000000004001/2.1.0/cong-thuc',
-        tieuDe: /^Quy định đánh giá/,
+        // Tiêu đề là tên gói, khác nhau giữa dữ liệu giả lập và dữ liệu thử của dev
+        tieuDe: /[Qq]uy định đánh giá/,
         chiGiaLap: true,
+        timUrl: GOI_THAT('cong-thuc'),
       },
       {
         ten: 'ac-03-03-bang-quyet-dinh',
         url: '/config-studio/goi/0192a1b0-3c4d-7e5f-8a9b-000000004001/2.1.0/bang-quyet-dinh',
-        tieuDe: /^Quy định đánh giá/,
+        // Tiêu đề là tên gói, khác nhau giữa dữ liệu giả lập và dữ liệu thử của dev
+        tieuDe: /[Qq]uy định đánh giá/,
         chiGiaLap: true,
+        timUrl: GOI_THAT('bang-quyet-dinh'),
       },
       {
         ten: 'ac-03-04-test-case',
         url: '/config-studio/goi/0192a1b0-3c4d-7e5f-8a9b-000000004001/2.1.0/test-case',
-        tieuDe: /^Quy định đánh giá/,
+        // Tiêu đề là tên gói, khác nhau giữa dữ liệu giả lập và dữ liệu thử của dev
+        tieuDe: /[Qq]uy định đánh giá/,
         chiGiaLap: true,
+        timUrl: GOI_THAT('test-case'),
       },
       {
         ten: 'ac-03-05-luong-duyet',
         url: '/config-studio/goi/0192a1b0-3c4d-7e5f-8a9b-000000004001/2.1.0/luong-duyet',
-        tieuDe: /^Quy định đánh giá/,
+        // Tiêu đề là tên gói, khác nhau giữa dữ liệu giả lập và dữ liệu thử của dev
+        tieuDe: /[Qq]uy định đánh giá/,
         chiGiaLap: true,
+        timUrl: GOI_THAT('luong-duyet'),
+        boQuaHeThong:
+          'mission-core trên compose dev chưa cấu hình địa chỉ workflow-service cho luồng duyệt',
       },
       {
         ten: 'ac-03-06-nguong-bat-thuong',
         url: '/oversight/alert-thresholds',
         tieuDe: /^Ngưỡng phát hiện/,
+        boQuaHeThong: 'tài khoản thử chính sách bị máy chủ từ chối đọc ngưỡng bất thường',
       },
       {
         ten: 'ac-03-07-danh-muc-cong-viec',
@@ -162,8 +214,14 @@ const DANH_SACH: VaiTro[] = [
           const cho = m(page).getByRole('region', { name: 'Hàng chờ' }).getByRole('button');
           if (await cho.count()) await cho.first().click();
         },
+        boQuaHeThong: CHUA_CO_DU_LIEU,
       },
-      { ten: 'ac-04-03-ke-hoach-quy', url: '/plans', tieuDe: /^Kế hoạch công tác/ },
+      {
+        ten: 'ac-04-03-ke-hoach-quy',
+        url: '/plans',
+        tieuDe: /^Kế hoạch công tác/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
+      },
       {
         ten: 'ac-04-04-duyet-lenh-khoa-ky',
         url: '/admin/periods',
@@ -171,17 +229,29 @@ const DANH_SACH: VaiTro[] = [
         buoc: chonKy('Quý IV/2026'),
         chiGiaLap: true,
       },
-      { ten: 'ac-04-05-xep-loai-nam', url: '/appraisal/xep-loai-nam', tieuDe: /^Xếp loại năm/ },
+      {
+        ten: 'ac-04-05-xep-loai-nam',
+        url: '/appraisal/xep-loai-nam',
+        tieuDe: /^Xếp loại năm/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
+      },
       {
         ten: 'ac-04-06-phan-nhom-trien-vong',
         url: '/appraisal/phan-nhom',
         tieuDe: /^Phân nhóm triển vọng/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
       },
-      { ten: 'ac-04-07-bang-dieu-hanh', url: '/dashboard', tieuDe: /^Bảng điều hành/ },
+      {
+        ten: 'ac-04-07-bang-dieu-hanh',
+        url: '/dashboard',
+        tieuDe: /^Bảng điều hành/,
+        boQuaHeThong: 'bảng điều hành đọc kho phân tích, compose dev chưa nạp dữ liệu CDC sang kho',
+      },
       {
         ten: 'ac-04-08-uy-quyen',
         url: '/admin/access/delegations',
         tieuDe: /^Uỷ quyền khi vắng mặt/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
       },
     ],
   },
@@ -190,19 +260,44 @@ const DANH_SACH: VaiTro[] = [
     taiKhoan: 'quanly',
     anh: [
       { ten: 'ac-05-01-trang-chu', url: '/', tieuDe: /^Xin chào/ },
-      { ten: 'ac-05-02-cay-muc-tieu', url: '/okr', tieuDe: /^Cây mục tiêu OKR/ },
+      {
+        ten: 'ac-05-02-cay-muc-tieu',
+        url: '/okr',
+        tieuDe: /^Cây mục tiêu OKR/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
+      },
       { ten: 'ac-05-03-soan-muc-tieu', url: '/okr/objectives/new', tieuDe: /^Soạn mục tiêu/ },
-      { ten: 'ac-05-04-ke-hoach-quy', url: '/plans', tieuDe: /^Kế hoạch công tác/ },
+      {
+        ten: 'ac-05-04-ke-hoach-quy',
+        url: '/plans',
+        tieuDe: /^Kế hoạch công tác/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
+      },
       { ten: 'ac-05-05-giao-viec', url: '/tasks/assign', tieuDe: /^Giao nhiệm vụ/ },
-      { ten: 'ac-05-06-van-ban-den', url: '/tasks/documents', tieuDe: /^Văn bản đến/ },
+      {
+        ten: 'ac-05-06-van-ban-den',
+        url: '/tasks/documents',
+        tieuDe: /^Văn bản đến/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
+      },
       {
         ten: 'ac-05-07-nghiem-thu',
         url: '/evidence/0192a1b2-0000-7000-8000-000000000138/review',
         tieuDe: /./,
         chiGiaLap: true,
       },
-      { ten: 'ac-05-08-ket-qua-xep-loai', url: '/appraisal/ket-qua', tieuDe: /^Kết quả xếp loại/ },
-      { ten: 'ac-05-09-bang-dieu-hanh', url: '/dashboard', tieuDe: /^Bảng điều hành/ },
+      {
+        ten: 'ac-05-08-ket-qua-xep-loai',
+        url: '/appraisal/ket-qua',
+        tieuDe: /^Kết quả xếp loại/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
+      },
+      {
+        ten: 'ac-05-09-bang-dieu-hanh',
+        url: '/dashboard',
+        tieuDe: /^Bảng điều hành/,
+        boQuaHeThong: 'bảng điều hành đọc kho phân tích, compose dev chưa nạp dữ liệu CDC sang kho',
+      },
     ],
   },
   {
@@ -216,12 +311,14 @@ const DANH_SACH: VaiTro[] = [
         url: '/tasks/0192a0f0-0001-7000-8000-000000000001',
         tieuDe: /./,
         chiGiaLap: true,
+        timUrl: { tu: '/tasks', tieuDe: /^Việc của tôi$/, lienKet: /^\/tasks\/[0-9a-f-]{36}$/ },
       },
       {
         ten: 'ac-06-04-cap-nhat-tien-do',
         url: '/tasks/0192a0f0-0001-7000-8000-000000000001',
         tieuDe: /./,
         chiGiaLap: true,
+        timUrl: { tu: '/tasks', tieuDe: /^Việc của tôi$/, lienKet: /^\/tasks\/[0-9a-f-]{36}$/ },
         caoTuoi: true,
         buoc: async (page) => {
           await m(page).getByRole('button', { name: 'Cập nhật tiến độ' }).click();
@@ -240,8 +337,14 @@ const DANH_SACH: VaiTro[] = [
         url: '/appraisal/tu-danh-gia',
         tieuDe: /^Phiếu tự đánh giá/,
         caoTuoi: true,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
       },
-      { ten: 'ac-06-08-ket-qua-xep-loai', url: '/appraisal/ket-qua', tieuDe: /^Kết quả xếp loại/ },
+      {
+        ten: 'ac-06-08-ket-qua-xep-loai',
+        url: '/appraisal/ket-qua',
+        tieuDe: /^Kết quả xếp loại/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
+      },
       {
         ten: 'ac-06-09-gui-khieu-nai',
         url: '/oversight/my-complaints/new',
@@ -257,16 +360,38 @@ const DANH_SACH: VaiTro[] = [
         ten: 'ac-07-01-tham-dinh',
         url: '/appraisal/tham-dinh',
         tieuDe: /^Thẩm định hồ sơ đánh giá/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
       },
-      { ten: 'ac-07-02-xep-loai-nam', url: '/appraisal/xep-loai-nam', tieuDe: /^Xếp loại năm/ },
+      {
+        ten: 'ac-07-02-xep-loai-nam',
+        url: '/appraisal/xep-loai-nam',
+        tieuDe: /^Xếp loại năm/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
+      },
       {
         ten: 'ac-07-03-hoi-nghi-kiem-diem',
         url: '/dossier/kiem-diem',
         tieuDe: /^Hội nghị kiểm điểm/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
       },
-      { ten: 'ac-07-04-goi-ho-so', url: '/dossier/goi-ho-so', tieuDe: /^Gói hồ sơ số/ },
-      { ten: 'ac-07-05-xu-ly-khieu-nai', url: '/oversight/complaints', tieuDe: /^Xử lý khiếu nại/ },
-      { ten: 'ac-07-06-canh-bao', url: '/oversight/alerts', tieuDe: /^Trung tâm cảnh báo/ },
+      {
+        ten: 'ac-07-04-goi-ho-so',
+        url: '/dossier/goi-ho-so',
+        tieuDe: /^Gói hồ sơ số/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
+      },
+      {
+        ten: 'ac-07-05-xu-ly-khieu-nai',
+        url: '/oversight/complaints',
+        tieuDe: /^Xử lý khiếu nại/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
+      },
+      {
+        ten: 'ac-07-06-canh-bao',
+        url: '/oversight/alerts',
+        tieuDe: /^Trung tâm cảnh báo/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
+      },
     ],
   },
   {
@@ -277,13 +402,25 @@ const DANH_SACH: VaiTro[] = [
         ten: 'ac-08-01-quyet-dinh-hang-loat',
         url: '/appraisal/quyet-dinh',
         tieuDe: /^Quyết định xếp loại hàng loạt/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
       },
-      { ten: 'ac-08-02-ket-qua-xep-loai', url: '/appraisal/ket-qua', tieuDe: /^Kết quả xếp loại/ },
-      { ten: 'ac-08-03-goi-ho-so', url: '/dossier/goi-ho-so', tieuDe: /^Gói hồ sơ số/ },
+      {
+        ten: 'ac-08-02-ket-qua-xep-loai',
+        url: '/appraisal/ket-qua',
+        tieuDe: /^Kết quả xếp loại/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
+      },
+      {
+        ten: 'ac-08-03-goi-ho-so',
+        url: '/dossier/goi-ho-so',
+        tieuDe: /^Gói hồ sơ số/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
+      },
       {
         ten: 'ac-08-04-mo-lai-ky',
         url: '/oversight/reopen-requests',
         tieuDe: /^Hậu kiểm, mở lại kỳ/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
       },
       { ten: 'ac-08-05-chinh-sach', url: '/config-studio', tieuDe: /^Chính sách đánh giá/ },
     ],
@@ -303,11 +440,13 @@ const DANH_SACH: VaiTro[] = [
         ten: 'ac-09-02-mo-lai-ky',
         url: '/oversight/reopen-requests',
         tieuDe: /^Hậu kiểm, mở lại kỳ/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
       },
       {
         ten: 'ac-09-03-mau-quy-trinh',
         url: '/config-studio/mau-luong',
         tieuDe: /^Mẫu quy trình dùng chung/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
       },
     ],
   },
@@ -315,15 +454,35 @@ const DANH_SACH: VaiTro[] = [
     ac: 'ac-10',
     taiKhoan: 'kiemtra',
     anh: [
-      { ten: 'ac-10-01-canh-bao', url: '/oversight/alerts', tieuDe: /^Trung tâm cảnh báo/ },
-      { ten: 'ac-10-02-so-cai', url: '/oversight/ledger', tieuDe: /^Sổ cái và kiểm tra toàn vẹn/ },
+      {
+        ten: 'ac-10-01-canh-bao',
+        url: '/oversight/alerts',
+        tieuDe: /^Trung tâm cảnh báo/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
+      },
+      {
+        ten: 'ac-10-02-so-cai',
+        url: '/oversight/ledger',
+        tieuDe: /^Sổ cái và kiểm tra toàn vẹn/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
+      },
       {
         ten: 'ac-10-03-tao-yeu-cau-mo-lai',
         url: '/oversight/reopen-requests/new',
         tieuDe: /^Tạo yêu cầu mở lại kỳ/,
       },
-      { ten: 'ac-10-04-vai-tro-theo-don-vi', url: '/admin/access', tieuDe: /^Vai trò theo đơn vị/ },
-      { ten: 'ac-10-05-bang-dieu-hanh', url: '/dashboard', tieuDe: /^Bảng điều hành/ },
+      {
+        ten: 'ac-10-04-vai-tro-theo-don-vi',
+        url: '/admin/access',
+        tieuDe: /^Vai trò theo đơn vị/,
+        boQuaHeThong: CHUA_CO_DU_LIEU,
+      },
+      {
+        ten: 'ac-10-05-bang-dieu-hanh',
+        url: '/dashboard',
+        tieuDe: /^Bảng điều hành/,
+        boQuaHeThong: 'bảng điều hành đọc kho phân tích, compose dev chưa nạp dữ liệu CDC sang kho',
+      },
     ],
   },
 ];
@@ -340,8 +499,49 @@ async function moTrang(browser: Browser, taiKhoan: string): Promise<Page> {
     );
   const page = await ctx.newPage();
   await page.goto('/');
-  if (HE_THONG) await completeKeycloak(page, taiKhoan);
+  if (HE_THONG) {
+    await completeKeycloak(page, taiKhoan);
+    await chonPhanCongChinh(page);
+    await veCheDoThuong(page);
+  }
   return page;
+}
+
+/** Tuỳ chọn chữ lớn lưu theo người dùng ở máy chủ, nên lượt chụp trước có thể để lại chế độ cao tuổi. */
+async function veCheDoThuong(page: Page) {
+  if ((await page.locator('html').getAttribute('data-mode')) !== 'elderly') return;
+  await page.getByRole('button', { name: 'Chữ thường' }).click();
+  await expect(page.locator('html')).not.toHaveAttribute('data-mode', 'elderly');
+}
+
+/**
+ * Tài khoản có từ hai phân công còn hiệu lực (lãnh đạo, quản lý kiêm nhiệm) được hỏi chọn phân công ngay sau
+ * đăng nhập; ảnh hướng dẫn chụp theo phân công chính.
+ */
+async function chonPhanCongChinh(page: Page) {
+  const hop = page.getByRole('dialog', { name: 'Chọn phân công làm việc' });
+  const tieuDe = m(page).getByRole('heading', { level: 1 }).first();
+  await expect(hop.or(tieuDe).first()).toBeVisible({ timeout: 30_000 });
+  // Hộp chọn có thể hiện sau tiêu đề trang chủ một nhịp, nên chờ thêm một chút trước khi kết luận
+  await hop.waitFor({ state: 'visible', timeout: 3_000 }).catch(() => undefined);
+  if (!(await hop.isVisible())) return;
+  await hop
+    .getByRole('radio', { name: /Phân công chính/ })
+    .first()
+    .check();
+  await hop.getByRole('button', { name: 'Vào làm việc' }).click();
+  await expect(hop).toBeHidden();
+}
+
+async function timDuongDan(page: Page, t: NonNullable<Anh['timUrl']>): Promise<string> {
+  await den(page, t.tu);
+  await choYen(page, t.tieuDe);
+  const hrefs = await m(page)
+    .locator('a[href]')
+    .evaluateAll((as) => as.map((a) => new URL((a as HTMLAnchorElement).href).pathname));
+  const href = hrefs.find((h) => t.lienKet.test(h));
+  expect(href, `không thấy liên kết khớp ${t.lienKet} ở ${t.tu}`).toBeTruthy();
+  return t.duoi ? `${href}/${t.duoi}` : href!;
 }
 
 async function den(page: Page, url: string) {
@@ -363,6 +563,16 @@ async function choYen(page: Page, tieuDe: RegExp) {
 }
 
 async function chup(page: Page, ten: string) {
+  // Thông báo lỗi chung của khung giao diện (một lời gọi nền thất bại) che đầu trang; đóng trước khi chụp và ghi
+  // vào kết quả chạy để người chạy biết mà báo lỗi, ảnh hướng dẫn không chứa lỗi tạm thời của môi trường.
+  const loiChung = page.getByRole('alert').filter({ hasText: 'Có lỗi khi hiển thị nội dung' });
+  if (await loiChung.isVisible()) {
+    test
+      .info()
+      .annotations.push({ type: 'loi-chung', description: `${ten}: đã đóng thông báo lỗi chung` });
+    await loiChung.getByRole('button', { name: 'Đóng' }).click();
+    await expect(loiChung).toBeHidden();
+  }
   await page.screenshot({
     path: join(ANH, `${ten}.jpg`),
     type: 'jpeg',
@@ -376,18 +586,26 @@ test.describe('Ảnh cho hướng dẫn sử dụng', () => {
 
   for (const vt of DANH_SACH) {
     test(`${vt.ac} ${vt.taiKhoan}`, async ({ browser }) => {
+      test.skip(HE_THONG && !!vt.boQuaHeThong, vt.boQuaHeThong);
       const page = await moTrang(browser, vt.taiKhoan);
       const loi: string[] = [];
       page.on('pageerror', (e) => loi.push(e.message));
       const caoTuoi: Anh[] = [];
       for (const a of vt.anh) {
-        if (HE_THONG && a.chiGiaLap) {
-          test
-            .info()
-            .annotations.push({ type: 'bo-qua', description: `${a.ten}: cần dữ liệu giả lập` });
+        if (HE_THONG && (a.boQuaHeThong || (a.chiGiaLap && !a.timUrl))) {
+          const lyDo = a.boQuaHeThong ?? 'cần dữ liệu giả lập';
+          test.info().annotations.push({ type: 'bo-qua', description: `${a.ten}: ${lyDo}` });
           continue;
         }
+        let tieuDeCu: string | null = null;
+        if (HE_THONG && a.timUrl) {
+          a.url = await timDuongDan(page, a.timUrl);
+          tieuDeCu = await m(page).getByRole('heading', { level: 1 }).first().textContent();
+        }
         await den(page, a.url);
+        // Trang nguồn và trang đích cùng khung: chờ tiêu đề đổi để không chụp nhầm trang nguồn
+        if (tieuDeCu !== null)
+          await expect(m(page).getByRole('heading', { level: 1 }).first()).not.toHaveText(tieuDeCu);
         await choYen(page, a.tieuDe);
         if (a.buoc) await a.buoc(page);
         await choYen(page, a.tieuDe);
@@ -407,6 +625,7 @@ test.describe('Ảnh cho hướng dẫn sử dụng', () => {
           await chup(page, `${a.ten}-cao-tuoi`);
           if (a.buoc) await page.keyboard.press('Escape');
         }
+        await veCheDoThuong(page);
       }
       expect(loi, 'không có lỗi trang khi chụp').toEqual([]);
       await page.context().close();

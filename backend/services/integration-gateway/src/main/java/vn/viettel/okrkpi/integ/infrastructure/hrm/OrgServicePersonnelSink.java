@@ -42,9 +42,9 @@ class OrgServicePersonnelSink implements PersonnelSink {
   }
 
   @Override
-  public void forward(
+  public int forward(
       TenantId tenant, String connectorCode, UUID runId, List<Person> persons, boolean last) {
-    post(tenant, connectorCode, runId, persons, last, 0, null);
+    return post(tenant, connectorCode, runId, persons, last, 0, null);
   }
 
   @Override
@@ -53,7 +53,8 @@ class OrgServicePersonnelSink implements PersonnelSink {
     post(tenant, connectorCode, runId, List.of(), true, deadLetters, reason);
   }
 
-  private void post(
+  /** Gửi lô, trả số bản ghi org-service báo lỗi ({@code BatchResult.errors}). */
+  private int post(
       TenantId tenant,
       String connectorCode,
       UUID runId,
@@ -76,14 +77,22 @@ class OrgServicePersonnelSink implements PersonnelSink {
           HttpRequest.newBuilder(URI.create(baseUrl + PATH.formatted(runId)))
               .timeout(timeout)
               .header("Content-Type", "application/json")
+              // Token client credentials không mang claim tenant: org-service đọc tenant đích ở
+              // X-Tenant-Id cho client integration-gateway (okrkpi.tenant.delegating-clients).
+              .header("X-Tenant-Id", tenant.value().toString())
               .POST(HttpRequest.BodyPublishers.ofByteArray(json.writeValueAsBytes(body)));
       if (token.enabled()) {
         req.header("Authorization", "Bearer " + token.bearer());
       }
-      HttpResponse<Void> res = http.send(req.build(), HttpResponse.BodyHandlers.discarding());
+      HttpResponse<byte[]> res = http.send(req.build(), HttpResponse.BodyHandlers.ofByteArray());
       if (res.statusCode() / 100 != 2) {
         throw new IOException("org-service trả mã " + res.statusCode() + " cho lô nhân sự");
       }
+      byte[] payload = res.body();
+      if (payload == null || payload.length == 0) {
+        return 0;
+      }
+      return Math.max(0, json.readTree(payload).path("errors").asInt(0));
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     } catch (InterruptedException e) {

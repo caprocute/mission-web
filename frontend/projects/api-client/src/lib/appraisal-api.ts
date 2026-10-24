@@ -26,7 +26,7 @@ import {
   ProspectGroupBoard,
   ProspectGroupBoardInput,
 } from './models/appraisal';
-import { Job } from './models/job';
+import { Job } from '@vt/api-client';
 
 const enc = encodeURIComponent;
 

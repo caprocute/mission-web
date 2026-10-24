@@ -157,11 +157,41 @@ class RealmTemplateKeycloakIT {
     assertThat(scope).as("client scope mission-context (DV-02-02)").isNotNull();
     assertThat(scope.path("protocolMappers").get(0).path("protocolMapper").asText())
         .isEqualTo("mission-context-mapper");
-    for (String clientId : new String[] {"mission-web", "mission-mobile"}) {
+    for (String clientId : new String[] {"mission-web"}) {
       String id = admin.get("/admin/realms/" + REALM + "/clients?clientId=" + clientId).get(0).path("id").asText();
       assertThat(admin.get("/admin/realms/" + REALM + "/clients/" + id + "/default-client-scopes").findValuesAsText(
           "name")).contains("mission-context");
     }
+  }
+
+  /**
+   * DV-04-07: client credentials của org-service đủ để đọc người dùng và ghi thuộc tính ngữ cảnh (PUT /org/me/context
+   * qua Admin API), nhưng không đọc được client hay tạo vai trò (chỉ view-users, manage-users).
+   */
+  @Test
+  void taiKhoanDichVuOrgServiceChiXemVaSuaNguoiDung() {
+    String userId = admin.createUser(REALM, "nguoi-dung-ngu-canh", UUID.randomUUID().toString());
+    OidcBrowser http = new OidcBrowser(baseUrl, REALM, "org-service", "urn:ietf:wg:oauth:2.0:oob");
+    HttpResponse<String> t = http.postForm(http.endpoint("token"),
+        Map.of("grant_type", "client_credentials"), "org-service:org-" + apisixSecret);
+    assertThat(t.statusCode()).as(t.body()).isEqualTo(200);
+    String token = RepoFiles.readYaml(t.body()).path("access_token").asText();
+    java.util.function.Function<String, HttpRequest.Builder> req = path -> HttpRequest.newBuilder(
+        URI.create(baseUrl + "/admin/realms/" + REALM + path)).header("Authorization", "Bearer " + token);
+
+    HttpResponse<String> user = http.send(req.apply("/users/" + userId).GET().build());
+    assertThat(user.statusCode()).isEqualTo(200);
+    ObjectNode u = (ObjectNode) RepoFiles.readYaml(user.body());
+    u.putObject("attributes").putArray("mission_context_unit_id").add("don-vi-kiem-thu");
+    assertThat(http.send(req.apply("/users/" + userId).header("Content-Type", "application/json")
+        .PUT(HttpRequest.BodyPublishers.ofString(u.toString())).build()).statusCode()).isEqualTo(204);
+    assertThat(admin.get("/admin/realms/" + REALM + "/users/" + userId).path("attributes")
+        .path("mission_context_unit_id").get(0).asText()).isEqualTo("don-vi-kiem-thu");
+
+    assertThat(http.send(req.apply("/clients").GET().build()).statusCode()).isEqualTo(403);
+    assertThat(http.send(req.apply("/roles").header("Content-Type", "application/json")
+        .POST(HttpRequest.BodyPublishers.ofString("{\"name\":\"vai-tro-la\"}")).build()).statusCode())
+        .isEqualTo(403);
   }
 
   @Test
@@ -527,7 +557,7 @@ class RealmTemplateKeycloakIT {
 
     String password = newPassword();
     admin.createUser(REALM, "khong.directgrant", password);
-    for (String client : List.of("mission-web", "mission-mobile")) {
+    for (String client : List.of("mission-web")) {
       HttpResponse<String> d = b.postForm(b.endpoint("token"), Map.of(
           "grant_type", "password", "client_id", client, "username", "khong.directgrant", "password", password), null);
       assertThat(d.statusCode()).as(client).isIn(400, 401);

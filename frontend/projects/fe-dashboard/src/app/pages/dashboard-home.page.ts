@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { AnalyticsApi } from '@vt/api-client';
+import { AnalyticsApi } from '@vt/api-client/domains';
 import { catchError, map, of, switchMap } from 'rxjs';
 import { DASHBOARD_CAN } from '../dashboard-permissions';
 import { DefaultDashboardStore } from '../default-dashboard';

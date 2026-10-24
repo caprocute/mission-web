@@ -1,4 +1,4 @@
-import { DashboardChartType, DashboardWidget } from '@vt/api-client';
+import { DashboardChartType, DashboardWidget } from '@vt/api-client/domains';
 
 /** Lưới 12 cột của dashboard tự dựng (`layout_json`: x, y, w, h theo ô lưới). */
 export const GRID_COLUMNS = 12;

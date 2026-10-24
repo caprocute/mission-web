@@ -1237,13 +1237,15 @@ export interface components {
        */
       type: 'number' | 'string' | 'boolean';
     };
-    /** @description Một dòng của bảng DMN (`rules_json`). */
+    /** @description Một dòng của bảng DMN (`rules_json`). Bảng xếp loại trả mức ở `ratingLevel`; bảng có đầu ra khác thang mức (ví dụ bảng tiêu chí chung trả `THUC_HIEN_TOT`) trả giá trị ở `outputValue` và bỏ `ratingLevel`. Mỗi dòng có đúng một trong hai trường (CORE-05-05, bổ sung 23/10/2026). */
     DecisionRule: {
       /** @description Biểu thức FEEL đơn giản theo tên cột; ô trống (`-` hoặc bỏ khoá) nghĩa là bất kỳ. */
       inputs: {
         [key: string]: string;
       };
-      ratingLevel: components['schemas']['RatingLevel'];
+      ratingLevel?: components['schemas']['RatingLevel'];
+      /** @description Giá trị đầu ra khi bảng không trả mức xếp loại; chữ hoa, số và gạch dưới. */
+      outputValue?: string;
       /** @description Điều khoản căn cứ. */
       clause: string;
       /** @description Giải thích ngắn. */

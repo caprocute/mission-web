@@ -148,6 +148,9 @@ adminEventsDetailsEnabled: false
 #     3. mission-aal2 (điều kiện bậc 2, hiệu lực MISSION_AAL2_MAX_AGE giây = 15 phút của BR-00-02 và trạng thái
 #        phiên TL-02a): SmartOTP hoặc WebAuthn; người chưa cài phải cài ngay (không bỏ qua được);
 #     4. mission-device-remember: ghi thiết bị, vị trí đã biết sau khi mọi bước đạt.
+#   mission-browser = mission-identify (cookie SSO, IdP, Organization hoặc mission-forms) rồi mission-tenant-status:
+#   người dùng thuộc tenant TAM_NGUNG hoặc DA_CHAM_DUT không đăng nhập được, kể cả khi còn phiên SSO (TL-04 mục 11.4,
+#   MSG-00-07); quản trị nền tảng vẫn vào được. Hai luồng sau môi giới VNeID cũng có bước này.
 #   Client xin bước lên bằng acr_values=aal2 (hoặc claims acr essential) và max_age; token mang acr, auth_time.
 #   Đăng nhập VNeID mức 2 đi luồng first broker login của DV-02-04 và được coi là đạt bậc 2 (TL-04).
 # ---------------------------------------------------------------------------
@@ -180,6 +183,20 @@ authenticationFlows:
     description: Đăng nhập trình duyệt theo bậc xác thực (DV-02-03)
     providerId: basic-flow
     topLevel: true
+    builtIn: false
+    authenticationExecutions:
+      - flowAlias: mission-identify
+        requirement: REQUIRED
+        priority: 10
+        authenticatorFlow: true
+      - authenticator: mission-tenant-status
+        requirement: REQUIRED
+        priority: 20
+        authenticatorFlow: false
+  - alias: mission-identify
+    description: Xác định người dùng bằng phiên SSO, IdP, Organization hoặc biểu mẫu (DV-02-03)
+    providerId: basic-flow
+    topLevel: false
     builtIn: false
     authenticationExecutions:
       - authenticator: auth-cookie
@@ -335,6 +352,10 @@ authenticationFlows:
         requirement: REQUIRED
         priority: 10
         authenticatorFlow: false
+      - authenticator: mission-tenant-status
+        requirement: REQUIRED
+        priority: 20
+        authenticatorFlow: false
   - alias: mission-vneid-post-login
     description: Đăng nhập VNeID đã liên kết, đặt bậc xác thực 2 (DV-02-04)
     providerId: basic-flow
@@ -344,6 +365,10 @@ authenticationFlows:
       - authenticator: mission-vneid-link
         requirement: REQUIRED
         priority: 10
+        authenticatorFlow: false
+      - authenticator: mission-tenant-status
+        requirement: REQUIRED
+        priority: 20
         authenticatorFlow: false
 
 # ---------------------------------------------------------------------------
@@ -469,7 +494,7 @@ clientScopes:
 
 # ---------------------------------------------------------------------------
 # Client OIDC (SEC-17): Authorization Code + PKCE S256 bắt buộc; không implicit, không direct grant.
-# state và nonce do thư viện OIDC của ứng dụng sinh và kiểm (angular-oauth2-oidc, AppAuth trên di động).
+# state và nonce do thư viện OIDC của ứng dụng sinh và kiểm (angular-oauth2-oidc).
 # ---------------------------------------------------------------------------
 clients:
   - clientId: mission-web
@@ -505,37 +530,6 @@ clients:
     optionalClientScopes:
       - organization
 
-  - clientId: mission-mobile
-    name: Ứng dụng di động Mission
-    protocol: openid-connect
-    enabled: true
-    publicClient: true
-    standardFlowEnabled: true
-    implicitFlowEnabled: false
-    directAccessGrantsEnabled: false
-    serviceAccountsEnabled: false
-    fullScopeAllowed: true
-    redirectUris: $(env:MISSION_MOBILE_REDIRECT_URIS)
-    webOrigins: []
-    attributes:
-      pkce.code.challenge.method: S256
-      post.logout.redirect.uris: $(env:MISSION_MOBILE_POST_LOGOUT_URIS)
-      id.token.signed.response.alg: ES256
-      access.token.signed.response.alg: ES256
-      oauth2.device.authorization.grant.enabled: "false"
-      oidc.ciba.grant.enabled: "false"
-      use.refresh.tokens: "true"
-    defaultClientScopes:
-      - basic
-      - profile
-      - email
-      - roles
-      - web-origins
-      - acr
-      - mission-context
-    optionalClientScopes:
-      - organization
-
   # DV-02-04: tài khoản dịch vụ của chính Keycloak gọi org-service khi liên kết VNeID (client credentials).
   - clientId: mission-iam-broker
     name: Môi giới danh tính VNeID gọi org-service (SVC-02)
@@ -559,6 +553,31 @@ clients:
     defaultClientScopes:
       - roles
 
+  # DV-04-07 · QT-00 bước 7: tài khoản dịch vụ của org-service ghi ngữ cảnh làm việc vào thuộc tính người
+  # dùng qua Admin API (PUT /org/me/context, SCR-0003) bằng client credentials. Quyền chỉ là view-users, manage-users
+  # của realm-management (anh Hiếu duyệt 24/10/2026, YC cấp quyền QA-13), không có quyền client hay vai trò.
+  - clientId: org-service
+    name: org-service (tài khoản dịch vụ)
+    protocol: openid-connect
+    enabled: true
+    publicClient: false
+    clientAuthenticatorType: client-secret
+    secret: $(env:MISSION_ORG_SERVICE_CLIENT_SECRET)
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+    fullScopeAllowed: true
+    redirectUris: []
+    webOrigins: []
+    attributes:
+      oauth2.device.authorization.grant.enabled: "false"
+      oidc.ciba.grant.enabled: "false"
+      access.token.signed.response.alg: ES256
+    defaultClientScopes:
+      - roles
+      - profile
+
   # Cổng APISIX (SVC-01) chỉ kiểm token (introspection, JWKS); không phát token cho người dùng.
   - clientId: apisix-gateway
     name: Cổng API (SVC-01), chỉ kiểm token
@@ -579,10 +598,18 @@ clients:
       oauth2.device.authorization.grant.enabled: "false"
       oidc.ciba.grant.enabled: "false"
 
-# DV-02-04: vai trò của tài khoản dịch vụ mission-iam-broker (không phải tài khoản người, không có mật khẩu).
+# Vai trò của tài khoản dịch vụ (không phải tài khoản người, không có mật khẩu): mission-iam-broker (DV-02-04) và
+# org-service (DV-04-07, chỉ xem và sửa người dùng để ghi ngữ cảnh làm việc).
 users:
   - username: service-account-mission-iam-broker
     enabled: true
     serviceAccountClientId: mission-iam-broker
     realmRoles:
       - svc_iam
+  - username: service-account-org-service
+    enabled: true
+    serviceAccountClientId: org-service
+    clientRoles:
+      realm-management:
+        - view-users
+        - manage-users

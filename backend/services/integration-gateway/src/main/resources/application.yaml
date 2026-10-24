@@ -90,6 +90,10 @@ mission:
 
 # SVC-13 (DV-13-01): outbox trong schema integ; thông số khung route Camel và pipeline chiều ra.
 okrkpi:
+  # Client dịch vụ được uỷ quyền tenant qua X-Tenant-Id: org-service gọi /internal/v1/integ/** bằng token client
+  # credentials không mang claim tenant ("Đồng bộ ngay", ánh xạ mã, chuyển hồ sơ liên cell; HT-07).
+  tenant:
+    delegating-clients: ${TENANT_DELEGATING_CLIENTS:org-service}
   outbox:
     schema: integ
     registry:

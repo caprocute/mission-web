@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { apiUrl } from './api-path';
+import { apiUrl } from '@vt/api-client';
 import {
   AiSourceList,
   AiSuggestion,

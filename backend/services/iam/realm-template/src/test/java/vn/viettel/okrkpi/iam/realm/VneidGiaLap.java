@@ -28,7 +28,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * container gọi tới qua {@code host.testcontainers.internal}. Điểm cuối {@code /vneid/authorize}, {@code /vneid/token}
  * (kiểm PKCE S256, client_secret_post), {@code /vneid/jwks}; id_token ký RS256 mang claim mức tài khoản và số định
  * danh. {@code /org/internal/v1/org/tenants/{t}/persons/national-id-match} chỉ trả lời token có vai trò
- * {@code svc_iam}. Mọi dữ liệu là giả lập.
+ * {@code svc_iam}. {@code /registry/api/v1/registry/resolve?tenant=} là tenant-registry giả (SVC-03): trả trạng thái
+ * tenant trong {@link #tenantStatus}, mặc định {@code DANG_VAN_HANH}; giá trị {@code LOI_REGISTRY} giả lập
+ * registry gián đoạn (503). Mọi dữ liệu là giả lập.
  */
 final class VneidGiaLap implements AutoCloseable {
 
@@ -56,6 +58,10 @@ final class VneidGiaLap implements AutoCloseable {
   final AtomicInteger pkceRejected = new AtomicInteger();
   final List<String> orgCalls = new CopyOnWriteArrayList<>();
 
+  /** Tenant → trạng thái vòng đời (tenant-registry giả); tenant không có trong bảng đang vận hành. */
+  final Map<String, String> tenantStatus = new ConcurrentHashMap<>();
+  final List<String> registryCalls = new CopyOnWriteArrayList<>();
+
   /** Số định danh → mã người của tenant (org-service giả). */
   final Map<String, String> persons = new ConcurrentHashMap<>();
 
@@ -78,6 +84,7 @@ final class VneidGiaLap implements AutoCloseable {
     server.createContext("/vneid/token", this::token);
     server.createContext("/vneid/jwks", this::jwks);
     server.createContext("/org/", this::org);
+    server.createContext("/registry/", this::registry);
     server.start();
   }
 
@@ -92,6 +99,30 @@ final class VneidGiaLap implements AutoCloseable {
 
   String orgUrl() {
     return "http://" + HOST_ALIAS + ":" + port() + "/org";
+  }
+
+  String registryUrl() {
+    return "http://" + HOST_ALIAS + ":" + port() + "/registry";
+  }
+
+  private void registry(HttpExchange ex) throws IOException {
+    String auth = ex.getRequestHeaders().getFirst("Authorization");
+    Map<String, String> q = OidcBrowser.query(ex.getRequestURI());
+    if (auth == null || !auth.startsWith("Bearer ") || !"GET".equals(ex.getRequestMethod())
+        || !ex.getRequestURI().getPath().equals("/registry/api/v1/registry/resolve") || q.get("tenant") == null) {
+      reply(ex, 401, "application/problem+json", "{}");
+      return;
+    }
+    String tenant = q.get("tenant");
+    registryCalls.add(tenant);
+    if ("LOI_REGISTRY".equals(tenantStatus.get(tenant))) {
+      reply(ex, 503, "application/problem+json", "{}");
+      return;
+    }
+    ObjectNode out = RepoFiles.JSON.createObjectNode();
+    out.put("tenantId", tenant).put("tenantCode", tenant).put("tenancyModel", "POOL")
+        .put("status", tenantStatus.getOrDefault(tenant, "DANG_VAN_HANH")).put("cacheTtlSeconds", 300);
+    reply(ex, 200, "application/json", out.toString());
   }
 
   private void authorize(HttpExchange ex) throws IOException {

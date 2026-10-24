@@ -17,20 +17,8 @@ import { Component, computed, inject, linkedSignal, signal } from '@angular/core
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  AiSourceList,
-  AnalyticsApi,
-  AnalyticsQueryResult,
-  DIMENSION,
-  MEASURE,
-  OrgApi,
-  PREVIOUS_SUFFIX,
-  PeriodApi,
-  TaskApi,
-  TaskSummary,
-  cellNumber,
-  resultRows,
-} from '@vt/api-client';
+import { OrgApi, TaskApi, TaskSummary } from '@vt/api-client';
+import { AiSourceList, AnalyticsApi, AnalyticsQueryResult, DIMENSION, MEASURE, PREVIOUS_SUFFIX, PeriodApi, cellNumber, resultRows } from '@vt/api-client/domains';
 import { permittedOn } from '@vt/auth';
 import { MenuItem } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';

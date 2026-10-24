@@ -1,10 +1,12 @@
 # VH-02 · OPS-14..OPS-26 Runbook bảo trì, định kỳ và runbook theo cảnh báo
 
 > ### 0. QUY ĐỊNH CHUNG – BẮT BUỘC ĐỌC TRƯỚC KHI LÀM
-> Trước khi đọc tiếp, mở và đọc toàn bộ `AGENTS.md` ở gốc repo (quy tắc không được vi phạm, quy trình, mẫu báo cáo), rồi đọc quy định riêng của phân hệ: `docs/quy-dinh/BACKEND.md` (task NEN, CORE, DV, DL), `docs/quy-dinh/HA-TANG.md` (task INF, VH), `docs/quy-dinh/DI-DONG.md` (task MOB). Nhắc nhanh:
+> Trước khi đọc tiếp, mở và đọc toàn bộ `AGENTS.md` ở gốc repo (quy tắc không được vi phạm, quy trình, mẫu báo cáo), rồi đọc quy định riêng của phân hệ: `docs/quy-dinh/BACKEND.md` (task NEN, CORE, DV, DL), `docs/quy-dinh/HA-TANG.md` (task INF, VH). Nhắc nhanh:
 > bám baseline và TL-01..TL-05, giữ nguyên mã định danh, tên schema, bảng, trạng thái; API-first, sửa mã chứ không sửa hợp đồng; chỉ sửa tệp trong phạm vi;
 > không commit bí mật; máy chủ là nguồn sự thật, quyền theo ma trận `wiki/15a`; ghi kèm Idempotency-Key, cập nhật kèm If-Match (409); outbox trong cùng giao dịch;
 > build + kiểm thử thật trước khi báo xong; báo cáo trung thực theo AGENTS.md mục 6. Chạy `./scripts/agent-task.sh VH-02` để có prompt đầy đủ.
+
+> **Cập nhật 24/10/2026 (wiki 14, mục "Quyết định điều chỉnh phạm vi của chủ dự án"):** ứng dụng di động (SVC-18, MOB-01..10) và đo tải, diễn tập DR (QA-08..QA-12, QA-14, QA-15) đã bỏ khỏi phạm vi; các chỗ nhắc tới chúng trong thẻ này chỉ còn giá trị lịch sử.
 
 | Thuộc tính | Giá trị |
 |---|---|
@@ -22,7 +24,7 @@ Viết runbook cho OPS-14..OPS-26 và một runbook cho mỗi cảnh báo trong 
 ## 2. Đầu vào bắt buộc đọc
 
 - `/mnt/project-files/kien-truc-okr-kpi/src/TL-04-trien-khai-van-hanh.md` mục 11.7 (OPS-14, dòng 3834–3848), 11.8 "Bảo trì nền tảng" (dòng 3849–3856), 11.9 "Quy trình định kỳ khác" (dòng 3857–3873), 10.5 "Cảnh báo theo tốc độ tiêu ngân sách lỗi" (dòng 3484, bảng cảnh báo), 9.4 (lịch xoay vòng khoá), 8.12 (diễn tập).
-- `docs/tasks/INF-15-slo-canh-bao-dashboard.md` (tên cảnh báo, `ops/runbooks/README.md`), `INF-17-sao-luu-csdl.md`, `INF-18-sao-luu-du-lieu-khac.md`, `QA-14-thu-hong-dr-01-09.md` (runbook DR).
+- `docs/tasks/INF-15-slo-canh-bao-dashboard.md` (tên cảnh báo, `ops/runbooks/README.md`), `INF-17-sao-luu-csdl.md`, `INF-18-sao-luu-du-lieu-khac.md`, QA-14 (runbook DR).
 
 ## 3. Phạm vi công việc
 

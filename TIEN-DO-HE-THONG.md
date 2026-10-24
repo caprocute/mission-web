@@ -1,7 +1,7 @@
 # THEO DÕI TIẾN ĐỘ TỔNG HỢP TOÀN HỆ THỐNG MISSION
 
 > **TỆP THEO DÕI TIẾN ĐỘ DUY NHẤT CỦA DỰ ÁN (`YC-PT-11`, `YC-PT-17`)**
-> - Đây là **nguồn sự thật duy nhất** về tiến độ thực thi của toàn bộ **401 task** thuộc dự án Mission (gồm 65 task giao diện Web ban đầu và 336 task mở rộng toàn hệ thống).
+> - Đây là **nguồn sự thật duy nhất** về tiến độ thực thi của toàn bộ **391 task** thuộc dự án Mission (gồm 65 task giao diện Web trong `docs/tasks/README.md` và 326 task toàn hệ thống trong `docs/tasks/danh-muc-he-thong.tsv`).
 > - **Quy định bắt buộc cho mọi AI Agent**: Mọi agent (cả luồng điều phối giữ nhánh `main` lẫn các subagent làm việc trên nhánh/worktree riêng) **bắt buộc phải cập nhật tệp này** ngay khi nhận việc, khi hoàn thành task trên nhánh và khi gộp vào `main`:
 >   1. **Khi bắt đầu làm một task**: chạy `python3 scripts/cap-nhat-tien-do.py set <MÃ_TASK> --status "Đang làm" --note "Nhánh <tên-nhánh>: đang thực hiện" --agent "<Tên luồng>"`.
 >   2. **Khi hoàn thành và kiểm thử xanh trên nhánh**: chạy `python3 scripts/cap-nhat-tien-do.py set <MÃ_TASK> --status "Xong, chờ gộp" --note "Nhánh <tên-nhánh>: đã qua build & test" --agent "<Tên luồng>"`.
@@ -10,29 +10,28 @@
 
 ---
 
-## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
+## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 391 task)
 
-- **Tổng tiến độ đã gộp `main`**: **378 / 408 task (92.6%)** — Khối lượng quy đổi đã gộp: **452 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **378 / 408 task (92.6%)** (gồm **378** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **17 task** (1 đang làm, 16 làm một phần).
-- **Chưa bắt đầu**: **13 task**.
-- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **21 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: `VH-08`).
+- **Tổng tiến độ đã gộp `main`**: **385 / 391 task (98.5%)** — Khối lượng quy đổi đã gộp: **461 / 471 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **385 / 391 task (98.5%)** (gồm **385** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **6 task** (0 đang làm, 6 làm một phần).
+- **Chưa bắt đầu**: **0 task**.
+- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **22 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
-### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
+### 1.1. Bảng tổng hợp theo 9 nhóm phân hệ
 
 | Mã nhóm | Phân hệ / Phạm vi | Tổng task | Khối lượng | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tỷ lệ gộp `main` |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **71** | 0 | 1 | 0 | **98.6%** |
+| **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **72** | 0 | 0 | 0 | **100.0%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **117** | 0 | 0 | 0 | **100.0%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **104** | 0 | 0 | 0 | **100.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **13** | 0 | 0 | 0 | **100.0%** |
-| **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **22** | 0 | 6 | 0 | **78.6%** |
-| **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **5** | 0 | 5 | 6 | **31.2%** |
-| **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 3 | 7 | **0.0%** |
-| **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **7** | 0 | 2 | 0 | **77.8%** |
+| **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **25** | 0 | 3 | 0 | **89.3%** |
+| **QA** | Kiểm thử tích hợp, ATTT và chấp nhận nghiệp vụ (`QA-01..07`, `QA-13`, `QA-16`) | 9 | 13.5 | **6** | 0 | 3 | 0 | **66.7%** |
+| **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **9** | 0 | 0 | 0 | **100.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **378** | **0** | **17** | **13** | **92.6%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **391** | **471** | **385** | **0** | **6** | **0** | **98.5%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -43,15 +42,15 @@
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **120** | 0 | 0 | 0 | **100.0%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
-| **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **26** | 0 | 11 | 5 | **61.9%** |
-| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **11** | 0 | 4 | 8 | **47.8%** |
-| **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **2** | 0 | 2 | 0 | **50.0%** |
+| **M5 – Hạ tầng Production, Tích hợp E2E & ATTT** | 37 | **31** | 0 | 6 | 0 | **83.8%** |
+| **M6 – Dữ liệu chính thức & Vận hành** | 11 | **11** | 0 | 0 | 0 | **100.0%** |
+| **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **4** | 0 | 0 | 0 | **100.0%** |
 
 ### 1.3. Trạng thái 23 task trên Đường găng
 
 Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 
-✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → ✅ `CORE-00-01` → ✅ `CORE-00-02` → ✅ `CORE-05-01` → ✅ `CORE-05-02` → ✅ `CORE-05-03` → ✅ `CORE-08-13` → ✅ `CORE-08-14` → ✅ `CORE-04-04` → ✅ `CORE-04-05` → ✅ `CORE-04-07` → ✅ `CORE-04-08` → ✅ `CORE-04-10` → 🔄 **`QA-06`** (Làm một phần) → ✅ `QA-07` → ✅ `QA-16` → 🔄 **`VH-08`** (Đang làm)
+✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → ✅ `CORE-00-01` → ✅ `CORE-00-02` → ✅ `CORE-05-01` → ✅ `CORE-05-02` → ✅ `CORE-05-03` → ✅ `CORE-08-13` → ✅ `CORE-08-14` → ✅ `CORE-04-04` → ✅ `CORE-04-05` → ✅ `CORE-04-07` → ✅ `CORE-04-08` → ✅ `CORE-04-10` → 🔄 **`QA-06`** (Làm một phần) → ✅ `QA-07` → ✅ `QA-16` → ✅ `VH-08`
 
 ---
 
@@ -70,11 +69,11 @@ Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 
 ---
 
-## 3. Bảng theo dõi chi tiết toàn bộ 401 task
+## 3. Bảng theo dõi chi tiết toàn bộ 391 task
 
 Mọi thay đổi trạng thái task đều được cập nhật trực tiếp vào bảng dưới đây. Các giá trị cột **Trạng thái** hợp lệ: `Đã gộp main`, `Xong, chờ gộp`, `Đang làm`, `Làm một phần`, `Chưa bắt đầu`.
 
-### WEB-001..065 · Phân hệ giao diện Web (Kế hoạch Web GĐ0–GĐ4) (64/65 đã gộp `main`, 0 chờ gộp, 1 đang làm)
+### WEB-001..065 · Phân hệ giao diện Web (Kế hoạch Web GĐ0–GĐ4) (65/65 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -129,7 +128,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [WEB-049](docs/tasks/WEB-049-tro-ly-ai.md) | SCR-1701 Trợ lý AI soạn OKR và soát KR | M | W-OKR/Đánh giá | – | WEB-022 | **Đã gộp main** | Đã gộp main (f4fca53) |
 | [WEB-050](docs/tasks/WEB-050-studio-giao-dien.md) | SCR-1801 Cấu hình giao diện tenant và SCR-1802 Trình dựng biểu mẫu động | L | W-Giám sát/CH | – | WEB-004, WEB-009, WEB-010 | **Đã gộp main** | Đã gộp main (f4fca53) |
 | [WEB-051](docs/tasks/WEB-051-plugin-chuyen-nganh.md) | Plugin chuyên ngành mẫu và manifest theo tenant | M | W-Nền tảng | – | WEB-015 | **Đã gộp main** | Đã gộp main (f74d95f1) |
-| [WEB-052](docs/tasks/WEB-052-toi-uu-hieu-nang.md) | Kiểm thử và tối ưu hiệu năng frontend | M | W-Nền tảng | – | WEB-003, WEB-011 | **Làm một phần** | Đã gộp pha 1 trên `main`; pha 2 đang ở nhánh `feat/WEB-052-pha-2` |
+| [WEB-052](docs/tasks/WEB-052-toi-uu-hieu-nang.md) | Kiểm thử và tối ưu hiệu năng frontend | M | W-Nền tảng | – | WEB-003, WEB-011 | **Đã gộp main** | Gộp 778a7a43: ngưỡng 400/550 KB anh Hiếu duyệt 24/10, hai cổng đạt; mục tiêu NFR 250 KB |
 | [WEB-053](docs/tasks/WEB-053-danh-gia-attt.md) | Đánh giá ATTT frontend: OWASP ZAP và ASVS mức 2 | M | W-Nền tảng | – | WEB-014 | **Đã gộp main** | Đã gộp main (984a7ba1) |
 | [WEB-054](docs/tasks/WEB-054-bang-quyen-frontend.md) | Bảng quyền phía giao diện sinh từ ma trận (`can()`, `*vtCan`, `permissionGuard`) | M | W-Phân quyền | – | WEB-001, WEB-006 | **Đã gộp main** | Đã gộp `main` (bảng quyền sinh từ `ma-tran.json`: `can()`, `*vtCan`, `permissionGuard`) |
 | [WEB-055](docs/tasks/WEB-055-ap-ma-tran-shell-remote.md) | Áp ma trận vào menu, tuyến và nút của shell và các remote hiện có | M | W-Phân quyền | – | WEB-054, WEB-015 | **Đã gộp main** | Đã gộp `main` (áp ma trận phân quyền vào menu, tuyến và nút của shell/remote) |
@@ -542,7 +541,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DL-15](docs/tasks/DL-15-an-danh-hoa-phi-san-xuat.md) | Tác vụ ẩn danh hoá dữ liệu cho môi trường phi sản xuất (`anonymize`) | M | B11 | 14 | NEN-015, DL-08, NEN-005, NEN-006 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DL-16](docs/tasks/DL-16-ho-so-twd.md) | Hồ sơ TWĐ (giả lập theo UEB): Policy Pack điểm công việc, bảng hệ số, chuỗi xếp loại, ca vàng UEB, danh mục dự thảo số 25, chín quy tắc điểm nghẽn, tham số thẩm quyền và hạn | L | B11 | 19 | CORE-05-12, CORE-02-27, CORE-02-28, CORE-01-14, CORE-04-13, DV-07-03, DV-07-05 | **Đã gộp main** | Đã gộp main (6afcdf05) |
 
-### INF · Hạ tầng, CI/CD, bảo mật nền, quan sát, dự phòng (22/28 đã gộp `main`, 0 chờ gộp, 6 đang làm)
+### INF · Hạ tầng, CI/CD, bảo mật nền, quan sát, dự phòng (25/28 đã gộp `main`, 0 chờ gộp, 3 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -551,7 +550,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [INF-03](docs/tasks/INF-03-values-dinh-co-cell.md) | Values định cỡ bốn hồ sơ cell, `capacity/assumptions.yaml`, script tính bảng, kiểm ngân sách kết nối trong CI | M | B8 | 3 | INF-02 | **Đã gộp main** | Hồ sơ sizing vt-platform, values CELL-NB/G4, deploy/capacity |
 | [INF-04](docs/tasks/INF-04-gitops-argo-cd.md) | Kho GitOps: Argo CD ApplicationSet theo cell và môi trường, sync window, Argo Rollouts canary có phân tích SLI | L | B8 | 3 | INF-02 | **Đã gộp main** | Chart Argo CD, deploy/cells, digests theo môi trường, canary SLI (B8 kiểm trên kind) |
 | [INF-05](docs/tasks/INF-05-pipeline-jenkins-java.md) | Thư viện pipeline Jenkins `vt-pipeline` cho Java: build, test, ArchUnit, Sonar, Semgrep, gitleaks, Trivy, openapi-diff, Pact, SBOM, Jib, cosign, provenance SLSA 3 | L | B8 | 3 | NEN-005 | **Đã gộp main** | Gộp nhánh claude/b8-ha-tang-g7g48k đến dab319d (B8 đã kiểm trên kind) |
-| [INF-06](docs/tasks/INF-06-pipeline-ngon-ngu-noi-dung.md) | Pipeline cho Go, Python, Flutter, Helm và nội dung (Policy Pack, UI Pack) | M | B8 | 4 | INF-05 | **Đã gộp main** | Gộp nhánh claude/b8-ha-tang-g7g48k đến dab319d (B8 đã kiểm trên kind) |
+| [INF-06](docs/tasks/INF-06-pipeline-ngon-ngu-noi-dung.md) | Pipeline cho Go, Python, Helm và nội dung (Policy Pack, UI Pack) | M | B8 | 4 | INF-05 | **Đã gộp main** | Gộp nhánh claude/b8-ha-tang-g7g48k đến dab319d (B8 đã kiểm trên kind) |
 | [INF-07](docs/tasks/INF-07-harbor-kyverno.md) | Harbor và chính sách Kyverno: chỉ ảnh có ký, không root, có giới hạn và probe, `vt-require-ha` | M | B8 | 4 | INF-05 | **Đã gộp main** | Gộp nhánh claude/b8-ha-tang-g7g48k đến dab319d (B8 đã kiểm trên kind) |
 | [INF-08](docs/tasks/INF-08-cum-cell-phan-1.md) | Cụm Kubernetes của cell phần 1: node pool, taint, 13 namespace, NetworkPolicy mặc định từ chối, APISIX ingress | L | B8 | 1 | – | **Đã gộp main** | Gộp nhánh claude/b8-ha-tang-g7g48k đến dab319d (B8 đã kiểm trên kind) |
 | [INF-09](docs/tasks/INF-09-cum-cell-phan-2.md) | Cụm Kubernetes của cell phần 2: Istio ambient mTLS STRICT, StorageClass Ceph RBD và NVMe cục bộ, egress gateway | L | B8 | 2 | INF-08 | **Đã gộp main** | Gộp nhánh claude/b8-ha-tang-g7g48k đến dab319d (B8 đã kiểm trên kind) |
@@ -567,51 +566,29 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [INF-19](docs/tasks/INF-19-bao-mat-nen-tang.md) | Bảo mật nền: Falco, nhật ký kiểm toán API Kubernetes và luồng `sys.audit.v1` tới SIEM, Pod Security, chính sách egress | M | B8 | 3 | INF-09 | **Làm một phần** | Đã gộp phần repo; còn chạy thật trên dev/kind |
 | [INF-20](docs/tasks/INF-20-vung-dieu-phoi-toan-cuc.md) | Vùng điều phối toàn cục: cụm quản trị, PostgreSQL toàn cục, GeoDNS PowerDNS, `dns-sync`, CDN tài nguyên tĩnh | L | B8 | 4 | INF-04 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
 | [INF-21](docs/tasks/INF-21-moi-truong-phi-san-xuat.md) | Môi trường phi sản xuất: staging, CELL-PERF, cụm sinh tải, môi trường tạm theo nhánh cho E2E | M | B8 | 4 | INF-04 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
-| [INF-22](docs/tasks/INF-22-backend-tren-server-dev.md) | Triển khai backend lên server dev bằng Docker Compose (profile backend, cổng 35xxx) để kiểm thử tích hợp thật | M | B8 | 10 | CORE-00-01, NEN-020 | **Làm một phần** | Đã gộp phần repo; còn chạy thật trên dev/kind |
+| [INF-22](docs/tasks/INF-22-backend-tren-server-dev.md) | Triển khai backend lên server dev bằng Docker Compose (profile backend, cổng 35xxx) để kiểm thử tích hợp thật | M | B8 | 10 | CORE-00-01, NEN-020 | **Đã gộp main** | Chạy thật trên server dev 24/10: backend, web, APISIX healthy, kiểm thử khói đạt; còn sửa script lược đồ, KC_URL (B8) |
 | [INF-23](docs/tasks/INF-23-goi-cai-cach-ly.md) | Gói cài cách ly LTS: đóng gói Helm ngoại tuyến, Harbor nội bộ, kiểm chữ ký | L | B8 | 5 | INF-02, INF-07 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
 | [INF-24](docs/tasks/INF-24-audit-archiver.md) | Dịch vụ `audit-archiver`: chuyển nhật ký kiểm toán sang kho lưu trữ bất biến theo thời hạn lưu giữ | M | B8 | 4 | INF-12, INF-19 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
-| [INF-25](docs/tasks/INF-25-bo-dieu-khien-suy-giam.md) | Bộ điều khiển suy giảm ba mức khi quá tải (tắt tính năng phụ, cắt tải theo ưu tiên) | M | B8 | 4 | DV-01-02, INF-15 | **Làm một phần** | Đã gộp phần repo; còn chạy thật trên dev/kind |
-| [INF-26](docs/tasks/INF-26-cong-cu-vtctl.md) | Công cụ vận hành `vtctl` cho các thao tác trong runbook (tenant, cell, khoá kỳ, phát lại sự kiện) | L | B8 | 9 | INF-04, DV-03-03 | **Làm một phần** | Đã gộp phần repo; còn chạy thật trên dev/kind |
+| [INF-25](docs/tasks/INF-25-bo-dieu-khien-suy-giam.md) | Bộ điều khiển suy giảm ba mức khi quá tải (tắt tính năng phụ, cắt tải theo ưu tiên) | M | B8 | 4 | DV-01-02, INF-15 | **Đã gộp main** | Gộp B7: chạy thật trên kube-apiserver envtest, 20/20 và 28/28; APISIX cần Docker chưa chạy |
+| [INF-26](docs/tasks/INF-26-cong-cu-vtctl.md) | Công cụ vận hành `vtctl` cho các thao tác trong runbook (tenant, cell, khoá kỳ, phát lại sự kiện) | L | B8 | 9 | INF-04, DV-03-03 | **Đã gộp main** | Gộp B7: chạy thật trên kube-apiserver envtest, 20/20 và 28/28; APISIX cần Docker chưa chạy |
 | [INF-27](docs/tasks/INF-27-quan-ly-truy-cap-dac-quyen.md) | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | B8 | 3 | INF-13 | **Đã gộp main** | Warpgate, SA kubectl, dba_ops, ghi phiên RGW (895eaaa2); chưa chạy cụm thật |
 | [INF-28](docs/tasks/INF-28-cum-cho-am-ttdl-hai.md) | Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite | L | B8 | 9 | INF-11, INF-18, INF-20, INF-04, INF-08, INF-09, INF-17 | **Đã gộp main** | MM2, walArchive, chế độ chờ, siteRole toàn cục (948aa4cb); chưa chạy cụm thật |
 
-### QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng (5/16 đã gộp `main`, 0 chờ gộp, 5 đang làm)
+### QA · Kiểm thử tích hợp, an toàn thông tin, chấp nhận nghiệp vụ (6/9 đã gộp `main`, 0 chờ gộp, 3 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [QA-01](docs/tasks/QA-01-chien-luoc-kiem-thu.md) | Chiến lược kiểm thử toàn hệ thống và danh mục khoảng 40 hành trình đầu cuối | S | B9 | 1 | – | **Đã gộp main** | Gộp 0fb85523 |
 | [QA-02](docs/tasks/QA-02-pact-hop-dong.md) | Pact Broker và kiểm thử hợp đồng frontend với API, service với service | M | B9 | 4 | NEN-006, INF-05 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
-| [QA-03](docs/tasks/QA-03-e2e-he-thong-that.md) | Bộ kiểm thử đầu cuối với hệ thống thật trên server dev (backend thật, Keycloak, APISIX) | M | B9 | 11 | INF-22, QA-01 | **Làm một phần** | Chạy thật 1a63980c: HT-01/02/05/06/17 đạt; HT-07/08/09 chờ |
-| [QA-04](docs/tasks/QA-04-hanh-trinh-okr.md) | Hành trình đầu cuối: đăng nhập, khởi tạo tenant, tổ chức, OKR, check-in | M | B9 | 14 | QA-03, CORE-01-08, DV-03-05 | **Làm một phần** | Chạy thật 1a63980c: HT-01/02/05/06/17 đạt; HT-07/08/09 chờ |
+| [QA-03](docs/tasks/QA-03-e2e-he-thong-that.md) | Bộ kiểm thử đầu cuối với hệ thống thật trên server dev (backend thật, Keycloak, APISIX) | M | B9 | 11 | INF-22, QA-01 | **Làm một phần** | HT-07/08/09 Đạt trên dev; ca phủ định HT-08 chờ dữ liệu CHO_DUYET |
+| [QA-04](docs/tasks/QA-04-hanh-trinh-okr.md) | Hành trình đầu cuối: đăng nhập, khởi tạo tenant, tổ chức, OKR, check-in | M | B9 | 14 | QA-03, CORE-01-08, DV-03-05 | **Đã gộp main** | FieldEncryptor thật ở org-service, thư chết integration-gateway, tên chức danh; HT-07..09 Đạt trên dev |
 | [QA-05](docs/tasks/QA-05-hanh-trinh-giao-viec.md) | Hành trình đầu cuối: kế hoạch, giao việc, tiến độ, minh chứng, nghiệm thu | L | B9 | 20 | QA-03, CORE-03-07, CORE-02-22 | **Làm một phần** | Sửa phát hiện gộp fdc5c81a; giả lập 10/10; chế độ thật chờ env dev |
 | [QA-06](docs/tasks/QA-06-hanh-trinh-danh-gia.md) | Hành trình đầu cuối: khoá kỳ, tự đánh giá, thẩm định, quyết định ký số, xếp loại năm | L | B9 | 21 | QA-05, DV-06-06, CORE-04-10 | **Làm một phần** | Đã gộp phần repo; còn chạy thật trên dev/kind |
 | [QA-07](docs/tasks/QA-07-hanh-trinh-giam-sat.md) | Hành trình đầu cuối: kiểm điểm, hồ sơ số, khiếu nại, mở lại kỳ, cảnh báo, Policy Pack, bảng điều hành, AI, UI Pack | L | B9 | 23 | QA-06, CORE-06-08, CORE-07-11, DV-15-06 | **Đã gộp main** | Gộp 8d327008 |
-| [QA-08](docs/tasks/QA-08-k6-perf-01-10.md) | Kịch bản k6 PERF-01..PERF-10 | L | B9 | 14 | QA-03, DL-08 | **Chưa bắt đầu** |  |
-| [QA-09](docs/tasks/QA-09-gatling-luong-flowable.md) | Kịch bản góp ý G2: PERF-11..PERF-13 (Gatling cho Flowable) | M | B9 | 15 | QA-08, DV-06-04 | **Chưa bắt đầu** |  |
-| [QA-10](docs/tasks/QA-10-chi-phi-bao-ve-g3.md) | Kịch bản góp ý G3: PERF-14..PERF-18, PERF-25 | M | B9 | 15 | QA-08, NEN-015 | **Chưa bắt đầu** |  |
-| [QA-11](docs/tasks/QA-11-lo-frontend-sse-ai.md) | Kịch bản PERF-19..PERF-24, PERF-26 | M | B9 | 15 | QA-08 | **Chưa bắt đầu** |  |
-| [QA-12](docs/tasks/QA-12-chien-dich-cell-perf.md) | Chiến dịch thử tải trên CELL-PERF và hiệu chuẩn bảng định cỡ theo hồ sơ cell | L | B9 | 16 | QA-09, QA-10, QA-11, INF-21 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần CELL-PERF |
 | [QA-13](docs/tasks/QA-13-asvs-zap.md) | Kiểm thử ATTT: OWASP ASVS 4.0.3 mức 2 (L3 cho xác thực, phiên, mật mã) và OWASP ZAP toàn hệ thống | L | B9 | 12 | QA-03 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
-| [QA-14](docs/tasks/QA-14-thu-hong-dr-01-09.md) | Thử hỏng PERF-07 và diễn tập khôi phục DR-01..DR-09 | L | B9 | 15 | INF-17, QA-08 | **Chưa bắt đầu** |  |
-| [QA-15](docs/tasks/QA-15-dr-chuyen-vung.md) | Diễn tập khôi phục DR-10..DR-16, chuyển vùng giữa hai trung tâm dữ liệu | L | B9 | 16 | QA-14, INF-18, INF-20 | **Làm một phần** | Kịch bản, sổ tay DR-10..16 gộp 95a4bffd; chạy thật hoãn (YC-PT-19) |
 | [QA-16](docs/tasks/QA-16-uat-tenant-thi-diem.md) | Kiểm thử chấp nhận nghiệp vụ: tenant thí điểm chạy trọn một kỳ đánh giá | L | B9 | 24 | QA-07 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
 
-### MOB · SVC-18 mobile-app (Flutter) (0/10 đã gộp `main`, 0 chờ gộp, 3 đang làm)
-
-| Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
-|---|---|:---:|:---:|:---:|---|---|---|
-| [MOB-01](docs/tasks/MOB-01-khung-flutter.md) | Khung Flutter: token thiết kế sang ThemeData, đăng nhập OIDC PKCE, client API sinh từ hợp đồng | M | B10 | 4 | NEN-006, DV-02-01 | **Chưa bắt đầu** | Hoãn theo YC-PT-22 |
-| [MOB-02](docs/tasks/MOB-02-ngoai-tuyen-sqlcipher.md) | Lưu trữ ngoại tuyến SQLCipher, khoá trong Keystore/Keychain, hàng đợi đồng bộ có Idempotency-Key | M | B10 | 5 | MOB-01 | **Làm một phần** | Hoãn theo YC-PT-22; phần đã gộp giữ nguyên |
-| [MOB-03](docs/tasks/MOB-03-viec-cua-toi-di-dong.md) | SCR-0504 Việc của tôi và cập nhật tiến độ trên di động | M | B10 | 18 | MOB-02, CORE-02-19, CORE-02-18 | **Chưa bắt đầu** |  |
-| [MOB-04](docs/tasks/MOB-04-check-in-kr-di-dong.md) | SCR-0302 Check-in KR trên di động | M | B10 | 14 | MOB-02, CORE-01-08 | **Chưa bắt đầu** |  |
-| [MOB-05](docs/tasks/MOB-05-nop-minh-chung-ocr.md) | SCR-0702 Nộp minh chứng trên di động có OCR, tải theo khối | M | B10 | 19 | MOB-02, DV-08-02, CORE-03-05 | **Chưa bắt đầu** |  |
-| [MOB-06](docs/tasks/MOB-06-bieu-mau-dong-tu-danh-gia.md) | Bộ dựng biểu mẫu từ JSON Schema và CEL trên Flutter, phiếu tự đánh giá | L | B10 | 17 | MOB-02, CORE-08-13, CORE-04-04 | **Làm một phần** | Hoãn theo YC-PT-22; bản 18c1d58c giữ trên nhánh B6, chưa gộp |
-| [MOB-07](docs/tasks/MOB-07-ky-so-mysign.md) | Ký số MySign trên di động | M | B10 | 18 | MOB-06, DV-10-02 | **Chưa bắt đầu** |  |
-| [MOB-08](docs/tasks/MOB-08-che-do-cao-tuoi.md) | SCR-1803 Chế độ Đảng viên cao tuổi trên di động | M | B10 | 19 | MOB-03, MOB-06, DL-06 | **Chưa bắt đầu** |  |
-| [MOB-09](docs/tasks/MOB-09-thong-bao-day.md) | Thông báo đẩy FCM, APNs | S | B10 | 9 | MOB-01, DV-12-03, DV-12-05 | **Làm một phần** | Hoãn theo YC-PT-22; phần đã gộp giữ nguyên |
-| [MOB-10](docs/tasks/MOB-10-pipeline-phat-hanh.md) | Pipeline build, ký và phát hành ứng dụng; kiểm thử đầu cuối và khả năng truy cập trên di động | M | B10 | 19 | MOB-03, INF-06 | **Chưa bắt đầu** | Hoãn theo YC-PT-22 |
-
-### VH · Vận hành và đưa vào sử dụng (7/9 đã gộp `main`, 0 chờ gộp, 2 đang làm)
+### VH · Vận hành và đưa vào sử dụng (9/9 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -619,10 +596,10 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [VH-02](docs/tasks/VH-02-runbook-ops-14-26.md) | Runbook OPS-14..OPS-26 | L | B11 | 4 | INF-17 | **Đã gộp main** | Gộp 07c879b3; chưa chạy thử trên cụm |
 | [VH-03](docs/tasks/VH-03-truc-su-co-cab.md) | Trực vận hành, mức sự cố SEV-1..SEV-4, quy trình thay đổi, đóng băng thay đổi | M | B11 | 5 | VH-01 | **Đã gộp main** | Gộp 8d327008 |
 | [VH-04](docs/tasks/VH-04-dien-tap-onboarding.md) | Diễn tập vòng đời tenant: đưa tenant mới vào vận hành trong một ngày (OPS-07) | M | B11 | 13 | DV-03-05, INF-04 | **Đã gộp main** | Gộp 17bda177 + terminate tenant 5654cbfd + saga dev 4a5c5261 |
-| [VH-05](docs/tasks/VH-05-huong-dan-su-dung.md) | Hướng dẫn sử dụng theo vai trò (AC-01..AC-10) | L | B11 | 24 | QA-07 | **Làm một phần** | Gộp cc710104; còn ảnh trên dev thật và đọc thử AC-06 |
+| [VH-05](docs/tasks/VH-05-huong-dan-su-dung.md) | Hướng dẫn sử dụng theo vai trò (AC-01..AC-10) | L | B11 | 24 | QA-07 | **Đã gộp main** | Gộp c8198b0f: 24 ảnh AC-02..10 từ stack thật, đọc thử AC-06 |
 | [VH-06](docs/tasks/VH-06-tai-lieu-quan-tri.md) | Tài liệu quản trị, cài đặt cho ba mô hình phân phối | M | B11 | 6 | INF-23 | **Đã gộp main** | Gộp sau bản phát hành; chưa chạy trên cụm thật |
 | [VH-07](docs/tasks/VH-07-ho-so-cap-do-4.md) | Hồ sơ đề xuất cấp độ 4 theo TCVN 11930:2017 | M | B11 | 13 | QA-13, INF-19 | **Đã gộp main** | Gộp e1b6490e |
-| [VH-08](docs/tasks/VH-08-thi-diem-chuyen-tenant.md) | Kế hoạch đưa tenant thí điểm vào sử dụng và mở rộng theo nhóm tenant (hệ thống mới độc lập, không chuyển từ hệ cũ) | M | B11 | 25 | QA-16 | **Đang làm** | Giao B2 |
+| [VH-08](docs/tasks/VH-08-thi-diem-chuyen-tenant.md) | Kế hoạch đưa tenant thí điểm vào sử dụng và mở rộng theo nhóm tenant (hệ thống mới độc lập, không chuyển từ hệ cũ) | M | B11 | 25 | QA-16 | **Đã gộp main** | Gộp db49b2e1: đối chiếu TL-01/TL-04, diễn tập lần 2 chuỗi tạm ngừng |
 | [VH-09](docs/tasks/VH-09-cham-checklist-quy.md) | Chấm lại checklist 110 tiêu chí và bảng chỉ số chuyển đổi mỗi quý | S | B11 | 6 | VH-03 | **Đã gộp main** | Gộp sau bản phát hành; chưa chạy trên cụm thật |
 
 ### WEB · Phân hệ web: phần còn thiếu so với toàn hệ thống (7/7 đã gộp `main`, 0 chờ gộp, 0 đang làm)
@@ -1053,4 +1030,20 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 19:18 | B1 (Claude) | `QA-04` | Chuyển trạng thái sang **Làm một phần** — B1 chạy thật trong container (1a63980c): HT-01, HT-02, HT-05 phủ định, HT-06, HT-17 đạt; HT-07 Chờ (org-service chưa gửi token dịch vụ tới integration-gateway, chưa có nguồn nhân sự giả lập); HT-08, HT-09 Chờ (thiếu mục tiêu đã duyệt cấp Sở); biến môi trường ở data/seed/e2e/README.md |
 | 23/10/2026 19:22 | B1 | `NEN-011` | Chuyển trạng thái sang **Đã gộp main** — Serde tra theo .avsc (c7842533), IT Apicurio 3.3.3 |
 | 23/10/2026 19:22 | B1 | `QA-03`, `QA-04` | Chuyển trạng thái sang **Làm một phần** — Chạy thật 1a63980c: HT-01/02/05/06/17 đạt; HT-07/08/09 chờ |
+| 23/10/2026 22:35 | B1 (Claude) | `QA-03` | Chuyển trạng thái sang **Làm một phần** — B1 4228f0d5: HT-08, HT-09 đạt trên dev; HT-07 chờ mã hoá C2 ở org-service |
+| 23/10/2026 22:35 | B1 (Claude) | `QA-04` | Chuyển trạng thái sang **Làm một phần** — B1 4228f0d5: HT-08, HT-09 đạt trên dev; HT-07 chờ mã hoá C2 ở org-service |
+| 23/10/2026 23:13 | B1 (Claude) | `QA-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: org-service dùng FieldEncryptor NEN-015 thật, HT-07 đạt trên dev |
+| 24/10/2026 00:29 | Điều phối (main) | `QA-04` | Chuyển trạng thái sang **Đã gộp main** — FieldEncryptor thật ở org-service, thư chết integration-gateway, tên chức danh; HT-07..09 Đạt trên dev |
+| 24/10/2026 00:29 | Điều phối (main) | `QA-03` | Chuyển trạng thái sang **Làm một phần** — HT-07/08/09 Đạt trên dev; ca phủ định HT-08 chờ dữ liệu CHO_DUYET |
+| 24/10/2026 02:49 | B2 | `VH-08` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-n43ag0: bổ sung bảng đối chiếu TL-01/TL-04 (docs/dua-vao-su-dung), diễn tập lần 2 kiểm chuỗi tạm ngừng bằng mã thật; bỏ bước di động; staging chưa có, chặn đăng nhập Keycloak khi TAM_NGUNG chưa có mã |
+| 24/10/2026 02:51 | Điều phối (main) | `VH-08` | Chuyển trạng thái sang **Đã gộp main** — Gộp db49b2e1: đối chiếu TL-01/TL-04, diễn tập lần 2 chuỗi tạm ngừng |
+| 24/10/2026 03:16 | B3 (Claude) | `WEB-052` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-gmqu4z: thêm perf:budget (đo ngân sách trên trình duyệt), perf:prepare tự đặt cấu hình đo, số đo main 24/10 ghi vào wiki/09; remote ĐẠT, trang chủ 545 KB/250 KB và LCP 7,66 s vẫn VƯỢT, ba hướng còn lại cần quyết định; lint, api:check, check:permissions, check:ui-text, test, build:all xanh |
+| 24/10/2026 03:19 | Điều phối (main) | `WEB-052` | Chuyển trạng thái sang **Làm một phần** — Gộp 17f38395: perf:budget, Lighthouse CI cục bộ; remote đạt 180 KB, trang chủ còn vượt 250 KB |
+| 24/10/2026 03:20 | Điều phối (main) | `INF-25`, `INF-26` | Chuyển trạng thái sang **Đã gộp main** — Gộp B7: chạy thật trên kube-apiserver envtest, 20/20 và 28/28; APISIX cần Docker chưa chạy |
+| 24/10/2026 03:58 | B2 (luồng B6) | `VH-05` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: 24 ảnh AC-02..AC-10 chụp lại từ stack thật trong container (backend, Keycloak, seed); bước thiếu dữ liệu dev giữ ảnh giả lập; AC-01 bỏ qua vì quản trị nền tảng chưa có phân công; đọc thử AC-06 bằng kịch bản mô phỏng trên hệ thống thật và đã sửa nội dung; chưa có người dùng thật ngoài nhóm đọc thử |
+| 24/10/2026 03:59 | Điều phối (main) | `VH-05` | Chuyển trạng thái sang **Đã gộp main** — Gộp c8198b0f: 24 ảnh AC-02..10 từ stack thật, đọc thử AC-06 |
+| 24/10/2026 04:10 | B3 (Claude) | `WEB-052` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/project-thread-gmqu4z: làm ba hướng theo chốt 24/10 — đo chính thức perf:budget theo dung lượng truyền gzip (nginx deploy/web nén sẵn mức 9), tách @vt/api-client/domains, giữ es-module-shims (Firefox chưa hỗ trợ nhiều import map); trang chủ 545→519 KB/250 KB, remote ĐẠT; đề xuất ngưỡng 400/550 KB chờ duyệt (wiki/14); lint, api:check, check:permissions, check:ui-text, test:all, build:all, e2e xanh |
+| 24/10/2026 04:35 | B3 (Claude) | `WEB-052` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-gmqu4z: anh Hiếu duyệt 24/10 ngưỡng chặn 400 KB (cổng tĩnh) và 550 KB (perf:budget), 250 KB giữ làm mục tiêu NFR; đã đưa vào bundle-budget.mjs và perf:budget; trang chủ 373,6/400 KB và 519,4/550 KB ĐẠT, remote ĐẠT 180 KB |
+| 24/10/2026 04:45 | Điều phối (main) | `WEB-052` | Chuyển trạng thái sang **Đã gộp main** — Gộp 778a7a43: ngưỡng 400/550 KB anh Hiếu duyệt 24/10, hai cổng đạt; mục tiêu NFR 250 KB |
+| 24/10/2026 04:51 | Điều phối (main) | `INF-22` | Chuyển trạng thái sang **Đã gộp main** — Chạy thật trên server dev 24/10: backend, web, APISIX healthy, kiểm thử khói đạt; còn sửa script lược đồ, KC_URL (B8) |
 <!-- PROGRESS_LOG_END -->

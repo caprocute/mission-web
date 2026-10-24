@@ -13,22 +13,8 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import {
-  OrgApi,
-  PeriodApi,
-  REOPEN_AUDIT_KIND_LABEL,
-  REOPEN_BASIS_LABEL,
-  REOPEN_LIMITS,
-  REOPEN_SCOPE_LABEL,
-  ReopenApi,
-  ReopenAuditKind,
-  ReopenBasisKind,
-  ReopenRequestInput,
-  ReopenScope,
-  ReopenScopeItem,
-  fieldErrors,
-  toProblem,
-} from '@vt/api-client';
+import { OrgApi, fieldErrors, toProblem } from '@vt/api-client';
+import { PeriodApi, REOPEN_AUDIT_KIND_LABEL, REOPEN_BASIS_LABEL, REOPEN_LIMITS, REOPEN_SCOPE_LABEL, ReopenApi, ReopenAuditKind, ReopenBasisKind, ReopenRequestInput, ReopenScope, ReopenScopeItem } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';

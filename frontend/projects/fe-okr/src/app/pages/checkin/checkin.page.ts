@@ -643,9 +643,12 @@ export class OkrCheckinPage {
     computation: ({ k, s }) =>
       valueText(k?.myDraftCheckin?.value ?? s?.value ?? k?.lastCheckin?.value ?? k?.currentValue),
   });
+  // chế độ cao tuổi chọn sẵn mức lần trước, chưa có thì Trung bình, để gửi trong ba chạm (NFR-11)
   protected readonly confidence = linkedSignal<Confidence | null>(
     () =>
-      this.detail()?.myDraftCheckin?.confidence ?? this.detail()?.lastCheckin?.confidence ?? null,
+      this.detail()?.myDraftCheckin?.confidence ??
+      this.detail()?.lastCheckin?.confidence ??
+      (this.simple() && this.detail() ? 'TRUNG_BINH' : null),
   );
   protected readonly highlights = linkedSignal(
     () => this.detail()?.myDraftCheckin?.highlights ?? '',

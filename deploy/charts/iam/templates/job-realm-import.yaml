@@ -96,10 +96,6 @@ spec:
               value: {{ include "iam.web.origins" . | quote }}
             - name: MISSION_WEB_POST_LOGOUT_URIS
               value: {{ include "iam.web.postLogoutUris" . | quote }}
-            - name: MISSION_MOBILE_REDIRECT_URIS
-              value: {{ toJson $r.mobile.redirectUris | quote }}
-            - name: MISSION_MOBILE_POST_LOGOUT_URIS
-              value: {{ join "##" $r.mobile.postLogoutRedirectUris | quote }}
             - name: MISSION_ACCESS_TOKEN_LIFESPAN
               value: {{ $r.tokens.accessTokenLifespan | quote }}
             - name: MISSION_SSO_IDLE
@@ -172,6 +168,11 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.name }}
                   key: {{ .Values.secrets.keys.iamBrokerClientSecret }}
+            - name: MISSION_ORG_SERVICE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: {{ .Values.secrets.keys.orgServiceClientSecret }}
           resources:
             {{- toYaml .Values.job.resources | nindent 12 }}
           volumeMounts:

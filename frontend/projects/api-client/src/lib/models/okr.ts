@@ -130,6 +130,12 @@ export interface ObjectiveDraft {
   keyResults: KeyResultDraft[];
 }
 
+/** Bản nháp mục tiêu mới: hợp đồng bắt buộc đơn vị sở hữu, và người sở hữu khi là mục tiêu cá nhân. */
+export interface NewObjectiveDraft extends ObjectiveDraft {
+  ownerUnitId: string;
+  ownerPersonId?: string;
+}
+
 /** Mục tiêu đã lưu: bản nháp kèm thông tin máy chủ cấp. */
 export interface ObjectiveDetail extends ObjectiveDraft {
   id: string;

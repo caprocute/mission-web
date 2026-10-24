@@ -1,4 +1,4 @@
-import { DossierMeeting } from '@vt/api-client';
+import { DossierMeeting } from '@vt/api-client/domains';
 import { DossierPermissionKey } from '../../dossier-permissions';
 import { createErrors, toCreate } from '../meetings/meetings-rules';
 import {

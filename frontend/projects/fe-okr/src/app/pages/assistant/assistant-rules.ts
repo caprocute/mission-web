@@ -1,11 +1,5 @@
-import type {
-  KeyResultDraft,
-  ObjectiveDetail,
-  ObjectiveDraft,
-  OkrAssistSuggestion,
-  OkrComposeContext,
-  OkrOwnerType,
-} from '@vt/api-client';
+import type { KeyResultDraft, ObjectiveDetail, NewObjectiveDraft, ObjectiveDraft, OkrComposeContext, OkrOwnerType } from '@vt/api-client';
+import type { OkrAssistSuggestion } from '@vt/api-client/domains';
 
 /** Thông báo của QT-17 (TL-02b). */
 export const MSG_17_03 =
@@ -45,12 +39,14 @@ export function objectiveFromSuggestion(
   ownerType: OkrOwnerType,
   basisIds: string[],
   objectiveNo: number,
-): ObjectiveDraft {
+): NewObjectiveDraft {
   const krs = s.objective?.keyResults ?? [];
   const verifier = ctx.verifiers.find((v) => v.id !== ctx.me.id)?.id ?? null;
   return {
     periodId: ctx.period.id,
     ownerType,
+    ownerUnitId: ctx.unit.id,
+    ...(ownerType === 'CA_NHAN' ? { ownerPersonId: ctx.me.id } : {}),
     basisIds,
     parentObjectiveId: null,
     title: s.objective?.title ?? '',

@@ -16,8 +16,6 @@ global:
     providers: [vneid, mysign, viettel-ca, ca-chinh-phu, idp-khach-hang]
   updateChannel: theo-quy
   sizing: M
-  featureFlags:
-    publicMobileApp: true
 integration-gateway:
   config:
     VT_KET_NOI_VNEID: "true"

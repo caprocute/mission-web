@@ -7,7 +7,7 @@ import { Component, computed, inject, input, linkedSignal, signal } from '@angul
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { AnalyticsApi, PeriodApi } from '@vt/api-client';
+import { AnalyticsApi, PeriodApi } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';

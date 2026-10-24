@@ -62,6 +62,17 @@ public interface PeriodApi {
   }
 
   /**
+   * Hạn duyệt kế hoạch của kỳ ({@code config.period.plan_deadline}, đã gộp mốc lịch SCR-0801).
+   *
+   * @param tenantId định danh tenant
+   * @param periodId định danh kỳ đánh giá
+   * @return hạn duyệt; rỗng khi kỳ không tồn tại hoặc không đặt hạn
+   */
+  default Optional<LocalDate> planDeadline(TenantId tenantId, PeriodId periodId) {
+    return Optional.empty();
+  }
+
+  /**
    * Tìm kỳ đánh giá theo định danh.
    *
    * @param tenantId định danh tenant

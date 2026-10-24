@@ -1,10 +1,12 @@
 # DV-14-07 · SVC-14/SCR-0302 Chuyển giọng nói thành văn bản (`transcribeSpeech`)
 
 > ### 0. QUY ĐỊNH CHUNG – BẮT BUỘC ĐỌC TRƯỚC KHI LÀM
-> Trước khi đọc tiếp, mở và đọc toàn bộ `AGENTS.md` ở gốc repo (quy tắc không được vi phạm, quy trình, mẫu báo cáo), rồi đọc quy định riêng của phân hệ: `docs/quy-dinh/BACKEND.md` (task NEN, CORE, DV, DL), `docs/quy-dinh/HA-TANG.md` (task INF, VH), `docs/quy-dinh/DI-DONG.md` (task MOB). Nhắc nhanh:
+> Trước khi đọc tiếp, mở và đọc toàn bộ `AGENTS.md` ở gốc repo (quy tắc không được vi phạm, quy trình, mẫu báo cáo), rồi đọc quy định riêng của phân hệ: `docs/quy-dinh/BACKEND.md` (task NEN, CORE, DV, DL), `docs/quy-dinh/HA-TANG.md` (task INF, VH). Nhắc nhanh:
 > bám baseline và TL-01..TL-05, giữ nguyên mã định danh, tên schema, bảng, trạng thái; API-first, sửa mã chứ không sửa hợp đồng; chỉ sửa tệp trong phạm vi;
 > không commit bí mật; máy chủ là nguồn sự thật, quyền theo ma trận `wiki/15a`; ghi kèm Idempotency-Key, cập nhật kèm If-Match (409); outbox trong cùng giao dịch;
 > build + kiểm thử thật trước khi báo xong; báo cáo trung thực theo AGENTS.md mục 6. Chạy `./scripts/agent-task.sh DV-14-07` để có prompt đầy đủ.
+
+> **Cập nhật 24/10/2026 (wiki 14, mục "Quyết định điều chỉnh phạm vi của chủ dự án"):** ứng dụng di động (SVC-18, MOB-01..10) và đo tải, diễn tập DR (QA-08..QA-12, QA-14, QA-15) đã bỏ khỏi phạm vi; các chỗ nhắc tới chúng trong thẻ này chỉ còn giá trị lịch sử.
 
 | Thuộc tính | Giá trị |
 |---|---|
@@ -25,7 +27,7 @@ Trên di động, cán bộ và đảng viên cao tuổi có thể nói thay vì
 - `/mnt/project-files/kien-truc-okr-kpi/src/TL-02a-quy-trinh.md` QT-03 bước 6 (L1020), bảng trường SCR-0302 (L1131: "Giọng nói chuyển thành văn bản trên thiết bị hoặc qua SVC-14"), hành động "Nói để nhập" (L1137).
 - `/mnt/project-files/kien-truc-okr-kpi/src/TL-02b-quy-trinh.md` SCR-1803 (trường ghi chú, hành động "Nói", MSG-18-10).
 - `/mnt/project-files/kien-truc-okr-kpi/src/TL-01-thiet-ke-kien-truc.md` "SVC-14 ai-gateway" (L1184–1192), mục AI (OCR qua dịch vụ Viettel AI, L3094) làm tiền lệ dùng dịch vụ AI nội bộ.
-- Thẻ `docs/tasks/DV-14-01-khung-ai-gateway.md`, `DV-14-03-rao-chan-ai.md`, `DV-14-05-ocr-minh-chung.md`, `MOB-04-check-in-kr-di-dong.md`.
+- Thẻ `docs/tasks/DV-14-01-khung-ai-gateway.md`, `DV-14-03-rao-chan-ai.md`, `DV-14-05-ocr-minh-chung.md`, MOB-04.
 
 ## 3. Phạm vi công việc
 

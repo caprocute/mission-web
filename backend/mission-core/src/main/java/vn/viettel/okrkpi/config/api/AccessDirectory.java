@@ -17,6 +17,14 @@ public interface AccessDirectory {
   /** Họ tên theo mã người; mã không biết thì vắng trong kết quả. */
   Map<UUID, String> personNames(TenantId tenant, Collection<UUID> personIds);
 
+  /**
+   * Chức danh hiện hành theo mã người (phân công chính trước); người chưa có tên chức danh thì vắng
+   * trong kết quả.
+   */
+  default Map<UUID, String> personTitles(TenantId tenant, Collection<UUID> personIds) {
+    return Map.of();
+  }
+
   /** Tên đơn vị theo mã. */
   Map<UUID, String> unitNames(TenantId tenant, Collection<UUID> unitIds);
 

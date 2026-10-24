@@ -1,8 +1,8 @@
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { apiUrl } from './api-path';
-import { jobLocation } from './job-tracker';
+import { apiUrl } from '@vt/api-client';
+import { jobLocation } from '@vt/api-client';
 import {
   DiscrepancyPage,
   DiscrepancyResolution,
@@ -13,7 +13,7 @@ import {
   ResolveResult,
   SyncSource,
 } from './models/org-sync';
-import { CursorPage, CursorQuery, MAX_PAGE_LIMIT } from './paging';
+import { CursorPage, CursorQuery, MAX_PAGE_LIMIT } from '@vt/api-client';
 
 export interface DiscrepancyQuery extends CursorQuery {
   field?: string;

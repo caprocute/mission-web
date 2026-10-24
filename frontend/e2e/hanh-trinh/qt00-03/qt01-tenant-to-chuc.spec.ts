@@ -261,26 +261,27 @@ test.describe('QT-01 Khởi tạo tenant và tổ chức', { tag: '@qa-04' }, ()
     // Đồng bộ ngay (`startOrgSyncRun` 202): trang báo kết quả bằng nhãn nghiệp vụ
     await m.getByRole('button', { name: 'Đồng bộ ngay' }).click();
     if (HE_THONG) {
-      // Lần chạy dừng ở LOI khi org-service chưa nối được integration-gateway hay nguồn nhân sự: ghi chờ kèm lý do
-      // của máy chủ thay cho chờ hết hạn nhãn "Đã đồng bộ"
+      // "Đồng bộ ngay" mở một lần chạy cho mỗi nguồn (cùng thời điểm bắt đầu). Mọi nguồn dừng ở LOI khi org-service
+      // chưa nối được integration-gateway hay nguồn nhân sự: ghi chờ kèm lý do của máy chủ thay cho chờ hết hạn nhãn
+      // "Đã đồng bộ"; nguồn chưa cấu hình kết nối (SCIM, HRM trên dev) chỉ làm lần đồng bộ thành công một phần
+      interface LanChay { status: string; startedAt: string; reason?: string }
       const c = await api(s, 'quantri');
-      let moiNhat: { status: string; reason?: string } | undefined;
+      let lan: LanChay[] = [];
       await expect
         .poll(
           async () => {
-            const ds = await c.can<{ items: { status: string; reason?: string }[] }>(
-              'GET',
-              'org/sync-runs?limit=1',
-            );
-            moiNhat = ds.body.items[0];
-            return moiNhat?.status;
+            const ds = await c.can<{ items: LanChay[] }>('GET', 'org/sync-runs?limit=10');
+            lan = ds.body.items.filter((r) => r.startedAt === ds.body.items[0]?.startedAt);
+            return lan.some((r) => r.status === 'DANG_CHAY');
           },
           { timeout: 120_000 },
         )
-        .not.toBe('DANG_CHAY');
+        .toBe(false);
       await c.dong();
-      if (moiNhat?.status === 'LOI')
-        cho(`đồng bộ nhân sự trên hệ thống thật lỗi: ${moiNhat.reason ?? ''}`);
+      if (lan.every((r) => r.status === 'LOI'))
+        cho(
+          `đồng bộ nhân sự trên hệ thống thật lỗi: ${[...new Set(lan.map((r) => r.reason ?? ''))].join('; ')}`,
+        );
     }
     await expect(m.getByRole('status').filter({ hasText: /Đã đồng bộ/ })).toBeVisible({
       timeout: HE_THONG ? 120_000 : 10_000,

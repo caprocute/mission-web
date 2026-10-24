@@ -11,13 +11,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import {
-  DELEGATION_KIND_LABEL,
-  DELEGATION_STATUS_LABEL,
-  Delegation,
-  OrgTreeApi,
-  RoleAdminApi,
-} from '@vt/api-client';
+import { DELEGATION_KIND_LABEL, DELEGATION_STATUS_LABEL, Delegation, OrgTreeApi, RoleAdminApi } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';

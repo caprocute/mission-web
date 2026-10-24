@@ -1,10 +1,12 @@
 # CNH-05 · NFR-11 Đồng bộ chế độ Đảng viên cao tuổi qua máy chủ trên web và di động
 
 > ### 0. QUY ĐỊNH CHUNG – BẮT BUỘC ĐỌC TRƯỚC KHI LÀM
-> Trước khi đọc tiếp, mở và đọc toàn bộ `AGENTS.md` ở gốc repo (quy tắc không được vi phạm, quy trình, mẫu báo cáo), rồi đọc quy định riêng của phân hệ: `docs/quy-dinh/BACKEND.md` (task NEN, CORE, DV, DL), `docs/quy-dinh/HA-TANG.md` (task INF, VH), `docs/quy-dinh/DI-DONG.md` (task MOB). Nhắc nhanh:
+> Trước khi đọc tiếp, mở và đọc toàn bộ `AGENTS.md` ở gốc repo (quy tắc không được vi phạm, quy trình, mẫu báo cáo), rồi đọc quy định riêng của phân hệ: `docs/quy-dinh/BACKEND.md` (task NEN, CORE, DV, DL), `docs/quy-dinh/HA-TANG.md` (task INF, VH). Nhắc nhanh:
 > bám baseline và TL-01..TL-05, giữ nguyên mã định danh, tên schema, bảng, trạng thái; API-first, sửa mã chứ không sửa hợp đồng; chỉ sửa tệp trong phạm vi;
 > không commit bí mật; máy chủ là nguồn sự thật, quyền theo ma trận `wiki/15a`; ghi kèm Idempotency-Key, cập nhật kèm If-Match (409); outbox trong cùng giao dịch;
 > build + kiểm thử thật trước khi báo xong; báo cáo trung thực theo AGENTS.md mục 6. Chạy `./scripts/agent-task.sh CNH-05` để có prompt đầy đủ.
+
+> **Cập nhật 24/10/2026 (wiki 14, mục "Quyết định điều chỉnh phạm vi của chủ dự án"):** ứng dụng di động (SVC-18, MOB-01..10) và đo tải, diễn tập DR (QA-08..QA-12, QA-14, QA-15) đã bỏ khỏi phạm vi; các chỗ nhắc tới chúng trong thẻ này chỉ còn giá trị lịch sử.
 
 | Thuộc tính | Giá trị |
 |---|---|
@@ -24,7 +26,7 @@ Một cán bộ bật chế độ Đảng viên cao tuổi ở một thiết b�
 - Đề xuất đã duyệt của CNH-01 và hợp đồng `config.yaml` đã bổ sung.
 - `TL-01-thiet-ke-kien-truc.md` G1 (dòng 1648: `data-mode="elderly"`, cờ `reducedSteps`, nút chuyển nhanh); mục "Flutter dùng chung schema" (chế độ cao tuổi trên di động).
 - `TL-02b-quy-trinh.md` "SCR-1803. Chế độ Đảng viên cao tuổi (di động)" (dòng 2154) và BR-18-09.
-- `frontend/projects/design-system/src/lib/theme.service.ts`, `frontend/projects/sdui-renderer/src/lib/ui-pack-loader.ts`; `docs/quy-dinh/DI-DONG.md`.
+- `frontend/projects/design-system/src/lib/theme.service.ts`, `frontend/projects/sdui-renderer/src/lib/ui-pack-loader.ts`.
 
 ## 3. Phạm vi công việc
 
@@ -43,7 +45,6 @@ Một cán bộ bật chế độ Đảng viên cao tuổi ở một thiết b�
 - `frontend/projects/design-system/src/lib/theme.service.ts` và kiểm thử đi kèm
 - `frontend/projects/fe-shell/src/app/**` (nút chuyển nhanh, nạp tuỳ chọn khi khởi động)
 - `frontend/projects/api-client/src/**` (client, giả lập tuỳ chọn)
-- `mobile/**` (chỉ phần đọc tuỳ chọn chế độ, khi ứng dụng đã có)
 
 ## 6. Tiêu chí hoàn thành
 

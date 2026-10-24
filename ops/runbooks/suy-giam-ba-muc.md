@@ -21,6 +21,8 @@ vtctl -e <môi trường> -c <cell> degrade status   # level 3, manual 3, pin.un
 vtctl -e <môi trường> -c <cell> degrade clear --reason "CPU primary về 60%" --confirm                  # bỏ ghim
 ```
 
+Lệnh ghi đọc token webhook từ Secret `edge/apisix-degrade-webhook`. Vai trò thường trực `operate-app` không cho đọc Secret, nên chart cấp riêng Role `degrade-controller-token-reader` (chỉ `get` đúng Secret này) cho các nhóm ở `webhookToken.nguoiDoc`, mặc định `oidc:platform-ops-sre-truc`; người ngoài nhóm nhận hướng dẫn xin quyền qua PAM. Kiểm: `kubectl auth can-i get secret/apisix-degrade-webhook -n edge` trả `yes`.
+
 Ghim ưu tiên hơn cảnh báo theo cả hai chiều và hết hạn tự động (mặc định 1 giờ, tối đa 24 giờ). `degrade set <mức>` tương đương ghim với thời hạn mặc định. Bỏ ghim hoặc hết hạn thì trở về mức tự động; nếu mức tự động thấp hơn, bộ điều khiển chờ 10 phút chống dao động rồi mới hạ. Muốn hạ ngay, ghim mức thấp hơn trong thời gian ngắn rồi bỏ ghim.
 
 Phương án dự phòng khi không có vtctl: `kubectl -n edge port-forward svc/degrade-controller 18080:8080`, rồi `curl -s -X POST -H "Authorization: Bearer $TOKEN" -d '{"level":3,"ttl":"30m","reason":"..."}' http://127.0.0.1:18080/level` (token đọc từ Secret `apisix-degrade-webhook` vào biến của phiên shell, không in ra, xoá biến sau khi dùng).
@@ -28,7 +30,7 @@ Phương án dự phòng khi không có vtctl: `kubectl -n edge port-forward svc
 ## 3. Kiểm chứng sau mỗi lần chuyển mức
 
 1. `degrade status`: `level` bằng mức mong muốn; khi đang chờ hạ thì có `holdDownUntil`.
-2. `kubectl get apisixpluginconfigs -n edge -l vt.io/degrade-managed=true -L vt.io/degrade-level` cùng một mức.
+2. `kubectl get apisixpluginconfigs -A -l vt.io/degrade-managed=true -L vt.io/degrade-level` cùng một mức ở mọi namespace của `gatewayNamespaces` (ApisixPluginConfig nằm ở namespace của backend, không ở `edge`).
 3. Mức 3: request ngoài danh sách ưu tiên nhận 503 kèm `Retry-After: 60` và thân RFC 9457; request nộp hồ sơ vẫn qua.
 4. Mức ≥ 2: `kubectl get scaledobjects -n <ns> -l vt.io/degrade-pause-from -o custom-columns=TEN:.metadata.name,DUNG:.metadata.annotations.autoscaling\.keda\.sh/paused` cho thấy `true`; về dưới 2 thì chú thích bị gỡ (chỉ chú thích do bộ điều khiển đặt, đánh dấu `vt.io/degrade-paused-by`).
 5. Nhật ký `degrade_level_changed` và thông báo trên kênh trực; mức ≥ 2 quá 15 phút có thông báo `degrade_escalate_sev2`, IC nâng sự cố SEV-2 (OPS-13).

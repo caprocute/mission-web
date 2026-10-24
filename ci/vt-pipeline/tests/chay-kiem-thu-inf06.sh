@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Kiểm thử các pipeline INF-06 trên Jenkins thật (Jenkinsfile Runner, cùng cách với chay-kiem-thu.sh của INF-05).
 #
-#   ci/vt-pipeline/tests/chay-kiem-thu-inf06.sh [go python helm policy ui flutter]   (mặc định: tất cả)
+#   ci/vt-pipeline/tests/chay-kiem-thu-inf06.sh [go python helm policy ui]   (mặc định: tất cả)
 #
 # Mỗi loại có dự án mẫu tối thiểu (tests/fixture-inf06 hoặc chính thư mục của repo) và các kịch bản:
 #   go      sach: MR sạch → QUA | govuln: gọi golang.org/x/text v0.3.7 → chặn ở govulncheck | main: ảnh, ký, GitOps
@@ -10,8 +10,6 @@
 #   policy  sach → QUA | cavang: sửa một ca vàng → chặn ở "Ca vàng 100%" | main: đóng gói, ký, so sánh bóng, duyệt, gửi
 #   ui      sach → QUA | css31: token phình CSS quá 30 KB → chặn ở "Lược đồ, registry, kích thước" | main: ảnh staging,
 #           ký, tải lên, duyệt, phát hành
-#   flutter sach → QUA | bimat: chuỗi bí mật giả → chặn ở gitleaks. Máy kiểm thử không có Flutter SDK nên lệnh
-#           flutter, dart là bản giả lập ghi lại lời gọi (tests/jenkins/flutter-gia); gitleaks, Semgrep, Trivy chạy thật.
 # API của MOD-05, MOD-08 là máy chủ giả tests/jenkins/api-gia.py (kiểm Idempotency-Key, If-Match, 202 + Location).
 # Bước `input` dùng stub tự duyệt (tests/jenkins/stub-lib/vars/input.groovy). Không có bí mật thật: khoá cosign,
 # khoá GPG, token giả đều sinh lúc chạy và xoá khi xong (VT_GIU_THU_MUC=1 để giữ).
@@ -21,7 +19,7 @@
 # Mạng: proxy.golang.org, vuln.go.dev, PyPI, npm, mirror.gcr.io, kho chart Helm của deploy/charts.
 set -euo pipefail
 
-LOAI=("$@"); [ ${#LOAI[@]} -gt 0 ] || LOAI=(go python helm policy ui flutter)
+LOAI=("$@"); [ ${#LOAI[@]} -gt 0 ] || LOAI=(go python helm policy ui)
 GOC_REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
 TESTS="${GOC_REPO}/ci/vt-pipeline/tests"
 W="${VT_TEST_DIR:-$(mktemp -d "${TMPDIR:-/tmp}/vt-inf06.XXXXXX")}"
@@ -50,11 +48,10 @@ chuan_bi_repo() {
       deploy/.trivyignore.yaml deploy/charts deploy/policies deploy/environments/staging/digests.yaml docs/phan-quyen/ma-tran.json \
       'frontend/projects/*/src/widgets' frontend/projects/sdui-renderer/src/lib/builtin-components.ts \
       frontend/projects/fe-shell/src/app/widgets | grep -v '/charts/[^/]*\.tgz$' | tar -cf - -T - ) | tar -xf - -C "${r}"
-  mkdir -p "${r}/services-go" "${r}/services-py" "${r}/ui-packs/default" "${r}/mobile" "${r}/ci-test"
+  mkdir -p "${r}/services-go" "${r}/services-py" "${r}/ui-packs/default" "${r}/ci-test"
   cp -r "${TESTS}/fixture-inf06/go" "${r}/services-go/mau"
   cp -r "${TESTS}/fixture-inf06/python" "${r}/services-py/mau"
   cp "${TESTS}/fixture-inf06/ui-pack/pack.json" "${r}/ui-packs/default/pack.json"
-  cp -r "${TESTS}/fixture-inf06/flutter/." "${r}/mobile/"
   # J6: bản phát hành cần bộ ca vàng đã ký; ở repo thật bộ ca còn là giả lập nên repo mẫu đóng vai "nghiệp vụ đã ký"
   python3 - "${r}/data/policy-pack/khoi-chinh-quyen/nd335/tests/bo-ca-mau-gia-lap.yaml" <<'PY'
 import re, sys
@@ -73,7 +70,6 @@ vtPolicyPackPipeline(packs: ['khoi-chinh-quyen/nd335'], packIds: ['khoi-chinh-qu
                      effectivePeriodId: 'ky-thu', scopes: [[type: 'TENANT', id: 't-thu']])
 J
   printf "@Library('vt-pipeline@vt-pipeline-v1.1.0') _\nvtUiPackPipeline(dir: 'ui-packs', uiPackId: 'ui-thu')\n" > "${r}/ci-test/ui.Jenkinsfile"
-  printf "@Library('vt-pipeline@vt-pipeline-v1.1.0') _\nvtFlutterPipeline(dir: 'mobile', buildIos: false)\n" > "${r}/ci-test/flutter.Jenkinsfile"
   ( cd "${r}" && git init -q -b main && gitq add -A && gitq commit -q -m "repo mẫu INF-06" )
   git clone -q --bare "${r}" "${W}/origin.git"
 }
@@ -162,8 +158,6 @@ d["tokens"]["mauPhu"] = {f"m{i}": {"$type": "color", "$value": "#" + secrets.tok
 json.dump(d, open(p, "w"), ensure_ascii=False, indent=2)
 PY
       ;;
-    flutter-sach) printf '\n// MR sạch\n' >> "${ws}/mobile/lib/main.dart" ;;
-    flutter-bimat) printf "\nconst khoaThu = '%s';\n" "AKIA$(python3 -c 'import secrets,string;print("".join(secrets.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567") for _ in range(16)))')" >> "${ws}/mobile/lib/main.dart" ;;
   esac
   ( cd "${ws}" && gitq add -A && { git diff --cached --quiet || gitq commit -q -m "kịch bản $2"; } )
 }
@@ -217,8 +211,6 @@ PY
   gpg --batch --quiet --passphrase '' --quick-gen-key 'vt-pipeline kiem thu <vt-pipeline@jenkins.vt.local>' ed25519 sign never
   gpg --batch --quiet --armor --export-secret-keys > "${W}/khoa/gitops.asc"; unset GNUPGHOME
   cp "${GOC_REPO}/ci/vt-pipeline/resources/vn/vt/pipeline/vt-provenance.py" "${W}/bin/vt-provenance"; chmod +x "${W}/bin/vt-provenance"
-  # flutter, dart giả lập (máy kiểm thử không có Flutter SDK)
-  cp "${TESTS}/jenkins/flutter-gia" "${W}/bin/flutter"; cp "${TESTS}/jenkins/flutter-gia" "${W}/bin/dart"; chmod +x "${W}/bin/flutter" "${W}/bin/dart"
   # Gói Python có lỗ hổng, ghim kèm hash, cho kịch bản pip-audit
   rm -rf "${W:?}/pd"; mkdir "${W}/pd"; pip download -q --no-deps --only-binary :all: -d "${W}/pd" jinja2==2.11.3
   printf 'jinja2==2.11.3 --hash=sha256:%s\n' "$(sha256sum "${W}"/pd/*.whl | cut -d' ' -f1)" > "${W}/req-loi.txt"
@@ -252,7 +244,7 @@ chay() {  # <loại> <kịch bản> <nhánh> [CHANGE_TARGET]
   local loai="$1" kb="$2" nhanh="$3" dich="${4:-}" ten="$1-$2"
   local ws; ws=$(tao_ws "${ten}" "${nhanh}"); thay_doi "${ws}" "${ten}"
   local h="${W:?}/jhome/${ten}"; rm -rf "${h:?}"; mkdir -p "${h}"
-  local sg=".semgrep/vt-rules-${loai}.yml"; [ "${loai}" = flutter ] && sg=.semgrep/vt-rules-dart.yml
+  local sg=".semgrep/vt-rules-${loai}.yml"
   local args=(-a "BRANCH_NAME=${nhanh}" -a "GIT_URL=file://${W}/origin.git"
     -a "VT_REGISTRY=localhost:${REG_PORT}/okr" -a "VT_REGISTRY_CREDENTIALS_ID=-" -a "VT_SEMGREP_CONFIGS=${sg}"
     -a "VT_DEPENDENCY_TRACK=false" -a "VT_IMAGE_BUILDER=docker"
@@ -309,8 +301,6 @@ for l in "${LOAI[@]}"; do
     ui)      chay ui sach mr-sach main; chay ui css31 mr-css31 main; chay ui main main
              ky_vong_qua ui-sach; ky_vong_chan ui-css31 "Lược đồ, registry, kích thước"; ky_vong_qua ui-main
              if ls "${W}"/ws/ui-main/.vt-ui/anh-0/*-khac.png >/dev/null 2>&1; then ok "ảnh chụp so sánh trên staging đã sinh"; else hong "thiếu ảnh chụp so sánh"; fi ;;
-    flutter) chay flutter sach mr-sach main; chay flutter bimat mr-bimat main
-             ky_vong_qua flutter-sach; ky_vong_chan flutter-bimat gitleaks ;;
   esac
 done
 if [ -s "${KQ}/api.jsonl" ]; then

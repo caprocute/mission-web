@@ -46,8 +46,7 @@ GROUP_META = [
     ("DV", "Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`)"),
     ("DL", "Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`)"),
     ("INF", "Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`)"),
-    ("QA", "Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`)"),
-    ("MOB", "Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`)"),
+    ("QA", "Kiểm thử tích hợp, ATTT và chấp nhận nghiệp vụ (`QA-01..07`, `QA-13`, `QA-16`)"),
     ("VH", "Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`)"),
     ("CNH", "Cá nhân hoá theo người dùng (`CNH-01..05`)"),
 ]
@@ -96,14 +95,14 @@ def get_milestone(tid: str) -> str:
         return "M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích"
     if p == "INF" or tid in (
         "DL-08", "QA-01", "QA-02", "QA-03", "QA-04", "QA-05", "QA-06", "QA-07",
-        "QA-08", "QA-09", "QA-10", "QA-11", "QA-12", "QA-13", "WEB-052", "WEB-053",
+        "QA-13", "WEB-052", "WEB-053",
     ):
-        return "M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT"
-    if p == "MOB" or tid in (
-        "QA-14", "QA-15", "DL-12", "DL-13", "DL-14", "DL-15",
+        return "M5 – Hạ tầng Production, Tích hợp E2E & ATTT"
+    if tid in (
+        "DL-12", "DL-13", "DL-14", "DL-15",
         "VH-01", "VH-02", "VH-03", "VH-04", "VH-06", "VH-07", "VH-09",
     ):
-        return "M6 – Dự phòng DR, Ứng dụng Di động & Vận hành"
+        return "M6 – Dữ liệu chính thức & Vận hành"
     return "M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)"
 
 
@@ -113,8 +112,8 @@ MILESTONE_ORDER = [
     "M2 – Cấu hình, Policy Pack & UI Pack",
     "M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)",
     "M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích",
-    "M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT",
-    "M6 – Dự phòng DR, Ứng dụng Di động & Vận hành",
+    "M5 – Hạ tầng Production, Tích hợp E2E & ATTT",
+    "M6 – Dữ liệu chính thức & Vận hành",
     "M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)",
 ]
 
@@ -174,7 +173,7 @@ def parse_existing_tracking():
 
 
 def build_initial_state():
-    """Khởi tạo trạng thái chuẩn xác của toàn bộ 401 task từ lịch sử git main và các nhánh hiện tại."""
+    """Khởi tạo trạng thái ban đầu của các task từ lịch sử git main và các nhánh lúc tạo tệp (20/10/2026)."""
     state = {}
 
     # 1. WEB-001..065
@@ -297,7 +296,7 @@ def build_initial_state():
 
 
 def load_all_tasks():
-    """Đọc danh sách 65 task WEB-001..065 và 336 task hệ thống thành cấu trúc thống nhất."""
+    """Đọc danh sách task web (docs/tasks/README.md) và task hệ thống (danh-muc-he-thong.tsv) thành cấu trúc thống nhất."""
     cards = discover_cards()
     web_tasks = []
     with open(WEB_README, encoding="utf-8") as f:
@@ -337,7 +336,7 @@ def load_all_tasks():
             "default_note": "",
         })
 
-    # Load 336 tasks from danh-muc-he-thong.tsv
+    # Đọc task hệ thống từ danh-muc-he-thong.tsv
     tsv_groups = []
     tsv_rows = []
     with open(TSV_FILE, encoding="utf-8") as f:
@@ -434,6 +433,7 @@ def render_tracking_file(all_groups, task_state, streams_lines, log_lines):
         totals["todo"] += todo
         totals["merged_w"] += merged_w
 
+    n_web = sum(len(ts) for g, ts in all_groups if g.startswith("WEB-"))
     total_pct = (totals["merged"] / totals["count"] * 100.0) if totals["count"] else 0.0
     total_done_or_ready_pct = ((totals["merged"] + totals["ready"]) / totals["count"] * 100.0) if totals["count"] else 0.0
 
@@ -475,7 +475,7 @@ def render_tracking_file(all_groups, task_state, streams_lines, log_lines):
         "# THEO DÕI TIẾN ĐỘ TỔNG HỢP TOÀN HỆ THỐNG MISSION",
         "",
         "> **TỆP THEO DÕI TIẾN ĐỘ DUY NHẤT CỦA DỰ ÁN (`YC-PT-11`, `YC-PT-17`)**",
-        "> - Đây là **nguồn sự thật duy nhất** về tiến độ thực thi của toàn bộ **401 task** thuộc dự án Mission (gồm 65 task giao diện Web ban đầu và 336 task mở rộng toàn hệ thống).",
+        f"> - Đây là **nguồn sự thật duy nhất** về tiến độ thực thi của toàn bộ **{totals['count']} task** thuộc dự án Mission (gồm {n_web} task giao diện Web trong `docs/tasks/README.md` và {totals['count'] - n_web} task toàn hệ thống trong `docs/tasks/danh-muc-he-thong.tsv`).",
         "> - **Quy định bắt buộc cho mọi AI Agent**: Mọi agent (cả luồng điều phối giữ nhánh `main` lẫn các subagent làm việc trên nhánh/worktree riêng) **bắt buộc phải cập nhật tệp này** ngay khi nhận việc, khi hoàn thành task trên nhánh và khi gộp vào `main`:",
         ">   1. **Khi bắt đầu làm một task**: chạy `python3 scripts/cap-nhat-tien-do.py set <MÃ_TASK> --status \"Đang làm\" --note \"Nhánh <tên-nhánh>: đang thực hiện\" --agent \"<Tên luồng>\"`.",
         ">   2. **Khi hoàn thành và kiểm thử xanh trên nhánh**: chạy `python3 scripts/cap-nhat-tien-do.py set <MÃ_TASK> --status \"Xong, chờ gộp\" --note \"Nhánh <tên-nhánh>: đã qua build & test\" --agent \"<Tên luồng>\"`.",
@@ -484,7 +484,7 @@ def render_tracking_file(all_groups, task_state, streams_lines, log_lines):
         "",
         "---",
         "",
-        "## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)",
+        f"## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ {totals['count']} task)",
         "",
         f"- **Tổng tiến độ đã gộp `main`**: **{totals['merged']} / {totals['count']} task ({total_pct:.1f}%)** — Khối lượng quy đổi đã gộp: **{totals['merged_w']:g} / {totals['weight']:g} đơn vị**.",
         f"- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **{totals['merged'] + totals['ready']} / {totals['count']} task ({total_done_or_ready_pct:.1f}%)** (gồm **{totals['merged']}** đã gộp `main` + **{totals['ready']}** đã xong trên nhánh chờ gộp).",
@@ -492,7 +492,7 @@ def render_tracking_file(all_groups, task_state, streams_lines, log_lines):
         f"- **Chưa bắt đầu**: **{totals['todo']} task**.",
         f"- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **{cp_merged} / {len(CRITICAL_PATH)} task**; nút găng kế tiếp cần mở khoá: **`{cp_next}`** (đang xử lý trên nhánh: {', '.join(f'`{x}`' for x in cp_active) if cp_active else 'không'}).",
         "",
-        "### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ",
+        f"### 1.1. Bảng tổng hợp theo {len(GROUP_META)} nhóm phân hệ",
         "",
         "| Mã nhóm | Phân hệ / Phạm vi | Tổng task | Khối lượng | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tỷ lệ gộp `main` |",
         "|---|---|---:|---:|---:|---:|---:|---:|---:|",
@@ -548,7 +548,7 @@ def render_tracking_file(all_groups, task_state, streams_lines, log_lines):
         "",
         "---",
         "",
-        "## 3. Bảng theo dõi chi tiết toàn bộ 401 task",
+        f"## 3. Bảng theo dõi chi tiết toàn bộ {totals['count']} task",
         "",
         "Mọi thay đổi trạng thái task đều được cập nhật trực tiếp vào bảng dưới đây. Các giá trị cột **Trạng thái** hợp lệ: `Đã gộp main`, `Xong, chờ gộp`, `Đang làm`, `Làm một phần`, `Chưa bắt đầu`.",
     ]
@@ -604,7 +604,7 @@ def main():
     parser = argparse.ArgumentParser(description="Công cụ cập nhật tệp tiến độ tổng hợp TIEN-DO-HE-THONG.md")
     sub = parser.add_subparsers(dest="cmd")
 
-    sub.add_parser("sync", help="Đọc lại bảng 401 task trong TIEN-DO-HE-THONG.md và tính lại các bảng thống kê tổng hợp")
+    sub.add_parser("sync", help="Đọc lại bảng task trong TIEN-DO-HE-THONG.md và tính lại các bảng thống kê tổng hợp")
 
     p_set = sub.add_parser("set", help="Cập nhật trạng thái một hoặc nhiều task và tự động tính lại thống kê")
     p_set.add_argument("tasks", nargs="+", help="Mã các task cần cập nhật (ví dụ: NEN-011 NEN-012)")
@@ -624,7 +624,7 @@ def main():
     if args.cmd == "set":
         unknown = [tid for tid in args.tasks if tid not in all_ids]
         if unknown:
-            sys.exit(f"Lỗi: Không tìm thấy mã task trong danh mục 401 task: {', '.join(unknown)}")
+            sys.exit(f"Lỗi: Không tìm thấy mã task trong danh mục: {', '.join(unknown)}")
         now_str = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
         for tid in args.tasks:
             old_st, old_nt = existing_state.get(tid, ("Chưa bắt đầu", ""))

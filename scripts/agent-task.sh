@@ -10,7 +10,6 @@ TASK=$(ls docs/tasks/${ID}-*.md 2>/dev/null | head -1)
 case "$ID" in
   NEN-*|CORE-*|DV-*|DL-*) RIENG=docs/quy-dinh/BACKEND.md ;;
   INF-*|VH-*)             RIENG=docs/quy-dinh/HA-TANG.md ;;
-  MOB-*)                  RIENG=docs/quy-dinh/DI-DONG.md ;;
   *)                      RIENG="" ;;
 esac
 echo "Bạn là AI agent thực hiện task $ID của dự án Mission."

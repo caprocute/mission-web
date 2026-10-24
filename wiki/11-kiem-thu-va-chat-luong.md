@@ -117,9 +117,9 @@ Kiểm thử thư viện: `ci/vt-pipeline/tests/chay-kiem-thu.sh` dựng monorep
 
 Giới hạn của lần kiểm thử, cần chạy lại trên Jenkins thật của cụm quản trị: máy kiểm thử không tới được updates.jenkins.io, repo.jenkins-ci.org và semgrep.dev, nên khối `agent kubernetes` được thay bằng `agent any` trong bản sao thư viện dùng để kiểm thử (linter báo đúng một lỗi "Invalid agent type kubernetes" với bản gốc), bước `container` và `recordCoverage` dùng bản stub trong `tests/jenkins/stub-lib` (stub áp ngưỡng 80% trên toàn bộ báo cáo JaCoCo chứ không trên tệp thay đổi), Semgrep chỉ chạy bộ quy tắc cục bộ (không có `p/java`), còn SonarQube, Dependency-Track và Pact tắt bằng biến `VT_*` vì không có máy chủ. Hai bẫy gặp khi kiểm thử: `~/.gitconfig` có `gpg.format=ssh` làm commit GPG ký sai định dạng, nên `vtGitopsBump` luôn truyền `-c gpg.format=openpgp`; và Semgrep mất khoảng 100 giây mỗi lần khi không tới được semgrep.dev để kiểm phiên bản, nên lệnh luôn có `--disable-version-check`.
 
-## Pipeline Go, Python, Flutter, Helm, Policy Pack và UI Pack (INF-06)
+## Pipeline Go, Python, Helm, Policy Pack và UI Pack (INF-06)
 
-Thư viện `ci/vt-pipeline` từ thẻ `vt-pipeline-v1.1.0` có thêm sáu bước pipeline: `vtGoPipeline`, `vtPythonPipeline`, `vtFlutterPipeline`, `vtHelmPipeline`, `vtPolicyPackPipeline` và `vtUiPackPipeline`. Cả sáu dùng chung bộ bước trong `vars/vtBuoc.groovy`, nên cổng bảo mật của mọi loại mã đều giống pipeline Java của INF-05: gitleaks, Semgrep với quy tắc riêng theo ngôn ngữ (`.semgrep/vt-rules-go.yml`, `-python.yml`, `-dart.yml`, mỗi tệp có ca kiểm thử đi kèm), Trivy quét thư mục, kiểm Dockerfile (mọi `FROM` ghim `@sha256`, người dùng cuối là UID số ít nhất 10000), dựng ảnh, sinh SBOM, quét ảnh, đẩy SBOM lên Dependency-Track, ký và chứng thực bằng cosign rồi cập nhật digest GitOps. Phần riêng của từng loại là: govulncheck cho Go, pip-audit với yêu cầu băm và pytest có ngưỡng độ phủ cho Python, phân tích tĩnh và độ phủ lcov cho Flutter (bản phát hành Android và iOS chỉ dựng trên `main`), kiểm thử chính sách Kyverno, hạn ngoại lệ và kiểm ba mô hình phân phối cho Helm. Hai pipeline gói nghiệp vụ gọi API theo quy ước baseline mục 13 qua `resources/vn/vt/pipeline/vt-api.py`: Policy Pack chạy kiểm thử đơn vị song song với bộ ca mẫu vàng (phải đạt 100%), rồi trên `main` kiểm chữ ký nghiệp vụ, đóng gói tất định, ký, chạy bóng, chờ người duyệt và gửi phát hành kèm `If-Match`; UI Pack kiểm lược đồ, registry component, an toàn, chế độ Đảng viên cao tuổi, ngân sách CSS 30 KB gzip, chạy axe-core ở cả hai chế độ, chụp ảnh so sánh trên staging rồi tải lên, gửi kiểm tra và phát hành.
+Thư viện `ci/vt-pipeline` từ thẻ `vt-pipeline-v1.1.0` có thêm năm bước pipeline: `vtGoPipeline`, `vtPythonPipeline`, `vtHelmPipeline`, `vtPolicyPackPipeline` và `vtUiPackPipeline` (bước `vtFlutterPipeline` cùng bộ quy tắc Semgrep Dart đã bỏ ngày 24/10/2026 khi ứng dụng di động ra khỏi phạm vi, wiki 14). Cả năm dùng chung bộ bước trong `vars/vtBuoc.groovy`, nên cổng bảo mật của mọi loại mã đều giống pipeline Java của INF-05: gitleaks, Semgrep với quy tắc riêng theo ngôn ngữ (`.semgrep/vt-rules-go.yml`, `-python.yml`, mỗi tệp có ca kiểm thử đi kèm), Trivy quét thư mục, kiểm Dockerfile (mọi `FROM` ghim `@sha256`, người dùng cuối là UID số ít nhất 10000), dựng ảnh, sinh SBOM, quét ảnh, đẩy SBOM lên Dependency-Track, ký và chứng thực bằng cosign rồi cập nhật digest GitOps. Phần riêng của từng loại là: govulncheck cho Go, pip-audit với yêu cầu băm và pytest có ngưỡng độ phủ cho Python, phân tích tĩnh và độ phủ lcov cho Flutter (bản phát hành Android và iOS chỉ dựng trên `main`), kiểm thử chính sách Kyverno, hạn ngoại lệ và kiểm ba mô hình phân phối cho Helm. Hai pipeline gói nghiệp vụ gọi API theo quy ước baseline mục 13 qua `resources/vn/vt/pipeline/vt-api.py`: Policy Pack chạy kiểm thử đơn vị song song với bộ ca mẫu vàng (phải đạt 100%), rồi trên `main` kiểm chữ ký nghiệp vụ, đóng gói tất định, ký, chạy bóng, chờ người duyệt và gửi phát hành kèm `If-Match`; UI Pack kiểm lược đồ, registry component, an toàn, chế độ Đảng viên cao tuổi, ngân sách CSS 30 KB gzip, chạy axe-core ở cả hai chế độ, chụp ảnh so sánh trên staging rồi tải lên, gửi kiểm tra và phát hành.
 
 Kiểm thử thư viện nằm ở `ci/vt-pipeline/tests/chay-kiem-thu-inf06.sh`. Script dựng repo mẫu từ `tests/fixture-inf06`, chạy từng Jenkinsfile trên Jenkinsfile Runner với registry cục bộ, API giả kiểm xác thực, `Idempotency-Key`, `If-Match` và tác vụ 202, staging giả và khoá cosign tạm. Mỗi loại có một ca sạch, một hoặc vài ca bắt buộc bị chặn (bí mật giả, thư viện có lỗ hổng được gọi thật, kiểm thử hỏng, ca vàng sai, CSS 31 KB, vi phạm khả năng tiếp cận) và một ca nhánh `main` kiểm ảnh hoặc gói đã được ký.
 
@@ -165,27 +165,25 @@ Tác vụ giải mã trường C2 bằng khoá nguồn, thay giá trị bằng g
 
 ## Chiến lược kiểm thử toàn hệ thống (QA-01)
 
-Mục này áp cho toàn hệ thống Mission: phân hệ web, mission-core, các microservice, ứng dụng di động và hạ tầng. Nó dựng trên tháp kiểm thử của TL-01 chương 18 và trục J (J1 đến J9), và chia rõ việc giữa các task. Mỗi task phát triển tự viết kiểm thử đơn vị, tích hợp và kiến trúc cho phần mình làm. Các task QA-02 đến QA-16 dựng những tầng nằm ngoài một task đơn lẻ: hợp đồng, đầu cuối, thử tải, bảo mật, diễn tập khôi phục và chấp nhận nghiệp vụ. Theo YC-PT-19, giai đoạn hiện tại chỉ ghi mục tiêu thử tải và thời gian khôi phục; việc đo ở quy mô định cỡ làm tập trung ở giai đoạn sau và không chặn task nào.
+Mục này áp cho toàn hệ thống Mission: phân hệ web, mission-core, các microservice và hạ tầng. Nó dựng trên tháp kiểm thử của TL-01 chương 18 và trục J (J1 đến J9), và chia rõ việc giữa các task. Mỗi task phát triển tự viết kiểm thử đơn vị, tích hợp và kiến trúc cho phần mình làm. Các task QA-02 đến QA-16 dựng những tầng nằm ngoài một task đơn lẻ: hợp đồng, đầu cuối, thử tải, bảo mật, diễn tập khôi phục và chấp nhận nghiệp vụ. Theo YC-PT-19, giai đoạn hiện tại chỉ ghi mục tiêu thử tải và thời gian khôi phục; việc đo ở quy mô định cỡ làm tập trung ở giai đoạn sau và không chặn task nào.
 
 ### Tầng kiểm thử theo phân hệ
 
-Đáy tháp là kiểm thử đơn vị trên lớp `domain` và `application`, chạy trong vài giây. Tầng giữa là kiểm thử tích hợp với hạ tầng thật dựng bằng Testcontainers, cộng kiểm thử module và kiểm thử kiến trúc. Tầng trên là kiểm thử hợp đồng Pact và khoảng 40 hành trình Playwright. Bên cạnh tháp có bốn loại đặc thù: ca mẫu vàng của Policy Pack, kiểm thử thuộc tính jqwik, thử tải và diễn tập khôi phục. Bảng dưới cho biết tầng nào bắt buộc ở phân hệ nào và ai viết. Ô "task" nghĩa là chính task phát triển viết và chạy trong `verify` hoặc `npm test` của nó.
+Đáy tháp là kiểm thử đơn vị trên lớp `domain` và `application`, chạy trong vài giây. Tầng giữa là kiểm thử tích hợp với hạ tầng thật dựng bằng Testcontainers, cộng kiểm thử module và kiểm thử kiến trúc. Tầng trên là kiểm thử hợp đồng Pact và khoảng 40 hành trình Playwright. Bên cạnh tháp có hai loại đặc thù: ca mẫu vàng của Policy Pack và kiểm thử thuộc tính jqwik; thử tải và diễn tập khôi phục (QA-08..QA-12, QA-14, QA-15) đã bỏ khỏi phạm vi ngày 24/10/2026 vì chưa có hạ tầng, ứng dụng di động cũng đã bỏ (wiki 14). Bảng dưới cho biết tầng nào bắt buộc ở phân hệ nào và ai viết. Ô "task" nghĩa là chính task phát triển viết và chạy trong `verify` hoặc `npm test` của nó.
 
-| Tầng | Công cụ đã chốt | Web (Angular) | mission-core (Java) | Microservice Java | Dịch vụ Go, Python | Di động (Flutter) | Hạ tầng (Helm, OpenTofu) |
-|---|---|---|---|---|---|---|---|
-| Đơn vị | Vitest; JUnit 5, AssertJ, Mockito; `go test`; pytest; `flutter test` | task | task | task | task | task | `helm template` có kiểm giá trị (task) |
-| Đột biến | PIT | – | task: máy trạng thái, tính điểm, saga | task: scoring, ledger, workflow | – | – | – |
-| Thuộc tính | jqwik | – | task: máy trạng thái nhiệm vụ, hồ sơ, kỳ | task: scoring | – | – | – |
-| Tích hợp | Testcontainers (PostgreSQL 17, Kafka, Valkey, Keycloak 26, OpenBao, MinIO hoặc S3 giả) | – | task: repository, RLS hai tenant, outbox tới Kafka, consumer idempotent | task, cùng danh mục | task (container cùng loại) | `integration_test` với máy chủ giả lập (task) | cài lên kind hoặc k3d, pod sẵn sàng (task) |
-| Module và kiến trúc | Spring Modulith `verify()`, `@ApplicationModuleTest`, ArchUnit | ranh giới thư viện `@vt/*` (task) | task | ArchUnit (task) | – | – | Kyverno, kiểm ba mô hình phân phối (INF-06) |
-| Hợp đồng API | `openapi-diff`, so khớp phản hồi với OpenAPI | `@vt/api-client` sinh từ hợp đồng | task | task | task | client sinh từ hợp đồng | – |
-| Hợp đồng tiêu dùng | Pact bằng tệp trong repo (không Broker) | QA-02 (bên tiêu dùng) | QA-02 (bên cung cấp) | QA-02; hệ ngoài DV-13-11 | QA-02 | QA-02 (khi có) | – |
-| Ca mẫu vàng | bộ ca ký số, đạt 100% | – | Policy Pack, hai engine | scoring-service | – | – | `vtPolicyPackPipeline` |
-| Đầu cuối | Playwright (web); `integration_test` hoặc Patrol (di động, suy luận) | QA-03 khung, QA-04..QA-07 hành trình | qua hành trình | qua hành trình | qua hành trình | bộ MOB | – |
-| Bảo mật | SpotBugs + Find Security Bugs, govulncheck, pip-audit, Semgrep, gitleaks, Trivy; OWASP ZAP, ASVS 4.0.3 | CSP, Trusted Types, ZAP thụ động (QA-13) | task + QA-13 | task + QA-13 | task + QA-13 | Semgrep Dart (INF-06) | Trivy, Kyverno |
-| Thử tải | k6, Gatling, Lighthouse CI | PERF-21 (QA-11) | QA-08, QA-10, QA-11 | QA-09, QA-10, QA-11 | QA-11 (AI) | PERF-15 trên thiết bị (QA-10) | QA-12 trên `CELL-PERF` |
-| Diễn tập khôi phục | runbook OPS-14, Velero, CNPG, Chaos Mesh (suy luận) | – | – | – | – | – | QA-14, QA-15 |
-| Chấp nhận nghiệp vụ | kịch bản theo kỳ đánh giá | QA-16 | QA-16 | QA-16 | – | QA-16 | – |
+| Tầng | Công cụ đã chốt | Web (Angular) | mission-core (Java) | Microservice Java | Dịch vụ Go, Python | Hạ tầng (Helm, OpenTofu) |
+|---|---|---|---|---|---|---|
+| Đơn vị | Vitest; JUnit 5, AssertJ, Mockito; `go test`; pytest | task | task | task | task | `helm template` có kiểm giá trị (task) |
+| Đột biến | PIT | – | task: máy trạng thái, tính điểm, saga | task: scoring, ledger, workflow | – | – |
+| Thuộc tính | jqwik | – | task: máy trạng thái nhiệm vụ, hồ sơ, kỳ | task: scoring | – | – |
+| Tích hợp | Testcontainers (PostgreSQL 17, Kafka, Valkey, Keycloak 26, OpenBao, MinIO hoặc S3 giả) | – | task: repository, RLS hai tenant, outbox tới Kafka, consumer idempotent | task, cùng danh mục | task (container cùng loại) | cài lên kind hoặc k3d, pod sẵn sàng (task) |
+| Module và kiến trúc | Spring Modulith `verify()`, `@ApplicationModuleTest`, ArchUnit | ranh giới thư viện `@vt/*` (task) | task | ArchUnit (task) | – | Kyverno, kiểm ba mô hình phân phối (INF-06) |
+| Hợp đồng API | `openapi-diff`, so khớp phản hồi với OpenAPI | `@vt/api-client` sinh từ hợp đồng | task | task | task | – |
+| Hợp đồng tiêu dùng | Pact bằng tệp trong repo (không Broker) | QA-02 (bên tiêu dùng) | QA-02 (bên cung cấp) | QA-02; hệ ngoài DV-13-11 | QA-02 | – |
+| Ca mẫu vàng | bộ ca ký số, đạt 100% | – | Policy Pack, hai engine | scoring-service | – | `vtPolicyPackPipeline` |
+| Đầu cuối | Playwright (web) | QA-03 khung, QA-04..QA-07 hành trình | qua hành trình | qua hành trình | qua hành trình | – |
+| Bảo mật | SpotBugs + Find Security Bugs, govulncheck, pip-audit, Semgrep, gitleaks, Trivy; OWASP ZAP, ASVS 4.0.3 | CSP, Trusted Types, ZAP thụ động (QA-13) | task + QA-13 | task + QA-13 | task + QA-13 | Trivy, Kyverno |
+| Chấp nhận nghiệp vụ | kịch bản theo kỳ đánh giá | QA-16 | QA-16 | QA-16 | – | – |
 
 ### Ngưỡng chặn hợp nhất và phát hành
 
@@ -248,7 +246,7 @@ Danh mục gồm 42 hành trình: 38 trên web và 4 trên di động. Chúng ph
 
 Bản máy đọc được là `frontend/e2e/hanh-trinh/danh-muc.json`. Tệp này có thêm danh sách đầy đủ `operationId`, tài khoản thử, trạng thái cuối, ca phủ định và trạng thái viết mã của từng hành trình (`chua_viet`, `dang_viet`, `dat`, `tam_hoan`). Khi hai bản lệch nhau, tệp JSON là nguồn đúng. QA-04 đến QA-07 chỉ cập nhật trạng thái hành trình trong tệp, còn thêm hay bớt hành trình phải sửa cả hai nơi.
 
-Phân bổ theo task như sau. QA-04 nhận QT-00 đến QT-03. QA-05 nhận QT-04 đến QT-07. QA-06 nhận QT-08 đến QT-10. QA-07 nhận QT-11 đến QT-18. Bốn hành trình trên SCR-0302, SCR-0504, SCR-0702 và SCR-1803 thuộc bộ kiểm thử di động (MOB).
+Phân bổ theo task như sau. QA-04 nhận QT-00 đến QT-03. QA-05 nhận QT-04 đến QT-07. QA-06 nhận QT-08 đến QT-10. QA-07 nhận QT-11 đến QT-18. Bốn hành trình trên SCR-0302, SCR-0504, SCR-0702 và SCR-1803 thuộc bộ kiểm thử di động (MOB); ứng dụng di động đã bỏ khỏi phạm vi ngày 24/10/2026 (wiki 14) nên bốn hành trình này không viết, chỉ giữ trong danh mục để đối chiếu.
 
 | Mã | Hành trình | Tác nhân | QT | SCR | `operationId` chính | Sự kiện | Bộ | Cao tuổi |
 |---|---|---|---|---|---|---|---|---|
@@ -300,6 +298,8 @@ Chọn tác nhân theo ma trận phân quyền `wiki/15a`. Có ba điểm chọn
 Kiểm danh mục khớp hợp đồng bằng lệnh trong `frontend/e2e/hanh-trinh/README.md`. Lệnh kiểm mỗi `operationId` có trong `contracts/openapi/modules/`, mỗi QT có hành trình web, và mỗi QT có hành trình chạy ở chế độ cao tuổi. Lần chạy ngày 23/10/2026 cho kết quả: 42 hành trình, 137 `operationId` khác nhau, không thiếu mã nào.
 
 ### Ánh xạ kịch bản thử tải và diễn tập khôi phục sang task QA
+
+> Cập nhật 24/10/2026: đo tải và diễn tập DR đã bỏ khỏi phạm vi vì chưa có hạ tầng (wiki 14); QA-08..QA-12, QA-14, QA-15 không còn trong danh mục. Hai bảng dưới giữ làm ánh xạ tham chiếu cho lần đưa trở lại khi có hạ tầng.
 
 Mỗi mã PERF và DR của TL-04 thuộc đúng một task QA viết kịch bản hoặc runbook. QA-12 không giữ mã riêng: nó chạy lại toàn bộ kịch bản của QA-08 đến QA-11 trên `CELL-PERF` để hiệu chuẩn bảng định cỡ. Thử hỏng PERF-07, PERF-09, PERF-10 vẫn thuộc QA-08 (kịch bản tải nền). QA-14 dùng lại ba kịch bản đó làm bước diễn tập DR-01 đến DR-04. Trong giai đoạn hiện tại chỉ viết kịch bản và runbook, ghi mục tiêu đạt; số đo ở quy mô định cỡ để giai đoạn sau (YC-PT-19).
 

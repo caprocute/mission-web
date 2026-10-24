@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-# CHỈ DÙNG KHI KIỂM THỬ CỤC BỘ (chay-kiem-thu-inf06.sh): bản giả lập lệnh flutter và dart vì máy kiểm thử không có
-# Flutter SDK. Ghi lại lời gọi vào .flutter-gia.log và tạo đầu ra tối thiểu mà vtFlutterPipeline đọc (lcov của
-# `flutter test --coverage`). Không kiểm mã Dart; trên Jenkins thật container `flutter` chạy SDK thật.
-echo "[flutter giả lập] $(basename "$0") $*" | tee -a .flutter-gia.log >&2
-case "$1 $2" in
-  "test --coverage"*) mkdir -p coverage; printf 'SF:lib/main.dart\nLF:2\nLH:2\nend_of_record\n' > coverage/lcov.info ;;
-esac
-exit 0

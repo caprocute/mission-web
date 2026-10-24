@@ -9,18 +9,8 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import {
-  ORG_CHANGE_TYPE_LABEL,
-  OrgChangeOrder,
-  OrgChangeRequest,
-  OrgChangeType,
-  OrgTreeApi,
-  OrgUnitDetail,
-  OrgUnitInput,
-  OrgUnitSearchHit,
-  fieldErrors,
-  toProblem,
-} from '@vt/api-client';
+import { fieldErrors, toProblem } from '@vt/api-client';
+import { ORG_CHANGE_TYPE_LABEL, OrgChangeOrder, OrgChangeRequest, OrgChangeType, OrgTreeApi, OrgUnitDetail, OrgUnitInput, OrgUnitSearchHit } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';

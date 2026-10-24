@@ -1,22 +1,8 @@
 import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import {
-  DAY_KIND_LABEL,
-  POLICY_VERSION_STATUS_LABEL,
-  PolicyApi,
-  PolicyRounding,
-  PolicyRule,
-  PolicyRuleSaved,
-  QUALITY_METHOD_LABEL,
-  RATING_LEVEL_LABEL,
-  RETURN_REASON_LABEL,
-  ROUNDING_MODE_LABEL,
-  RatingLevel,
-  fieldErrors,
-  policyVersionLabel,
-  toProblem,
-} from '@vt/api-client';
+import { fieldErrors, toProblem } from '@vt/api-client';
+import { DAY_KIND_LABEL, POLICY_VERSION_STATUS_LABEL, PolicyApi, PolicyRounding, PolicyRule, PolicyRuleSaved, QUALITY_METHOD_LABEL, RATING_LEVEL_LABEL, RETURN_REASON_LABEL, ROUNDING_MODE_LABEL, RatingLevel, policyVersionLabel } from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { concatMap, from, tap, toArray } from 'rxjs';
 import { STUDIO_ACCESS } from '../../studio-permissions';
@@ -25,9 +11,17 @@ import { celSyntaxError, unknownVariables } from './cel-check';
 import { PolicyDiffDialog, PolicyExpressionsDialog, PolicySubmitDialog } from './policy-dialogs';
 import { PolicyWorkspace } from './policy-workspace';
 
-/** Ba khối của điểm KPI nhiệm vụ (PL 3): số lượng, chất lượng, tiến độ. */
+/**
+ * Ba khối của điểm KPI nhiệm vụ (PL 3): số lượng, chất lượng, tiến độ. Gói nhập từ `policy.yaml` đặt
+ * khoá quy tắc `kpi_A`, `kpi_B`, `kpi_C` (theo `definitions` của manifest), nên khối tìm cả hai dạng.
+ */
 const BLOCKS = ['A', 'B', 'C'] as const;
+/**
+ * Tổng điểm tối đa các nhóm (BR-15-05, như RuleParamRules.totalFor của máy chủ): luồng Đảng 100; luồng Nhà
+ * nước 70 vì 30 điểm còn lại thuộc tiêu chí chung.
+ */
 const GROUP_TOTAL = 100;
+const GROUP_TOTAL_NHA_NUOC = 70;
 
 /**
  * Config Studio · Công thức (SCR-1501, QT-15): khối KPI nhiệm vụ = (A + B + C)/3 với ba biểu thức
@@ -141,7 +135,7 @@ const GROUP_TOTAL = 100;
           }
         </p>
         <div class="blocks">
-          @for (k of blocks; track k) {
+          @for (k of blocks(); track k) {
             @if (rule(k); as r) {
               <div
                 class="block"
@@ -316,7 +310,7 @@ const GROUP_TOTAL = 100;
             <p class="small muted">
               KPI nhóm là trung bình KPI các nhiệm vụ trong nhóm. Tổng điểm tối đa các nhóm phải
               bằng
-              {{ total }}.
+              {{ total() }}.
             </p>
           }
         </section>
@@ -626,8 +620,13 @@ export class FormulaPage {
   protected readonly access = inject(STUDIO_ACCESS);
   protected readonly ws = inject(PolicyWorkspace);
 
-  protected readonly blocks = BLOCKS;
-  protected readonly total = GROUP_TOTAL;
+  /** Khoá quy tắc thật của từng khối có trong phiên bản. */
+  protected readonly blocks = computed(() =>
+    BLOCKS.map((k) => this.blockKey(k)).filter((k) => this.draft().some((r) => r.ruleKey === k)),
+  );
+  protected readonly total = computed(() =>
+    this.ws.pack.value()?.flow === 'NHA_NUOC' ? GROUP_TOTAL_NHA_NUOC : GROUP_TOTAL,
+  );
   protected readonly statusLabel = POLICY_VERSION_STATUS_LABEL;
   protected readonly vlabel = policyVersionLabel;
   protected readonly qualityOpts = Object.entries(QUALITY_METHOD_LABEL);
@@ -699,8 +698,8 @@ export class FormulaPage {
     Object.values(this.groupMax()).reduce((a, n) => a + (Number(n) || 0), 0),
   );
   protected readonly groupError = computed(() =>
-    this.groups().length && this.groupTotal() !== GROUP_TOTAL
-      ? `Tổng điểm tối đa các nhóm là ${this.groupTotal()}, phải bằng ${GROUP_TOTAL}.`
+    this.groups().length && this.groupTotal() !== this.total()
+      ? `Tổng điểm tối đa các nhóm là ${this.groupTotal()}, phải bằng ${this.total()}.`
       : null,
   );
   protected readonly slowError = computed(() => {
@@ -739,7 +738,8 @@ export class FormulaPage {
   );
 
   protected rule(key: string): PolicyRule | undefined {
-    return this.draft().find((r) => r.ruleKey === key);
+    const k = this.blockKey(key);
+    return this.draft().find((r) => r.ruleKey === k);
   }
 
   protected tokens(expr: string): { text: string; key?: string }[] {
@@ -755,11 +755,38 @@ export class FormulaPage {
     document.getElementById(`expr-${key}`)?.focus();
   }
 
+  /** `A` hoặc `kpi_A`, tuỳ khoá mà phiên bản dùng. */
+  private blockKey(key: string): string {
+    if (!(BLOCKS as readonly string[]).includes(key)) return key;
+    return this.draft().some((r) => r.ruleKey === key) ? key : `kpi_${key}`;
+  }
+
+  /**
+   * Quy tắc giữ tham số `name` của khối: chính quy tắc của khối nếu có tham số đó, không thì quy tắc
+   * khác của phiên bản đọc tham số (gói nhập từ manifest đặt `loai_ngay` ở quy tắc tính ngày chậm).
+   */
+  private paramOwner(key: string, name: string): string {
+    const own = this.rule(key);
+    if (own?.params && name in own.params) return own.ruleKey;
+    return this.draft().find((r) => r.params && name in r.params)?.ruleKey ?? this.blockKey(key);
+  }
+
   protected param(key: string, name: string): unknown {
-    return this.rule(key)?.params?.[name];
+    return this.rule(this.paramOwner(key, name))?.params?.[name];
+  }
+
+  /**
+   * Danh sách nhóm của gói (`tham_so.nhom`: mã, điểm tối đa, nhóm nhiệm vụ) mà quy tắc tính điểm nhóm giữ;
+   * phiên bản cũ đặt điểm tối đa dạng bảng `diem_toi_da` theo mã nhóm.
+   */
+  private groupList(): { ma: string; diem_toi_da: number }[] | null {
+    const list = this.param('nhom', 'nhom');
+    return Array.isArray(list) ? (list as { ma: string; diem_toi_da: number }[]) : null;
   }
 
   private groupMax(): Record<string, number> {
+    const list = this.groupList();
+    if (list) return Object.fromEntries(list.map((g) => [g.ma, Number(g.diem_toi_da) || 0]));
     return (this.param('nhom', 'diem_toi_da') ?? {}) as Record<string, number>;
   }
 
@@ -775,10 +802,23 @@ export class FormulaPage {
 
   protected setParam(key: string, name: string, value: unknown) {
     const v = name === 'tru_tien_do' ? Number(value) : value;
-    this.patch(key, (r) => ({ ...r, params: { ...(r.params ?? {}), [name]: v } }));
+    this.patch(this.paramOwner(key, name), (r) => ({
+      ...r,
+      params: { ...(r.params ?? {}), [name]: v },
+    }));
   }
 
   protected setGroupMax(group: string, value: unknown) {
+    const list = this.groupList();
+    if (list) {
+      const max = Number(value) || 0;
+      this.setParam(
+        'nhom',
+        'nhom',
+        list.map((g) => (g.ma === group ? { ...g, diem_toi_da: max } : g)),
+      );
+      return;
+    }
     this.setParam('nhom', 'diem_toi_da', { ...this.groupMax(), [group]: Number(value) || 0 });
   }
 

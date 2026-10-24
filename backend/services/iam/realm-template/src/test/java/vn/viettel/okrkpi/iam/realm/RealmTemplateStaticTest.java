@@ -95,8 +95,8 @@ class RealmTemplateStaticTest {
     Map<String, JsonNode> clients = new LinkedHashMap<>();
     r.path("clients").forEach(c -> clients.put(c.path("clientId").asText(), c));
     assertThat(clients.keySet())
-        .containsExactlyInAnyOrder("mission-web", "mission-mobile", "apisix-gateway", "mission-iam-broker");
-    for (String id : new String[] {"mission-web", "mission-mobile"}) {
+        .containsExactlyInAnyOrder("mission-web", "apisix-gateway", "mission-iam-broker", "org-service");
+    for (String id : new String[] {"mission-web"}) {
       JsonNode c = clients.get(id);
       assertThat(c.path("publicClient").asBoolean()).as(id).isTrue();
       assertThat(c.path("standardFlowEnabled").asBoolean()).as(id).isTrue();
@@ -118,6 +118,23 @@ class RealmTemplateStaticTest {
     assertThat(broker.path("serviceAccountsEnabled").asBoolean()).isTrue();
     assertThat(broker.path("standardFlowEnabled").asBoolean()).isFalse();
     assertThat(broker.path("directAccessGrantsEnabled").asBoolean()).isFalse();
+    // DV-04-07: org-service chỉ dùng client credentials, tài khoản dịch vụ chỉ xem và sửa người dùng.
+    JsonNode org = clients.get("org-service");
+    assertThat(org.path("publicClient").asBoolean()).isFalse();
+    assertThat(org.path("serviceAccountsEnabled").asBoolean()).isTrue();
+    assertThat(org.path("standardFlowEnabled").asBoolean()).isFalse();
+    assertThat(org.path("directAccessGrantsEnabled").asBoolean()).isFalse();
+    JsonNode sa = null;
+    for (JsonNode u : r.path("users")) {
+      if ("org-service".equals(u.path("serviceAccountClientId").asText())) {
+        sa = u;
+      }
+    }
+    assertThat(sa).isNotNull();
+    assertThat(sa.path("realmRoles").isMissingNode() || sa.path("realmRoles").isEmpty()).isTrue();
+    assertThat(RepoFiles.JSON.convertValue(sa.path("clientRoles").path("realm-management"), String[].class))
+        .containsExactlyInAnyOrder("view-users", "manage-users");
+    assertThat(sa.path("clientRoles").size()).isEqualTo(1);
   }
 
   @Test
@@ -138,13 +155,39 @@ class RealmTemplateStaticTest {
     assertThat(c.path("validateSignature").asText()).isEqualTo("true");
     assertThat(c.path("missionRequiredLevel").asText()).isEqualTo("2");
     assertThat(c.path("missionTimeoutMillis").asText()).isEqualTo("10000");
-    // Luồng đăng nhập lần đầu chỉ có bước liên kết, không có bước tạo tài khoản.
+    // Luồng đăng nhập lần đầu chỉ có bước liên kết, không có bước tạo tài khoản; sau đó kiểm trạng thái tenant.
     realm().path("authenticationFlows").forEach(f -> {
       if (f.path("alias").asText().startsWith("mission-vneid")) {
         assertThat(f.path("authenticationExecutions").findValuesAsText("authenticator"))
-            .containsExactly("mission-vneid-link");
+            .containsExactly("mission-vneid-link", "mission-tenant-status");
       }
     });
+  }
+
+  @Test
+  void luongDangNhapKiemTrangThaiTenantSauKhiXacDinhNguoiDung() {
+    // TL-04 mục 11.4: tenant TAM_NGUNG chặn đăng nhập ở Keycloak, kể cả khi còn phiên SSO (cookie).
+    JsonNode browser = null;
+    JsonNode identify = null;
+    for (JsonNode f : realm().path("authenticationFlows")) {
+      if ("mission-browser".equals(f.path("alias").asText())) {
+        browser = f;
+      } else if ("mission-identify".equals(f.path("alias").asText())) {
+        identify = f;
+      }
+    }
+    assertThat(browser).isNotNull();
+    assertThat(identify).isNotNull();
+    JsonNode steps = browser.path("authenticationExecutions");
+    assertThat(steps).hasSize(2);
+    assertThat(steps.get(0).path("flowAlias").asText()).isEqualTo("mission-identify");
+    assertThat(steps.get(0).path("requirement").asText()).isEqualTo("REQUIRED");
+    assertThat(steps.get(1).path("authenticator").asText()).isEqualTo("mission-tenant-status");
+    assertThat(steps.get(1).path("requirement").asText()).isEqualTo("REQUIRED");
+    assertThat(identify.path("authenticationExecutions").findValuesAsText("authenticator"))
+        .contains("auth-cookie", "identity-provider-redirector");
+    identify.path("authenticationExecutions").forEach(e ->
+        assertThat(e.path("requirement").asText()).isEqualTo("ALTERNATIVE"));
   }
 
   @Test

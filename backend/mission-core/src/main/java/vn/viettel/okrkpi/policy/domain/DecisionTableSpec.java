@@ -36,7 +36,11 @@ public record DecisionTableSpec(String hitPolicy, List<Column> columns, List<Row
    */
   public record Column(String name, String label, String type) {}
 
-  /** Một dòng; {@code inputs} theo tên cột, ô thiếu là bất kỳ. */
+  /**
+   * Một dòng; {@code inputs} theo tên cột, ô thiếu là bất kỳ. {@code ratingLevel} là đầu ra của
+   * dòng: mức xếp loại, hoặc giá trị tổng quát ({@code outputValue} của hợp đồng) ở bảng không xếp
+   * loại.
+   */
   public record Row(
       Map<String, String> inputs, String ratingLevel, String clause, String explanation) {
     public Row {

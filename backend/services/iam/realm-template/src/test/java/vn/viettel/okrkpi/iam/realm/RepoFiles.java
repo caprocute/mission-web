@@ -114,9 +114,6 @@ final class RepoFiles {
     env.put("MISSION_WEB_REDIRECT_URIS", "[\"" + WEB_REDIRECT + "\"]");
     env.put("MISSION_WEB_ORIGINS", "[\"http://localhost:4200\"]");
     env.put("MISSION_WEB_POST_LOGOUT_URIS", "http://localhost:4200/*");
-    env.put("MISSION_MOBILE_REDIRECT_URIS", r.path("mobile").path("redirectUris").toString());
-    env.put("MISSION_MOBILE_POST_LOGOUT_URIS", String.join("##",
-        JSON.convertValue(r.path("mobile").path("postLogoutRedirectUris"), String[].class)));
     env.put("MISSION_ACCESS_TOKEN_LIFESPAN", t.path("accessTokenLifespan").asText());
     env.put("MISSION_SSO_IDLE", t.path("ssoSessionIdleTimeout").asText());
     env.put("MISSION_SSO_MAX", t.path("ssoSessionMaxLifespan").asText());
@@ -150,6 +147,7 @@ final class RepoFiles {
     env.put("MISSION_VNEID_BREAKER_OPEN_SECONDS", v.path("breaker").path("openSeconds").asText());
     env.put("MISSION_VNEID_CLIENT_SECRET", "vneid-" + apisixSecret);
     env.put("MISSION_IAM_BROKER_CLIENT_SECRET", "broker-" + apisixSecret);
+    env.put("MISSION_ORG_SERVICE_CLIENT_SECRET", "org-" + apisixSecret);
     env.putAll(overrides);
     return env;
   }

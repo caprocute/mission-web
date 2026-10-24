@@ -149,6 +149,10 @@ class PolicyPackApiIT extends ContractConformanceTest {
     UUID v = root.version().id();
     inTenant(
         jdbc -> {
+          // Ca kiểm cần đúng bộ quy tắc dưới đây, bỏ các quy tắc importPack dựng từ manifest.
+          jdbc.sql("DELETE FROM policy.policy_rule WHERE policy_pack_version_id = ?")
+              .param(v)
+              .update();
           repository.insertRules(
               tenant,
               List.of(
