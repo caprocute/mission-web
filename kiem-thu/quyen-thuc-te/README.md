@@ -10,3 +10,12 @@ GET mọi tuyến không tham số của hợp đồng qua APISIX, đối chiế
 
 Cần chạy lại sau khi nới giới hạn tần suất của APISIX trên dev hoặc giãn nhịp gọi. Tệp không chứa token, mật khẩu
 hay địa chỉ máy chủ.
+
+## Lượt đo 2 (24/10/2026, main 2a6aaebc)
+
+| Tệp | Nội dung |
+|---|---|
+| `thuong-2.json` | đăng nhập thường, script đã giãn nhịp 8 yêu cầu/giây và thử lại khi gặp 429; đo đủ 64/64 tài khoản, 0 lời gọi 429 |
+| `thuong-2-stdout.txt` | đầu ra nguyên văn của lượt đo |
+
+Lệch mức màn hình chỉ còn `/org/sync-runs` (4 tài khoản có vai trò kiểm tra); các mục lệch còn lại ở mức bảng API theo module.

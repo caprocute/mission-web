@@ -1,0 +1,102 @@
+nentang                acr=aal1  org/me=200 vai trò giao diện=wf_template_author,platform_admin (token) | LỆCH màn hình 0 | LỆCH module 8 | 403 42 | 429 0 | ẨN THỪA 1
+quantri                acr=aal1  org/me=200 vai trò giao diện=policy_author,tenant_admin (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 3 | 403 32 | 429 0 | ẨN THỪA 1
+quantri2               acr=aal1  org/me=200 vai trò giao diện=policy_author,tenant_admin (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 3 | 403 32 | 429 0 | ẨN THỪA 1
+chinhsach              acr=aal1  org/me=200 vai trò giao diện=policy_author (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 16 | 403 45 | 429 0 | ẨN THỪA 1
+lanhdao                acr=aal1  org/me=200 vai trò giao diện=leader,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 9 | 403 10 | 429 0 | ẨN THỪA 0
+quanly                 acr=aal1  org/me=200 vai trò giao diện=manager,member (phan-cong-chinh(2)) | LỆCH màn hình 0 | LỆCH module 13 | 403 17 | 429 0 | ẨN THỪA 0
+canbo                  acr=aal1  org/me=200 vai trò giao diện=member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 17 | 403 23 | 429 0 | ẨN THỪA 0
+thamdinh               acr=aal1  org/me=200 vai trò giao diện=appraiser,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 17 | 403 18 | 429 0 | ẨN THỪA 0
+quyetdinh              acr=aal1  org/me=200 vai trò giao diện=decider (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 11 | 403 29 | 429 0 | ẨN THỪA 1
+duyet2                 acr=aal1  org/me=200 vai trò giao diện=second_approver (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 11 | 403 40 | 429 0 | ẨN THỪA 1
+kiemtra                acr=aal1  org/me=200 vai trò giao diện=inspector,member (phan-cong-duy-nhat) | LỆCH màn hình 1 | LỆCH module 10 | 403 15 | 429 0 | ẨN THỪA 0
+    LỆCH /org/sync-runs                           Đồng bộ và đối soát nhân sự (SCR-0104.xem) | COMMON-403-OUT-OF-SCOPE | 
+giamdocso              acr=aal1  org/me=200 vai trò giao diện=leader,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 9 | 403 10 | 429 0 | ẨN THỪA 0
+phogiamdocso           acr=aal1  org/me=200 vai trò giao diện=manager,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 13 | 403 17 | 429 0 | ẨN THỪA 0
+tu.bithu               acr=aal1  org/me=200 vai trò giao diện=decider,leader,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 8 | 403 9 | 429 0 | ẨN THỪA 0
+tu.phobithu            acr=aal1  org/me=200 vai trò giao diện=manager,member,second_approver (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 12 | 403 16 | 429 0 | ẨN THỪA 0
+tu.truongbantc         acr=aal1  org/me=200 vai trò giao diện=appraiser,leader,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 9 | 403 10 | 429 0 | ẨN THỪA 0
+tu.phobantc            acr=aal1  org/me=200 vai trò giao diện=appraiser,manager,member (phan-cong-chinh(2)) | LỆCH màn hình 0 | LỆCH module 13 | 403 14 | 429 0 | ẨN THỪA 0
+tu.truongphongcb       acr=aal1  org/me=200 vai trò giao diện=appraiser,manager,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 13 | 403 14 | 429 0 | ẨN THỪA 0
+tu.chuyenviencb        acr=aal1  org/me=200 vai trò giao diện=appraiser,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 17 | 403 18 | 429 0 | ẨN THỪA 0
+tu.chuyenvientcdv      acr=aal1  org/me=200 vai trò giao diện=member,policy_author (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 17 | 403 20 | 429 0 | ẨN THỪA 0
+tu.chanhvp             acr=aal1  org/me=200 vai trò giao diện=leader,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 9 | 403 10 | 429 0 | ẨN THỪA 0
+tu.truongphongth       acr=aal1  org/me=200 vai trò giao diện=manager,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 13 | 403 17 | 429 0 | ẨN THỪA 0
+tu.chuyenvienth        acr=aal1  org/me=200 vai trò giao diện=member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 17 | 403 23 | 429 0 | ẨN THỪA 0
+tu.chuyenvienth2       acr=aal1  org/me=200 vai trò giao diện=member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 17 | 403 23 | 429 0 | ẨN THỪA 0
+tu.quantri             acr=aal1  org/me=200 vai trò giao diện=tenant_admin (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 1 | 403 32 | 429 0 | ẨN THỪA 1
+tu.ubkt                acr=aal1  org/me=200 vai trò giao diện=inspector,member (phan-cong-duy-nhat) | LỆCH màn hình 1 | LỆCH module 10 | 403 15 | 429 0 | ẨN THỪA 0
+    LỆCH /org/sync-runs                           Đồng bộ và đối soát nhân sự (SCR-0104.xem) | COMMON-403-OUT-OF-SCOPE | 
+tu.bithuxa             acr=aal1  org/me=200 vai trò giao diện=leader,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 9 | 403 10 | 429 0 | ẨN THỪA 0
+tu.bithuchibo          acr=aal1  org/me=200 vai trò giao diện=manager,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 13 | 403 17 | 429 0 | ẨN THỪA 0
+tu.dangvien            acr=aal1  org/me=200 vai trò giao diện=member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 17 | 403 23 | 429 0 | ẨN THỪA 0
+cq.chutich             acr=aal1  org/me=200 vai trò giao diện=decider,leader,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 8 | 403 9 | 429 0 | ẨN THỪA 0
+cq.phochutich          acr=aal1  org/me=200 vai trò giao diện=manager,member,second_approver (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 12 | 403 16 | 429 0 | ẨN THỪA 0
+cq.chanhvp             acr=aal1  org/me=200 vai trò giao diện=leader,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 9 | 403 10 | 429 0 | ẨN THỪA 0
+cq.truongphongth       acr=aal1  org/me=200 vai trò giao diện=manager,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 13 | 403 17 | 429 0 | ẨN THỪA 0
+cq.chuyenvienth        acr=aal1  org/me=200 vai trò giao diện=member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 17 | 403 23 | 429 0 | ẨN THỪA 0
+cq.giamdoctt           acr=aal1  org/me=200 vai trò giao diện=manager,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 13 | 403 17 | 429 0 | ẨN THỪA 0
+cq.vienchuctt          acr=aal1  org/me=200 vai trò giao diện=member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 17 | 403 23 | 429 0 | ẨN THỪA 0
+cq.giamdocsnv          acr=aal1  org/me=200 vai trò giao diện=appraiser,leader,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 9 | 403 10 | 429 0 | ẨN THỪA 0
+cq.truongphongccvc     acr=aal1  org/me=200 vai trò giao diện=manager,member,policy_author (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 13 | 403 14 | 429 0 | ẨN THỪA 0
+cq.chuyenviennv        acr=aal1  org/me=200 vai trò giao diện=appraiser,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 17 | 403 18 | 429 0 | ẨN THỪA 0
+cq.giamdocstc          acr=aal1  org/me=200 vai trò giao diện=leader,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 9 | 403 10 | 429 0 | ẨN THỪA 0
+cq.phogiamdocstc       acr=aal1  org/me=200 vai trò giao diện=manager,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 13 | 403 17 | 429 0 | ẨN THỪA 0
+cq.truongphongns       acr=aal1  org/me=200 vai trò giao diện=manager,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 13 | 403 17 | 429 0 | ẨN THỪA 0
+cq.chuyenvienns        acr=aal1  org/me=200 vai trò giao diện=member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 17 | 403 23 | 429 0 | ẨN THỪA 0
+cq.chuyenvienns2       acr=aal1  org/me=200 vai trò giao diện=member (phan-cong-chinh(2)) | LỆCH màn hình 0 | LỆCH module 17 | 403 23 | 429 0 | ẨN THỪA 0
+cq.truongphongcds      acr=aal1  org/me=200 vai trò giao diện=manager,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 13 | 403 17 | 429 0 | ẨN THỪA 0
+cq.thanhtra            acr=aal1  org/me=200 vai trò giao diện=inspector,member (phan-cong-duy-nhat) | LỆCH màn hình 1 | LỆCH module 10 | 403 15 | 429 0 | ẨN THỪA 0
+    LỆCH /org/sync-runs                           Đồng bộ và đối soát nhân sự (SCR-0104.xem) | COMMON-403-OUT-OF-SCOPE | 
+cq.chutichxa           acr=aal1  org/me=200 vai trò giao diện=leader,manager,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 9 | 403 10 | 429 0 | ẨN THỪA 0
+cq.congchucxa          acr=aal1  org/me=200 vai trò giao diện=member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 17 | 403 23 | 429 0 | ẨN THỪA 0
+cq.quantri             acr=aal1  org/me=200 vai trò giao diện=tenant_admin (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 1 | 403 32 | 429 0 | ẨN THỪA 1
+cq.quantri2            acr=aal1  org/me=200 vai trò giao diện=tenant_admin (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 1 | 403 32 | 429 0 | ẨN THỪA 1
+dn.chutich             acr=aal1  org/me=200 vai trò giao diện=decider,leader,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 8 | 403 9 | 429 0 | ẨN THỪA 0
+dn.tonggiamdoc         acr=aal1  org/me=200 vai trò giao diện=leader,manager,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 9 | 403 10 | 429 0 | ẨN THỪA 0
+dn.photonggiamdoc      acr=aal1  org/me=200 vai trò giao diện=manager,member,second_approver (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 12 | 403 16 | 429 0 | ẨN THỪA 0
+dn.kiemsoatvien        acr=aal1  org/me=200 vai trò giao diện=inspector (phan-cong-duy-nhat) | LỆCH màn hình 1 | LỆCH module 18 | 403 31 | 429 0 | ẨN THỪA 1
+    LỆCH /org/sync-runs                           Đồng bộ và đối soát nhân sự (SCR-0104.xem) | COMMON-403-OUT-OF-SCOPE | 
+dn.truongphongtchc     acr=aal1  org/me=200 vai trò giao diện=appraiser,manager,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 13 | 403 14 | 429 0 | ẨN THỪA 0
+dn.chuyenviennhansu    acr=aal1  org/me=200 vai trò giao diện=member,policy_author (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 17 | 403 20 | 429 0 | ẨN THỪA 0
+dn.truongphongkd       acr=aal1  org/me=200 vai trò giao diện=manager,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 13 | 403 17 | 429 0 | ẨN THỪA 0
+dn.nhanvienkd          acr=aal1  org/me=200 vai trò giao diện=member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 17 | 403 23 | 429 0 | ẨN THỪA 0
+dn.nhanvienkd2         acr=aal1  org/me=200 vai trò giao diện=member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 17 | 403 23 | 429 0 | ẨN THỪA 0
+dn.truongphongkt       acr=aal1  org/me=200 vai trò giao diện=manager,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 13 | 403 17 | 429 0 | ẨN THỪA 0
+dn.giamdocxn           acr=aal1  org/me=200 vai trò giao diện=leader,manager,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 9 | 403 10 | 429 0 | ẨN THỪA 0
+dn.totruong            acr=aal1  org/me=200 vai trò giao diện=manager,member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 13 | 403 17 | 429 0 | ẨN THỪA 0
+dn.congnhan            acr=aal1  org/me=200 vai trò giao diện=member (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 17 | 403 23 | 429 0 | ẨN THỪA 0
+dn.quantri             acr=aal1  org/me=200 vai trò giao diện=tenant_admin (phan-cong-duy-nhat) | LỆCH màn hình 0 | LỆCH module 1 | 403 32 | 429 0 | ẨN THỪA 1
+
+Màn hình giao diện hiện nhưng máy chủ 403 (số tài khoản):
+    4  /org/sync-runs                             COMMON-403-OUT-OF-SCOPE 
+
+Bảng API cho vai trò đọc nhưng máy chủ 403 (số tài khoản):
+   63  /config/tenants                            COMMON-403-OUT-OF-SCOPE 
+   58  /org/discrepancies                         COMMON-403-OUT-OF-SCOPE 
+   58  /org/sync-schedules                        COMMON-403-OUT-OF-SCOPE 
+   57  /config/tenants/export                     COMMON-403-OUT-OF-SCOPE 
+   57  /workflow/instances                        COMMON-403-OUT-OF-SCOPE 
+   54  /org/e2ee/recoveries                       COMMON-403-OUT-OF-SCOPE 
+   54  /org/sync-runs                             COMMON-403-OUT-OF-SCOPE 
+   54  /workflow/templates                        COMMON-403-OUT-OF-SCOPE 
+   51  /appraisals/batch-decisions                COMMON-403-OUT-OF-SCOPE 
+   43  /workflow/inbox                            COMMON-403-OUT-OF-SCOPE 
+   37  /config/access-history                     COMMON-403-OUT-OF-SCOPE Đồng chí không có quyền thực hiện thao tác này.
+   37  /config/delegations                        COMMON-403-OUT-OF-SCOPE Đồng chí không có quyền thực hiện thao tác này.
+   37  /config/role-bindings                      COMMON-403-OUT-OF-SCOPE Đồng chí không có quyền thực hiện thao tác này.
+   25  /org/persons                               COMMON-403-OUT-OF-SCOPE 
+   21  /org/units                                 COMMON-403-OUT-OF-SCOPE 
+   18  /org/subject-groups                        COMMON-403-OUT-OF-SCOPE 
+   18  /org/units/tree                            COMMON-403-OUT-OF-SCOPE 
+    7  /analytics/semantic-model                  COMMON-403-OUT-OF-SCOPE Tài khoản không có quyền với dữ liệu hoặc thao tác
+    3  /analytics/dashboards                      COMMON-403-OUT-OF-SCOPE Tài khoản không có quyền với dữ liệu hoặc thao tác
+    1  /evidences                                 COMMON-403-OUT-OF-SCOPE 
+    1  /evidences/external-docs                   COMMON-403-OUT-OF-SCOPE 
+    1  /okr/alignment                             COMMON-403-OUT-OF-SCOPE 
+    1  /okr/bases                                 COMMON-403-OUT-OF-SCOPE 
+    1  /okr/key-results                           COMMON-403-OUT-OF-SCOPE 
+    1  /okr/links                                 COMMON-403-OUT-OF-SCOPE 
+    1  /okr/objectives                            COMMON-403-OUT-OF-SCOPE 
+    1  /okr/tree                                  COMMON-403-OUT-OF-SCOPE 
+
+Chi tiết: /tmp/kiem-quyen/thuong-2.json
