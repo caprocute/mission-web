@@ -196,19 +196,19 @@ WEB-005 thêm ba phụ thuộc phát triển: `storybook` và `@storybook/angula
 
 ZAP baseline chạy trên bản dựng đầy đủ sau nginx tại chỗ, vì máy chủ dev chưa triển khai web và mission-core; phần cần Keycloak và API thật (đăng xuất, bước lên MFA, header và CORS của APISIX, quét chủ động theo OpenAPI) để lại cho staging. Bảy phát hiện ngoài phạm vi tệp của task được đề xuất mở task sửa, liệt kê ở mục 6 của `docs/security/WEB-053-danh-gia-attt-frontend.md`: `lodash-es` mức High qua `cel-js`, MSG 403 của máy chủ bị thay ở màn hình thẩm định và gói hồ sơ, style nội tuyến của trang "Không tìm thấy trang", 14 ca ma trận của Studio cấu hình, mặc định `E2E_MODE` của Playwright, thu hẹp CORS của gói nhúng, và bước ZAP trong Jenkins.
 
-### Ngưỡng tải đầu của trang chủ (WEB-052, đề xuất 24/10/2026, chờ duyệt)
+### Ngưỡng tải đầu của trang chủ (WEB-052, đã duyệt 24/10/2026)
 
 **Đã chốt (24/10/2026, luồng điều phối theo YC-PT-18):** ngưỡng 250 KB và 180 KB của TL-01 đo theo dung lượng truyền đã nén trên trình duyệt bằng `npm run perf:budget`; nginx của `deploy/web` nén sẵn gzip mức 9 (xem [trang 09](09-hieu-nang-va-trai-nghiem.md)). Phải giữ es-module-shims vì Firefox chưa hỗ trợ nhiều import map. `@vt/api-client` đã tách entry phụ `@vt/api-client/domains`.
 
 **Điểm lệch còn lại:** sau ba hướng trên, mọi remote đạt 180 KB, nhưng trang chủ còn 519,4 KB so với ngưỡng 250 KB (cổng tĩnh 373,6 KB). LCP mô phỏng trên Lighthouse (điện thoại, 4G, CPU chậm 4 lần) còn khoảng 7,7 s so với 2,5 s. Căn cứ để đề xuất nằm ở cơ cấu tải đầu. Phần cố định do stack đã chốt ở ADR-05, ADR-08, ADR-10 chiếm khoảng 326 KB: Angular 21 cùng rxjs 169 KB, PrimeNG 63,6 KB của khung và widget, cel-js 45,1 KB mà SDUI cần cho `visibleWhen`, phông primeicons 34,3 KB và `angular-oauth2-oidc` 13,9 KB. Con số này chưa tính các chunk nội bộ mà Native Federation tách ra từ các gói đó. Như vậy, riêng phần khung đã vượt 250 KB trước khi có dòng mã nghiệp vụ nào. Ngưỡng 250 KB chỉ khả thi với framework nhẹ hơn hoặc dựng sẵn phía máy chủ, mà cả hai đều trái với các ADR đã chốt.
 
-**Đề xuất (cần người phụ trách thiết kế duyệt, rồi ghi vào TL-01 qua một bản bổ sung vì TL thắng wiki):** chia ngân sách trang chủ thành hai số, cùng đo bằng dung lượng truyền gzip.
+**Đã duyệt 24/10/2026 (anh Hiếu duyệt; cần ghi vào TL-01 qua một bản bổ sung ở lần cập nhật tới vì TL thắng wiki):** chia ngân sách trang chủ thành hai số, cùng đo bằng dung lượng truyền gzip.
 - Số thứ nhất là khung khởi động (cổng tĩnh `bundle-budget.mjs`: shell, design system, runtime Angular và mọi import tĩnh từ `main.js`): ≤ 400 KB, so với 373,6 KB hiện nay. Mức này chừa khoảng 7 % cho phát triển tiếp, và việc vượt sẽ chặn pipeline.
 - Số thứ hai là trang chủ đầy đủ đo trên trình duyệt (`perf:budget`, gồm widget SDUI, cel-js và phông): ≤ 550 KB, so với 519,4 KB hiện nay. Mức này cũng chừa khoảng 6 % và đóng vai trò chặn tăng.
 - Giữ nguyên ngưỡng 180 KB cho mỗi remote (đang đạt với dư địa trên 40 %) và 30 KB cho UI Pack.
 - Giữ mục tiêu LCP 2,5 s, nhưng đo trên thiết bị thật hoặc dữ liệu người dùng thật (Faro, WEB-011) ở giai đoạn đo hiệu năng sau (theo quyết định 22/10/2026 chỉ tập trung phát triển). Lighthouse mô phỏng CPU chậm 4 lần chỉ dùng để theo dõi xu hướng, không làm cổng chặn. Lý do là 94 % thời gian LCP hiện nay là thời gian chờ khởi động JavaScript trên CPU mô phỏng, không phải thời gian chờ mạng.
 
-Khi được duyệt, chỉ cần sửa `BUDGETS` trong `deploy/web/ci/bundle-budget.mjs`, biến `PERF_SHELL_KB` mặc định của `tools/perf/ngan-sach.mjs`, và mục `resource-summary` của trang chủ trong `lighthouserc.json`. Trước khi được duyệt, mã giữ nguyên ngưỡng 250 KB và các cổng vẫn báo VƯỢT.
+Hai số 400 KB và 550 KB là cổng chặn hiện hành; 250 KB của TL-01 giữ làm mục tiêu NFR. Mã đã cập nhật: `BUDGETS.shell` của `deploy/web/ci/bundle-budget.mjs` là 400 KB; `PERF_SHELL_KB` mặc định của `tools/perf/ngan-sach.mjs` là 550 KB, và lệnh in kèm khoảng cách tới mục tiêu 250 KB (`PERF_SHELL_TARGET_KB`). `lighthouserc.json` giữ nguyên, vì tổng tải của Lighthouse tính cả JSON giả lập và chỉ dùng theo dõi xu hướng như đề xuất về LCP ở trên.
 
 ## Khoảng trống trong mã so với thiết kế
 

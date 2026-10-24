@@ -103,7 +103,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-049](WEB-049-tro-ly-ai.md) | SCR-1701 Trợ lý AI soạn OKR và soát KR | M | WEB-022 | Xong, chờ gộp |
 | [WEB-050](WEB-050-studio-giao-dien.md) | SCR-1801 Cấu hình giao diện tenant và SCR-1802 Trình dựng biểu mẫu động | L | WEB-004, WEB-009, WEB-010 | Xong, chờ gộp (nhánh `feat/WEB-050-studio-giao-dien`) |
 | [WEB-051](WEB-051-plugin-chuyen-nganh.md) | Plugin chuyên ngành mẫu và manifest theo tenant | M | WEB-015 | Xong, chờ gộp |
-| [WEB-052](WEB-052-toi-uu-hieu-nang.md) | Kiểm thử và tối ưu hiệu năng frontend | M | WEB-003, WEB-011 | Làm một phần (nhánh `claude/project-thread-gmqu4z`): pha 1, pha 2 đã gộp; theo chốt 24/10: đo chính thức bằng `npm run perf:budget` theo dung lượng truyền gzip (nginx deploy/web nén sẵn mức 9), tách `@vt/api-client/domains`, giữ es-module-shims (Firefox chưa hỗ trợ nhiều import map); trang chủ 545→519 KB / 250 KB (cổng tĩnh 401→374 KB), mọi remote ĐẠT 180 KB; đề xuất ngưỡng 400/550 KB chờ duyệt ở wiki/14 |
+| [WEB-052](WEB-052-toi-uu-hieu-nang.md) | Kiểm thử và tối ưu hiệu năng frontend | M | WEB-003, WEB-011 | Hoàn thành (nhánh `claude/project-thread-gmqu4z`): pha 1, pha 2 đã gộp; theo chốt 24/10: đo chính thức bằng `npm run perf:budget` theo dung lượng truyền gzip (nginx deploy/web nén sẵn mức 9), tách `@vt/api-client/domains`, giữ es-module-shims (Firefox chưa hỗ trợ nhiều import map); trang chủ 545→519 KB / 250 KB (cổng tĩnh 401→374 KB), mọi remote ĐẠT 180 KB; ngưỡng chặn 400 KB (cổng tĩnh) và 550 KB (trình duyệt) đã duyệt 24/10, cả hai ĐẠT; 250 KB giữ làm mục tiêu NFR (wiki/14) |
 | [WEB-053](WEB-053-danh-gia-attt.md) | Đánh giá ATTT frontend: OWASP ZAP và ASVS mức 2 | M | WEB-014 | Xong, chờ gộp |
 
 ## Phân quyền (xuyên giai đoạn)
