@@ -44,7 +44,7 @@ public class EffectiveFeatureFlagController {
   }
 
   @GetMapping("/feature-flags")
-  @RequiresPermission(operationId = "getEffectiveFeatureFlags", module = "config")
+  @RequiresPermission(operationId = "getEffectiveFeatureFlags", module = "ui")
   public EffectiveFeatureFlagMap getEffectiveFeatureFlags() {
     TenantId tenant = TenantContext.require();
     UiPackPublishService.Viewer viewer = callers.viewer();

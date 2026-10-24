@@ -157,4 +157,45 @@ describe('PlanPage (SCR-0402)', () => {
     await until(el, '.removed');
     expect(text(el.querySelector('.removed'))).toContain('Không còn phù hợp');
   });
+
+  it('đơn vị chưa có kế hoạch: báo trống, người lập chọn kỳ đang mở rồi lập kế hoạch', async () => {
+    let created = '';
+    const el = await render(
+      '.empty .create button',
+      () => true,
+      {},
+      async (api) => {
+        const real = api.list.bind(api);
+        const create = api.create.bind(api);
+        let first = true;
+        api.list = (...a) => (first ? ((first = false), of([])) : real(...a));
+        api.create = (...a) => {
+          created = a[0];
+          return create(...a);
+        };
+      },
+    );
+    expect(text(el.querySelector('.empty'))).toContain('Đơn vị chưa có kế hoạch công tác quý');
+    expect(text(el)).not.toContain('Đang tải kế hoạch');
+    click(el, 'Lập kế hoạch', '.empty');
+    await until(el, '.tbl', () => !el.querySelector('.empty'));
+    expect(created).toMatch(/^p-\d{4}q\d$/);
+    expect(el.querySelector('.empty')).toBeNull();
+    const api = TestBed.inject(PlanApi);
+    const list = await firstValueFrom(api.list());
+    expect(list.some((p) => p.period.id === created)).toBe(true);
+  });
+
+  it('đơn vị chưa có kế hoạch, người chỉ được xem không thấy nút lập', async () => {
+    const el = await render(
+      '.empty',
+      (k) => k === 'SCR-0402.xem',
+      {},
+      async (api) => {
+        api.list = () => of([]);
+      },
+    );
+    expect(text(el.querySelector('.empty'))).toContain('Đơn vị chưa có kế hoạch công tác quý');
+    expect(buttons(el, '.empty')).not.toContain('Lập kế hoạch');
+  });
 });

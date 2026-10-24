@@ -11,6 +11,7 @@ import {
   TEXT_IDP_UNAVAILABLE,
   TEXT_SESSION_EXPIRED,
 } from './messages';
+import { PLATFORM_SCOPE_ROLES } from './permissions.generated';
 
 /**
  * Vai trò hệ thống (baseline mục 10, AC-01…AC-12) và vai trò con khai báo ở cột keycloak của
@@ -220,6 +221,11 @@ export class SessionService {
     void this.loadContext();
   }
 
+  /** Tài khoản có vai trò phạm vi nền tảng của ma trận phân quyền (AC-01). */
+  private platformScoped(): boolean {
+    return (this._user()?.roles ?? []).some((r) => PLATFORM_SCOPE_ROLES.includes(r));
+  }
+
   hasRole(...roles: VtRole[]): boolean {
     const u = this._user();
     return !!u && roles.some((r) => u.roles.includes(r));
@@ -349,6 +355,12 @@ export class SessionService {
       const me = await firstValueFrom(this.org.me());
       const list = me.assignments;
       this._assignments.set(list);
+      if (list.length === 0 && this.platformScoped()) {
+        // AC-01 làm việc ở vùng điều phối toàn cục (ma trận: phạm vi Nền tảng), không cần phân công đơn
+        // vị trong tenant: vào làm việc bằng vai trò trong token.
+        this._contextStatus.set('SAN_SANG');
+        return;
+      }
       if (list.length === 0) {
         this._contextStatus.set('KHONG_PHAN_CONG');
         this._notice.set({ severity: 'error', text: MSG_00_06 });

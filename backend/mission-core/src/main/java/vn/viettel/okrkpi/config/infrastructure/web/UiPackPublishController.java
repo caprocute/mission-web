@@ -96,7 +96,7 @@ public class UiPackPublishController {
   }
 
   @GetMapping("/packs/current")
-  @RequiresPermission(operationId = "getCurrentUiPack", module = "config")
+  @RequiresPermission(operationId = "getCurrentUiPack", module = "ui")
   public ResponseEntity<JsonNode> getCurrentUiPack(
       @RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch) {
     UiPackPublishService.Current current =
@@ -107,7 +107,7 @@ public class UiPackPublishController {
   }
 
   @GetMapping("/layouts/home")
-  @RequiresPermission(operationId = "getHomeLayout", module = "config")
+  @RequiresPermission(operationId = "getHomeLayout", module = "ui")
   public ResponseEntity<JsonNode> getHomeLayout(
       @RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch) {
     TenantId tenant = TenantContext.require();

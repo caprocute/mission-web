@@ -57,8 +57,9 @@ test_doc_ky_vai_tro_aal2 if {
 # Thẩm định viên chưa bước lên vẫn đọc được kỳ nhờ vai trò cán bộ đi kèm.
 test_doc_ky_tham_dinh_kem_can_bo if doc_ky(["member", "appraiser"], "aal1").allow
 
+# Quản trị nghiệp vụ (policy_author) đọc được kỳ từ 23/10/2026, xem ca ở cuối tệp.
 test_doc_ky_vai_tro_ngoai_dong_api if {
-	every r in ["policy_author", "ai_readonly"] {
+	every r in ["platform_admin", "ai_readonly"] {
 		d := doc_ky([r], "aal1")
 		not d.allow
 		"role_not_allowed" in d.deny
@@ -98,4 +99,41 @@ test_doc_danh_muc_vai_tro_khong_co_quyen if {
 		not d.allow
 		"role_not_allowed" in d.deny
 	}
+}
+
+# ------------------------------------------------------------------ Quản trị nghiệp vụ (AC-03) đọc dữ liệu dùng chung
+# GET /ui/layouts/home, /ui/feature-flags, /ui/packs/current gắn dòng API `ui` (trước đây gắn `config` nên AC-03 bị
+# từ chối); GET /config/anomaly-thresholds và GET /periods là ô suy luận của AC-03 (đọc trước khi sửa ngưỡng,
+# chọn kỳ áp dụng khi gửi duyệt bộ quy định, BR-15-10), QA-05 23/10/2026.
+
+doc_api(roles, acr, module) := d if {
+	d := authz.decision with input as {
+		"subject": nguoi(roles, acr),
+		"request": {"module": module, "method": "GET"},
+		"resource": {"type": module, "tenant_id": "t1", "owner_unit_id": "u1", "classification": "C1"},
+		"context": {"now": now},
+	}
+}
+
+test_quan_tri_nghiep_vu_doc_trang_chu_co_ky_nguong if {
+	every m in ["ui", "config", "periods"] {
+		doc_api(["policy_author"], "aal1", m).allow
+	}
+}
+
+test_quan_tri_nghiep_vu_khong_ghi_ky if {
+	d := authz.decision with input as {
+		"subject": nguoi(["policy_author"], "aal1"),
+		"request": {"module": "periods", "method": "POST"},
+		"resource": {"type": "period", "tenant_id": "t1", "owner_unit_id": "u1", "classification": "C1"},
+		"context": {"now": now},
+	}
+	not d.allow
+	"role_not_allowed" in d.deny
+}
+
+# Quản trị nền tảng đọc được giao diện trang chủ (ô suy luận) nhưng không đọc kỳ của tenant.
+test_quan_tri_nen_tang_doc_giao_dien_khong_doc_ky if {
+	doc_api(["platform_admin"], "aal2", "ui").allow
+	not doc_api(["platform_admin"], "aal2", "periods").allow
 }

@@ -67,6 +67,14 @@ export class PlanApi {
     return this.http.get<CursorPage<Plan>>(apiUrl('/plans'), { params }).pipe(map((p) => p.items));
   }
 
+  /**
+   * "Lập kế hoạch": tạo kế hoạch của đơn vị cho kỳ kèm phiên bản 1 `NHAP` (`POST /plans`, `createPlan`);
+   * bỏ trống đơn vị thì máy chủ lấy đơn vị của phân công đang chọn. `Idempotency-Key` do interceptor gắn.
+   */
+  create(periodId: string, unitId?: string): Observable<Plan> {
+    return this.http.post<Plan>(apiUrl('/plans'), unitId ? { periodId, unitId } : { periodId });
+  }
+
   /** Phiên bản của kế hoạch, xếp tăng dần theo số phiên bản (hợp đồng trả mới nhất trước). */
   versions(planId: string): Observable<PlanVersionSummary[]> {
     return this.http
