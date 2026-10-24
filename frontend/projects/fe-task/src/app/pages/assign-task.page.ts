@@ -15,7 +15,23 @@ import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { AssigneeRef, OkrApi, OrgApi, OrgPerson, SimilarTask, TASK_GROUP_LABEL, TASK_PRIORITY_LABEL, TASK_SOURCE_LABEL, TASK_STATUS_LABEL, TaskApi, TaskDraft, TaskGroup, TaskPriority, TaskSource, toProblem } from '@vt/api-client';
+import {
+  AssigneeRef,
+  OkrApi,
+  OrgApi,
+  OrgPerson,
+  SimilarTask,
+  TASK_GROUP_LABEL,
+  TASK_PRIORITY_LABEL,
+  TASK_SOURCE_LABEL,
+  TASK_STATUS_LABEL,
+  TaskApi,
+  TaskDraft,
+  TaskGroup,
+  TaskPriority,
+  TaskSource,
+  toProblem,
+} from '@vt/api-client';
 import { CatalogApi, PlanApi, PlanItemRef } from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
@@ -182,9 +198,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
       <div class="cols">
         <div>
           <section class="box" aria-labelledby="s1">
-            <h2 id="s1" class="h">
-              <span class="num" aria-hidden="true">1</span> Nguồn và nội dung
-            </h2>
+            <h2 id="s1" class="h">Nguồn và nội dung</h2>
             <span class="lbl" id="src-lbl">Nguồn nhiệm vụ <span class="req">*</span></span>
             <p-selectbutton
               [options]="sourceOptions"
@@ -352,7 +366,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
           </section>
 
           <section class="box" aria-labelledby="s2">
-            <h2 id="s2" class="h"><span class="num" aria-hidden="true">2</span> Phân công</h2>
+            <h2 id="s2" class="h">Phân công</h2>
             @if (!bulk()) {
               <div class="grid2">
                 <div>
@@ -514,9 +528,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
           </section>
 
           <section class="box" aria-labelledby="s3">
-            <h2 id="s3" class="h">
-              <span class="num" aria-hidden="true">3</span> Sản phẩm và tiêu chuẩn
-            </h2>
+            <h2 id="s3" class="h">Sản phẩm và tiêu chuẩn</h2>
             <div class="grid3">
               <div>
                 <label for="as-prod">Sản phẩm <span class="req">*</span></label>

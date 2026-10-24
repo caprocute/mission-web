@@ -73,7 +73,7 @@ describe('FromDocumentPage (SCR-0502)', () => {
     const tags = [...el.querySelectorAll('vt-suggestion-card p-tag')].map(text);
     expect(tags).toEqual(['Đã xác nhận', 'Chờ xác nhận', 'Có thể trùng']);
     expect(text(el.querySelector('.msg07'))).toBe(
-      'Ô viền tím do AI điền. Sửa ô nào thì ô đó thành dữ liệu do người nhập.',
+      'Ô viền tím do AI điền; đồng chí kiểm tra và sửa nếu cần.',
     );
     expect(buttons(el, '.actions')).toEqual(['Bỏ qua văn bản', 'Xác nhận và giao 1 nhiệm vụ']);
     expect(el.querySelector('.card.selected .pick')?.textContent?.trim()).toBe('Nhiệm vụ 2');

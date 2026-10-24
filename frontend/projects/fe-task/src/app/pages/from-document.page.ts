@@ -15,7 +15,16 @@ import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { OkrApi, OrgApi, SimilarTask, TASK_STATUS_LABEL, TaskApi, toProblem } from '@vt/api-client';
-import { AiApi, AssignBatchResult, CatalogApi, SOURCE_DOC_STATUS_LABEL, SOURCE_SYSTEM_LABEL, SourceDocApi, TaskSuggestion, TaskSuggestionFields } from '@vt/api-client/domains';
+import {
+  AiApi,
+  AssignBatchResult,
+  CatalogApi,
+  SOURCE_DOC_STATUS_LABEL,
+  SOURCE_SYSTEM_LABEL,
+  SourceDocApi,
+  TaskSuggestion,
+  TaskSuggestionFields,
+} from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
@@ -99,13 +108,9 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
       <div class="layout">
         <section class="doc" aria-labelledby="doc-title">
           <h2 id="doc-title" class="h">
-            <span class="num" aria-hidden="true">1</span>
             {{ d.docNumber }} · {{ date(d.docDate) }}
             <p-tag [value]="system(d.sourceSystem)" severity="info" />
-            <span class="muted small"
-              >· nhận lúc {{ d.receivedAt | date: 'dd/MM HH:mm' }} · văn bản điện tử
-              {{ d.format }}</span
-            >
+            <span class="muted small">· nhận lúc {{ d.receivedAt | date: 'dd/MM HH:mm' }}</span>
           </h2>
           <div class="paper">
             <p class="issuer">{{ d.issuerHeader }}</p>
@@ -142,7 +147,6 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
           @let x = extraction.value();
           <div class="ai-head">
             <h2 id="ai-title" class="h">
-              <span class="num" aria-hidden="true">2</span>
               <span class="ai-label"
                 >Nội dung do AI tạo
                 @if (x && !simple()) {
@@ -151,7 +155,7 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
               </span>
             </h2>
             <p class="muted small msg07">
-              Ô viền tím do AI điền. Sửa ô nào thì ô đó thành dữ liệu do người nhập.
+              Ô viền tím do AI điền; đồng chí kiểm tra và sửa nếu cần.
             </p>
           </div>
 
@@ -193,7 +197,6 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
               @if (s.decision === 'CHO_XAC_NHAN' && s.similar.length) {
                 @let old = s.similar[0];
                 <div class="dup" role="note">
-                  <span class="num" aria-hidden="true">3</span>
                   <div>
                     <p>
                       Nhiệm vụ {{ n }} gần giống <strong>{{ old.code }}</strong> "{{ old.title }}"
@@ -220,7 +223,6 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
 
               @if (can('SCR-0502.xac-nhan') && d.status === 'CHO_XU_LY') {
                 <div class="bar" role="group" [attr.aria-label]="'Xử lý nhiệm vụ ' + n">
-                  <span class="num" aria-hidden="true">4</span>
                   @if (s.decision === 'CHO_XAC_NHAN') {
                     <p-button
                       [label]="s.id === editingId() ? 'Xong sửa' : 'Sửa'"
@@ -310,7 +312,6 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
   styles: `
     :host {
       display: block;
-      padding: 16px 24px;
     }
     .top {
       display: flex;

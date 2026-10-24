@@ -17,7 +17,16 @@ import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TASK_GROUP_LABEL, toProblem } from '@vt/api-client';
-import { CATALOG_ITEM_STATUS_LABEL, CatalogApi, CatalogImportJob, CatalogItem, CatalogItemSaveResult, CatalogItemStatus, WORK_CATALOG_STATUS_LABEL, WorkCatalog } from '@vt/api-client/domains';
+import {
+  CATALOG_ITEM_STATUS_LABEL,
+  CatalogApi,
+  CatalogImportJob,
+  CatalogItem,
+  CatalogItemSaveResult,
+  CatalogItemStatus,
+  WORK_CATALOG_STATUS_LABEL,
+  WorkCatalog,
+} from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
@@ -344,10 +353,6 @@ interface Filters {
                   }
                 </dd>
               </dl>
-              <p class="muted small">
-                Sửa mục đã dùng ở kỳ đã khoá sẽ tạo phiên bản mới; kỳ cũ giữ nguyên phiên bản đã
-                tính điểm.
-              </p>
               @if (canEdit() && c.status !== 'HET_HIEU_LUC') {
                 <p-button
                   label="Sửa"

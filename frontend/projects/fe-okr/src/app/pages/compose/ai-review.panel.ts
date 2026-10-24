@@ -18,10 +18,7 @@ import { AiKrSuggestion } from '@vt/api-client';
         <p class="err" role="alert">{{ e }}</p>
       }
       @if (!reviewed()) {
-        <p class="muted">
-          Bấm "Trợ lý AI soát KR" để nhận gợi ý viết lại KR có nguồn trích dẫn. Trợ lý chỉ đề xuất;
-          nội dung chỉ được ghi khi đồng chí lưu.
-        </p>
+        <p class="muted">Bấm "Trợ lý AI soát KR" để nhận gợi ý viết lại KR.</p>
       } @else if (!suggestions().length) {
         <p class="muted" role="status">Trợ lý không còn gợi ý nào cho các KR hiện tại.</p>
       }

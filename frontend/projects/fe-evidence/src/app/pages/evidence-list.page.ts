@@ -9,7 +9,16 @@ import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TaskApi, toProblem } from '@vt/api-client';
-import { Deliverable, EVIDENCE_STATUS_LABEL, EvidenceApi, EvidenceVersionStatus, FILTER_QUERY_PARAM, createListPersonalization, decodeCriteria, encodeCriteria } from '@vt/api-client/domains';
+import {
+  Deliverable,
+  EVIDENCE_STATUS_LABEL,
+  EvidenceApi,
+  EvidenceVersionStatus,
+  FILTER_QUERY_PARAM,
+  createListPersonalization,
+  decodeCriteria,
+  encodeCriteria,
+} from '@vt/api-client/domains';
 import { VtColumnPickerComponent, VtSavedFiltersComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { firstValueFrom, forkJoin, map } from 'rxjs';
@@ -174,7 +183,11 @@ import {
                   }
                 </div>
               </div>
-              <a class="p-button p-component lnk" [routerLink]="[e.id]">Mở</a>
+              <a
+                class="p-button p-component p-button-outlined p-button-secondary lnk"
+                [routerLink]="[e.id]"
+                >Mở</a
+              >
             </li>
           }
         </ul>
@@ -186,8 +199,7 @@ import {
   styles: `
     :host {
       display: block;
-      padding: 16px 24px;
-      max-width: 960px;
+      max-width: 1100px;
     }
     h1 {
       font-size: 1.5rem;

@@ -14,7 +14,7 @@ import { vn } from './self-assessment-rules';
     <section class="box" aria-labelledby="sr-h">
       <div class="head">
         <h2 id="sr-h" class="sec">
-          Kết quả thực hiện nhiệm vụ <span class="chip">Hệ thống tự tính, không sửa được</span>
+          Kết quả thực hiện nhiệm vụ <span class="chip">Tự động tính</span>
         </h2>
         @if (!simple()) {
           <button type="button" class="link" (click)="trace.emit()">Vết tính</button>
@@ -79,11 +79,7 @@ import { vn } from './self-assessment-rules';
           ><b>{{ vn(s.totalScore) }}</b> /100</span
         >
       </p>
-      <p class="note">
-        Khối lượng (A) = min(số lượng được nghiệm thu / kế hoạch; 1) · Chất lượng (B) theo 5 mức
-        nghiệm thu · Tiến độ (C) = max(0; 1 − 0,05 × số ngày làm việc chậm do chủ quan) · Chỉ tính
-        minh chứng đã được xác nhận.
-      </p>
+      <!-- Công thức A, B, C xem ở "Vết tính", không in thường trực (YC-PT-24) -->
     </section>
   `,
   styles: `

@@ -18,7 +18,20 @@ import { Component, DestroyRef, computed, effect, inject, signal, untracked } fr
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { LEDGER_ACTOR_KIND_LABEL, LEDGER_AGGREGATE_TYPE_LABEL, ledgerAggregateTypeLabel, LEDGER_ANCHOR_TARGET_LABEL, LEDGER_DEFAULT_RANGE_DAYS, LEDGER_VERIFY_KIND_LABEL, LedgerApi, LedgerEntry, LedgerEntryFilter, LedgerVerifyKind, LedgerVerifyRun, verifyRunIdOf } from '@vt/api-client/domains';
+import {
+  LEDGER_ACTOR_KIND_LABEL,
+  LEDGER_AGGREGATE_TYPE_LABEL,
+  ledgerAggregateTypeLabel,
+  LEDGER_ANCHOR_TARGET_LABEL,
+  LEDGER_DEFAULT_RANGE_DAYS,
+  LEDGER_VERIFY_KIND_LABEL,
+  LedgerApi,
+  LedgerEntry,
+  LedgerEntryFilter,
+  LedgerVerifyKind,
+  LedgerVerifyRun,
+  verifyRunIdOf,
+} from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
@@ -74,7 +87,7 @@ const isoDate = (d: Date) => {
 
     <!-- vùng 1 -->
     <form class="box filter" (ngSubmit)="search()" aria-labelledby="f-h">
-      <h2 id="f-h" class="h"><span class="num" aria-hidden="true">1</span> Tra cứu</h2>
+      <h2 id="f-h" class="h">Tra cứu</h2>
       <div class="grid">
         <div class="f">
           <label for="lg-type">Loại đối tượng</label>
@@ -147,7 +160,7 @@ const isoDate = (d: Date) => {
         <!-- vùng 2 -->
         <section class="box" aria-labelledby="t-h">
           <h2 id="t-h" class="h">
-            <span class="num" aria-hidden="true">2</span> Bản ghi sổ cái
+            Bản ghi sổ cái
             @if (rows().length) {
               <span class="small muted">({{ rows().length }}{{ cursor() ? '+' : '' }})</span>
             }
@@ -235,9 +248,7 @@ const isoDate = (d: Date) => {
         <!-- vùng 3 -->
         @if (run(); as r) {
           <section class="box" aria-labelledby="c-h">
-            <h2 id="c-h" class="h">
-              <span class="num" aria-hidden="true">3</span> Kết quả kiểm tra toàn vẹn
-            </h2>
+            <h2 id="c-h" class="h">Kết quả kiểm tra toàn vẹn</h2>
             @if (!r.finishedAt) {
               <p class="muted" role="status">
                 Đang kiểm tra: đã rà {{ int(r.entriesChecked) }} bản ghi…
@@ -288,7 +299,7 @@ const isoDate = (d: Date) => {
       <aside>
         <!-- vùng 4 -->
         <section class="box" aria-labelledby="r-h">
-          <h2 id="r-h" class="h"><span class="num" aria-hidden="true">4</span> Lần kiểm tra</h2>
+          <h2 id="r-h" class="h">Lần kiểm tra</h2>
           @if (runs().length > 1) {
             <label for="lg-run" class="sr-only">Chọn lần kiểm tra</label>
             <p-select
@@ -358,9 +369,7 @@ const isoDate = (d: Date) => {
 
         <!-- vùng 5 -->
         <section class="box" aria-labelledby="s-h" aria-live="polite">
-          <h2 id="s-h" class="h">
-            <span class="num" aria-hidden="true">5</span> Niêm phong và đối chứng
-          </h2>
+          <h2 id="s-h" class="h">Niêm phong và đối chứng</h2>
           @if (detail.isLoading()) {
             <p class="muted">Đang tải bản ghi…</p>
           } @else if (detail.value(); as d) {

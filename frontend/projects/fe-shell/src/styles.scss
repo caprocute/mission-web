@@ -49,6 +49,11 @@
     background: var(--vt-color-background);
     line-height: 1.5;
   }
+  /* Màu liên kết mặc định thống nhất (thay màu xanh tím mặc định của trình duyệt) */
+  a,
+  a:visited {
+    color: #1d4ed8;
+  }
   :focus-visible {
     /* viền tiêu điểm đạt 3:1 với nền trắng (WCAG 1.4.11), WEB-059 */
     outline: 3px solid var(--vt-color-primary-strong, #d1002d);

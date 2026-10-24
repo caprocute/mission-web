@@ -166,6 +166,7 @@ textarea {
 }
 table {
   width: 100%;
+  min-width: 60rem;
   border-collapse: collapse;
 }
 th,
@@ -187,16 +188,16 @@ tbody tr.on {
   background: #fdf2f4;
 }
 .who {
-  display: grid;
   font-weight: 400;
-  min-width: 140px;
+  min-width: 12rem;
 }
 .num {
   text-align: right;
 }
 .note {
   font-size: 0.85rem;
-  max-width: 200px;
+  min-width: 12rem;
+  max-width: 18rem;
 }
 .note[data-tone='warn'] {
   color: #92400e;
@@ -301,4 +302,7 @@ tbody tr.on {
   .layout {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+.who > * {
+  display: block;
 }
