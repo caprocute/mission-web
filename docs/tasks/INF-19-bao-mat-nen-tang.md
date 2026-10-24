@@ -56,3 +56,28 @@ Hoàn thiện lớp bảo mật nền của cụm theo TL-04 chương 9: nhật 
 ## 7. Báo cáo
 
 Theo AGENTS.md mục 6.
+
+## 8. Bằng chứng chạy thật trên kind (24/10/2026, luồng B8)
+
+Lần chạy dùng cụm gọn `vt-cell-kind` (`cluster-gon.yaml`: một control plane, một worker, kindnet, có nhật ký kiểm toán API) với cell-base đã cài. `deploy/environments/kind/kiem-thu-an-ninh.sh` dựng Kafka của cell thu nhỏ (chart kafka, không Connect, không Apicurio), `otel-siem` của chart `otel-collector` với chứng thư từ ClusterIssuer `openbao-pki-cell` (trên kind là CA tự ký cùng tên), Fluent Bit của `observability-cell` chỉ luồng kiểm toán (`values-kind-fluent-bit-audit.yaml`) và `security-cell` (`values-kind-an-ninh.yaml`). Kết quả lần cuối: 17 đạt, 0 hỏng.
+
+| Tiêu chí | Kết quả |
+|---|---|
+| `falco --validate` | Quy tắc VT render từ chart hợp lệ cùng quy tắc mặc định của Falco 0.45 (cả trong `tests/chay-kiem-thu.sh`, 11/11, và trên kind). |
+| Shell trong pod `core` → Falco → `sys.security.runtime.v1` | Falco không chạy được trên máy này (xem dưới). Thay vào đó gửi một cảnh báo đúng định dạng JSON của Falco cho quy tắc "VT shell trong container vùng ứng dụng hoặc dữ liệu" vào Falcosidekick: cảnh báo tới `sys.security.runtime.v1` qua OTLP/HTTP mTLS và `otel-siem`, rồi thành sự kiện ECS `falco.alert` trên `sys.siem.v1`. |
+| Nhật ký kiểm toán API | `kubectl exec` vào `core/thu-shell` có bản ghi mức `RequestResponse` cho `pods/exec`; Fluent Bit đưa bản ghi vào `sys.audit.v1` bằng mTLS (`audit-writer`), `otel-siem` chuẩn hoá thành `kubernetes.audit` trên `sys.siem.v1`. |
+| kube-bench, số FAIL thật | Benchmark `cis-1.10`. Control plane: master 11 FAIL, 50 PASS; node 2 FAIL, 16 PASS ở mỗi node. Kết quả có trên Pushgateway (`kube_bench_checks`). |
+| `view-app` | Nhóm `oidc:platform-ops-dev` không đọc được Secret, không `pods/exec` được, đọc được pod. |
+| Thăm dò cổng ra | 11 namespace, 22 phép thử, `vt_egress_probe_reachable` bằng 0 ở mọi phép thử. |
+
+Các mục kube-bench FAIL và lý do trên kind (chạy lại cùng benchmark trong node để đọc tên mục): 1.1.12 thư mục dữ liệu etcd không thuộc `etcd:etcd` (kind chạy etcd bằng root); 1.2.5 thiếu `--kubelet-certificate-authority`, 1.2.17 thiếu `--audit-log-maxage`, 1.3.2 và 1.4.1 chưa đặt `--profiling=false` cho controller-manager, scheduler (cụm gọn dùng cấu hình kubeadm mặc định của kind, còn khuôn `cell-cluster` của cụm thật đặt đủ các cờ này); 5.1.1, 5.1.3, 5.1.5, 5.1.6 về `cluster-admin`, ký tự đại diện trong Role, ServiceAccount mặc định và token gắn tự động, do thành phần hệ thống của kind và các operator thử (Strimzi, cert-manager, CNPG) gây ra; 4.1.1, 4.1.9 quyền tệp dịch vụ và cấu hình kubelet của ảnh node kind là 644. Số mục trong Job (11 ở master) nhiều hơn khi chạy trong node (9) vì Job không có token API nên các mục nhóm 5 được chấm theo cấu hình tĩnh.
+
+Lỗi phát hiện khi chạy thật và đã sửa:
+
+1. `observability-cell`, `otel-collector` và `kiem-thu-quan-sat.sh` dùng broker `kafka-kafka-bootstrap`, trong khi chart kafka đặt tên cụm `kafka-cell` nên service là `kafka-cell-kafka-bootstrap` (ghi điểm lệch TL-04 ở wiki trang 14).
+2. `observability-cell` thiếu NetworkPolicy cho Fluent Bit ra Kafka, nên default-deny của `observability` chặn luồng `sys.audit.v1`; thêm `fluent-bit-ra-kafka`.
+3. Falcosidekick đặt CA và chứng thư máy khách OTLP qua `extraenvvars`, mà khoá đi qua viper nên bị đổi sang chữ thường; SDK OTLP không đọc, `otel-siem` từ chối với "certificate signed by unknown authority". Nay đặt ba biến `OTEL_EXPORTER_OTLP_LOGS_*` trên container, kiểm thử chart khẳng định điều này.
+4. Job kube-bench không gắn token ServiceAccount nên kube-bench không biết phiên bản Kubernetes và lùi về benchmark của 1.18; nay ghim `kubeBench.benchmark: cis-1.10`.
+5. `values-kind-an-ninh.yaml` trỏ ảnh về nguồn gốc (docker.io, ghcr) và số node kube-bench của cụm gọn; `values-kind-fluent-bit-audit.yaml` mới cho luồng kiểm toán.
+
+Chưa chạy được và lý do: DaemonSet Falco không khởi động trong máy agent vì sandbox giới hạn cứng `RLIMIT_MEMLOCK` 8 MiB và không có `CAP_SYS_RESOURCE` ở tập giới hạn; libpman báo "unable to bump RLIMIT_MEMLOCK to RLIM_INFINITY" kể cả với `docker run --privileged`, dù nhân 6.18 có BTF. Trên node thường (có `CAP_SYS_RESOURCE`) script tự bật lại phần kiểm Falco thật (biến `FALCO=1`). Tetragon và kured không chạy vì cụm gọn không có Cilium và chỉ có một worker.

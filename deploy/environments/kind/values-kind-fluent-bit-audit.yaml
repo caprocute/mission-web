@@ -3,6 +3,7 @@
 # của cell bằng mTLS (Secret fluent-bit-kafka từ KafkaUser audit-writer), đúng khối [OUTPUT] k8saudit của values.yaml.
 # Không Loki, không đọc log container. kiem-thu-an-ninh.sh render riêng phần charts/fluent-bit với tệp này.
 cell: kind
+canhBaoQuanTri: { enabled: false }
 fluent-bit:
   serviceMonitor: { enabled: false }
   env:

@@ -380,6 +380,7 @@ Mục này do task NEN-004 lập, gom các điểm lệch giữa tài liệu thi
 
 | Chủ đề | Nguồn A | Nguồn B | Đề xuất chốt và lý do | Task ảnh hưởng | Trạng thái |
 |---|---|---|---|---|---|
+| Tên bootstrap Kafka của cell trong cấu hình Fluent Bit | TL-04 L3413, L3427 (mẫu Fluent Bit): `kafka-kafka-bootstrap.data-kafka.svc:9093` | TL-04 L1022, L1285, L1299 và chart `vt-platform/ha-tang/kafka` (cụm `kafka-cell`): `kafka-cell-kafka-bootstrap.data-kafka.svc:9093` | `kafka-cell-kafka-bootstrap`: Strimzi đặt tên service theo tên cụm, và chạy thật trên kind (INF-19, 24/10/2026) cho thấy tên kia không phân giải được; đã sửa `observability-cell`, `otel-collector`, kiểm thử kind. Sửa mẫu Fluent Bit của TL-04 ở lần phát hành sau | INF-14, INF-19 | đã chốt ở chart, chờ TL-04 |
 | Mã xung đột `If-Match` | TL-01 L2880: `412 Precondition Failed` | Baseline mục 13, BS-02 L54 (HD-01): 409, thiếu header thì 428; `docs/quy-dinh/BACKEND.md` L17 | 409, theo HD-01 vì hợp đồng thắng với API | CORE-*, DV-* | đã chốt |
 | Thời hạn `Idempotency-Key` | TL-01 L2878: hạn 24 giờ | TL-03 L877: giữ 48 giờ; BS-02 L55 (HD-02): 48 giờ | 48 giờ, theo HD-02 và TL-03 | NEN-032, CORE-* | đã chốt |
 | Tên vai trò trong token | TL-01 Phụ lục C L3762 trở đi: `staff`, `org_officer`, `policy_approver` | Baseline mục 10, BS-02 L58 (HD-05): tên vai trò của baseline; BS-02 L60 (HD-07): CHECK `actor_role` của TL-03 vẫn giữ `staff` | Theo HD-05 và HD-07: token và mã dùng tên baseline, dữ liệu cột `actor_role` giữ `staff` ánh xạ sang `member` | CORE-04-*, DV-02 | đã chốt |
