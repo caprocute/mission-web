@@ -38,6 +38,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import List
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
@@ -103,7 +104,7 @@ def connector_dev() -> dict:
     return out
 
 
-def bang(cfg: dict) -> list[str]:
+def bang(cfg: dict) -> List[str]:
     return [t.replace("\\.", ".") for t in cfg["table.include.list"].split(",") if t]
 
 
@@ -111,14 +112,14 @@ def psql(env: dict, db: str, sql: str) -> str:
     user = env.get("POSTGRES_USER") or env.get("PG_SUPERUSER") or "mission_admin"
     kq = subprocess.run(
         ["docker", "exec", "-i", f"{PROJECT}-postgres", "psql", "-v", "ON_ERROR_STOP=1", "-q", "-At", "-U", user, "-d", db],
-        input=sql, capture_output=True, text=True,
+        input=sql, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
     )
     if kq.returncode != 0:
         sys.exit(f"psql ({db}) lỗi: {kq.stderr.strip()[:600]}")
     return kq.stdout
 
 
-def chuan_bi_nguon(env: dict, db: str, tables: list[str]) -> None:
+def chuan_bi_nguon(env: dict, db: str, tables: List[str]) -> None:
     role = env.get("DEBEZIUM_DB_USER", "cdc_debezium")
     if not re.fullmatch(r"[a-z_][a-z0-9_]*", role):
         sys.exit("DEBEZIUM_DB_USER không hợp lệ")
@@ -201,7 +202,7 @@ def ap_kho(env: dict) -> None:
     e["ANALYTICS_ORG_DB"] = DEV_DB
     e["ANALYTICS_WORKFLOW_DB"] = "flowable"
     kq = subprocess.run(
-        [sys.executable, "-I", str(REPO / "analytics" / "clickhouse" / "migrate.py")], env=e, capture_output=True, text=True
+        [sys.executable, "-I", str(REPO / "analytics" / "clickhouse" / "migrate.py")], env=e, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
     )
     if kq.returncode != 0:
         loi = (kq.stderr or kq.stdout).strip()[-800:]
