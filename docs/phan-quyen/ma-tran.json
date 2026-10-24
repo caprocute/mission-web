@@ -4990,12 +4990,12 @@
     "AC-06": "GET",
     "AC-07": "GET",
     "AC-08": "GET",
-    "AC-09": "GET",
+    "AC-09": "GET POST",
     "AC-10": "GET",
     "AC-11": "-",
     "AC-12": "-"
    },
-   "ghi_chu": "AC-01 = tenants; AC-02 = bước 4, 5, feature-flags, holiday-calendars; AC-03 = anomaly-thresholds (GET suy luận: đọc bản hiện hành trước khi sửa ở SCR-1401, QA-05 23/10/2026); người dùng khác GET lịch ngày làm việc. AC-02, AC-04 POST còn gồm role-bindings, delegations (SCR-0105, SCR-0107).",
+   "ghi_chu": "AC-01 = tenants; AC-02 = bước 4, 5, feature-flags, holiday-calendars; AC-03 = anomaly-thresholds (GET suy luận: đọc bản hiện hành trước khi sửa ở SCR-1401, QA-05 23/10/2026); người dùng khác GET lịch ngày làm việc. AC-02, AC-04 POST còn gồm role-bindings, delegations (SCR-0105, SCR-0107). AC-09 POST là duyệt thứ hai huỷ và bù trừ khoá kỳ (SCR-0801.duyet-huy, BR-08-09; QA-06 24/10/2026).",
    "nguon": "SCR-0101, SCR-0102, SCR-0801, SCR-1401, SCR-0105..SCR-0107",
    "ngoai_baseline": false
   },

@@ -909,6 +909,8 @@ services:
       # thực thi Flowable, thiếu thì lệnh khoá kỳ đứng mãi ở "Đang chạy" với mọi bước "Chờ" (QA-06).
       SPRING_PROFILES_ACTIVE: dev
       WF_ASYNC_ENABLED: "true"
+      # Mỗi bước giả lập xong gần như ngay; nhịp 4 giây cho người dùng kịp tạm dừng hoặc đề nghị huỷ (HT-24).
+      SAGA_WORKER_POLL: 4s
       # MOD-08 là bên tham gia thật của saga chốt kỳ: gọi cổng nội bộ của mission-core bằng token client credentials
       # của client workflow-service (scripts/them-client-workflow-service.sh), tenant đích ở X-Tenant-Id.
       SAGA_PERIOD_CLOSE_MOD08: NOI

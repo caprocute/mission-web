@@ -232,7 +232,8 @@
         "second_approver": {
           "inferred_methods": [],
           "methods": [
-            "GET"
+            "GET",
+            "POST"
           ]
         },
         "tenant_admin": {

@@ -239,12 +239,14 @@ public class PeriodLockService {
   }
 
   /**
-   * Lệnh khoá hiện hành của kỳ (chưa huỷ) cho trường {@code currentLockOrder} của {@code Period}:
-   * SCR-0801 hiện người lập, người duyệt và trạng thái lệnh từ trường này (QA-06 HT-23).
+   * Lệnh khoá hiện hành của kỳ cho trường {@code currentLockOrder} của {@code Period}: lệnh chưa
+   * huỷ, nếu không có thì lệnh gần nhất (kể cả đã huỷ). SCR-0801 hiện người lập, người duyệt và
+   * trạng thái lệnh từ trường này (HT-23), hiện kết quả hoàn tác và cho lập lệnh mới khi lệnh gần
+   * nhất đã huỷ (HT-24).
    */
   @Transactional(value = TX, readOnly = true)
   public Optional<PeriodLockOrder> current(TenantId tenantId, PeriodId periodId) {
-    return orders.active(tenantId, periodId);
+    return orders.active(tenantId, periodId).or(() -> orders.latest(tenantId, periodId));
   }
 
   /** Lệnh của kỳ theo mã (để phát lại phản hồi đã lưu). */

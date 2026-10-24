@@ -3066,7 +3066,7 @@ api_cases := [
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "config", "role": "policy_author"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "config", "role": "policy_author"},
 	{"expect": "allow", "inferred": false, "method": "GET", "module": "config", "role": "second_approver"},
-	{"expect": "role_not_allowed", "inferred": false, "method": "POST", "module": "config", "role": "second_approver"},
+	{"expect": "allow", "inferred": false, "method": "POST", "module": "config", "role": "second_approver"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PUT", "module": "config", "role": "second_approver"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "PATCH", "module": "config", "role": "second_approver"},
 	{"expect": "role_not_allowed", "inferred": false, "method": "DELETE", "module": "config", "role": "second_approver"},

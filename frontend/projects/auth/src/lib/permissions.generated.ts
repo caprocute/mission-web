@@ -465,7 +465,7 @@ export const API_PERMISSION_TABLE: Readonly<
   },
   config: {
     GET: 'platform_admin tenant_admin policy_author* leader manager member appraiser decider second_approver inspector',
-    POST: 'platform_admin tenant_admin leader',
+    POST: 'platform_admin tenant_admin leader second_approver',
     PUT: 'tenant_admin policy_author',
     PATCH: 'platform_admin tenant_admin',
     DELETE: 'platform_admin',
