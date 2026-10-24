@@ -42,6 +42,9 @@ LY_DO = {
     "canh_bao": "Cảnh báo do luật phát hiện sinh ra từ dữ liệu thật (check-in nhảy vọt, OKR chép nhau); dữ liệu nạp "
                 "đã có check-in nhảy hơn 50% nên có thể xuất hiện, chưa xác nhận trên dev.",
     "dang_ky": "Đăng ký nhiệm vụ cần mục danh mục gắn vị trí việc làm; dữ liệu tổ chức thử chưa có vị trí việc làm.",
+    "ky_so": "Duyệt kế hoạch mở phiên ký số qua dịch vụ ký số (esign-service) chưa triển khai trên dev, nên bước duyệt "
+             "báo hệ thống bận; kế hoạch Sở Tài chính dừng ở chờ duyệt kèm đủ dòng danh mục, kế hoạch có dòng ngoài danh "
+             "mục còn cần bước định điểm (BR-04-05) chưa có trên máy chủ. Trả lại, so sánh phiên bản vẫn thử được.",
     "ui_pack": "UI Pack chỉ nạp được khi máy nạp có Python 3.10 trở lên; máy chủ dev bỏ qua, quản trị tự soạn.",
     "lich_su_tc": "Cây tổ chức thử chỉ có bản hiện hành, chưa có lịch sử thay đổi; thử thay đổi tổ chức để tạo lịch sử.",
     "nen_tang": "Vai trò quản trị nền tảng, mẫu luồng nội bộ nền tảng: tenant thử tạo bằng SQL, không có tài khoản AC-01.",
@@ -88,11 +91,10 @@ TINH_TRANG = OrderedDict([
     ("SCR-0402.xem", (CO, "Kế hoạch quý: nháp, chờ duyệt, trả lại, đã duyệt (mỗi tenant hai kế hoạch)")),
     ("SCR-0402.lap", (CO, "Kế hoạch nháp của Tỉnh uỷ, UBND tỉnh, Công ty để lập tiếp; kế hoạch bị trả lại để sửa")),
     ("SCR-0402.gui-duyet", (CO, "Kế hoạch nháp đã có dòng để gửi duyệt")),
-    ("SCR-0402.dieu-chinh", (CO, "Kế hoạch Sở Tài chính đã duyệt (chỉ gồm dòng danh mục) để tạo phiên bản điều chỉnh")),
+    ("SCR-0402.dieu-chinh", (TRUC_TIEP, "ky_so")),
     ("SCR-0403.so-sanh", (TRUC_TIEP, "Có sau khi tạo điều chỉnh kế hoạch (phiên bản 2)")),
     ("SCR-0403.tra-lai", (CO, "Kế hoạch chờ duyệt của Ban Tổ chức Tỉnh uỷ, Xí nghiệp Cấp nước số 1")),
-    ("SCR-0403.duyet-ky", (CO, "Kế hoạch chờ duyệt; ký số cần xác thực bước lên và MySign giả lập trên dev. Kế hoạch có "
-                            "dòng ngoài danh mục chỉ duyệt được sau bước định điểm (BR-04-05), máy chủ dev chưa có bước này")),
+    ("SCR-0403.duyet-ky", (TRUC_TIEP, "ky_so")),
     ("SCR-0501.soan", (CO, "Mỗi tenant một nhiệm vụ nháp chưa giao")),
     ("SCR-0501.giao", (CO, "Nhiệm vụ nháp để giao; nhiệm vụ đã giao chưa nhận để giao lại")),
     ("SCR-0501.giao-dong-loat", (TRUC_TIEP, "Giao cho nhiều phòng, xã trong cây tổ chức")),
@@ -249,7 +251,8 @@ def thong_ke_nguon():
                                  sum(1 for n in D.NHIEM_VU[ma] if n.get("de_nghi")),
                                  sum(1 for n in D.NHIEM_VU[ma] if n.get("nhac")),
                                  sum(1 for n in D.NHIEM_VU[ma] if n.get("giao_lai")))),
-            ("Kế hoạch quý", ", ".join(NHAN_KH[k["dich"]] for k in D.KE_HOACH[ma])),
+            ("Kế hoạch quý", ", ".join(NHAN_KH[k["dich"]] for k in D.KE_HOACH[ma]).replace(
+                "đã duyệt", "chờ duyệt kèm ký số (dev chưa có dịch vụ ký số)")),
             ("Uỷ quyền, phân quyền thêm", "%d, %d" % (len(D.UY_QUYEN[ma]), len(D.PHAN_QUYEN[ma]))),
             ("Policy Pack mẫu", t["goi_chinh_sach"]["goi"].split("/", 2)[-1]),
         ]))

@@ -553,6 +553,11 @@ class NapTenant:
                         {"signMethod": "MYSIGN", "comment": "Đồng ý kế hoạch, đề nghị triển khai."}, if_match=etag(ver, e))
                     print("  Đã thay dòng ngoài danh mục, trình lại và gửi duyệt kèm ký số kế hoạch")
                     trang_thai = "DA_DUYET (đang ký)"
+                elif ex.code == 503:
+                    # Duyệt kế hoạch mở saga ký số qua esign-service; môi trường dev chưa triển khai dịch vụ này nên
+                    # kế hoạch dừng ở chờ duyệt. Không coi là lỗi của bộ nạp; khi có dịch vụ, lần nạp sau sẽ duyệt.
+                    print("  Chưa duyệt được kế hoạch: dịch vụ ký số chưa sẵn sàng trên môi trường này")
+                    trang_thai = "CHO_DUYET, chờ dịch vụ ký số"
                 else:
                     self.dem("Kế hoạch quý (%s)" % trang_thai, moi)
                     raise RuntimeError("Duyệt kế hoạch cần ký số và xác thực bước lên trên dev: %s" % ex)

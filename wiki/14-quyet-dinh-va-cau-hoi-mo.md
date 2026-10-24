@@ -2411,6 +2411,7 @@ esign-service ký bằng khoá của tổ chức trong HSM qua PKCS#11 (SunPKCS1
 
 - `config.role_binding` là nguồn sự thật của vai trò (WEB-058 phương án A): uỷ quyền (`DelegationService.requireLeaderOf`), duyệt thứ hai vai trò và đồng bộ ngược sang Keycloak (`RealmRoleSync`) đều đọc bảng này, không đọc realm role. Tài khoản chỉ có realm role (như 13 tài khoản thử cũ của `seed-org.sh`) không khai được uỷ quyền và sẽ bị đối soát gỡ vai trò; bộ dữ liệu đa tenant vì vậy sinh bản ghi vai trò theo đơn vị cho 51 tài khoản ngay trong SQL seed. Việc chờ: bổ sung bản ghi tương tự cho 13 tài khoản thử cũ.
 - Hợp đồng có `POST /plans/{id}/versions/{v}/items/{itemId}/score` (định độ khó, điểm chuẩn cho dòng ngoài danh mục, BR-04-05) nhưng mission-core chưa hiện thực; `PlanService` bỏ trống điểm của dòng ngoài danh mục và `PlanApprovalService` từ chối duyệt khi còn dòng chưa định điểm, nên kế hoạch có dòng ngoài danh mục hiện không duyệt được trên dev. Theo YC-PT-09 sửa mã, không sửa hợp đồng; việc chờ luồng máy chủ (MOD-02). Bộ dữ liệu thử chỉ đặt dòng ngoài danh mục ở kế hoạch nháp, chờ duyệt, trả lại.
+- Duyệt kế hoạch (`PlanApprovalService.approve`) mở saga ký số qua `esign-service`; dev chưa triển khai dịch vụ này (cần SoftHSM, TSA giả lập) nên trả 503 "Hệ thống đang bận" và kế hoạch dừng ở `CHO_DUYET`. Bộ nạp đa tenant coi 503 ở bước này là chờ dịch vụ, không phải lỗi. Việc chờ: triển khai esign-service trên dev (INF/DV-10).
 
 ## Liên quan
 
