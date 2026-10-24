@@ -173,7 +173,7 @@ Cột tình trạng: **Có** là dữ liệu nạp sẵn đúng cho tính năng;
 | Xem kế hoạch quý của đơn vị | — | Lãnh đạo, Quản lý, Cán bộ, Thẩm định | Có | Kế hoạch quý: nháp, chờ duyệt, trả lại, đã duyệt (mỗi tenant hai kế hoạch) | `tu.chanhvp`, `cq.chanhvp`, `dn.chutich` |
 | Lập kế hoạch: sao chép quý trước, gợi ý từ OKR, thêm dòng, lưu nháp | Quản lý | — | Có | Kế hoạch nháp của Tỉnh uỷ, UBND tỉnh, Công ty để lập tiếp; kế hoạch bị trả lại để sửa | `tu.truongphongth`, `cq.truongphongth`, `dn.truongphongkd` |
 | Gửi duyệt kế hoạch | Quản lý | — | Có | Kế hoạch nháp đã có dòng để gửi duyệt | `tu.truongphongth`, `cq.truongphongth`, `dn.truongphongkd` |
-| Tạo điều chỉnh kế hoạch (phiên bản n+1) | Quản lý | — | Có | Kế hoạch Sở Tài chính đã duyệt (nếu ký số trên dev thành công) để tạo phiên bản điều chỉnh | `tu.truongphongth`, `cq.truongphongth`, `dn.truongphongkd` |
+| Tạo điều chỉnh kế hoạch (phiên bản n+1) | Quản lý | — | Có | Kế hoạch Sở Tài chính đã duyệt (chỉ gồm dòng danh mục) để tạo phiên bản điều chỉnh | `tu.truongphongth`, `cq.truongphongth`, `dn.truongphongkd` |
 
 ### SCR-0403 Phê duyệt kế hoạch (so sánh phiên bản)
 
@@ -181,7 +181,7 @@ Cột tình trạng: **Có** là dữ liệu nạp sẵn đúng cho tính năng;
 |---|---|---|---|---|---|
 | So sánh phiên bản kế hoạch | — | Lãnh đạo | Thử trực tiếp | Có sau khi tạo điều chỉnh kế hoạch (phiên bản 2) | `tu.chanhvp`, `cq.chanhvp`, `dn.chutich` |
 | Trả lại kế hoạch với ý kiến | Lãnh đạo | — | Có | Kế hoạch chờ duyệt của Ban Tổ chức Tỉnh uỷ, Xí nghiệp Cấp nước số 1 | `tu.chanhvp`, `cq.chanhvp`, `dn.chutich` |
-| Duyệt và ký số kế hoạch | Lãnh đạo | — | Có | Kế hoạch chờ duyệt; ký số cần xác thực bước lên và MySign giả lập trên dev | `tu.chanhvp`, `cq.chanhvp`, `dn.chutich` |
+| Duyệt và ký số kế hoạch | Lãnh đạo | — | Có | Kế hoạch chờ duyệt; ký số cần xác thực bước lên và MySign giả lập trên dev. Kế hoạch có dòng ngoài danh mục chỉ duyệt được sau bước định điểm (BR-04-05), máy chủ dev chưa có bước này | `tu.chanhvp`, `cq.chanhvp`, `dn.chutich` |
 
 ### SCR-0501 Giao việc
 

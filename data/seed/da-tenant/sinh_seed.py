@@ -2,7 +2,8 @@
 """Sinh tệp seed của bộ dữ liệu thử đa tenant từ `du_lieu.py` (giả lập, YC-PT-13).
 
 Sinh ba tệp, commit cùng mã nguồn:
-  infra/dev/postgres/seed/da-tenant-du-lieu-thu.sql  tenant-registry, tổ chức (org), căn cứ OKR, danh mục công việc
+  infra/dev/postgres/seed/da-tenant-du-lieu-thu.sql  tenant-registry, tổ chức (org), vai trò (config.role_binding), căn cứ OKR,
+                                                     danh mục công việc
   infra/dev/keycloak/tai-khoan-da-tenant.json        tài khoản realm `mission` (mật khẩu, khoá OTP là biến thay thế)
   data/seed/da-tenant/TAI-KHOAN.md                   bảng tài khoản theo tenant, dùng cho kịch bản trải nghiệm
   infra/dev/postgres/seed/da-tenant-policy-<ma>.sql  Policy Pack mẫu của từng tenant (gọi data/policy-pack/sinh_seed_dev.py,
@@ -32,6 +33,13 @@ MD = HERE / "TAI-KHOAN.md"
 POLICY_SCRIPT = ROOT / "data/policy-pack/sinh_seed_dev.py"
 HE_THONG = "00000000-0000-0000-0000-000000000000"
 HE_THONG_V7 = "00000000-0000-7000-8000-000000000000"
+# Tài khoản kỹ thuật thứ hai của seed làm người duyệt vai trò nhạy cảm (ràng buộc bốn mắt approved_by <> granted_by).
+HE_THONG_DUYET = "00000000-0000-7000-8000-000000000001"
+# config.role_binding là nguồn sự thật của vai trò (WEB-058 phương án A): vai trò phạm vi toàn tenant đặt ở đơn vị
+# gốc với cấp dưới; lãnh đạo, thẩm định ở đơn vị mình kèm cấp dưới; quản lý, cán bộ, quản trị nghiệp vụ ở đơn vị mình.
+VAI_TRO_TOAN_TENANT = ("tenant_admin", "decider", "second_approver", "inspector")
+VAI_TRO_CAP_DUOI = ("leader", "appraiser")
+VAI_TRO_NHAY_CAM = ("decider", "second_approver", "policy_author")
 
 
 def q(s):
@@ -400,6 +408,24 @@ def sinh_sql():
             "       a.unit::uuid, a.title::uuid, a.kind, a.branch, a.head, '2000-01-01', %s, %s\n"
             "FROM (VALUES\n%s\n) AS a(person, unit, title, kind, branch, head)\nON CONFLICT DO NOTHING;"
             % (q(tid), q(HE_THONG), q(HE_THONG), ",\n".join(dong))
+        )
+        dong = []
+        for p in t["can_bo"]:
+            for r in p["vai_tro"]:
+                dvr = 0x100 if r in VAI_TRO_TOAN_TENANT else p["dv"]
+                pham_vi = "DON_VI" if r not in VAI_TRO_TOAN_TENANT + VAI_TRO_CAP_DUOI else "DON_VI_VA_CAP_DUOI"
+                duyet = q(HE_THONG_DUYET) if r in VAI_TRO_NHAY_CAM else "NULL"
+                dong.append("  (%s, %s, %s, %s, %s::uuid)" % (q(u(p["so"])), q(r), q(u(dvr)), q(pham_vi), duyet))
+        out.append(
+            "INSERT INTO config.role_binding (id, tenant_id, created_by, updated_by, person_id, role_code, org_unit_id,\n"
+            "                                 scope, valid_from, granted_by, granted_at, approved_by, approved_at, reason)\n"
+            "SELECT md5('role-binding:' || r.person || ':' || r.role || ':' || r.unit)::uuid, %s, %s, %s, r.person::uuid,\n"
+            "       r.role, r.unit::uuid, r.scope, '2026-01-01', %s, '2026-01-01', r.duyet, CASE WHEN r.duyet IS NULL THEN NULL\n"
+            "       ELSE '2026-01-01'::timestamptz END, 'Bộ dữ liệu thử đa tenant: vai trò theo phân công'\n"
+            "FROM (VALUES\n%s\n) AS r(person, role, unit, scope, duyet)\n"
+            "WHERE NOT EXISTS (SELECT 1 FROM config.role_binding b WHERE b.tenant_id = %s AND b.person_id = r.person::uuid\n"
+            "                  AND b.role_code = r.role AND b.org_unit_id = r.unit::uuid AND b.end_kind IS NULL);"
+            % (q(tid), q(HE_THONG_V7), q(HE_THONG_V7), q(HE_THONG_V7), ",\n".join(dong), q(tid))
         )
         dong = ["  (%s, %s, %s, %s, %s)" % (q(u(so)), q(kind), q(num), q(ten), q(ngay))
                 for so, kind, num, ten, ngay in t["can_cu"]]

@@ -400,20 +400,38 @@ class NapTenant:
         # Trình nghiệm thu, nghiệm thu
         ct, e = self.chi_tiet(t_chu, nv["id"])
         if dich in ("CHO_NGHIEM_THU", "HOAN_THANH") and ct["status"] == "DANG_THUC_HIEN":
-            ct, e = goi(t_chu, "POST", "/tasks/%s/transitions" % nv["id"],
-                        {"transition": "TRINH_NGHIEM_THU", "reason": "Đã hoàn thành sản phẩm, đề nghị nghiệm thu."},
-                        if_match=etag(ct, e))
+            # Guard trình nghiệm thu: khối lượng đã làm phải đủ kế hoạch (chưa có sản phẩm nộp thì lấy doneQuantity).
+            if float(ct.get("doneQuantity") or 0) < float(n["sl"]):
+                goi(t_chu, "POST", "/tasks/%s/progress" % nv["id"],
+                    {"percent": max(int(ct.get("progress") or 0), n["tien_do"] or 100), "doneQuantity": n["sl"],
+                     "note": "Đã hoàn thành đủ khối lượng sản phẩm theo kế hoạch.", "channel": "WEB"},
+                    if_match=etag(ct, e))
+                ct, e = self.chi_tiet(t_chu, nv["id"])
+            ct, e = self.chuyen(t_chu, nv["id"], "TRINH_NGHIEM_THU", "Đã hoàn thành sản phẩm, đề nghị nghiệm thu.",
+                                etag(ct, e))
             print("  Đã trình nghiệm thu: %s" % ten)
         if dich == "HOAN_THANH" and ct["status"] == "CHO_NGHIEM_THU":
             ct, e = self.chi_tiet(t_giao, nv["id"])
-            ct, e = goi(t_giao, "POST", "/tasks/%s/transitions" % nv["id"],
-                        {"transition": "HOAN_THANH", "reason": "Sản phẩm đạt yêu cầu, nghiệm thu hoàn thành."},
-                        if_match=etag(ct, e))
+            ct, e = self.chuyen(t_giao, nv["id"], "HOAN_THANH", "Sản phẩm đạt yêu cầu, nghiệm thu hoàn thành.",
+                                etag(ct, e))
             print("  Đã nghiệm thu hoàn thành: %s" % ten)
         ct, _ = self.chi_tiet(t_giao, nv["id"])
         self.dem("Nhiệm vụ (%s)" % ct["status"], moi)
         if ct["status"] != dich:
             raise RuntimeError("Nhiệm vụ '%s' đang ở %s, chưa tới trạng thái đích %s" % (ten[:40], ct["status"], dich))
+
+    def chuyen(self, tok, nv_id, lenh, ly_do, if_match):
+        """Chuyển trạng thái; khi máy chủ từ chối vì guard, kèm số liệu nhiệm vụ để biết thiếu điều kiện nào."""
+        try:
+            return goi(tok, "POST", "/tasks/%s/transitions" % nv_id, {"transition": lenh, "reason": ly_do},
+                       if_match=if_match)
+        except LoiApi as ex:
+            if ex.code != 422:
+                raise
+            ct, _ = self.chi_tiet(tok, nv_id)
+            raise RuntimeError("%s (nhiệm vụ đang %s, tiến độ %s%%, đã làm %s/%s %s)" % (
+                ex, ct.get("status"), ct.get("progress"), ct.get("doneQuantity"), ct.get("plannedQuantity"),
+                ct.get("unit") or ""))
 
     def nap_nghen(self, n, nv_id, t_chu, t_giao):
         ng = n["nghen"]
