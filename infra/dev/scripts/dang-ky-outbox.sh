@@ -30,7 +30,7 @@ starter_jar() {
     "${HOME}"/.m2/repository/vn/viettel/okrkpi/vt-platform-starter/*/vt-platform-starter-*.jar; do
     [[ -n "${j}" && -f "${j}" && "${j}" != *-sources.jar && "${j}" != *-tests.jar ]] && { echo "${j}"; return; }
   done
-  echo "LỖI: không thấy jar vt-platform-starter (chạy mvnw -pl libs/vt-platform-starter install hoặc đặt STARTER_JAR)" >&2
+  echo "LỖI: không thấy jar vt-platform-starter (chạy mvnw -pl libs/vt-platform-starter install, đặt STARTER_JAR, hoặc chạy trien-khai-lai.sh với JAR_BUILD=may-tram để chép kèm jar)" >&2
   exit 1
 }
 
