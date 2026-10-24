@@ -34,6 +34,8 @@ class TenantRoutingDataSourceTest {
       UUID.fromString("0195f3a0-0000-7000-8000-000000000004");
   private static final UUID TENANT_MIGRATING_ID =
       UUID.fromString("0195f3a0-0000-7000-8000-000000000005");
+  private static final UUID TENANT_SUSPENDED_ID =
+      UUID.fromString("0195f3a0-0000-7000-8000-000000000006");
   private static final UUID TENANT_UNKNOWN_ID =
       UUID.fromString("0195f3a0-0000-7000-8000-000000000099");
 
@@ -114,6 +116,18 @@ class TenantRoutingDataSourceTest {
             List.of(),
             1L,
             expiry));
+    directory.put(
+        new TenantCellRoute(
+            TENANT_SUSPENDED_ID,
+            "hcm_paused",
+            "cell-hcm-01",
+            null,
+            TenancyModel.BRIDGE,
+            "td_hcm_paused",
+            "TAM_NGUNG",
+            List.of(),
+            1L,
+            expiry));
 
     StubDataSource poolDs = new StubDataSource("td_pool");
     TenantRoutingDataSource routingDs =
@@ -171,6 +185,11 @@ class TenantRoutingDataSourceTest {
                 .isInstanceOf(TenantRoutingException.class)
                 .extracting(ex -> ((TenantRoutingException) ex).reason())
                 .isEqualTo(TenantRoutingException.Reason.TENANT_MIGRATING_OR_UNAVAILABLE));
+
+    // 6b. Tenant TAM_NGUNG vẫn có kết nối để đọc (TL-04 mục 11.4); ghi bị bộ lọc HTTP chặn trước.
+    TenantContext.run(
+        TenantId.of(TENANT_SUSPENDED_ID),
+        () -> assertThat(routingDs.resolveTargetDatabaseName()).isEqualTo("td_hcm_paused"));
 
     // 7. Unknown tenant -> throws TENANT_NOT_FOUND
     TenantContext.run(

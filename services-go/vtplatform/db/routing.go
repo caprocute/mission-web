@@ -61,10 +61,28 @@ func DefaultDatabaseName(model TenancyModel, tenantCode string) string {
 	return "td_" + sanitized
 }
 
-// IsUnavailable kiểm tra trạng thái khách thuê không thể phục vụ giao dịch (DANG_CHUYEN_CELL, TAM_NGUNG, DA_CHAM_DUT).
+// IsUnavailable kiểm tra trạng thái khách thuê không thể phục vụ giao dịch (DANG_CHUYEN_CELL, DA_CHAM_DUT).
+// Khách thuê TAM_NGUNG không thuộc nhóm này: TL-04 mục 11.4 giữ dữ liệu, chỉ chặn ghi (xem IsSuspended).
 func (r TenantRoute) IsUnavailable() bool {
 	s := strings.ToUpper(strings.TrimSpace(r.Status))
-	return s == "DANG_CHUYEN_CELL" || s == "TAM_NGUNG" || s == "DA_CHAM_DUT"
+	return s == "DANG_CHUYEN_CELL" || s == "DA_CHAM_DUT"
+}
+
+// IsSuspended kiểm tra khách thuê đang tạm ngừng: vẫn đọc được, lệnh ghi của người dùng bị từ chối 403.
+func (r TenantRoute) IsSuspended() bool {
+	return strings.EqualFold(strings.TrimSpace(r.Status), "TAM_NGUNG")
+}
+
+// suspendedProblem là phản hồi 403 COMMON-403-FORBIDDEN kèm tenantCode, tenantStatus để giao diện hiện thông báo
+// tạm ngừng (MSG-00-07), cùng dạng với bộ lọc của thư viện nền Java.
+type suspendedProblem struct {
+	problem.ProblemDetails
+	TenantCode   string `json:"tenantCode"`
+	TenantStatus string `json:"tenantStatus"`
+}
+
+func isReadMethod(m string) bool {
+	return m == http.MethodGet || m == http.MethodHead || m == http.MethodOptions
 }
 
 // TenantChangedEvent biểu diễn sự kiện Kafka okr.registry.tenant.v1 (TenantChanged) để cập nhật bộ nhớ đệm.
@@ -397,7 +415,8 @@ func (r *PoolRouter) InRoutedTx(ctx context.Context, fn func(ctx context.Context
 }
 
 // CellRoutingMiddleware kiểm tra cell và trạng thái của khách thuê ở tầng HTTP cho dịch vụ Go:
-// trả về 503 nếu khách thuê đang chuyển cell/tạm ngưng và 421 nếu gửi nhầm cell.
+// trả về 503 nếu khách thuê đang chuyển cell hoặc đã chấm dứt, 403 cho lệnh ghi của khách thuê tạm ngừng
+// (lệnh đọc đi tiếp) và 421 nếu gửi nhầm cell.
 func CellRoutingMiddleware(directory *Directory, localCellCode string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -423,6 +442,16 @@ func CellRoutingMiddleware(directory *Directory, localCellCode string) func(http
 					Code:     "COMMON-503-SERVICE-UNAVAILABLE",
 					TraceID:  traceID,
 				})
+				return
+			}
+			if route.IsSuspended() && !isReadMethod(r.Method) {
+				pd := problem.Forbidden(
+					"Đơn vị của bạn đang tạm ngừng sử dụng hệ thống. Bạn vẫn xem được dữ liệu nhưng chưa thể cập nhật cho tới khi đơn vị được mở lại.",
+					r.URL.Path, traceID)
+				w.Header().Set("Content-Type", problem.ContentType)
+				w.Header().Set("X-Content-Type-Options", "nosniff")
+				w.WriteHeader(http.StatusForbidden)
+				_ = json.NewEncoder(w).Encode(suspendedProblem{ProblemDetails: pd, TenantCode: route.TenantCode, TenantStatus: route.Status})
 				return
 			}
 			if !strings.EqualFold(localCellCode, route.CellCode) {

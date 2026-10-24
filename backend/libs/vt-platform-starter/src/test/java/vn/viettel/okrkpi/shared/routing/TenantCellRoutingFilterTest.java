@@ -25,6 +25,8 @@ class TenantCellRoutingFilterTest {
   private static final UUID TENANT_MOVED = UUID.fromString("0195f3a0-0000-7000-8000-000000000020");
   private static final UUID TENANT_MIGRATING =
       UUID.fromString("0195f3a0-0000-7000-8000-000000000030");
+  private static final UUID TENANT_SUSPENDED =
+      UUID.fromString("0195f3a0-0000-7000-8000-000000000040");
 
   private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
   private TenantDirectory directory;
@@ -81,6 +83,18 @@ class TenantCellRoutingFilterTest {
             "DANG_CHUYEN_CELL",
             List.of(),
             3L,
+            expiry));
+    directory.put(
+        new TenantCellRoute(
+            TENANT_SUSPENDED,
+            "hcm_paused",
+            "cell-hcm-01",
+            "https://cell-hcm-01.okrkpi.vn",
+            TenancyModel.POOL,
+            null,
+            "TAM_NGUNG",
+            List.of(),
+            4L,
             expiry));
 
     ProblemFactory problemFactory =
@@ -162,5 +176,65 @@ class TenantCellRoutingFilterTest {
     assertThat(json.get("status").asInt()).isEqualTo(503);
     assertThat(json.get("tenantCode").asText()).isEqualTo("hcm_moving");
     assertThat(json.get("tenantStatus").asText()).isEqualTo("DANG_CHUYEN_CELL");
+  }
+
+  /** TL-04 mục 11.4: tenant tạm ngừng giữ dữ liệu, vẫn đọc được. */
+  @Test
+  void letsSuspendedTenantRead() throws Exception {
+    for (String method : List.of("GET", "HEAD", "OPTIONS")) {
+      MockHttpServletResponse response = run(TENANT_SUSPENDED, method, "/api/v1/tasks");
+      assertThat(response.getStatus()).as(method).isEqualTo(200);
+    }
+  }
+
+  /**
+   * TL-04 mục 11.4: lệnh ghi của tenant tạm ngừng bị chặn, 403 kèm trạng thái để hiện MSG-00-07.
+   */
+  @Test
+  void rejectsWritesOfSuspendedTenantWith403() throws Exception {
+    for (String method : List.of("POST", "PUT", "PATCH", "DELETE")) {
+      MockHttpServletResponse response = run(TENANT_SUSPENDED, method, "/api/v1/tasks");
+      assertThat(response.getStatus()).as(method).isEqualTo(403);
+      assertThat(response.getHeader("Retry-After")).isNull();
+      JsonNode json = objectMapper.readTree(response.getContentAsByteArray());
+      assertThat(json.get("status").asInt()).isEqualTo(403);
+      assertThat(json.get("tenantCode").asText()).isEqualTo("hcm_paused");
+      assertThat(json.get("tenantStatus").asText()).isEqualTo("TAM_NGUNG");
+    }
+  }
+
+  @Test
+  void suspendedIsNotUnavailable() {
+    TenantCellRoute paused = directory.findByTenantId(TENANT_SUSPENDED).orElseThrow();
+    assertThat(paused.isSuspended()).isTrue();
+    assertThat(paused.isUnavailableStatus()).isFalse();
+    TenantCellRoute moving = directory.findByTenantId(TENANT_MIGRATING).orElseThrow();
+    assertThat(moving.isSuspended()).isFalse();
+    assertThat(moving.isUnavailableStatus()).isTrue();
+  }
+
+  private MockHttpServletResponse run(UUID tenant, String method, String path) {
+    MockHttpServletRequest request = new MockHttpServletRequest(method, path);
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    AtomicBoolean passed = new AtomicBoolean();
+    MockFilterChain chain =
+        new MockFilterChain() {
+          @Override
+          public void doFilter(
+              jakarta.servlet.ServletRequest req, jakarta.servlet.ServletResponse res) {
+            passed.set(true);
+          }
+        };
+    TenantContext.run(
+        TenantId.of(tenant),
+        () -> {
+          try {
+            filter.doFilter(request, response, chain);
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        });
+    assertThat(passed.get()).isEqualTo(response.getStatus() == 200);
+    return response;
   }
 }

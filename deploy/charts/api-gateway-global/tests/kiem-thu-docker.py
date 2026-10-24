@@ -21,8 +21,9 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 OPENER = urllib.request.build_opener(NoRedirect)
 
 
-def goi(path, host, headers=None):
-    req = urllib.request.Request(GW + path, headers={"Host": host, **(headers or {})})
+def goi(path, host, headers=None, method="GET"):
+    data = b"{}" if method in ("POST", "PUT", "PATCH") else None
+    req = urllib.request.Request(GW + path, data=data, method=method, headers={"Host": host, **(headers or {})})
     t = time.perf_counter()
     try:
         with OPENER.open(req, timeout=10) as r:
@@ -172,6 +173,31 @@ s, h, b, _ = goi("/api/v1/jobs/0192f1a2", "app.danhgia.vn")
 ca("tác vụ dài trên tên miền chung tới SVC-03", s == 200 and json.loads(b).get("registry") is True, f"(mã {s})")
 s, h, b, _ = goi("/api/v1/tasks", "khong-co.danhgia.vn")
 ca("tên miền không có trong registry: 404 Problem Details", problem(s, h, b, 404), f"(mã {s})")
+
+# TL-04 mục 11.4: tenant TAM_NGUNG vẫn đọc được, lệnh ghi bị chặn ở APISIX.
+ctl(suspend="a")
+time.sleep(2.3)
+s, h, b, _ = goi("/api/v1/tasks", A)
+ca("tenant tạm ngừng: GET vẫn tới cell", s == 200 and cell(b) == "cell-a", f"(mã {s})")
+s, h, b, _ = goi("/api/v1/tasks", A, method="HEAD")
+ca("tenant tạm ngừng: HEAD vẫn tới cell", s == 200, f"(mã {s})")
+for m in ("POST", "PUT", "PATCH", "DELETE"):
+    s, h, b, _ = goi("/api/v1/tasks/1", A, method=m)
+    j = json.loads(b or b"{}") if s == 403 else {}
+    ca(f"tenant tạm ngừng: {m} bị chặn 403, mã COMMON-403-FORBIDDEN, tenantStatus TAM_NGUNG",
+       problem(s, h, b, 403) and j.get("code") == "COMMON-403-FORBIDDEN" and j.get("tenantStatus") == "TAM_NGUNG",
+       f"(mã {s}, {b[:160]!r})")
+s, h, b, _ = goi("/realms/okrkpi/login-actions/authenticate", A, method="POST")
+ca("tenant tạm ngừng: biểu mẫu đăng nhập Keycloak không bị chặn ở cổng", s == 200 and cell(b) == "cell-a", f"(mã {s})")
+ck = make_cookie("11111111-1111-4111-8111-111111111111", "CELL-A", int(time.time()) + 300)
+s, h, b, _ = goi("/api/v1/tasks/1", A, {"Cookie": f"mission_route={ck}"}, method="POST")
+ca("tenant tạm ngừng, đi thẳng bằng cookie: lệnh ghi vẫn bị chặn", problem(s, h, b, 403), f"(mã {s})")
+s, h, b, _ = goi("/api/v1/tasks/1", "kpi.b.danhgia.vn", method="POST")
+ca("tenant khác đang vận hành: lệnh ghi đi bình thường", s == 200 and cell(b) == "cell-b", f"(mã {s})")
+ctl(unsuspend="a")
+time.sleep(2.3)
+s, h, b, _ = goi("/api/v1/tasks/1", A, method="POST")
+ca("mở lại tenant: lệnh ghi đi bình thường sau hạn đệm", s == 200 and cell(b) == "cell-a", f"(mã {s})")
 
 print(f"Tổng: {dat} đạt, {hong} hỏng")
 sys.exit(1 if hong else 0)
