@@ -145,10 +145,14 @@ async function guiDuyet(page: Page) {
   await expect(m.getByText(/Đã lưu nháp lúc/)).toBeVisible();
   const kiem = m.getByRole('region', { name: 'Kiểm tra kế hoạch' });
   await expect(kiem.getByRole('listitem').filter({ hasText: /^Lỗi/ })).toHaveCount(0);
-  await m.getByRole('button', { name: 'Gửi duyệt' }).click();
-  await expect(
-    thongBao(page, 'Đã gửi duyệt kế hoạch; lãnh đạo được thông báo để phê duyệt.'),
-  ).toBeVisible();
+  // nút tắt trong lúc lưu và kiểm tra lại sau khi lưu; bấm lúc nút vừa tắt thì không có tác dụng, nên
+  // bấm lại khi nút bật mà chưa có thông báo (máy chủ thật chậm hơn giả lập)
+  const gui = m.getByRole('button', { name: 'Gửi duyệt' });
+  const daGui = thongBao(page, 'Đã gửi duyệt kế hoạch; lãnh đạo được thông báo để phê duyệt.');
+  await expect(async () => {
+    if (!(await daGui.isVisible()) && (await gui.isEnabled())) await gui.click({ timeout: 2_000 });
+    await expect(daGui).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: 30_000 });
   await expect(m.getByText(/phiên bản \d+ · Chờ duyệt/).first()).toBeVisible();
 }
 
@@ -187,6 +191,16 @@ async function moPheDuyet(
  */
 async function duyetKySo(page: Page, nguoiKhacLap = HE_THONG): Promise<boolean> {
   const m = main(page);
+  // BR-04-05: người duyệt định mức khó và điểm chuẩn cho việc ngoài danh mục rồi mới duyệt được
+  const dinhDiem = m.getByRole('group', { name: /^Định điểm: / });
+  for (let lan = 0; lan < 20 && (await dinhDiem.count()); lan++) {
+    const dong = dinhDiem.first();
+    const ten = await dong.getAttribute('aria-label');
+    await dong.getByRole('combobox', { name: 'Mức khó' }).selectOption({ label: 'Mức 3' });
+    await dong.getByRole('spinbutton', { name: 'Điểm chuẩn' }).fill('5');
+    await dong.getByRole('button', { name: 'Lưu điểm' }).click();
+    await expect(m.getByRole('group', { name: ten! })).toHaveCount(0, { timeout: 15_000 });
+  }
   await m.getByRole('button', { name: 'Duyệt và ký số' }).click();
   if (!nguoiKhacLap) {
     await xacThucBuocLen(

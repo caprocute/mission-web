@@ -203,6 +203,28 @@ export class PlanApi {
     );
   }
 
+  /**
+   * Định điểm việc ngoài danh mục trước khi duyệt (BR-04-05, `scoreOffCatalogPlanItem`): mức khó 1–5
+   * và điểm chuẩn; máy chủ trả phiên bản sau khi định điểm (Idempotency-Key do interceptor gắn).
+   */
+  scoreItem(
+    planId: string,
+    versionNo: number,
+    itemId: string,
+    rowVersion: number,
+    body: { difficulty: number; standardScore: number; note?: string },
+  ) {
+    return this.http.post<PlanVersion>(
+      apiUrl('/plans/{id}/versions/{v}/items/{itemId}/score', {
+        id: planId,
+        v: String(versionNo),
+        itemId,
+      }),
+      body,
+      { headers: ifMatch(rowVersion) },
+    );
+  }
+
   /** "Trả lại": chuyển `TRA_LAI` kèm ý kiến bắt buộc (SCR-0403 trường 6, EVT-21). */
   returnPlan(planId: string, versionNo: number, rowVersion: number, comment: string) {
     return this.http.post<PlanVersion>(

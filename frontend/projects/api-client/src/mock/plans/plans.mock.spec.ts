@@ -82,7 +82,7 @@ describe('mock plans – SCR-0402 (WEB-026)', () => {
     expect(r.find((c) => c.rule === 'BR-04-03')?.lineNo).toBe(6);
     expect(r.map((i) => i.message)).toContain('Dòng 4 chưa có điểm (việc ngoài danh mục)');
     expect(r.map((i) => i.message)).toContain('KR 2.1 chưa có nhiệm vụ');
-    // thêm chủ trì trùng phối hợp và vượt tỷ trọng
+    // thêm chủ trì trùng phối hợp; điểm dòng là trọng số trong nhóm nên không vượt tỷ trọng
     const more: PlanItem[] = [
       ...ws.version.items.slice(0, 5),
       {
@@ -94,7 +94,7 @@ describe('mock plans – SCR-0402 (WEB-026)', () => {
     ];
     const msgs = (await firstValueFrom(api.check(Q1, 1, more))).map((i) => i.message);
     expect(msgs).toContain('Dòng 6 có 2 đơn vị chủ trì. Mỗi việc chỉ có đúng một chủ trì.');
-    expect(msgs).toContain('Tổng điểm nhóm then chốt là 105, vượt điểm tối đa 70.');
+    expect(msgs.some((x) => x.includes('vượt điểm tối đa'))).toBe(false);
   });
 
   it('lưu nháp cần If-Match đúng; gửi duyệt bị chặn khi còn lỗi, đạt thì CHO_DUYET có mã băm', async () => {
@@ -258,6 +258,30 @@ describe('mock plans – SCR-0402 (WEB-026)', () => {
     expect(job.status).toBe('THAT_BAI');
     const signId = (await firstValueFrom(api.version(Q4, 2))).signRequestId!;
     expect((await firstValueFrom(api.signRequest(signId))).status).toBe('LOI');
+  });
+
+  it('BR-04-05: người duyệt định điểm việc ngoài danh mục của phiên bản chờ duyệt', async () => {
+    const api = setup();
+    const ws = await firstValueFrom(api.workspace(await plan(api, Q1)));
+    const saved = await firstValueFrom(api.save(Q1, ws.version, ws.version.items.slice(0, 5)));
+    const sent = await firstValueFrom(api.submit(Q1, saved));
+    const off = sent.items.find((i) => !i.catalogItemId)!;
+    const inCatalog = sent.items.find((i) => i.catalogItemId)!;
+    expect(off.pendingScore).toBe(true);
+    const body = { difficulty: 3, standardScore: 7.5 };
+    const scored = await firstValueFrom(api.scoreItem(Q1, 1, off.id!, sent.rowVersion, body));
+    expect(scored.items.find((i) => i.id === off.id)).toMatchObject({
+      standardScore: 7.5,
+      pendingScore: false,
+    });
+    expect(scored.rowVersion).toBe(sent.rowVersion + 1);
+    expect(
+      (await errorOf(firstValueFrom(api.scoreItem(Q1, 1, off.id!, sent.rowVersion, body)))).status,
+    ).toBe(409);
+    expect(
+      (await errorOf(firstValueFrom(api.scoreItem(Q1, 1, inCatalog.id!, scored.rowVersion, body))))
+        .status,
+    ).toBe(422);
   });
 
   it('gợi ý từ OKR cho KR chưa có dòng, đủ trường bắt buộc của PlanItemInput', async () => {

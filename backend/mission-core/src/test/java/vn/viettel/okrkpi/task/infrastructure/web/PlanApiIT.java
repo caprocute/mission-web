@@ -392,6 +392,147 @@ class PlanApiIT extends ContractConformanceTest {
    * yêu cầu tiến trình, sửa khi chờ duyệt 409, trả lại cần ý kiến và đúng người duyệt.
    */
   @Test
+  void tyTrongNhomLaTrongSoTrongNhomNenKeHoachChiCoViecThuongXuyenKhongBiChan() throws Exception {
+    // BR-04-06 (TL-02 QT-04): điểm dòng là trọng số trong nhóm; nhóm then chốt chưa có việc chỉ
+    // cảnh báo, không chặn gửi duyệt như cách so phần điểm trên tổng mọi dòng trước đây.
+    UUID unit3 = UUID.randomUUID();
+    in(
+        orgReplicaDataSource,
+        orgReplicaTm,
+        jdbc ->
+            jdbc.sql(
+                    "INSERT INTO org_replica.assignment_v (id, valid_from, person_id, org_unit_id,"
+                        + " job_title_id, kind, branch, is_head, source_version, source_event_id)"
+                        + " VALUES (?, DATE '2020-01-01', ?, ?, ?, 'BIEN_CHE', 'CHINH', true, 1, ?)")
+                .params(UUID.randomUUID(), MANAGER, unit3, UUID.randomUUID(), UUID.randomUUID())
+                .update());
+    UUID catalog = UUID.randomUUID();
+    List<UUID> items = List.of(UUID.randomUUID(), UUID.randomUUID());
+    in(
+        taskDataSource,
+        taskTm,
+        jdbc -> {
+          jdbc.sql(
+                  "INSERT INTO task.work_catalog (id, created_by, updated_by, code, name, scope,"
+                      + " position_id, version, source, status, version_no) VALUES (?, ?, ?, ?,"
+                      + " 'Danh mục vị trí', 'VI_TRI', ?, 1, 'TU_TAO', 'HIEU_LUC', 1)")
+              .params(catalog, MANAGER, MANAGER, "C-TT-" + catalog, UUID.randomUUID())
+              .update();
+          for (int i = 0; i < items.size(); i++) {
+            jdbc.sql(
+                    "INSERT INTO task.catalog_item (id, created_by, updated_by, work_catalog_id,"
+                        + " code, name, product_name, unit, difficulty, standard_score,"
+                        + " quality_standard, evidence_requirement, task_group, status) VALUES"
+                        + " (?, ?, ?, ?, ?, 'Tổng hợp báo cáo tuần', 'Báo cáo', 'báo cáo', 2,"
+                        + " ?, 'Đúng mẫu, đúng hạn', 'Văn bản đã ký', 'THUONG_XUYEN', 'AP_DUNG')")
+                .params(items.get(i), MANAGER, MANAGER, catalog, "TT-" + i + "-" + catalog, 5 + i)
+                .update();
+          }
+          return null;
+        });
+    MvcResult created =
+        perform(
+            post("/api/v1/plans")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("periodId", q1, "unitId", unit3))));
+    String id = body(created).get("id").asText();
+    List<Map<String, Object>> draft = lines(2);
+    for (int i = 0; i < draft.size(); i++) {
+      draft.get(i).put("catalogItemId", items.get(i).toString());
+    }
+    MvcResult checked =
+        perform(
+            post("/api/v1/plans/" + id + "/versions/1/check")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("items", draft))));
+    assertThat(checked.getResponse().getStatus()).isEqualTo(200);
+    List<String> group = new ArrayList<>();
+    body(checked)
+        .get("checks")
+        .forEach(
+            c -> {
+              if (c.get("rule").asText().equals("BR-04-06")) {
+                group.add(c.get("level").asText() + ": " + c.get("message").asText());
+              }
+            });
+    assertThat(group)
+        .containsExactly("CANH_BAO: Tổng điểm nhóm then chốt là 0, chưa đạt điểm tối đa 70.");
+    assertThat(body(checked).get("checks").findValuesAsText("level")).doesNotContain("CHAN");
+
+    // If-Match lệch phiên bản: 409 theo mã của module task, không phải 500 do tên module sai dạng.
+    MvcResult stale = perform(submit(id, "\"7\"", UUID.randomUUID().toString()));
+    assertThat(stale.getResponse().getStatus()).isEqualTo(409);
+    assertThat(body(stale).get("code").asText()).isEqualTo("TASK-409-VERSION-CONFLICT");
+
+    // BR-04-05: dòng ngoài danh mục chờ người duyệt định điểm (scoreOffCatalogPlanItem).
+    List<Map<String, Object>> withOff = new ArrayList<>(draft);
+    withOff.add(lines(1).get(0));
+    assertThat(perform(save(id, "\"0\"", withOff)).getResponse().getStatus()).isEqualTo(200);
+    org.mockito.Mockito.when(
+            workflowApprovals.start(
+                org.mockito.ArgumentMatchers.eq(tenant), org.mockito.ArgumentMatchers.anyMap()))
+        .thenReturn(new WorkflowApprovalClient.Started("pid-dinh-diem", true));
+    MvcResult sent = perform(submit(id, "\"1\"", UUID.randomUUID().toString()));
+    assertThat(sent.getResponse().getStatus()).isEqualTo(200);
+    String hash = body(sent).get("contentHash").asText();
+    JsonNode off = null;
+    String catalogLine = null;
+    for (JsonNode i : body(sent).get("items")) {
+      if (i.get("catalogItemId").isNull()) {
+        off = i;
+      } else {
+        catalogLine = i.get("id").asText();
+      }
+    }
+    assertThat(off).isNotNull();
+    assertThat(off.get("pendingScore").asBoolean()).isTrue();
+    // màn hình duyệt đọc lại phiên bản (luồng duyệt có thể đã ghi thêm sau khi gửi)
+    String etag =
+        perform(get("/api/v1/plans/" + id + "/versions/1")).getResponse().getHeader("ETag");
+    String scorePath = "/api/v1/plans/" + id + "/versions/1/items/%s/score";
+    Map<String, Object> score = Map.of("difficulty", 3, "standardScore", 7.5);
+    MvcResult scored =
+        perform(
+            post(scorePath.formatted(off.get("id").asText()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("If-Match", etag)
+                .header(KEY, UUID.randomUUID().toString())
+                .content(json.writeValueAsString(score)));
+    assertThat(scored.getResponse().getStatus())
+        .as(scored.getResponse().getContentAsString())
+        .isEqualTo(200);
+    assertResponseConforms(
+        scored, "/plans/{id}/versions/{v}/items/{itemId}/score", PathItem.HttpMethod.POST);
+    JsonNode after = body(scored);
+    assertThat(after.get("status").asText()).isEqualTo("CHO_DUYET");
+    assertThat(after.get("contentHash").asText()).isNotEqualTo(hash);
+    assertThat(scored.getResponse().getHeader("ETag")).isNotEqualTo(etag);
+    for (JsonNode i : after.get("items")) {
+      if (i.get("id").asText().equals(off.get("id").asText())) {
+        assertThat(i.get("standardScore").decimalValue()).isEqualByComparingTo("7.5");
+        assertThat(i.get("pendingScore").asBoolean()).isFalse();
+      }
+    }
+    // dòng trong danh mục giữ điểm của danh mục; If-Match cũ là xung đột
+    MvcResult catalogScore =
+        perform(
+            post(scorePath.formatted(catalogLine))
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("If-Match", scored.getResponse().getHeader("ETag"))
+                .header(KEY, UUID.randomUUID().toString())
+                .content(json.writeValueAsString(score)));
+    assertThat(catalogScore.getResponse().getStatus()).isEqualTo(422);
+    MvcResult conflict =
+        perform(
+            post(scorePath.formatted(off.get("id").asText()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("If-Match", etag)
+                .header(KEY, UUID.randomUUID().toString())
+                .content(json.writeValueAsString(score)));
+    assertThat(conflict.getResponse().getStatus()).isEqualTo(409);
+  }
+
+  @Test
   void guiDuyetVaTraLaiKhopHopDong() throws Exception {
     UUID unit2 = UUID.randomUUID();
     in(

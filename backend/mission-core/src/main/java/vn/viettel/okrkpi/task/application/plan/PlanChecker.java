@@ -1,7 +1,6 @@
 package vn.viettel.okrkpi.task.application.plan;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -24,9 +23,12 @@ import vn.viettel.okrkpi.task.domain.catalog.CatalogRules;
  * dòng chưa lưu và không ghi CSDL. BR-04-03, BR-04-04 là biểu thức CEL dùng chung với cel-js qua bộ
  * ca {@code data/golden/plan-rules/}; các quy tắc còn lại cần cả bảng kế hoạch nên viết bằng Java.
  *
- * <p>BR-04-06 so phần điểm của nhóm với điểm tối đa của nhóm trong Policy Pack: điểm nhóm = tổng
- * điểm các dòng của nhóm / tổng điểm mọi dòng × tổng điểm tối đa các nhóm, làm tròn một chữ số;
- * vượt thì chặn, thiếu thì cảnh báo (suy luận từ "tỷ trọng" của BR-04-06 và công thức điểm nhóm).
+ * <p>BR-04-06: điểm từng dòng là trọng số trong nhóm, điểm nhóm tối đa bằng điểm tối đa của nhóm
+ * trong Policy Pack (TL-02 QT-04 ví dụ BR-04-06 và SCR-0403: thêm, bỏ dòng không làm nhóm vượt điểm
+ * tối đa). Nhóm có dòng đã chấm điểm đạt đủ điểm tối đa; nhóm chưa có dòng nào đã chấm điểm thì
+ * cảnh báo "chưa đạt". Trọng số dòng không thể làm nhóm vượt tỷ trọng nên kế hoạch không bị chặn vì
+ * quy tắc này (trước đây so phần điểm của nhóm trên tổng mọi dòng, khiến mọi kế hoạch lệch khỏi
+ * đúng tỷ lệ của gói bị chặn).
  */
 public class PlanChecker {
 
@@ -203,47 +205,19 @@ public class PlanChecker {
   }
 
   private static void groupWeights(List<ItemRow> items, List<GroupWeight> groups, List<Check> out) {
-    BigDecimal all = BigDecimal.ZERO;
-    Map<String, BigDecimal> perGroup = new HashMap<>();
-    for (ItemRow i : items) {
-      if (i.standardScore() == null) {
-        continue;
-      }
-      all = all.add(i.standardScore());
-      for (GroupWeight g : groups) {
-        if (g.taskGroups().contains(i.taskGroup())) {
-          perGroup.merge(g.code(), i.standardScore(), BigDecimal::add);
-        }
-      }
-    }
-    if (all.signum() == 0) {
+    if (items.stream().allMatch(i -> i.standardScore() == null)) {
       return;
     }
-    BigDecimal total =
-        groups.stream().map(GroupWeight::maxPoints).reduce(BigDecimal.ZERO, BigDecimal::add);
     for (GroupWeight g : groups) {
-      BigDecimal x =
-          perGroup
-              .getOrDefault(g.code(), BigDecimal.ZERO)
-              .multiply(total)
-              .divide(all, 1, RoundingMode.HALF_UP);
-      String label = GROUP_LABELS.getOrDefault(g.code(), "nhiệm vụ");
-      int cmp = x.compareTo(g.maxPoints());
-      if (cmp > 0) {
-        out.add(
-            new Check(
-                "BR-04-06",
-                Level.CHAN,
-                null,
-                "Tổng điểm nhóm "
-                    + label
-                    + " là "
-                    + plain(x)
-                    + ", vượt điểm tối đa "
-                    + plain(g.maxPoints())
-                    + ".",
-                "MSG-04-06"));
-      } else if (cmp < 0) {
+      boolean scored =
+          items.stream()
+              .anyMatch(
+                  i ->
+                      i.standardScore() != null
+                          && i.standardScore().signum() > 0
+                          && g.taskGroups().contains(i.taskGroup()));
+      if (!scored) {
+        String label = GROUP_LABELS.getOrDefault(g.code(), "nhiệm vụ");
         out.add(
             new Check(
                 "BR-04-06",
@@ -251,9 +225,7 @@ public class PlanChecker {
                 null,
                 "Tổng điểm nhóm "
                     + label
-                    + " là "
-                    + plain(x)
-                    + ", chưa đạt điểm tối đa "
+                    + " là 0, chưa đạt điểm tối đa "
                     + plain(g.maxPoints())
                     + ".",
                 null));

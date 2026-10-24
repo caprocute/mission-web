@@ -581,7 +581,7 @@ public class PlanService {
             .lockVersion(tenant, plan.periodBucket(), plan.id(), versionNo)
             .orElseThrow(NoSuchElementException::new);
     if (version.rowVersion() != expected) {
-      throw new VersionConflictException("PLAN_VERSION", expected, version.rowVersion());
+      throw new VersionConflictException("TASK", expected, version.rowVersion());
     }
     PlanTransition result = PlanVersionStateMachine.apply(version.status(), command, true);
     if (result instanceof PlanTransition.Rejected r) {

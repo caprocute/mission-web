@@ -212,14 +212,17 @@ export class PhienQt {
   async dong() {
     if (this.caoTuoi && this.that) {
       // trả tài khoản thử về chế độ thường để hành trình khác không chạy nhầm chế độ
+      // giới hạn thời gian từng tài khoản: khi bước chính đã lỗi, mở lại trang có thể chờ tới hết thời
+      // gian của cả ca và che mất lỗi thật
       for (const u of this.users) {
-        try {
-          const p = await this.that.trang(u, '/');
-          const nut = p.getByRole('button', { name: 'Chữ thường' });
-          if (await nut.isVisible()) await nut.click();
-        } catch {
-          // bỏ qua: dọn là phần phụ
-        }
+        await Promise.race([
+          (async () => {
+            const p = await this.that!.trang(u, '/');
+            const nut = p.getByRole('button', { name: 'Chữ thường' });
+            if (await nut.isVisible()) await nut.click({ timeout: 5_000 });
+          })(),
+          new Promise((xong) => setTimeout(xong, 20_000)),
+        ]).catch(() => undefined); // bỏ qua: dọn là phần phụ
       }
     }
     for (const a of this.api.values()) await a.dong();
