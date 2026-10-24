@@ -20,6 +20,8 @@
 #   registry…) thì lấy cùng giá trị, vì các role đó đã tạo với mật khẩu ấy.
 # - OPA_CONNECT_TIMEOUT, OPA_READ_TIMEOUT còn để 2s (mặc định cũ) được nâng lên 5s: qua đường hầm OPA mất
 #   1,8–2,5 s nên 2s vẫn bị 403 fail-closed.
+# - CUBEJS_API_SECRET ngắn hơn 32 ký tự (bản sinh cũ 24 ký tự) được sinh lại: analytics-api từ chối khởi động với khoá
+#   ký JWT dưới 32 byte; khoá chỉ dùng ký token ngắn hạn giữa analytics-api và Cube nên đổi không mất dữ liệu.
 # =============================================================================
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -35,7 +37,7 @@ gen_b32() { LC_ALL=C tr -dc 'A-Z2-7' </dev/urandom | head -c 32 || true; }
 is_secret() {
   case "$1" in
     ESIGN_MYSIGN_* | ESIGN_S3_* | ESIGN_HSM_LIBRARY | ESIGN_VIETTEL_CA_* | ESIGN_GOV_CA_* | SMTP_* | SMS_* | PUSH_*) return 1 ;;
-    *PASSWORD* | *SECRET* | *_PIN | *TOKEN | *_C2_KEY) return 0 ;;
+    *PASSWORD* | *SECRET* | *_PIN | *TOKEN | *_C2_KEY | *_PSEUDONYM_KEY) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -89,6 +91,10 @@ stale_opa() {
   grep -E '^OPA_(CONNECT|READ)_TIMEOUT=2s$' "${ENV}" | cut -d= -f1 || true
 }
 
+short_secrets() {
+  grep -E '^CUBEJS_API_SECRET=.{1,31}$' "${ENV}" | cut -d= -f1 || true
+}
+
 case "${MODE}" in
   tao)
     [[ -f "${ENV}" ]] && { echo ".env đã tồn tại, không ghi đè (dùng --bo-sung để thêm khoá còn thiếu)"; exit 0; }
@@ -107,7 +113,8 @@ case "${MODE}" in
     [[ -f "${ENV}" ]] || { echo "chưa có .env; chạy scripts/gen-env.sh để tạo" >&2; exit 1; }
     mapfile -t keys < <(missing_keys | awk '!seen[$0]++')
     mapfile -t opa < <(stale_opa)
-    if [[ ${#keys[@]} -eq 0 && ${#opa[@]} -eq 0 ]]; then
+    mapfile -t ngan < <(short_secrets)
+    if [[ ${#keys[@]} -eq 0 && ${#opa[@]} -eq 0 && ${#ngan[@]} -eq 0 ]]; then
       echo "  .env đủ khoá."
       exit 0
     fi
@@ -126,14 +133,20 @@ case "${MODE}" in
     for k in ${opa[@]+"${opa[@]}"}; do
       printf '  %s: nâng 2s lên 5s\n' "${k}"
     done
+    for k in ${ngan[@]+"${ngan[@]}"}; do
+      printf '  %s: ngắn hơn 32 ký tự, sinh lại\n' "${k}"
+    done
     [[ "${MODE}" == "--kiem" ]] && exit 0
     tmp="$(mktemp "${ENV}.XXXXXX")"
     chmod 600 "${tmp}"
     # Bỏ dòng <FILL_IN>/__GENERATE__ còn sót và dòng OPA 2s; mọi dòng khác giữ nguyên thứ tự.
     # Khoá bí mật cần sinh mà đang để trống cũng bị bỏ dòng cũ để không trùng khoá.
     drop='^[A-Z0-9_]+=(<FILL_IN>|__GENERATE__)$|^OPA_(CONNECT|READ)_TIMEOUT=2s$'
-    for k in ${keys[@]+"${keys[@]}"}; do
+    for k in ${keys[@]+"${keys[@]}"} ${ngan[@]+"${ngan[@]}"}; do
       drop+="|^${k}=$"
+    done
+    for k in ${ngan[@]+"${ngan[@]}"}; do
+      drop+="|^${k}=.{1,31}$"
     done
     grep -vE "${drop}" "${ENV}" >"${tmp}" || true
     {
@@ -146,10 +159,13 @@ case "${MODE}" in
       for k in ${opa[@]+"${opa[@]}"}; do
         echo "${k}=5s"
       done
+      for k in ${ngan[@]+"${ngan[@]}"}; do
+        echo "${k}=$(gen)"
+      done
     } >>"${tmp}"
     mv "${tmp}" "${ENV}"
     chmod 600 "${ENV}"
-    echo "  Đã bổ sung ${#keys[@]} khoá, nâng ${#opa[@]} khoá OPA (không in giá trị)."
+    echo "  Đã bổ sung ${#keys[@]} khoá, nâng ${#opa[@]} khoá OPA, sinh lại ${#ngan[@]} khoá quá ngắn (không in giá trị)."
     ;;
   *)
     echo "Cách dùng: $0 [--kiem|--bo-sung]" >&2

@@ -417,8 +417,14 @@ services:
     networks:
       - mission-net
 
+  # Kafka Connect kèm plugin giả danh của connector CDC phân tích (infra/dev/debezium/Dockerfile). Connector đăng ký
+  # bằng scripts/noi-cdc-phan-tich.py; cấu hình connector chỉ giữ ${env:...}, giá trị lấy từ biến môi trường dưới đây
+  # qua EnvVarConfigProvider nên mật khẩu và khoá giả danh không nằm trong topic cấu hình của Connect.
   debezium:
-    image: quay.io/debezium/connect:3.0.0.Final
+    build:
+      context: ../../analytics/cdc/smt
+      dockerfile: ../../../infra/dev/debezium/Dockerfile
+    image: mission-dev/debezium-connect:3.0.0-smt
     container_name: mission-dev-debezium
     restart: unless-stopped
     profiles: ["events", "all"]
@@ -437,6 +443,13 @@ services:
       OFFSET_STORAGE_REPLICATION_FACTOR: 1
       STATUS_STORAGE_REPLICATION_FACTOR: 1
       DEBEZIUM_DB_USER: ${DEBEZIUM_DB_USER:-cdc_debezium}
+      CONNECT_CONFIG_PROVIDERS: env
+      CONNECT_CONFIG_PROVIDERS_ENV_CLASS: org.apache.kafka.common.config.provider.EnvVarConfigProvider
+      PG_HOST: postgres
+      PG_PORT: "5432"
+      PG_CDC_ANALYTICS_USER: ${DEBEZIUM_DB_USER:-cdc_debezium}
+      PG_CDC_ANALYTICS_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-${POSTGRES_PASSWORD:-${PG_SUPERUSER_PASSWORD:-}}}
+      ANALYTICS_PSEUDONYM_KEY: ${ANALYTICS_PSEUDONYM_KEY:-}
     ports:
       - "${DEBEZIUM_PORT:-35083}:8083"
     healthcheck:
@@ -795,6 +808,12 @@ services:
       AUTH_ENABLED: ${MISSION_CORE_AUTH_ENABLED:-true}
       # Đối chiếu cel-js khi chạy kiểm thử Policy Pack (CORE-05-07, BR-15-07); thiếu thì lần chạy luôn "Chưa đạt".
       MISSION_POLICY_CELJS_URL: http://cel-js-runner:8080
+      # Luồng duyệt, hộp việc, mẫu luồng và saga khoá kỳ gọi workflow-service (SVC-06, CORE-02-08); thiếu địa chỉ thì
+      # các API này trả 503. Token dịch vụ lấy bằng client credentials của client mission-core, tài khoản dịch vụ mang
+      # vai trò service_client (scripts/them-client-mission-core.sh); cùng client đó gọi Admin API Keycloak.
+      MISSION_CONFIG_WORKFLOW_BASEURL: http://workflow-service:8080
+      MISSION_CONFIG_KEYCLOAKADMIN_BASEURL: http://keycloak:8080
+      MISSION_CONFIG_KEYCLOAKADMIN_CLIENTSECRET: ${MISSION_CORE_CLIENT_SECRET:-}
     ports:
       - "${MISSION_CORE_PORT:-35100}:8080"
       # Cổng quản trị chỉ mở trên loopback của máy chủ (health.sh, Prometheus cục bộ).

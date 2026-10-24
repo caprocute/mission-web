@@ -4,6 +4,9 @@ apisix:
   enable_admin: false
   # Máy chủ dev và container không bật IPv6.
   enable_ipv6: false
+  # DNS của Docker trả TTL 600 s: container service tạo lại (deploy-backend.sh) có IP mới, worker còn giữ IP cũ thì
+  # trả 502 tới mười phút. Giữ kết quả phân giải tên upstream tối đa 5 s.
+  dns_resolver_valid: 5
 deployment:
   role: data_plane
   role_data_plane:

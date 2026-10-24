@@ -214,6 +214,19 @@ Bước seed của `deploy-backend.sh` (bỏ bằng `SKIP_SEED=1`) chạy lần 
 
 `lay-token-thu.py` đọc `KC_TEST_USER_PASSWORD`, `KC_TEST_OTP_SECRET` từ môi trường, nên trước các lệnh có token cần `set -a; source infra/dev/.env; set +a`. Keycloak từ chối dùng lại một mã OTP trong cùng khung 30 giây cho cùng tài khoản, nên hai lần lấy token liên tiếp của một người dùng phải cách nhau quá 30 giây. Sau khi xong, mở `WEB_ORIGIN` và đăng nhập `canbo`; trang chủ hiện nhiệm vụ mẫu trong "Việc của tôi hôm nay". `analytics-api` chỉ lên khi bật thêm profile `analytics` (ClickHouse, Superset).
 
+Bước seed cũng gọi `them-client-mission-core.sh`: mission-core gọi workflow-service (luồng duyệt, hộp việc, mẫu luồng, saga khoá kỳ) bằng token client credentials của client `mission-core`, và workflow-service chỉ nhận API nội bộ từ tài khoản dịch vụ mang vai trò realm `service_client`. Địa chỉ workflow-service và Keycloak của mission-core khai trong `docker-compose.yml` (`MISSION_CONFIG_WORKFLOW_BASEURL`, `MISSION_CONFIG_KEYCLOAKADMIN_*`); thiếu thì các API đó trả 503.
+
+Bảng điều hành đọc kho ClickHouse, kho được nạp bằng CDC phân tích. Sau khi bật profile `analytics` và triển khai `analytics-api`, chạy một lệnh để nối luồng PostgreSQL → Debezium → Kafka → ClickHouse (chạy lại an toàn; `trien-khai-lai.sh` tự gọi khi `DEV_SERVER_PROFILES` có `analytics`):
+
+```bash
+docker compose --profile core --profile events --profile analytics up -d --build debezium clickhouse cube
+python3 -I infra/dev/scripts/noi-cdc-phan-tich.py           # kho, publication, hai connector, chờ cây tổ chức vào kho
+python3 -I infra/dev/scripts/noi-cdc-phan-tich.py --kiem    # chỉ xem trạng thái
+python3 -I infra/dev/scripts/noi-cdc-phan-tich.py --chup-lai  # chụp lại ảnh ban đầu, ví dụ sau khi dựng lại kho
+```
+
+Dev gộp CSDL của mission-core và org-service thành một CSDL `mission`, nên script dựng connector `cdc-mission` (topic `cdc.mission.*`) từ hai tệp sinh `analytics/cdc/generated/tenant_data` và `org`, connector `cdc-flowable` giữ nguyên tệp sinh, và áp kho với `ANALYTICS_CORE_DB=ANALYTICS_ORG_DB=mission`. Ảnh Debezium dev (`infra/dev/debezium/Dockerfile`) có sẵn plugin giả danh `TenantPseudonymize`; mật khẩu vai trò CDC và `ANALYTICS_PSEUDONYM_KEY` chỉ nằm trong biến môi trường của container. Kho đã được áp trước đây với topic mặc định `cdc.tenant_data.*` thì bộ áp báo lệch tổng kiểm: xoá CSDL kho dev (`DROP DATABASE analytics_dev ON CLUSTER cell_dev SYNC`) rồi chạy lại, dữ liệu dựng lại được từ CDC. `smoke-backend.sh` mục 5 kiểm cả hai luồng.
+
 ### 3.3. Chẩn đoán tuyến API (`kiem-tuyen.py`)
 
 Khi màn hình hiện trống hay API trả 404, chạy một lệnh trên máy chủ dev (cần Python 3.10 trở lên và PyYAML; thiếu thì cài bằng `python3 -m pip install --user pyyaml`):
