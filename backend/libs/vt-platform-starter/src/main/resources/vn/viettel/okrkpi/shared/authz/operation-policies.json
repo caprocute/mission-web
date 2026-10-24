@@ -7173,12 +7173,13 @@
         "SCR-0104"
       ],
       "roles": [
-        "tenant_admin"
+        "tenant_admin",
+        "inspector"
       ],
       "scope": "Tn",
       "aal": 1,
       "fourEyes": false,
-      "source": "TL-02a SCR-0104 trường 1, 2"
+      "source": "TL-02a SCR-0104 trường 1, 2; TL-02 bảng tác nhân (AC-10 đọc nhật ký đồng bộ), ma trận SCR-0104.xem"
     },
     {
       "operationId": "listOrgSyncSchedules",
@@ -7425,7 +7426,8 @@
         "tenant_admin",
         "appraiser",
         "manager",
-        "leader"
+        "leader",
+        "inspector"
       ],
       "scope": "Đv",
       "aal": 1,
