@@ -617,6 +617,23 @@
       ]
     },
     {
+      "clientId": "scoring-service",
+      "name": "scoring-service (tài khoản dịch vụ, SVC-07)",
+      "description": "Tính điểm đọc Policy Pack của MOD-05 và đầu vào hồ sơ của MOD-04 trên mission-core, tenant đích ở X-Tenant-Id.",
+      "bearerOnly": false,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${SCORING_SERVICE_CLIENT_SECRET}",
+      "defaultClientScopes": [
+        "basic",
+        "profile"
+      ]
+    },
+    {
       "clientId": "analytics-api",
       "name": "analytics-api (tài khoản dịch vụ, SVC-15)",
       "description": "analytics-api gọi cổng dịch vụ dashboard-defs của MOD-08 (CORE-08-17), tenant ở tham số tenant.",
@@ -1626,6 +1643,22 @@
       "username": "service-account-analytics-api",
       "enabled": true,
       "serviceAccountClientId": "analytics-api",
+      "realmRoles": [
+        "service_client"
+      ]
+    },
+    {
+      "username": "service-account-workflow-service",
+      "enabled": true,
+      "serviceAccountClientId": "workflow-service",
+      "realmRoles": [
+        "service_client"
+      ]
+    },
+    {
+      "username": "service-account-scoring-service",
+      "enabled": true,
+      "serviceAccountClientId": "scoring-service",
       "realmRoles": [
         "service_client"
       ]

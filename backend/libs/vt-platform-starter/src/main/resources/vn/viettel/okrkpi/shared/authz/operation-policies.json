@@ -2975,7 +2975,8 @@
         "SCR-1502"
       ],
       "roles": [
-        "policy_author"
+        "policy_author",
+        "service_client"
       ],
       "scope": "Tn",
       "aal": 1,
@@ -4782,7 +4783,8 @@
       "roles": [
         "policy_author",
         "tenant_admin",
-        "decider"
+        "decider",
+        "service_client"
       ],
       "scope": "Tn",
       "aal": 1,
@@ -6243,7 +6245,8 @@
       "roles": [
         "policy_author",
         "tenant_admin",
-        "decider"
+        "decider",
+        "service_client"
       ],
       "scope": "Tn",
       "aal": 1,
@@ -7580,7 +7583,8 @@
       "roles": [
         "policy_author",
         "tenant_admin",
-        "decider"
+        "decider",
+        "service_client"
       ],
       "scope": "Tn",
       "aal": 1,
@@ -7605,7 +7609,8 @@
       "roles": [
         "policy_author",
         "tenant_admin",
-        "decider"
+        "decider",
+        "service_client"
       ],
       "scope": "Tn",
       "aal": 1,

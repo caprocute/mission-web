@@ -191,7 +191,7 @@ paths:
         qt: [QT-15]
         scr: [SCR-1501]
         owner: MOD-05
-        roles: [policy_author, tenant_admin, decider]
+        roles: [policy_author, tenant_admin, decider, service_client]
         scope: Tn
         source: TL-01 PL C `GET /policies` (gói và phiên bản)
     post:
@@ -274,7 +274,7 @@ paths:
         qt: [QT-15]
         scr: [SCR-1501, SCR-1502, SCR-1503, SCR-1504]
         owner: MOD-05
-        roles: [policy_author, tenant_admin, decider]
+        roles: [policy_author, tenant_admin, decider, service_client]
         scope: Tn
         source: TL-03 `policy.policy_pack_version`; TL-02b SCR-1501 thanh gói (suy luận đường dẫn)
 
@@ -359,7 +359,7 @@ paths:
         qt: [QT-15]
         scr: [SCR-1501, SCR-1502]
         owner: MOD-05
-        roles: [policy_author, tenant_admin, decider]
+        roles: [policy_author, tenant_admin, decider, service_client]
         scope: Tn
         source: TL-03 `policy.policy_rule` (suy luận đường dẫn)
 
@@ -505,7 +505,7 @@ paths:
         qt: [QT-15]
         scr: [SCR-1502]
         owner: MOD-05
-        roles: [policy_author, tenant_admin, decider]
+        roles: [policy_author, tenant_admin, decider, service_client]
         scope: Tn
         source: TL-03 `policy.decision_table` (suy luận đường dẫn)
 
@@ -617,7 +617,7 @@ paths:
         qt: [QT-15]
         scr: [SCR-1502]
         owner: MOD-05
-        roles: [policy_author]
+        roles: [policy_author, service_client]
         scope: Tn
         source: TL-02b SCR-1502 "Xuất DMN XML"
 

@@ -12,12 +12,28 @@ import { FormRule, evaluateRules } from '@vt/form-engine';
 /** Khoá biểu mẫu động của phiếu tự đánh giá (Mẫu 1B). */
 export const SELF_FORM_KEY = 'mau-1b';
 
-/** Dữ liệu biểu mẫu Mẫu 1B; khoá trùng tên trường của `AppraisalSelfAssessmentInput`. */
+/** Nội dung phần tự đề xuất của phiếu; khoá trùng tên trường của `AppraisalSelfAssessmentInput`. */
 export interface SelfForm {
   selfRatingCode: RatingLevel;
   breakthrough: string;
   reason: string;
   content: string;
+}
+
+/**
+ * Khoá dữ liệu của mức tự đề xuất trong Mẫu 1B: khoá biểu mẫu viết snake_case (TL-02b SCR-1802 trường 2,
+ * máy chủ từ chối khoá khác khi lưu biểu mẫu), còn API tự đánh giá dùng `selfRatingCode`.
+ */
+export const SELF_RATING_KEY = 'self_rating_code';
+
+/** Nội dung phiếu sang mô hình của biểu mẫu Mẫu 1B. */
+export function toModel(f: SelfForm): Record<string, unknown> {
+  return {
+    [SELF_RATING_KEY]: f.selfRatingCode,
+    breakthrough: f.breakthrough,
+    reason: f.reason,
+    content: f.content,
+  };
 }
 
 /** Ngữ cảnh chỉ đọc của quy tắc (`ctx.*`): mức hệ thống tham khảo và số minh chứng đã gắn. */
@@ -61,12 +77,12 @@ export function checkSelfForm(
   f: SelfForm,
   ctx: SelfFormContext,
 ): Record<string, string> {
-  const model = {
+  const model = toModel({
     selfRatingCode: f.selfRatingCode,
     breakthrough: f.breakthrough.trim(),
     reason: f.reason.trim(),
     content: f.content.trim(),
-  };
+  });
   return Object.fromEntries(
     evaluateRules(rules, model, { context: { ...ctx } }).map((v) => [
       v.field ?? v.ruleId,

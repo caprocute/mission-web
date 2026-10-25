@@ -25,12 +25,14 @@ POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-mission-dev-postgres}"
 # Tenant thử cũng phải có trong tenant-registry (cell DEV) để bước khám phá cell sau đăng nhập không trả 404.
 # Thư viện căn cứ thử okr.basis của mission-core: bản này chưa có API ghi căn cứ, thiếu thì khung soạn mục tiêu
 # (SCR-0202) không có lựa chọn "Căn cứ" bắt buộc; nạp sau migration okr của mission-core.
-# Policy Pack mẫu luồng Đảng: hợp đồng chưa có API tạo gói, tệp sinh từ data/policy-pack bằng sinh_seed_dev.py.
+# Policy Pack mẫu luồng Đảng và luồng chính quyền (NĐ 335, để kỳ CA_HAI có hồ sơ cho cả cán bộ không là Đảng viên,
+# QA-06 HT-25..29): hợp đồng chưa có API tạo gói, tệp sinh từ data/policy-pack bằng sinh_seed_dev.py.
 # Danh mục công việc thử: hợp đồng chưa có thao tác tạo danh mục đầu tiên, thiếu thì kế hoạch, giao việc không có mục.
 # Kết nối nguồn nhân sự giả lập của integration-gateway (hr-gia-lap, HT-07) nạp sau migration integ.
 # Vai trò theo đơn vị (config.role_binding, nguồn sự thật của vai trò) của các tài khoản thử nạp sau migration config.
 for seed in "${SEED}" "${SCRIPT_DIR}/../postgres/seed/registry-du-lieu-thu.sql" \
   "${SCRIPT_DIR}/../postgres/seed/okr-can-cu-thu.sql" "${SCRIPT_DIR}/../postgres/seed/policy-goi-mau.sql" \
+  "${SCRIPT_DIR}/../postgres/seed/policy-goi-mau-nha-nuoc.sql" \
   "${SCRIPT_DIR}/../postgres/seed/task-danh-muc-thu.sql" "${SCRIPT_DIR}/../postgres/seed/integ-ket-noi-thu.sql" \
   "${SCRIPT_DIR}/../postgres/seed/org-vai-tro-thu.sql"; do
   if command -v docker >/dev/null 2>&1 && docker inspect -f '{{.State.Running}}' "${POSTGRES_CONTAINER}" 2>/dev/null | grep -q true; then

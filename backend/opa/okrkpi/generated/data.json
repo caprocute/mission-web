@@ -1846,6 +1846,10 @@
       "method": "DELETE",
       "module": "Users"
     },
+    "exportDecisionTableDmn": {
+      "method": "GET",
+      "module": "policies"
+    },
     "getDashboardDef": {
       "method": "GET",
       "module": "config"
@@ -1853,6 +1857,10 @@
     "getE2eeRecovery": {
       "method": "GET",
       "module": "org"
+    },
+    "getPolicyPackVersion": {
+      "method": "GET",
+      "module": "policies"
     },
     "getRecoveryKey": {
       "method": "GET",
@@ -1893,6 +1901,18 @@
     "listDashboardDefs": {
       "method": "GET",
       "module": "config"
+    },
+    "listDecisionTables": {
+      "method": "GET",
+      "module": "policies"
+    },
+    "listPolicyPackVersions": {
+      "method": "GET",
+      "module": "policies"
+    },
+    "listPolicyRules": {
+      "method": "GET",
+      "module": "policies"
     },
     "listScimGroups": {
       "method": "GET",
