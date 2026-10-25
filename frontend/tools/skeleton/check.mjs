@@ -56,6 +56,8 @@ function walk(dir, out = []) {
 }
 
 const RESOURCE_FNS = new Set(['rxResource', 'resource', 'httpResource']);
+/** Cách đọc trạng thái "đang tải" của một tài nguyên. */
+const LOADING_READ = new Set(['isLoading', 'status']);
 /**
  * `toSignal` coi là dữ liệu máy chủ khi đối số gọi một dịch vụ (`this.api.list(…)`,
  * `inject(TaskApi).myTasks(…)`), trừ dịch vụ tuyến, router và điểm ngắt màn hình.
@@ -76,6 +78,14 @@ function analyzeTs(file, src) {
     const visit = (n) => {
       if (ts.isPropertyAccessExpression(n) && n.expression.kind === ts.SyntaxKind.ThisKeyword)
         out.add(n.name.text);
+      // `this.x.isLoading()`/`this.x.status()`: ghi thêm dấu `x#loading` để xét tài nguyên phụ thuộc
+      if (
+        ts.isPropertyAccessExpression(n) &&
+        LOADING_READ.has(n.name.text) &&
+        ts.isPropertyAccessExpression(n.expression) &&
+        n.expression.expression.kind === ts.SyntaxKind.ThisKeyword
+      )
+        out.add(n.expression.name.text + '#loading');
       ts.forEachChild(n, visit);
     };
     visit(node);
@@ -137,6 +147,12 @@ function exprNames(ast) {
     visitPropertyRead(a, ctx) {
       if (a.receiver instanceof ImplicitReceiver || a.receiver instanceof ThisReceiver)
         out.add(a.name);
+      else if (
+        LOADING_READ.has(a.name) &&
+        (a.receiver.receiver instanceof ImplicitReceiver ||
+          a.receiver.receiver instanceof ThisReceiver)
+      )
+        out.add(a.receiver.name + '#loading');
       return super.visitPropertyRead(a, ctx);
     }
     visitSafePropertyRead(a, ctx) {
@@ -215,11 +231,12 @@ function analyzeTemplate(file, template) {
 }
 
 /** Mở rộng tập tên theo phụ thuộc `computed`/phương thức (bắc cầu). */
-function closure(names, deps) {
+function closure(names, deps, skip) {
   const out = new Set(names);
   const stack = [...names];
   while (stack.length) {
     const n = stack.pop();
+    if (n === skip) continue;
     for (const d of deps.get(n) ?? []) if (!out.has(d)) (out.add(d), stack.push(d));
   }
   return out;
@@ -246,9 +263,29 @@ for (const file of files) {
       );
     if (!resources.length) continue;
     const covers = t.skeletons.map((s) => closure(s.cond, deps));
+    const names = new Set(resources.map((r) => r.name));
     const pickers = t.pickers.map((p) => closure(p, deps));
     const result = resources.map((r) => {
       const covered = covers.some((c) => c.has(r.name)) || pickers.some((c) => c.has(r.name));
+      // Tài nguyên phụ thuộc tài nguyên khác (tham số lấy từ kết quả của tài nguyên cha): khi cha
+      // chưa về, con còn chờ tham số và `isLoading()` còn sai, nên nhánh khung xương dựa trên
+      // `con.isLoading()` phải gộp cả trạng thái của cha (wiki/16)
+      const upstream = [...closure(deps.get(r.name) ?? [], deps)].filter(
+        (n) => n !== r.name && names.has(n),
+      );
+      // Không mở rộng qua chính tài nguyên con: phụ thuộc của nó luôn chứa tài nguyên cha
+      const chainOk =
+        !upstream.length ||
+        t.skeletons.every((sk) => {
+          const c = closure(sk.cond, deps, r.name);
+          return !c.has(r.name + '#loading') || upstream.every((u) => c.has(u));
+        });
+      if (covered && !chainOk && !r.exempt)
+        problems.push(
+          `${rel}:${r.line} ${cls}."${r.name}" chờ tham số từ ${upstream.join(', ')}: điều kiện ` +
+            `khung xương phải gộp cả trạng thái tải của ${upstream.join(', ')} ` +
+            `(ví dụ ${upstream[0]}.isLoading() || ${r.name}.isLoading())`,
+        );
       if (!covered && !r.exempt)
         problems.push(
           `${rel}:${r.line} ${cls}."${r.name}" (${r.kind}) chưa có khung xương: đặt <vt-skeleton> trong nhánh ` +

@@ -413,7 +413,7 @@ function merge(t: PolicyWorkflowTemplateVersion, saved: Record<string, unknown> 
               <p class="muted">Bấm "Mô phỏng luồng" để kiểm tra tham số trước khi lưu.</p>
             }
           </section>
-        } @else if (tpl.isLoading()) {
+        } @else if (tpl.isLoading() || templates.isLoading() || bindings.isLoading()) {
           <vt-skeleton variant="form" [rows]="4" label="Đang tải khai báo tham số" />
         }
       </div>

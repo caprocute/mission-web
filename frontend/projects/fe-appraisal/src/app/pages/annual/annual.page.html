@@ -78,7 +78,8 @@
 <div class="layout" [class.one]="simple()">
   <section class="card" aria-labelledby="an-list">
     <h2 id="an-list" class="sr">Bảng tổng hợp xếp loại năm</h2>
-    @if (data.isLoading() && !rows().length) {
+    <!-- Bảng chờ cả danh sách kỳ: khi kỳ chưa về, tài nguyên bảng còn chờ tham số, chưa "đang tải" -->
+    @if ((periods.isLoading() || data.isLoading()) && !rows().length) {
       <vt-skeleton
         variant="table"
         [columns]="5"

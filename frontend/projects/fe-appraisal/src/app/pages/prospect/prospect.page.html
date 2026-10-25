@@ -253,7 +253,7 @@
     >
       @if (showCriteria()) {
         <h2 id="pg-dlg">Tiêu chí phân nhóm triển vọng (Phụ lục 5)</h2>
-        @if (criteria.isLoading()) {
+        @if (criteria.isLoading() || year.isLoading() || board.isLoading()) {
           <vt-skeleton variant="detail" [rows]="4" label="Đang tải tiêu chí phân nhóm" />
         } @else {
           <dl class="crit">

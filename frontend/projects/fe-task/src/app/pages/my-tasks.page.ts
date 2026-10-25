@@ -117,7 +117,13 @@ export function readSavedFilters(
     <header class="vt-page-head">
       <div>
         <h1>Việc của tôi</h1>
-        <p>{{ periodLabel() }} · {{ counts().TAT_CA }} nhiệm vụ</p>
+        <!-- Số lượng chỉ hiện khi dữ liệu đã về, không hiện "0" giả trong lúc tải (YC-PT-28) -->
+        <p>
+          {{ periodLabel() }}
+          @if (page.hasValue()) {
+            · {{ counts().TAT_CA }} nhiệm vụ
+          }
+        </p>
       </div>
       <div class="head-actions">
         @if (!reduced()) {
@@ -160,7 +166,10 @@ export function readSavedFilters(
             [attr.aria-pressed]="filter() === f"
             (click)="setFilter(f)"
           >
-            {{ quickLabel[f] }} <span class="count">{{ counts()[f] }}</span>
+            {{ quickLabel[f] }}
+            @if (page.hasValue()) {
+              <span class="count">{{ counts()[f] }}</span>
+            }
           </button>
         }
       </div>

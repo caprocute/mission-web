@@ -582,7 +582,7 @@ const draftOf = (v: UiPackVersion | undefined): Draft | null =>
     >
       @if (components.error()) {
         <p class="err" role="alert">Không tải được danh mục. Vui lòng thử lại.</p>
-      } @else if (components.isLoading()) {
+      } @else if (components.isLoading() || packs.isLoading() || versions.isLoading()) {
         <vt-skeleton variant="list" [rows]="4" label="Đang tải danh mục khối" />
       }
       <ul class="catalog" data-testid="catalog">

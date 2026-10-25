@@ -23,7 +23,11 @@ const URLS = [
   ...new Set(['/', ...SECTIONS.map((s) => s.path), ...CHILD_ROUTES.map((c) => c.url), ...extra]),
 ];
 /** Tuyến không nạp dữ liệu máy chủ khi mở; khung xương không áp dụng. */
-const KHONG_TAI: Record<string, string> = {};
+const KHONG_TAI: Record<string, string> = {
+  '/oversight': 'trang mục lục các chức năng giám sát, không nạp dữ liệu',
+  '/oversight/reopen-requests/new': 'biểu mẫu tạo mới; ô chọn kỳ có trạng thái chờ riêng',
+  '/admin/tenants/new': 'biểu mẫu khởi tạo trống ở bước 1, không nạp dữ liệu',
+};
 const OUT = join(__dirname, '..', 'dist', 'e2e-ket-qua', 'khung-xuong');
 mkdirSync(OUT, { recursive: true });
 
@@ -47,6 +51,12 @@ for (const url of URLS) {
     test.skip(await notFound.isVisible(), `${url} không phải tuyến của ứng dụng`);
     // Tuyến bị chặn theo quyền chuyển sang trang "không có quyền": không có dữ liệu để tải
     test.skip(new URL(page.url()).pathname === '/khong-co-quyen', `${url} bị chặn theo quyền`);
+    // Tuyến chuyển tiếp (ví dụ `/admin` sang danh sách đơn vị) bỏ mất tham số giả lập chậm nên dữ liệu
+    // về ngay; tuyến đích có trong danh mục và được kiểm riêng
+    test.skip(
+      !page.url().includes('mock-delay='),
+      `${url} chuyển tiếp tới ${new URL(page.url()).pathname}`,
+    );
     await page.waitForTimeout(600);
     const main = page.locator('main#main');
     const skeletons = main.locator('vt-skeleton');

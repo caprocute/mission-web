@@ -758,6 +758,8 @@ export class TestCasePage {
     },
     { equal: sameRun },
   );
+  // skeleton-ok: chỉ nạp khi lịch sử chạy đã về và có lần không đạt; lúc lịch sử đang tải, vùng lịch sử
+  // có khung xương riêng, thẻ lỗi chưa có lý do để hiện
   protected readonly failRes = rxResource({
     params: () => {
       const f = this.failItem();
