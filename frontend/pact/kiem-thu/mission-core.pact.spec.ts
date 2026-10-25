@@ -7,7 +7,8 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, describe, expect, it } from 'vitest';
-import { AppraisalApi, EvidenceApi, OkrApi, TaskApi } from '@vt/api-client';
+import { OkrApi, TaskApi } from '@vt/api-client';
+import { AppraisalApi, EvidenceApi } from '@vt/api-client/domains';
 import { dung } from '../khop';
 import { TUONG_TAC, TuongTac } from '../tuong-tac/mission-core';
 

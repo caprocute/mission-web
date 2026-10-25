@@ -1,5 +1,6 @@
 import { Observable } from 'rxjs';
-import { AppraisalApi, EvidenceApi, OkrApi, TaskApi } from '@vt/api-client';
+import { OkrApi, TaskApi } from '@vt/api-client';
+import { AppraisalApi, EvidenceApi } from '@vt/api-client/domains';
 import { giongKieu, moiPhanTu, ngay, soNguyen, uuid } from '../khop';
 
 /**
