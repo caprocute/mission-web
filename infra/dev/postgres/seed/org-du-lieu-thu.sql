@@ -105,12 +105,16 @@ SELECT md5('person:' || p.id)::uuid, p.id, 'd0000000-0000-4000-8000-000000000001
 FROM seed_person p
 ON CONFLICT DO NOTHING;
 
--- CSDL dev đã nạp trước khi có cột trên: đánh dấu lại, chỉ đổi dòng còn false (chạy lại không đổi gì).
+-- CSDL dev đã nạp trước khi có cột trên: đánh dấu lại và tăng row_version để org-republish ghi đè bản sao
+-- org_replica (chỉ nhận phiên bản nguồn mới hơn). Dòng đã đánh dấu mà còn row_version 0 là dòng của bản seed cũ
+-- quên tăng phiên bản, bản sao vẫn ghi không phải đảng viên nên luồng DANG không lập hồ sơ cho canbo (QA-06
+-- HT-25..29); chạy lại không đổi gì.
 UPDATE org.person o
-   SET is_party_member = true
+   SET is_party_member = true, row_version = o.row_version + 1
   FROM seed_person p
  WHERE o.tenant_id = 'd0000000-0000-4000-8000-000000000001'::uuid AND o.id = p.id
-   AND p.username IN (SELECT username FROM seed_party_member) AND NOT o.is_party_member;
+   AND p.username IN (SELECT username FROM seed_party_member)
+   AND (NOT o.is_party_member OR o.row_version = 0);
 
 INSERT INTO org.assignment (version_id, id, tenant_id, person_id, org_unit_id, job_title_id, kind, branch,
                             valid_from, created_by, updated_by)

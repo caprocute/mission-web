@@ -9,6 +9,9 @@ GoldenSuiteYaml) ở trạng thái đã duyệt, không ký số. Chỉ dùng ch
 
 Cách chạy (từ gốc repo, cần PyYAML), rồi commit tệp SQL:
     python3 -I data/policy-pack/sinh_seed_dev.py > infra/dev/postgres/seed/policy-goi-mau.sql
+Gói chính quyền cho cùng tenant thử (tiền tố d2 để mã không trùng gói Đảng):
+    POLICY_GOI=data/policy-pack/khoi-chinh-quyen/nd335 POLICY_UID_PREFIX=d2 POLICY_SECTOR=KHOI_CHINH_QUYEN \
+        python3 -I data/policy-pack/sinh_seed_dev.py > infra/dev/postgres/seed/policy-goi-mau-nha-nuoc.sql
 
 Sinh cho tenant khác (bộ dữ liệu thử đa tenant, data/seed/da-tenant) bằng biến môi trường: POLICY_GOI (thư mục gói,
 tương đối gốc repo), POLICY_TENANT (UUID tenant), POLICY_UID_PREFIX (hai ký tự hex đầu UUID của bộ dữ liệu, để mã
