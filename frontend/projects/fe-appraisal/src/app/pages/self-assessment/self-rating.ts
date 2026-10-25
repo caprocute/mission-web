@@ -3,7 +3,7 @@ import { UiFormVersion } from '@vt/api-client';
 import { AppraisalRatingExplanation, Evidence, RATING_LEVEL_LABEL, RatingLevel } from '@vt/api-client/domains';
 import { FormUi, VtFormComponent } from '@vt/form-engine';
 import type { JSONSchema7 } from 'json-schema';
-import { SelfForm, compareRating, formRules } from './self-assessment-rules';
+import { SELF_RATING_KEY, SelfForm, compareRating, formRules, toModel } from './self-assessment-rules';
 
 /**
  * SCR-0901 vùng 4: mức hệ thống tham khảo kèm giải thích (trường 8, BR-09-10) và biểu mẫu động Mẫu 1B
@@ -139,7 +139,7 @@ export class SelfRating {
   );
   protected readonly initial = computed(() => {
     this.formKey();
-    return untracked(() => ({ ...this.current() }));
+    return untracked(() => toModel(this.current()));
   });
 
   protected readonly direction = computed(() => {
@@ -150,7 +150,7 @@ export class SelfRating {
   protected changed(model: Record<string, unknown>) {
     const v = this.current();
     const next: SelfForm = {
-      selfRatingCode: (model['selfRatingCode'] as RatingLevel | null) ?? v.selfRatingCode,
+      selfRatingCode: (model[SELF_RATING_KEY] as RatingLevel | null) ?? v.selfRatingCode,
       breakthrough: (model['breakthrough'] as string | undefined) ?? '',
       reason: (model['reason'] as string | undefined) ?? '',
       content: (model['content'] as string | undefined) ?? '',

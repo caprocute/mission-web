@@ -113,7 +113,7 @@ describe('SelfAssessmentPage (SCR-0901)', () => {
     expect(text(el.querySelector('[role=tab][aria-selected=true]'))).toBe(
       'Luồng Đảng · thang 100 điểm',
     );
-    expect(selected(field(el, 'selfRatingCode') as HTMLSelectElement)).toBe(
+    expect(selected(field(el, 'self_rating_code') as HTMLSelectElement)).toBe(
       'Hoàn thành tốt nhiệm vụ',
     );
     expect(text(el.querySelector('.why'))).toContain(
@@ -130,7 +130,7 @@ describe('SelfAssessmentPage (SCR-0901)', () => {
 
   it('chọn HTXSNV: MSG-09-02 cao hơn mức tham khảo, MSG-09-03, gắn minh chứng rồi ký số và nộp (MSG-09-04)', async () => {
     const { el } = await render();
-    choose(field(el, 'selfRatingCode') as HTMLSelectElement, 'Hoàn thành xuất sắc nhiệm vụ');
+    choose(field(el, 'self_rating_code') as HTMLSelectElement, 'Hoàn thành xuất sắc nhiệm vụ');
     await tick();
     expect(text(el.querySelector('.warn'))).toBe(
       'Mức tự đề xuất cao hơn mức hệ thống tham khảo, đồng chí cần ghi giải trình (Điều 16 Quy định 366).',
