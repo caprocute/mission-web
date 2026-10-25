@@ -115,7 +115,8 @@ public final class PermissionInterceptor implements MethodInterceptor {
             : opPolicy.map(OperationPolicy::method).orElse(null);
     OpaInput.Request request =
         (apiModule != null && !apiModule.isBlank() && apiMethod != null && !apiMethod.isBlank())
-            ? new OpaInput.Request(apiModule, apiMethod)
+            ? new OpaInput.Request(
+                apiModule, apiMethod, ann.operationId().isBlank() ? null : ann.operationId())
             : null;
 
     AuthzResource authzResource = extractResource(invocation.getArguments(), ann, subject);

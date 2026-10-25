@@ -565,6 +565,62 @@ test_client_cannot_self_service if {
 	not d.allow
 }
 
+# CORE-08-17: analytics-api (client credentials) gọi đúng thao tác hợp đồng khai service_client thì qua, trong tenant
+# được uỷ quyền; thao tác khác cùng module, sai phương thức, khác tenant hoặc chủ thể người dùng đều bị từ chối.
+client_op(subject, op, module, method, resource) := d if {
+	d := authz.decision with input as {
+		"subject": subject,
+		"request": {"module": module, "method": method, "operation": op},
+		"resource": resource,
+		"context": {"now": now},
+	}
+		with data.org as org
+}
+
+svc := {"kind": "client", "tenant_id": "t1", "user_id": "svc"}
+
+test_client_contract_operation_allowed if {
+	d := client_op(svc, "listDashboardDefs", "config", "GET", {"tenant_id": "t1"})
+	d.allow
+}
+
+test_client_contract_operation_write_allowed if {
+	d := client_op(svc, "replaceDashboardDef", "config", "PUT", {"tenant_id": "t1"})
+	d.allow
+}
+
+test_client_other_config_operation_denied if {
+	d := client_op(svc, "replaceFeatureFlag", "config", "PUT", {"tenant_id": "t1"})
+	not d.allow
+	"role_not_allowed" in d.deny
+}
+
+test_client_operation_without_name_denied if {
+	d := api(svc, "config", "GET", {"tenant_id": "t1"})
+	not d.allow
+}
+
+test_client_operation_method_mismatch_denied if {
+	d := client_op(svc, "listDashboardDefs", "config", "DELETE", {"tenant_id": "t1"})
+	not d.allow
+}
+
+test_client_operation_module_mismatch_denied if {
+	d := client_op(svc, "listDashboardDefs", "okr", "GET", {"tenant_id": "t1"})
+	not d.allow
+}
+
+test_client_operation_other_tenant_denied if {
+	d := client_op(svc, "listDashboardDefs", "config", "GET", {"tenant_id": "t2"})
+	not d.allow
+	"out_of_scope" in d.deny
+}
+
+test_user_cannot_use_client_operation if {
+	d := client_op(user(["member"]), "createDashboardDef", "config", "POST", {"tenant_id": "t1"})
+	not d.allow
+}
+
 # QA-03 HT-08: quyền POST module okr của AC-05, AC-06 không mở đường duyệt hay trả lại OKR; máy chủ
 # gửi kèm khoá chức năng SCR-0203 nên chỉ AC-04 qua được.
 test_okr_review_needs_scr0203_function if {

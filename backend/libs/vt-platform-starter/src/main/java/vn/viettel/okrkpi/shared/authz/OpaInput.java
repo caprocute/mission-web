@@ -76,9 +76,21 @@ public record OpaInput(
     }
   }
 
+  /**
+   * Lớp API của quyết định. {@code operation} là mã thao tác OpenAPI: chủ thể client (AC-11) chỉ
+   * qua với thao tác hợp đồng khai {@code service_client} ({@code
+   * data.okrkpi.generated.client_operations}).
+   */
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public record Request(
-      @JsonProperty("module") String module, @JsonProperty("method") String method) {}
+      @JsonProperty("module") String module,
+      @JsonProperty("method") String method,
+      @JsonProperty("operation") String operation) {
+
+    public Request(String module, String method) {
+      this(module, method, null);
+    }
+  }
 
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public record Resource(

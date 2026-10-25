@@ -39,6 +39,7 @@ Service hỏi `POST /v1/data/okrkpi/authz/decision` với `input`:
 | `subject.acr`, `subject.auth_time` | chuỗi, giây Unix | Mức xác thực và thời điểm xác thực; `acr = "aal2"` là phiên AAL2 |
 | `action` | chuỗi | Khoá chức năng của ma trận, dạng `SCR-qqnn.<khoá>` (ví dụ `SCR-0703.xac-nhan`) |
 | `request.module`, `request.method` | chuỗi | Module API (`/api/v1/<module>`) và phương thức HTTP; có thể gửi cùng `action`, khi đó phải qua cả hai |
+| `request.operation` | chuỗi | Mã thao tác OpenAPI (`operationId`). Chủ thể `kind = "client"` (AC-11) không có dòng trong bảng API theo module, nên chỉ qua lớp API khi thao tác nằm trong `client_operations` (thao tác hợp đồng khai `service_client`) và khớp `module`, `method` |
 | `resource.tenant_id`, `resource.owner_unit_id` | chuỗi | Tenant và đơn vị chủ quản của đối tượng |
 | `resource.owner_ids`, `resource.assignee_ids` | mảng | Người sở hữu, chủ trì, phối hợp (phạm vi B) |
 | `resource.designated_ids`, `resource.delegate_ids` | mảng | Người được giao, chỉ định trên chính đối tượng, và người duyệt thay (phạm vi Gn) |

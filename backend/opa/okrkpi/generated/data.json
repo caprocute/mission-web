@@ -1809,6 +1809,152 @@
       }
     }
   },
+  "client_operations": {
+    "checkTaskVisibilityBatch": {
+      "method": "POST",
+      "module": "tasks"
+    },
+    "controlPeriodCloseSaga": {
+      "method": "POST",
+      "module": "workflow"
+    },
+    "createDashboardDef": {
+      "method": "POST",
+      "module": "config"
+    },
+    "createDossierRenderJob": {
+      "method": "POST",
+      "module": "dossiers"
+    },
+    "createRegistryTenant": {
+      "method": "POST",
+      "module": "registry"
+    },
+    "createScimGroup": {
+      "method": "POST",
+      "module": "Groups"
+    },
+    "createScimUser": {
+      "method": "POST",
+      "module": "Users"
+    },
+    "deleteScimGroup": {
+      "method": "DELETE",
+      "module": "Groups"
+    },
+    "deleteScimUser": {
+      "method": "DELETE",
+      "module": "Users"
+    },
+    "getDashboardDef": {
+      "method": "GET",
+      "module": "config"
+    },
+    "getE2eeRecovery": {
+      "method": "GET",
+      "module": "org"
+    },
+    "getRecoveryKey": {
+      "method": "GET",
+      "module": "org"
+    },
+    "getScimGroup": {
+      "method": "GET",
+      "module": "Groups"
+    },
+    "getScimResourceType": {
+      "method": "GET",
+      "module": "ResourceTypes"
+    },
+    "getScimSchema": {
+      "method": "GET",
+      "module": "Schemas"
+    },
+    "getScimServiceProviderConfig": {
+      "method": "GET",
+      "module": "ServiceProviderConfig"
+    },
+    "getScimUser": {
+      "method": "GET",
+      "module": "Users"
+    },
+    "listAppraisalScoringInputs": {
+      "method": "GET",
+      "module": "appraisals"
+    },
+    "listAppraisalWorkItems": {
+      "method": "GET",
+      "module": "appraisals"
+    },
+    "listCells": {
+      "method": "GET",
+      "module": "registry"
+    },
+    "listDashboardDefs": {
+      "method": "GET",
+      "module": "config"
+    },
+    "listScimGroups": {
+      "method": "GET",
+      "module": "Groups"
+    },
+    "listScimResourceTypes": {
+      "method": "GET",
+      "module": "ResourceTypes"
+    },
+    "listScimSchemas": {
+      "method": "GET",
+      "module": "Schemas"
+    },
+    "listScimUsers": {
+      "method": "GET",
+      "module": "Users"
+    },
+    "ocrEvidenceObject": {
+      "method": "POST",
+      "module": "ai"
+    },
+    "patchScimGroup": {
+      "method": "PATCH",
+      "module": "Groups"
+    },
+    "patchScimUser": {
+      "method": "PATCH",
+      "module": "Users"
+    },
+    "replaceDashboardDef": {
+      "method": "PUT",
+      "module": "config"
+    },
+    "replaceScimGroup": {
+      "method": "PUT",
+      "module": "Groups"
+    },
+    "replaceScimUser": {
+      "method": "PUT",
+      "module": "Users"
+    },
+    "resolvePolicyPack": {
+      "method": "GET",
+      "module": "policies"
+    },
+    "resolveTenantCell": {
+      "method": "GET",
+      "module": "registry"
+    },
+    "setTaskDelayRisk": {
+      "method": "PUT",
+      "module": "tasks"
+    },
+    "signLedgerSeal": {
+      "method": "POST",
+      "module": "esign"
+    },
+    "startPeriodCloseSaga": {
+      "method": "POST",
+      "module": "workflow"
+    }
+  },
   "client_role": "(client credentials)",
   "constraints": {
     "1.1": {

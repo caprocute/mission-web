@@ -86,6 +86,8 @@ API_PATH_RE = re.compile(r"/api/v1/([a-z][a-z0-9-]*)")
 FULL_API_PATH_RE = re.compile(r"(?:((?:GET|POST|PUT|PATCH|DELETE)(?:/(?:GET|POST|PUT|PATCH|DELETE))*)\s+)?`?(/api/v1/[^`\s,)]+)")
 # Vai trò kỹ thuật (AC-11 client credentials, AC-12 trợ lý AI) không đi qua giao diện; không kiểm bao phủ.
 USER_ROLE_SKIP_AC = {"AC-11", "AC-12"}
+# Tên realm role của AC-11 trong `x-mission.roles` của hợp đồng OpenAPI.
+CONTRACT_CLIENT_ROLE = "service_client"
 # Đường dẫn hợp đồng không đi qua bảng API theo module: tài nguyên tự phục vụ `/config/me/...` do luật
 # self_service của okrkpi.authz quyết định (CNH-02), báo truy cập bất thường không kiểm OPA, `/registry/resolve`
 # shell gọi trước khi có vai trò. Không được dùng chúng để mở rộng quyền ghi module `config` cho vai trò thường
@@ -173,6 +175,18 @@ def kiem_hop_dong_bao_phu_chuc_nang(d):
                     lech.setdefault((meth, path, op[0], role), []).append(f["key"])
     return [f"Hợp đồng {op} ({meth} {path}) chưa cấp cho {role} dù ma trận chức năng cấp ở {', '.join(sorted(set(keys)))}"
             for (meth, path, op, role), keys in sorted(lech.items())]
+
+
+def _thao_tac_client(d):
+    """{operationId: {module, method}} của mọi thao tác hợp đồng khai `service_client` (AC-11)."""
+    ops = _hop_dong(d)
+    if not ops:
+        raise SystemExit("Sinh dữ liệu OPA cần PyYAML để đọc hợp đồng OpenAPI (thao tác của AC-11).")
+    out = {}
+    for (meth, path), (op_id, roles) in sorted(ops.items()):
+        if CONTRACT_CLIENT_ROLE in roles:
+            out[op_id] = {"module": path.strip("/").split("/")[0], "method": meth}
+    return out
 
 
 def _api_can_thiet_tu_hop_dong(d):
@@ -828,6 +842,11 @@ def rego_data(d):
                                                          key=HTTP_METHODS.index)}
         api[row["module"]] = {"roles": m, "outside_baseline": row["ngoai_baseline"]}
 
+    # AC-11 không có ô nào trong bảng API theo module: hệ thống ngoài và service nội bộ chỉ được gọi đúng những
+    # thao tác mà hợp đồng khai `service_client` (OPA so `request.operation`), không được cả module. Thiếu bảng này
+    # thì cổng dịch vụ như `listDashboardDefs` (CORE-08-17) bị từ chối `role_not_allowed` (lượt đo 25/10/2026).
+    client_operations = _thao_tac_client(d)
+
     classification = {role_of[r["ac"]]: {k: _classification(r[k]) for k in ("C0", "C1", "C2", "C3")}
                       for r in d["muc_du_lieu"]}
 
@@ -845,6 +864,7 @@ def rego_data(d):
         "roles": roles,
         "functions": functions,
         "api": api,
+        "client_operations": client_operations,
         "classification": classification,
         "constraints": constraints,
     }

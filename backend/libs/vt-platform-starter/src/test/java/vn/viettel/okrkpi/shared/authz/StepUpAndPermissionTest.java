@@ -194,9 +194,11 @@ class StepUpAndPermissionTest {
             .claim("preferred_username", "service-account-analytics-api")
             .claim(
                 "realm_access",
-                Map.of("roles", List.of("service_client", "offline_access", "default-roles-mission")))
+                Map.of(
+                    "roles", List.of("service_client", "offline_access", "default-roles-mission")))
             .build();
-    SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt, List.of()));
+    SecurityContextHolder.getContext()
+        .setAuthentication(new JwtAuthenticationToken(jwt, List.of()));
 
     OpaInput.Subject subject = new AuthzSubjectResolver().currentSubject();
 
@@ -253,6 +255,9 @@ class StepUpAndPermissionTest {
     assertThat(out).isEqualTo("ok:true");
     assertThat(audits).hasSize(1);
     assertThat(audits.getFirst().action()).isEqualTo("assignTask:OBLIGATION");
+    // Mã thao tác đi kèm lớp API: OPA cho client (AC-11) qua theo thao tác hợp đồng khai
+    // service_client.
+    assertThat(stubOpa.lastInput.request().operation()).isEqualTo("assignTask");
 
     // 2. Ngoài phạm vi -> COMMON-403-OUT-OF-SCOPE
     stubOpa.nextDecision = new OpaDecision(false, Set.of("out_of_scope"), Set.of(), "rev-1", false);
@@ -312,9 +317,11 @@ class StepUpAndPermissionTest {
 
   static class StubOpaClient implements OpaClient {
     OpaDecision nextDecision = new OpaDecision(true, Set.of(), Set.of(), "rev-1", false);
+    OpaInput lastInput;
 
     @Override
     public OpaDecision decide(OpaInput input) {
+      lastInput = input;
       return nextDecision;
     }
 

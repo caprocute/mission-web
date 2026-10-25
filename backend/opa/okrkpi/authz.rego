@@ -275,6 +275,20 @@ api_effective contains r if {
 	input.request.method in api_role(r).methods
 }
 
+# AC-11 không có dòng trong bảng API theo module: chủ thể client chỉ qua lớp API với đúng thao tác mà hợp đồng
+# khai `service_client` (gen.client_operations, sinh từ contracts/openapi), và thao tác phải khớp module, phương thức
+# đang gọi. Nhờ vậy cổng dịch vụ CORE-08-17 mở cho analytics-api mà client không được ghi cả module config.
+client_operation_ok if {
+	subject_kind == "client"
+	op := gen.client_operations[input.request.operation]
+	op.module == input.request.module
+	op.method == input.request.method
+}
+
+api_grant_roles contains gen.client_role if client_operation_ok
+
+api_effective contains gen.client_role if client_operation_ok
+
 api_tenant_ok if not resource.tenant_id
 
 api_tenant_ok if same_tenant
