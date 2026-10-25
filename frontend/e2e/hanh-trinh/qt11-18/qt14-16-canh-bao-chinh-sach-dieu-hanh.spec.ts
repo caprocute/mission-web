@@ -163,7 +163,7 @@ test.describe('QT-14 QT-15 QT-16 Cảnh báo, chính sách và bảng điều h�
     await batCaoTuoi(page);
     let m = main(page);
     await expect(
-      m.getByRole('heading', { level: 1, name: 'Chính sách đánh giá & Luồng quy trình động' }),
+      m.getByRole('heading', { level: 1, name: 'Chính sách đánh giá', exact: true }),
     ).toBeVisible();
     await kiemAxeOnDinh(page, 'danh mục chính sách, chế độ cao tuổi');
     await m
