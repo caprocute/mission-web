@@ -174,7 +174,7 @@
   @if (selected(); as s) {
     <aside class="card side" aria-labelledby="an-ex" aria-live="polite">
       <h2 id="an-ex">Giải thích liên thông · {{ s.person.name }}</h2>
-      @if (s.annualScore == null) {
+      @if (s.annualScore === null || s.annualScore === undefined) {
         <p class="msg">Hồ sơ chưa có điểm năm nên chưa có phần giải thích.</p>
       } @else if (explanation.error()) {
         <p class="msg err" role="alert">Chưa tải được giải thích của hồ sơ này.</p>
