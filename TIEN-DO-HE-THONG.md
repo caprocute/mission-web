@@ -12,11 +12,11 @@
 
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 398 task)
 
-- **Tổng tiến độ đã gộp `main`**: **397 / 398 task (99.7%)** — Khối lượng quy đổi đã gộp: **474.5 / 476.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **398 / 398 task (100.0%)** (gồm **397** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ đã gộp `main`**: **398 / 398 task (100.0%)** — Khối lượng quy đổi đã gộp: **476.5 / 476.5 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **398 / 398 task (100.0%)** (gồm **398** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **0 task** (0 đang làm, 0 làm một phần).
 - **Chưa bắt đầu**: **0 task**.
-- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **22 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: `QA-06`).
+- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **23 / 23 task**; nút găng kế tiếp cần mở khoá: **`Hoàn thành`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 9 nhóm phân hệ
 
@@ -28,10 +28,10 @@
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 106 | 132.5 | **106** | 0 | 0 | 0 | **100.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **13** | 0 | 0 | 0 | **100.0%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **28** | 0 | 0 | 0 | **100.0%** |
-| **QA** | Kiểm thử tích hợp, ATTT và chấp nhận nghiệp vụ (`QA-01..07`, `QA-13`, `QA-16`) | 9 | 13.5 | **8** | 1 | 0 | 0 | **88.9%** |
+| **QA** | Kiểm thử tích hợp, ATTT và chấp nhận nghiệp vụ (`QA-01..07`, `QA-13`, `QA-16`) | 9 | 13.5 | **9** | 0 | 0 | 0 | **100.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **9** | 0 | 0 | 0 | **100.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **398** | **476.5** | **397** | **1** | **0** | **0** | **99.7%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **398** | **476.5** | **398** | **0** | **0** | **0** | **100.0%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -42,7 +42,7 @@
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 48 | **48** | 0 | 0 | 0 | **100.0%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **120** | 0 | 0 | 0 | **100.0%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
-| **M5 – Hạ tầng Production, Tích hợp E2E & ATTT** | 37 | **36** | 1 | 0 | 0 | **97.3%** |
+| **M5 – Hạ tầng Production, Tích hợp E2E & ATTT** | 37 | **37** | 0 | 0 | 0 | **100.0%** |
 | **M6 – Dữ liệu chính thức & Vận hành** | 11 | **11** | 0 | 0 | 0 | **100.0%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 7 | **7** | 0 | 0 | 0 | **100.0%** |
 
@@ -50,7 +50,7 @@
 
 Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 
-✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → ✅ `CORE-00-01` → ✅ `CORE-00-02` → ✅ `CORE-05-01` → ✅ `CORE-05-02` → ✅ `CORE-05-03` → ✅ `CORE-08-13` → ✅ `CORE-08-14` → ✅ `CORE-04-04` → ✅ `CORE-04-05` → ✅ `CORE-04-07` → ✅ `CORE-04-08` → ✅ `CORE-04-10` → 🔄 **`QA-06`** (Xong, chờ gộp) → ✅ `QA-07` → ✅ `QA-16` → ✅ `VH-08`
+✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → ✅ `CORE-00-01` → ✅ `CORE-00-02` → ✅ `CORE-05-01` → ✅ `CORE-05-02` → ✅ `CORE-05-03` → ✅ `CORE-08-13` → ✅ `CORE-08-14` → ✅ `CORE-04-04` → ✅ `CORE-04-05` → ✅ `CORE-04-07` → ✅ `CORE-04-08` → ✅ `CORE-04-10` → ✅ `QA-06` → ✅ `QA-07` → ✅ `QA-16` → ✅ `VH-08`
 
 ---
 
@@ -578,7 +578,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [INF-27](docs/tasks/INF-27-quan-ly-truy-cap-dac-quyen.md) | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | B8 | 3 | INF-13 | **Đã gộp main** | Warpgate, SA kubectl, dba_ops, ghi phiên RGW (895eaaa2); chưa chạy cụm thật |
 | [INF-28](docs/tasks/INF-28-cum-cho-am-ttdl-hai.md) | Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite | L | B8 | 9 | INF-11, INF-18, INF-20, INF-04, INF-08, INF-09, INF-17 | **Đã gộp main** | MM2, walArchive, chế độ chờ, siteRole toàn cục (948aa4cb); chưa chạy cụm thật |
 
-### QA · Kiểm thử tích hợp, an toàn thông tin, chấp nhận nghiệp vụ (8/9 đã gộp `main`, 1 chờ gộp, 0 đang làm)
+### QA · Kiểm thử tích hợp, an toàn thông tin, chấp nhận nghiệp vụ (9/9 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -587,7 +587,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [QA-03](docs/tasks/QA-03-e2e-he-thong-that.md) | Bộ kiểm thử đầu cuối với hệ thống thật trên server dev (backend thật, Keycloak, APISIX) | M | B9 | 11 | INF-22, QA-01 | **Đã gộp main** | Gộp B1 chạy thật (9704988e) kèm giao diện YC-PT-24 |
 | [QA-04](docs/tasks/QA-04-hanh-trinh-okr.md) | Hành trình đầu cuối: đăng nhập, khởi tạo tenant, tổ chức, OKR, check-in | M | B9 | 14 | QA-03, CORE-01-08, DV-03-05 | **Đã gộp main** | FieldEncryptor thật ở org-service, thư chết integration-gateway, tên chức danh; HT-07..09 Đạt trên dev |
 | [QA-05](docs/tasks/QA-05-hanh-trinh-giao-viec.md) | Hành trình đầu cuối: kế hoạch, giao việc, tiến độ, minh chứng, nghiệm thu | L | B9 | 20 | QA-03, CORE-03-07, CORE-02-22 | **Đã gộp main** | Gộp B1 chạy thật (9704988e) kèm giao diện YC-PT-24 |
-| [QA-06](docs/tasks/QA-06-hanh-trinh-danh-gia.md) | Hành trình đầu cuối: khoá kỳ, tự đánh giá, thẩm định, quyết định ký số, xếp loại năm | L | B9 | 21 | QA-05, DV-06-06, CORE-04-10 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: HT-25..29 đạt cả chế độ thật và giả lập; kèm sửa SemgrepTenantRuleTest (NEN-034) |
+| [QA-06](docs/tasks/QA-06-hanh-trinh-danh-gia.md) | Hành trình đầu cuối: khoá kỳ, tự đánh giá, thẩm định, quyết định ký số, xếp loại năm | L | B9 | 21 | QA-05, DV-06-06, CORE-04-10 | **Đã gộp main** | Gộp B1 ce79675a: HT-25..29 Đạt thật và giả lập; còn mở: nút Tải Mẫu 1B (wiki 14 mục 18) |
 | [QA-07](docs/tasks/QA-07-hanh-trinh-giam-sat.md) | Hành trình đầu cuối: kiểm điểm, hồ sơ số, khiếu nại, mở lại kỳ, cảnh báo, Policy Pack, bảng điều hành, AI, UI Pack | L | B9 | 23 | QA-06, CORE-06-08, CORE-07-11, DV-15-06 | **Đã gộp main** | Gộp 8d327008 |
 | [QA-13](docs/tasks/QA-13-asvs-zap.md) | Kiểm thử ATTT: OWASP ASVS 4.0.3 mức 2 (L3 cho xác thực, phiên, mật mã) và OWASP ZAP toàn hệ thống | L | B9 | 12 | QA-03 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
 | [QA-16](docs/tasks/QA-16-uat-tenant-thi-diem.md) | Kiểm thử chấp nhận nghiệp vụ: tenant thí điểm chạy trọn một kỳ đánh giá | L | B9 | 24 | QA-07 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
@@ -1066,4 +1066,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 24/10/2026 16:08 | Điều phối (main) | `QA-06` | Chuyển trạng thái sang **Làm một phần** — Gộp B1 acaecb52: HT-23, HT-24 Đạt; HT-25..29 chờ nối SVC-07 vào saga |
 | 24/10/2026 18:53 | Điều phối (main) | `NEN-045`, `CORE-08-18`, `DV-04-09`, `DV-04-10`, `WEB-077`, `WEB-078`, `WEB-079` | Chuyển trạng thái sang **Đã gộp main** — Gộp ADR-34 quản trị người dùng, vai trò tuỳ chỉnh (158c1ceb) |
 | 25/10/2026 18:45 | B1 (Claude) | `QA-06` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: HT-25..29 đạt cả chế độ thật và giả lập; kèm sửa SemgrepTenantRuleTest (NEN-034) |
+| 25/10/2026 18:47 | Điều phối (main) | `QA-06` | Chuyển trạng thái sang **Đã gộp main** — Gộp B1 ce79675a: HT-25..29 Đạt thật và giả lập; còn mở: nút Tải Mẫu 1B (wiki 14 mục 18) |
 <!-- PROGRESS_LOG_END -->
