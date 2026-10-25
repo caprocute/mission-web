@@ -65,8 +65,9 @@ public class ArchitectureRulesTest {
   /**
    * Chỉ nhập lớp của chính mission-core. Khi dựng cả reactor ({@code ./mvnw verify} ở {@code
    * backend/}, như pipeline), thư viện nội bộ ({@code vt-platform-starter}, {@code vt-cel}, {@code
-   * vt-db-migration}) nằm trên classpath dưới dạng thư mục {@code target/classes} chứ không phải jar,
-   * nên {@code DoNotIncludeJars} không loại được và quy tắc của mission-core bị áp nhầm lên chúng.
+   * vt-db-migration}) nằm trên classpath dưới dạng thư mục {@code target/classes} chứ không phải
+   * jar, nên {@code DoNotIncludeJars} không loại được và quy tắc của mission-core bị áp nhầm lên
+   * chúng.
    */
   static final class OnlyMissionCoreClasses implements ImportOption {
     private static final String ROOT =
