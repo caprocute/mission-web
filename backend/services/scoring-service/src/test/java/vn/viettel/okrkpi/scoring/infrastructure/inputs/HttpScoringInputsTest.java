@@ -16,6 +16,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.AfterAll;
@@ -37,6 +38,7 @@ class HttpScoringInputsTest {
   static final UUID TASK_2 = UUID.fromString("0192f1a2-0000-7000-8000-0000000000d2");
 
   static final Map<String, String> ROUTES = new ConcurrentHashMap<>();
+  static final Set<String> TENANTS = ConcurrentHashMap.newKeySet();
   private static HttpServer server;
   private static HttpScoringInputs inputs;
 
@@ -46,6 +48,7 @@ class HttpScoringInputsTest {
     server.createContext(
         "/",
         ex -> {
+          TENANTS.add(String.valueOf(ex.getRequestHeaders().getFirst("X-Tenant-Id")));
           String body = ROUTES.get(ex.getRequestURI().toString());
           byte[] bytes = body == null ? new byte[0] : body.getBytes(StandardCharsets.UTF_8);
           ex.getResponseHeaders().add("Content-Type", "application/json");
@@ -121,6 +124,8 @@ class HttpScoringInputsTest {
     ScoringInputs.Page last = inputs.page(TENANT, PERIOD, "p2", ScoringInputs.PAGE_SIZE);
     assertThat(last.items()).isEmpty();
     assertThat(last.nextCursor()).isNull();
+    // Trang đầu vào và trang việc lá đều mang tenant đích cho client dịch vụ (X-Tenant-Id).
+    assertThat(TENANTS).containsOnly(TENANT.toString());
   }
 
   @Test

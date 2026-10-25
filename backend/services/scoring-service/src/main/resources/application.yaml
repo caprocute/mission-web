@@ -82,6 +82,11 @@ mission:
       base-url: ${MISSION_CORE_URL:http://127.0.0.1:8080}
       cache-max-entries: ${POLICY_CACHE_MAX_ENTRIES:32}
     # DV-07-04, DV-07-06: đọc đầu vào của MOD-04 (listAppraisalScoringInputs) và worker hàng đợi lô.
+    # QA-06: client credentials của client scoring-service gọi mission-core (Keycloak); trống thì không kèm token.
+    core-client:
+      token-url: ${SCORING_CORE_TOKEN_URL:}
+      client-id: ${SCORING_CORE_CLIENT_ID:scoring-service}
+      client-secret: ${SCORING_CORE_CLIENT_SECRET:}
     inputs:
       base-url: ${MISSION_CORE_URL:http://127.0.0.1:8080}
       read-timeout: ${SCORING_INPUTS_READ_TIMEOUT:PT30S}

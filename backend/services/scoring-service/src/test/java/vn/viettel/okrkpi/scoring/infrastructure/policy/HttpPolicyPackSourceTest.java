@@ -14,8 +14,10 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
@@ -39,6 +41,7 @@ class HttpPolicyPackSourceTest {
   static final String HASH = "9f".repeat(32);
 
   static final Map<String, String> ROUTES = new ConcurrentHashMap<>();
+  static final Set<String> TENANTS = ConcurrentHashMap.newKeySet();
   private static HttpServer server;
   private static ResilientClientFactory factory;
   private static HttpPolicyPackSource source;
@@ -49,6 +52,7 @@ class HttpPolicyPackSourceTest {
     server.createContext(
         "/",
         ex -> {
+          TENANTS.add(String.valueOf(ex.getRequestHeaders().getFirst("X-Tenant-Id")));
           String key = ex.getRequestURI().toString();
           String body = ROUTES.get(key);
           byte[] bytes = body == null ? new byte[0] : body.getBytes(StandardCharsets.UTF_8);
@@ -158,6 +162,31 @@ class HttpPolicyPackSourceTest {
     assertThat(c.rules().get(1).evalOrder()).isZero();
     assertThat(c.tables()).singleElement().extracting(t -> t.dmnXml()).isEqualTo("<definitions/>");
     assertThat(source.load(TENANT, PACK, VERSION, "2.1.0").rules()).hasSize(2);
+    // Mọi lời gọi nội dung mang tenant đích cho client dịch vụ (X-Tenant-Id).
+    assertThat(TENANTS).containsOnly(TENANT.toString());
+  }
+
+  @Test
+  void manifestDoiMangInputsVeAnhXaTheoTen() {
+    Map<String, Object> m =
+        HttpPolicyPackSource.manifest(
+            Map.of(
+                "inputs",
+                List.of(
+                    Map.of("name", "nhiem_vu", "type", "list<NhiemVu>"),
+                    Map.of("name", "giu_chuc_vu", "type", "bool")),
+                "ngu_canh",
+                Map.of("nv", Map.of("type", "NhiemVu"))));
+    assertThat(m.get("inputs"))
+        .isEqualTo(
+            Map.of(
+                "nhiem_vu",
+                Map.of("type", "list<NhiemVu>"),
+                "giu_chuc_vu",
+                Map.of("type", "bool")));
+    assertThat(((Map<?, ?>) m.get("inputs")).keySet().stream().map(String::valueOf))
+        .containsExactly("nhiem_vu", "giu_chuc_vu");
+    assertThat(m.get("ngu_canh")).isEqualTo(Map.of("nv", Map.of("type", "NhiemVu")));
   }
 
   @Test

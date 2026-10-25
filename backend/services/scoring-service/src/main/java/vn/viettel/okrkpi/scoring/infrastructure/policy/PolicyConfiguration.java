@@ -1,9 +1,11 @@
 package vn.viettel.okrkpi.scoring.infrastructure.policy;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.web.client.RestClient;
 import vn.viettel.okrkpi.cel.application.CelEngine;
 import vn.viettel.okrkpi.cel.domain.StaticWorkingCalendar;
 import vn.viettel.okrkpi.scoring.application.policy.PolicyCompiler;
@@ -13,6 +15,7 @@ import vn.viettel.okrkpi.scoring.application.port.DecisionTables;
 import vn.viettel.okrkpi.scoring.application.port.OpenPeriods;
 import vn.viettel.okrkpi.scoring.application.port.PolicyPackSource;
 import vn.viettel.okrkpi.scoring.application.port.ScoreJobStore;
+import vn.viettel.okrkpi.scoring.infrastructure.client.ServiceToken;
 import vn.viettel.okrkpi.shared.resilience.ResilientClientFactory;
 
 /** Lắp ráp nạp Policy Pack, biên dịch CEL và DMN, đệm theo băm và consumer EVT-13 (DV-07-02). */
@@ -37,8 +40,16 @@ public class PolicyConfiguration {
   @Bean
   PolicyPackSource policyPackSource(
       ResilientClientFactory clients,
+      ObjectProvider<RestClient.Builder> builders,
+      ServiceToken coreServiceToken,
       @Value("${mission.scoring.policy.base-url:http://127.0.0.1:8080}") String baseUrl) {
-    return new HttpPolicyPackSource(clients.create("policy-pack", baseUrl));
+    RestClient client =
+        builders
+            .getIfAvailable(RestClient::builder)
+            .baseUrl(baseUrl)
+            .requestInterceptor(coreServiceToken.interceptor())
+            .build();
+    return new HttpPolicyPackSource(clients.create("policy-pack", client));
   }
 
   @Bean
