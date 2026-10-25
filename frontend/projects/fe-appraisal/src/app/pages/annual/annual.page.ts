@@ -135,8 +135,12 @@ export class AnnualPage {
   protected readonly selected = computed(
     () => this.rows().find((r) => r.id === this.selectedId()) ?? null,
   );
+  // Hồ sơ chưa có điểm năm (luồng chưa tính xong) thì máy chủ trả 409, nên không hỏi giải thích
   protected readonly explanation = rxResource({
-    params: () => this.selectedId() ?? undefined,
+    params: () => {
+      const s = this.selected();
+      return s && s.annualScore != null ? s.id : undefined;
+    },
     stream: ({ params }) => this.api.annualExplanation(params),
   });
   protected readonly ex = computed(() =>
