@@ -125,7 +125,16 @@ def main() -> int:
     if stop.location is None and page is not None:
         if 'name="otp"' not in page:
             raise RuntimeError("đăng nhập không qua (sai mật khẩu hoặc tài khoản bị khoá?)")
-        post(_form_action(page), {"otp": totp(otp_secret)})
+        # Phiên quản trị có thể qua hai bước OTP liên tiếp (nhánh OTP theo vai trò rồi nhánh step-up aal2);
+        # Keycloak không nhận lại mã đã dùng nên bước sau đợi sang chu kỳ 30 giây kế tiếp.
+        used = None
+        for _ in range(3):
+            if page is None or 'name="otp"' not in page or stop.location is not None:
+                break
+            while totp(otp_secret) == used:
+                time.sleep(1)
+            used = totp(otp_secret)
+            page = post(_form_action(page), {"otp": used})
     if stop.location is None:
         raise RuntimeError("không nhận được mã ủy quyền sau bước OTP")
     params = urllib.parse.parse_qs(urllib.parse.urlsplit(stop.location).query)
