@@ -114,6 +114,9 @@ final class ConfigDashboardClient implements DashboardStorePort {
     h.setBearerAuth(token.bearer());
     h.setAccept(List.of(MediaType.APPLICATION_JSON));
     h.set("X-Acting-User", viewer.userId().toString());
+    // Token client credentials không mang claim tenant: mission-core đọc tenant đích ở X-Tenant-Id
+    // khi analytics-api có trong okrkpi.tenant.delegating-clients.
+    h.set("X-Tenant-Id", viewer.tenant().toString());
     if (idempotencyKey != null) {
       h.set(ResilientClient.IDEMPOTENCY_KEY, idempotencyKey);
     }
