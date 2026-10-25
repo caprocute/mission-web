@@ -1261,6 +1261,7 @@ services:
       KAFKA_BROKERS: kafka:9092
       VALKEY_ADDRS: valkey:6379
       VALKEY_PASSWORD: ${VALKEY_PASSWORD:-}
+      CRYPTO_LOCAL_KEY: ${NOTIFY_C2_KEY:-}
       TZ: Asia/Ho_Chi_Minh
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${NOTIFICATION_SERVICE_PORT:-35121}:8080"
