@@ -115,6 +115,17 @@ class UserAccountApiIT extends IntegrationTestBase {
   }
 
   @Test
+  void tenDangNhapTienToTaiKhoanDichVuBiTuChoi() throws Exception {
+    call(post("/api/v1/org/users").header("Idempotency-Key", UUID.randomUUID().toString())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"fullName\":\"Trần Thị Bình\",\"username\":\"service-account-mission-web\",\"orgUnitId\":\""
+            + unit + "\",\"jobTitleId\":\"" + title + "\"}"), ADMIN, "aal2")
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.code").value("ORG-422-USERNAME"));
+    verify(directory, never()).create(any());
+  }
+
+  @Test
   void taoTaiKhoanCanBuocLenVaVaiTroQuanTri() throws Exception {
     String body = "{\"fullName\":\"Lê Văn Cường\",\"username\":\"lv.cuong\",\"orgUnitId\":\"" + unit
         + "\",\"jobTitleId\":\"" + title + "\"}";

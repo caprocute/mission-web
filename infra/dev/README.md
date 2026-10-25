@@ -135,6 +135,8 @@ Các bước cho phiên trên máy Mac:
 6. Kiểm: `smoke-backend.sh` đạt, mở web qua APISIX và đăng nhập bằng tài khoản thử, so connector với bước 3.
 7. Quay lui: `DEV_SERVER_REPO_DIR` mới có thể bỏ. Đặt lại thư mục cũ bằng `sync-server.sh apply` với `DEV_SERVER_INFRA_DIR` cũ, sau khi `git checkout` commit trước đó.
 
+Trên máy chủ CentOS 7, nếu `deploy-backend.sh` dựng ảnh báo lỗi BuildKit `frontend grpc server closed unexpectedly`, chạy lại với trình dựng cũ: `DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0`. Đã gặp lần đầu ngày 25/10/2026.
+
 ### 2.3. Kiểm script trước khi đẩy: bash 4.2 của máy chủ (INF-22)
 
 Máy chủ dev chạy CentOS 7 với bash 4.2, còn máy Mac mặc định có bash 3.2. Ở cả hai phiên bản này, `set -u` coi mảng rỗng là biến chưa gán, nên `"${x[@]}"` hay `${x[*]}` của một mảng rỗng làm script dừng với lỗi `unbound variable`, trong khi bash 4.4 trở lên (máy cloud, Linux mới) chạy bình thường và không lộ lỗi. Vì vậy, mọi mở rộng mảng có thể rỗng trong `infra/dev/scripts` phải viết theo dạng `${x[@]+"${x[@]}"}` (giữ nguyên từng phần tử) hoặc `${x[*]-}` (ghép thành chuỗi); `${#x[@]}` và `${!x[@]}` không bị ảnh hưởng.

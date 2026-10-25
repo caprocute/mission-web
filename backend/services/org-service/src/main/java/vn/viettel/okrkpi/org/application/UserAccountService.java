@@ -58,6 +58,7 @@ public class UserAccountService {
   static final String ACTIVE = "HOAT_DONG";
   static final String LOCKED = "KHOA";
   private static final Pattern USERNAME = Pattern.compile("^[a-z][a-z0-9._-]{2,63}$");
+  private static final String SERVICE_ACCOUNT_PREFIX = "service-account-";
   private static final int BACKFILL_LIMIT = 200;
   private static final int SUBTREE_DEPTH = 12;
   // Bỏ ký tự dễ nhầm (0/O, 1/l/I) để người dùng chép mật khẩu tạm không sai.
@@ -209,6 +210,12 @@ public class UserAccountService {
     if (!USERNAME.matcher(username).matches()) {
       throw new OrgRuleViolation("ORG-422-USERNAME", "BR-01-19", null, "username",
           "Tên đăng nhập gồm 3 đến 64 ký tự chữ thường không dấu, số, dấu chấm, gạch dưới, gạch nối, bắt đầu bằng chữ.");
+    }
+    // Tiền tố của tài khoản dịch vụ Keycloak: AuthzSubjectResolver và ActorFilter nhận token có
+    // preferred_username = service-account-<azp> là chủ thể client, nên người dùng không được mang tên này.
+    if (username.startsWith(SERVICE_ACCOUNT_PREFIX)) {
+      throw new OrgRuleViolation("ORG-422-USERNAME", "BR-01-19", null, "username",
+          "Tên đăng nhập này dành cho tài khoản dịch vụ của hệ thống, hãy chọn tên khác.");
     }
     LocalDate from = cmd.validFrom() != null ? cmd.validFrom() : support.today();
     TemporalQuery at = support.resolve(from, null);
