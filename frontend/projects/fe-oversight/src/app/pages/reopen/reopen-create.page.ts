@@ -14,7 +14,19 @@ import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { OrgApi, fieldErrors, toProblem } from '@vt/api-client';
-import { PeriodApi, REOPEN_AUDIT_KIND_LABEL, REOPEN_BASIS_LABEL, REOPEN_LIMITS, REOPEN_SCOPE_LABEL, ReopenApi, ReopenAuditKind, ReopenBasisKind, ReopenRequestInput, ReopenScope, ReopenScopeItem } from '@vt/api-client/domains';
+import {
+  PeriodApi,
+  REOPEN_AUDIT_KIND_LABEL,
+  REOPEN_BASIS_LABEL,
+  REOPEN_LIMITS,
+  REOPEN_SCOPE_LABEL,
+  ReopenApi,
+  ReopenAuditKind,
+  ReopenBasisKind,
+  ReopenRequestInput,
+  ReopenScope,
+  ReopenScopeItem,
+} from '@vt/api-client/domains';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
@@ -72,6 +84,7 @@ const options = <K extends string>(labels: Record<K, string>) =>
               <p-select
                 inputId="rq-period"
                 [options]="periods()"
+                [loading]="periodsRes.isLoading()"
                 optionLabel="label"
                 optionValue="value"
                 [ngModel]="periodId()"
@@ -179,6 +192,7 @@ const options = <K extends string>(labels: Record<K, string>) =>
                 <p-select
                   inputId="rq-unit"
                   [options]="units()"
+                  [loading]="unitsRes.isLoading()"
                   optionLabel="label"
                   optionValue="value"
                   [ngModel]="null"
@@ -483,7 +497,7 @@ export class ReopenCreatePage {
     () => this.theme.mode() === 'elderly' && this.theme.reducedSteps(),
   );
 
-  private readonly periodsRes = rxResource({
+  protected readonly periodsRes = rxResource({
     stream: () => this.periodApi.list({ status: 'DA_KHOA' }),
   });
   protected readonly periods = computed(() =>
@@ -491,7 +505,7 @@ export class ReopenCreatePage {
       .filter((p) => p.status === 'DA_KHOA')
       .map((p) => ({ value: p.id, label: p.name })),
   );
-  private readonly unitsRes = rxResource({
+  protected readonly unitsRes = rxResource({
     params: () => (this.scope() === 'DON_VI' ? true : undefined),
     stream: () => this.orgApi.units('children'),
   });

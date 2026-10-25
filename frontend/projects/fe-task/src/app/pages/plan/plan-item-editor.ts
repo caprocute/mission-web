@@ -91,6 +91,7 @@ const GROUPS = (Object.keys(TASK_GROUP_LABEL) as TaskGroup[]).map((value) => ({
               [ngModel]="i.keyResultId ?? null"
               (ngModelChange)="set({ keyResultId: $event ?? undefined })"
               styleClass="w"
+              [loading]="keyResultsLoading()"
             />
           </div>
         }
@@ -105,6 +106,7 @@ const GROUPS = (Object.keys(TASK_GROUP_LABEL) as TaskGroup[]).map((value) => ({
             [ngModel]="i.leadAssignee.id || null"
             (ngModelChange)="setLead($event)"
             styleClass="w"
+            [loading]="unitsLoading()"
           />
         </div>
         @if (!simple()) {
@@ -120,6 +122,7 @@ const GROUPS = (Object.keys(TASK_GROUP_LABEL) as TaskGroup[]).map((value) => ({
               [ngModel]="coIds()"
               (ngModelChange)="setCo($event)"
               styleClass="w"
+              [loading]="unitsLoading()"
             />
           </div>
         }
@@ -278,6 +281,9 @@ export class PlanItemEditor {
   readonly item = input.required<PlanItem>();
   readonly units = input<Option[]>([]);
   readonly keyResults = input<Option[]>([]);
+  /** Danh sách lựa chọn còn đang nạp: ô chọn hiện trạng thái chờ thay vì danh sách rỗng. */
+  readonly unitsLoading = input(false);
+  readonly keyResultsLoading = input(false);
   readonly periodStart = input<string>('');
   readonly periodEnd = input<string>('');
   readonly simple = input(false);

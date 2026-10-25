@@ -70,7 +70,11 @@ import { ReasonDialog } from './reason.dialog';
 
       <section class="box" aria-labelledby="dl-z2" aria-live="polite">
         <h2 id="dl-z2" class="h">
-          {{ selected() ? 'Uỷ quyền tại ' + unitName() : 'Uỷ quyền' }}
+          @if (selected() && unit.isLoading()) {
+            <vt-skeleton variant="text" [rows]="1" label="Đang tải tên đơn vị" />
+          } @else {
+            {{ selected() ? 'Uỷ quyền tại ' + unitName() : 'Uỷ quyền' }}
+          }
         </h2>
         @if (!selected()) {
           <p class="muted">Chọn một đơn vị trên cây để xem uỷ quyền.</p>
@@ -226,7 +230,7 @@ export class DelegationsPage {
   protected readonly busy = signal(false);
   protected readonly notices = signal<{ kind: 'success' | 'error'; text: string }[]>([]);
 
-  private readonly unit = rxResource({
+  protected readonly unit = rxResource({
     params: () => this.selected() ?? undefined,
     stream: ({ params }) => this.units.unit(params),
   });

@@ -112,6 +112,7 @@ const draft = (): Draft => ({
             inputId="uc-title"
             styleClass="full"
             [options]="titles()"
+            [loading]="jobTitles.isLoading()"
             optionLabel="label"
             optionValue="value"
             [filter]="true"
@@ -211,7 +212,7 @@ export class UserCreateDialog {
     { value: 'KHAC', label: 'Khác' },
   ];
 
-  private readonly jobTitles = rxResource({
+  protected readonly jobTitles = rxResource({
     params: () => (this.visible() ? true : undefined),
     stream: () =>
       this.api.jobTitles().pipe(map((items) => items.map((j) => ({ value: j.id, label: j.name })))),

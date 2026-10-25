@@ -2,8 +2,16 @@ import { Component, computed, inject, linkedSignal, output, signal } from '@angu
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { toProblem } from '@vt/api-client';
-import { OrgSyncApi, OrgSyncSchedule, SYNC_SOURCE_TITLE, ScheduleSet, cronToTime, timeToCron } from '@vt/api-client/domains';
+import {
+  OrgSyncApi,
+  OrgSyncSchedule,
+  SYNC_SOURCE_TITLE,
+  ScheduleSet,
+  cronToTime,
+  timeToCron,
+} from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
+import { VtSkeletonComponent } from '@vt/design-system';
 import { errorText } from '../../admin-ui';
 
 /**
@@ -13,7 +21,7 @@ import { errorText } from '../../admin-ui';
  */
 @Component({
   selector: 'vt-org-sync-schedule',
-  imports: [FormsModule, ButtonModule],
+  imports: [FormsModule, ButtonModule, VtSkeletonComponent],
   template: `
     <section class="box" aria-labelledby="sched">
       <h2 id="sched" class="h">Lịch đồng bộ</h2>
@@ -54,6 +62,20 @@ import { errorText } from '../../admin-ui';
                 }
               </td>
             </tr>
+          } @empty {
+            @if (list.isLoading()) {
+              <tr>
+                <td colspan="3">
+                  <vt-skeleton
+                    variant="table"
+                    [header]="false"
+                    [columns]="3"
+                    [rows]="3"
+                    label="Đang tải lịch đồng bộ"
+                  />
+                </td>
+              </tr>
+            }
           }
         </tbody>
       </table>

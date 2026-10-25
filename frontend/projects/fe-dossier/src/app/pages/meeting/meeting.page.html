@@ -89,6 +89,9 @@
     }
   </div>
 
+  @if (special.isLoading()) {
+    <vt-skeleton variant="text" [rows]="1" label="Đang tải trường hợp đặc thù" />
+  }
   @for (c of specialCases(); track c.id) {
     <p class="info" data-special>
       Trường hợp đặc thù: <strong>{{ caseLabel(c.legalRef) }}</strong> ({{ c.legalRef }}).
@@ -189,7 +192,9 @@
       <h2 id="mt-cm">
         Góp ý cho dự thảo kiểm điểm <small>{{ commentList().length }} góp ý</small>
       </h2>
-      @if (commentList().length === 0) {
+      @if (comments.isLoading() && !comments.hasValue()) {
+        <vt-skeleton variant="list" [rows]="3" label="Đang tải góp ý" />
+      } @else if (commentList().length === 0) {
         <p class="muted">Chưa có góp ý.</p>
       }
       <ul class="comments">

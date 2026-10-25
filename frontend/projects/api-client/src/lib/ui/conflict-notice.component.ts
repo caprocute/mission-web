@@ -48,7 +48,14 @@ export interface ConflictField<T> {
           <p>Các thông tin đồng chí đang sửa không bị thay đổi trên máy chủ.</p>
         }
       } @else {
-        <p>Đang tải bản mới nhất để so sánh…</p>
+        <!-- Khung xương của bảng khác biệt (YC-PT-28); api-client không phụ thuộc @vt/design-system
+             nên dựng khối mờ tại chỗ, cùng quy ước với vt-skeleton -->
+        <div class="sk" role="status" aria-busy="true">
+          <span class="sk-sr">Đang tải bản mới nhất để so sánh</span>
+          @for (i of [1, 2, 3]; track i) {
+            <div class="sk-row" aria-hidden="true"><span></span><span></span><span></span></div>
+          }
+        </div>
       }
       <div class="actions">
         <p-button
@@ -69,6 +76,35 @@ export interface ConflictField<T> {
     </section>
   `,
   styles: `
+    .sk-sr {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
+    .sk-row {
+      display: grid;
+      grid-template-columns: 1fr 2fr 2fr;
+      gap: 0.75rem;
+      padding: 0.5rem 0;
+    }
+    .sk-row span {
+      height: 0.875rem;
+      border-radius: 4px;
+      background: var(--vt-sk-base, #e2e8f0);
+      animation: sk-pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes sk-pulse {
+      50% {
+        opacity: 0.5;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .sk-row span {
+        animation: none;
+      }
+    }
     .conflict {
       border: 2px solid var(--p-orange-500, #b45309);
       border-radius: 8px;

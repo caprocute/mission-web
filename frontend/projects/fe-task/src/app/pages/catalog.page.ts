@@ -166,6 +166,7 @@ interface Filters {
           ariaLabel="Vị trí việc làm"
           appendTo="body"
           styleClass="f-pos"
+          [loading]="positions.isLoading()"
         />
         @if (!simple()) {
           <p-select
@@ -383,7 +384,7 @@ interface Filters {
               @if (latestImport(); as j) {
                 <p>{{ j.fileName }} · {{ fmt(j.totalRows) }} dòng</p>
                 @if (j.status === 'DANG_XU_LY') {
-                  <p class="muted">Đang kiểm tra tệp…</p>
+                  <vt-skeleton variant="text" [rows]="2" label="Đang kiểm tra tệp" />
                 } @else {
                   <ul class="imp">
                     <li>
@@ -412,6 +413,8 @@ interface Filters {
                     />
                   }
                 }
+              } @else if (latest.isLoading()) {
+                <vt-skeleton variant="list" [rows]="2" label="Đang tải kết quả nhập Excel" />
               } @else {
                 <p class="muted">Chưa nhập tệp nào cho phiên bản này.</p>
               }
@@ -765,7 +768,7 @@ export class CatalogPage {
     computation: () => [],
   });
 
-  private readonly latest = rxResource({
+  protected readonly latest = rxResource({
     params: () => this.catalogId() ?? undefined,
     stream: ({ params }) => this.api.latestImport(params),
   });

@@ -481,7 +481,7 @@ const draftOf = (v: UiPackVersion | undefined): Draft | null =>
                   <p class="hint">Kết quả theo bản đã lưu; lưu nháp để kiểm tra lại.</p>
                 }
               } @else if (preview.isLoading()) {
-                <p>Đang kiểm tra…</p>
+                <vt-skeleton variant="list" [rows]="3" label="Đang kiểm tra cấu hình giao diện" />
               }
             </section>
           </div>
@@ -582,6 +582,8 @@ const draftOf = (v: UiPackVersion | undefined): Draft | null =>
     >
       @if (components.error()) {
         <p class="err" role="alert">Không tải được danh mục. Vui lòng thử lại.</p>
+      } @else if (components.isLoading() || packs.isLoading() || versions.isLoading()) {
+        <vt-skeleton variant="list" [rows]="4" label="Đang tải danh mục khối" />
       }
       <ul class="catalog" data-testid="catalog">
         @for (c of catalog(); track c.componentKey) {

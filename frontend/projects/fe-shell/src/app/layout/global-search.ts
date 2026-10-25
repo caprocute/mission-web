@@ -3,6 +3,7 @@ import { Component, ElementRef, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { SearchApi, SearchResult, SearchResultType } from '@vt/api-client';
 import { PermissionService } from '@vt/auth';
+import { VtSkeletonComponent } from '@vt/design-system';
 import { Subscription } from 'rxjs';
 import { safeInternalLink } from './relative-time';
 
@@ -48,6 +49,7 @@ const DEBOUNCE_MS = 300;
  */
 @Component({
   selector: 'vt-global-search',
+  imports: [VtSkeletonComponent],
   host: {
     '(document:click)': 'onDocumentClick($event)',
     '[hidden]': 'forbidden() || !allowed()',
@@ -119,7 +121,12 @@ const DEBOUNCE_MS = 300;
           </li>
         }
       </ul>
-      <p class="status" role="status">{{ statusText() }}</p>
+      @if (state() === 'loading' && !results().length) {
+        <!-- lần tìm đầu chưa có kết quả: khung xương các dòng gợi ý -->
+        <vt-skeleton variant="list" [rows]="3" label="Đang tìm kết quả" />
+      } @else {
+        <p class="status" role="status">{{ statusText() }}</p>
+      }
     </div>
   `,
   styles: `

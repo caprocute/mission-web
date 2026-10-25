@@ -247,22 +247,26 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
         @if (removed().length) {
           <div class="removed">
             <p id="rm-title" class="small">Dòng bỏ so với phiên bản đã duyệt</p>
-            <ul aria-labelledby="rm-title">
-              @for (r of removed(); track r.originItemId) {
-                <li>
-                  {{ removedTitle(r.originItemId) }}: {{ r.changeReason }}
-                  @if (editable() && can('SCR-0402.lap')) {
-                    <p-button
-                      label="Khôi phục"
-                      [text]="true"
-                      size="small"
-                      [ariaLabel]="'Khôi phục dòng ' + removedTitle(r.originItemId)"
-                      (onClick)="restoreItem(r.originItemId)"
-                    />
-                  }
-                </li>
-              }
-            </ul>
+            @if (baseRes.isLoading()) {
+              <vt-skeleton variant="list" [rows]="removed().length" label="Đang tải dòng đã bỏ" />
+            } @else {
+              <ul aria-labelledby="rm-title">
+                @for (r of removed(); track r.originItemId) {
+                  <li>
+                    {{ removedTitle(r.originItemId) }}: {{ r.changeReason }}
+                    @if (editable() && can('SCR-0402.lap')) {
+                      <p-button
+                        label="Khôi phục"
+                        [text]="true"
+                        size="small"
+                        [ariaLabel]="'Khôi phục dòng ' + removedTitle(r.originItemId)"
+                        (onClick)="restoreItem(r.originItemId)"
+                      />
+                    }
+                  </li>
+                }
+              </ul>
+            }
           </div>
         }
       }
@@ -367,6 +371,8 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
               [item]="e"
               [units]="units()"
               [keyResults]="keyResultOptions()"
+              [unitsLoading]="unitsRes.isLoading()"
+              [keyResultsLoading]="krRes.isLoading()"
               [periodStart]="v.period.startDate"
               [periodEnd]="v.period.endDate"
               [simple]="simple()"
@@ -452,7 +458,7 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
                   <p class="small err-text">Gửi duyệt bị chặn cho tới khi sửa hết lỗi.</p>
                 }
               } @else {
-                <p class="muted">Đang kiểm tra…</p>
+                <vt-skeleton variant="list" [rows]="3" label="Đang kiểm tra kế hoạch" />
               }
             </section>
           }
@@ -462,6 +468,7 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
       <vt-catalog-pick-dialog
         [(visible)]="pickOpen"
         [items]="catalogItems()"
+        [loading]="catalogRes.isLoading()"
         [used]="usedCatalog()"
         (added)="addFromCatalog($event)"
       />
@@ -486,7 +493,11 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
             <label [for]="'sg-' + $index">{{ s.title }}</label>
           </div>
         } @empty {
-          <vt-skeleton variant="list" [rows]="3" label="Đang tải gợi ý" />
+          @if (suggestLoading()) {
+            <vt-skeleton variant="list" [rows]="3" label="Đang tải gợi ý" />
+          } @else {
+            <p class="muted">Chưa có gợi ý mới từ OKR.</p>
+          }
         }
         <ng-template #footer>
           <p-button
@@ -890,12 +901,15 @@ export class PlanPage {
     stream: ({ params }) => this.api.workspace(params.plan, params.v),
   });
 
-  private readonly unitsRes = rxResource({ stream: () => this.orgApi.units('unit') });
-  private readonly krRes = rxResource({
+  // skeleton-ok: chỉ cấp lựa chọn cho ô chọn chủ trì, phối hợp trong vt-plan-item-editor, ô đó gắn [loading]
+  protected readonly unitsRes = rxResource({ stream: () => this.orgApi.units('unit') });
+  // skeleton-ok: chỉ cấp lựa chọn cho ô chọn KR trong vt-plan-item-editor, ô đó gắn [loading]
+  protected readonly krRes = rxResource({
     params: () => this.ws.value()?.version.period.id,
     stream: ({ params }) => this.okrApi.keyResults(params),
   });
-  private readonly catalogRes = rxResource({
+  // skeleton-ok: chuyển cho vt-catalog-pick-dialog qua [loading], hộp thoại tự hiện khung xương danh sách
+  protected readonly catalogRes = rxResource({
     params: () => (this.editable() ? true : undefined),
     stream: () => this.catalogApi.items({ limit: 200 }),
   });
@@ -909,7 +923,7 @@ export class PlanPage {
     () => this.ws.value()?.version.removedItems ?? [],
   );
   /** Dòng của phiên bản hiện hành, để hiện tên và khôi phục dòng đã bỏ khi điều chỉnh. */
-  private readonly baseRes = rxResource({
+  protected readonly baseRes = rxResource({
     params: () => {
       const w = this.ws.value();
       const no = w?.plan.effectiveVersionNo;
@@ -967,6 +981,7 @@ export class PlanPage {
   protected readonly suggestOpen = signal(false);
   protected readonly adjustOpen = signal(false);
   protected readonly suggestions = signal<PlanItemInput[]>([]);
+  protected readonly suggestLoading = signal(false);
   protected readonly suggestPicked = signal<Set<number>>(new Set());
 
   /** Chế độ người cao tuổi: ẩn cột KR, phối hợp, sao chép, gợi ý OKR và phần giải thích (NFR-11). */
@@ -1276,12 +1291,17 @@ export class PlanPage {
     this.suggestions.set([]);
     this.suggestPicked.set(new Set());
     this.suggestOpen.set(true);
+    this.suggestLoading.set(true);
     this.api.suggestions(w.plan.id).subscribe({
       next: (s) => {
         this.suggestions.set(s);
         this.suggestPicked.set(new Set(s.map((_, n) => n)));
+        this.suggestLoading.set(false);
       },
-      error: (e) => this.fail(e),
+      error: (e) => {
+        this.suggestLoading.set(false);
+        this.fail(e);
+      },
     });
   }
   protected toggleSuggestion(n: number) {

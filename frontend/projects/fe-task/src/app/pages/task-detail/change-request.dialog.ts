@@ -32,6 +32,7 @@ import {
   TaskDetail,
   toProblem,
 } from '@vt/api-client';
+import { VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
@@ -56,6 +57,7 @@ const fmtC = (c: number) => c.toFixed(2).replace('.', ',');
 @Component({
   selector: 'vt-change-request-dialog',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     ButtonModule,
     DialogModule,
@@ -234,6 +236,8 @@ const fmtC = (c: number) => c.toFixed(2).replace('.', ',');
             styleClass="msg"
           />
         }
+      } @else if (preview.isLoading()) {
+        <vt-skeleton variant="text" [rows]="2" label="Đang tính hệ quả của đề nghị" />
       }
       @if (error(); as e) {
         <p-message severity="error" [text]="e" styleClass="msg" />

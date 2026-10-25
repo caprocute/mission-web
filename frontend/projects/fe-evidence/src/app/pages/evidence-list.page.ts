@@ -51,6 +51,8 @@ import {
       <h1>Sản phẩm, minh chứng của nhiệm vụ</h1>
       @if (t) {
         <p class="muted sub">{{ t.code }} · {{ t.title }}</p>
+      } @else if (taskRes.isLoading()) {
+        <vt-skeleton variant="text" [rows]="1" label="Đang tải thông tin nhiệm vụ" />
       }
       @if (error(); as err) {
         <p class="msg err" role="alert">{{ err }}</p>
@@ -129,6 +131,8 @@ import {
         </ul>
       } @else if (mine.error()) {
         <p class="msg err" role="alert">Không tải được hàng chờ nghiệm thu.</p>
+      } @else {
+        <vt-skeleton variant="list" [rows]="5" label="Đang tải minh chứng chờ nghiệm thu" />
       }
     } @else {
       <h1>Minh chứng của tôi</h1>
@@ -203,6 +207,8 @@ import {
         </ul>
       } @else if (mine.error()) {
         <p class="msg err" role="alert">Không tải được danh sách minh chứng.</p>
+      } @else {
+        <vt-skeleton variant="list" [rows]="5" label="Đang tải minh chứng của tôi" />
       }
     }
   `,

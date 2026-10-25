@@ -1,6 +1,7 @@
 import { Component, computed, input, model, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AssignCheckItem, AssignCheckResult, SimilarTask, TASK_STATUS_LABEL } from '@vt/api-client';
+import { VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
@@ -13,7 +14,7 @@ import { formatDate } from '../../task-ui';
  */
 @Component({
   selector: 'vt-assign-side-panel',
-  imports: [FormsModule, ButtonModule, TagModule, TextareaModule],
+  imports: [VtSkeletonComponent, FormsModule, ButtonModule, TagModule, TextareaModule],
   template: `
     <section class="box" aria-labelledby="chk-title" aria-live="polite">
       <h2 id="chk-title" class="h">Kiểm tra trước khi giao</h2>
@@ -64,7 +65,7 @@ import { formatDate } from '../../task-ui';
           >
         }
       } @else if (loading()) {
-        <p class="muted">Đang kiểm tra…</p>
+        <vt-skeleton variant="list" [rows]="3" label="Đang kiểm tra trước khi giao" />
       } @else {
         <p class="muted">Điền nội dung nhiệm vụ để hệ thống kiểm tra.</p>
       }

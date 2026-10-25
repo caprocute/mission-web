@@ -240,7 +240,9 @@ const SIGN_REASON = 'Cần xác thực bổ sung để ký số văn bản trả
           <!-- vùng 3 -->
           <section class="box" aria-labelledby="g-h">
             <h2 class="h" id="g-h">Giải trình</h2>
-            @if (asks().length) {
+            @if (records.isLoading() && !asks().length) {
+              <vt-skeleton variant="list" [rows]="2" label="Đang tải yêu cầu giải trình" />
+            } @else if (asks().length) {
               <ul class="records">
                 @for (a of asks(); track a.ask.id) {
                   <li [class.ask]="!a.answer" [class.answer]="!!a.answer">
@@ -297,6 +299,7 @@ const SIGN_REASON = 'Cần xác thực bổ sung để ký số văn bản trả
                 <p-multiselect
                   inputId="yc-parties"
                   [options]="partyOptions()"
+                  [loading]="orgOptions.isLoading()"
                   optionLabel="label"
                   optionValue="value"
                   [ngModel]="parties()"
@@ -503,6 +506,8 @@ const SIGN_REASON = 'Cần xác thực bổ sung để ký số văn bản trả
               }
               @if (conclusionText(); as t) {
                 <p class="text">{{ t }}</p>
+              } @else if (records.isLoading()) {
+                <vt-skeleton variant="text" [rows]="3" label="Đang tải nội dung kết luận" />
               }
             } @else {
               <p class="muted">Chưa có kết luận.</p>

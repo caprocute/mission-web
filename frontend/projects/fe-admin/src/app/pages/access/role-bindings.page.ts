@@ -96,7 +96,13 @@ const FLOW_LABEL: Record<string, string> = { DANG: 'Khối Đảng', NHA_NUOC: '
           <h2 id="rb-z3" class="h">Vai trò đã cấp</h2>
           <p class="muted">Chọn một đơn vị trên cây để xem vai trò đã cấp.</p>
         } @else {
-          <h2 id="rb-z3" class="h">Vai trò tại {{ unitName() }}</h2>
+          <h2 id="rb-z3" class="h">
+            @if (unit.isLoading()) {
+              <vt-skeleton variant="text" [rows]="1" label="Đang tải tên đơn vị" />
+            } @else {
+              Vai trò tại {{ unitName() }}
+            }
+          </h2>
           <div class="filters" role="group" aria-label="Lọc nhanh">
             @for (q of quicks(); track q.key) {
               <button
@@ -378,7 +384,7 @@ export class RoleBindingsPage {
   protected readonly busy = signal<string | null>(null);
   protected readonly notices = signal<{ kind: 'success' | 'warn' | 'error'; text: string }[]>([]);
 
-  private readonly unit = rxResource({
+  protected readonly unit = rxResource({
     params: () => this.selected() ?? undefined,
     stream: ({ params }) => this.units.unit(params),
   });

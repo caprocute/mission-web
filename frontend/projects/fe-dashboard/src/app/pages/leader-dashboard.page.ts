@@ -125,6 +125,7 @@ interface Kpi {
         <p-select
           inputId="bd-group"
           [options]="groupOptions()"
+          [loading]="optionsRes.isLoading()"
           [ngModel]="group()"
           (ngModelChange)="group.set($event)"
           [showClear]="true"
@@ -136,6 +137,7 @@ interface Kpi {
         <p-select
           inputId="bd-flow"
           [options]="flowOptions()"
+          [loading]="optionsRes.isLoading()"
           [ngModel]="flow()"
           (ngModelChange)="flow.set($event)"
           [showClear]="true"
@@ -291,6 +293,7 @@ interface Kpi {
                 label="Xem dữ liệu đã dùng"
                 [text]="true"
                 size="small"
+                [loading]="busy() === 'nguon'"
                 (onClick)="openSources(s.id)"
               />
             }
@@ -366,6 +369,7 @@ interface Kpi {
           <p-select
             inputId="gl-person"
             [options]="personOptions()"
+            [loading]="personsRes.isLoading()"
             optionLabel="name"
             optionValue="id"
             [filter]="true"
@@ -561,7 +565,7 @@ export class LeaderDashboardPage {
       }),
   });
   /** Giá trị cho bộ lọc khối, luồng lấy từ chính lớp ngữ nghĩa (không đặt danh sách trong mã). */
-  private readonly optionsRes = rxResource({
+  protected readonly optionsRes = rxResource({
     params: () => this.periodId() ?? undefined,
     stream: ({ params }) =>
       forkJoin(
@@ -587,7 +591,7 @@ export class LeaderDashboardPage {
   protected readonly directives = computed(() =>
     this.taskRes.hasValue() ? this.taskRes.value().items : [],
   );
-  private readonly personsRes = rxResource({
+  protected readonly personsRes = rxResource({
     params: () => (this.reassigning() ? true : undefined),
     stream: () => this.orgApi.persons(),
   });
@@ -681,9 +685,17 @@ export class LeaderDashboardPage {
   }
 
   protected openSources(id: string) {
+    // Nút chờ trong lúc nạp nguồn; hộp thoại chỉ mở khi dữ liệu đã về
+    this.busy.set('nguon');
     this.api.summarySources(id).subscribe({
-      next: (s) => this.sources.set(s),
-      error: (e) => this.error.set(errorText(e)),
+      next: (s) => {
+        this.busy.set(null);
+        this.sources.set(s);
+      },
+      error: (e) => {
+        this.busy.set(null);
+        this.error.set(errorText(e));
+      },
     });
   }
 

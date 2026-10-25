@@ -1,7 +1,12 @@
 import { Component, computed, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AssigneeRef } from '@vt/api-client';
-import { SUGGESTION_DECISION_LABEL, SuggestionField, TaskSuggestion, TaskSuggestionFields } from '@vt/api-client/domains';
+import {
+  SUGGESTION_DECISION_LABEL,
+  SuggestionField,
+  TaskSuggestion,
+  TaskSuggestionFields,
+} from '@vt/api-client/domains';
 import { InputTextModule } from 'primeng/inputtext';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { SelectModule } from 'primeng/select';
@@ -139,6 +144,7 @@ export function suggestionTag(s: TaskSuggestion): { label: string; severity: Tag
               (ngModelChange)="setLead($event)"
               styleClass="box w"
               [class.ai-wrap]="isAi('leadUnitId')"
+              [loading]="unitsLoading()"
             />
           } @else {
             <input
@@ -173,6 +179,7 @@ export function suggestionTag(s: TaskSuggestion): { label: string; severity: Tag
               styleClass="box w"
               [class.ai-wrap]="isAi('coUnits')"
               placeholder="Không có"
+              [loading]="unitsLoading()"
             />
           } @else {
             <input
@@ -265,6 +272,7 @@ export function suggestionTag(s: TaskSuggestion): { label: string; severity: Tag
                 (ngModelChange)="setCatalog($event)"
                 styleClass="box w"
                 [class.ai-wrap]="isAi('catalogItemId')"
+                [loading]="catalogLoading()"
               />
             } @else {
               <input
@@ -291,6 +299,7 @@ export function suggestionTag(s: TaskSuggestion): { label: string; severity: Tag
                 (ngModelChange)="setKr($event)"
                 styleClass="box w"
                 [class.ai-wrap]="isAi('keyResultId')"
+                [loading]="keyResultsLoading()"
               />
             } @else {
               <input
@@ -413,6 +422,10 @@ export class SuggestionCard {
   readonly units = input<Option[]>([]);
   readonly catalog = input<Option[]>([]);
   readonly keyResults = input<Option[]>([]);
+  /** Danh sách lựa chọn còn đang nạp: ô chọn hiện trạng thái chờ thay vì danh sách rỗng. */
+  readonly unitsLoading = input(false);
+  readonly catalogLoading = input(false);
+  readonly keyResultsLoading = input(false);
   readonly maxDate = input<string | undefined>();
   readonly errors = input<Record<string, string>>({});
   readonly pick = output<void>();

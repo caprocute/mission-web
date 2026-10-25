@@ -85,6 +85,7 @@ const draft = (): Draft => ({
             inputId="gr-person"
             styleClass="full"
             [options]="people()"
+            [loading]="persons.isLoading()"
             optionLabel="label"
             optionValue="value"
             [filter]="true"
@@ -251,7 +252,7 @@ export class GrantDialog {
     { value: 'NHA_NUOC', label: 'Khối Nhà nước' },
   ];
 
-  private readonly persons = rxResource({
+  protected readonly persons = rxResource({
     params: () => (this.visible() ? true : undefined),
     stream: () =>
       this.org

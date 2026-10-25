@@ -67,12 +67,16 @@ const time = (iso: string | null | undefined) => {
   ],
   template: `
     <div class="top">
-      <p class="sub" data-testid="suite" [attr.data-suite]="suite()?.code">
-        {{ suiteText() }}
-        @if (suite()?.pending; as n) {
-          <span class="pending">{{ n }} ca mới đang chờ ký duyệt.</span>
-        }
-      </p>
+      @if (suiteRes.isLoading() && !suite()) {
+        <vt-skeleton class="sub" variant="text" [rows]="1" label="Đang tải bộ ca mẫu" />
+      } @else {
+        <p class="sub" data-testid="suite" [attr.data-suite]="suite()?.code">
+          {{ suiteText() }}
+          @if (suite()?.pending; as n) {
+            <span class="pending">{{ n }} ca mới đang chờ ký duyệt.</span>
+          }
+        </p>
+      }
       <div class="toolbar">
         @if (canAdd()) {
           <p-button
@@ -310,7 +314,11 @@ const time = (iso: string | null | undefined) => {
           }
         </section>
 
-        @if (failDetail(); as f) {
+        @if (failRes.isLoading() && !failDetail()) {
+          <section class="card fail" aria-label="Lỗi ở lần chạy không đạt">
+            <vt-skeleton variant="text" [rows]="3" label="Đang tải chi tiết lần chạy không đạt" />
+          </section>
+        } @else if (failDetail(); as f) {
           <section class="card fail" aria-labelledby="h-fail" data-testid="fail-detail">
             <h2 id="h-fail">Lỗi ở lần #{{ f.runNo }}{{ fixedLater() ? ' (đã sửa)' : '' }}</h2>
             @for (c of failedCases(f.cases); track c.goldenTestCaseId) {
@@ -750,7 +758,9 @@ export class TestCasePage {
     },
     { equal: sameRun },
   );
-  private readonly failRes = rxResource({
+  // skeleton-ok: chỉ nạp khi lịch sử chạy đã về và có lần không đạt; lúc lịch sử đang tải, vùng lịch sử
+  // có khung xương riêng, thẻ lỗi chưa có lý do để hiện
+  protected readonly failRes = rxResource({
     params: () => {
       const f = this.failItem();
       return f ? { ref: f.ref, id: f.run.id } : undefined;

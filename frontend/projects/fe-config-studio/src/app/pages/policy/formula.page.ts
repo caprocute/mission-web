@@ -388,8 +388,14 @@ const GROUP_TOTAL_NHA_NUOC = 70;
             @if (dirty().length) {
               <p class="small muted">Kết quả theo bản đã lưu; lưu nháp để xem theo thay đổi mới.</p>
             }
-          } @else if (preview.isLoading()) {
-            <p class="muted">Đang tính…</p>
+          } @else if (cases.isLoading() || preview.isLoading()) {
+            <vt-skeleton
+              variant="table"
+              [header]="false"
+              [columns]="3"
+              [rows]="4"
+              label="Đang tính thử với hồ sơ mẫu"
+            />
           }
         </section>
       </div>

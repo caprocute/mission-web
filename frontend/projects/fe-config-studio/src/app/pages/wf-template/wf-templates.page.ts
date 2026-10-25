@@ -256,6 +256,14 @@ const titleOf = (code: string) => WF_TITLE[code] ?? 'Mẫu quy trình';
               Triển khai cuốn chiếu ngoài giờ cao điểm: cụm thí điểm nội bộ trước, các cụm lớn sau
               cùng. Lỗi ở một cụm thì đặt lại phiên bản trước làm mặc định.
             </p>
+          } @else if (t.status === 'HIEU_LUC' && rollouts.isLoading()) {
+            <h2 id="ro-h">Triển khai lên các cụm máy chủ</h2>
+            <vt-skeleton
+              variant="table"
+              [columns]="3"
+              [rows]="3"
+              label="Đang tải tình hình triển khai"
+            />
           }
         } @else {
           <vt-skeleton variant="detail" label="Đang tải mẫu quy trình" />

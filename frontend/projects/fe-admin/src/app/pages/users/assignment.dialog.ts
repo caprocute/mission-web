@@ -18,6 +18,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
+import { VtSkeletonComponent } from '@vt/design-system';
 import { map } from 'rxjs';
 import { ACCESS_STEP_UP, isoDay } from '../access/access-ui';
 import { OrgTreeView } from '../org/org-tree-view';
@@ -40,6 +41,7 @@ type Kind = 'KIEM_NHIEM' | 'BIET_PHAI';
     MessageModule,
     SelectModule,
     OrgTreeView,
+    VtSkeletonComponent,
   ],
   template: `
     <p-dialog
@@ -62,15 +64,20 @@ type Kind = 'KIEM_NHIEM' | 'BIET_PHAI';
           }
         </section>
         <div class="fields">
-          <p class="muted">
-            Đơn vị đã chọn: <strong>{{ unitName() || 'chưa chọn' }}</strong>
-          </p>
+          @if (unit.isLoading()) {
+            <vt-skeleton variant="text" [rows]="1" label="Đang tải tên đơn vị đã chọn" />
+          } @else {
+            <p class="muted">
+              Đơn vị đã chọn: <strong>{{ unitName() || 'chưa chọn' }}</strong>
+            </p>
+          }
           <div>
             <label class="f" for="as-title">Chức danh</label>
             <p-select
               inputId="as-title"
               styleClass="full"
               [options]="titles()"
+              [loading]="jobTitles.isLoading()"
               optionLabel="label"
               optionValue="value"
               [filter]="true"
@@ -198,13 +205,13 @@ export class AssignmentDialog {
   protected readonly error = signal<string | null>(null);
   protected readonly saving = signal(false);
 
-  private readonly jobTitles = rxResource({
+  protected readonly jobTitles = rxResource({
     params: () => (this.visible() ? true : undefined),
     stream: () =>
       this.api.jobTitles().pipe(map((items) => items.map((j) => ({ value: j.id, label: j.name })))),
   });
   protected readonly titles = () => (this.jobTitles.hasValue() ? this.jobTitles.value() : []);
-  private readonly unit = rxResource({
+  protected readonly unit = rxResource({
     params: () => this.unitId() ?? undefined,
     stream: ({ params }) => this.units.unit(params),
   });

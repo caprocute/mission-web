@@ -199,6 +199,8 @@ export class SelfAssessmentPage {
   protected readonly evidenceIds = linkedSignal(() => this.sa()?.breakthroughEvidenceIds ?? []);
   protected readonly dirty = linkedSignal({ source: this.profile, computation: () => false });
 
+  // skeleton-ok: danh sách minh chứng chuyển cho <vt-self-rating>, thành phần con hiện khung xương
+  // qua [evidencesLoading] trong khi tải
   protected readonly evidences = rxResource({
     params: () => (this.self().selfRatingCode === 'HTXSNV' ? true : undefined),
     stream: () => this.evidenceApi.list({ status: ['DA_XAC_NHAN'] }).pipe(map((p) => p.items)),
@@ -241,6 +243,8 @@ export class SelfAssessmentPage {
     () => this.editable() && this.mayFileSign() && !!this.refRating() && this.form.hasValue(),
   );
 
+  // skeleton-ok: vết tính chuyển cho ngăn <vt-score-trace>, ngăn mở ngay và tự hiện khung xương
+  // khi vết tính chưa về
   protected readonly trace = rxResource({
     params: () => {
       const p = this.profile();

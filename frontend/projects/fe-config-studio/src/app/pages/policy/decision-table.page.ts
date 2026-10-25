@@ -245,6 +245,9 @@ const VARIABLE_HINT: Record<string, string> = {
       </section>
 
       <div class="grid">
+        @if (rules.isLoading() && !rules.hasValue()) {
+          <vt-skeleton variant="cards" [rows]="2" label="Đang tải quy tắc xếp loại" />
+        }
         @for (k of ruleKeys; track k) {
           @if (expr()[k] !== undefined) {
             <section class="card" [attr.aria-labelledby]="'h-' + k">

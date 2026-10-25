@@ -7,6 +7,7 @@ import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
+import { VtSkeletonComponent } from '@vt/design-system';
 import { errorText } from '../../admin-ui';
 
 const STYLES = `
@@ -66,7 +67,7 @@ const STYLES = `
  */
 @Component({
   selector: 'vt-org-sync-map-dialog',
-  imports: [FormsModule, ButtonModule, DialogModule, InputTextModule],
+  imports: [FormsModule, ButtonModule, DialogModule, InputTextModule, VtSkeletonComponent],
   template: `
     <p-dialog
       header="Ánh xạ thủ công"
@@ -100,9 +101,11 @@ const STYLES = `
             </span>
           </label>
         } @empty {
-          <p class="muted">
-            {{ people.isLoading() ? 'Đang tìm…' : 'Không thấy cán bộ phù hợp. Thử tìm tên khác.' }}
-          </p>
+          @if (people.isLoading()) {
+            <vt-skeleton variant="list" [rows]="3" label="Đang tìm cán bộ" />
+          } @else {
+            <p class="muted">Không thấy cán bộ phù hợp. Thử tìm tên khác.</p>
+          }
         }
       </fieldset>
       @if (error(); as e) {
@@ -165,7 +168,7 @@ export class OrgSyncMapDialog {
  */
 @Component({
   selector: 'vt-org-sync-assign-dialog',
-  imports: [FormsModule, ButtonModule, DialogModule, TextareaModule],
+  imports: [FormsModule, ButtonModule, DialogModule, TextareaModule, VtSkeletonComponent],
   template: `
     <p-dialog
       header="Ghi chú, giao xử lý"
@@ -175,14 +178,24 @@ export class OrgSyncMapDialog {
       closeAriaLabel="Đóng"
     >
       <p class="muted">{{ row().personName }} · {{ row().sourceValueMasked }}</p>
-      <label class="f">
+      <label class="f" for="vt-osd-who">
         <span>Cán bộ nhận kiểm tra</span>
-        <select class="native" name="who" [ngModel]="who()" (ngModelChange)="who.set($event)">
-          <option value="">Chọn cán bộ</option>
-          @for (p of people.value()?.items ?? []; track p.id) {
-            <option [value]="p.id">{{ p.name }} · {{ p.unitName }}</option>
-          }
-        </select>
+        @if (people.isLoading()) {
+          <vt-skeleton variant="text" [rows]="1" label="Đang tải danh sách cán bộ" />
+        } @else {
+          <select
+            id="vt-osd-who"
+            class="native"
+            name="who"
+            [ngModel]="who()"
+            (ngModelChange)="who.set($event)"
+          >
+            <option value="">Chọn cán bộ</option>
+            @for (p of people.value()?.items ?? []; track p.id) {
+              <option [value]="p.id">{{ p.name }} · {{ p.unitName }}</option>
+            }
+          </select>
+        }
         @if (fe()['assigneeId']) {
           <small class="err">{{ fe()['assigneeId'] }}</small>
         }

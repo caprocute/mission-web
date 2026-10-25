@@ -185,21 +185,25 @@ function merge(t: PolicyWorkflowTemplateVersion, saved: Record<string, unknown> 
             </h2>
             <fieldset class="f-grid" [disabled]="!canEdit()">
               <legend class="sr-only">Tham số luồng duyệt</legend>
-              <label class="f">
-                <span>Kỳ bắt đầu áp dụng</span>
-                <select
-                  class="native"
-                  name="period"
-                  data-testid="wf-period"
-                  [ngModel]="periodId()"
-                  (ngModelChange)="periodId.set($event)"
-                >
-                  <option value="">Chọn kỳ đánh giá</option>
-                  @for (p of periods(); track p.id) {
-                    <option [value]="p.id">{{ p.name }} (từ {{ date(p.startDate) }})</option>
-                  }
-                </select>
-              </label>
+              @if (periodsRes.isLoading()) {
+                <vt-skeleton variant="form" [rows]="1" label="Đang tải kỳ đánh giá" />
+              } @else {
+                <label class="f">
+                  <span>Kỳ bắt đầu áp dụng</span>
+                  <select
+                    class="native"
+                    name="period"
+                    data-testid="wf-period"
+                    [ngModel]="periodId()"
+                    (ngModelChange)="periodId.set($event)"
+                  >
+                    <option value="">Chọn kỳ đánh giá</option>
+                    @for (p of periods(); track p.id) {
+                      <option [value]="p.id">{{ p.name }} (từ {{ date(p.startDate) }})</option>
+                    }
+                  </select>
+                </label>
+              }
               <label class="f">
                 <span>Số cấp duyệt</span>
                 <select
@@ -409,7 +413,7 @@ function merge(t: PolicyWorkflowTemplateVersion, saved: Record<string, unknown> 
               <p class="muted">Bấm "Mô phỏng luồng" để kiểm tra tham số trước khi lưu.</p>
             }
           </section>
-        } @else if (tpl.isLoading()) {
+        } @else if (tpl.isLoading() || templates.isLoading() || bindings.isLoading()) {
           <vt-skeleton variant="form" [rows]="4" label="Đang tải khai báo tham số" />
         }
       </div>
@@ -742,7 +746,7 @@ export class WorkflowPage {
           } as WfParams),
   });
 
-  private readonly periodsRes = rxResource({
+  protected readonly periodsRes = rxResource({
     stream: () => this.periodApi.list({ status: 'MO' }),
   });
   /** Kỳ chưa bắt đầu, cùng luồng với gói (kỳ bắt đầu phải chưa khoá). */
