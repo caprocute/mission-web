@@ -3,6 +3,7 @@ import {
   certificateInfo,
   certificateValid,
   checkBatch,
+  differsSuggested,
   distribution,
   headsTooEarly,
   msg0913,
@@ -64,6 +65,15 @@ describe('Quy tắc SCR-0904 (WEB-038)', () => {
     );
     expect(noteOf(row('y'), 'HTNV', false)).toBe('Đổi mức · đã ghi lý do');
     expect(noteOf(row('z', { totalScore: 57.8 }), 'HTTNV', false)).toBe('Dưới 60 điểm');
+  });
+
+  it('giữ mức đề xuất nhưng khác mức hệ thống gợi ý vẫn phải ghi lý do (BS-03 DC-05)', () => {
+    const r = row('g', { autoRatingCode: 'KHTNV' });
+    expect(differsSuggested(r, 'HTTNV')).toBe(true);
+    expect(differsSuggested(r, 'KHTNV')).toBe(false);
+    expect(differsSuggested(row('k'), 'HTTNV')).toBe(false);
+    expect(noteOf(r, 'HTTNV', false)).toBe('Khác mức gợi ý · cần ghi lý do');
+    expect(noteOf(r, 'HTTNV', false, true)).toBe('Khác mức gợi ý · đã ghi lý do');
   });
 
   it('kiểm trước khi ký: số, ngày, phiên hiệu chỉnh, chứng thư; lý do 20..2.000 ký tự', () => {

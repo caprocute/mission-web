@@ -75,6 +75,7 @@ import {
   thresholdOf,
   percent,
   proposedOf,
+  differsSuggested,
   reasonError,
   signProviderOf,
   withinLimit,
@@ -93,7 +94,9 @@ interface ChangeDialog {
   row: AppraisalProfileRow;
   level: RatingLevel;
   prev: RatingLevel | null;
-  select: HTMLSelectElement;
+  select: HTMLSelectElement | null;
+  /** Giữ mức nhưng khác mức hệ thống gợi ý: chỉ ghi lý do, không đổi mức. */
+  suggested?: boolean;
 }
 
 const groupKey = (r: AppraisalProfileRow) => `${r.period.id}|${r.flow}`;
@@ -333,7 +336,7 @@ export class BatchDecisionPage {
   }
 
   protected note(r: AppraisalProfileRow): string {
-    return noteOf(r, this.decisionOf(r), this.blockedHeads().has(r.id));
+    return noteOf(r, this.decisionOf(r), this.blockedHeads().has(r.id), !!this.reasons()[r.id]);
   }
 
   protected toggle(r: AppraisalProfileRow, on: boolean) {
@@ -357,14 +360,33 @@ export class BatchDecisionPage {
   protected changeLevel(r: AppraisalProfileRow, ev: Event) {
     const select = ev.target as HTMLSelectElement;
     const level = select.value as RatingLevel;
-    if (level === proposedOf(r)) {
+    if (level === proposedOf(r) && !differsSuggested(r, level)) {
       this.decided.update(({ [r.id]: _, ...rest }) => rest);
       this.reasons.update(({ [r.id]: _, ...rest }) => rest);
       return;
     }
     this.dialogReason.set(this.reasons()[r.id] ?? '');
     this.dialogTried.set(false);
-    this.dialog.set({ row: r, level, prev: this.decisionOf(r), select });
+    this.dialog.set({
+      row: r,
+      level,
+      prev: this.decisionOf(r),
+      select,
+      suggested: level === proposedOf(r),
+    });
+  }
+
+  /** Hồ sơ đang chọn có mức khác mức hệ thống gợi ý mà chưa ghi lý do thì mở hộp thoại ghi lý do. */
+  private askSuggestedReason(): boolean {
+    const r = this.items().find(
+      (x) => differsSuggested(x, this.decisionOf(x)) && !this.reasons()[x.id],
+    );
+    if (!r) return false;
+    const level = this.decisionOf(r)!;
+    this.dialogReason.set('');
+    this.dialogTried.set(false);
+    this.dialog.set({ row: r, level, prev: level, select: null, suggested: true });
+    return true;
   }
 
   protected confirmChange() {
@@ -380,13 +402,13 @@ export class BatchDecisionPage {
   protected cancelChange() {
     const d = this.dialog();
     if (!d) return;
-    if (d.prev) d.select.value = d.prev;
+    if (d.prev && d.select) d.select.value = d.prev;
     this.closeDialog(d);
   }
 
   private closeDialog(d: ChangeDialog) {
     this.dialog.set(null);
-    afterNextRender(() => d.select.focus(), { injector: this.injector });
+    afterNextRender(() => d.select?.focus(), { injector: this.injector });
   }
 
   /** "Quyết định và ký lô": kiểm trường, MFA một lần, gửi lô rồi theo dõi job tới khi ký xong. */
@@ -398,6 +420,7 @@ export class BatchDecisionPage {
       this.focusField(first);
       return;
     }
+    if (this.askSuggestedReason()) return;
     const rows = this.items();
     const cert = this.cert()!;
     this.busy.set('sign');
@@ -426,7 +449,9 @@ export class BatchDecisionPage {
               profileId: r.id,
               ratingCode: level,
               rowVersion: r.rowVersion,
-              ...(level !== proposedOf(r) && reason ? { reason } : {}),
+              ...((level !== proposedOf(r) || differsSuggested(r, level)) && reason
+                ? { reason }
+                : {}),
             };
           }),
         }),

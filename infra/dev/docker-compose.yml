@@ -1041,6 +1041,8 @@ services:
       ESIGN_PROVIDER_VIETTEL_CA: ${ESIGN_PROVIDER_VIETTEL_CA:-fake}
       ESIGN_PROVIDER_CA_CHINH_PHU: ${ESIGN_PROVIDER_CA_CHINH_PHU:-fake}
       ESIGN_PROVIDER_BAN_CO_YEU: ${ESIGN_PROVIDER_BAN_CO_YEU:-fake}
+      # Worker ký lô (DV-10-06): thiếu worker thì quyết định xếp loại hàng loạt (SCR-0904) dừng ở chờ ký (QA-06 HT-27)
+      ESIGN_BATCH_WORKER_ENABLED: ${ESIGN_BATCH_WORKER_ENABLED:-true}
       # Module nguồn tài liệu cần ký (kế hoạch, đánh giá, hồ sơ) đều ở mission-core; mặc định 127.0.0.1 là chính service này.
       ESIGN_SOURCE_CORE_URL: http://mission-core:8080
     ports:

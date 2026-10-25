@@ -49,6 +49,19 @@ FROM (VALUES
 ) AS r(child)
 ON CONFLICT DO NOTHING;
 
+-- Cây Đảng cùng dạng cây chuyên môn: hồ sơ luồng DANG xét phạm vi người thẩm định, người quyết định theo cây
+-- DANG (SCR-0904.ky-lo), thiếu cạnh cha thì người quyết định ở cơ quan không ký được lô của các phòng (QA-06).
+INSERT INTO org.org_unit_relation (version_id, id, tenant_id, tree, parent_unit_id, child_unit_id, relation_type,
+                                   valid_from, created_by, updated_by)
+SELECT md5('org_unit_relation:DANG:' || r.child)::uuid, md5('relation:DANG:' || r.child)::uuid, 'd0000000-0000-4000-8000-000000000001'::uuid, 'DANG',
+       'd0000000-0000-4000-8000-000000000100'::uuid, r.child::uuid, 'TRUC_THUOC', '2000-01-01'::date, '00000000-0000-0000-0000-000000000000'::uuid, '00000000-0000-0000-0000-000000000000'::uuid
+FROM (VALUES
+  ('d0000000-0000-4000-8000-000000000101'),
+  ('d0000000-0000-4000-8000-000000000102'),
+  ('d0000000-0000-4000-8000-000000000103')
+) AS r(child)
+ON CONFLICT DO NOTHING;
+
 INSERT INTO org.job_title (id, tenant_id, code, name, level, valid_from, created_by, updated_by)
 SELECT j.id::uuid, 'd0000000-0000-4000-8000-000000000001'::uuid, j.code, j.name, j.level, '2000-01-01'::date, '00000000-0000-0000-0000-000000000000'::uuid, '00000000-0000-0000-0000-000000000000'::uuid
 FROM (VALUES

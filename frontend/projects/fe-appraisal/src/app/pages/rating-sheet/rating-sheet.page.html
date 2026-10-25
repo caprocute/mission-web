@@ -347,9 +347,12 @@
         }
       </select>
       @if (differs()) {
-        <p id="w-rating" class="warn" role="status">{{ msg0912 }}</p>
+        <p id="w-rating" class="warn" role="status">
+          {{ differsAppraised() ? msg0912 : msgSuggested }}
+        </p>
         <label class="field" for="f-reason"
-          >Lý do khác mức thẩm định <span class="req">*</span></label
+          >{{ differsAppraised() ? 'Lý do khác mức thẩm định' : 'Lý do khác mức hệ thống gợi ý' }}
+          <span class="req">*</span></label
         >
         <textarea
           id="f-reason"

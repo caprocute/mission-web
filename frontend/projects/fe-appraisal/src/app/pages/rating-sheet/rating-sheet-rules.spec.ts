@@ -22,6 +22,19 @@ describe('quy tắc SCR-0903 (WEB-037)', () => {
     ).toHaveProperty('comment');
   });
 
+  it('trường 10: trùng mức thẩm định nhưng khác mức hệ thống gợi ý thì vẫn đòi lý do (BS-03 DC-05)', () => {
+    const f = { rating: 'HTTNV' as const, reason: '', comment: '' };
+    expect(checkProposal(f, 'HTTNV', 'KHTNV')).toHaveProperty('reason');
+    expect(checkProposal(f, 'HTTNV', 'HTTNV')).toEqual({});
+    expect(
+      checkProposal(
+        { ...f, reason: 'Kết quả nghiệm thu nhiệm vụ trong kỳ đạt yêu cầu.' },
+        'HTTNV',
+        'KHTNV',
+      ),
+    ).toEqual({});
+  });
+
   it('điều kiện nhóm theo mức từ cao xuống thấp, câu điều kiện kèm giá trị thực tế khi cần', () => {
     const view = {
       snapshot: { ruleChecks: [] },

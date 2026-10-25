@@ -399,14 +399,22 @@
       tabindex="-1"
       (keydown.escape)="cancelChange()"
     >
-      <h2 id="bd-dlg-h">Đổi mức quyết định</h2>
+      <h2 id="bd-dlg-h">
+        {{ d.suggested ? 'Ghi lý do khác mức hệ thống gợi ý' : 'Đổi mức quyết định' }}
+      </h2>
       <p>
         Đồng chí {{ d.row.person.name }}: mức đề xuất
         <b>{{ d.row.levels.proposed ? full[d.row.levels.proposed] : 'chưa có' }}</b
-        >, mức quyết định <b>{{ full[d.level] }}</b
-        >.
+        >, mức quyết định <b>{{ full[d.level] }}</b>
+        @if (d.suggested && d.row.autoRatingCode; as g) {
+          , khác mức hệ thống gợi ý theo kết quả tính điểm <b>{{ full[g] }}</b>
+        }
+        .
       </p>
-      <label for="bd-reason">Lý do đổi mức <span aria-hidden="true" class="req">*</span></label>
+      <label for="bd-reason"
+        >{{ d.suggested ? 'Lý do khác mức hệ thống gợi ý' : 'Lý do đổi mức' }}
+        <span aria-hidden="true" class="req">*</span></label
+      >
       <textarea
         #reasonBox
         id="bd-reason"

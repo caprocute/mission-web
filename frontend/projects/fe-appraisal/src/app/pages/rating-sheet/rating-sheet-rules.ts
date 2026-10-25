@@ -1,4 +1,16 @@
-import { AppraisalProfile, AppraisalProfileStatus, AppraisalRatingProposal, AppraisalRuleCheck, AppraisalScoreGroup, AppraisalScoreSnapshot, AppraisalScoreTraceStep, AppraisalScoreView, RATING_LEVELS, RATING_LEVEL_LABEL, RatingLevel } from '@vt/api-client/domains';
+import {
+  AppraisalProfile,
+  AppraisalProfileStatus,
+  AppraisalRatingProposal,
+  AppraisalRuleCheck,
+  AppraisalScoreGroup,
+  AppraisalScoreSnapshot,
+  AppraisalScoreTraceStep,
+  AppraisalScoreView,
+  RATING_LEVELS,
+  RATING_LEVEL_LABEL,
+  RatingLevel,
+} from '@vt/api-client/domains';
 
 /**
  * Quy tắc và cách trình bày của SCR-0903 chạy trên trình duyệt để phản hồi tức thì; máy chủ kiểm lại khi
@@ -7,6 +19,9 @@ import { AppraisalProfile, AppraisalProfileStatus, AppraisalRatingProposal, Appr
 
 export const MSG_09_12 =
   'Mức đề xuất khác mức thẩm định. Vui lòng ghi lý do (khoản 16.3 Điều 16 Quy định 366).';
+/** BS-03 DC-05: mức chọn bằng mức thẩm định nhưng khác mức hệ thống gợi ý của ảnh chụp điểm. */
+export const MSG_SUGGESTED_REASON =
+  'Mức đề xuất khác mức hệ thống gợi ý theo kết quả tính điểm. Vui lòng ghi lý do.';
 export const MSG_PROPOSAL_SOD =
   'Đồng chí không thể đề xuất mức cho hồ sơ này vì đã tham gia nghiệm thu một nhiệm vụ của hồ sơ (Phụ lục 4, mục V.1).';
 
@@ -29,13 +44,29 @@ export interface ProposalForm {
 export function checkProposal(
   f: ProposalForm,
   appraised: RatingLevel | null | undefined,
+  suggested?: RatingLevel | null,
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   const reason = f.reason.trim().length;
-  if (appraised && f.rating !== appraised && (reason < 20 || reason > 2000))
-    errors['reason'] = 'Ghi lý do khác mức thẩm định, từ 20 đến 2.000 ký tự.';
+  if (needsReason(f.rating, appraised, suggested) && (reason < 20 || reason > 2000))
+    errors['reason'] =
+      appraised && f.rating !== appraised
+        ? 'Ghi lý do khác mức thẩm định, từ 20 đến 2.000 ký tự.'
+        : 'Ghi lý do khác mức hệ thống gợi ý, từ 20 đến 2.000 ký tự.';
   if (f.comment.trim().length > 4000) errors['comment'] = 'Nhận xét tối đa 4.000 ký tự.';
   return errors;
+}
+
+/**
+ * Cần lý do khi mức chọn khác mức thẩm định (MSG-09-12) hoặc khác mức hệ thống gợi ý của ảnh chụp
+ * điểm (BS-03 DC-05, máy chủ trả 422 `APPRAISAL-422-SUGGESTED-REASON-REQUIRED`).
+ */
+export function needsReason(
+  rating: RatingLevel,
+  appraised: RatingLevel | null | undefined,
+  suggested?: RatingLevel | null,
+): boolean {
+  return (!!appraised && rating !== appraised) || (!!suggested && rating !== suggested);
 }
 
 /** Mức hiện hành của một loại trong vết các mức. */

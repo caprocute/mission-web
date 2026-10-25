@@ -91,8 +91,9 @@ export const dau = () => String(Date.now()).slice(-8);
  */
 export async function xacThucBuocLen(page: Page, user: string, xong: Locator, batBuoc: boolean) {
   const dialog = page.getByRole('dialog', { name: 'Xác thực nhiều lớp' });
+  // Phiên vừa bước lên thì không hỏi lại; khi đó chờ thẳng kết quả ký số bất đồng bộ.
   if (batBuoc) await expect(dialog).toBeVisible();
-  else await expect(dialog.or(xong).first()).toBeVisible();
+  else await expect(dialog.or(xong).first()).toBeVisible({ timeout: HE_THONG ? 60_000 : 5_000 });
   if (await dialog.isVisible()) {
     const popup = HE_THONG ? page.waitForEvent('popup') : null;
     await dialog.getByRole('button', { name: 'Xác thực' }).click();

@@ -56,8 +56,10 @@ import {
   DECIDED,
   FLOW_TAB_LABEL,
   MSG_09_12,
+  MSG_SUGGESTED_REASON,
   MSG_PROPOSAL_SOD,
   checkProposal,
+  needsReason,
   complaintOpen,
   componentGroups,
   conditionGroups,
@@ -93,6 +95,7 @@ export class RatingSheetPage {
   protected readonly criteriaLabel = GENERAL_CRITERIA_LEVEL_LABEL;
   protected readonly flowLabel = FLOW_TAB_LABEL;
   protected readonly msg0912 = MSG_09_12;
+  protected readonly msgSuggested = MSG_SUGGESTED_REASON;
   protected readonly vn = vn;
   protected readonly pct = pct;
   protected readonly dmy = dmy;
@@ -277,13 +280,19 @@ export class RatingSheetPage {
   protected readonly rating = linkedSignal<RatingLevel>(() => this.appraised() ?? 'HTTNV');
   protected readonly reason = linkedSignal({ source: this.profile, computation: () => '' });
   protected readonly comment = linkedSignal({ source: this.profile, computation: () => '' });
-  protected readonly differs = computed(
+  protected readonly suggested = computed(() => this.snapshot()?.autoRatingCode ?? null);
+  protected readonly differs = computed(() =>
+    needsReason(this.rating(), this.appraised(), this.suggested()),
+  );
+  /** Khác mức thẩm định thì dùng MSG-09-12; chỉ khác mức hệ thống gợi ý thì nhắc theo BS-03 DC-05. */
+  protected readonly differsAppraised = computed(
     () => !!this.appraised() && this.rating() !== this.appraised(),
   );
   protected readonly errors = computed(() =>
     checkProposal(
       { rating: this.rating(), reason: this.reason(), comment: this.comment() },
       this.appraised(),
+      this.suggested(),
     ),
   );
   protected readonly tried = linkedSignal({ source: this.profile, computation: () => false });

@@ -139,8 +139,11 @@ test.describe('QT-10 Xếp loại năm và phân nhóm triển vọng', { tag: '
     const ten = ((await nut.getAttribute('aria-label')) ?? '').replace('Đổi nhóm, thứ tự của ', '');
     await nut.click();
     const menu = m.getByRole('group', { name: `Thao tác với ${ten}` });
-    await menu.getByRole('button', { name: 'Chuyển sang Nhóm 2' }).click();
-    await expect(thongBao(page, `Đã đưa ${ten} vào Nhóm 2`)).toBeVisible();
+    // Lần chạy trước trên dev có thể đã đổi nhóm người này: chọn nhóm đích đầu tiên menu đưa ra
+    const chuyen = menu.getByRole('button', { name: /^Chuyển sang Nhóm \d/ }).first();
+    const nhom = ((await chuyen.textContent()) ?? '').trim().replace('Chuyển sang ', '');
+    await chuyen.click();
+    await expect(thongBao(page, `Đã đưa ${ten} vào ${nhom}`)).toBeVisible();
     // Ô lý do chỉ hiện khi khác nhóm gợi ý; máy chủ chưa sinh gợi ý (wiki 14) nên trên dev có thể không có
     const lyDo = m.getByRole('textbox', { name: 'Lý do điều chỉnh' });
     if (!HE_THONG || (await lyDo.count()) > 0)
