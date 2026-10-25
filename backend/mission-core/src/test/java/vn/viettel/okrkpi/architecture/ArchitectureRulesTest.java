@@ -10,6 +10,7 @@ import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.core.importer.Location;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchCondition;
@@ -54,8 +55,28 @@ import vn.viettel.okrkpi.shared.archrules.PlatformArchitectureRules;
  */
 @AnalyzeClasses(
     packages = "vn.viettel.okrkpi",
-    importOptions = {ImportOption.DoNotIncludeTests.class, ImportOption.DoNotIncludeJars.class})
+    importOptions = {
+      ImportOption.DoNotIncludeTests.class,
+      ImportOption.DoNotIncludeJars.class,
+      ArchitectureRulesTest.OnlyMissionCoreClasses.class
+    })
 public class ArchitectureRulesTest {
+
+  /**
+   * Chỉ nhập lớp của chính mission-core. Khi dựng cả reactor ({@code ./mvnw verify} ở {@code
+   * backend/}, như pipeline), thư viện nội bộ ({@code vt-platform-starter}, {@code vt-cel}, {@code
+   * vt-db-migration}) nằm trên classpath dưới dạng thư mục {@code target/classes} chứ không phải jar,
+   * nên {@code DoNotIncludeJars} không loại được và quy tắc của mission-core bị áp nhầm lên chúng.
+   */
+  static final class OnlyMissionCoreClasses implements ImportOption {
+    private static final String ROOT =
+        MissionCoreApplication.class.getProtectionDomain().getCodeSource().getLocation().toString();
+
+    @Override
+    public boolean includes(Location location) {
+      return location.asURI().toString().startsWith(ROOT);
+    }
+  }
 
   private static final String BASE_PACKAGE = "vn.viettel.okrkpi.";
 
