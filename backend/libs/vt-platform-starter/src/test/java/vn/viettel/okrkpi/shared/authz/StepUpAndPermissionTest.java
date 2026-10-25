@@ -185,6 +185,27 @@ class StepUpAndPermissionTest {
   }
 
   @Test
+  void subjectResolverTreatsKeycloakServiceAccountWithRealmRolesAsClient() {
+    Jwt jwt =
+        Jwt.withTokenValue("tok")
+            .header("alg", "RS256")
+            .subject("svc-1")
+            .claim("client_id", "analytics-api")
+            .claim("azp", "analytics-api")
+            .claim("preferred_username", "service-account-analytics-api")
+            .claim(
+                "realm_access",
+                Map.of("roles", List.of("service_client", "offline_access", "default-roles-mission")))
+            .build();
+    SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt, List.of()));
+
+    OpaInput.Subject subject = new AuthzSubjectResolver().currentSubject();
+
+    assertThat(subject.kind()).isEqualTo("client");
+    assertThat(subject.clientId()).isEqualTo("analytics-api");
+  }
+
+  @Test
   void permissionInterceptorAllowsAndMapsDenyReasonsToContractErrorCodes() {
     List<AuditEvent> audits = new ArrayList<>();
     AuditLogger auditLogger = audits::add;
