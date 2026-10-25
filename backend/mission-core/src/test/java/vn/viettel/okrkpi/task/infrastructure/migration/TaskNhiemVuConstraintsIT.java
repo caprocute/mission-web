@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import vn.viettel.okrkpi.platform.db.migration.TestPostgres;
 
 /**
  * Ràng buộc nghiệp vụ và kế hoạch truy vấn của phần nhiệm vụ (CORE-02-02) ở CSDL pool. Kế thừa
@@ -328,10 +329,7 @@ class TaskNhiemVuConstraintsIT extends TaskTenantIsolationIT {
   }
 
   private Connection svc(UUID tenant) throws SQLException {
-    Connection c = DriverManager.getConnection(jdbcUrl(), "svc_task", TEST_PASSWORD);
-    try (Statement st = c.createStatement()) {
-      st.execute("SET app.tenant_id = '" + tenant + "'");
-    }
+    Connection c = TestPostgres.connectAsTenant(jdbcUrl(), "svc_task", TEST_PASSWORD, tenant);
     return c;
   }
 

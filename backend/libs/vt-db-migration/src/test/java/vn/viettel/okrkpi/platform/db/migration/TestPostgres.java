@@ -1,8 +1,10 @@
 package vn.viettel.okrkpi.platform.db.migration;
 
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Properties;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.MountableFile;
 import vn.viettel.okrkpi.platform.db.migration.bootstrap.RoleBootstrapPlan;
@@ -45,6 +47,22 @@ public final class TestPostgres {
         st.execute(sql);
       }
     }
+  }
+
+  /**
+   * Mở kết nối riêng của kiểm thử với ngữ cảnh tenant đặt qua tham số khởi tạo phiên ({@code
+   * options=-c app.tenant_id=...}), thay cho lệnh đặt biến mức phiên mà quy tắc Semgrep {@code
+   * mission-no-session-set-app-param} cấm. Kết nối đi thẳng tới container, không qua PgBouncer, nên
+   * ngữ cảnh gắn với đúng kết nối này và mất khi đóng (TL-03 "Đặt ngữ cảnh tenant an toàn qua
+   * PgBouncer").
+   */
+  public static Connection connectAsTenant(
+      String jdbcUrl, String user, String password, Object tenant) throws SQLException {
+    Properties props = new Properties();
+    props.setProperty("user", user);
+    props.setProperty("password", password);
+    props.setProperty("options", "-c app.tenant_id=" + tenant);
+    return DriverManager.getConnection(jdbcUrl, props);
   }
 
   /** Container chưa khởi động với tên CSDL cho trước. */

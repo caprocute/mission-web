@@ -34,6 +34,7 @@ import vn.viettel.okrkpi.appraisal.application.scoring.ScoringInputService;
 import vn.viettel.okrkpi.appraisal.application.scoring.port.IncidentRepository.IncidentRow;
 import vn.viettel.okrkpi.appraisal.application.scoring.port.ScoringInputRepository.ScoringInput;
 import vn.viettel.okrkpi.appraisal.application.selfassessment.port.TextSealer;
+import vn.viettel.okrkpi.platform.db.migration.TestPostgres;
 import vn.viettel.okrkpi.policy.api.PolicyQueryApi;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.kernel.PeriodId;
@@ -483,11 +484,8 @@ class ScoringExtensionsIT {
   private static SingleConnectionDataSource connect(String role, UUID tenantId)
       throws SQLException {
     Connection c =
-        DriverManager.getConnection(
-            pg.getJdbcUrl(), role, MissionCoreTestDatabase.TEST_DB_PASSWORD);
-    try (Statement st = c.createStatement()) {
-      st.execute("SET app.tenant_id = '" + tenantId + "'");
-    }
+        TestPostgres.connectAsTenant(
+            pg.getJdbcUrl(), role, MissionCoreTestDatabase.TEST_DB_PASSWORD, tenantId);
     return new SingleConnectionDataSource(c, true);
   }
 

@@ -17,6 +17,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.postgresql.util.PGobject;
 import vn.viettel.okrkpi.platform.db.migration.TenantIsolationCatalogTest;
+import vn.viettel.okrkpi.platform.db.migration.TestPostgres;
 
 /**
  * Schema {@code product} (CORE-03-01) ở CSDL pool: rò rỉ tenant (RLS) do lớp cơ sở sinh trên năm
@@ -301,10 +302,7 @@ class ProductTenantIsolationIT extends TenantIsolationCatalogTest {
   }
 
   private Connection svc(UUID tenant) throws SQLException {
-    Connection c = DriverManager.getConnection(jdbcUrl(), "svc_product", TEST_PASSWORD);
-    try (Statement st = c.createStatement()) {
-      st.execute("SET app.tenant_id = '" + tenant + "'");
-    }
+    Connection c = TestPostgres.connectAsTenant(jdbcUrl(), "svc_product", TEST_PASSWORD, tenant);
     return c;
   }
 

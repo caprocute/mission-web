@@ -20,6 +20,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.postgresql.util.PGobject;
 import vn.viettel.okrkpi.platform.db.migration.TenantIsolationCatalogTest;
+import vn.viettel.okrkpi.platform.db.migration.TestPostgres;
 
 /**
  * Schema {@code appraisal} (CORE-04-01) ở CSDL pool: rò rỉ tenant (RLS) do lớp cơ sở sinh trên chín
@@ -370,9 +371,9 @@ class AppraisalTenantIsolationIT extends TenantIsolationCatalogTest {
 
   @Test
   void vaiTroChiDocKhongDocDuocNhomTrienVong() throws SQLException {
-    try (Connection ro = DriverManager.getConnection(jdbcUrl(), "ro_appraisal", TEST_PASSWORD);
+    try (Connection ro =
+            TestPostgres.connectAsTenant(jdbcUrl(), "ro_appraisal", TEST_PASSWORD, TENANT_A);
         Statement st = ro.createStatement()) {
-      st.execute("SET app.tenant_id = '" + TENANT_A + "'");
       assertThatThrownBy(() -> st.executeQuery("SELECT group_code FROM appraisal.prospect_group"))
           .isInstanceOfSatisfying(
               SQLException.class, e -> assertThat(e.getSQLState()).isEqualTo("42501"));
@@ -456,10 +457,7 @@ class AppraisalTenantIsolationIT extends TenantIsolationCatalogTest {
   }
 
   private Connection svc(UUID tenant) throws SQLException {
-    Connection c = DriverManager.getConnection(jdbcUrl(), "svc_appraisal", TEST_PASSWORD);
-    try (Statement st = c.createStatement()) {
-      st.execute("SET app.tenant_id = '" + tenant + "'");
-    }
+    Connection c = TestPostgres.connectAsTenant(jdbcUrl(), "svc_appraisal", TEST_PASSWORD, tenant);
     return c;
   }
 

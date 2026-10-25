@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import vn.viettel.okrkpi.platform.db.migration.TenantIsolationCatalogTest;
+import vn.viettel.okrkpi.platform.db.migration.TestPostgres;
 
 /**
  * Schema {@code evidence} của SVC-08 (DV-08-01): rò rỉ tenant (RLS) do lớp cơ sở sinh trên năm
@@ -145,10 +146,7 @@ class EvidenceTenantIsolationIT extends TenantIsolationCatalogTest {
   }
 
   private Connection svc(UUID tenant) throws SQLException {
-    Connection c = DriverManager.getConnection(jdbcUrl(), "svc_evidence", TEST_PASSWORD);
-    try (Statement st = c.createStatement()) {
-      st.execute("SET app.tenant_id = '" + tenant + "'");
-    }
+    Connection c = TestPostgres.connectAsTenant(jdbcUrl(), "svc_evidence", TEST_PASSWORD, tenant);
     return c;
   }
 
