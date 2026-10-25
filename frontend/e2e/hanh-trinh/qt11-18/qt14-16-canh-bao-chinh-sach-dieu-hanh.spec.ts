@@ -195,8 +195,12 @@ test.describe('QT-14 QT-15 QT-16 Cảnh báo, chính sách và bảng điều h�
     await chiHeThong('gửi duyệt khi ca vàng chưa đạt bị máy chủ từ chối', async () => {
       const a = await api(s, 'chinhsach');
       try {
+        // Hợp đồng đòi If-Match cho submit (thiếu thì 428), nên đọc ETag phiên bản trước để máy chủ
+        // xét đúng điều kiện ca vàng
+        const pb = await a.can('GET', `policies/packs/${goi}/versions/${ban}`);
         const r = await a.goi('POST', `policies/packs/${goi}/versions/${ban}/submit`, {
           body: { effectiveFromPeriodId: 'khong-ap-dung' },
+          ifMatch: pb.etag,
         });
         expect([409, 422]).toContain(r.status);
       } finally {
