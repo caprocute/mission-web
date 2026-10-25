@@ -2,7 +2,12 @@ import { Component, effect, inject, input, model, output, signal, untracked } fr
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { OrgApi } from '@vt/api-client';
-import { DELEGATION_KIND_LABEL, Delegation, DelegationKind, RoleAdminApi } from '@vt/api-client/domains';
+import {
+  DELEGATION_KIND_LABEL,
+  Delegation,
+  DelegationKind,
+  RoleAdminApi,
+} from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
@@ -78,6 +83,7 @@ const draft = (): Draft => ({
             inputId="dl-from-p"
             styleClass="full"
             [options]="people()"
+            [loading]="persons.isLoading()"
             optionLabel="label"
             optionValue="value"
             [filter]="true"
@@ -93,6 +99,7 @@ const draft = (): Draft => ({
             inputId="dl-to-p"
             styleClass="full"
             [options]="people()"
+            [loading]="persons.isLoading()"
             optionLabel="label"
             optionValue="value"
             [filter]="true"
@@ -207,7 +214,7 @@ export class DelegationDialog {
     (value) => ({ value, label: DELEGATION_KIND_LABEL[value] }),
   );
 
-  private readonly persons = rxResource({
+  protected readonly persons = rxResource({
     params: () => (this.visible() ? true : undefined),
     stream: () =>
       this.org

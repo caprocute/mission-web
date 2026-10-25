@@ -7,6 +7,7 @@ import {
   SYNC_SOURCE_LABEL,
   hasDeadLetters,
 } from '@vt/api-client/domains';
+import { VtSkeletonComponent } from '@vt/design-system';
 import { fmtDate, fmtDateTime } from '../../admin-ui';
 
 /**
@@ -15,6 +16,7 @@ import { fmtDate, fmtDateTime } from '../../admin-ui';
  */
 @Component({
   selector: 'vt-org-sync-side',
+  imports: [VtSkeletonComponent],
   template: `
     <section class="box" aria-labelledby="z4" aria-live="polite">
       <h2 id="z4" class="h">Chi tiết bản ghi</h2>
@@ -78,6 +80,20 @@ import { fmtDate, fmtDateTime } from '../../admin-ui';
                 }
               </td>
             </tr>
+          } @empty {
+            @if (runsLoading()) {
+              <tr>
+                <td colspan="3">
+                  <vt-skeleton
+                    variant="table"
+                    [header]="false"
+                    [columns]="3"
+                    [rows]="4"
+                    label="Đang tải nhật ký đồng bộ"
+                  />
+                </td>
+              </tr>
+            }
           }
         </tbody>
       </table>
@@ -170,6 +186,8 @@ import { fmtDate, fmtDateTime } from '../../admin-ui';
 export class OrgSyncSide {
   readonly row = input<OrgDiscrepancy | null>(null);
   readonly runs = input<OrgSyncRun[]>([]);
+  /** Nhật ký đồng bộ còn đang tải lần đầu (trang cha nạp `GET /org/sync-runs`). */
+  readonly runsLoading = input(false);
   readonly simple = input(false);
   readonly canRetryRun = input(false);
   readonly retry = output<OrgSyncRun>();

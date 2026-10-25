@@ -253,12 +253,16 @@
     >
       @if (showCriteria()) {
         <h2 id="pg-dlg">Tiêu chí phân nhóm triển vọng (Phụ lục 5)</h2>
-        <dl class="crit">
-          @for (r of criteriaRows(); track r.code) {
-            <dt>{{ r.name }}</dt>
-            <dd>{{ r.criteria || 'Theo quy định của khối.' }}</dd>
-          }
-        </dl>
+        @if (criteria.isLoading()) {
+          <vt-skeleton variant="detail" [rows]="4" label="Đang tải tiêu chí phân nhóm" />
+        } @else {
+          <dl class="crit">
+            @for (r of criteriaRows(); track r.code) {
+              <dt>{{ r.name }}</dt>
+              <dd>{{ r.criteria || 'Theo quy định của khối.' }}</dd>
+            }
+          </dl>
+        }
         <p class="muted small">
           Người xếp loại năm không hoàn thành nhiệm vụ hoặc có hai quý liên tiếp không hoàn thành
           nhiệm vụ không được đưa vào Nhóm 1, Nhóm 2.

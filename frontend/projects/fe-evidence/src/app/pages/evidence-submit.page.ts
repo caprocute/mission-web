@@ -94,6 +94,9 @@ const fmtSize = (n?: number | null) =>
       <p class="msg warn">Đồng chí không có quyền xem minh chứng.</p>
     } @else if (evidence.error()) {
       <p class="msg err" role="alert">{{ loadError() }}</p>
+    } @else if (task.status() === 'loading' || latestRes.status() === 'loading') {
+      <!-- lần nạp đầu nhiệm vụ và phiên bản cuối: quyền soạn, nguồn, tệp phụ thuộc hai tài nguyên này -->
+      <vt-skeleton variant="form" [rows]="5" label="Đang tải minh chứng" />
     } @else if (evidence.value(); as e) {
       <header class="top">
         <div>
@@ -215,6 +218,8 @@ const fmtSize = (n?: number | null) =>
                     {{ d.signerName }} · tệp do vOffice cung cấp
                   </p>
                 }
+              } @else if (docLookup.isLoading()) {
+                <vt-skeleton variant="text" [rows]="1" label="Đang tải văn bản đã chọn" />
               } @else if (editable()) {
                 <form class="search" (ngSubmit)="docQuery.set(docInput)" role="search">
                   <label for="doc-q" class="sr-only">Tìm văn bản theo số hoặc trích yếu</label>
@@ -227,7 +232,9 @@ const fmtSize = (n?: number | null) =>
                   />
                   <p-button type="submit" label="Tìm" severity="secondary" [outlined]="true" />
                 </form>
-                @if (docs.value(); as list) {
+                @if (docs.isLoading()) {
+                  <vt-skeleton variant="list" [rows]="3" label="Đang tìm văn bản đã ban hành" />
+                } @else if (docs.value(); as list) {
                   @if (list.length) {
                     <ul class="docs" aria-label="Văn bản đã ban hành của đơn vị">
                       @for (x of list; track x.ref) {
@@ -685,7 +692,7 @@ export class EvidenceSubmitPage {
     stream: ({ params }) => this.api.externalDocs(params),
   });
   /** Văn bản đang chọn: tra trong danh sách vOffice (lần đầu nạp theo số văn bản của phiên bản). */
-  private readonly docLookup = rxResource({
+  protected readonly docLookup = rxResource({
     params: () => this.docRef() ?? undefined,
     stream: ({ params }) => (params ? this.api.externalDocs('') : of([])),
   });

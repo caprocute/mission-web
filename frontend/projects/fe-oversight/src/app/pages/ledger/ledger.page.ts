@@ -358,6 +358,8 @@ const isoDate = (d: Date) => {
               <dt>Bắt đầu</dt>
               <dd>{{ dt(r.startedAt) }}</dd>
             </dl>
+          } @else if (runsLoading()) {
+            <vt-skeleton variant="detail" [rows]="4" label="Đang tải lần kiểm tra toàn vẹn" />
           } @else {
             <p class="muted">Chưa có lần kiểm tra nào.</p>
           }
@@ -683,6 +685,8 @@ export class LedgerPage {
 
   // vùng 4, 3: lần kiểm tra
   protected readonly runs = signal<LedgerVerifyRun[]>([]);
+  /** Danh sách lần kiểm tra đang tải lần đầu (khung xương vùng 4). */
+  protected readonly runsLoading = signal(true);
   protected readonly runId = signal<string | null>(null);
   protected readonly run = computed<LedgerVerifyRun | null>(
     () => this.runs().find((r) => r.id === this.runId()) ?? this.runs()[0] ?? null,
@@ -725,11 +729,15 @@ export class LedgerPage {
     });
     this.api.verifyRuns().subscribe({
       next: (list) => {
+        this.runsLoading.set(false);
         this.runs.set(list);
         const m = list[0]?.firstMismatch?.entryId;
         if (m && !this.selectedId()) this.selectedId.set(m);
       },
-      error: (e) => this.error.set(errorText(e)),
+      error: (e) => {
+        this.runsLoading.set(false);
+        this.error.set(errorText(e));
+      },
     });
     inject(DestroyRef).onDestroy(() => clearTimeout(this.pollTimer));
   }

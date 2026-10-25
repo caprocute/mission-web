@@ -333,6 +333,13 @@ const fmtDateTime = (iso?: string | null) => {
                     Chưa xem trước được điểm của nhiệm vụ này; điểm được tính sau khi xác nhận
                     nghiệm thu.
                   </p>
+                } @else if (preview.isLoading()) {
+                  <vt-skeleton
+                    variant="detail"
+                    [rows]="4"
+                    [header]="false"
+                    label="Đang tính điểm xem trước"
+                  />
                 } @else if (preview.hasValue() && preview.value(); as p) {
                   <dl class="meta">
                     <dt>Khối lượng (A)</dt>
@@ -398,7 +405,7 @@ const fmtDateTime = (iso?: string | null) => {
           </aside>
         </div>
       } @else if (busy() === 'open') {
-        <p class="muted" aria-busy="true">Đang mở minh chứng và kiểm tra toàn vẹn…</p>
+        <vt-skeleton variant="detail" label="Đang mở minh chứng và kiểm tra toàn vẹn" />
       }
     } @else {
       <vt-skeleton variant="detail" label="Đang tải minh chứng" />

@@ -104,7 +104,7 @@ const LIVE = ['HIEU_LUC', 'SAP_HIEU_LUC', 'CHO_DUYET'];
                       variant="table"
                       [header]="false"
                       [columns]="5"
-                      label="Đang tải dữ liệu"
+                      label="Đang tải vai trò đã cấp"
                     />
                   </td>
                 } @else {
@@ -133,7 +133,13 @@ const LIVE = ['HIEU_LUC', 'SAP_HIEU_LUC', 'CHO_DUYET'];
             <span [class]="'pill ' + tone(d.status)">{{ delegationStatus[d.status] }}</span>
           </li>
         } @empty {
-          <li class="muted">Không có uỷ quyền nào.</li>
+          @if (delegationPage.isLoading()) {
+            <li>
+              <vt-skeleton variant="list" [rows]="2" label="Đang tải danh sách uỷ quyền" />
+            </li>
+          } @else {
+            <li class="muted">Không có uỷ quyền nào.</li>
+          }
         }
       </ul>
     </section>
@@ -153,7 +159,7 @@ const LIVE = ['HIEU_LUC', 'SAP_HIEU_LUC', 'CHO_DUYET'];
         } @empty {
           @if (history.isLoading()) {
             <li>
-              <vt-skeleton variant="list" [rows]="3" label="Đang tải dữ liệu" />
+              <vt-skeleton variant="list" [rows]="3" label="Đang tải lịch sử thay đổi quyền" />
             </li>
           } @else {
             <li class="muted">Chưa có sự kiện nào.</li>
@@ -225,7 +231,7 @@ export class PersonAccessPage {
     params: () => this.personId() || undefined,
     stream: ({ params }) => this.api.bindings({ personId: params }),
   });
-  private readonly delegationPage = rxResource({
+  protected readonly delegationPage = rxResource({
     params: () => this.personId() || undefined,
     stream: ({ params }) => this.api.delegations({ personId: params }),
   });

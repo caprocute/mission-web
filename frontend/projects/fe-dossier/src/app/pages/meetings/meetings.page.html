@@ -82,117 +82,125 @@
           }
         </select>
 
-        <label for="mc-periodId">Kỳ kiểm điểm</label>
-        <select
-          id="mc-periodId"
-          [attr.aria-invalid]="!!errors()['periodId']"
-          (change)="set('periodId', $any($event.target).value)"
-        >
-          <option value="">Chọn kỳ</option>
-          @if (periods.hasValue()) {
-            @for (p of periods.value(); track p.id) {
-              <option [value]="p.id" [selected]="form().periodId === p.id">{{ p.name }}</option>
+        <!-- Kỳ kiểm điểm và danh sách cán bộ nạp khi mở hộp thoại; ô loại hội nghị giữ nguyên để nhận tiêu điểm -->
+        @if (periods.isLoading() || persons.isLoading()) {
+          <vt-skeleton variant="form" [rows]="6" label="Đang tải danh sách kỳ và cán bộ" />
+        } @else {
+          <label for="mc-periodId">Kỳ kiểm điểm</label>
+          <select
+            id="mc-periodId"
+            [attr.aria-invalid]="!!errors()['periodId']"
+            (change)="set('periodId', $any($event.target).value)"
+          >
+            <option value="">Chọn kỳ</option>
+            @if (periods.hasValue()) {
+              @for (p of periods.value(); track p.id) {
+                <option [value]="p.id" [selected]="form().periodId === p.id">{{ p.name }}</option>
+              }
             }
+          </select>
+          @if (errors()['periodId']; as e) {
+            <p class="ferr">{{ e }}</p>
           }
-        </select>
-        @if (errors()['periodId']; as e) {
-          <p class="ferr">{{ e }}</p>
-        }
 
-        <label for="mc-scheduledAt">Ngày giờ hội nghị</label>
-        <input
-          id="mc-scheduledAt"
-          type="datetime-local"
-          [attr.aria-invalid]="!!errors()['scheduledAt']"
-          [value]="form().scheduledAt"
-          (input)="set('scheduledAt', $any($event.target).value)"
-        />
-        @if (errors()['scheduledAt']; as e) {
-          <p class="ferr">{{ e }}</p>
-        }
-
-        <label for="mc-location">Địa điểm</label>
-        <input
-          id="mc-location"
-          type="text"
-          maxlength="500"
-          [value]="form().location"
-          (input)="set('location', $any($event.target).value)"
-        />
-        @if (errors()['location']; as e) {
-          <p class="ferr">{{ e }}</p>
-        }
-
-        <label for="mc-subjectPersonId">Người được kiểm điểm</label>
-        <select
-          id="mc-subjectPersonId"
-          (change)="set('subjectPersonId', $any($event.target).value)"
-        >
-          <option value="">Kiểm điểm tập thể</option>
-          @for (p of people(); track p.id) {
-            <option [value]="p.id" [selected]="form().subjectPersonId === p.id">
-              {{ p.name }} – {{ p.title }}
-            </option>
+          <label for="mc-scheduledAt">Ngày giờ hội nghị</label>
+          <input
+            id="mc-scheduledAt"
+            type="datetime-local"
+            [attr.aria-invalid]="!!errors()['scheduledAt']"
+            [value]="form().scheduledAt"
+            (input)="set('scheduledAt', $any($event.target).value)"
+          />
+          @if (errors()['scheduledAt']; as e) {
+            <p class="ferr">{{ e }}</p>
           }
-        </select>
-        @for (c of subjectCases(); track c.id) {
-          <p class="info" data-special>
-            Trường hợp đặc thù: <strong>{{ caseLabel(c.legalRef) }}</strong> ({{ c.legalRef }}).
-            @if (c.handling) {
-              Cách xử lý: {{ c.handling }}.
+
+          <label for="mc-location">Địa điểm</label>
+          <input
+            id="mc-location"
+            type="text"
+            maxlength="500"
+            [value]="form().location"
+            (input)="set('location', $any($event.target).value)"
+          />
+          @if (errors()['location']; as e) {
+            <p class="ferr">{{ e }}</p>
+          }
+
+          <label for="mc-subjectPersonId">Người được kiểm điểm</label>
+          <select
+            id="mc-subjectPersonId"
+            (change)="set('subjectPersonId', $any($event.target).value)"
+          >
+            <option value="">Kiểm điểm tập thể</option>
+            @for (p of people(); track p.id) {
+              <option [value]="p.id" [selected]="form().subjectPersonId === p.id">
+                {{ p.name }} – {{ p.title }}
+              </option>
             }
-          </p>
-        }
-
-        <label for="mc-chairPersonId">Chủ trì</label>
-        <select
-          id="mc-chairPersonId"
-          [attr.aria-invalid]="!!errors()['chairPersonId']"
-          (change)="set('chairPersonId', $any($event.target).value)"
-        >
-          <option value="">Chọn chủ trì</option>
-          @for (p of people(); track p.id) {
-            <option [value]="p.id" [selected]="form().chairPersonId === p.id">
-              {{ p.name }} – {{ p.title }}
-            </option>
+          </select>
+          @if (cases.isLoading()) {
+            <vt-skeleton variant="text" [rows]="1" label="Đang tải trường hợp đặc thù" />
           }
-        </select>
-        @if (errors()['chairPersonId']; as e) {
-          <p class="ferr">{{ e }}</p>
-        }
-
-        <label for="mc-secretaryPersonId">Thư ký</label>
-        <select
-          id="mc-secretaryPersonId"
-          [attr.aria-invalid]="!!errors()['secretaryPersonId']"
-          (change)="set('secretaryPersonId', $any($event.target).value)"
-        >
-          <option value="">Chọn thư ký</option>
-          @for (p of people(); track p.id) {
-            <option [value]="p.id" [selected]="form().secretaryPersonId === p.id">
-              {{ p.name }} – {{ p.title }}
-            </option>
+          @for (c of subjectCases(); track c.id) {
+            <p class="info" data-special>
+              Trường hợp đặc thù: <strong>{{ caseLabel(c.legalRef) }}</strong> ({{ c.legalRef }}).
+              @if (c.handling) {
+                Cách xử lý: {{ c.handling }}.
+              }
+            </p>
           }
-        </select>
-        @if (errors()['secretaryPersonId']; as e) {
-          <p class="ferr">{{ e }}</p>
-        }
 
-        <fieldset>
-          <legend>Thành phần dự</legend>
-          @for (p of people(); track p.id) {
-            <label class="chk">
-              <input
-                type="checkbox"
-                [checked]="form().participantIds.includes(p.id)"
-                (change)="toggleParticipant(p.id)"
-              />
-              {{ p.name }} – {{ p.title }}
-            </label>
+          <label for="mc-chairPersonId">Chủ trì</label>
+          <select
+            id="mc-chairPersonId"
+            [attr.aria-invalid]="!!errors()['chairPersonId']"
+            (change)="set('chairPersonId', $any($event.target).value)"
+          >
+            <option value="">Chọn chủ trì</option>
+            @for (p of people(); track p.id) {
+              <option [value]="p.id" [selected]="form().chairPersonId === p.id">
+                {{ p.name }} – {{ p.title }}
+              </option>
+            }
+          </select>
+          @if (errors()['chairPersonId']; as e) {
+            <p class="ferr">{{ e }}</p>
           }
-        </fieldset>
-        @if (errors()['participantPersonIds']; as e) {
-          <p class="ferr">{{ e }}</p>
+
+          <label for="mc-secretaryPersonId">Thư ký</label>
+          <select
+            id="mc-secretaryPersonId"
+            [attr.aria-invalid]="!!errors()['secretaryPersonId']"
+            (change)="set('secretaryPersonId', $any($event.target).value)"
+          >
+            <option value="">Chọn thư ký</option>
+            @for (p of people(); track p.id) {
+              <option [value]="p.id" [selected]="form().secretaryPersonId === p.id">
+                {{ p.name }} – {{ p.title }}
+              </option>
+            }
+          </select>
+          @if (errors()['secretaryPersonId']; as e) {
+            <p class="ferr">{{ e }}</p>
+          }
+
+          <fieldset>
+            <legend>Thành phần dự</legend>
+            @for (p of people(); track p.id) {
+              <label class="chk">
+                <input
+                  type="checkbox"
+                  [checked]="form().participantIds.includes(p.id)"
+                  (change)="toggleParticipant(p.id)"
+                />
+                {{ p.name }} – {{ p.title }}
+              </label>
+            }
+          </fieldset>
+          @if (errors()['participantPersonIds']; as e) {
+            <p class="ferr">{{ e }}</p>
+          }
         }
       </div>
       @if (formError(); as e) {

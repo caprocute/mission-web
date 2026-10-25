@@ -51,6 +51,7 @@ const HOME_KEY = 'ui.home.layout';
           icon="pi pi-th-large"
           severity="secondary"
           [text]="true"
+          [loading]="opening()"
           (onClick)="startEdit()"
           data-testid="home-customize"
         />
@@ -239,6 +240,8 @@ export class HomePage {
   protected readonly saving = signal(false);
   protected readonly conflict = signal(false);
   protected readonly theirs = signal<HomeLayoutOverlay | null>(null);
+  /** Đang đọc bản tuỳ chỉnh mới nhất trước khi mở bộ sắp xếp: trạng thái chờ trên nút. */
+  protected readonly opening = signal(false);
   protected readonly notice = signal<string | null>(null);
 
   /** Nút của mọi widget biết được: bố cục máy chủ trả và bố cục gốc của UI Pack. */
@@ -268,9 +271,16 @@ export class HomePage {
   protected startEdit(): void {
     this.notice.set(null);
     this.conflict.set(false);
+    this.opening.set(true);
     this.api.all().subscribe({
-      next: (all) => this.openEditor(all.items[HOME_KEY] ?? null),
-      error: (err) => this.presenter.present(err),
+      next: (all) => {
+        this.opening.set(false);
+        this.openEditor(all.items[HOME_KEY] ?? null);
+      },
+      error: (err) => {
+        this.opening.set(false);
+        this.presenter.present(err);
+      },
     });
   }
 

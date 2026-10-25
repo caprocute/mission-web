@@ -154,6 +154,11 @@ spec:
           // ghi chú giải pháp lộ ra màn hình (wiki/16)
           steps { dir('frontend') { sh 'npm run check:ui-text' } }
         }
+        stage('Khung xương khi tải') {
+          // YC-PT-28: mọi tài nguyên dữ liệu của component phải có <vt-skeleton> trong nhánh đang tải;
+          // không biểu tượng xoay đơn độc (wiki/16). Cũng tự chạy trước `npm run build:all`
+          steps { dir('frontend') { sh 'npm run check:skeleton' } }
+        }
         stage('Ma trận phân quyền') {
           steps {
             container('python') {

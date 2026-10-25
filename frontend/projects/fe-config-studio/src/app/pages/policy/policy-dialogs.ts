@@ -10,8 +10,20 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { DAY_KIND_LABEL, PERIOD_KIND_LABEL, PeriodApi, PolicyApi, PolicyDiffChange, PolicyPackVersion, PolicyRule, QUALITY_METHOD_LABEL, RETURN_REASON_LABEL, policyVersionLabel } from '@vt/api-client/domains';
+import {
+  DAY_KIND_LABEL,
+  PERIOD_KIND_LABEL,
+  PeriodApi,
+  PolicyApi,
+  PolicyDiffChange,
+  PolicyPackVersion,
+  PolicyRule,
+  QUALITY_METHOD_LABEL,
+  RETURN_REASON_LABEL,
+  policyVersionLabel,
+} from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
+import { VtSkeletonComponent } from '@vt/design-system';
 import { DialogModule } from 'primeng/dialog';
 import { TextareaModule } from 'primeng/textarea';
 import { errorText, fmtDate, fmtNum, problemCode } from '../../studio-ui';
@@ -35,7 +47,7 @@ export const VALUE_LABEL: Record<string, string> = {
 /** So sánh phiên bản đang mở với bản đang áp dụng (SCR-1501 nút "So sánh"). */
 @Component({
   selector: 'vt-policy-diff-dialog',
-  imports: [DialogModule],
+  imports: [DialogModule, VtSkeletonComponent],
   template: `
     <p-dialog
       [header]="'So sánh với bản ' + vlabel(base())"
@@ -82,7 +94,7 @@ export const VALUE_LABEL: Record<string, string> = {
           <p>Hai phiên bản giống nhau.</p>
         }
       } @else {
-        <p class="muted">Đang so sánh…</p>
+        <vt-skeleton variant="table" [columns]="3" [rows]="4" label="Đang so sánh hai phiên bản" />
       }
     </p-dialog>
   `,
@@ -180,7 +192,7 @@ export class PolicyExpressionsDialog {
  */
 @Component({
   selector: 'vt-policy-submit-dialog',
-  imports: [FormsModule, ButtonModule, DialogModule, TextareaModule],
+  imports: [FormsModule, ButtonModule, DialogModule, TextareaModule, VtSkeletonComponent],
   template: `
     <p-dialog
       header="Gửi phê duyệt phát hành"
@@ -193,26 +205,30 @@ export class PolicyExpressionsDialog {
         Phiên bản {{ vlabel(ws.ref()?.v ?? '') }} đã đạt toàn bộ test case. Sau khi gửi, phiên bản
         không sửa được nữa cho tới khi có kết quả phê duyệt.
       </p>
-      <label class="f">
-        <span>Kỳ đánh giá bắt đầu áp dụng</span>
-        <select
-          class="native"
-          name="period"
-          data-testid="submit-period"
-          [ngModel]="period()"
-          (ngModelChange)="period.set($event)"
-        >
-          <option value="">Chọn kỳ đánh giá</option>
-          @for (p of periods(); track p.id) {
-            <option [value]="p.id">
-              {{ p.name }} ({{ kindLabel[p.kind] }}, từ {{ date(p.startDate) }})
-            </option>
+      @if (periodsRes.isLoading()) {
+        <vt-skeleton variant="form" [rows]="1" label="Đang tải kỳ đánh giá" />
+      } @else {
+        <label class="f">
+          <span>Kỳ đánh giá bắt đầu áp dụng</span>
+          <select
+            class="native"
+            name="period"
+            data-testid="submit-period"
+            [ngModel]="period()"
+            (ngModelChange)="period.set($event)"
+          >
+            <option value="">Chọn kỳ đánh giá</option>
+            @for (p of periods(); track p.id) {
+              <option [value]="p.id">
+                {{ p.name }} ({{ kindLabel[p.kind] }}, từ {{ date(p.startDate) }})
+              </option>
+            }
+          </select>
+          @if (!periodsRes.isLoading() && !periods().length) {
+            <small class="muted">Chưa có kỳ đánh giá sắp tới nào để áp dụng.</small>
           }
-        </select>
-        @if (!periodsRes.isLoading() && !periods().length) {
-          <small class="muted">Chưa có kỳ đánh giá sắp tới nào để áp dụng.</small>
-        }
-      </label>
+        </label>
+      }
       <label class="f">
         <span>Ghi chú gửi người phê duyệt</span>
         <textarea

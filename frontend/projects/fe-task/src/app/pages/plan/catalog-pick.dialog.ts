@@ -1,6 +1,7 @@
 import { Component, computed, input, linkedSignal, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CatalogItem } from '@vt/api-client/domains';
+import { VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DialogModule } from 'primeng/dialog';
@@ -12,7 +13,14 @@ import { InputTextModule } from 'primeng/inputtext';
  */
 @Component({
   selector: 'vt-catalog-pick-dialog',
-  imports: [FormsModule, ButtonModule, CheckboxModule, DialogModule, InputTextModule],
+  imports: [
+    VtSkeletonComponent,
+    FormsModule,
+    ButtonModule,
+    CheckboxModule,
+    DialogModule,
+    InputTextModule,
+  ],
   template: `
     <p-dialog
       header="Thêm từ danh mục"
@@ -50,7 +58,11 @@ import { InputTextModule } from 'primeng/inputtext';
               </label>
             </li>
           } @empty {
-            <li class="muted">Không có công việc phù hợp.</li>
+            @if (loading()) {
+              <li><vt-skeleton variant="list" [rows]="4" label="Đang tải danh mục công việc" /></li>
+            } @else {
+              <li class="muted">Không có công việc phù hợp.</li>
+            }
           }
         </ul>
       </fieldset>
@@ -120,6 +132,8 @@ import { InputTextModule } from 'primeng/inputtext';
 export class CatalogPickDialog {
   readonly visible = model(false);
   readonly items = input<CatalogItem[]>([]);
+  /** Danh mục còn đang nạp: hiện khung xương thay cho câu "không có công việc phù hợp". */
+  readonly loading = input(false);
   /** Mục đã có trong kế hoạch, không cho chọn lại. */
   readonly used = input<string[]>([]);
   readonly added = output<CatalogItem[]>();

@@ -196,22 +196,26 @@ type Dlg = { kind: 'reassign' | 'extend' | 'diagram'; row: WorkflowInstanceSumma
     >
       @if (dlg(); as d) {
         <p>{{ d.row.title }} · bước {{ d.row.currentActivityName }}</p>
-        <label for="r-to">Người nhận (cùng nhóm người được xử lý bước này)</label>
-        <select
-          id="r-to"
-          [value]="assignee()"
-          (change)="assignee.set(value($event))"
-          data-testid="assignee"
-        >
-          <option value="">Chọn người nhận</option>
-          @for (p of people(); track p.id) {
-            <option [value]="p.id">{{ p.name }} – {{ p.unit }}</option>
+        @if (candidates.isLoading()) {
+          <vt-skeleton variant="form" [rows]="1" label="Đang tải danh sách người nhận" />
+        } @else {
+          <label for="r-to">Người nhận (cùng nhóm người được xử lý bước này)</label>
+          <select
+            id="r-to"
+            [value]="assignee()"
+            (change)="assignee.set(value($event))"
+            data-testid="assignee"
+          >
+            <option value="">Chọn người nhận</option>
+            @for (p of people(); track p.id) {
+              <option [value]="p.id">{{ p.name }} – {{ p.unit }}</option>
+            }
+          </select>
+          @if (candidates.value() && !people().length) {
+            <p class="hint">
+              Đơn vị chưa có ai giữ vai trò này còn hiệu lực. Hãy phân công vai trò trước.
+            </p>
           }
-        </select>
-        @if (candidates.value() && !people().length) {
-          <p class="hint">
-            Đơn vị chưa có ai giữ vai trò này còn hiệu lực. Hãy phân công vai trò trước.
-          </p>
         }
         @if (error(); as e) {
           <p class="err" role="alert">{{ e }}</p>
@@ -315,6 +319,9 @@ type Dlg = { kind: 'reassign' | 'extend' | 'diagram'; row: WorkflowInstanceSumma
             </li>
           }
         </ol>
+      } @else if (history.isLoading()) {
+        <h2>Lịch sử xử lý</h2>
+        <vt-skeleton variant="list" [rows]="4" label="Đang tải lịch sử xử lý" />
       }
     </p-dialog>
   `,

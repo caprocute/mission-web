@@ -151,7 +151,13 @@
           </div>
           <div class="stat accent">
             <span class="label">Điểm sau thẩm định</span>
-            <span class="big red">{{ view() ? vn(view()!.snapshot.totalScore) : '…' }}</span>
+            @if (view(); as v) {
+              <span class="big red">{{ vn(v.snapshot.totalScore) }}</span>
+            } @else if (scores.isLoading()) {
+              <vt-skeleton variant="text" [rows]="1" label="Đang tải điểm sau thẩm định" />
+            } @else {
+              <span class="big red">—</span>
+            }
             @if (scoreDiff(); as d) {
               <span class="muted"
                 >{{ d > 0 ? '+' : '−' }}{{ vn(d > 0 ? d : -d) }} do điều chỉnh chất lượng, tiến
@@ -170,9 +176,13 @@
           </div>
           <div class="stat">
             <span class="label">Mức hệ thống tính</span>
-            <span class="mid" [attr.title]="auto() ? levelLabel[auto()!] : null">{{
-              auto() ?? '…'
-            }}</span>
+            @if (auto(); as a) {
+              <span class="mid" [attr.title]="levelLabel[a]">{{ a }}</span>
+            } @else if (scores.isLoading()) {
+              <vt-skeleton variant="text" [rows]="1" label="Đang tải mức hệ thống tính" />
+            } @else {
+              <span class="mid">—</span>
+            }
             @if (view()?.snapshot?.downgradeReasons?.[0]; as d) {
               <span class="muted">{{ d.text }}</span>
             }
@@ -220,9 +230,23 @@
                       <td [class.bad]="!r.matched" [class.muted]="r.matched">{{ r.note }}</td>
                     </tr>
                   } @empty {
-                    <tr>
-                      <td colspan="6">Hồ sơ không có nhiệm vụ then chốt.</td>
-                    </tr>
+                    @if (scores.isLoading()) {
+                      <tr>
+                        <td colspan="6">
+                          <vt-skeleton
+                            variant="table"
+                            [header]="false"
+                            [rows]="3"
+                            [columns]="6"
+                            label="Đang tải kết quả thẩm định từng nhiệm vụ"
+                          />
+                        </td>
+                      </tr>
+                    } @else {
+                      <tr>
+                        <td colspan="6">Hồ sơ không có nhiệm vụ then chốt.</td>
+                      </tr>
+                    }
                   }
                 </tbody>
               </table>

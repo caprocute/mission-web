@@ -163,6 +163,8 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
                           @if (r.basis?.code) {
                             theo {{ r.basis?.code }}
                           }
+                        } @else if (it.unitId && unitsRes.isLoading()) {
+                          <vt-skeleton variant="text" [rows]="1" label="Đang tải tên đơn vị" />
                         } @else if (it.unitId) {
                           {{ unitName(it.unitId) }}
                         } @else {
@@ -191,7 +193,12 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
             <p class="reason">{{ r.reason }}</p>
             <h3 class="h3" id="impact-h">Ảnh hưởng dự kiến (tính thử, chưa áp dụng)</h3>
             @if (impact.isLoading()) {
-              <p class="muted">Đang tính thử…</p>
+              <vt-skeleton
+                variant="table"
+                [rows]="3"
+                [columns]="4"
+                label="Đang tính thử ảnh hưởng"
+              />
             } @else if (impact.error()) {
               <p class="muted">Chưa tính thử được: {{ impactError() }}</p>
             } @else if (impact.value(); as im) {
@@ -607,7 +614,7 @@ export class ReopenDetailPage {
   }
   private readonly org = inject(OrgApi);
   /** Tên đơn vị trong phạm vi; danh mục tổ chức chỉ nạp khi yêu cầu có phạm vi đơn vị. */
-  private readonly unitsRes = rxResource({
+  protected readonly unitsRes = rxResource({
     params: () => (this.current()?.scopeDetail?.items?.some((i) => i.unitId) ? true : undefined),
     stream: () => this.org.units('children'),
   });

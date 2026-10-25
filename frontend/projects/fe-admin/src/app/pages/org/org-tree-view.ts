@@ -58,7 +58,11 @@ export function prevDay(iso: string): string {
             </button>
           </li>
         } @empty {
-          <li class="muted small">{{ searching() ? 'Đang tìm…' : 'Không có đơn vị phù hợp.' }}</li>
+          @if (searching()) {
+            <li><vt-skeleton variant="list" [rows]="2" label="Đang tìm đơn vị" /></li>
+          } @else {
+            <li class="muted small">Không có đơn vị phù hợp.</li>
+          }
         }
       </ul>
     }
@@ -90,21 +94,24 @@ export function prevDay(iso: string): string {
           }}</span>
           <span class="lbl">
             <span class="nm">{{ r.node.name }}</span>
-            @if (loading().has(r.node.id)) {
-              <i
-                class="pi pi-spin pi-spinner muted small"
-                role="img"
-                aria-label="Đang mở nhánh"
-              ></i>
-            }
           </span>
         </li>
+        @if (loading().has(r.node.id)) {
+          <!-- Nhánh đang nạp lười: khung xương các nút con, thụt lề theo tầng con -->
+          <li role="none" class="sk-branch" [style.--lv]="r.level">
+            <vt-skeleton variant="tree" [rows]="2" label="Đang mở nhánh" />
+          </li>
+        }
       }
     </ul>
   `,
   styles: `
     .full {
       width: 100%;
+    }
+    .sk-branch {
+      list-style: none;
+      padding-left: calc(var(--lv) * 18px + 4px);
     }
     .muted {
       color: #4b5563;
