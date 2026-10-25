@@ -32,6 +32,7 @@ import vn.viettel.okrkpi.config.application.RoleBindingService;
 import vn.viettel.okrkpi.config.application.port.TenantRolePublisher;
 import vn.viettel.okrkpi.config.infrastructure.authz.ClasspathPermissionCatalog;
 import vn.viettel.okrkpi.config.infrastructure.client.KeycloakRealmRoles;
+import vn.viettel.okrkpi.config.infrastructure.client.OpaOrgDataPublisher;
 import vn.viettel.okrkpi.config.infrastructure.client.OpaTenantRolePublisher;
 import vn.viettel.okrkpi.config.infrastructure.listener.RealmRoleSyncListener;
 import vn.viettel.okrkpi.config.infrastructure.scheduling.AccessMaintenanceJob;
@@ -270,6 +271,39 @@ public class AccessConfiguration {
         ObjectProvider<TenantDirectory> directory,
         @Value("${mission.config.period-opening.cell:${CELL_ID:}}") String cell) {
       return new CustomRolePublishJob(customRoleService, directory, cell);
+    }
+  }
+
+  /**
+   * Cây tổ chức và đơn vị của vai trò sang {@code data.org} của OPA (CORE-00-03) khi OPA bật; tắt
+   * riêng bằng {@code mission.config.opa-org-data.enabled=false}.
+   */
+  @Configuration(proxyBeanMethods = false)
+  @EnableScheduling
+  @ConditionalOnProperty(prefix = "okrkpi.opa", name = "enabled", havingValue = "true")
+  @ConditionalOnProperty(
+      prefix = "mission.config.opa-org-data",
+      name = "enabled",
+      havingValue = "true",
+      matchIfMissing = true)
+  static class OpaOrgData {
+
+    @Bean
+    OpaOrgDataPublisher opaOrgDataPublisher(
+        @Qualifier("configDataSource") DataSource dataSource,
+        @Qualifier("configTransactionManager") PlatformTransactionManager tm,
+        ObjectProvider<TenantDirectory> directory,
+        ObjectProvider<ObjectMapper> json,
+        @Value("${mission.config.period-opening.cell:${CELL_ID:}}") String cell,
+        @Value("${okrkpi.opa.base-url:http://127.0.0.1:8181}") URI opaBaseUrl) {
+      return new OpaOrgDataPublisher(
+          JdbcClient.create(dataSource),
+          tm,
+          directory,
+          cell,
+          opaBaseUrl,
+          json.getIfAvailable(ObjectMapper::new),
+          java.time.Clock.systemUTC());
     }
   }
 }

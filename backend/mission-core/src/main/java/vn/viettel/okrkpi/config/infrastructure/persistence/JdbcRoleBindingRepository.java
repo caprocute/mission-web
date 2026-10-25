@@ -18,7 +18,7 @@ import vn.viettel.okrkpi.shared.kernel.TenantId;
 /** Kho {@code config.role_binding} bằng JDBC (CORE-08-16). */
 public class JdbcRoleBindingRepository implements RoleBindingRepository {
 
-  static final String SENSITIVE = "('decider', 'second_approver', 'policy_author')";
+  public static final String SENSITIVE = "('decider', 'second_approver', 'policy_author')";
 
   /** Trạng thái suy ra (quyết định WEB-058 điểm 2), tham số {@code :now}. */
   static final String STATUS =
