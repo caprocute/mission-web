@@ -15,7 +15,7 @@ Bảng này trả lời câu hỏi: với mỗi tính năng trong ma trận phâ
 | Bộ mục tiêu và check-in quý trước | 2, 10 | 2, 9 | 2, 10 |
 | Nhiệm vụ (nháp/đã giao/đang làm/chờ nghiệm thu/hoàn thành/tạm dừng/huỷ) | 11 (1/3/3/1/1/1/1) | 12 (1/3/4/1/1/1/1) | 11 (1/3/3/1/1/1/1) |
 | Điểm nghẽn, đề nghị điều chỉnh, nhắc việc, giao lại | 1, 4, 1, 1 | 1, 4, 1, 1 | 1, 4, 1, 1 |
-| Kế hoạch quý | chờ duyệt, nháp | chờ duyệt kèm ký số (dev chưa có dịch vụ ký số), trả lại | chờ duyệt, nháp |
+| Kế hoạch quý | chờ duyệt, nháp | đã duyệt, trả lại | chờ duyệt, nháp |
 | Uỷ quyền, phân quyền thêm | 2, 2 | 2, 2 | 1, 1 |
 | Policy Pack mẫu | khoi-dang/quy-dinh-moi | khoi-chinh-quyen/nd335 | khoi-chinh-quyen/nd335 |
 
@@ -173,7 +173,7 @@ Cột tình trạng: **Có** là dữ liệu nạp sẵn đúng cho tính năng;
 | Xem kế hoạch quý của đơn vị | — | Lãnh đạo, Quản lý, Cán bộ, Thẩm định | Có | Kế hoạch quý: nháp, chờ duyệt, trả lại, đã duyệt (mỗi tenant hai kế hoạch) | `tu.chanhvp`, `cq.chanhvp`, `dn.chutich` |
 | Lập kế hoạch: sao chép quý trước, gợi ý từ OKR, thêm dòng, lưu nháp | Quản lý | — | Có | Kế hoạch nháp của Tỉnh uỷ, UBND tỉnh, Công ty để lập tiếp; kế hoạch bị trả lại để sửa | `tu.truongphongth`, `cq.truongphongth`, `dn.truongphongkd` |
 | Gửi duyệt kế hoạch | Quản lý | — | Có | Kế hoạch nháp đã có dòng để gửi duyệt | `tu.truongphongth`, `cq.truongphongth`, `dn.truongphongkd` |
-| Tạo điều chỉnh kế hoạch (phiên bản n+1) | Quản lý | — | Thử trực tiếp | Duyệt kế hoạch mở phiên ký số qua dịch vụ ký số (esign-service) chưa triển khai trên dev, nên bước duyệt báo hệ thống bận; kế hoạch Sở Tài chính dừng ở chờ duyệt kèm đủ dòng danh mục, kế hoạch có dòng ngoài danh mục còn cần bước định điểm (BR-04-05) chưa có trên máy chủ. Trả lại, so sánh phiên bản vẫn thử được. | `tu.truongphongth`, `cq.truongphongth`, `dn.truongphongkd` |
+| Tạo điều chỉnh kế hoạch (phiên bản n+1) | Quản lý | — | Có | Kế hoạch Sở Tài chính đã duyệt kèm ký số (chỉ gồm dòng danh mục) để tạo phiên bản điều chỉnh | `tu.truongphongth`, `cq.truongphongth`, `dn.truongphongkd` |
 
 ### SCR-0403 Phê duyệt kế hoạch (so sánh phiên bản)
 
@@ -181,7 +181,7 @@ Cột tình trạng: **Có** là dữ liệu nạp sẵn đúng cho tính năng;
 |---|---|---|---|---|---|
 | So sánh phiên bản kế hoạch | — | Lãnh đạo | Thử trực tiếp | Có sau khi tạo điều chỉnh kế hoạch (phiên bản 2) | `tu.chanhvp`, `cq.chanhvp`, `dn.chutich` |
 | Trả lại kế hoạch với ý kiến | Lãnh đạo | — | Có | Kế hoạch chờ duyệt của Ban Tổ chức Tỉnh uỷ, Xí nghiệp Cấp nước số 1 | `tu.chanhvp`, `cq.chanhvp`, `dn.chutich` |
-| Duyệt và ký số kế hoạch | Lãnh đạo | — | Thử trực tiếp | Duyệt kế hoạch mở phiên ký số qua dịch vụ ký số (esign-service) chưa triển khai trên dev, nên bước duyệt báo hệ thống bận; kế hoạch Sở Tài chính dừng ở chờ duyệt kèm đủ dòng danh mục, kế hoạch có dòng ngoài danh mục còn cần bước định điểm (BR-04-05) chưa có trên máy chủ. Trả lại, so sánh phiên bản vẫn thử được. | `tu.chanhvp`, `cq.chanhvp`, `dn.chutich` |
+| Duyệt và ký số kế hoạch | Lãnh đạo | — | Có | Kế hoạch chờ duyệt của Ban Tổ chức, Xí nghiệp 1; duyệt kèm ký số đã chạy được trên dev (kế hoạch Sở Tài chính). Kế hoạch có dòng ngoài danh mục cần bước định điểm (BR-04-05) chưa có trên máy chủ | `tu.chanhvp`, `cq.chanhvp`, `dn.chutich` |
 
 ### SCR-0501 Giao việc
 
@@ -490,8 +490,8 @@ Cột tình trạng: **Có** là dữ liệu nạp sẵn đúng cho tính năng;
 
 | Tình trạng | Số chức năng |
 |---|---|
-| Có | 59 |
-| Thử trực tiếp | 28 |
+| Có | 61 |
+| Thử trực tiếp | 26 |
 | Trống | 76 |
 | Ngoài phạm vi | 16 |
 
