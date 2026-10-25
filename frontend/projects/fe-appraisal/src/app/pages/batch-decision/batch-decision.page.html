@@ -115,7 +115,7 @@
     @if (queue.error()) {
       <p class="msg err" role="alert">Không tải được danh sách hồ sơ. Vui lòng tải lại trang.</p>
     } @else if (queue.isLoading() && !rows().length) {
-      <p class="muted" role="status">Đang tải danh sách…</p>
+      <vt-skeleton variant="table" [columns]="5" label="Đang tải danh sách hồ sơ" />
     } @else if (!visible().length) {
       <p class="muted">Không có hồ sơ nào chờ quyết định.</p>
     } @else {

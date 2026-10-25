@@ -210,3 +210,126 @@
     color: var(--vt-color-text-muted);
   }
 }
+
+/* Khung xương khi tải ứng dụng (YC-PT-28): markup tĩnh trong index.html, chỉ dùng lớp, không style nội dòng (CSP) */
+@layer app {
+  /* Trong lúc tải phân hệ cho tuyến mới, ẩn trang cũ và chỉ hiện khung xương (đặt ở đây vì trang
+     do router chèn không mang thuộc tính đóng gói style của khung) */
+  main.content.is-routing > router-outlet ~ * {
+    display: none;
+  }
+  .vt-boot {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  .vt-boot__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .vt-boot__b {
+    display: block;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #e2e8f0 0%, #f1f5f9 40%, #e2e8f0 80%);
+    background-size: 300% 100%;
+    animation: vt-boot-shimmer 1.4s ease-in-out infinite;
+  }
+  .vt-boot__top {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 60px;
+    padding: 0 18px;
+    background: #fff;
+    border-bottom: 1px solid var(--vt-color-border);
+  }
+  .vt-boot__logo {
+    width: 7.5rem;
+    height: 1.6rem;
+  }
+  .vt-boot__search {
+    width: 18rem;
+    height: 2.25rem;
+    margin-left: auto;
+  }
+  .vt-boot__avatar {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+  }
+  .vt-boot__body {
+    display: flex;
+    flex: 1;
+  }
+  .vt-boot__nav {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 248px;
+    padding: 20px 16px;
+    background: #fff;
+    border-right: 1px solid var(--vt-color-border);
+  }
+  .vt-boot__nav .vt-boot__b {
+    height: 1.1rem;
+  }
+  .vt-boot__main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 1600px;
+    padding: 24px 32px;
+  }
+  .vt-boot__h1 {
+    width: 16rem;
+    height: 1.8rem;
+  }
+  .vt-boot__p {
+    width: 28rem;
+    max-width: 100%;
+    height: 0.9rem;
+    margin-bottom: 12px;
+  }
+  .vt-boot__cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 16px;
+  }
+  .vt-boot__cards .vt-boot__b {
+    height: 6rem;
+    border-radius: var(--vt-radius-card);
+  }
+  .vt-boot__panel {
+    height: 18rem;
+    margin-top: 4px;
+    border-radius: var(--vt-radius-card);
+  }
+  @media (max-width: 960px) {
+    .vt-boot__nav,
+    .vt-boot__search {
+      display: none;
+    }
+    .vt-boot__main {
+      padding: 16px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .vt-boot__b {
+      animation: none;
+      background: #e2e8f0;
+    }
+  }
+  @keyframes vt-boot-shimmer {
+    0% {
+      background-position: 100% 0;
+    }
+    100% {
+      background-position: 0 0;
+    }
+  }
+}

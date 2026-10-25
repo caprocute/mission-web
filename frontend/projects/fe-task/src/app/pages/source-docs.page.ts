@@ -20,12 +20,21 @@ import { SelectButtonModule } from 'primeng/selectbutton';
 import { TagModule } from 'primeng/tag';
 import { TASK_CAN } from '../task-permissions';
 import { TagSeverity, formatDate } from '../task-ui';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 type Filter = SourceDocStatus | 'TAT_CA';
 
 @Component({
   selector: 'vt-source-docs-page',
-  imports: [DatePipe, FormsModule, RouterLink, MessageModule, SelectButtonModule, TagModule],
+  imports: [
+    VtSkeletonComponent,
+    DatePipe,
+    FormsModule,
+    RouterLink,
+    MessageModule,
+    SelectButtonModule,
+    TagModule,
+  ],
   template: `
     <h1>Văn bản đến</h1>
     @if (!can('SCR-0502.nhan-van-ban')) {
@@ -48,7 +57,7 @@ type Filter = SourceDocStatus | 'TAT_CA';
       @if (docs.error()) {
         <p-message severity="error" [text]="error()" />
       } @else if (docs.isLoading() && !rows().length) {
-        <p class="muted">Đang tải…</p>
+        <vt-skeleton variant="table" [columns]="4" label="Đang tải danh sách văn bản" />
       } @else if (!rows().length) {
         <p class="muted">Không có văn bản nào.</p>
       } @else {

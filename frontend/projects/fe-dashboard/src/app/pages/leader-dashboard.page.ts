@@ -50,6 +50,7 @@ import {
   progressStatus,
   weekOfPeriod,
 } from '../dashboard-ui';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 interface Kpi {
   key: string;
@@ -62,6 +63,7 @@ interface Kpi {
 @Component({
   selector: 'vt-leader-dashboard-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -173,7 +175,7 @@ interface Kpi {
           }
         </div>
       } @empty {
-        <p class="muted">Đang tải…</p>
+        <vt-skeleton variant="stats" label="Đang tải chỉ số" />
       }
     </section>
 
@@ -232,7 +234,19 @@ interface Kpi {
                     </tr>
                   } @empty {
                     <tr>
-                      <td colspan="4">Chưa có số liệu của kỳ này.</td>
+                      @if (periodsRes.isLoading() || unitRes.isLoading()) {
+                        <td colspan="4">
+                          <vt-skeleton
+                            variant="table"
+                            [header]="false"
+                            [columns]="3"
+                            [rows]="5"
+                            label="Đang tải tiến độ theo đơn vị"
+                          />
+                        </td>
+                      } @else {
+                        <td colspan="4">Chưa có số liệu của kỳ này.</td>
+                      }
                     </tr>
                   }
                 </tbody>
@@ -253,7 +267,7 @@ interface Kpi {
           } @else if (trendRes.error()) {
             <p-message severity="error">{{ err(trendRes.error()) }}</p-message>
           } @else {
-            <p class="muted">Đang tải…</p>
+            <vt-skeleton variant="chart" label="Đang tải biểu đồ" />
           }
         </section>
       </div>
@@ -280,8 +294,8 @@ interface Kpi {
                 (onClick)="openSources(s.id)"
               />
             }
-          } @else if (summaryRes.isLoading()) {
-            <p class="muted">Đang tải…</p>
+          } @else if (periodsRes.isLoading() || summaryRes.isLoading()) {
+            <vt-skeleton variant="list" [rows]="4" label="Đang tải tổng hợp" />
           } @else {
             <p class="muted">Chưa có tóm tắt tuần này.</p>
           }
@@ -326,7 +340,9 @@ interface Kpi {
                 </div>
               </li>
             } @empty {
-              @if (!taskRes.isLoading()) {
+              @if (periodsRes.isLoading() || taskRes.isLoading()) {
+                <li><vt-skeleton variant="list" [rows]="4" label="Đang tải việc chậm" /></li>
+              } @else {
                 <li class="muted">Không có việc chậm trong phạm vi.</li>
               }
             }

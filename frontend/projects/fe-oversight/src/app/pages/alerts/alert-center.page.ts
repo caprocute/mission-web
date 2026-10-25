@@ -43,7 +43,7 @@ import {
   EvidenceChainNode,
   PeriodApi,
 } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { MultiSelectModule } from 'primeng/multiselect';
@@ -69,6 +69,7 @@ const CLOSED_STATUSES: AnomalyAlertStatus[] = [
 @Component({
   selector: 'vt-alert-center-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     NgTemplateOutlet,
     RouterLink,
@@ -188,7 +189,7 @@ const CLOSED_STATUSES: AnomalyAlertStatus[] = [
               />
             }
           } @else {
-            <p class="muted">Đang tải…</p>
+            <vt-skeleton variant="list" [rows]="5" label="Đang tải cảnh báo" />
           }
         </section>
 
@@ -490,7 +491,7 @@ const CLOSED_STATUSES: AnomalyAlertStatus[] = [
           </section>
         </div>
       } @else {
-        <section class="box"><p class="muted">Đang tải cảnh báo…</p></section>
+        <vt-skeleton variant="detail" label="Đang tải cảnh báo" />
       }
     </div>
   `,

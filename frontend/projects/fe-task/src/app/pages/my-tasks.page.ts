@@ -42,7 +42,12 @@ import {
   decodeCriteria,
   encodeCriteria,
 } from '@vt/api-client/domains';
-import { ThemeService, VtColumnPickerComponent, VtSavedFiltersComponent } from '@vt/design-system';
+import {
+  ThemeService,
+  VtColumnPickerComponent,
+  VtSavedFiltersComponent,
+  VtSkeletonComponent,
+} from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { InputTextModule } from 'primeng/inputtext';
@@ -93,6 +98,7 @@ export function readSavedFilters(
 @Component({
   selector: 'vt-my-tasks-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -334,7 +340,18 @@ export function readSavedFilters(
                   }
                 </tr>
               } @empty {
-                @if (!page.isLoading()) {
+                @if (page.isLoading()) {
+                  <tr>
+                    <td [attr.colspan]="colspan()">
+                      <vt-skeleton
+                        variant="table"
+                        [header]="false"
+                        [columns]="5"
+                        label="Đang tải nhiệm vụ"
+                      />
+                    </td>
+                  </tr>
+                } @else {
                   <tr>
                     <td [attr.colspan]="colspan()" class="muted">
                       Không có nhiệm vụ nào phù hợp bộ lọc.
@@ -356,9 +373,7 @@ export function readSavedFilters(
             />
           }
           <span class="muted small" aria-live="polite">
-            @if (page.isLoading()) {
-              Đang tải…
-            } @else {
+            @if (!page.isLoading()) {
               1–{{ rows().length }} / {{ total() }} · {{ pageSize }} dòng/trang
             }
           </span>

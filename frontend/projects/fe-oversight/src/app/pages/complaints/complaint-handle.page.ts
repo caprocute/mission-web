@@ -41,7 +41,7 @@ import {
   RATING_LEVEL_LABEL,
   RatingLevel,
 } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
@@ -78,6 +78,7 @@ const SIGN_REASON = 'Cần xác thực bổ sung để ký số văn bản trả
 @Component({
   selector: 'vt-complaint-handle-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -142,7 +143,7 @@ const SIGN_REASON = 'Cần xác thực bổ sung để ký số văn bản trả
             }
           </ul>
         } @else {
-          <p class="muted">Đang tải…</p>
+          <vt-skeleton variant="list" [rows]="5" label="Đang tải danh sách khiếu nại" />
         }
       </section>
 
@@ -556,7 +557,7 @@ const SIGN_REASON = 'Cần xác thực bổ sung để ký số văn bản trả
           }
         </div>
       } @else {
-        <section class="box"><p class="muted">Đang tải khiếu nại…</p></section>
+        <vt-skeleton variant="detail" label="Đang tải khiếu nại" />
       }
     </div>
 

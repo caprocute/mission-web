@@ -1,7 +1,13 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
-import { NavigationEnd, Router } from '@angular/router';
+import {
+  NavigationCancel,
+  NavigationEnd,
+  NavigationError,
+  RouteConfigLoadStart,
+  Router,
+} from '@angular/router';
 import { filter, map } from 'rxjs';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import {
@@ -12,7 +18,7 @@ import {
   SessionService,
   StepUpDialogComponent,
 } from '@vt/auth';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { AvatarModule } from 'primeng/avatar';
 import { Toast } from 'primeng/toast';
@@ -43,6 +49,7 @@ import { PluginHost } from '../plugins/plugin-host';
     GlobalSearch,
     AppStatusBanner,
     Toast,
+    VtSkeletonComponent,
   ],
   templateUrl: './shell.layout.html',
   styleUrl: './shell.layout.scss',
@@ -63,6 +70,24 @@ export class ShellLayout {
       map(() => this.title.getTitle()),
     ),
     { initialValue: '' },
+  );
+
+  /**
+   * Đang tải mã của phân hệ (remote) cho tuyến mới: hiện khung xương trang thay cho trang cũ hoặc
+   * vùng trống (YC-PT-28), tới khi điều hướng kết thúc.
+   */
+  protected readonly routeLoading = toSignal(
+    inject(Router).events.pipe(
+      filter(
+        (e) =>
+          e instanceof RouteConfigLoadStart ||
+          e instanceof NavigationEnd ||
+          e instanceof NavigationCancel ||
+          e instanceof NavigationError,
+      ),
+      map((e) => e instanceof RouteConfigLoadStart),
+    ),
+    { initialValue: false },
   );
 
   private readonly permissions = inject(PermissionService);

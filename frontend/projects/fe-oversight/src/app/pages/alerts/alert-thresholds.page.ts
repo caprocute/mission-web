@@ -8,7 +8,12 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { toProblem } from '@vt/api-client';
-import { ANOMALY_SIGNAL_LABEL, AlertApi, AnomalySignalThreshold, THRESHOLD_PARAM_LABEL } from '@vt/api-client/domains';
+import {
+  ANOMALY_SIGNAL_LABEL,
+  AlertApi,
+  AnomalySignalThreshold,
+  THRESHOLD_PARAM_LABEL,
+} from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { InputTextModule } from 'primeng/inputtext';
@@ -16,12 +21,14 @@ import { MessageModule } from 'primeng/message';
 import { TextareaModule } from 'primeng/textarea';
 import { OVERSIGHT_CAN } from '../../oversight-permissions';
 import { errorText, fmtDateTime } from '../../oversight-ui';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 const REASON_MIN = 20;
 
 @Component({
   selector: 'vt-alert-thresholds-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -156,7 +163,7 @@ const REASON_MIN = 20;
         </div>
       </form>
     } @else {
-      <p class="muted">Đang tải…</p>
+      <vt-skeleton variant="form" [rows]="4" label="Đang tải ngưỡng cảnh báo" />
     }
   `,
   styleUrls: ['../complaints/complaints.css'],

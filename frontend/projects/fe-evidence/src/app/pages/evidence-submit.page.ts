@@ -43,7 +43,7 @@ import {
   UploadProgress,
 } from '@vt/api-client/domains';
 import { permittedOn } from '@vt/auth';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { firstValueFrom, of } from 'rxjs';
 import { EVIDENCE_CAN } from '../evidence-permissions';
@@ -88,7 +88,7 @@ const fmtSize = (n?: number | null) =>
 
 @Component({
   selector: 'vt-evidence-submit-page',
-  imports: [FormsModule, RouterLink, ButtonModule],
+  imports: [VtSkeletonComponent, FormsModule, RouterLink, ButtonModule],
   template: `
     @if (!can('SCR-0701.xem')) {
       <p class="msg warn">Đồng chí không có quyền xem minh chứng.</p>
@@ -453,7 +453,7 @@ const fmtSize = (n?: number | null) =>
         </aside>
       </div>
     } @else {
-      <p class="muted" aria-busy="true">Đang tải minh chứng…</p>
+      <vt-skeleton variant="form" [rows]="5" label="Đang tải minh chứng" />
     }
   `,
   styleUrl: './evidence-page.scss',

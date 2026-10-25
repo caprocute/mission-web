@@ -1,11 +1,19 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { APPRAISAL_FLOW_LABEL, AppraisalApi, AppraisalProfileRow, AppraisalProfileStatus, RATING_LEVEL_LABEL, RatingLevel } from '@vt/api-client/domains';
+import {
+  APPRAISAL_FLOW_LABEL,
+  AppraisalApi,
+  AppraisalProfileRow,
+  AppraisalProfileStatus,
+  RATING_LEVEL_LABEL,
+  RatingLevel,
+} from '@vt/api-client/domains';
 import { map } from 'rxjs';
 import { APPRAISAL_CAN } from '../../appraisal-permissions';
 import { vn } from '../self-assessment/self-assessment-rules';
 import { PROFILE_STATUS_LABEL } from './rating-sheet-rules';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 /** Hồ sơ của tôi chưa có kết quả để xem trên phiếu xếp loại. */
 const NOT_YET: readonly AppraisalProfileStatus[] = ['CHUA_LAP', 'TU_DANH_GIA'];
@@ -25,7 +33,7 @@ const UNIT_VIEW: AppraisalProfileStatus[] = [
  */
 @Component({
   selector: 'vt-results-page',
-  imports: [RouterLink],
+  imports: [VtSkeletonComponent, RouterLink],
   template: `
     <div class="top">
       <h1>Kết quả xếp loại</h1>
@@ -47,7 +55,7 @@ const UNIT_VIEW: AppraisalProfileStatus[] = [
           Không tải được kết quả của đồng chí. Vui lòng tải lại trang.
         </p>
       } @else if (!mine.hasValue()) {
-        <p class="muted" role="status">Đang tải…</p>
+        <vt-skeleton variant="table" [columns]="4" label="Đang tải kết quả" />
       } @else {
         @for (r of mine.value(); track r.id) {
           <a class="row" [routerLink]="['./', r.id]" [attr.data-profile-id]="r.id">
@@ -72,7 +80,7 @@ const UNIT_VIEW: AppraisalProfileStatus[] = [
             Không tải được danh sách hồ sơ. Vui lòng tải lại trang.
           </p>
         } @else if (!unit.hasValue()) {
-          <p class="muted" role="status">Đang tải…</p>
+          <vt-skeleton variant="table" [columns]="4" label="Đang tải kết quả" />
         } @else {
           @for (r of unit.value(); track r.id) {
             <a class="row" [routerLink]="['./', r.id]" [attr.data-profile-id]="r.id">

@@ -76,7 +76,7 @@ Bảng được bổ sung khi gặp khái niệm mới; khi bổ sung, sửa lu�
 
 ## Kiểm tra tự động
 
-Có hai lớp kiểm tra, dùng chung bộ quy tắc ở `frontend/tools/ui-text/rules.mjs` (mã thiết kế, trạng thái thô, tên service, tên bảng, tên trường, tên sự kiện, thuật ngữ kỹ thuật, mã lỗi HTTP, UUID, ghi chú giải pháp, xưng hô).
+Có hai lớp kiểm tra, dùng chung bộ quy tắc ở `frontend/tools/ui-text/rules.mjs` (mã thiết kế, trạng thái thô, tên service, tên bảng, tên trường, tên sự kiện, thuật ngữ kỹ thuật, mã lỗi HTTP, UUID, ghi chú giải pháp, xưng hô, chữ "Đang tải…" trơn thay cho khung xương).
 
 Lớp thứ nhất là kiểm tra tĩnh `npm run check:ui-text` (tệp `frontend/tools/ui-text/check.mjs`). Công cụ phân tích template Angular bằng trình biên dịch của Angular để lấy nút văn bản, thuộc tính tĩnh và chuỗi trong biểu thức, rồi phân tích mã TypeScript để lấy các chuỗi dạng câu, kể cả dữ liệu giả lập trong `api-client/src/mock`. Chuỗi dùng để so sánh trạng thái, khoá quyền, đường dẫn, biểu thức CEL và chú thích được bỏ qua. Công cụ còn bắt mẫu tra bảng nhãn rồi rơi về chính mã khi bảng thiếu giá trị (`LABEL[t] ?? t`, luật `nhan-roi-ve-ma-tho`): máy chủ thật có thể trả giá trị bảng nhãn chưa có hoặc khác hoa thường (sổ cái trả `KIEM_TRA_SO_CAI` viết hoa trong khi bảng nhãn khoá chữ thường), và khi đó mã thô lộ ra màn hình dù dữ liệu giả lập vẫn hiện đúng; chỗ rơi về phải là tên chung như "Đối tượng khác". Khi một chuỗi bị bắt nhầm, đặt chú thích `ui-text-ok: <lý do>` ngay trên dòng đó (TypeScript) hoặc trong `<!-- -->` ngay trên phần tử (HTML); người duyệt PR kiểm lý do.
 
@@ -95,6 +95,16 @@ Ngày 24/10/2026, người phụ trách yêu cầu giao diện được thiết 
 - Bảng phải có cột tên đủ rộng (không ép tên cán bộ xuống nhiều dòng); cột ít dùng có thể ẩn mặc định bằng `hiddenByDefault` trong `ListColumnDef`, người dùng bật lại qua cá nhân hoá danh sách.
 - Bảng phụ, khung đăng ký nhanh hoặc khung xem nhanh chỉ mở khi người dùng yêu cầu, không mở sẵn.
 - Ghi chú nguồn của nội dung do AI tạo ("Nguồn: …") là yêu cầu minh bạch nghiệp vụ nên được giữ lại.
+
+## Trạng thái đang tải bằng khung xương (YC-PT-28)
+
+Ngày 25/10/2026, người phụ trách yêu cầu mọi màn hình khi đang tải phải hiện khung xương (skeleton) thay cho vùng trống (YC-PT-28 trong sổ tay yêu cầu). Trước khi sửa, khi mạng chậm người dùng thấy cả trang trắng trơn trong lúc ứng dụng khởi động và nạp phân hệ, rồi tới các bảng chỉ có đầu bảng, dòng chữ "Đang tải…" lẻ loi, hoặc tệ hơn là câu "Chưa có số liệu" hiện ra trong lúc dữ liệu chưa về. Quy ước hiện hành gồm ba tầng:
+
+- Khi mở ứng dụng, `index.html` chứa sẵn khung xương của khung trang (thanh trên, menu bên, tiêu đề, hàng thẻ, khối nội dung) bằng markup tĩnh và lớp `.vt-boot` trong `fe-shell/src/styles.scss`. Gốc ứng dụng (`app.ts`) giữ khung này tới khi tuyến đầu tiên xong (chờ đăng nhập, phân công, tải remote). Markup này chỉ dùng lớp CSS, không dùng `style` nội dòng, vì CSP của nginx không cho phép thuộc tính style.
+- Khi chuyển sang một phân hệ chưa tải, khung (`shell.layout`) nghe sự kiện `RouteConfigLoadStart` của router, ẩn trang cũ (lớp `.is-routing` trên `main`, quy tắc đặt ở `styles.scss` vì trang do router chèn không mang thuộc tính đóng gói style của khung) và hiện `<vt-skeleton variant="page">`.
+- Trong từng màn hình, vùng dữ liệu đang tải dùng thành phần `<vt-skeleton>` của `@vt/design-system`, chọn bố cục gần nhất với nội dung sắp hiện: `page`, `table` (đặt `[header]="false"` khi nằm trong `<td colspan>` của thân bảng), `list`, `cards`, `stats`, `dashboard`, `chart`, `form`, `detail`, `tree`, `text`; `rows` và `columns` chỉnh số dòng, số cột. Tiêu đề trang, bộ lọc và đầu bảng vẫn hiện ngay; chỉ vùng dữ liệu là khung xương. Thuộc tính `label` là câu nghiệp vụ ngắn cho trình đọc màn hình ("Đang tải danh sách người dùng"), không có dấu ba chấm.
+
+Một số điểm cần nhớ khi viết màn hình mới. Thứ nhất, câu trạng thái rỗng ("Chưa có…", "Không có…") chỉ hiện khi dữ liệu đã về: nếu tài nguyên phụ thuộc tham số của một tài nguyên khác (ví dụ số liệu bảng điều hành chờ danh sách kỳ để biết kỳ hiện hành), tài nguyên con ở trạng thái chờ và `isLoading()` còn sai, nên điều kiện đang tải phải gộp cả tài nguyên cha (`periodsRes.isLoading() || unitRes.isLoading()`). Thứ hai, nút đang gửi thao tác vẫn dùng `[loading]` trên nút, tiến độ gửi hoặc nhận tệp vẫn là chữ ("Đang tải lên…", "Đang tải xuống…"); khung xương chỉ dành cho vùng dữ liệu. Thứ ba, khung xương tự chiếm trọn hàng khi đặt trong lưới (`grid-column: 1 / -1`), tắt hiệu ứng khi người dùng bật giảm chuyển động và đậm hơn ở chế độ cao tuổi. Kiểm tra tĩnh có thêm luật `dang-tai-tron` bắt chữ "Đang tải…" trơn quay lại trong template và mã.
 
 ## Ví dụ sửa
 

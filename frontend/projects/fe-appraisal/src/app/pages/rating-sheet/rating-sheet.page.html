@@ -3,7 +3,7 @@
     Không mở được phiếu xếp loại. Hồ sơ không tồn tại hoặc đồng chí không có quyền xem hồ sơ này.
   </p>
 } @else if (!profile()) {
-  <p class="muted" role="status">Đang tải phiếu xếp loại…</p>
+  <vt-skeleton variant="detail" label="Đang tải phiếu xếp loại" />
 }
 
 @if (profile(); as p) {
@@ -26,7 +26,7 @@
       }
       @if (canDownload()) {
         <button type="button" class="btn" [disabled]="busy() === 'download'" (click)="download()">
-          {{ busy() === 'download' ? 'Đang tải…' : 'Tải Mẫu 1B (PDF/A)' }}
+          {{ busy() === 'download' ? 'Đang tải xuống…' : 'Tải Mẫu 1B (PDF/A)' }}
         </button>
       }
       @if (fileUrl(); as url) {
@@ -91,7 +91,7 @@
         Kết quả của luồng này đang được tính hoặc chưa có. Vui lòng quay lại sau.
       </p>
     } @else if (!snapshot()) {
-      <p class="muted" role="status">Đang tải kết quả…</p>
+      <vt-skeleton variant="stats" [rows]="3" label="Đang tải kết quả" />
     } @else if (tab() === 'TRACE') {
       <section class="card" aria-labelledby="trace-h">
         <h2 id="trace-h">Vết tính điểm</h2>
@@ -137,7 +137,7 @@
         } @else if (trace.error()) {
           <p class="msg err" role="alert">Không tải được vết tính. Vui lòng thử lại sau.</p>
         } @else {
-          <p class="muted" role="status">Đang tải vết tính…</p>
+          <vt-skeleton variant="list" [rows]="4" label="Đang tải vết tính" />
         }
       </section>
     } @else {

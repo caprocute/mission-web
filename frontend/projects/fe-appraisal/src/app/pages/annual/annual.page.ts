@@ -32,8 +32,15 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { toProblem } from '@vt/api-client';
-import { AnnualRatingPage, AnnualRatingRow, AppraisalApi, PeriodApi, RATING_LEVEL_LABEL, RatingLevel } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import {
+  AnnualRatingPage,
+  AnnualRatingRow,
+  AppraisalApi,
+  PeriodApi,
+  RATING_LEVEL_LABEL,
+  RatingLevel,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { EMPTY, Observable, expand, firstValueFrom, map, reduce } from 'rxjs';
 import { APPRAISAL_CAN } from '../../appraisal-permissions';
 import { LEVEL_SHORT } from '../batch-decision/batch-decision-rules';
@@ -57,7 +64,7 @@ interface Loaded {
 
 @Component({
   selector: 'vt-annual-page',
-  imports: [RouterLink],
+  imports: [VtSkeletonComponent, RouterLink],
   templateUrl: './annual.page.html',
   styleUrl: './annual.page.css',
 })

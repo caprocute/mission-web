@@ -38,6 +38,7 @@ import {
   tokenText,
   withHomeWidgets,
 } from './ui-pack-tokens';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 /*
  * SCR-1801 Cấu hình giao diện tenant (QT-18, TL-02b), đối chiếu đặc tả:
@@ -85,7 +86,15 @@ const draftOf = (v: UiPackVersion | undefined): Draft | null =>
 
 @Component({
   selector: 'vt-ui-pack-page',
-  imports: [FormsModule, RouterLink, ButtonModule, DialogModule, TextareaModule, UiPackPreview],
+  imports: [
+    VtSkeletonComponent,
+    FormsModule,
+    RouterLink,
+    ButtonModule,
+    DialogModule,
+    TextareaModule,
+    UiPackPreview,
+  ],
   template: `
     <header class="head">
       <div>
@@ -149,7 +158,7 @@ const draftOf = (v: UiPackVersion | undefined): Draft | null =>
     @if (packs.error() || versions.error()) {
       <p class="err" role="alert">Không tải được cấu hình giao diện. Vui lòng thử lại.</p>
     } @else if (!pack()) {
-      <p>Đang tải…</p>
+      <vt-skeleton variant="form" [rows]="5" label="Đang tải cấu hình giao diện" />
     }
 
     @if (notice(); as n) {

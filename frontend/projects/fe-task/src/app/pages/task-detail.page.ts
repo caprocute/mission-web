@@ -29,7 +29,7 @@ import {
   TaskDetail,
   toProblem,
 } from '@vt/api-client';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { TabsModule } from 'primeng/tabs';
@@ -63,6 +63,7 @@ export function coefficient(lateWorkingDays: number): number {
 @Component({
   selector: 'vt-task-detail-page',
   imports: [
+    VtSkeletonComponent,
     RouterLink,
     ButtonModule,
     MessageModule,
@@ -513,7 +514,7 @@ export function coefficient(lateWorkingDays: number): number {
         (saved)="onDecided($event)"
       />
     } @else {
-      <p class="muted" aria-busy="true">Đang tải nhiệm vụ…</p>
+      <vt-skeleton variant="detail" label="Đang tải nhiệm vụ" />
     }
   `,
   styles: `

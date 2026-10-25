@@ -12,10 +12,11 @@ import { AnalyticsApi, DIMENSION, MEASURE, cellNumber, resultRows } from '@vt/ap
 import { MessageModule } from 'primeng/message';
 import { DASHBOARD_CAN } from '../dashboard-permissions';
 import { eq, errorText, fmtDateTime, fmtNum } from '../dashboard-ui';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 @Component({
   selector: 'vt-unit-drill-page',
-  imports: [RouterLink, MessageModule],
+  imports: [VtSkeletonComponent, RouterLink, MessageModule],
   template: `
     <p class="crumb">
       @if (can('SCR-1601.xem')) {
@@ -72,7 +73,7 @@ import { eq, errorText, fmtDateTime, fmtNum } from '../dashboard-ui';
         <p class="small muted">Số liệu cập nhật lúc {{ dt(res.value().dataAsOf) }}.</p>
       </div>
     } @else {
-      <p class="muted">Đang tải…</p>
+      <vt-skeleton variant="table" [columns]="5" label="Đang tải số liệu đơn vị" />
     }
   `,
   styleUrls: ['../dashboard.css'],

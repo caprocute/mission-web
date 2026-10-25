@@ -26,7 +26,7 @@ import {
   RoleBindingStatus,
   RoleCode,
 } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { MessageModule } from 'primeng/message';
@@ -47,6 +47,7 @@ const FLOW_LABEL: Record<string, string> = { DANG: 'Khối Đảng', NHA_NUOC: '
 @Component({
   selector: 'vt-role-bindings-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -222,9 +223,20 @@ const FLOW_LABEL: Record<string, string> = { DANG: 'Khối Đảng', NHA_NUOC: '
                   </tr>
                 } @empty {
                   <tr>
-                    <td [attr.colspan]="simple() ? 6 : 7" class="muted">
-                      {{ page.isLoading() ? 'Đang tải…' : 'Không có vai trò phù hợp bộ lọc.' }}
-                    </td>
+                    @if (page.isLoading()) {
+                      <td [attr.colspan]="simple() ? 6 : 7">
+                        <vt-skeleton
+                          variant="table"
+                          [header]="false"
+                          [columns]="6"
+                          label="Đang tải danh sách vai trò"
+                        />
+                      </td>
+                    } @else {
+                      <td [attr.colspan]="simple() ? 6 : 7" class="muted">
+                        Không có vai trò phù hợp bộ lọc.
+                      </td>
+                    }
                   </tr>
                 }
               </tbody>

@@ -20,16 +20,25 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { OrgApi, fieldErrors, toProblem } from '@vt/api-client';
-import { DossierApi, DossierMeetingStatus, DossierMeetingType, MEETING_ROLE_LABEL, MEETING_STATUS_LABEL, MEETING_TYPE_LABEL, PeriodApi } from '@vt/api-client/domains';
+import {
+  DossierApi,
+  DossierMeetingStatus,
+  DossierMeetingType,
+  MEETING_ROLE_LABEL,
+  MEETING_STATUS_LABEL,
+  MEETING_TYPE_LABEL,
+  PeriodApi,
+} from '@vt/api-client/domains';
 import { firstValueFrom, map } from 'rxjs';
 import { DOSSIER_CAN } from '../../dossier-permissions';
 import { DossierTabs } from '../dossier-tabs';
 import { problemMessage, specialCaseLabel } from '../meeting/meeting-rules';
 import { CreateForm, createErrors, toCreate } from './meetings-rules';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 @Component({
   selector: 'vt-meetings-page',
-  imports: [DatePipe, RouterLink, DossierTabs],
+  imports: [VtSkeletonComponent, DatePipe, RouterLink, DossierTabs],
   templateUrl: './meetings.page.html',
   styleUrl: './meetings.page.css',
 })

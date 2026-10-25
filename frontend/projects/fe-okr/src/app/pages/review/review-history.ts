@@ -2,6 +2,7 @@ import { Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { OkrApi, OkrHistoryAction, OkrReviewQueue, OkrReviewSet } from '@vt/api-client';
 import { formatDate, formatDateTime } from '../../okr-ui';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 const ACTION: Record<OkrHistoryAction, string> = {
   TAO: 'tạo',
@@ -19,12 +20,16 @@ const ACTION: Record<OkrHistoryAction, string> = {
  * tiêu đầu bộ), kết quả kiểm tra của hệ thống và bước đang chờ người duyệt, kèm mẫu luồng đang áp dụng.
  */
 @Component({
+  imports: [VtSkeletonComponent],
   selector: 'vt-review-history',
   template: `
     @let s = set();
     @let q = queue();
     <section class="box" aria-labelledby="h-h">
       <h2 id="h-h" class="sec">Lịch sử luồng duyệt</h2>
+      @if (history.isLoading() && !history.hasValue()) {
+        <vt-skeleton variant="list" [rows]="2" label="Đang tải lịch sử duyệt" />
+      }
       <ol class="tl">
         @for (e of entries(); track $index) {
           <li class="ok">

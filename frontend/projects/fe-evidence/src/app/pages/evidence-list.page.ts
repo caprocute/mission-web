@@ -19,7 +19,11 @@ import {
   decodeCriteria,
   encodeCriteria,
 } from '@vt/api-client/domains';
-import { VtColumnPickerComponent, VtSavedFiltersComponent } from '@vt/design-system';
+import {
+  VtColumnPickerComponent,
+  VtSavedFiltersComponent,
+  VtSkeletonComponent,
+} from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { firstValueFrom, forkJoin, map } from 'rxjs';
 import { EVIDENCE_CAN } from '../evidence-permissions';
@@ -32,7 +36,13 @@ import {
 
 @Component({
   selector: 'vt-evidence-list-page',
-  imports: [RouterLink, ButtonModule, VtColumnPickerComponent, VtSavedFiltersComponent],
+  imports: [
+    VtSkeletonComponent,
+    RouterLink,
+    ButtonModule,
+    VtColumnPickerComponent,
+    VtSavedFiltersComponent,
+  ],
   template: `
     @if (!can('SCR-0701.xem')) {
       <p class="msg warn">Đồng chí không có quyền xem minh chứng.</p>
@@ -92,7 +102,7 @@ import {
           }
         </ul>
       } @else {
-        <p class="muted" aria-busy="true">Đang tải…</p>
+        <vt-skeleton variant="list" [rows]="5" label="Đang tải danh sách sản phẩm" />
       }
     } @else if (reviewer() === 'me') {
       <h1>Minh chứng chờ tôi nghiệm thu</h1>

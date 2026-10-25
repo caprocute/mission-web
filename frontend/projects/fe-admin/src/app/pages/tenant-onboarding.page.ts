@@ -81,7 +81,7 @@ import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { Observable, Subscription, concatMap, from, map, of, switchMap, toArray } from 'rxjs';
 import { ADMIN_CAN } from '../admin-permissions';
 import { errorText, fmtAccounts, fmtDate, fmtDateTime, fmtInt, fmtPercent } from '../admin-ui';
@@ -221,7 +221,15 @@ function provisionMinutes(t: ConfigTenant): number {
 
 @Component({
   selector: 'vt-tenant-onboarding-page',
-  imports: [FormsModule, RouterLink, ButtonModule, InputTextModule, MessageModule, SelectModule],
+  imports: [
+    VtSkeletonComponent,
+    FormsModule,
+    RouterLink,
+    ButtonModule,
+    InputTextModule,
+    MessageModule,
+    SelectModule,
+  ],
   template: `
     <nav class="muted" aria-label="Đường dẫn">
       <a routerLink="/admin/tenants">Danh sách đơn vị triển khai</a> /
@@ -1002,7 +1010,7 @@ function provisionMinutes(t: ConfigTenant): number {
         }
       </div>
     } @else {
-      <p class="muted" aria-busy="true">Đang tải hồ sơ khởi tạo…</p>
+      <vt-skeleton variant="form" [rows]="6" label="Đang tải hồ sơ khởi tạo" />
     }
   `,
   styles: `

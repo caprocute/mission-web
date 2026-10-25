@@ -38,7 +38,12 @@ import {
   decodeCriteria,
   encodeCriteria,
 } from '@vt/api-client/domains';
-import { ThemeService, VtColumnPickerComponent, VtSavedFiltersComponent } from '@vt/design-system';
+import {
+  ThemeService,
+  VtColumnPickerComponent,
+  VtSavedFiltersComponent,
+  VtSkeletonComponent,
+} from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
@@ -67,6 +72,7 @@ export const MSG_01_02 = (tenant: string, step: number) =>
 @Component({
   selector: 'vt-tenants-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -303,7 +309,18 @@ export const MSG_01_02 = (tenant: string, step: number) =>
                   </td>
                 </tr>
               } @empty {
-                @if (!page.isLoading()) {
+                @if (page.isLoading()) {
+                  <tr>
+                    <td [attr.colspan]="colspan()">
+                      <vt-skeleton
+                        variant="table"
+                        [header]="false"
+                        [columns]="5"
+                        label="Đang tải danh sách đơn vị"
+                      />
+                    </td>
+                  </tr>
+                } @else {
                   <tr>
                     <td [attr.colspan]="colspan()" class="empty muted">
                       Không có đơn vị nào phù hợp với điều kiện lọc.

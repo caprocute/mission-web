@@ -32,6 +32,7 @@ import { ReasonDialog } from '../access/reason.dialog';
 import { AssignmentDialog } from './assignment.dialog';
 import { PasswordDialog } from './password.dialog';
 import { PAGE_STYLES, adminError } from './users-ui';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 interface Notice {
   kind: 'success' | 'warn' | 'error';
@@ -43,6 +44,7 @@ type Pending =
 @Component({
   selector: 'vt-user-detail-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -193,9 +195,18 @@ type Pending =
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="5" class="muted">
-                    {{ assignmentList.isLoading() ? 'Đang tải…' : 'Chưa có đơn vị công tác.' }}
-                  </td>
+                  @if (assignmentList.isLoading()) {
+                    <td colspan="5">
+                      <vt-skeleton
+                        variant="table"
+                        [header]="false"
+                        [columns]="5"
+                        label="Đang tải đơn vị công tác"
+                      />
+                    </td>
+                  } @else {
+                    <td colspan="5" class="muted">Chưa có đơn vị công tác.</td>
+                  }
                 </tr>
               }
             </tbody>
@@ -255,7 +266,7 @@ type Pending =
         [password]="password()"
       />
     } @else if (account.isLoading()) {
-      <p class="muted">Đang tải thông tin người dùng…</p>
+      <vt-skeleton variant="detail" label="Đang tải thông tin người dùng" />
     }
     <vt-reason-dialog
       [(visible)]="reasonOpen"

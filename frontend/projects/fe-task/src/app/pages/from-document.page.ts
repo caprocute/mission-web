@@ -25,7 +25,7 @@ import {
   TaskSuggestion,
   TaskSuggestionFields,
 } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { TagModule } from 'primeng/tag';
@@ -41,6 +41,7 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
 @Component({
   selector: 'vt-from-document-page',
   imports: [
+    VtSkeletonComponent,
     DatePipe,
     FormsModule,
     RouterLink,
@@ -160,7 +161,7 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
           </div>
 
           @if (extraction.isLoading()) {
-            <p class="muted">Đang tải nhiệm vụ AI trích…</p>
+            <vt-skeleton variant="list" [rows]="3" label="Đang tải nhiệm vụ trích từ văn bản" />
           } @else if (x?.status === 'DANG_TRICH') {
             <p class="muted">AI đang trích nhiệm vụ từ văn bản này, vui lòng mở lại sau ít phút.</p>
           } @else if (x?.status === 'KHONG_TRICH_DUOC') {
@@ -306,7 +307,7 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
         (confirmed)="dismiss($event)"
       />
     } @else {
-      <p class="muted">Đang tải văn bản…</p>
+      <vt-skeleton variant="detail" label="Đang tải văn bản" />
     }
   `,
   styles: `

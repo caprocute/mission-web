@@ -33,7 +33,7 @@ import {
   ReopenApproverSlot,
   ReopenRequest,
 } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { MessageModule } from 'primeng/message';
@@ -53,6 +53,7 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
 @Component({
   selector: 'vt-reopen-detail-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -348,7 +349,7 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
         </ng-template>
       </p-dialog>
     } @else {
-      <p class="muted">Đang tải yêu cầu…</p>
+      <vt-skeleton variant="detail" label="Đang tải yêu cầu" />
     }
   `,
   styles: `

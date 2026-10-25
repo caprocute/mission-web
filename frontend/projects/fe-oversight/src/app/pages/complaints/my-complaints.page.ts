@@ -1,12 +1,19 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { COMPLAINT_KIND_LABEL, COMPLAINT_STATUS_LABEL, ComplaintApi, ComplaintSummary, RATING_LEVEL_LABEL } from '@vt/api-client/domains';
+import {
+  COMPLAINT_KIND_LABEL,
+  COMPLAINT_STATUS_LABEL,
+  ComplaintApi,
+  ComplaintSummary,
+  RATING_LEVEL_LABEL,
+} from '@vt/api-client/domains';
 import { MessageModule } from 'primeng/message';
 import { TagModule } from 'primeng/tag';
 import { OVERSIGHT_CAN, OVERSIGHT_USER_ID } from '../../oversight-permissions';
 import { errorText, fmtDate, fmtDateTime } from '../../oversight-ui';
 import { complaintSeverity, daysLeftText } from './complaint-ui';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 /**
  * SCR-1201 phần theo dõi của người khiếu nại (QT-12 bước 1, 11): kết quả còn khiếu nại được kèm hạn (BR-12-01,
@@ -14,7 +21,7 @@ import { complaintSeverity, daysLeftText } from './complaint-ui';
  */
 @Component({
   selector: 'vt-my-complaints-page',
-  imports: [RouterLink, MessageModule, TagModule],
+  imports: [VtSkeletonComponent, RouterLink, MessageModule, TagModule],
   template: `
     <p class="crumb"><a routerLink="..">Giám sát, hậu kiểm</a></p>
     <h1>Khiếu nại, giải trình của tôi</h1>
@@ -70,7 +77,7 @@ import { complaintSeverity, daysLeftText } from './complaint-ui';
           }
         </ul>
       } @else {
-        <p class="muted">Đang tải…</p>
+        <vt-skeleton variant="list" [rows]="4" label="Đang tải danh sách" />
       }
     </section>
 
@@ -122,7 +129,7 @@ import { complaintSeverity, daysLeftText } from './complaint-ui';
           </div>
         }
       } @else {
-        <p class="muted">Đang tải…</p>
+        <vt-skeleton variant="table" [columns]="5" label="Đang tải danh sách" />
       }
     </section>
   `,

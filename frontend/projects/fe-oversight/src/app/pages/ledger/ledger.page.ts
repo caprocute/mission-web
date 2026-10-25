@@ -32,7 +32,7 @@ import {
   LedgerVerifyRun,
   verifyRunIdOf,
 } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
@@ -50,7 +50,15 @@ const isoDate = (d: Date) => {
 
 @Component({
   selector: 'vt-ledger-page',
-  imports: [FormsModule, RouterLink, ButtonModule, InputTextModule, MessageModule, SelectModule],
+  imports: [
+    VtSkeletonComponent,
+    FormsModule,
+    RouterLink,
+    ButtonModule,
+    InputTextModule,
+    MessageModule,
+    SelectModule,
+  ],
   template: `
     <p class="crumb"><a routerLink="../reopen-requests">Hậu kiểm, mở lại kỳ</a></p>
     <header class="head">
@@ -225,9 +233,18 @@ const isoDate = (d: Date) => {
                     </tr>
                   } @empty {
                     <tr>
-                      <td colspan="6" class="muted">
-                        {{ page.isLoading() ? 'Đang tải…' : 'Không có bản ghi nào khớp bộ lọc.' }}
-                      </td>
+                      @if (page.isLoading()) {
+                        <td colspan="6">
+                          <vt-skeleton
+                            variant="table"
+                            [header]="false"
+                            [columns]="6"
+                            label="Đang tải sổ cái"
+                          />
+                        </td>
+                      } @else {
+                        <td colspan="6" class="muted">Không có bản ghi nào khớp bộ lọc.</td>
+                      }
                     </tr>
                   }
                 </tbody>
@@ -371,7 +388,7 @@ const isoDate = (d: Date) => {
         <section class="box" aria-labelledby="s-h" aria-live="polite">
           <h2 id="s-h" class="h">Niêm phong và đối chứng</h2>
           @if (detail.isLoading()) {
-            <p class="muted">Đang tải bản ghi…</p>
+            <vt-skeleton variant="text" [rows]="4" label="Đang tải bản ghi" />
           } @else if (detail.value(); as d) {
             <dl
               class="meta"

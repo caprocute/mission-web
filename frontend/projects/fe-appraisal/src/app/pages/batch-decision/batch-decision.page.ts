@@ -33,8 +33,18 @@ import {
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { Job, JobTracker, toProblem } from '@vt/api-client';
-import { APPRAISAL_FLOW_LABEL, AppraisalApi, AppraisalBatchDecision, AppraisalProfileRow, DossierApi, RATING_LEVELS, RATING_LEVEL_LABEL, RatingLevel, formIdOf } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import {
+  APPRAISAL_FLOW_LABEL,
+  AppraisalApi,
+  AppraisalBatchDecision,
+  AppraisalProfileRow,
+  DossierApi,
+  RATING_LEVELS,
+  RATING_LEVEL_LABEL,
+  RatingLevel,
+  formIdOf,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import {
   EMPTY,
   Observable,
@@ -90,7 +100,7 @@ const groupKey = (r: AppraisalProfileRow) => `${r.period.id}|${r.flow}`;
 
 @Component({
   selector: 'vt-batch-decision-page',
-  imports: [RouterLink],
+  imports: [VtSkeletonComponent, RouterLink],
   templateUrl: './batch-decision.page.html',
   styleUrl: './batch-decision.page.css',
 })

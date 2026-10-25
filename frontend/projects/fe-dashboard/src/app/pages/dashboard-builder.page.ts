@@ -16,7 +16,18 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { OrgApi, toProblem } from '@vt/api-client';
-import { AnalyticsApi, AnalyticsDashboard, CHART_TYPES, CHART_TYPE_LABEL, DASHBOARD_LIMITS, DashboardShareScope, DashboardWidget, SHARE_SCOPE_LABEL, SemanticDimension, SemanticMeasure } from '@vt/api-client/domains';
+import {
+  AnalyticsApi,
+  AnalyticsDashboard,
+  CHART_TYPES,
+  CHART_TYPE_LABEL,
+  DASHBOARD_LIMITS,
+  DashboardShareScope,
+  DashboardWidget,
+  SHARE_SCOPE_LABEL,
+  SemanticDimension,
+  SemanticMeasure,
+} from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DialogModule } from 'primeng/dialog';
@@ -30,6 +41,7 @@ import { WidgetCard } from '../charts/widget-card';
 import { DASHBOARD_CAN } from '../dashboard-permissions';
 import { eq, errorText, fmtDateTime } from '../dashboard-ui';
 import { defaultHeight, gridArea, pack, suggestChart } from './dashboard-layout';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 const WIDTHS = [
   { label: 'Một phần tư', value: 3 },
@@ -41,6 +53,7 @@ const WIDTHS = [
 @Component({
   selector: 'vt-dashboard-builder-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -126,6 +139,9 @@ const WIDTHS = [
       @if (!previewMode()) {
         <aside class="box catalog" aria-labelledby="db-cat-h">
           <h2 class="h" id="db-cat-h">Chỉ số</h2>
+          @if (modelRes.isLoading() && !measures().length) {
+            <vt-skeleton variant="list" [rows]="6" label="Đang tải danh mục chỉ số" />
+          }
           <ul class="plain-list">
             @for (m of measures(); track m.name) {
               <li

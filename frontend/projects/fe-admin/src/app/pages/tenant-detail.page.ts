@@ -14,6 +14,7 @@ import {
 import { MessageModule } from 'primeng/message';
 import { errorText, fmtDate, fmtDateTime, fmtInt } from '../admin-ui';
 import { MSG_01_02 } from './tenants.page';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 const FLOW_LABEL = { DANG: 'Đảng', NHA_NUOC: 'Nhà nước' } as const;
 const DOMAIN_KIND_LABEL = {
@@ -30,7 +31,7 @@ const DOMAIN_KIND_LABEL = {
  */
 @Component({
   selector: 'vt-tenant-detail-page',
-  imports: [RouterLink, MessageModule],
+  imports: [VtSkeletonComponent, RouterLink, MessageModule],
   template: `
     <nav class="crumb" aria-label="Đường dẫn">
       <a routerLink="..">Danh sách đơn vị triển khai</a> /
@@ -133,7 +134,7 @@ const DOMAIN_KIND_LABEL = {
         </div>
       </div>
     } @else {
-      <p class="muted" aria-busy="true">Đang tải thông tin đơn vị triển khai…</p>
+      <vt-skeleton variant="detail" label="Đang tải thông tin đơn vị triển khai" />
     }
   `,
   styles: `

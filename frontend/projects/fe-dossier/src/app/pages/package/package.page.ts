@@ -18,8 +18,18 @@ import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { Job, JobTracker, toProblem } from '@vt/api-client';
-import { DossierApi, DossierForm, DossierTransferDestination, FORM_CODE_LABEL, FORM_STATUS_LABEL, PACKAGE_KIND_LABEL, PACKAGE_STATUS_LABEL, TRANSFER_DESTINATION_LABEL, TRANSFER_STATUS_LABEL } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import {
+  DossierApi,
+  DossierForm,
+  DossierTransferDestination,
+  FORM_CODE_LABEL,
+  FORM_STATUS_LABEL,
+  PACKAGE_KIND_LABEL,
+  PACKAGE_STATUS_LABEL,
+  TRANSFER_DESTINATION_LABEL,
+  TRANSFER_STATUS_LABEL,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { firstValueFrom, last } from 'rxjs';
 import { DOSSIER_CAN } from '../../dossier-permissions';
 import { DOSSIER_STEP_UP } from '../../step-up';
@@ -38,7 +48,7 @@ import {
 
 @Component({
   selector: 'vt-package-page',
-  imports: [DatePipe, RouterLink],
+  imports: [VtSkeletonComponent, DatePipe, RouterLink],
   templateUrl: './package.page.html',
   styleUrl: './package.page.css',
 })

@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { AppNotification } from '@vt/api-client';
 import { NotificationCenter } from './notification-center';
 import { relativeTime, safeInternalLink } from './relative-time';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 /**
  * Chuông thông báo trên thanh trên (SCR-0002 "Đánh dấu đã đọc", QT-00): số chưa đọc, hộp thông báo
@@ -10,6 +11,7 @@ import { relativeTime, safeInternalLink } from './relative-time';
  * Esc đóng và trả tiêu điểm về chuông.
  */
 @Component({
+  imports: [VtSkeletonComponent],
   selector: 'vt-notification-bell',
   host: {
     '(document:keydown.escape)': 'close(true)',
@@ -47,7 +49,7 @@ import { relativeTime, safeInternalLink } from './relative-time';
         </header>
         @switch (center.status()) {
           @case ('loading') {
-            <p class="muted" role="status">Đang tải thông báo…</p>
+            <vt-skeleton variant="list" [rows]="3" label="Đang tải thông báo" />
           }
           @case ('error') {
             <p class="muted" role="status">

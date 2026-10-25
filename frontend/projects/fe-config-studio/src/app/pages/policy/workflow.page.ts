@@ -2,13 +2,28 @@ import { Component, computed, inject, linkedSignal, signal } from '@angular/core
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { toProblem } from '@vt/api-client';
-import { OVERDUE_ACTION_LABEL, PeriodApi, PolicyApi, PolicyWorkflowTemplateSummary, PolicyWorkflowTemplateVersion, WorkflowBinding, WorkflowLevelParam, WorkflowLintResult, WorkflowSimulateResult, WorkflowStepPreview, stepsForLevels, workDays, workDaysParam } from '@vt/api-client/domains';
+import {
+  OVERDUE_ACTION_LABEL,
+  PeriodApi,
+  PolicyApi,
+  PolicyWorkflowTemplateSummary,
+  PolicyWorkflowTemplateVersion,
+  WorkflowBinding,
+  WorkflowLevelParam,
+  WorkflowLintResult,
+  WorkflowSimulateResult,
+  WorkflowStepPreview,
+  stepsForLevels,
+  workDays,
+  workDaysParam,
+} from '@vt/api-client/domains';
 import { ROLE_LABEL } from '@vt/auth';
 import { ButtonModule } from 'primeng/button';
 import { STUDIO_ACCESS } from '../../studio-permissions';
 import { FLOW_LABEL, errorText, fmtDate } from '../../studio-ui';
 import { celSyntaxError } from './cel-check';
 import { PolicyWorkspace } from './policy-workspace';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 /** Lựa chọn có nhãn trong `paramSchema` (`oneOf: [{ const, title }]` hoặc `enum`). */
 interface Choice {
@@ -82,7 +97,7 @@ function merge(t: PolicyWorkflowTemplateVersion, saved: Record<string, unknown> 
  */
 @Component({
   selector: 'vt-workflow-page',
-  imports: [FormsModule, ButtonModule],
+  imports: [VtSkeletonComponent, FormsModule, ButtonModule],
   template: `
     <div class="top">
       <p class="sub">
@@ -395,7 +410,7 @@ function merge(t: PolicyWorkflowTemplateVersion, saved: Record<string, unknown> 
             }
           </section>
         } @else if (tpl.isLoading()) {
-          <p class="muted">Đang tải khai báo tham số…</p>
+          <vt-skeleton variant="form" [rows]="4" label="Đang tải khai báo tham số" />
         }
       </div>
     </div>

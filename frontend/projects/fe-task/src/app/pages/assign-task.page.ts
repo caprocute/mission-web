@@ -33,7 +33,7 @@ import {
   toProblem,
 } from '@vt/api-client';
 import { CatalogApi, PlanApi, PlanItemRef } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DrawerModule } from 'primeng/drawer';
@@ -70,6 +70,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
 @Component({
   selector: 'vt-assign-task-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -638,7 +639,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
         }
       </p-drawer>
     } @else {
-      <p class="muted" aria-busy="true">Đang tải…</p>
+      <vt-skeleton variant="form" [rows]="6" label="Đang tải biểu mẫu giao nhiệm vụ" />
     }
   `,
   styles: `

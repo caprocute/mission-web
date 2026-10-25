@@ -16,10 +16,19 @@ import { DASHBOARD_CAN, DASHBOARD_USER_ID } from '../dashboard-permissions';
 import { DefaultDashboardStore } from '../default-dashboard';
 import { errorText, fmtDateTime } from '../dashboard-ui';
 import { gridArea } from './dashboard-layout';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 @Component({
   selector: 'vt-dashboard-view-page',
-  imports: [FormsModule, RouterLink, ButtonModule, MessageModule, SelectModule, WidgetCard],
+  imports: [
+    VtSkeletonComponent,
+    FormsModule,
+    RouterLink,
+    ButtonModule,
+    MessageModule,
+    SelectModule,
+    WidgetCard,
+  ],
   template: `
     <p class="crumb"><a routerLink="..">Dashboard của tôi</a></p>
     @if (res.error()) {
@@ -92,7 +101,7 @@ import { gridArea } from './dashboard-layout';
         }
       </div>
     } @else {
-      <p class="muted">Đang tải…</p>
+      <vt-skeleton variant="dashboard" label="Đang tải bảng điều hành" />
     }
   `,
   styleUrls: ['../dashboard.css', './dashboard-layout.css'],

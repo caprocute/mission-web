@@ -7,7 +7,7 @@
   <h1>Phiếu tự đánh giá</h1>
   <p class="msg">Đồng chí chưa có hồ sơ đánh giá nào trong kỳ hiện tại.</p>
 } @else if (!p) {
-  <p class="msg" role="status">Đang tải phiếu tự đánh giá…</p>
+  <vt-skeleton variant="form" [rows]="6" label="Đang tải phiếu tự đánh giá" />
 } @else {
   <header class="head">
     <div>
@@ -121,7 +121,7 @@
           } @else if (scoresError()) {
             <p class="msg" role="status">{{ scoresError() }}</p>
           } @else {
-            <p class="msg" role="status">Đang tải kết quả tính điểm…</p>
+            <vt-skeleton variant="stats" [rows]="3" label="Đang tải kết quả tính điểm" />
           }
         </div>
         @if (form.error()) {

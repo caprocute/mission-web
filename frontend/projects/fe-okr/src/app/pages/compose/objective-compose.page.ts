@@ -37,7 +37,7 @@ import {
   ProblemPresenter,
 } from '@vt/api-client';
 import { permittedOn } from '@vt/auth';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { MultiSelectModule } from 'primeng/multiselect';
@@ -76,6 +76,7 @@ const newKey = () => `k${++seq}`;
 @Component({
   selector: 'vt-objective-compose-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -92,7 +93,7 @@ const newKey = () => `k${++seq}`;
         <a [routerLink]="treeLink" class="linkbtn">Về cây mục tiêu</a>
       </p-message>
     } @else if (!ctx() || !form()) {
-      <p class="muted" role="status">Đang tải dữ liệu soạn mục tiêu…</p>
+      <vt-skeleton variant="form" [rows]="5" label="Đang tải biểu mẫu soạn mục tiêu" />
     } @else {
       @let c = ctx()!;
       @let f = form()!;

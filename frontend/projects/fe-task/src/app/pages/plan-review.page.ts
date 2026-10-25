@@ -32,7 +32,7 @@ import {
   SIGN_METHOD_LABEL,
   SignMethod,
 } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TextareaModule } from 'primeng/textarea';
@@ -52,7 +52,15 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
 
 @Component({
   selector: 'vt-plan-review-page',
-  imports: [DatePipe, FormsModule, RouterLink, ButtonModule, SelectButtonModule, TextareaModule],
+  imports: [
+    VtSkeletonComponent,
+    DatePipe,
+    FormsModule,
+    RouterLink,
+    ButtonModule,
+    SelectButtonModule,
+    TextareaModule,
+  ],
   template: `
     @if (!can('SCR-0403.so-sanh')) {
       <p class="msg warn">Đồng chí không có quyền xem xét kế hoạch của đơn vị.</p>
@@ -408,7 +416,7 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
         </aside>
       </div>
     } @else {
-      <p class="muted" role="status">Đang tải kế hoạch…</p>
+      <vt-skeleton variant="page" [columns]="5" label="Đang tải kế hoạch" />
     }
   `,
   styles: `

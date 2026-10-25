@@ -57,7 +57,7 @@
     } @else if (page.hasValue() && !rs.length) {
       <p class="empty">Không có hồ sơ nào trong danh sách này.</p>
     } @else if (!rs.length) {
-      <p class="empty" role="status">Đang tải hàng đợi…</p>
+      <vt-skeleton variant="list" [rows]="6" label="Đang tải hàng đợi thẩm định" />
     } @else {
       <div class="qhead" aria-hidden="true">
         <span>Cán bộ</span><span>Điểm hệ thống</span><span>Tự đề xuất</span>
@@ -102,7 +102,7 @@
       <p class="msg err" role="alert">Không mở được hồ sơ này hoặc đồng chí không có quyền xem.</p>
     } @else if (!p) {
       @if (selectedId()) {
-        <p class="msg" role="status">Đang tải hồ sơ…</p>
+        <vt-skeleton variant="detail" label="Đang tải hồ sơ" />
       }
     } @else {
       <section class="card" aria-labelledby="who-title">

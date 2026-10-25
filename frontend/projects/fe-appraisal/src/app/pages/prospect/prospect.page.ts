@@ -30,8 +30,16 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { toProblem } from '@vt/api-client';
-import { AppraisalApi, PeriodApi, PolicyApi, ProspectCriteria, ProspectGroupBoard, ProspectGroupCode, RATING_LEVEL_LABEL } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import {
+  AppraisalApi,
+  PeriodApi,
+  PolicyApi,
+  ProspectCriteria,
+  ProspectGroupBoard,
+  ProspectGroupCode,
+  RATING_LEVEL_LABEL,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { catchError, firstValueFrom, map, of, switchMap } from 'rxjs';
 import { APPRAISAL_CAN } from '../../appraisal-permissions';
 import { annualPeriodOf } from '../annual/annual-rules';
@@ -64,7 +72,7 @@ const STATUS_TEXT: Record<ProspectGroupBoard['status'], string> = {
 
 @Component({
   selector: 'vt-prospect-page',
-  imports: [RouterLink],
+  imports: [VtSkeletonComponent, RouterLink],
   templateUrl: './prospect.page.html',
   styleUrl: './prospect.page.css',
 })

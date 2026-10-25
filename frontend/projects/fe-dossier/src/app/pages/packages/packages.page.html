@@ -16,7 +16,7 @@
 </header>
 
 @if (list.isLoading() && !items().length) {
-  <p role="status">Đang tải danh sách…</p>
+  <vt-skeleton variant="table" [columns]="5" label="Đang tải danh sách gói hồ sơ" />
 } @else if (list.error()) {
   <p class="err" role="alert">Không tải được danh sách gói hồ sơ. Vui lòng thử lại.</p>
 } @else if (!items().length) {

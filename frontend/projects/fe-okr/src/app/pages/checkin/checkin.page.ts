@@ -38,7 +38,7 @@ import {
   ProblemPresenter,
   krProgress,
 } from '@vt/api-client';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { MessageModule } from 'primeng/message';
 import { forkJoin, map } from 'rxjs';
 import { OKR_CAN } from '../../okr-permissions';
@@ -63,12 +63,19 @@ const LEVELS: { id: Confidence; label: string }[] = [
 
 @Component({
   selector: 'vt-okr-checkin-page',
-  imports: [FormsModule, MessageModule, CheckinList, CheckinTrend, CheckinHistory],
+  imports: [
+    VtSkeletonComponent,
+    FormsModule,
+    MessageModule,
+    CheckinList,
+    CheckinTrend,
+    CheckinHistory,
+  ],
   template: `
     @if (list.error()) {
       <p-message severity="error" styleClass="msg">{{ listError() }}</p-message>
     } @else if (!listData()) {
-      <p class="muted" role="status">Đang tải KR cần check-in…</p>
+      <vt-skeleton variant="page" [columns]="4" label="Đang tải kết quả then chốt cần cập nhật" />
     } @else {
       <header class="head">
         <div>
@@ -330,7 +337,7 @@ const LEVELS: { id: Confidence; label: string }[] = [
             <vt-checkin-trend [kr]="k" [history]="historyItems()" [current]="parsed()" />
           }
         } @else if (selectedId()) {
-          <p class="muted" role="status">Đang tải KR…</p>
+          <vt-skeleton variant="form" [rows]="3" label="Đang tải kết quả then chốt" />
         }
       </div>
     }
