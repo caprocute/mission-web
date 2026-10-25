@@ -62,12 +62,13 @@ Không nằm trong bundle này (gốc bundle chỉ là `okrkpi`); CORE-00-03 n�
 {
   "<tenant_id>": {
     "subtree": { "<unit_id>": ["<unit_id>", "<đơn vị con>", "<đơn vị cháu>"] },
-    "managed_units": { "<user_id>": ["<unit_id>"] }
+    "managed_units": { "<user_id>": ["<unit_id>"] },
+    "role_units": { "<user_id>": { "<vai trò>": { "unit": ["<unit_id>"], "subtree": ["<unit_id gắn kèm cấp dưới>"] } } }
   }
 }
 ```
 
-`subtree[u]` gồm chính `u` và mọi đơn vị cấp dưới hiện hành (mỗi dòng `ancestor_id → descendant_id` của bảng đóng). Thiếu dữ liệu của tenant thì phạm vi Cd thất bại (fail closed).
+`subtree[u]` gồm chính `u` và mọi đơn vị cấp dưới hiện hành (mỗi dòng `ancestor_id → descendant_id` của bảng đóng). Thiếu dữ liệu của tenant thì phạm vi Cd thất bại (fail closed). `role_units` lấy từ `config.role_binding` đang hiệu lực: khi có, Cd/Đv của vai trò đó xét theo đơn vị gắn vai trò (Đv: `unit`; Cd: `unit` và cây con của mỗi đơn vị trong `subtree`) thay cho `subject.unit_id`. mission-core (`OpaOrgDataPublisher`) ghi `PUT /v1/data/org/<tenant>` khi khởi động và mỗi 5 phút (QA-06, wiki 14).
 
 ## Kiểm tra, đóng gói, ký
 

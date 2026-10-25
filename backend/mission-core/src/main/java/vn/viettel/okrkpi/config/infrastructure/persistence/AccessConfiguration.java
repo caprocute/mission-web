@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import javax.sql.DataSource;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
@@ -295,12 +297,14 @@ public class AccessConfiguration {
         ObjectProvider<TenantDirectory> directory,
         ObjectProvider<ObjectMapper> json,
         @Value("${mission.config.period-opening.cell:${CELL_ID:}}") String cell,
+        @Value("${mission.config.opa-org-data.tenants:}") List<UUID> tenants,
         @Value("${okrkpi.opa.base-url:http://127.0.0.1:8181}") URI opaBaseUrl) {
       return new OpaOrgDataPublisher(
           JdbcClient.create(dataSource),
           tm,
           directory,
           cell,
+          tenants,
           opaBaseUrl,
           json.getIfAvailable(ObjectMapper::new),
           java.time.Clock.systemUTC());

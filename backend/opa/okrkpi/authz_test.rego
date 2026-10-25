@@ -99,6 +99,46 @@ test_unit_scope_is_own_unit_only if {
 	ko.deny == {"out_of_scope"}
 }
 
+# Đơn vị gắn vai trò (role_units, QA-06): vai trò giao ở đơn vị gốc kèm cấp dưới áp cho đơn vị anh em của phân công
+# đang chọn; vai trò giao ở đơn vị khác thay cho đơn vị của phân công; giao không kèm cấp dưới thì Cd chỉ là đơn vị đó.
+org_roles := {"t1": object.union(org.t1, {
+	"subtree": object.union(org.t1.subtree, {"r": ["r", "u1", "u11", "u12", "u2"]}),
+	"role_units": {"nv1": {
+		"appraiser": {"unit": ["r"], "subtree": ["r"]},
+		"manager": {"unit": ["u2"], "subtree": []},
+		"leader": {"unit": ["u11"], "subtree": []},
+	}},
+})}
+
+decide_roles(subject, action, resource) := d if {
+	d := authz.decision with input as {
+		"subject": subject,
+		"action": action,
+		"resource": object.union({"tenant_id": "t1", "classification": "C1"}, resource),
+		"context": {"now": now},
+	}
+		with data.org as org_roles
+}
+
+test_role_unit_subtree_covers_sibling_of_assignment if {
+	d := decide_roles(user(["appraiser"]), "SCR-0902.xem", {"owner_unit_id": "u2"})
+	d.allow
+}
+
+test_role_unit_replaces_assignment_unit if {
+	ok := decide_roles(user(["manager"]), "SCR-0501.soan", {"owner_unit_id": "u2"})
+	ok.allow
+	ko := decide_roles(user(["manager"]), "SCR-0501.soan", {"owner_unit_id": "u1"})
+	ko.deny == {"out_of_scope"}
+}
+
+test_role_unit_without_subunits_limits_subtree_scope if {
+	ok := decide_roles(user(["leader"]), "SCR-0203.xem", {"owner_unit_id": "u11"})
+	ok.allow
+	ko := decide_roles(user(["leader"]), "SCR-0203.xem", {"owner_unit_id": "u12"})
+	ko.deny == {"out_of_scope"}
+}
+
 test_self_scope_uses_assignee_ids if {
 	d := decide(user(["member"]), "SCR-0503.nhan-viec", {"owner_unit_id": "u2", "assignee_ids": ["nv1"]})
 	d.allow

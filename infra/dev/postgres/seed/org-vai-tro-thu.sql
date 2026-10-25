@@ -2,8 +2,8 @@
 -- Vai trò theo đơn vị (config.role_binding) của 12 tài khoản thử thuộc tenant d0000000-0000-4000-8000-000000000001
 -- (Sở Thử nghiệm). config.role_binding là nguồn sự thật của vai trò (WEB-058 phương án A): tài khoản chỉ có realm
 -- role thì không khai uỷ quyền được (SCR-0105, SCR-0107) và đối soát vai trò có thể gỡ realm role. Cách đặt giống bộ
--- dữ liệu đa tenant (data/seed/da-tenant/sinh_seed.py): vai trò toàn tenant ở đơn vị gốc kèm cấp dưới; lãnh đạo,
--- thẩm định ở đơn vị mình kèm cấp dưới; các vai trò khác ở đơn vị mình. Vai trò nhạy cảm (decider, second_approver,
+-- dữ liệu đa tenant (data/seed/da-tenant/sinh_seed.py): vai trò toàn tenant ở đơn vị gốc kèm cấp dưới; lãnh đạo ở
+-- đơn vị mình kèm cấp dưới, thẩm định ở cấp Sở kèm cấp dưới; các vai trò khác ở đơn vị mình. Vai trò nhạy cảm (decider, second_approver,
 -- policy_author) có người duyệt kỹ thuật thứ hai (bốn mắt approved_by <> granted_by). Tài khoản nentang là quản trị
 -- nền tảng, không thuộc tenant nên không có vai trò ở đây. Chạy lại không sinh bản ghi trùng. Chỉ dữ liệu giả lập.
 -- =============================================================================
@@ -30,7 +30,8 @@ FROM (VALUES
   ('d0000000-0000-4000-8000-000000000307', 'member', 'd0000000-0000-4000-8000-000000000101', 'DON_VI', NULL::uuid),
   -- thamdinh, quyetdinh, duyet2 (Ban Tổ chức)
   ('d0000000-0000-4000-8000-000000000308', 'member', 'd0000000-0000-4000-8000-000000000102', 'DON_VI', NULL::uuid),
-  ('d0000000-0000-4000-8000-000000000308', 'appraiser', 'd0000000-0000-4000-8000-000000000102', 'DON_VI_VA_CAP_DUOI', NULL::uuid),
+  -- Ban Tổ chức thẩm định cán bộ toàn Sở: vai trò thẩm định giao ở cấp Sở kèm cấp dưới (QA-06, wiki 14)
+  ('d0000000-0000-4000-8000-000000000308', 'appraiser', 'd0000000-0000-4000-8000-000000000100', 'DON_VI_VA_CAP_DUOI', NULL::uuid),
   ('d0000000-0000-4000-8000-000000000309', 'decider', 'd0000000-0000-4000-8000-000000000100', 'DON_VI_VA_CAP_DUOI', '00000000-0000-7000-8000-000000000001'::uuid),
   ('d0000000-0000-4000-8000-000000000310', 'second_approver', 'd0000000-0000-4000-8000-000000000100', 'DON_VI_VA_CAP_DUOI', '00000000-0000-7000-8000-000000000001'::uuid),
   -- kiemtra (Ủy ban Kiểm tra)

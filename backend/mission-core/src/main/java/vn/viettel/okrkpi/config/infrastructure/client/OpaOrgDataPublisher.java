@@ -61,6 +61,7 @@ public class OpaOrgDataPublisher {
   private final TransactionTemplate tx;
   private final ObjectProvider<TenantDirectory> directory;
   private final String cell;
+  private final List<UUID> fallbackTenants;
   private final URI base;
   private final ObjectMapper json;
   private final Clock clock;
@@ -72,6 +73,7 @@ public class OpaOrgDataPublisher {
       PlatformTransactionManager txManager,
       ObjectProvider<TenantDirectory> directory,
       String cell,
+      List<UUID> fallbackTenants,
       URI opaBaseUrl,
       ObjectMapper json,
       Clock clock) {
@@ -80,6 +82,7 @@ public class OpaOrgDataPublisher {
     this.tx.setReadOnly(true);
     this.directory = Objects.requireNonNull(directory, "directory");
     this.cell = cell == null ? "" : cell;
+    this.fallbackTenants = fallbackTenants == null ? List.of() : List.copyOf(fallbackTenants);
     this.base = Objects.requireNonNull(opaBaseUrl, "opaBaseUrl");
     this.json = Objects.requireNonNull(json, "json");
     this.clock = Objects.requireNonNull(clock, "clock");
@@ -97,7 +100,11 @@ public class OpaOrgDataPublisher {
   public void run() {
     TenantDirectory tenants = directory.getIfAvailable();
     if (tenants == null) {
-      log.debug("Bỏ qua nạp cây tổ chức sang OPA vì chưa có danh bạ tenant");
+      // Dev một cell không bật định tuyến nên không có danh bạ tenant: dùng danh sách cấu hình.
+      if (fallbackTenants.isEmpty()) {
+        log.debug("Bỏ qua nạp cây tổ chức sang OPA vì chưa có danh bạ tenant");
+      }
+      fallbackTenants.stream().map(TenantId::of).forEach(this::publishQuietly);
       return;
     }
     tenants.snapshotByCode().values().stream()

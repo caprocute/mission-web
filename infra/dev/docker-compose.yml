@@ -841,6 +841,9 @@ services:
       MISSION_CONFIG_WORKFLOW_BASEURL: http://workflow-service:8080
       MISSION_CONFIG_KEYCLOAKADMIN_BASEURL: http://keycloak:8080
       MISSION_CONFIG_KEYCLOAKADMIN_CLIENTSECRET: ${MISSION_CORE_CLIENT_SECRET:-}
+      # Tenant nạp cây tổ chức và đơn vị của vai trò sang data.org của OPA (phạm vi Cd/Đv): dev một cell không bật
+      # định tuyến nên không có danh bạ tenant; mặc định là bốn tenant thử (Sở Thử nghiệm và ba tenant đa khách thuê).
+      MISSION_CONFIG_OPAORGDATA_TENANTS: ${OPA_ORG_DATA_TENANTS:-d0000000-0000-4000-8000-000000000001,e1000000-0000-4000-8000-000000000001,e2000000-0000-4000-8000-000000000001,e3000000-0000-4000-8000-000000000001}
     secrets: [openbao_token]
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${MISSION_CORE_PORT:-35100}:8080"

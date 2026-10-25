@@ -207,7 +207,41 @@ fn_effective contains r if {
 
 fn_in_scope contains r if {
 	some r in fn_effective
-	grant_in_scope(role_grant(r))
+	role_in_scope(r, role_grant(r))
+}
+
+# Phạm vi Cd/Đv xét theo đơn vị gắn vai trò (config.role_binding, data.org[tenant].role_units do mission-core nạp):
+# vai trò giao ở cấp Sở kèm cấp dưới áp cho mọi đơn vị cấp dưới dù phân công đang chọn ở đơn vị khác.
+# Chưa có dữ liệu vai trò của người dùng thì giữ cách cũ theo đơn vị của phân công (QA-06, wiki 14).
+unit_scoped := {"Cd", "Đv"}
+
+role_bound(r) := org.role_units[subject.user_id][r]
+
+role_in_scope(r, g) if {
+	g.scope in unit_scoped
+	role_scope_match(g.scope, role_bound(r))
+}
+
+role_in_scope(r, g) if {
+	g.scope in unit_scoped
+	not role_bound(r)
+	grant_in_scope(g)
+}
+
+role_in_scope(_, g) if {
+	not g.scope in unit_scoped
+	grant_in_scope(g)
+}
+
+role_scope_match(_, b) if {
+	same_tenant
+	resource.owner_unit_id in b.unit
+}
+
+role_scope_match("Cd", b) if {
+	same_tenant
+	some x in b.subtree
+	resource.owner_unit_id in org.subtree[x]
 }
 
 fn_ok if {
