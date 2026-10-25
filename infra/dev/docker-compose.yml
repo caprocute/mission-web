@@ -278,8 +278,12 @@ services:
     # tầng cũ ngoài repo) thì ../../backend không tồn tại, Docker tạo thư mục rỗng và mọi API trả 403. Khi đó đặt
     # OPA_POLICY_DIR (đường tuyệt đối tới backend/opa/okrkpi của bản checkout) trong .env; deploy-backend.sh và
     # sync-server.sh kiểm thư mục này có tệp .rego.
+    # Quy tắc đánh giá từng phần okrkpi_partial (NEN-014) nằm trong vt-platform-starter, ngoài gốc bundle okrkpi;
+    # thiếu tệp này thì /v1/compile trả rỗng và mọi danh sách lọc theo phạm vi ở MOD-04 (xếp loại năm, thẩm định,
+    # quyết định theo lô) trả rỗng. Chạy từ bản chép riêng thì đặt OPA_PARTIAL_REGO là đường tuyệt đối.
     volumes:
       - ${OPA_POLICY_DIR:-../../backend/opa/okrkpi}:/policies/okrkpi:ro
+      - ${OPA_PARTIAL_REGO:-../../backend/libs/vt-platform-starter/src/main/resources/vn/viettel/okrkpi/shared/authz/partial.rego}:/policies/okrkpi_partial/partial.rego:ro
     # Không healthy khi gói okrkpi vắng hay rỗng (eval --fail trả mã khác 0 khi kết quả không xác định).
     healthcheck:
       test: ["CMD", "/opa", "eval", "--fail", "-d", "/policies", "data.okrkpi.authz.decision"]
