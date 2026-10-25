@@ -202,6 +202,7 @@ Ngưỡng dưới đây lấy từ TL-01 (J2, J3, J6) và TL-04 mục 9.8. Ngư�
 | ZAP | không có cảnh báo High | ZAP quét thụ động và chủ động | phát hành vào staging |
 | ASVS | 100% mục áp dụng ở mức 2; mức 3 cho V2, V3, V6 | bảng tự đánh giá QA-13 | phát hành chính |
 | Nội dung giao diện | `npm run check:ui-text` và `gia-lap.noi-dung.spec.ts` xanh | CI web | hợp nhất |
+| Khung xương khi tải (YC-PT-28) | `npm run check:skeleton` (tự chạy trước `build:all`) và `gia-lap.khung-xuong.spec.ts` xanh | CI web | hợp nhất |
 
 ### Năm môi trường kiểm thử và dữ liệu thử
 

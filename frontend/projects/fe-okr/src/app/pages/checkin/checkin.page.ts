@@ -117,12 +117,21 @@ const LEVELS: { id: Confidence; label: string }[] = [
       }
       @if (historyOpen() && detail(); as k) {
         <div #historyBox>
-          <vt-checkin-history
-            [code]="k.code"
-            [unit]="k.unit"
-            [items]="historyItems()"
-            (closed)="closeHistory()"
-          />
+          @if (history.status() === 'loading') {
+            <vt-skeleton
+              variant="table"
+              [rows]="4"
+              [columns]="5"
+              label="Đang tải lịch sử check-in"
+            />
+          } @else {
+            <vt-checkin-history
+              [code]="k.code"
+              [unit]="k.unit"
+              [items]="historyItems()"
+              (closed)="closeHistory()"
+            />
+          }
         </div>
       }
 
@@ -204,7 +213,7 @@ const LEVELS: { id: Confidence; label: string }[] = [
                         {{ fmtValue(s.value, k.unit) }}, cập nhật lúc {{ when(s.fetchedAt) }}
                       </small>
                     } @else if (source.isLoading()) {
-                      <small role="status">Đang lấy số liệu nguồn…</small>
+                      <vt-skeleton variant="text" [rows]="1" label="Đang lấy số liệu nguồn" />
                     }
                     @if (!simple()) {
                       <button type="button" class="link" (click)="source.reload()">
@@ -334,7 +343,11 @@ const LEVELS: { id: Confidence; label: string }[] = [
             }
           </form>
           @if (!simple()) {
-            <vt-checkin-trend [kr]="k" [history]="historyItems()" [current]="parsed()" />
+            @if (history.status() === 'loading') {
+              <vt-skeleton variant="chart" label="Đang tải diễn biến kết quả then chốt" />
+            } @else {
+              <vt-checkin-trend [kr]="k" [history]="historyItems()" [current]="parsed()" />
+            }
           }
         } @else if (selectedId()) {
           <vt-skeleton variant="form" [rows]="3" label="Đang tải kết quả then chốt" />

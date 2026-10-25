@@ -137,7 +137,14 @@
             <small>{{ groups().length }}/13 trường hợp, {{ specialTotal() }} hồ sơ</small>
           }
         </h2>
-        @if (!groups().length) {
+        @if (special.isLoading()) {
+          <vt-skeleton
+            variant="table"
+            [columns]="3"
+            [rows]="3"
+            label="Đang tải trường hợp đặc thù"
+          />
+        } @else if (!groups().length) {
           <p class="muted">Không phát hiện trường hợp đặc thù nào.</p>
         } @else {
           <div class="wrap">
@@ -187,8 +194,10 @@
           } @else {
             <p class="fail">Còn {{ failing() }} mục cần xử lý trước khi ký gói.</p>
           }
+        } @else if (checklist.error()) {
+          <p class="fail" role="alert">Không tải được kết quả kiểm tra. Vui lòng thử lại.</p>
         } @else {
-          <p role="status">Đang kiểm tra…</p>
+          <vt-skeleton variant="list" [rows]="4" label="Đang kiểm tra điều kiện ký gói" />
         }
       </section>
 
@@ -238,6 +247,8 @@
           @if (certExpired()) {
             <p class="fail">Chứng thư số đã hết hạn. Đề nghị gia hạn chứng thư trước khi ký.</p>
           }
+        } @else if (certs.isLoading()) {
+          <vt-skeleton variant="text" [rows]="2" label="Đang tải chứng thư số" />
         }
         <p>Chữ ký được gắn dấu thời gian tin cậy khi ký.</p>
         <p>

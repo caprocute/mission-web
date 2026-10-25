@@ -526,6 +526,11 @@ const timeOf = (iso?: string | null) => {
                   </table>
                 </div>
               </section>
+            } @else if (failures.isLoading() && s.totals.failed > 0) {
+              <section class="box" aria-labelledby="h-fail">
+                <h2 id="h-fail" class="h">Hồ sơ lỗi ({{ int(s.totals.failed) }})</h2>
+                <vt-skeleton variant="table" [columns]="4" [rows]="3" label="Đang tải hồ sơ lỗi" />
+              </section>
             }
 
             <section class="box" aria-labelledby="h-events">
@@ -543,9 +548,20 @@ const timeOf = (iso?: string | null) => {
                     </span>
                   </li>
                 } @empty {
-                  <li class="muted">Chưa có sự kiện.</li>
+                  @if (events.isLoading()) {
+                    <li>
+                      <vt-skeleton variant="list" [rows]="3" label="Đang tải diễn biến khoá kỳ" />
+                    </li>
+                  } @else {
+                    <li class="muted">Chưa có sự kiện.</li>
+                  }
                 }
               </ol>
+            </section>
+          } @else if (progress.isLoading()) {
+            <section class="box" aria-labelledby="h-saga-sk">
+              <h2 id="h-saga-sk" class="h">Tiến trình khoá kỳ</h2>
+              <vt-skeleton variant="page" [columns]="5" label="Đang tải tiến trình khoá kỳ" />
             </section>
           } @else if (lockGone() && p.status === 'DA_KHOA') {
             <section class="box">

@@ -1,7 +1,18 @@
 import { Component, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { toProblem } from '@vt/api-client';
-import { DossierApi, DossierAttendance, DossierMeeting, DossierMinutesRequest, DossierRemediationItem, DossierRemediationStatus, DossierVote, RATING_LEVEL_LABEL, REMEDIATION_STATUS_LABEL } from '@vt/api-client/domains';
+import {
+  DossierApi,
+  DossierAttendance,
+  DossierMeeting,
+  DossierMinutesRequest,
+  DossierRemediationItem,
+  DossierRemediationStatus,
+  DossierVote,
+  RATING_LEVEL_LABEL,
+  REMEDIATION_STATUS_LABEL,
+} from '@vt/api-client/domains';
+import { VtSkeletonComponent } from '@vt/design-system';
 import { firstValueFrom } from 'rxjs';
 import { LEVELS, isPresent, problemMessage, voteError, voteTotal } from './meeting-rules';
 
@@ -12,6 +23,7 @@ import { LEVELS, isPresent, problemMessage, voteError, voteTotal } from './meeti
  */
 @Component({
   selector: 'vt-meeting-side',
+  imports: [VtSkeletonComponent],
   templateUrl: './meeting-side.panel.html',
   styleUrl: './meeting-side.panel.css',
 })

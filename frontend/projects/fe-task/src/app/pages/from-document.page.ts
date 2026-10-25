@@ -186,6 +186,9 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
                 [units]="units()"
                 [catalog]="catalog()"
                 [keyResults]="keyResults()"
+                [unitsLoading]="unitsRes.isLoading()"
+                [catalogLoading]="catalogRes.isLoading()"
+                [keyResultsLoading]="template.isLoading() || krRes.isLoading()"
                 [maxDate]="period()?.endDate"
                 [errors]="s.id === selectedId() ? fieldErrors() : {}"
                 (pick)="select(s)"
@@ -522,10 +525,16 @@ export class FromDocumentPage {
     params: () => (this.can('SCR-0502.nhan-van-ban') ? this.id() : undefined),
     stream: ({ params }) => this.ai.extraction(params),
   });
-  private readonly template = rxResource({ stream: () => this.taskApi.newDraft() });
-  private readonly unitsRes = rxResource({ stream: () => this.orgApi.units('unit') });
-  private readonly catalogRes = rxResource({ stream: () => this.catalogApi.items({ limit: 200 }) });
-  private readonly krRes = rxResource({
+  // skeleton-ok: chỉ cấp kỳ (hạn tối đa, kỳ nạp KR); ô chọn KR trong vt-suggestion-card gắn [loading] theo nó
+  protected readonly template = rxResource({ stream: () => this.taskApi.newDraft() });
+  // skeleton-ok: chỉ cấp lựa chọn cho ô chọn đơn vị trong vt-suggestion-card, ô đó gắn [loading]
+  protected readonly unitsRes = rxResource({ stream: () => this.orgApi.units('unit') });
+  // skeleton-ok: chỉ cấp lựa chọn cho ô chọn danh mục trong vt-suggestion-card, ô đó gắn [loading]
+  protected readonly catalogRes = rxResource({
+    stream: () => this.catalogApi.items({ limit: 200 }),
+  });
+  // skeleton-ok: chỉ cấp lựa chọn cho ô chọn KR trong vt-suggestion-card, ô đó gắn [loading]
+  protected readonly krRes = rxResource({
     params: () => this.template.value()?.period.id,
     stream: ({ params }) =>
       params ? this.okrApi.keyResults(params) : of({ items: [], nextCursor: null }),

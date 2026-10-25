@@ -519,9 +519,7 @@ function provisionMinutes(t: ConfigTenant): number {
               </section>
               <section class="box" aria-labelledby="s3-title">
                 <h2 id="s3-title" class="h">Chọn cụm máy chủ</h2>
-                @if (cellOptions.isLoading()) {
-                  <p class="muted" aria-busy="true">Đang tính tải của các cụm máy chủ…</p>
-                } @else if (!eligibleCells().length) {
+                @if (!cellOptions.isLoading() && !eligibleCells().length) {
                   <p class="warnbox" role="alert">{{ msg0103(modelLabel[s2().tenancyModel]) }}</p>
                 }
                 <div class="scroll">
@@ -584,6 +582,20 @@ function provisionMinutes(t: ConfigTenant): number {
                             }
                           </td>
                         </tr>
+                      } @empty {
+                        @if (cellOptions.isLoading()) {
+                          <tr>
+                            <td colspan="6">
+                              <vt-skeleton
+                                variant="table"
+                                [header]="false"
+                                [columns]="6"
+                                [rows]="3"
+                                label="Đang tính tải của các cụm máy chủ"
+                              />
+                            </td>
+                          </tr>
+                        }
                       }
                     </tbody>
                   </table>
@@ -677,24 +689,33 @@ function provisionMinutes(t: ConfigTenant): number {
                   <fieldset class="grid" [disabled]="!canEditSetup()">
                     <legend class="sr-only">Bộ quy định đánh giá và bộ giao diện</legend>
                     @for (fl of ob()?.flows ?? []; track fl) {
-                      <label class="f wide">
+                      <label class="f wide" [attr.for]="'vt-ob-pack-' + fl">
                         <span
                           >Bộ quy định đánh giá luồng {{ flowLabel[fl] }}
                           <span class="req" aria-hidden="true">*</span></span
                         >
-                        <select
-                          class="native"
-                          [ngModel]="s3().policyPacks[fl] ?? ''"
-                          (ngModelChange)="setPack(fl, $event)"
-                          [attr.name]="'pack-' + fl"
-                        >
-                          <option value="" disabled>Chọn bộ quy định đã phát hành</option>
-                          @for (p of packsFor(fl); track p.id) {
-                            <option [value]="p.id">
-                              {{ packText(p) }} · đạt {{ goldenText(p) }} bộ ca kiểm thử chuẩn
-                            </option>
-                          }
-                        </select>
+                        @if (packsLoading(fl)) {
+                          <vt-skeleton
+                            variant="text"
+                            [rows]="1"
+                            label="Đang tải danh sách bộ quy định đánh giá"
+                          />
+                        } @else {
+                          <select
+                            [id]="'vt-ob-pack-' + fl"
+                            class="native"
+                            [ngModel]="s3().policyPacks[fl] ?? ''"
+                            (ngModelChange)="setPack(fl, $event)"
+                            [attr.name]="'pack-' + fl"
+                          >
+                            <option value="" disabled>Chọn bộ quy định đã phát hành</option>
+                            @for (p of packsFor(fl); track p.id) {
+                              <option [value]="p.id">
+                                {{ packText(p) }} · đạt {{ goldenText(p) }} bộ ca kiểm thử chuẩn
+                              </option>
+                            }
+                          </select>
+                        }
                         @if (packWarning(fl); as w) {
                           <small class="err">{{ w }}</small>
                         }
@@ -703,23 +724,32 @@ function provisionMinutes(t: ConfigTenant): number {
                     @if (fe()['policyBindings']) {
                       <small class="err wide">{{ fe()['policyBindings'] }}</small>
                     }
-                    <label class="f wide">
+                    <label class="f wide" for="vt-ob-ui">
                       <span
                         >Bộ giao diện của đơn vị <span class="req" aria-hidden="true">*</span></span
                       >
-                      <select
-                        class="native"
-                        [ngModel]="s3().uiPackVersionId"
-                        (ngModelChange)="
-                          s3.set({ policyPacks: s3().policyPacks, uiPackVersionId: $event })
-                        "
-                        name="ui"
-                      >
-                        <option value="" disabled>Chọn bộ giao diện đã phát hành</option>
-                        @for (u of uiOptions(); track u.id) {
-                          <option [value]="u.id">{{ uiPackText(u) }}</option>
-                        }
-                      </select>
+                      @if (uiPacks.isLoading()) {
+                        <vt-skeleton
+                          variant="text"
+                          [rows]="1"
+                          label="Đang tải danh sách bộ giao diện"
+                        />
+                      } @else {
+                        <select
+                          id="vt-ob-ui"
+                          class="native"
+                          [ngModel]="s3().uiPackVersionId"
+                          (ngModelChange)="
+                            s3.set({ policyPacks: s3().policyPacks, uiPackVersionId: $event })
+                          "
+                          name="ui"
+                        >
+                          <option value="" disabled>Chọn bộ giao diện đã phát hành</option>
+                          @for (u of uiOptions(); track u.id) {
+                            <option [value]="u.id">{{ uiPackText(u) }}</option>
+                          }
+                        </select>
+                      }
                       @if (fe()['uiPackVersionId']) {
                         <small class="err">{{ fe()['uiPackVersionId'] }}</small>
                       }
@@ -1607,6 +1637,10 @@ export class TenantOnboardingPage {
   protected packsFor(flow: TenantFlow): PolicyPackOption[] {
     const r = flow === 'DANG' ? this.packsDang : this.packsNn;
     return r.hasValue() ? r.value() : [];
+  }
+  /** Danh sách bộ quy định của luồng còn đang tải: ô chọn hiện khung xương. */
+  protected packsLoading(flow: TenantFlow): boolean {
+    return (flow === 'DANG' ? this.packsDang : this.packsNn).isLoading();
   }
   protected packText(p: Pick<PolicyPackOption, 'name' | 'version'>): string {
     return `${p.name} phiên bản ${p.version}`;

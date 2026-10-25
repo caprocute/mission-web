@@ -1,6 +1,9 @@
 <section class="card" aria-labelledby="sp-rem">
   <h2 id="sp-rem">Khắc phục hạn chế kỳ trước</h2>
-  @if (previous().length === 0) {
+  <!-- Khung xương chỉ ở lần nạp đầu; khi thư ký đổi trạng thái, danh sách cũ giữ nguyên tới khi nạp lại xong -->
+  @if (items.isLoading() && !items.hasValue()) {
+    <vt-skeleton variant="list" [rows]="3" label="Đang tải hạn chế cần khắc phục" />
+  } @else if (previous().length === 0) {
     <p class="muted">Không có hạn chế nào từ kỳ trước.</p>
   }
   <ul class="rem">

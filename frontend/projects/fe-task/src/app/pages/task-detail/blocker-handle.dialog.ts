@@ -88,6 +88,7 @@ interface Draft {
             (ngModelChange)="set('handlerPersonId', $event)"
             styleClass="full"
             appendTo="body"
+            [loading]="persons.isLoading()"
           />
           <label for="bh-note">Nội dung báo cáo</label>
           <textarea
@@ -117,6 +118,7 @@ interface Draft {
                 (ngModelChange)="set('handlerPersonId', $event)"
                 styleClass="full"
                 appendTo="body"
+                [loading]="persons.isLoading()"
               />
             </div>
             <div>
@@ -216,7 +218,7 @@ export class BlockerHandleDialog {
   private readonly org = inject(OrgApi);
   protected readonly today = new Date().toISOString().slice(0, 10);
 
-  private readonly persons = rxResource({
+  protected readonly persons = rxResource({
     params: () => this.visible() || undefined,
     stream: () => this.org.persons().pipe(map((p) => p.items)),
     defaultValue: [],

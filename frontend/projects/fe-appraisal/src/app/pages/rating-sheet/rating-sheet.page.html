@@ -285,6 +285,8 @@
               {{ o.head }} ⇒ <b>{{ o.total }} điểm</b>. Hai kết quả được lưu riêng, không ghi đè
               nhau.
             </p>
+          } @else if (other.isLoading()) {
+            <vt-skeleton variant="text" [rows]="1" label="Đang tải kết quả luồng còn lại" />
           }
         </section>
 

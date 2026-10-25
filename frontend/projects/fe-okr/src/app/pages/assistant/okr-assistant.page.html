@@ -117,7 +117,7 @@
               @if (t.queued) {
                 <p class="info" role="status" data-msg="MSG-17-03">{{ msg1703 }}</p>
               } @else {
-                <p class="muted" role="status">Trợ lý đang soạn trả lời…</p>
+                <vt-skeleton variant="text" [rows]="3" label="Trợ lý đang soạn trả lời" />
               }
             } @else if (t.error) {
               <p class="err">{{ t.error }}</p>

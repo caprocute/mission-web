@@ -725,7 +725,9 @@ export class FormBuilderPage {
   });
 
   /** Bản UI Pack đang soạn để gắn biểu mẫu (SCR-1802 "Đưa vào UI Pack"). */
+  // skeleton-ok: chỉ quyết định có hiện nút "Đưa vào giao diện" trên thanh thao tác, không có vùng dữ liệu riêng
   private readonly packs = rxResource({ stream: () => this.api.packs() });
+  // skeleton-ok: như trên, chỉ tìm bản nháp để gắn vào nút thao tác
   private readonly packVersions = rxResource({
     params: () => this.packs.value()?.items[0]?.id,
     stream: ({ params }) => this.api.versions(params),

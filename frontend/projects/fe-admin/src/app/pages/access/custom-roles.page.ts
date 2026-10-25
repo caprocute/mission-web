@@ -187,6 +187,8 @@ export class CustomRolesPage {
     params: () => ({ n: this.reload() }),
     stream: () => this.api.list(),
   });
+  // skeleton-ok: danh mục chức năng chỉ cấp cho hộp thoại tạo/sửa vai trò; nút mở hộp thoại bị
+  // vô hiệu tới khi danh mục về, nên không có vùng hiển thị nào chờ danh mục
   protected readonly catalog = rxResource({ stream: () => this.api.catalog() });
   protected readonly roles = computed(() =>
     (this.list.hasValue() ? this.list.value() : [])

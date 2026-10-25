@@ -65,7 +65,9 @@
   </div>
 </div>
 
-@if (pendingBatches().length) {
+@if (pending.isLoading() && !pending.hasValue()) {
+  <vt-skeleton variant="list" [rows]="1" label="Đang tải các lô đang ký" />
+} @else if (pendingBatches().length) {
   <section class="pending" aria-label="Lô đang ký">
     <h2>Lô đang ký</h2>
     <ul>
@@ -279,7 +281,7 @@
             }
           </p>
         } @else if (certs.isLoading()) {
-          <p class="muted">Đang đọc chứng thư ký số…</p>
+          <vt-skeleton variant="text" [rows]="1" label="Đang đọc chứng thư ký số" />
         } @else {
           <p class="bad">Đồng chí chưa có chứng thư ký số đã đăng ký.</p>
         }

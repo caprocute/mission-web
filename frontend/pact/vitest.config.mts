@@ -7,7 +7,9 @@ export default defineConfig({
   // Bộ nhớ đệm nằm trong node_modules của workspace (đã bỏ qua trong git), không sinh pact/node_modules.
   cacheDir: r('../node_modules/.vite/pact'),
   resolve: {
+    // Thứ tự quan trọng: entry con `domains` (WEB-052) phải khớp trước tiền tố `@vt/api-client`.
     alias: {
+      '@vt/api-client/domains': r('../projects/api-client/src/domains.ts'),
       '@vt/api-client': r('../projects/api-client/src/public-api.ts'),
     },
   },

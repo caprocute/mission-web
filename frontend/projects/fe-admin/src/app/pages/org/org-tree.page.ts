@@ -225,7 +225,13 @@ const FLOW_LABEL: Record<string, string> = {
                     {{ u.parentId ? (u.parentName ?? '') : 'Không có (đơn vị cấp cao nhất)' }}
                   </dd>
                   <dt>Đơn vị tiền thân</dt>
-                  <dd>{{ predecessorsText() }}</dd>
+                  <dd>
+                    @if (preds.isLoading()) {
+                      <vt-skeleton variant="text" [rows]="1" label="Đang tải đơn vị tiền thân" />
+                    } @else {
+                      {{ predecessorsText() }}
+                    }
+                  </dd>
                 </div>
               </dl>
             }
@@ -269,7 +275,13 @@ const FLOW_LABEL: Record<string, string> = {
                     </span>
                   </li>
                 } @empty {
-                  <li class="muted">Chưa có thay đổi.</li>
+                  @if (history.isLoading()) {
+                    <li>
+                      <vt-skeleton variant="list" [rows]="3" label="Đang tải lịch sử thay đổi" />
+                    </li>
+                  } @else {
+                    <li class="muted">Chưa có thay đổi.</li>
+                  }
                 }
               </ol>
             </section>
@@ -301,7 +313,19 @@ const FLOW_LABEL: Record<string, string> = {
                     </tr>
                   } @empty {
                     <tr>
-                      <td colspan="4" class="muted">Không có phân công còn hiệu lực.</td>
+                      @if (assign.isLoading()) {
+                        <td colspan="4">
+                          <vt-skeleton
+                            variant="table"
+                            [header]="false"
+                            [columns]="4"
+                            [rows]="4"
+                            label="Đang tải phân công tại đơn vị"
+                          />
+                        </td>
+                      } @else {
+                        <td colspan="4" class="muted">Không có phân công còn hiệu lực.</td>
+                      }
                     </tr>
                   }
                 </tbody>
@@ -576,7 +600,7 @@ export class OrgTreePage {
     this.unit.hasValue() ? this.unit.value() : null,
   );
   /** Tên đơn vị tiền thân: đọc từng đơn vị tại ngày trước hiệu lực của phiên bản đang xem. */
-  private readonly preds = rxResource({
+  protected readonly preds = rxResource({
     params: () => {
       const u = this.u();
       if (!u?.predecessorIds?.length) return undefined;
@@ -603,7 +627,7 @@ export class OrgTreePage {
     return names.length ? names.join('; ') : `${ids.length} đơn vị`;
   });
   /** Vùng 4 chỉ theo trục ghi nhận: lịch sử là toàn bộ trục hiệu lực (hợp đồng không nhận `asOf`). */
-  private readonly history = rxResource({
+  protected readonly history = rxResource({
     params: this.params,
     stream: ({ params }) =>
       this.api.history(params.id, { recordedAsOf: params.t.recordedAsOf }, { limit: 50 }),
@@ -611,7 +635,7 @@ export class OrgTreePage {
   protected readonly historyRows = computed(() =>
     this.history.hasValue() ? this.history.value().items : [],
   );
-  private readonly assign = rxResource({
+  protected readonly assign = rxResource({
     params: this.params,
     stream: ({ params }) => this.api.assignments(params.id, params.t, { limit: 200 }),
   });

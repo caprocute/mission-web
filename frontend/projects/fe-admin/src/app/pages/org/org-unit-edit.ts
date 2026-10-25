@@ -2,9 +2,20 @@ import { Component, inject, input, linkedSignal, output, signal } from '@angular
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { fieldErrors, toProblem } from '@vt/api-client';
-import { ORG_FLOW_LABEL, ORG_UNIT_LEVEL_LABEL, ORG_UNIT_TYPE_LABEL, OrgFlow, OrgTreeApi, OrgUnitDetail, OrgUnitInput, OrgUnitLevel, OrgUnitType } from '@vt/api-client/domains';
+import {
+  ORG_FLOW_LABEL,
+  ORG_UNIT_LEVEL_LABEL,
+  ORG_UNIT_TYPE_LABEL,
+  OrgFlow,
+  OrgTreeApi,
+  OrgUnitDetail,
+  OrgUnitInput,
+  OrgUnitLevel,
+  OrgUnitType,
+} from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -18,7 +29,7 @@ const SHOWN = new Set(['name', 'subjectGroupId', 'flows', 'validFrom']);
  */
 @Component({
   selector: 'vt-org-unit-edit',
-  imports: [FormsModule, ButtonModule, InputTextModule],
+  imports: [FormsModule, ButtonModule, InputTextModule, VtSkeletonComponent],
   template: `
     <form class="grid" (ngSubmit)="save()" aria-label="Sửa đơn vị">
       <label class="f wide">
@@ -79,18 +90,23 @@ const SHOWN = new Set(['name', 'subjectGroupId', 'flows', 'validFrom']);
           }
         </select>
       </label>
-      <label class="f wide">
+      <label class="f wide" for="vt-oue-sg">
         <span>Khối đối tượng (Phụ lục 2A)</span>
-        <select
-          class="native"
-          name="sg"
-          [ngModel]="f().subjectGroupId"
-          (ngModelChange)="set('subjectGroupId', $event)"
-        >
-          @for (g of groups.hasValue() ? groups.value() : []; track g.id) {
-            <option [value]="g.id">{{ g.name }}</option>
-          }
-        </select>
+        @if (groups.isLoading()) {
+          <vt-skeleton variant="text" [rows]="1" label="Đang tải danh mục khối đối tượng" />
+        } @else {
+          <select
+            id="vt-oue-sg"
+            class="native"
+            name="sg"
+            [ngModel]="f().subjectGroupId"
+            (ngModelChange)="set('subjectGroupId', $event)"
+          >
+            @for (g of groups.hasValue() ? groups.value() : []; track g.id) {
+              <option [value]="g.id">{{ g.name }}</option>
+            }
+          </select>
+        }
         @if (fe()['subjectGroupId']) {
           <small class="err">{{ fe()['subjectGroupId'] }}</small>
         }

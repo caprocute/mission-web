@@ -231,7 +231,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                       (ngModelChange)="applyPlanItem($event)"
                       styleClass="full"
                       appendTo="body"
-                      [loading]="plans.isLoading()"
+                      [loading]="plans.isLoading() || planDrafts.isLoading()"
                     />
                   </div>
                   <div>
@@ -249,6 +249,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                       (ngModelChange)="applyCatalog($event)"
                       styleClass="full"
                       appendTo="body"
+                      [loading]="catalog.isLoading()"
                     />
                   </div>
                 </div>
@@ -311,6 +312,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                 (ngModelChange)="applyCatalog($event)"
                 styleClass="full"
                 appendTo="body"
+                [loading]="catalog.isLoading()"
               />
             }
 
@@ -350,6 +352,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                   (ngModelChange)="set('keyResultId', $event ?? undefined)"
                   styleClass="full"
                   appendTo="body"
+                  [loading]="krs.isLoading()"
                 />
               </div>
               <div>
@@ -387,6 +390,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                     (ngModelChange)="set('leadPersonId', $event)"
                     styleClass="full"
                     appendTo="body"
+                    [loading]="persons.isLoading()"
                   />
                   @if (check.value()?.workload; as w) {
                     <small class="muted"
@@ -411,6 +415,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                     (ngModelChange)="setCo($event)"
                     styleClass="full"
                     appendTo="body"
+                    [loading]="persons.isLoading() || units.isLoading()"
                   />
                 </div>
               </div>
@@ -447,6 +452,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                   (ngModelChange)="set('acceptorId', $event)"
                   styleClass="full"
                   appendTo="body"
+                  [loading]="persons.isLoading()"
                 />
                 <small class="muted"
                   >Khác người chủ trì và người phối hợp (Phụ lục 4, mục V.1)</small
@@ -521,6 +527,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                   (ngModelChange)="bulkUnits.set($event)"
                   styleClass="full"
                   appendTo="body"
+                  [loading]="childUnits.isLoading()"
                 />
                 <small class="muted"
                   >Mỗi đơn vị nhận là chủ trì nhiệm vụ của mình; người đứng đầu đơn vị phân công
@@ -871,21 +878,21 @@ export class AssignTaskPage {
   protected readonly persons = rxResource({
     stream: () => this.org.persons().pipe(map((p) => p.items)),
   });
-  private readonly units = rxResource({
+  protected readonly units = rxResource({
     stream: () => this.org.units('unit').pipe(map((p) => p.items)),
   });
-  private readonly childUnits = rxResource({
+  protected readonly childUnits = rxResource({
     stream: () => this.org.units('children').pipe(map((p) => p.items)),
   });
   protected readonly plans = rxResource({
     params: () => this.period()?.id,
     stream: ({ params }) => this.planApi.approvedItems(params).pipe(map((p) => p.items)),
   });
-  private readonly krs = rxResource({
+  protected readonly krs = rxResource({
     params: () => this.period()?.id,
     stream: ({ params }) => this.okrApi.keyResults(params).pipe(map((p) => p.items)),
   });
-  private readonly catalog = rxResource({
+  protected readonly catalog = rxResource({
     stream: () => this.catalogApi.items({ limit: 200 }).pipe(map((p) => p.items)),
   });
 
@@ -893,7 +900,7 @@ export class AssignTaskPage {
    * Nhiệm vụ nháp đã sinh từ kế hoạch đã duyệt (EVT-03, QT-05 bước 3): dòng kế hoạch đó không còn trong
    * `approvedItems` nên đưa nháp vào cùng danh sách chọn, chọn thì mở nháp để giao (chỉ khi soạn mới).
    */
-  private readonly planDrafts = rxResource({
+  protected readonly planDrafts = rxResource({
     params: () => (!this.id() && this.period() ? this.period()!.id : undefined),
     stream: ({ params }) =>
       this.api
@@ -969,6 +976,7 @@ export class AssignTaskPage {
     { initialValue: null },
   );
   /** Máy chủ bắt buộc tên nhiệm vụ (422 khi trống), nên chỉ kiểm khi đã có tên. */
+  // skeleton-ok: kết quả chuyển cho vt-assign-side-panel qua [loading], panel tự hiện khung xương
   private readonly check$ = rxResource({
     params: () => {
       const f = this.checkInput();

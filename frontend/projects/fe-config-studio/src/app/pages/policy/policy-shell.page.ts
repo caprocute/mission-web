@@ -1,6 +1,7 @@
 import { Component, computed, effect, inject, input } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { POLICY_VERSION_STATUS_LABEL, policyVersionLabel } from '@vt/api-client/domains';
+import { VtSkeletonComponent } from '@vt/design-system';
 import { STUDIO_ACCESS } from '../../studio-permissions';
 import { fmtDate } from '../../studio-ui';
 import { POLICY_TABS } from './policy-tabs';
@@ -13,7 +14,7 @@ import { PolicyWorkspace } from './policy-workspace';
  */
 @Component({
   selector: 'vt-policy-shell-page',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, VtSkeletonComponent],
   providers: [PolicyWorkspace],
   template: `
     <nav class="crumb" aria-label="Đường dẫn">
@@ -43,18 +44,27 @@ import { PolicyWorkspace } from './policy-workspace';
             }
           </span>
         }
-        <span class="run" data-testid="last-run" aria-live="polite">
-          @if (ws.running()) {
-            Đang chạy kiểm thử…
-          } @else if (ws.lastRun.value(); as r) {
-            Kiểm thử gần nhất:
-            <strong [class.bad]="r.result !== 'DAT'">
-              {{ r.result === 'DAT' ? 'Đạt' : 'Chưa đạt' }} {{ r.passed }}/{{ r.total }} ca
-            </strong>
-          } @else {
-            Chưa chạy kiểm thử
-          }
-        </span>
+        @if (ws.lastRun.isLoading() && !ws.running()) {
+          <vt-skeleton
+            class="run-sk"
+            variant="text"
+            [rows]="1"
+            label="Đang tải kết quả kiểm thử gần nhất"
+          />
+        } @else {
+          <span class="run" data-testid="last-run" aria-live="polite">
+            @if (ws.running()) {
+              Đang chạy kiểm thử…
+            } @else if (ws.lastRun.value(); as r) {
+              Kiểm thử gần nhất:
+              <strong [class.bad]="r.result !== 'DAT'">
+                {{ r.result === 'DAT' ? 'Đạt' : 'Chưa đạt' }} {{ r.passed }}/{{ r.total }} ca
+              </strong>
+            } @else {
+              Chưa chạy kiểm thử
+            }
+          </span>
+        }
       </div>
       @if (ws.runError(); as e) {
         <p class="err" role="alert">{{ e }}</p>
@@ -67,6 +77,9 @@ import { PolicyWorkspace } from './policy-workspace';
         }
       </nav>
       <router-outlet />
+    } @else if (!ws.version.error()) {
+      <!-- Chờ phiên bản về rồi mới dựng thanh trạng thái, các thẻ nội dung và trang con -->
+      <vt-skeleton variant="page" label="Đang tải phiên bản chính sách" />
     }
   `,
   styles: `
@@ -111,6 +124,9 @@ import { PolicyWorkspace } from './policy-workspace';
     }
     .run {
       color: #374151;
+    }
+    .run-sk {
+      flex: 0 1 240px;
     }
     .run .bad {
       color: #b4001f;

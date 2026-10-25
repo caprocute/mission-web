@@ -134,7 +134,13 @@ interface Attached {
 
       <div class="cols">
         <div>
-          @if (isDraft()) {
+          @if (isDraft() && eligible.isLoading()) {
+            <vt-skeleton
+              variant="form"
+              [rows]="4"
+              label="Đang tải kết quả đánh giá có thể khiếu nại"
+            />
+          } @else if (isDraft()) {
             <!-- vùng 2 -->
             <section class="box" aria-labelledby="r-h">
               <h2 class="h" id="r-h">Kết quả, hình thức</h2>
@@ -385,6 +391,8 @@ interface Attached {
                   />
                 }
               </section>
+            } @else if (responses.isLoading()) {
+              <vt-skeleton variant="text" [rows]="4" label="Đang tải văn bản trả lời" />
             }
           }
         </div>

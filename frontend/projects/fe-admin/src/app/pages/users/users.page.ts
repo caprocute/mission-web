@@ -102,7 +102,11 @@ type Quick = 'all' | UserAccountStatus;
 
       <section class="box" aria-labelledby="us-z3" aria-live="polite">
         <h2 id="us-z3" class="h">
-          {{ selected() ? 'Người dùng tại ' + unitName() : 'Tất cả người dùng' }}
+          @if (selected() && unit.isLoading()) {
+            <vt-skeleton variant="text" [rows]="1" label="Đang tải tên đơn vị" />
+          } @else {
+            {{ selected() ? 'Người dùng tại ' + unitName() : 'Tất cả người dùng' }}
+          }
         </h2>
         <div class="filters" role="group" aria-label="Lọc người dùng">
           @for (q of quicks(); track q.key) {
@@ -304,7 +308,7 @@ export class UsersPage {
   });
   private readonly reload = signal(0);
 
-  private readonly unit = rxResource({
+  protected readonly unit = rxResource({
     params: () => this.selected() ?? undefined,
     stream: ({ params }) => this.units.unit(params),
   });

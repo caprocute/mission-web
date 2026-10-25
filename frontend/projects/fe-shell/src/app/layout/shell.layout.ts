@@ -64,6 +64,8 @@ export class ShellLayout {
   private readonly title = inject(Title);
 
   /** Tiêu đề trang hiện tại, hiển thị trên thanh trên ở màn hình hẹp. */
+  // skeleton-ok: tiêu đề lấy từ dữ liệu tuyến qua Title của trình duyệt sau NavigationEnd, không
+  // gọi máy chủ; trang đang chuyển đã có khung xương riêng (routeLoading)
   protected readonly pageTitle = toSignal(
     inject(Router).events.pipe(
       filter((e) => e instanceof NavigationEnd),

@@ -379,7 +379,9 @@ const CLOSED_STATUSES: AnomalyAlertStatus[] = [
               </ul>
             }
 
-            @if (a.status === 'CO_VI_PHAM') {
+            @if (a.status === 'CO_VI_PHAM' && period.isLoading()) {
+              <vt-skeleton variant="text" [rows]="1" label="Đang tải trạng thái kỳ đánh giá" />
+            } @else if (a.status === 'CO_VI_PHAM') {
               <p-message severity="warn" styleClass="mt">
                 @if (periodLocked()) {
                   Kỳ {{ a.period?.label }} đã khoá. Kết luận có vi phạm cần được thi hành qua yêu
@@ -440,6 +442,7 @@ const CLOSED_STATUSES: AnomalyAlertStatus[] = [
                   <p-select
                     inputId="cb-assignee"
                     [options]="inspectors()"
+                    [loading]="persons.isLoading()"
                     optionLabel="label"
                     optionValue="value"
                     [ngModel]="assignee()"
@@ -685,7 +688,7 @@ export class AlertCenterPage {
   });
 
   /** Người được giao kiểm tra: hợp đồng chưa có danh mục cán bộ cơ quan kiểm tra, tạm dùng danh mục tổ chức. */
-  private readonly persons = rxResource({
+  protected readonly persons = rxResource({
     params: () => (this.current() && this.canHandle(this.current()!) ? true : undefined),
     stream: () => this.org.persons(),
   });
@@ -697,7 +700,7 @@ export class AlertCenterPage {
   );
 
   /** Trạng thái kỳ để chọn câu MSG-14-04 khi kết luận có vi phạm. */
-  private readonly period = rxResource({
+  protected readonly period = rxResource({
     params: () =>
       this.current()?.status === 'CO_VI_PHAM' ? this.current()?.period?.id : undefined,
     stream: ({ params }) => this.periods.get(params),

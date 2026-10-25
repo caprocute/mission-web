@@ -104,7 +104,9 @@ const DOMAIN_KIND_LABEL = {
                   }
                 </li>
               } @empty {
-                @if (t.domain) {
+                @if (reg.isLoading()) {
+                  <li><vt-skeleton variant="list" [rows]="2" label="Đang tải tên miền" /></li>
+                } @else if (t.domain) {
                   <li>{{ t.domain }} <span class="muted">(chính)</span></li>
                 }
               }
