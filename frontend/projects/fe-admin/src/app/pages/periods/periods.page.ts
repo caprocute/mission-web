@@ -49,7 +49,7 @@ import {
   SagaStatus,
 } from '@vt/api-client/domains';
 import { TEXT_FORBIDDEN } from '@vt/auth';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
@@ -112,6 +112,7 @@ const timeOf = (iso?: string | null) => {
 @Component({
   selector: 'vt-periods-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     ButtonModule,
     DialogModule,
@@ -151,7 +152,7 @@ const timeOf = (iso?: string | null) => {
             <button type="button" class="link" (click)="periods.reload()">Thử lại</button>
           </p-message>
         } @else if (!periods.hasValue()) {
-          <p class="muted">Đang tải…</p>
+          <vt-skeleton variant="list" [rows]="4" label="Đang tải danh sách kỳ" />
         } @else {
           <ul class="plist">
             @for (p of periods.value(); track p.id) {
@@ -663,7 +664,7 @@ const timeOf = (iso?: string | null) => {
           }
         </ol>
       } @else {
-        <p class="muted">Đang tải sơ đồ…</p>
+        <vt-skeleton variant="list" [rows]="4" label="Đang tải sơ đồ" />
       }
     </p-dialog>
   `,

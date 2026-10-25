@@ -35,7 +35,7 @@ import {
   ProblemPresenter,
   jobLocation,
 } from '@vt/api-client';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
@@ -51,6 +51,7 @@ const MAX_COMMENT = 2000;
 @Component({
   selector: 'vt-okr-review-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     ButtonModule,
     MessageModule,
@@ -64,7 +65,7 @@ const MAX_COMMENT = 2000;
     @if (queue.error()) {
       <p-message severity="error" styleClass="msg">{{ loadError() }}</p-message>
     } @else if (!data()) {
-      <p class="muted" role="status">Đang tải hàng chờ phê duyệt…</p>
+      <vt-skeleton variant="page" [columns]="4" label="Đang tải hàng chờ phê duyệt" />
     } @else {
       @let q = data()!;
       <header class="head">

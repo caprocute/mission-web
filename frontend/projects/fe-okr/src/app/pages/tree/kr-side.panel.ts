@@ -5,6 +5,7 @@ import { KeyResult, OkrApi, OkrPeerLink, ProblemPresenter, progressPct } from '@
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 import { CONFIDENCE_SHORT, confidenceSeverity, formatDate, formatValue } from '../../okr-ui';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 /**
  * Bảng bên phải SCR-0201 (Hình 7.3 vùng 4, 5): lịch sử check-in của KR đang chọn, vướng mắc gần
@@ -13,7 +14,7 @@ import { CONFIDENCE_SHORT, confidenceSeverity, formatDate, formatValue } from '.
  */
 @Component({
   selector: 'vt-kr-side-panel',
-  imports: [ButtonModule, TagModule, RouterLink],
+  imports: [VtSkeletonComponent, ButtonModule, TagModule, RouterLink],
   template: `
     @let k = kr();
     <section class="box" aria-labelledby="kr-hist-title">
@@ -21,7 +22,7 @@ import { CONFIDENCE_SHORT, confidenceSeverity, formatDate, formatValue } from '.
       @if (history.error()) {
         <p class="err" role="alert">{{ historyError() }}</p>
       } @else if (history.isLoading() && !history.hasValue()) {
-        <p class="muted" aria-live="polite">Đang tải lịch sử check-in…</p>
+        <vt-skeleton variant="list" [rows]="3" label="Đang tải lịch sử check-in" />
       } @else if (rows().length === 0) {
         <p class="muted">KR chưa có lần check-in nào.</p>
       } @else {

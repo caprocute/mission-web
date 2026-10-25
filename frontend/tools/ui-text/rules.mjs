@@ -116,4 +116,12 @@ export const RULES = [
     re: /\b(anh\/chị|Anh\/chị|anh chị|Anh chị|bạn hãy|Bạn hãy)\b/,
     hint: 'Xưng hô thống nhất "đồng chí" (wiki/16).',
   },
+  {
+    id: 'dang-tai-tron',
+    // YC-PT-28: vùng dữ liệu đang tải hiện khung xương, không in chữ "Đang tải…"; tiến độ gửi hay
+    // nhận tệp ("Đang tải lên…", "Đang tải xuống…") là trạng thái thao tác nên được phép
+    re: /Đang tải(?! lên| xuống| tệp)[^…]*(…|\.\.\.)/,
+    allow: [/bản mới nhất để so sánh/],
+    hint: 'Vùng dữ liệu đang tải dùng <vt-skeleton> của @vt/design-system với bố cục gần nội dung sắp hiện, không in chữ "Đang tải…".',
+  },
 ];

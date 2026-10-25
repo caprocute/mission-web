@@ -26,10 +26,18 @@ import { PAGE_STYLES, adminError } from '../users/users-ui';
 import { ACCESS_STEP_UP, ACCESS_STYLES } from './access-ui';
 import { CustomRoleDialog } from './custom-role.dialog';
 import { ReasonDialog } from './reason.dialog';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 @Component({
   selector: 'vt-custom-roles-page',
-  imports: [RouterLink, ButtonModule, MessageModule, CustomRoleDialog, ReasonDialog],
+  imports: [
+    VtSkeletonComponent,
+    RouterLink,
+    ButtonModule,
+    MessageModule,
+    CustomRoleDialog,
+    ReasonDialog,
+  ],
   template: `
     <header class="head">
       <div>
@@ -127,9 +135,18 @@ import { ReasonDialog } from './reason.dialog';
               </tr>
             } @empty {
               <tr>
-                <td colspan="6" class="muted">
-                  {{ list.isLoading() ? 'Đang tải…' : 'Chưa có vai trò tuỳ chỉnh nào.' }}
-                </td>
+                @if (list.isLoading()) {
+                  <td colspan="6">
+                    <vt-skeleton
+                      variant="table"
+                      [header]="false"
+                      [columns]="6"
+                      label="Đang tải vai trò tuỳ chỉnh"
+                    />
+                  </td>
+                } @else {
+                  <td colspan="6" class="muted">Chưa có vai trò tuỳ chỉnh nào.</td>
+                }
               </tr>
             }
           </tbody>

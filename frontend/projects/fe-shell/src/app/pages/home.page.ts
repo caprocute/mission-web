@@ -21,6 +21,7 @@ import {
   toggleHidden,
   widgetId,
 } from './home-layout-editor';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 const HOME_KEY = 'ui.home.layout';
 
@@ -31,7 +32,13 @@ const HOME_KEY = 'ui.home.layout';
  */
 @Component({
   selector: 'vt-home-page',
-  imports: [SduiOutletComponent, SduiNodeComponent, ButtonModule, ConflictNoticeComponent],
+  imports: [
+    VtSkeletonComponent,
+    SduiOutletComponent,
+    SduiNodeComponent,
+    ButtonModule,
+    ConflictNoticeComponent,
+  ],
   template: `
     <header class="vt-page-head">
       <div>
@@ -141,7 +148,7 @@ const HOME_KEY = 'ui.home.layout';
           <p class="muted">Chưa tải được trang chủ của đơn vị. Đồng chí vui lòng tải lại trang.</p>
         </vt-sdui-outlet>
       } @else {
-        <p class="muted" role="status">Đang tải trang chủ…</p>
+        <vt-skeleton variant="dashboard" label="Đang tải trang chủ" />
       }
     </section>
   `,

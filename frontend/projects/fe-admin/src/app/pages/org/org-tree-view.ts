@@ -14,6 +14,7 @@ import { OrgTimeQuery, OrgTreeApi, OrgTreeNode, OrgUnitSearchHit } from '@vt/api
 import { InputTextModule } from 'primeng/inputtext';
 import { Subscription, debounceTime, forkJoin, of, Subject, switchMap } from 'rxjs';
 import { errorText } from '../../admin-ui';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 interface Row {
   node: OrgTreeNode;
@@ -35,7 +36,7 @@ export function prevDay(iso: string): string {
  */
 @Component({
   selector: 'vt-org-tree-view',
-  imports: [FormsModule, InputTextModule],
+  imports: [VtSkeletonComponent, FormsModule, InputTextModule],
   template: `
     <label for="org-q" class="sr-only">Tìm đơn vị</label>
     <input
@@ -64,6 +65,9 @@ export function prevDay(iso: string): string {
     @if (error(); as e) {
       <p class="err" role="alert">{{ e }}</p>
     }
+    @if (loading().has('') && !rows().length) {
+      <vt-skeleton variant="tree" [header]="false" label="Đang tải cây tổ chức" />
+    }
     <ul role="tree" aria-label="Cơ cấu tổ chức" class="tree">
       @for (r of rows(); track r.node.id) {
         <li
@@ -87,7 +91,11 @@ export function prevDay(iso: string): string {
           <span class="lbl">
             <span class="nm">{{ r.node.name }}</span>
             @if (loading().has(r.node.id)) {
-              <span class="muted small"> đang tải…</span>
+              <i
+                class="pi pi-spin pi-spinner muted small"
+                role="img"
+                aria-label="Đang mở nhánh"
+              ></i>
             }
           </span>
         </li>

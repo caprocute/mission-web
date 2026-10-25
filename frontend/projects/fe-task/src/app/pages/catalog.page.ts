@@ -27,7 +27,7 @@ import {
   WORK_CATALOG_STATUS_LABEL,
   WorkCatalog,
 } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { InputTextModule } from 'primeng/inputtext';
@@ -53,6 +53,7 @@ interface Filters {
 @Component({
   selector: 'vt-catalog-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     ButtonModule,
     CheckboxModule,
@@ -288,7 +289,18 @@ interface Filters {
                     }
                   </tr>
                 } @empty {
-                  @if (!page.isLoading()) {
+                  @if (page.isLoading()) {
+                    <tr>
+                      <td [attr.colspan]="colCount()">
+                        <vt-skeleton
+                          variant="table"
+                          [header]="false"
+                          [columns]="5"
+                          label="Đang tải danh mục"
+                        />
+                      </td>
+                    </tr>
+                  } @else {
                     <tr>
                       <td [attr.colspan]="colCount()" class="muted empty">
                         Không có công việc phù hợp bộ lọc.
@@ -416,7 +428,7 @@ interface Filters {
         (saved)="onSaved($event)"
       />
     } @else {
-      <p class="muted" aria-busy="true">Đang tải danh mục…</p>
+      <vt-skeleton variant="page" [columns]="5" label="Đang tải danh mục" />
     }
   `,
   styles: `

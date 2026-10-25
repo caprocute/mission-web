@@ -34,9 +34,20 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { JobTracker, toProblem } from '@vt/api-client';
-import { AppraisalApi, AppraisalProfile, AppraisalProfileRow, AppraisalProfileStatus, AppraisalSelfAssessmentView, GENERAL_CRITERIA_LEVEL_LABEL, RATING_LEVELS, APPRAISAL_PROFILE_STATUS_LABEL, RATING_LEVEL_LABEL, RatingLevel } from '@vt/api-client/domains';
+import {
+  AppraisalApi,
+  AppraisalProfile,
+  AppraisalProfileRow,
+  AppraisalProfileStatus,
+  AppraisalSelfAssessmentView,
+  GENERAL_CRITERIA_LEVEL_LABEL,
+  RATING_LEVELS,
+  APPRAISAL_PROFILE_STATUS_LABEL,
+  RATING_LEVEL_LABEL,
+  RatingLevel,
+} from '@vt/api-client/domains';
 import { permittedOn } from '@vt/auth';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { firstValueFrom } from 'rxjs';
 import { APPRAISAL_CAN } from '../../appraisal-permissions';
 import { STEPS, dmy, stepOf, vn, vnTime } from '../self-assessment/self-assessment-rules';
@@ -65,7 +76,7 @@ const PROVIDER_LABEL: Partial<Record<string, string>> = {
 
 @Component({
   selector: 'vt-review-page',
-  imports: [RouterLink],
+  imports: [VtSkeletonComponent, RouterLink],
   templateUrl: './review.page.html',
   styleUrl: './review.page.css',
 })

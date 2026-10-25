@@ -102,7 +102,7 @@
       </div>
     }
   </nav>
-  <main id="main" class="content" tabindex="-1">
+  <main id="main" class="content" tabindex="-1" [class.is-routing]="routeLoading()">
     <vt-session-notice />
     @if (session.contextStatus() === 'KHONG_PHAN_CONG') {
       <!-- QT-00 ngoại lệ: không có phân công còn hiệu lực thì không vào trang chủ (MSG-00-06) -->
@@ -118,6 +118,9 @@
         ></button>
       </section>
     } @else {
+      @if (routeLoading()) {
+        <vt-skeleton variant="page" label="Đang mở trang" />
+      }
       <router-outlet />
     }
   </main>

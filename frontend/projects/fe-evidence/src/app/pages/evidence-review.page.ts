@@ -38,7 +38,7 @@ import {
   QualityLevel,
 } from '@vt/api-client/domains';
 import { permittedOn } from '@vt/auth';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { firstValueFrom } from 'rxjs';
 import { EVIDENCE_CAN } from '../evidence-permissions';
@@ -67,7 +67,7 @@ const fmtDateTime = (iso?: string | null) => {
 
 @Component({
   selector: 'vt-evidence-review-page',
-  imports: [FormsModule, RouterLink, ButtonModule],
+  imports: [VtSkeletonComponent, FormsModule, RouterLink, ButtonModule],
   template: `
     @if (!can('SCR-0703.mo')) {
       <p class="msg warn">Đồng chí không có quyền nghiệm thu minh chứng.</p>
@@ -401,7 +401,7 @@ const fmtDateTime = (iso?: string | null) => {
         <p class="muted" aria-busy="true">Đang mở minh chứng và kiểm tra toàn vẹn…</p>
       }
     } @else {
-      <p class="muted" aria-busy="true">Đang tải minh chứng…</p>
+      <vt-skeleton variant="detail" label="Đang tải minh chứng" />
     }
   `,
   styleUrl: './evidence-page.scss',

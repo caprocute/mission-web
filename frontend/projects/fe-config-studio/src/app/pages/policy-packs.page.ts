@@ -13,6 +13,7 @@ import { FLOW_LABEL, fmtDate } from '../studio-ui';
 import { POLICY_KEYS } from '../studio-layout';
 import { STUDIO_ACCESS } from '../studio-permissions';
 import { POLICY_TABS } from './policy/policy-tabs';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 /**
  * Trang đầu Config Studio (QT-15): danh sách Policy Pack của tenant cùng các phiên bản, mở một phiên
@@ -20,7 +21,7 @@ import { POLICY_TABS } from './policy/policy-tabs';
  */
 @Component({
   selector: 'vt-policy-packs-page',
-  imports: [RouterLink],
+  imports: [VtSkeletonComponent, RouterLink],
   template: `
     <header class="vt-page-head">
       <div>
@@ -32,7 +33,7 @@ import { POLICY_TABS } from './policy/policy-tabs';
     @if (packs.error()) {
       <p class="err" role="alert">Không tải được danh sách. Vui lòng thử lại.</p>
     } @else if (packs.isLoading() && !packs.value()) {
-      <p>Đang tải…</p>
+      <vt-skeleton variant="table" [columns]="5" label="Đang tải danh sách chính sách" />
     }
     @for (p of packs.value()?.items ?? []; track p.id) {
       <section class="card" [attr.data-pack]="p.code">

@@ -19,7 +19,7 @@ import { PolicyWorkspace } from './policy-workspace';
     <nav class="crumb" aria-label="Đường dẫn">
       <a routerLink="../..">Chính sách đánh giá</a>
       <span aria-hidden="true">/</span>
-      <span>{{ ws.pack.value()?.name ?? 'Đang tải…' }}</span>
+      <span>{{ ws.pack.value()?.name ?? '' }}</span>
     </nav>
     <header class="head">
       <h1>{{ ws.pack.value()?.name ?? 'Chính sách đánh giá' }}</h1>

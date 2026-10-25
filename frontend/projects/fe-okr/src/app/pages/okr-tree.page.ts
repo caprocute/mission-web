@@ -34,7 +34,7 @@ import {
   jobLocation,
 } from '@vt/api-client';
 import { permittedOn } from '@vt/auth';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
@@ -75,6 +75,7 @@ const ROW_HEIGHT = 52;
 @Component({
   selector: 'vt-okr-tree-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     ScrollingModule,
     ButtonModule,
@@ -372,7 +373,7 @@ const ROW_HEIGHT = 52;
         </div>
       }
     } @else {
-      <p class="muted" aria-live="polite">Đang tải cây mục tiêu…</p>
+      <vt-skeleton variant="tree" [rows]="8" label="Đang tải cây mục tiêu" />
     }
   `,
   styles: `

@@ -22,7 +22,7 @@ import {
   UserAdminApi,
 } from '@vt/api-client/domains';
 import { permittedOn } from '@vt/auth';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { InputTextModule } from 'primeng/inputtext';
@@ -42,6 +42,7 @@ type Quick = 'all' | UserAccountStatus;
 @Component({
   selector: 'vt-users-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -221,13 +222,20 @@ type Quick = 'all' | UserAccountStatus;
                 </tr>
               } @empty {
                 <tr>
-                  <td [attr.colspan]="simple() ? 4 : 5" class="muted">
-                    {{
-                      page.isLoading()
-                        ? 'Đang tải danh sách người dùng…'
-                        : 'Không có người dùng phù hợp.'
-                    }}
-                  </td>
+                  @if (page.isLoading()) {
+                    <td [attr.colspan]="simple() ? 4 : 5">
+                      <vt-skeleton
+                        variant="table"
+                        [header]="false"
+                        [columns]="5"
+                        label="Đang tải danh sách người dùng"
+                      />
+                    </td>
+                  } @else {
+                    <td [attr.colspan]="simple() ? 4 : 5" class="muted">
+                      Không có người dùng phù hợp.
+                    </td>
+                  }
                 </tr>
               }
             </tbody>

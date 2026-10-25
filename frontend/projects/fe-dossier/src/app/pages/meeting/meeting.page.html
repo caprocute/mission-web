@@ -1,7 +1,7 @@
 <p class="back"><a routerLink="..">← Danh sách hội nghị kiểm điểm</a></p>
 
 @if (data.isLoading() && !m()) {
-  <p role="status">Đang tải hội nghị…</p>
+  <vt-skeleton variant="detail" label="Đang tải hội nghị kiểm điểm" />
 } @else if (data.error() && !m()) {
   <p class="err" role="alert">Không tải được hội nghị kiểm điểm. Vui lòng thử lại.</p>
 } @else if (m(); as m) {

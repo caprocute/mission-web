@@ -10,11 +10,22 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { DISCREPANCY_FIELD_LABEL, DiscrepancyResolution, DiscrepancySeverity, FIELD_PERSON_MATCH, OrgDiscrepancy, OrgSyncApi, SEVERITY_LABEL, SUGGESTED_ACTION_LABEL, SYNC_SOURCE_LABEL } from '@vt/api-client/domains';
+import {
+  DISCREPANCY_FIELD_LABEL,
+  DiscrepancyResolution,
+  DiscrepancySeverity,
+  FIELD_PERSON_MATCH,
+  OrgDiscrepancy,
+  OrgSyncApi,
+  SEVERITY_LABEL,
+  SUGGESTED_ACTION_LABEL,
+  SYNC_SOURCE_LABEL,
+} from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { ADMIN_CAN } from '../../admin-permissions';
 import { errorText, fmtInt } from '../../admin-ui';
 import { OrgSyncAssignDialog, OrgSyncMapDialog } from './org-sync-dialogs';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 /** MSG-01-13; khi máy chủ chưa trả số phân công (chờ hợp đồng) chỉ báo số quyết định. */
 export const MSG_01_13 = (n: number, m?: number) =>
@@ -33,7 +44,7 @@ const TABS = Object.keys(DISCREPANCY_FIELD_LABEL);
  */
 @Component({
   selector: 'vt-org-sync-list',
-  imports: [FormsModule, ButtonModule, OrgSyncMapDialog, OrgSyncAssignDialog],
+  imports: [VtSkeletonComponent, FormsModule, ButtonModule, OrgSyncMapDialog, OrgSyncAssignDialog],
   template: `
     <div class="bar">
       <div class="tabs" role="group" aria-label="Lọc theo trường lệch">
@@ -130,9 +141,18 @@ const TABS = Object.keys(DISCREPANCY_FIELD_LABEL);
             </tr>
           } @empty {
             <tr>
-              <td colspan="8" class="muted">
-                {{ first.isLoading() ? 'Đang tải…' : 'Không còn mục lệch nào cần đối soát.' }}
-              </td>
+              @if (first.isLoading()) {
+                <td colspan="8">
+                  <vt-skeleton
+                    variant="table"
+                    [header]="false"
+                    [columns]="6"
+                    label="Đang tải danh sách đối soát"
+                  />
+                </td>
+              } @else {
+                <td colspan="8" class="muted">Không còn mục lệch nào cần đối soát.</td>
+              }
             </tr>
           }
         </tbody>

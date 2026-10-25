@@ -3,7 +3,7 @@
 @if (loadError(); as e) {
   <p class="err" role="alert">{{ e }}</p>
 } @else if (!ctx.value()) {
-  <p class="muted" role="status">Đang tải bản nháp OKR…</p>
+  <vt-skeleton variant="page" label="Đang tải bản nháp mục tiêu" />
 } @else {
   @let c = ctx.value()!;
   <header class="head">
@@ -42,7 +42,7 @@
         }
       </p>
       @if (drafts.isLoading() && !draftList().length) {
-        <p class="muted" role="status">Đang tải bản nháp…</p>
+        <vt-skeleton variant="cards" [rows]="3" label="Đang tải bản nháp" />
       } @else if (!draftList().length) {
         <p class="muted">
           Kỳ này chưa có bản nháp. Đồng chí có thể hỏi trợ lý để nhận gợi ý mục tiêu và KR.

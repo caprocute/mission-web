@@ -1,7 +1,7 @@
 <p class="back"><a routerLink="..">← Danh sách gói hồ sơ số</a></p>
 
 @if (data.isLoading() && !p()) {
-  <p role="status">Đang tải gói hồ sơ…</p>
+  <vt-skeleton variant="detail" label="Đang tải gói hồ sơ" />
 } @else if (data.error() && !p()) {
   <p class="err" role="alert">Không tải được gói hồ sơ. Vui lòng thử lại.</p>
 } @else if (p(); as p) {
@@ -76,7 +76,7 @@
           </button>
         }
         @if (forms.isLoading() && !formList().length) {
-          <p role="status">Đang tải biểu mẫu…</p>
+          <vt-skeleton variant="list" [rows]="3" label="Đang tải biểu mẫu" />
         } @else {
           <div class="wrap">
             <table>

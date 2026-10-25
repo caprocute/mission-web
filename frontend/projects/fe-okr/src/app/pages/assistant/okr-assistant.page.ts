@@ -18,7 +18,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { JobTracker, ObjectiveDetail, OkrApi, ProblemPresenter } from '@vt/api-client';
 import { AiApi, OkrAssistResult, OkrAssistSuggestion } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { Observable, catchError, forkJoin, last, map, of, switchMap, throwError } from 'rxjs';
 import { OKR_CAN } from '../../okr-permissions';
 import { formatDate } from '../../okr-ui';
@@ -46,7 +46,7 @@ interface Turn {
 
 @Component({
   selector: 'vt-okr-assistant-page',
-  imports: [RouterLink],
+  imports: [VtSkeletonComponent, RouterLink],
   templateUrl: './okr-assistant.page.html',
   styleUrl: './okr-assistant.page.css',
 })

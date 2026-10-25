@@ -18,7 +18,7 @@ import {
   OrgTreeApi,
   RoleAdminApi,
 } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { ADMIN_CAN } from '../../admin-permissions';
@@ -30,7 +30,15 @@ import { ReasonDialog } from './reason.dialog';
 
 @Component({
   selector: 'vt-delegations-page',
-  imports: [RouterLink, ButtonModule, MessageModule, OrgTreeView, DelegationDialog, ReasonDialog],
+  imports: [
+    VtSkeletonComponent,
+    RouterLink,
+    ButtonModule,
+    MessageModule,
+    OrgTreeView,
+    DelegationDialog,
+    ReasonDialog,
+  ],
   template: `
     @if (can('SCR-0105.xem')) {
       <p><a routerLink="../access" class="link">← Vai trò theo đơn vị</a></p>
@@ -117,9 +125,18 @@ import { ReasonDialog } from './reason.dialog';
                   </tr>
                 } @empty {
                   <tr>
-                    <td colspan="6" class="muted">
-                      {{ page.isLoading() ? 'Đang tải…' : 'Đơn vị chưa có uỷ quyền nào.' }}
-                    </td>
+                    @if (page.isLoading()) {
+                      <td colspan="6">
+                        <vt-skeleton
+                          variant="table"
+                          [header]="false"
+                          [columns]="6"
+                          label="Đang tải danh sách uỷ quyền"
+                        />
+                      </td>
+                    } @else {
+                      <td colspan="6" class="muted">Đơn vị chưa có uỷ quyền nào.</td>
+                    }
                   </tr>
                 }
               </tbody>

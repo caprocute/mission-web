@@ -31,6 +31,7 @@ import {
   visibleKeys,
 } from './form-builder-model';
 import { FORM_TITLE } from './forms.page';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 /** Lớp dữ liệu của trường (BR-18-11): C2 được mã hoá trường khi lưu. */
 const CLASSIFICATIONS = [
@@ -54,7 +55,7 @@ const CLASSIFICATIONS = [
 
 @Component({
   selector: 'vt-form-builder-page',
-  imports: [RouterLink, ButtonModule, VtFormComponent],
+  imports: [VtSkeletonComponent, RouterLink, ButtonModule, VtFormComponent],
   template: `
     <nav class="crumb" aria-label="Đường dẫn">
       <a routerLink="../..">Biểu mẫu động</a>
@@ -109,6 +110,8 @@ const CLASSIFICATIONS = [
 
     @if (form.error()) {
       <p class="err" role="alert">Không tải được biểu mẫu. Vui lòng thử lại.</p>
+    } @else if (form.isLoading() && !form.value()) {
+      <vt-skeleton variant="form" [rows]="5" label="Đang tải biểu mẫu" />
     }
     @if (notice(); as n) {
       <p class="notice" role="status" data-testid="notice">{{ n }}</p>

@@ -16,12 +16,13 @@ import { MessageModule } from 'primeng/message';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TASK_CAN } from '../task-permissions';
 import { formatDate } from '../task-ui';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 type Queue = 'DANG_KY' | 'DE_NGHI';
 
 @Component({
   selector: 'vt-approvals-page',
-  imports: [FormsModule, RouterLink, MessageModule, SelectButtonModule],
+  imports: [VtSkeletonComponent, FormsModule, RouterLink, MessageModule, SelectButtonModule],
   template: `
     <h1>Chờ duyệt</h1>
     <p class="muted">Đăng ký nhiệm vụ và đề nghị gia hạn, điều chỉnh đang chờ đồng chí duyệt.</p>
@@ -44,7 +45,7 @@ type Queue = 'DANG_KY' | 'DE_NGHI';
         <button type="button" class="link" (click)="list.reload()">Thử lại</button>
       </p-message>
     } @else if (list.isLoading() && !rows().length) {
-      <p class="muted">Đang tải…</p>
+      <vt-skeleton variant="list" [rows]="5" label="Đang tải danh sách chờ duyệt" />
     } @else if (!rows().length) {
       <p class="muted empty">
         {{

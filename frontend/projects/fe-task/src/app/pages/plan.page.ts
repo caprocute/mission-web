@@ -39,7 +39,7 @@ import {
   PlanVersion,
   PlanWorkspace,
 } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DialogModule } from 'primeng/dialog';
@@ -58,6 +58,7 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
 @Component({
   selector: 'vt-plan-page',
   imports: [
+    VtSkeletonComponent,
     DatePipe,
     FormsModule,
     ButtonModule,
@@ -99,7 +100,7 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
               />
             </div>
           } @else if (periodsRes.isLoading()) {
-            <p class="muted">Đang tải kỳ kế hoạch…</p>
+            <vt-skeleton variant="form" [rows]="1" label="Đang tải kỳ kế hoạch" />
           } @else {
             <p class="muted">Hiện chưa có kỳ kế hoạch quý đang mở để lập kế hoạch.</p>
           }
@@ -485,7 +486,7 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
             <label [for]="'sg-' + $index">{{ s.title }}</label>
           </div>
         } @empty {
-          <p class="muted">Đang tải gợi ý…</p>
+          <vt-skeleton variant="list" [rows]="3" label="Đang tải gợi ý" />
         }
         <ng-template #footer>
           <p-button
@@ -582,7 +583,7 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
         </ng-template>
       </p-dialog>
     } @else {
-      <p class="muted">Đang tải kế hoạch…</p>
+      <vt-skeleton variant="table" [columns]="5" label="Đang tải kế hoạch" />
     }
   `,
   styles: `

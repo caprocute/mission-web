@@ -2,11 +2,19 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
-import { ROLE_CODE_LABEL, RoleAdminApi, RoleCode, WorkflowInstanceApi, WorkflowInstanceSummary, WorkflowHistoryAction } from '@vt/api-client/domains';
+import {
+  ROLE_CODE_LABEL,
+  RoleAdminApi,
+  RoleCode,
+  WorkflowInstanceApi,
+  WorkflowInstanceSummary,
+  WorkflowHistoryAction,
+} from '@vt/api-client/domains';
 import { STUDIO_ACCESS } from '../../studio-permissions';
 import { errorText, fmtDate, problemCode } from '../../studio-ui';
 import { WfDiagram } from '../wf-template/wf-diagram';
 import { WF_TITLE } from '../wf-template/wf-templates.page';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 /*
  * SCR-1506 Giám sát tiến trình theo mẫu, QT-15, BS-01 (đã duyệt 19/10/2026).
@@ -44,7 +52,7 @@ type Dlg = { kind: 'reassign' | 'extend' | 'diagram'; row: WorkflowInstanceSumma
 
 @Component({
   selector: 'vt-wf-monitor-page',
-  imports: [ButtonModule, DialogModule, WfDiagram],
+  imports: [VtSkeletonComponent, ButtonModule, DialogModule, WfDiagram],
   template: `
     <h1>Giám sát tiến trình</h1>
     <p class="sub">
@@ -88,7 +96,7 @@ type Dlg = { kind: 'reassign' | 'extend' | 'diagram'; row: WorkflowInstanceSumma
     @if (page.error()) {
       <p class="err" role="alert">Không tải được danh sách tiến trình. Vui lòng thử lại.</p>
     } @else if (!page.value() && !rows().length) {
-      <p>Đang tải…</p>
+      <vt-skeleton variant="table" [columns]="5" label="Đang tải danh sách tiến trình" />
     } @else if (!rows().length) {
       <p data-testid="empty">Không có tiến trình nào phù hợp.</p>
     } @else {
@@ -290,7 +298,7 @@ type Dlg = { kind: 'reassign' | 'extend' | 'diagram'; row: WorkflowInstanceSumma
       } @else if (diagram.error()) {
         <p class="err">Không tải được sơ đồ.</p>
       } @else {
-        <p>Đang tải…</p>
+        <vt-skeleton variant="chart" label="Đang tải sơ đồ" />
       }
       @if (history.value(); as h) {
         <h2>Lịch sử xử lý</h2>

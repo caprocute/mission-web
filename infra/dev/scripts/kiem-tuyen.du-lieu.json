@@ -9,12 +9,12 @@
   "contracts/openapi/modules/org.yaml": "8dbcfe1a796e680c9789bd7af325267a72b528ccde6f503e2f4acd2d8d217f3a",
   "contracts/openapi/modules/oversight.yaml": "633c9da557b8e7b5d714514347b1b6bdebe2770f88216590a3d157346250bccc",
   "contracts/openapi/modules/platform.yaml": "461312c0012bc563e8b5542d4d7a49c3245166dd3beb761393971cc176d05cd4",
-  "contracts/openapi/modules/policies.yaml": "93d3338282d2ea664ba02730cca8a75064fea844bad737b1fcb3f35607912f95",
+  "contracts/openapi/modules/policies.yaml": "8688555632f2c20d072bf57c4b1c4e8ccdd8ef75cad3b5df03b997e50f0b0951",
   "contracts/openapi/modules/products.yaml": "6f76d7a95e984e7072c5707d234c90d27dbd3c1303188e63ba7efdcd2b442424",
   "contracts/openapi/modules/scim.yaml": "e7a560b74af11e5c1a444ea081b02cd497e42a2108c448d511b51f2580a56f8d",
   "contracts/openapi/modules/tasks.yaml": "92996bb8fc94c049c3f8a51b8d8679490c33cd540eac723c8acf6b092bf91614",
   "infra/dev/apisix/apisix.yaml": "b0de0fbedc936988ab3d46a44b6c7bf93500d7edf8853ec025d6ef67259a61dc",
-  "infra/dev/docker-compose.yml": "6521e00ad93d5ea51beea697101a32adbcabcc43643ca4db346a8b9fb008ae29"
+  "infra/dev/docker-compose.yml": "0f18d68f5d2448aa272e32efd92efc1819175a5139244b5f3c837468d04e3812"
  },
  "operations": [
   {

@@ -35,9 +35,18 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { JobTracker, UiFormApi, toProblem } from '@vt/api-client';
-import { APPRAISAL_FLOW_LABEL, APPRAISAL_STATUS_LABEL, AppraisalApi, AppraisalFlow, AppraisalProfile, AppraisalSelfAssessmentInput, EvidenceApi, RatingLevel } from '@vt/api-client/domains';
+import {
+  APPRAISAL_FLOW_LABEL,
+  APPRAISAL_STATUS_LABEL,
+  AppraisalApi,
+  AppraisalFlow,
+  AppraisalProfile,
+  AppraisalSelfAssessmentInput,
+  EvidenceApi,
+  RatingLevel,
+} from '@vt/api-client/domains';
 import { permittedOn } from '@vt/auth';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { firstValueFrom, map } from 'rxjs';
 import { APPRAISAL_CAN } from '../../appraisal-permissions';
 import { GeneralCriteria } from './general-criteria';
@@ -70,7 +79,15 @@ type Tab = AppraisalFlow | 'LICH_SU';
 
 @Component({
   selector: 'vt-self-assessment-page',
-  imports: [RouterLink, GeneralCriteria, ScoreResult, ScoreTrace, SelfRating, RatingTrail],
+  imports: [
+    VtSkeletonComponent,
+    RouterLink,
+    GeneralCriteria,
+    ScoreResult,
+    ScoreTrace,
+    SelfRating,
+    RatingTrail,
+  ],
   templateUrl: './self-assessment.page.html',
   styleUrl: './self-assessment.page.css',
 })

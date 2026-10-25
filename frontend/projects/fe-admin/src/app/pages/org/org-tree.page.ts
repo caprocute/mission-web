@@ -33,7 +33,7 @@ import {
   orgImportErrors,
   orgUnitLevelLabel,
 } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
@@ -56,6 +56,7 @@ const FLOW_LABEL: Record<string, string> = {
 @Component({
   selector: 'vt-org-tree-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     ButtonModule,
     InputTextModule,
@@ -228,8 +229,10 @@ const FLOW_LABEL: Record<string, string> = {
                 </div>
               </dl>
             }
+          } @else if (unit.isLoading()) {
+            <vt-skeleton variant="detail" label="Đang tải thông tin đơn vị" />
           } @else {
-            <p class="muted" aria-busy="true">Chọn một đơn vị trên cây.</p>
+            <p class="muted">Chọn một đơn vị trên cây.</p>
           }
         </section>
 
@@ -595,7 +598,7 @@ export class OrgTreePage {
   protected readonly predecessorsText = computed(() => {
     const ids = this.u()?.predecessorIds ?? [];
     if (!ids.length) return 'Không có';
-    if (!this.preds.hasValue()) return 'Đang tải…';
+    if (!this.preds.hasValue()) return '…';
     const names = this.preds.value().filter((n): n is string => !!n);
     return names.length ? names.join('; ') : `${ids.length} đơn vị`;
   });

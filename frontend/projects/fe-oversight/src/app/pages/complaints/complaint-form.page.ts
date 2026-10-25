@@ -35,7 +35,7 @@ import {
   FileRejectedError,
   RATING_LEVEL_LABEL,
 } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DialogModule } from 'primeng/dialog';
@@ -64,6 +64,7 @@ interface Attached {
 @Component({
   selector: 'vt-complaint-form-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -80,7 +81,7 @@ interface Attached {
     @if (complaint.error()) {
       <p-message severity="error">{{ loadError() }}</p-message>
     } @else if (id() && !current()) {
-      <p class="muted">Đang tải khiếu nại…</p>
+      <vt-skeleton variant="form" [rows]="5" label="Đang tải khiếu nại" />
     } @else {
       <!-- vùng 1 -->
       <header class="head">
