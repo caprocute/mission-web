@@ -37,6 +37,7 @@ import vn.viettel.okrkpi.appraisal.domain.profile.LevelKind;
 import vn.viettel.okrkpi.appraisal.domain.profile.RatingLevel;
 import vn.viettel.okrkpi.appraisal.domain.selfassessment.ContentHash;
 import vn.viettel.okrkpi.appraisal.domain.selfassessment.CriteriaLevel;
+import vn.viettel.okrkpi.appraisal.domain.selfassessment.GeneralCriteriaCatalog;
 import vn.viettel.okrkpi.appraisal.domain.selfassessment.SelfAssessmentForm;
 import vn.viettel.okrkpi.appraisal.domain.selfassessment.SelfAssessmentIssue;
 import vn.viettel.okrkpi.appraisal.domain.selfassessment.SelfAssessmentRules;
@@ -59,6 +60,10 @@ public class SelfAssessmentService {
   public static final String FORM_KEY = "MAU_TU_DANH_GIA";
 
   static final String DEFAULT_FORM_VERSION = "1.0";
+
+  /** Giai đoạn tiêu chí chung của phiếu tự đánh giá ({@code general_criteria_result.stage}). */
+  static final String SELF_STAGE = "TU_DANH_GIA";
+
   static final String TABLE = "appraisal.self_assessment.";
   static final String PROPOSAL_REASON = "appraisal.rating_proposal.reason_enc";
 
@@ -360,8 +365,26 @@ public class SelfAssessmentService {
         p,
         stored,
         stored == null ? null : open(tenant, stored),
-        forms.criteria(tenant, p.periodBucket(), p.id()),
+        withDefaultCriteria(forms.criteria(tenant, p.periodBucket(), p.id())),
         forms.trail(tenant, p.periodBucket(), p.id()));
+  }
+
+  /**
+   * Hồ sơ chưa có dòng tiêu chí giai đoạn tự đánh giá thì trả danh mục mặc định chưa đánh dấu, để
+   * phiếu có tiêu chí cho người tự đánh giá chọn (BR-09-05).
+   */
+  static List<CriteriaRow> withDefaultCriteria(List<CriteriaRow> rows) {
+    if (rows.stream().anyMatch(r -> SELF_STAGE.equals(r.stage()))) {
+      return rows;
+    }
+    List<CriteriaRow> out = new ArrayList<>(rows);
+    BigDecimal ratio = CriteriaLevel.ratio(0, GeneralCriteriaCatalog.defaults().size());
+    GeneralCriteriaCatalog.defaults()
+        .keySet()
+        .forEach(
+            code ->
+                out.add(new CriteriaRow(SELF_STAGE, code, ratio, CriteriaLevel.of(ratio), false)));
+    return out;
   }
 
   private ProfileRow load(TenantId tenant, UUID profileId, long expectedVersion) {

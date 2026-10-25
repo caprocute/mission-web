@@ -1,5 +1,5 @@
 import { Page, expect, test } from '@playwright/test';
-import { batCaoTuoi, chiHeThong, dau } from '../ho-tro/kiem-tra';
+import { batCaoTuoi, chiHeThong, dau, tatCaoTuoi } from '../ho-tro/kiem-tra';
 import { HE_THONG, cho, ghiCho } from '../ho-tro/moi-truong';
 import { Phien, TenTaiKhoan, main } from '../ho-tro/phien';
 import { choSuKien, coKafkaUi } from '../ho-tro/su-kien';
@@ -81,6 +81,7 @@ test.describe('QT-09 Tự đánh giá, thẩm định và quyết định xếp 
     let m = main(page);
     await expect(m.getByRole('heading', { level: 1, name: /^Phiếu tự đánh giá/ })).toBeVisible();
     await expect(trangThai(page)).toHaveText(/Đang tự đánh giá/);
+    if (HE_THONG) await tatCaoTuoi(page);
     const nhanXet = m.getByRole('textbox', { name: /^Ưu điểm, hạn chế, hướng khắc phục/ });
     await nhanXet.fill(`Hoàn thành đúng hạn các nhiệm vụ then chốt (lần thử ${dau()}).`);
     await m.getByRole('button', { name: 'Lưu nháp' }).click();

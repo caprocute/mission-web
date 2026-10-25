@@ -18,6 +18,7 @@ import vn.viettel.okrkpi.appraisal.application.selfassessment.port.SelfAssessmen
 import vn.viettel.okrkpi.appraisal.application.selfassessment.port.SelfAssessmentRepository.StoredSelfAssessment;
 import vn.viettel.okrkpi.appraisal.application.selfassessment.port.SelfAssessmentRepository.TrailRow;
 import vn.viettel.okrkpi.appraisal.domain.profile.RatingLevel;
+import vn.viettel.okrkpi.appraisal.domain.selfassessment.GeneralCriteriaCatalog;
 import vn.viettel.okrkpi.appraisal.domain.selfassessment.SelfAssessmentForm;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
@@ -113,7 +114,9 @@ final class AppraisalProfileMapper {
                       new ArrayList<>(),
                       r.ratio(),
                       GeneralCriteriaLevel.fromValue(r.level().name())));
-      stage.getItems().add(new GeneralCriteriaItem(r.code(), r.met()));
+      GeneralCriteriaItem item = new GeneralCriteriaItem(r.code(), r.met());
+      item.setLabel(GeneralCriteriaCatalog.label(r.code()));
+      stage.getItems().add(item);
     }
     return new ArrayList<>(byStage.values());
   }
