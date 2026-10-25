@@ -190,7 +190,6 @@ class StepUpAndPermissionTest {
         Jwt.withTokenValue("tok")
             .header("alg", "RS256")
             .subject("svc-1")
-            .claim("client_id", "analytics-api")
             .claim("azp", "analytics-api")
             .claim("preferred_username", "service-account-analytics-api")
             .claim(
