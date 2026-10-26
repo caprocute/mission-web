@@ -61,9 +61,8 @@ public class AnalyticsConfiguration {
       CubeTokens tokens,
       Clock clock) {
     // Cube giữ mỗi lượt /load tới continueWaitTimeout (mặc định 5 s) rồi mới trả "Continue wait",
-    // nên
-    // hạn đọc 3 s mặc định của REST nội bộ cắt truy vấn chậm thành 503 (HT-39). Hạn đọc riêng bằng
-    // timelimiter của instance cube (10 s); tổng thời gian vẫn chặn bởi cube-timeout.
+    // nên hạn đọc 3 s mặc định của REST nội bộ cắt truy vấn chậm thành 503 (HT-39). Hạn đọc riêng
+    // bằng timelimiter của instance cube (10 s); tổng thời gian vẫn chặn bởi cube-timeout.
     RestClient.Builder builder =
         builders
             .getIfAvailable(RestClient::builder)
