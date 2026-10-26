@@ -1,6 +1,6 @@
 import { Page, expect, test } from '@playwright/test';
 import { batCaoTuoi, chiHeThong, chon, xacThucBuocLen, kiemAxeOnDinh } from '../ho-tro/kiem-tra';
-import { HE_THONG } from '../ho-tro/moi-truong';
+import { HE_THONG, MA_LAN_CHAY } from '../ho-tro/moi-truong';
 import { Phien, main, spaGoto } from '../ho-tro/phien';
 import { SEED, api, kiemMoiTruong, kiemSuKien, timHoacCho } from './chung';
 
@@ -178,7 +178,8 @@ test.describe('QT-14 QT-15 QT-16 Cảnh báo, chính sách và bảng điều h�
     await m.getByRole('link', { name: 'Bảng quyết định' }).click();
     await m
       .getByRole('textbox', { name: 'Dòng 1, lời giải thích' })
-      .fill('Đạt mức cao nhất khi tổng điểm và các điều kiện đều đạt');
+      // Mỗi lần chạy một câu khác để bản nháp luôn có thay đổi (dev giữ bản đã lưu của lần trước)
+      .fill(`Đạt mức cao nhất khi tổng điểm và các điều kiện đều đạt (${MA_LAN_CHAY})`);
     await m.getByRole('button', { name: 'Lưu nháp' }).click();
     await expect(m.getByText('Đã lưu nháp.')).toBeVisible();
 
