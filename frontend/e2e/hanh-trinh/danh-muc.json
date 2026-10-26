@@ -933,7 +933,7 @@
       "scr": ["SCR-1601", "SCR-1602", "SCR-1603"],
       "tacNhan": ["AC-04", "AC-05"],
       "taiKhoan": ["lanhdao", "quanly"],
-      "operationIds": ["queryAnalytics", "createDashboard", "getDashboard", "getTraceChain"],
+      "operationIds": ["queryAnalytics", "listUnitAppraisalResults", "createDashboard", "getDashboard", "getTraceChain"],
       "suKien": [],
       "trangThaiCuoi": [],
       "caPhuDinh": [],

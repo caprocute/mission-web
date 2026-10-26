@@ -1,7 +1,7 @@
 {
   "description": "Bảng chính sách thao tác trích từ mở rộng x-mission trong contracts/openapi/modules/*.yaml (NEN-014). Không sửa tay: chạy tools/extract-x-mission.mjs.",
   "source": "contracts/openapi/modules/*.yaml",
-  "count": 496,
+  "count": 497,
   "aal2Count": 91,
   "fourEyesCount": 19,
   "operations": [
@@ -8025,6 +8025,31 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-02b QT-18 bước 10 (suy luận)"
+    },
+    {
+      "operationId": "listUnitAppraisalResults",
+      "file": "appraisals.yaml",
+      "module": "appraisals",
+      "errorModule": "APPRAISAL",
+      "method": "GET",
+      "path": "/appraisals/unit-results",
+      "owner": "MOD-04",
+      "qt": [
+        "QT-16"
+      ],
+      "scr": [
+        "SCR-1603"
+      ],
+      "roles": [
+        "leader",
+        "manager",
+        "appraiser",
+        "inspector"
+      ],
+      "scope": "Cd (leader, appraiser, inspector); Đv (manager)",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "suy luận từ TL-02 SCR-1603 (đi xuống đơn vị, cán bộ, điểm) và wiki/14 HT-39; TL-03 appraisal_profile.current_snapshot_id, final_rating_code, score_snapshot.total_score, auto_rating_code"
     },
     {
       "operationId": "listUnitTasks",

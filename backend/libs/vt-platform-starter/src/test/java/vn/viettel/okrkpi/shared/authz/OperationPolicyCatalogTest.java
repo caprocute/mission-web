@@ -40,9 +40,9 @@ class OperationPolicyCatalogTest {
     // + đợt gộp 10 + controlPeriodCloseSaga của DV-06-07
     // + sau phát hành + terminateConfigTenant của VH-04 = 481 thao tác; + 8 thao tác quản trị tài
     // khoản của DV-04-09 (org.yaml) + 7 thao tác vai trò tuỳ chỉnh của CORE-08-18 (config.yaml) =
-    // 496.
-    assertThat(catalog.size()).isEqualTo(496);
-    assertThat(catalog.all()).hasSize(496);
+    // 496; + listUnitAppraisalResults (AP-09, HT-39) = 497.
+    assertThat(catalog.size()).isEqualTo(497);
+    assertThat(catalog.all()).hasSize(497);
 
     List<OperationPolicy> aal2 = catalog.aal2Operations();
     // 54 thao tác AAL2 gốc + 7 thao tác của WEB-058 + 12 thao tác của NEN-042/043 + 1 thao tác

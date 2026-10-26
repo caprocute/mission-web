@@ -191,6 +191,41 @@ describe('UnitDrillPage và TracePage (SCR-1603)', () => {
     expect(text(el)).not.toMatch(TECH);
   });
 
+  it('đơn vị có mã và kỳ: bảng kết quả từng cán bộ, liên kết tới chuỗi truy vết của điểm', async () => {
+    const el = await render(UnitDrillPage, {
+      id: 'u-vp',
+      name: 'Văn phòng Đảng uỷ',
+      period: 'p-2026q4',
+    });
+    await until(el, 'table.people tbody', (b) => b.querySelectorAll('tr').length === 3);
+    expect([...el.querySelectorAll('.kpi')].map(text)[0]).toBe('Điểm KPI trung bình80,6');
+    const rows = [...el.querySelectorAll('table.people tbody tr')];
+    expect(text(rows[0])).toContain('Lê Thu Trang');
+    expect(text(rows[0])).toContain('82,5');
+    expect(text(rows[0])).toContain('Hoàn thành nhiệm vụ (hệ thống gợi ý)');
+    expect(text(rows[0])).toContain('Chờ quyết định');
+    const links = [...el.querySelectorAll('table.people a')];
+    expect(links.map(text)).toEqual([
+      'Xem chuỗi truy vết của Lê Thu Trang',
+      'Xem chuỗi truy vết của Mai Xuân Phúc',
+      'Xem chuỗi truy vết của Cao Thị Yến',
+    ]);
+    expect(links[0].getAttribute('href')).toBe('/dashboard/trace/DIEM/ss-2026q4-le-thu-trang');
+    expect(text(el)).not.toContain('Bảng điều hành chỉ có số liệu tổng hợp của đơn vị.');
+    expect(text(el)).not.toMatch(TECH);
+  });
+
+  it('đơn vị: không có quyền xem chuỗi truy vết thì không gọi danh sách cán bộ', async () => {
+    const el = await render(
+      UnitDrillPage,
+      { id: 'u-vp', name: 'Văn phòng Đảng uỷ', period: 'p-2026q4' },
+      (k) => k !== 'SCR-1603.xem',
+    );
+    await until(el, '.kpi', has('Điểm KPI trung bình'));
+    expect(el.querySelector('table.people')).toBeNull();
+    expect(el.querySelector('a[href*="trace"]')).toBeNull();
+  });
+
   it('chuỗi tám mắt xích; minh chứng có phiên bản và thông báo phiên bản được tính điểm', async () => {
     const el = await render(TracePage, { objectType: 'MINH_CHUNG', id: 'mc-2026q4-bc-so-ket' });
     await until(el, '.chain li');

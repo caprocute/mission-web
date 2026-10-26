@@ -4700,10 +4700,10 @@
     "AC-11": "-",
     "AC-12": "-"
    },
-   "api": "`GET /api/v1/analytics/trace/{objectType}/{id}`",
+   "api": "`GET /api/v1/analytics/trace/{objectType}/{id}`, `GET /api/v1/appraisals/unit-results`",
    "rang_buoc": "Mỗi mắt xích kiểm quyền riêng; MSG-16-06",
    "nguon": "SCR-1603",
-   "ghi_chu": ""
+   "ghi_chu": "Bổ sung 26/10/2026 (HT-39, wiki/14): bước đơn vị liệt kê kết quả đánh giá từng cán bộ qua `listUnitAppraisalResults` (suy luận)."
   },
   {
    "qt": "QT-16",
