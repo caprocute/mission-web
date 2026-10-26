@@ -2,7 +2,7 @@ import { Request, expect, test } from '@playwright/test';
 import { batCaoTuoi, chiHeThong, xacThucBuocLen, kiemAxeOnDinh } from '../ho-tro/kiem-tra';
 import { HE_THONG, cho } from '../ho-tro/moi-truong';
 import { Phien, main, spaGoto } from '../ho-tro/phien';
-import { SEED, api, kiemMoiTruong, kiemSuKien } from './chung';
+import { SEED, Trang, api, kiemMoiTruong, kiemSuKien } from './chung';
 
 /**
  * QT-17 Trợ lý AI chỉ đọc (SCR-1701), QT-18 UI Pack và biểu mẫu động (SCR-1801, SCR-1802) →
@@ -19,6 +19,14 @@ import { SEED, api, kiemMoiTruong, kiemSuKien } from './chung';
  * giả lập kiểm phiên bản đang áp dụng đổi sang 1.8 trong cùng phiên.
  */
 const GHI_OKR = /\/api\/v1\/okr\/objectives/;
+/** Trạng thái của bản đang trong vòng soạn, duyệt (`UiPackVersionStatus`, `config.yaml`). */
+const DANG_SOAN = ['NHAP', 'DANG_KIEM_TRA', 'CHO_DUYET'];
+
+interface PhienBanUi {
+  version: string;
+  status: string;
+  createdBy?: { id: string };
+}
 
 test.describe('QT-17 QT-18 Trợ lý AI và giao diện đơn vị', { tag: '@qa-07' }, () => {
   let s: Phien;
@@ -115,14 +123,55 @@ test.describe('QT-17 QT-18 Trợ lý AI và giao diện đơn vị', { tag: '@qa
   test('HT-41 QT-18 soạn, xem trước và phát hành UI Pack cùng biểu mẫu động', async () => {
     test.setTimeout(HE_THONG ? 600_000 : 90_000);
     if (HE_THONG) {
-      // Bản nháp UI Pack do `quantri` soạn và bộ biểu mẫu của tenant thử chưa có trong seed (DL-07)
+      // Trên server dev không có sẵn bản nháp như kho giả lập: seed `data/seed/ui-pack/nap_ui_pack.py`
+      // để bản 1.0 ở chờ duyệt hoặc đã phát hành, mỗi lần chạy trọn vẹn phát hành bản nháp của mình, lần
+      // chạy dừng giữa chừng để lại bản chờ duyệt. Đọc bản đang trong vòng soạn, duyệt để đưa về nháp.
       const a = await api(s, 'quantri');
+      let dang: PhienBanUi | undefined;
       try {
-        const r = await a.goi<{ items: unknown[] }>('GET', 'ui/packs');
+        const r = await a.goi<Trang<{ id: string }>>('GET', 'ui/packs');
         if (r.status !== 200 || !r.body.items?.length)
           cho('tenant thử chưa có UI Pack trong seed cấu hình (DL-07)');
+        const goiId = r.body.items[0].id;
+        const dangSoan = async () =>
+          (
+            await a.can<Trang<PhienBanUi>>('GET', `ui/packs/${goiId}/versions`, {
+              query: { limit: '50' },
+            })
+          ).body.items.find((v) => DANG_SOAN.includes(v.status));
+        dang = await dangSoan();
+        if (dang?.status === 'DANG_KIEM_TRA') {
+          // Kiểm tra tự động của lần chạy trước có thể còn đang chạy; chờ nó kết thúc
+          await expect
+            .poll(async () => (dang = await dangSoan())?.status, {
+              timeout: 60_000,
+              message: 'bản giao diện của lần chạy trước kẹt ở trạng thái đang kiểm tra tự động',
+            })
+            .not.toBe('DANG_KIEM_TRA');
+        }
       } finally {
         await a.dong();
+      }
+      if (dang && dang.createdBy?.id === (await s.danhTinh('quantri2')).sub)
+        cho(
+          `bản ${dang.version} do quantri2 soạn nên quantri2 không duyệt được (bốn mắt); cần quản trị khác trả về hoặc phát hành`,
+        );
+      if (dang?.status === 'CHO_DUYET') {
+        // Bản chờ duyệt còn lại của lần chạy trước: quản trị thứ hai trả về nháp (xác thực nhiều lớp)
+        const p2 = await s.trang('quantri2', '/config-studio/giao-dien');
+        const m2 = main(p2);
+        await m2.getByRole('button', { name: 'Từ chối' }).click();
+        const hop = p2.getByRole('dialog', { name: 'Từ chối phiên bản giao diện' });
+        await hop
+          .getByRole('textbox', { name: /^Ý kiến/ })
+          .fill('Trả về để chạy lại hành trình HT-41.');
+        await hop.getByRole('button', { name: 'Từ chối' }).click();
+        await xacThucBuocLen(
+          p2,
+          'quantri2',
+          m2.getByRole('status').filter({ hasText: /^Đã trả bản .+ về cho người soạn\.$/ }),
+          false,
+        );
       }
     }
 
@@ -131,11 +180,25 @@ test.describe('QT-17 QT-18 Trợ lý AI và giao diện đơn vị', { tag: '@qa
     await batCaoTuoi(page);
     let m = main(page);
     await expect(m.getByRole('heading', { level: 1, name: 'Giao diện đơn vị' })).toBeVisible();
+    // Chưa có bản nháp (bản trước đã phát hành) thì tạo từ bản đang dùng, như người dùng thật
+    const chip = m.getByTestId('pack-bar').locator('.chip[data-status]');
+    const taoNhap = m.getByRole('button', { name: 'Tạo bản nháp từ bản đang dùng' });
+    await expect(chip.or(taoNhap).first()).toBeVisible();
+    if (await taoNhap.isVisible()) await chip.waitFor({ timeout: 3_000 }).catch(() => undefined);
+    if (await taoNhap.isVisible()) {
+      await taoNhap.click();
+      await expect(
+        m.getByRole('status').filter({ hasText: /^Đã tạo bản nháp .+ từ bản đang dùng\.$/ }),
+      ).toBeVisible();
+    }
+    await expect(chip, 'phải có bản nháp để soạn').toHaveText(/ · Bản nháp\s*$/);
     await kiemAxeOnDinh(page, 'giao diện đơn vị, chế độ cao tuổi');
     const nhap = m.getByRole('button', { name: /^Gửi duyệt bản / });
     const ban = (await nhap.innerText()).replace('Gửi duyệt bản', '').trim();
+    // Bản nháp nhân bản từ bản lần trước đã phát hành có thể đã bo góc 10: đổi sang giá trị khác để có
+    // thay đổi cần lưu (không đổi thì nút "Lưu nháp" không bật)
     const boGoc = m.getByRole('spinbutton', { name: 'Bo góc thẻ' });
-    await boGoc.fill('10');
+    await boGoc.fill((await boGoc.inputValue()) === '10' ? '12' : '10');
     await boGoc.press('Tab');
     await m.getByRole('button', { name: 'Lưu nháp' }).click();
     await expect(m.getByRole('status').filter({ hasText: 'Đã lưu bản nháp.' })).toBeVisible();
