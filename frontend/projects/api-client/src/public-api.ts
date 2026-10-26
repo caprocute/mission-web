@@ -12,6 +12,7 @@ export * from './lib/cell-router';
 export * from './lib/feature-flags';
 export * from './lib/my-custom-roles';
 export * from './lib/api-path';
+export * from './lib/legal-ref';
 export * from './lib/models/task';
 export * from './lib/models/job';
 export * from './lib/task-api';

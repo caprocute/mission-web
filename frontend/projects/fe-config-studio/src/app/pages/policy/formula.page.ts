@@ -1,7 +1,7 @@
 import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { fieldErrors, toProblem } from '@vt/api-client';
+import { LegalRefPipe, fieldErrors, toProblem } from '@vt/api-client';
 import {
   DAY_KIND_LABEL,
   POLICY_VERSION_STATUS_LABEL,
@@ -53,6 +53,7 @@ const GROUP_TOTAL_NHA_NUOC = 70;
     PolicyDiffDialog,
     PolicyExpressionsDialog,
     PolicySubmitDialog,
+    LegalRefPipe,
   ],
   template: `
     <div class="toolbar">
@@ -128,8 +129,8 @@ const GROUP_TOTAL_NHA_NUOC = 70;
       <section class="card" aria-labelledby="h-kpi">
         <div class="card-head">
           <h2 id="h-kpi">Công thức điểm KPI của nhiệm vụ</h2>
-          @if (kpi.legalRef) {
-            <span class="tag">{{ kpi.legalRef }}</span>
+          @if (kpi.legalRef | legalRef; as lr) {
+            <span class="tag">{{ lr }}</span>
           }
         </div>
         <p class="strip" data-testid="kpi-strip">

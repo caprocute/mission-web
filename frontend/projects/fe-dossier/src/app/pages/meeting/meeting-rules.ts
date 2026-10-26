@@ -1,5 +1,11 @@
-import { CONFLICT_TITLE, ProblemDetails } from '@vt/api-client';
-import { DossierDeadlineCheck, DossierMeeting, DossierParticipantStatus, DossierVote, RatingLevel } from '@vt/api-client/domains';
+import { CONFLICT_TITLE, ProblemDetails, legalRefText } from '@vt/api-client';
+import {
+  DossierDeadlineCheck,
+  DossierMeeting,
+  DossierParticipantStatus,
+  DossierVote,
+  RatingLevel,
+} from '@vt/api-client/domains';
 import { DossierPermissionKey } from '../../dossier-permissions';
 
 /**
@@ -39,11 +45,14 @@ const pad = (n: number) => String(n).padStart(2, '0');
 /** Số ngày làm việc tối thiểu viết hai chữ số như văn bản quy định ("03 ngày làm việc"). */
 export const requiredDays = (c: DossierDeadlineCheck) => pad(c.requiredWorkingDays);
 
+/** Căn cứ của thời hạn gửi dự thảo, đã bỏ mã nội bộ; mặc định Điều 6 của quy định. */
+const deadlineRef = (c: DossierDeadlineCheck) => legalRefText(c.legalRef) || 'QĐ Điều 6';
+
 /** MSG-11-01 khi thời hạn gửi dự thảo không đạt. */
 export function msg1101(c: DossierDeadlineCheck): string {
   return (
     `Dự thảo được gửi ${c.workingDays ?? 0} ngày làm việc trước hội nghị, chưa đủ ` +
-    `${requiredDays(c)} ngày theo ${c.legalRef ?? 'QĐ Điều 6'}. Đề nghị dời ngày hội nghị hoặc ghi lý do ` +
+    `${requiredDays(c)} ngày theo ${deadlineRef(c)}. Đề nghị dời ngày hội nghị hoặc ghi lý do ` +
     'được cấp uỷ chấp thuận.'
   );
 }
@@ -54,7 +63,7 @@ export const MSG_11_03 =
 
 /** Kết luận của thẻ "Kiểm tra thời hạn gửi dự thảo" khi đạt. */
 export function deadlinePassedText(c: DossierDeadlineCheck): string {
-  return `Đạt yêu cầu ≥ ${requiredDays(c)} ngày làm việc (${c.legalRef ?? 'QĐ Điều 6'})`;
+  return `Đạt yêu cầu ≥ ${requiredDays(c)} ngày làm việc (${deadlineRef(c)})`;
 }
 
 /** Người được tính là có mặt trên thẻ thành phần (chưa điểm danh thì mọi người trừ vắng có lý do). */

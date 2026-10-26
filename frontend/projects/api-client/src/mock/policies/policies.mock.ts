@@ -165,7 +165,8 @@ function rulesFor(slowVar: string, dayKind: string): Omit<PolicyRule, 'id'>[] {
       expression:
         'nguoi_dung_dau && (tap_the.khong_dat_05_chi_tieu || tap_the.khong_dat_tat_ca_0 || ty_le_don_vi_KHTNV > 0.5) ? "KHTNV" : muc_cuoi',
       resultType: 'STRING',
-      legalRef: 'QĐ khoản 14.3.3',
+      // ui-text-ok: mã quy tắc kèm như dữ liệu thật; giao diện lọc bằng legalRefText
+      legalRef: 'QĐ khoản 14.3.3; BR-09-13',
       evalOrder: 60,
       overridable: false,
       rowVersion: 1,
@@ -177,7 +178,8 @@ function xepLoai(): Omit<DecisionTable, 'id'> {
   return {
     tableKey: 'xep_loai',
     hitPolicy: 'FIRST',
-    legalRef: 'QĐ Điều 11; PL 6 §12',
+    // ui-text-ok: mã quy tắc kèm như dữ liệu thật; giao diện lọc bằng legalRefText
+    legalRef: 'QĐ Điều 11; PL 6 §12; BR-09-10',
     inputs: [
       { name: 'diem', label: 'Điểm', type: 'number' },
       { name: 'ty_le_O', label: 'Tỷ lệ mục tiêu đạt', type: 'number' },

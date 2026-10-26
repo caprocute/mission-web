@@ -59,10 +59,38 @@ const ENUM_WORDS = (() => {
   return [...set];
 })();
 
+/**
+ * Tiền tố mã thiết kế nội bộ (màn hình, quy trình, quy tắc nghiệp vụ, thông điệp, yêu cầu…). Hàm
+ * `legalRefText` của `@vt/api-client` lọc các mã này khỏi trường căn cứ đến từ dữ liệu, với danh sách
+ * `INTERNAL_CODE_PREFIXES` phải trùng danh sách này (`check.mjs` kiểm).
+ */
+export const DESIGN_CODE_PREFIXES = [
+  'SCR',
+  'QT',
+  'BR',
+  'MSG',
+  'ADR',
+  'EVT',
+  'MOD',
+  'SVC',
+  'NFR',
+  'SEC',
+  'OPS',
+  'PERF',
+  'DR',
+  'AC',
+  'TL',
+  'WEB',
+  'BS',
+  'YC',
+  'TASK',
+  'DV',
+];
+
 export const RULES = [
   {
     id: 'ma-thiet-ke',
-    re: /\b(SCR|QT|BR|MSG|ADR|EVT|MOD|SVC|NFR|SEC|OPS|PERF|DR|AC|TL|WEB|BS|YC)-\d[\w.-]*/,
+    re: new RegExp(`\\b(${DESIGN_CODE_PREFIXES.join('|')})-([A-Z]{1,4}-)?\\d[\\w.-]*`),
     sentenceOnly: true,
     hint: 'Bỏ mã thiết kế khỏi văn bản hiển thị; giữ trong chú thích mã nguồn hoặc thuộc tính data-*.',
   },
