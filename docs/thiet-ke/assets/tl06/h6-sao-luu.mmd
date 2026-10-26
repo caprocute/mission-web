@@ -1,34 +1,21 @@
 %%{init: {"themeVariables":{"fontSize":"20px"}}}%%
 flowchart LR
-  subgraph DATA["VM-DATA"]
-    M[("MariaDB")]
-    MI[("MinIO minh chứng")]
-    BI["binlog"]
+  subgraph PD["Pool dữ liệu"]
+    M[("MariaDB primary + 2 replica")]
+    K[["Kafka 3 broker"]]
+    OB["OpenBao 3 nút raft"]
+    CH[("ClickHouse 2 replica")]
+    OS[("OpenSearch 3 nút")]
   end
-  subgraph APP["VM-APP"]
-    OB["OpenBao<br/>(raft snapshot)"]
-    CF["Tệp cấu hình, .env,<br/>khoá TLS (đã mã hoá)"]
+  subgraph PA["Pool ứng dụng"]
+    V["Velero"]
+    AR["Argo CD + kho Git cấu hình"]
   end
-  subgraph OPS["VM-OPS – tác vụ sao lưu (cron + restic)"]
-    F["mariabackup đầy đủ<br/>01:00 hằng ngày"]
-    I["mariabackup gia tăng<br/>mỗi 4 giờ"]
-    BL["đẩy binlog<br/>mỗi 5 phút"]
-    MM["mc mirror<br/>mỗi 15 phút"]
-    SN["bao operator raft<br/>snapshot hằng ngày"]
-  end
-  S3[("Object Storage<br/>bucket sao lưu<br/>khoá phiên bản + vòng đời")]
-  SNP["Snapshot đĩa VM<br/>hằng ngày, giữ 7 bản"]
-  M --> F
-  M --> I
-  BI --> BL
-  MI --> MM
-  OB --> SN
-  CF --> SN
-  F -->|mã hoá AES-256| S3
-  I --> S3
-  BL --> S3
-  MM --> S3
-  SN --> S3
-  DATA -.-> SNP
-  APP -.-> SNP
-  OPS -.-> SNP
+  M -->|"mariadb-operator Backup:<br/>mariabackup đầy đủ 01:00,<br/>gia tăng 4 giờ"| S3
+  M -->|"binlog liên tục, 5 phút"| S3
+  OB -->|raft snapshot hằng ngày| S3
+  CH -.->|"dựng lại từ CDC<br/>(không sao lưu riêng)"| K
+  OS -.->|lập chỉ mục lại| M
+  V -->|"manifest, Secret mã hoá,<br/>PV cấu hình hằng ngày"| S3
+  AR -->|Git là nguồn sự thật| GIT[("Kho Git ngoài cụm")]
+  S3[("Object Storage<br/>bucket sao lưu có khoá phiên bản")] -->|"bản sao hằng tuần"| OFF[("Kho ngoài nhà cung cấp<br/>hoặc vùng thứ hai")]

@@ -3,12 +3,12 @@ sequenceDiagram
   autonumber
   participant B as Trình duyệt
   participant L as Load Balancer
-  participant G as APISIX
+  participant G as APISIX (1 trong 2 pod)
   participant K as Keycloak
   participant W as web (nginx)
-  participant C as mission-core
+  participant C as mission-core (1 trong 2 pod)
   participant P as OPA
-  participant M as MariaDB
+  participant M as MariaDB (primary)
   B->>L: GET / (HTTPS)
   L->>G: chuyển tiếp
   G->>W: tuyến web /*

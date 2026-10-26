@@ -1,30 +1,30 @@
 %%{init: {"themeVariables":{"fontSize":"20px"}}}%%
 flowchart TB
   INET(("Internet"))
-  subgraph VPC["VPC 10.20.0.0/16"]
-    LB["Load Balancer công khai<br/>IP public · TLS 1.2/1.3"]
-    NAT["NAT Gateway<br/>(chỉ chiều ra)"]
+  subgraph VPC["VPC 10.30.0.0/16"]
+    LB["Load Balancer công khai · TLS 1.2/1.3"]
+    NAT["NAT Gateway (chỉ chiều ra)"]
     subgraph S0["Subnet quản trị"]
-      B["VM-BASTION 10.20.0.10<br/>SG-BASTION · IP public"]
+      O["VM-OPS 10.30.0.10<br/>SG-OPS · IP public"]
     end
     subgraph S1["Subnet ứng dụng"]
-      A["VM-APP 10.20.1.10<br/>SG-APP"]
+      A["app-1..3 10.30.1.11-13<br/>SG-APP"]
     end
     subgraph S2["Subnet dữ liệu"]
-      D["VM-DATA 10.20.2.10<br/>SG-DATA"]
-      O["VM-OPS 10.20.2.20<br/>SG-OPS"]
+      D["data-1..3 10.30.2.11-13<br/>SG-DATA"]
+    end
+    subgraph S3["Subnet staging"]
+      T["VM-STAGING 10.30.3.10<br/>SG-STG"]
     end
   end
-  INET -->|443| LB -->|8443 từ LB| A
-  INET -->|51820 UDP<br/>chỉ dải IP của đơn vị| B
-  B -->|22| A
-  B -->|22| D
-  B -->|22, 3000| O
-  A -->|3306, 9092, 6379,<br/>9200, 9000, 8123, 4000| D
-  A -->|4317/4318 OTLP| O
-  O -->|9100, 9104, 9308 scrape| D
-  O -->|9100, 8081 scrape| A
-  O -->|3306 sao lưu| D
+  INET -->|443| LB -->|8443| A
+  INET -->|UDP 51820, chỉ IP đơn vị| O
+  O -->|6443 API, 22| A
+  O -->|22| D
+  O -->|22, 443| T
+  A <-->|"CNI Canal: VXLAN 8472,<br/>kubelet 10250, etcd 2379-2380"| D
+  A -->|"3306, 6379, 26379, 9092,<br/>9200, 8123, 4000, 8200"| D
   A --> NAT
-  O --> NAT
+  D --> NAT
+  T --> NAT
   NAT --> INET

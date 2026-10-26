@@ -1,0 +1,15 @@
+%%{init: {"themeVariables":{"fontSize":"20px"}}}%%
+flowchart TB
+  X["Node data-1 (đang giữ MariaDB primary) hỏng"] --> D1["mariadb-operator phát hiện primary mất<br/>sau khoảng 10 đến 30 giây"]
+  D1 --> D2["Chọn replica có GTID mới nhất<br/>(semi-sync nên không mất giao dịch đã xác nhận)"]
+  D2 --> D3["Đổi Service «mariadb-primary» sang replica mới;<br/>replica còn lại theo primary mới"]
+  D3 --> D4["Pool HikariCP kết nối lại; giao dịch đang dở<br/>bị huỷ, client thử lại nhờ Idempotency-Key"]
+  D3 --> D5["Debezium tiếp tục từ vị trí GTID trên primary mới"]
+  X --> K1["Kafka: leader phân vùng chuyển sang 2 broker còn lại<br/>(min.insync.replicas = 2 vẫn ghi được)"]
+  X --> V1["Valkey Sentinel bầu primary mới"]
+  X --> O1["OpenSearch, OpenBao, ClickHouse Keeper<br/>còn 2/3 nút, vẫn đủ đa số"]
+  D4 --> R["Dịch vụ tiếp tục, RPO ≈ 0, RTO ≤ 5 phút;<br/>đội vận hành thay node, operator dựng lại bản sao thứ ba"]
+  D5 --> R
+  K1 --> R
+  V1 --> R
+  O1 --> R

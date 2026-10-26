@@ -1,0 +1,26 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;background:#fff;font-family:Inter,"DejaVu Sans",sans-serif;color:#1F2329}
+#f{display:inline-block;padding:18px;width:1560px}
+.row{display:flex;gap:16px}
+.pool{flex:1;border:2px solid #C9CDD2;border-radius:10px;background:#FAFAFB;padding:10px 12px}
+.pool h2{margin:0 0 4px;font-size:18px}.sub{font-size:13px;color:#5B6168;margin-bottom:8px}
+h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:#5B6168;margin:8px 0 5px}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.c{border:1.5px solid #EE0033;background:#FDE8EC;border-radius:6px;padding:4px 7px;font-size:12.5px;line-height:1.3}
+.c b{display:block;font-size:13px}.c span{color:#5B6168;font-size:12px}
+.c.g{background:#F2F4F7;border-color:#5B6168}.c.b{background:#EAF2FF;border-color:#2F6FEB;border-radius:12px}
+.nodes{display:flex;gap:8px}.node{flex:1;border:1px dashed #8A9099;border-radius:8px;background:#fff;padding:6px}
+.node h4{margin:0 0 5px;font-size:14px}
+.foot{font-size:13px;color:#5B6168;margin-top:8px}
+</style></head><body><div id="f" data-shot><div class="row">
+<div class="pool" style="flex:1.25"><h2>Pool ứng dụng · app-1, app-2, app-3</h2>
+<div class="sub">Mỗi Deployment có 2 bản sao, rải trên 2 node khác nhau (topologySpreadConstraints) và PodDisruptionBudget minAvailable 1. Số bên dưới là giới hạn bộ nhớ của một bản sao.</div>
+<h3>Ứng dụng nghiệp vụ</h3><div class="chips"><div class="c "><b>apisix ×2</b><span>0,5 GB</span></div><div class="c "><b>web nginx ×2</b><span>0,1 GB</span></div><div class="c "><b>keycloak ×2</b><span>1,5 GB</span></div><div class="c "><b>mission-core ×2</b><span>2 GB</span></div><div class="c "><b>org-service ×2</b><span>0,75 GB</span></div><div class="c "><b>workflow-service ×2</b><span>1 GB</span></div><div class="c "><b>scoring-service ×2</b><span>0,75 GB</span></div><div class="c "><b>document-service ×2</b><span>1 GB</span></div><div class="c "><b>evidence-service ×2</b><span>0,75 GB</span></div><div class="c "><b>esign-service ×2</b><span>0,75 GB</span></div><div class="c "><b>integration-gateway ×2</b><span>0,75 GB</span></div><div class="c "><b>analytics-api ×2</b><span>0,75 GB</span></div><div class="c "><b>search ×2</b><span>0,75 GB</span></div><div class="c "><b>tenant-registry ×2</b><span>0,1 GB</span></div><div class="c "><b>ledger-service ×2</b><span>0,25 GB</span></div><div class="c "><b>notification-service ×2</b><span>0,25 GB</span></div><div class="c "><b>gotenberg ×2</b><span>1 GB</span></div><div class="c "><b>clamd ×2</b><span>2 GB</span></div><div class="c "><b>cel-js-runner ×2</b><span>0,25 GB</span></div><div class="c "><b>cube ×2</b><span>0,5 GB</span></div></div>
+<h3>Nền tảng của cụm</h3><div class="chips"><div class="c g"><b>OPA sidecar trong mỗi pod nghiệp vụ</b><span>0,1 GB/pod</span></div><div class="c g"><b>Argo CD</b><span>1,5 GB</span></div><div class="c g"><b>Prometheus, Alertmanager</b><span>4,5 GB</span></div><div class="c g"><b>Loki (lưu S3), Grafana</b><span>2,5 GB</span></div><div class="c g"><b>OTel Collector, Fluent Bit (DaemonSet)</b><span>0,4 GB/node</span></div><div class="c g"><b>cert-manager, Kyverno, Velero</b><span>1,8 GB</span></div><div class="c g"><b>RKE2: etcd, apiserver, kubelet, Canal, CoreDNS</b><span>≈ 2 GB/node</span></div></div>
+<div class="foot">Tổng ≈ 52 GB trên 96 GB của 3 node. Khi mất 1 node còn 64 GB, vẫn chứa đủ toàn bộ pod với dư địa ≈ 20%.</div></div>
+<div class="pool"><h2>Pool dữ liệu · data-1, data-2, data-3</h2>
+<div class="sub">StatefulSet do operator quản lý, mỗi node một bản sao (anti-affinity bắt buộc), ổ SSD 200 GB gắn cục bộ.</div>
+<h3>Có trên cả 3 node</h3><div class="chips"><div class="c b"><b>MariaDB (primary hoặc replica)</b><span>6 GB · buffer pool 4 GB</span></div><div class="c b"><b>Kafka KRaft (broker + controller)</b><span>3 GB · heap 1 GB</span></div><div class="c b"><b>OpenSearch (manager + data)</b><span>3 GB · heap 1,5 GB</span></div><div class="c b"><b>ClickHouse Keeper</b><span>0,5 GB</span></div><div class="c b"><b>Valkey + Sentinel</b><span>0,6 GB</span></div><div class="c b"><b>OpenBao (raft)</b><span>0,5 GB</span></div><div class="c b"><b>RKE2 agent, exporter, Fluent Bit</b><span>1,8 GB</span></div></div>
+<h3>Riêng từng node</h3><div class="nodes"><div class="node"><h4>data-1</h4><div class="chips"><div class="c b"><b>ClickHouse replica 1</b><span>3 GB</span></div><div class="c b"><b>Debezium Connect worker 1</b><span>1,5 GB</span></div></div></div><div class="node"><h4>data-2</h4><div class="chips"><div class="c b"><b>ClickHouse replica 2</b><span>3 GB</span></div><div class="c b"><b>Debezium Connect worker 2</b><span>1,5 GB</span></div></div></div><div class="node"><h4>data-3</h4><div class="chips"><div class="c b"><b>Cube refresh worker</b><span>0,5 GB</span></div><div class="c b"><b>dự phòng cho bản sao dựng lại</b><span>—</span></div></div></div></div>
+<div class="foot">≈ 20 GB mỗi node trên 32 GB; phần còn lại là page cache cho Kafka, OpenSearch và InnoDB. MariaDB: 1 primary + 2 replica bán đồng bộ; Kafka RF 3, min.insync 2; OpenSearch 1 bản sao shard.</div></div>
+</div></div></body></html>

@@ -1,10 +1,10 @@
 %%{init: {"themeVariables":{"fontSize":"20px"}}}%%
-flowchart LR
+flowchart TB
   subgraph W["Ghi đồng bộ"]
     C["mission-core / service"] -->|1 giao dịch| T[("Bảng nghiệp vụ<br/>+ outbox_event")]
   end
-  T -->|binlog ROW| D["Debezium<br/>MariaDB connector<br/>+ Outbox EventRouter"]
-  D -->|CloudEvents| K[["Kafka<br/>topic theo EVT"]]
+  T -->|binlog ROW| D["Debezium (2 worker)<br/>MariaDB connector<br/>đọc binlog của primary<br/>+ Outbox EventRouter"]
+  D -->|CloudEvents| K[["Kafka 3 broker<br/>topic theo EVT, RF=3"]]
   K --> S["scoring-service<br/>tính điểm dần"]
   K --> L["ledger-service<br/>sổ cái chuỗi băm"]
   K --> N["notification-service<br/>thông báo, SSE"]

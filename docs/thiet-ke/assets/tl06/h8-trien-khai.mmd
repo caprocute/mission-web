@@ -1,9 +1,13 @@
 %%{init: {"themeVariables":{"fontSize":"20px"}}}%%
-flowchart LR
-  G["GitHub main<br/>gắn thẻ phát hành"] --> J["Jenkins / CI<br/>build + test + quét"]
-  J --> R["Kho ảnh (Harbor hoặc<br/>Viettel Container Registry)<br/>ảnh ký cosign"]
-  R -->|docker compose pull| A["VM-APP"]
-  R -->|docker compose pull| D["VM-DATA"]
-  J --> P["Gói phát hành:<br/>compose + .env.example<br/>+ migration Flyway"]
-  P -->|scp qua bastion| A
-  A --> F["Flyway migrate<br/>(tài khoản mig_*)"] --> H["health.sh + smoke"]
+flowchart TB
+  subgraph X["Dựng và ký ảnh"]
+    direction LR
+    G["GitHub:<br/>thẻ phát hành"] --> J["Jenkins: build, test,<br/>quét lỗ hổng, ký cosign"] --> R["Harbor trên VM-OPS<br/>(sao chép ảnh đã ký)"]
+    J --> C["Kho Git cấu hình:<br/>vt-platform, values-private,<br/>values-sizing-mini"]
+  end
+  subgraph Y["Đồng bộ qua Argo CD"]
+    direction LR
+    S["VM-STAGING<br/>kiểm thử hành trình"] -->|"đạt + hai người duyệt"| P["Cụm production"] --> F["Job Flyway (mig_*)<br/>rồi cập nhật cuốn chiếu,<br/>PDB ≥ 1"] --> H["Smoke test<br/>+ theo dõi cảnh báo"]
+  end
+  C --> S
+  R --> S

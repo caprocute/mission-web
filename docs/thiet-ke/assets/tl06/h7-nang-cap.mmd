@@ -1,6 +1,8 @@
-%%{init: {"themeVariables":{"fontSize":"20px"}}}%%
-flowchart LR
-  A["Tối thiểu (TL-06)<br/>≤ 2.000 tài khoản<br/>3 VM + bastion<br/>MariaDB đơn"] -->|"Bước 1: > 300 CCU<br/>hoặc cần sẵn sàng cao"| B["Tối thiểu HA<br/>thêm VM-APP thứ 2<br/>MariaDB bản sao bán đồng bộ<br/>Kafka 3 broker"]
-  B -->|"Bước 2: > 10.000 tài khoản<br/>hoặc nhiều đơn vị"| C["compact (TL-05)<br/>3 node Kubernetes hội tụ<br/>Helm chart vt-service"]
-  C -->|"Bước 3: > 50.000 tài khoản"| D["Hồ sơ S, M, L<br/>đủ node pool, nhiều vùng sự cố"]
-  D -->|"Bước 4: > 1,5 triệu tài khoản"| E["Nhiều cell<br/>QM-3 → QM-5"]
+%%{init: {"themeVariables":{"fontSize":"20px"},"flowchart":{"wrappingWidth":900}}}%%
+flowchart TB
+  A["<b>TL-06 production</b><br/>100 đến 2.000 tài khoản · 3 node ứng dụng + 3 node dữ liệu · MariaDB primary + 2 replica"]
+  B["<b>Bước 1</b> · khi vượt 2.000 tài khoản hoặc CPU giờ cao điểm > 60%<br/>Thêm node, nâng maxReplicas, không đổi kiến trúc"]
+  C["<b>Bước 2</b> · khi nhiều đơn vị dùng chung hoặc vượt 10.000 tài khoản<br/>Hồ sơ compact của TL-05, quay về PostgreSQL có RLS"]
+  D["<b>Bước 3</b> · khi vượt 50.000 tài khoản<br/>Hồ sơ S, M, L của TL-05"]
+  E["<b>Bước 4</b> · khi vượt 1,5 triệu tài khoản<br/>Nhiều cell, bậc QM-3 đến QM-5"]
+  A --> B --> C --> D --> E
