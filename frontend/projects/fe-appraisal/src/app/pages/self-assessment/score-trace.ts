@@ -1,4 +1,5 @@
 import { Component, ElementRef, afterNextRender, input, output, viewChild } from '@angular/core';
+import { LegalRefPipe } from '@vt/api-client';
 import { AppraisalScoreTrace, AppraisalScoreTraceStep } from '@vt/api-client/domains';
 import { VtSkeletonComponent } from '@vt/design-system';
 
@@ -15,7 +16,7 @@ const RULE: Record<string, string> = {
  */
 @Component({
   selector: 'vt-score-trace',
-  imports: [VtSkeletonComponent],
+  imports: [VtSkeletonComponent, LegalRefPipe],
   template: `
     @let t = trace();
     <div
@@ -51,8 +52,8 @@ const RULE: Record<string, string> = {
               @if (s.inputs['nguon']) {
                 <p class="src">Nguồn: {{ s.inputs['nguon'] }}</p>
               }
-              @if (s.legalRef) {
-                <p class="src">Căn cứ: {{ s.legalRef }}</p>
+              @if (s.legalRef | legalRef; as lr) {
+                <p class="src">Căn cứ: {{ lr }}</p>
               }
             </li>
           }

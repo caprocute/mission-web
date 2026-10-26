@@ -1,7 +1,7 @@
 import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { toProblem } from '@vt/api-client';
+import { LegalRefPipe, toProblem } from '@vt/api-client';
 import {
   DecisionRule,
   DecisionTable,
@@ -50,7 +50,7 @@ const VARIABLE_HINT: Record<string, string> = {
  */
 @Component({
   selector: 'vt-decision-table-page',
-  imports: [VtSkeletonComponent, FormsModule, ButtonModule],
+  imports: [VtSkeletonComponent, FormsModule, ButtonModule, LegalRefPipe],
   template: `
     <div class="toolbar">
       <p-button
@@ -104,8 +104,8 @@ const VARIABLE_HINT: Record<string, string> = {
         <h2 id="h-table">Bảng xếp loại</h2>
         <p class="muted">
           {{ hitLabel[t.hitPolicy] }}, xét lần lượt từ trên xuống.
-          @if (t.legalRef) {
-            Căn cứ: {{ t.legalRef }}.
+          @if (t.legalRef | legalRef; as lr) {
+            Căn cứ: {{ lr }}.
           }
         </p>
         <div class="scroll">
@@ -255,7 +255,7 @@ const VARIABLE_HINT: Record<string, string> = {
                 <h2 [id]="'h-' + k">
                   {{ k === 'muc_cuoi' ? 'Quy tắc mức cuối cùng' : 'Quy tắc người đứng đầu' }}
                 </h2>
-                @if (ruleOf(k)?.legalRef; as lr) {
+                @if (ruleOf(k)?.legalRef | legalRef; as lr) {
                   <span class="tag">{{ lr }}</span>
                 }
               </div>

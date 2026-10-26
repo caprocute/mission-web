@@ -17,7 +17,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { Job, JobTracker, toProblem } from '@vt/api-client';
+import { Job, JobTracker, LegalRefPipe, toProblem } from '@vt/api-client';
 import {
   DossierApi,
   DossierForm,
@@ -48,7 +48,7 @@ import {
 
 @Component({
   selector: 'vt-package-page',
-  imports: [VtSkeletonComponent, DatePipe, RouterLink],
+  imports: [VtSkeletonComponent, DatePipe, RouterLink, LegalRefPipe],
   templateUrl: './package.page.html',
   styleUrl: './package.page.css',
 })

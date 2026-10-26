@@ -1,20 +1,43 @@
-import { Component, computed, effect, inject, input } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { POLICY_VERSION_STATUS_LABEL, policyVersionLabel } from '@vt/api-client/domains';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { LegalRefPipe } from '@vt/api-client';
+import {
+  POLICY_VERSION_STATUS_LABEL,
+  PolicyPackVersion,
+  isPolicyVersionEditable,
+  policyVersionLabel,
+} from '@vt/api-client/domains';
 import { VtSkeletonComponent } from '@vt/design-system';
+import { ButtonModule } from 'primeng/button';
+import { filter, map } from 'rxjs';
 import { STUDIO_ACCESS } from '../../studio-permissions';
 import { fmtDate } from '../../studio-ui';
+import { PolicyNewVersionDialog } from './policy-dialogs';
 import { POLICY_TABS } from './policy-tabs';
 import { PolicyWorkspace } from './policy-workspace';
+
+/** Trạng thái đã khoá hẳn nội dung, chỉ đổi được bằng cách nhân bản thành bản nháp mới. */
+const CLONABLE = new Set(['DA_PHAT_HANH', 'NGUNG']);
 
 /**
  * Khung một phiên bản Policy Pack (QT-15): tên gói, phiên bản đang soạn và bản đang áp dụng, kết quả
  * kiểm thử gần nhất, các thẻ "Công thức" (SCR-1501), "Bảng quyết định" (SCR-1502), "Luồng duyệt"
- * (SCR-1504) và "Test case" (SCR-1503) hiện theo quyền.
+ * (SCR-1504) và "Test case" (SCR-1503) hiện theo quyền. Phiên bản đã khoá nội dung thì người soạn được
+ * dẫn tới bản nháp đang có của gói, hoặc tạo bản nháp mới từ phiên bản này (`createPolicyPackVersion`),
+ * để không bị kẹt ở chế độ chỉ xem.
  */
 @Component({
   selector: 'vt-policy-shell-page',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, VtSkeletonComponent],
+  imports: [
+    ButtonModule,
+    PolicyNewVersionDialog,
+    RouterLink,
+    RouterLinkActive,
+    RouterOutlet,
+    VtSkeletonComponent,
+    LegalRefPipe,
+  ],
   providers: [PolicyWorkspace],
   template: `
     <nav class="crumb" aria-label="Đường dẫn">
@@ -24,7 +47,7 @@ import { PolicyWorkspace } from './policy-workspace';
     </nav>
     <header class="head">
       <h1>{{ ws.pack.value()?.name ?? 'Chính sách đánh giá' }}</h1>
-      @if (ws.pack.value()?.legalBasis; as lb) {
+      @if (ws.pack.value()?.legalBasis | legalRef; as lb) {
         <p class="sub">Căn cứ: {{ lb }}</p>
       }
     </header>
@@ -65,7 +88,28 @@ import { PolicyWorkspace } from './policy-workspace';
             }
           </span>
         }
+        @if (locked(); as l) {
+          @if (l.draft; as d) {
+            <a class="go-draft" data-testid="open-draft" [routerLink]="sameTab(d)">
+              Mở bản nháp {{ vlabel(d) }} để chỉnh sửa
+            </a>
+          } @else {
+            <p-button
+              label="Tạo bản nháp mới"
+              size="small"
+              data-testid="new-version"
+              (onClick)="showNew.set(true)"
+            />
+          }
+        }
       </div>
+      @if (locked()) {
+        <vt-policy-new-version-dialog
+          [base]="v.version"
+          [(visible)]="showNew"
+          (created)="onCreated($event)"
+        />
+      }
       @if (ws.runError(); as e) {
         <p class="err" role="alert">{{ e }}</p>
       }
@@ -125,6 +169,10 @@ import { PolicyWorkspace } from './policy-workspace';
     .run {
       color: #374151;
     }
+    .go-draft {
+      color: #1d4ed8;
+      font-weight: 600;
+    }
     .run-sk {
       flex: 0 1 240px;
     }
@@ -162,6 +210,31 @@ export class PolicyShellPage {
 
   protected readonly ws = inject(PolicyWorkspace);
   protected readonly access = inject(STUDIO_ACCESS);
+  private readonly router = inject(Router);
+  private readonly url = toSignal(
+    this.router.events.pipe(
+      filter((e) => e instanceof NavigationEnd),
+      map(() => this.router.url),
+    ),
+    { initialValue: this.router.url },
+  );
+  protected readonly showNew = signal(false);
+
+  /**
+   * Phiên bản đang mở đã khoá nội dung và người dùng soạn được chính sách: dẫn tới bản nháp còn sửa được
+   * của gói (`draft`), không có thì cho tạo bản nháp mới khi bản này đã phát hành hoặc ngừng áp dụng.
+   */
+  protected readonly locked = computed<{ draft: string | null } | null>(() => {
+    const s = this.ws.status();
+    if (!s || isPolicyVersionEditable(s) || !this.access.author('SCR-1501.soan')) return null;
+    const cur = this.version();
+    const drafts = (this.ws.pack.value()?.versions ?? [])
+      .filter((v) => v.version !== cur && isPolicyVersionEditable(v.status))
+      .map((v) => v.version)
+      .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+    if (drafts.length) return { draft: drafts[0] };
+    return CLONABLE.has(s) ? { draft: null } : null;
+  });
   protected readonly tabs = computed(() =>
     POLICY_TABS.filter((t) => t.keys.some((k) => this.access.can(k))),
   );
@@ -171,5 +244,19 @@ export class PolicyShellPage {
 
   constructor() {
     effect(() => this.ws.ref.set({ id: this.packId(), v: this.version() }));
+  }
+
+  /** Đường dẫn cùng thẻ đang mở nhưng ở phiên bản `v` của gói. */
+  protected sameTab(v: string): string[] {
+    const segs =
+      this.router.parseUrl(this.url()).root.children['primary']?.segments.map((x) => x.path) ?? [];
+    const i = segs.findIndex((x, k) => x === this.packId() && segs[k + 1] === this.version());
+    if (i < 0) return ['/'];
+    return ['/', ...segs.slice(0, i + 1), v, ...segs.slice(i + 2)];
+  }
+
+  protected onCreated(v: PolicyPackVersion) {
+    this.ws.pack.reload();
+    void this.router.navigate(this.sameTab(v.version));
   }
 }

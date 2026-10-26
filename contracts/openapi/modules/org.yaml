@@ -130,9 +130,9 @@ paths:
         qt: [QT-05]
         scr: [SCR-0501]
         owner: SVC-04
-        roles: [manager, leader, tenant_admin]
+        roles: [manager, leader, tenant_admin, appraiser]
         scope: Đv
-        source: 'Mã frontend WEB-028 (suy luận)'
+        source: 'Mã frontend WEB-028 (suy luận); SCR-1101.tao chọn thành phần hội nghị (appraiser, HT-30, wiki 14)'
 
   /org/persons/{id}/assignments:
     parameters:

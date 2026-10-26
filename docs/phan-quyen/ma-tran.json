@@ -3385,10 +3385,10 @@
     "AC-11": "-",
     "AC-12": "-"
    },
-   "api": "`POST /api/v1/dossiers/meetings`",
+   "api": "`POST /api/v1/dossiers/meetings`, `GET /api/v1/org/persons`, `GET /api/v1/dossiers/special-cases`",
    "rang_buoc": "",
    "nguon": "TL-01 Phụ lục C (`org_officer`)",
-   "ghi_chu": "SCR-1101 không có nút tạo; TL-01 ghi `org_officer`, ánh xạ sang AC-07 là suy luận."
+   "ghi_chu": "SCR-1101 không có nút tạo; TL-01 ghi `org_officer`, ánh xạ sang AC-07 là suy luận. Hộp thoại lập hội nghị chọn người được kiểm điểm, chủ trì, thư ký, thành phần qua `GET /org/persons` và hiện trường hợp đặc thù qua `GET /dossiers/special-cases` (HT-30, wiki 14)."
   },
   {
    "qt": "QT-11",

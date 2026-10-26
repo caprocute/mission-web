@@ -19,7 +19,7 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { OrgApi, fieldErrors, toProblem } from '@vt/api-client';
+import { LegalRefPipe, OrgApi, fieldErrors, toProblem } from '@vt/api-client';
 import {
   DossierApi,
   DossierMeetingStatus,
@@ -38,7 +38,7 @@ import { VtSkeletonComponent } from '@vt/design-system';
 
 @Component({
   selector: 'vt-meetings-page',
-  imports: [VtSkeletonComponent, DatePipe, RouterLink, DossierTabs],
+  imports: [VtSkeletonComponent, DatePipe, RouterLink, DossierTabs, LegalRefPipe],
   templateUrl: './meetings.page.html',
   styleUrl: './meetings.page.css',
 })

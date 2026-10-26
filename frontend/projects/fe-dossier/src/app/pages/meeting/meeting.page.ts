@@ -21,7 +21,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { JobTracker, toProblem } from '@vt/api-client';
+import { JobTracker, LegalRefPipe, toProblem } from '@vt/api-client';
 import {
   COMMENT_KIND_LABEL,
   DossierApi,
@@ -50,7 +50,7 @@ import {
 
 @Component({
   selector: 'vt-meeting-page',
-  imports: [VtSkeletonComponent, DatePipe, RouterLink, MeetingSidePanel],
+  imports: [VtSkeletonComponent, DatePipe, RouterLink, MeetingSidePanel, LegalRefPipe],
   templateUrl: './meeting.page.html',
   styleUrl: './meeting.page.css',
 })
