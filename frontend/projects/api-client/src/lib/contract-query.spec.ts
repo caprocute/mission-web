@@ -40,6 +40,22 @@ describe('lời gọi khớp hợp đồng (WEB-071)', () => {
     ctrl.verify();
   });
 
+  it('kết quả đánh giá theo đơn vị gửi unit, period, flow và con trỏ (AP-09)', () => {
+    const { ctrl, appraisal } = setup();
+    appraisal
+      .unitResults({ unitId: 'u1', period: 'p1', flow: 'DANG', limit: 500, cursor: 'c1' })
+      .subscribe();
+    const req = ctrl.expectOne((r) => r.url === '/api/v1/appraisals/unit-results');
+    const p = req.request.params;
+    expect(p.get('unit')).toBe('u1');
+    expect(p.get('period')).toBe('p1');
+    expect(p.get('flow')).toBe('DANG');
+    expect(p.get('limit')).toBe('200');
+    expect(p.get('cursor')).toBe('c1');
+    req.flush({ items: [], nextCursor: null });
+    ctrl.verify();
+  });
+
   it('danh sách khiếu nại và yêu cầu mở lại kỳ lọc kỳ bằng period', () => {
     const { ctrl, complaint, reopen } = setup();
     complaint.list({ periodId: 'p1', status: ['MOI', 'DA_TIEP_NHAN'] }).subscribe();

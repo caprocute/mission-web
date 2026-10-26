@@ -35,6 +35,8 @@
 #     đều tuỳ chọn và chỉ trả khi Policy Pack khai báo; sự việc có kết luận ở `/appraisals/incidents` (DC-05);
 #     mức con người khác mức hệ thống gợi ý trong ảnh chụp đã xem phải có lý do, lỗi
 #     `APPRAISAL-422-SUGGESTED-REASON-REQUIRED` (DC-05).
+#   - AP-09 (26/10/2026, HT-39, wiki/14): `GET /appraisals/unit-results` liệt kê kết quả đánh giá từng cán bộ
+#     theo đơn vị và kỳ quý cho bước đi xuống của SCR-1603, trả mã ảnh chụp điểm hiện hành để mở chuỗi truy vết.
 openapi: 3.1.0
 info:
   title: Mission – Đánh giá, xếp loại (MOD-04)
@@ -1133,6 +1135,77 @@ paths:
         errors: [APPRAISAL-409-BATCH-COMPLETED, APPRAISAL-409-VERSION-CONFLICT]
         source: TL-02b SCR-0904 "Huỷ lô"
 
+  /appraisals/unit-results:
+    get:
+      tags: [Hồ sơ đánh giá]
+      operationId: listUnitAppraisalResults
+      summary: Kết quả đánh giá từng cán bộ của đơn vị trong kỳ
+      description: >-
+        Bước "bấm đơn vị" của SCR-1603 (QT-16 bước 5): lãnh đạo, quản lý xem kết quả đánh giá của từng
+        cán bộ thuộc đơn vị (gồm cây đơn vị cấp dưới) trong một kỳ quý để mở chuỗi truy vết của điểm
+        (`GET /analytics/trace/DIEM/{scoreSnapshotId}`). Mỗi dòng là một hồ sơ đánh giá
+        (`appraisal.appraisal_profile`) với ảnh chụp điểm hiện hành (`current_snapshot_id`,
+        `appraisal.score_snapshot`), mức hệ thống tính, mức đã quyết định (`final_rating_code`) và trạng
+        thái. Chỉ đọc, không trả dữ liệu C2 (nhận xét, giải trình). Phạm vi ABAC theo chức năng
+        `SCR-1603.xem`: `leader`, `appraiser`, `inspector` trong đơn vị và cây cấp dưới, `manager` trong đơn
+        vị mình; dòng ngoài phạm vi không được trả. Kỳ năm dùng `listAnnualAppraisalRatings`. Bổ sung cộng
+        thêm 26/10/2026 (wiki/14, HT-39), không đổi thao tác cũ; thứ tự theo `appraisal_profile.id`.
+      parameters:
+        - name: unit
+          in: query
+          required: true
+          description: Đơn vị (`org.org_unit.id`); gồm cả cây đơn vị cấp dưới theo cây của luồng.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - name: period
+          in: query
+          required: true
+          description: Mã kỳ quý (`config.period.id`, `config.period.kind = QUY`).
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - $ref: '#/components/parameters/FlowQuery'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang kết quả đánh giá của cán bộ trong đơn vị.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UnitAppraisalResultPage' }
+              examples:
+                quy-iv:
+                  value:
+                    items:
+                      - profileId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a01
+                        person: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0d01, name: Trần Minh Hoàng }
+                        orgUnit: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0e01, name: Ban Tổ chức }
+                        flow: DANG
+                        status: DA_KY_SO
+                        scoreSnapshotId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0f01
+                        totalScore: 91.2
+                        autoRatingCode: HTTNV
+                        ratingCode: HTTNV
+                      - profileId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a02
+                        person: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0d02, name: Phạm Văn Long }
+                        orgUnit: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0e01, name: Ban Tổ chức }
+                        flow: DANG
+                        status: TU_DANH_GIA
+                        scoreSnapshotId: null
+                        totalScore: null
+                        autoRatingCode: null
+                        ratingCode: null
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-16]
+        scr: [SCR-1603]
+        owner: MOD-04
+        roles: [leader, manager, appraiser, inspector]
+        scope: Cd (leader, appraiser, inspector); Đv (manager)
+        rules: [BR-16-01, BR-16-03]
+        source: suy luận từ TL-02 SCR-1603 (đi xuống đơn vị, cán bộ, điểm) và wiki/14 HT-39; TL-03 appraisal_profile.current_snapshot_id, final_rating_code, score_snapshot.total_score, auto_rating_code
+
   /appraisals/annual:
     get:
       tags: [Xếp loại năm]
@@ -1567,6 +1640,52 @@ components:
         items:
           type: array
           items: { $ref: '#/components/schemas/AppraisalProfileRow' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+
+    UnitAppraisalResultRow:
+      description: >-
+        Kết quả đánh giá của một cán bộ trong đơn vị và kỳ (`listUnitAppraisalResults`). Không có dữ liệu C2.
+      type: object
+      required: [profileId, person, orgUnit, flow, status, scoreSnapshotId, totalScore, autoRatingCode, ratingCode]
+      properties:
+        profileId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        person:
+          description: Cán bộ được đánh giá (`appraisal_profile.person_id`, họ tên theo `org_replica.person_v`).
+          $ref: '../common/common.yaml#/components/schemas/Ref'
+        orgUnit:
+          description: Đơn vị của hồ sơ (`appraisal_profile.org_unit_id`), có thể là đơn vị cấp dưới của `unit`.
+          $ref: '../common/common.yaml#/components/schemas/Ref'
+        flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        status: { $ref: '#/components/schemas/AppraisalProfileStatus' }
+        scoreSnapshotId:
+          description: >-
+            Ảnh chụp điểm hiện hành (`appraisal_profile.current_snapshot_id`); là `id` của mắt xích `DIEM` trong
+            `GET /analytics/trace/{objectType}/{id}`. `null` khi chưa có điểm.
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
+        totalScore:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 100
+          description: Tổng điểm của ảnh chụp hiện hành (`score_snapshot.total_score`).
+        autoRatingCode:
+          description: Mức hệ thống tính của ảnh chụp hiện hành (`score_snapshot.auto_rating_code`, tham khảo).
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/RatingLevel'
+            - type: 'null'
+        ratingCode:
+          description: Mức xếp loại đã quyết định (`appraisal_profile.final_rating_code`); `null` khi chưa quyết định.
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/RatingLevel'
+            - type: 'null'
+    UnitAppraisalResultPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/UnitAppraisalResultRow' }
         nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
 
     GeneralCriteriaItem:

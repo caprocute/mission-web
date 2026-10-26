@@ -388,6 +388,7 @@ Dòng tiêu đề cột: AC-01 `platform_admin`, AC-02 `tenant_admin`, AC-03 `po
 | `SCR-1506.xem` | AC-01 xem tổng hợp theo cell. |
 | `SCR-1506.chuyen-nguoi-xu-ly` | AC-01 thực hiện là suy luận; nguồn nêu thao tác chung cho màn hình. |
 | `SCR-1601.xem` | AC-10 có trong TL-01 và menu hiện tại nhưng không có trong tác nhân SCR-1601. |
+| `SCR-1603.xem` | Bổ sung 26/10/2026 (HT-39, wiki/14): bước đơn vị liệt kê kết quả đánh giá từng cán bộ qua `listUnitAppraisalResults` (suy luận). |
 | `SCR-1801.duyet` | Nguồn không nêu vai trò người duyệt; TL-01 ghi `tenant_admin` nên ánh xạ AC-02 khác người soạn là suy luận. |
 <!-- END GEN:ghi-chu -->
 

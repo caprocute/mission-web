@@ -98,6 +98,10 @@ export type AnnualRatingExplanation = Schemas['AnnualRatingExplanation'];
 export type AnnualReassignmentInput = Schemas['AnnualReassignmentInput'];
 export type AnnualReassignmentResult = Schemas['AnnualReassignmentResult'];
 
+/** Kết quả đánh giá từng cán bộ của đơn vị trong kỳ quý (bước đơn vị của SCR-1603, AP-09). */
+export type UnitAppraisalResultRow = Schemas['UnitAppraisalResultRow'];
+export type UnitAppraisalResultPage = Schemas['UnitAppraisalResultPage'];
+
 /** Phân nhóm triển vọng (SCR-1002, `appraisal.prospect_group`, PL 5); dữ liệu C2. */
 export type ProspectGroupCode = Schemas['ProspectGroupCode'];
 export type ProspectBoardStatus = Schemas['ProspectBoardStatus'];

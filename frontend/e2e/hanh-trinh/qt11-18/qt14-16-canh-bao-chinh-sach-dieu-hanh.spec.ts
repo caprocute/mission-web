@@ -316,7 +316,8 @@ test.describe('QT-14 QT-15 QT-16 Cảnh báo, chính sách và bảng điều h�
     await expect(m.getByRole('region', { name: 'Bốn chỉ số chính' })).toBeVisible();
     await kiemAxeOnDinh(page, 'bảng điều hành, chế độ cao tuổi');
 
-    // Đi xuống đơn vị, cán bộ rồi tới minh chứng (`getTraceChain`): không quá ba lần chạm từ bảng điều hành
+    // Đi xuống đơn vị, cán bộ (`listUnitAppraisalResults`, AP-09) rồi tới minh chứng (`getTraceChain`):
+    // không quá ba lần chạm từ bảng điều hành
     const bang = m
       .getByRole('table')
       .filter({ has: page.getByRole('link') })

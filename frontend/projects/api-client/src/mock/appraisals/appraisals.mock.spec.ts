@@ -489,3 +489,35 @@ describe('appraisals mock: xếp loại năm và phân nhóm triển vọng (WEB
     expect(locked.error.code).toBe('APPRAISAL-409-INVALID-STATUS');
   });
 });
+
+describe('appraisals mock: kết quả đánh giá theo đơn vị (AP-09, SCR-1603)', () => {
+  it('liệt kê cán bộ của đơn vị với mã ảnh chụp điểm của chuỗi truy vết; thiếu kỳ trả 422', async () => {
+    const { api } = setup();
+    const q4 = await firstValueFrom(api.unitResults({ unitId: 'u-btc', period: 'p-2026q4' }));
+    expect(q4.items.map((r) => [r.person.name, r.scoreSnapshotId, r.ratingCode])).toEqual([
+      ['Trần Minh Hoàng', 'ss-2026q4-tran-minh-hoang', null],
+      ['Nguyễn Thị Mai', 'ss-2026q4-nguyen-thi-mai', null],
+      ['Phạm Văn Long', 'ss-2026q4-pham-van-long', null],
+    ]);
+    expect(q4.items[0]).toMatchObject({
+      status: 'CHO_QUYET_DINH',
+      totalScore: 91.2,
+      autoRatingCode: 'HTTNV',
+    });
+    const q3 = await firstValueFrom(
+      api.unitResults({ unitId: 'u-btc', period: 'p-2026q3', limit: 2 }),
+    );
+    expect(q3.items).toHaveLength(2);
+    expect(q3.items[0]).toMatchObject({ status: 'DA_KHOA', ratingCode: 'HTTNV' });
+    expect(q3.nextCursor).toBe('2');
+    const rest = await firstValueFrom(
+      api.unitResults({ unitId: 'u-btc', period: 'p-2026q3', cursor: q3.nextCursor }),
+    );
+    expect(rest.items.map((r) => r.person.name)).toEqual(['Phạm Văn Long']);
+    expect(rest.nextCursor).toBeNull();
+    const none = await firstValueFrom(api.unitResults({ unitId: 'u-la', period: 'p-2026q4' }));
+    expect(none.items).toEqual([]);
+    const err = await errorOf(firstValueFrom(api.unitResults({ unitId: 'u-btc', period: '' })));
+    expect(err.status).toBe(422);
+  });
+});
