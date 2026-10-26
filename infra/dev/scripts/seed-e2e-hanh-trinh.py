@@ -7,6 +7,7 @@ realm dev (tài khoản quanly, lanhdao, quantri, canbo, kiemtra), qua API thậ
      thì lãnh đạo trả lại, quản lý nhập dòng, trình lại rồi lãnh đạo duyệt kèm ký số.
   2. Một kỳ quý đã qua ở trạng thái đã khoá, để HT-34 (tạo yêu cầu mở lại kỳ, SCR-1301) có kỳ để chọn: quản trị tạo
      kỳ, lập lệnh khoá, lãnh đạo duyệt, quản trị khởi chạy khoá kỳ, chờ saga hoàn tất.
+  3. Kỳ quý kế tiếp (chưa bắt đầu, luồng CA_HAI) để HT-38 (cấu hình luồng duyệt, SCR-1504) có kỳ bắt đầu áp dụng.
 
 Chạy lại không sinh trùng: bước đã đạt thì bỏ qua. Chỉ dùng thư viện chuẩn (Python 3.6 của server dev), không in
 token. Biến môi trường như seed-da-tenant-api.py: SEED_API, KEYCLOAK_PUBLIC_URL, KC_TEST_USER_PASSWORD,
@@ -15,6 +16,7 @@ KC_TEST_OTP_SECRET (đọc thêm từ infra/dev/.env).
     python3 -I infra/dev/scripts/seed-e2e-hanh-trinh.py              # cả hai phần
     python3 -I infra/dev/scripts/seed-e2e-hanh-trinh.py ke-hoach     # chỉ kế hoạch
     python3 -I infra/dev/scripts/seed-e2e-hanh-trinh.py ky-khoa      # chỉ kỳ đã khoá
+    python3 -I infra/dev/scripts/seed-e2e-hanh-trinh.py ky-sau       # chỉ kỳ kế tiếp
 """
 import datetime as dt
 import importlib.util
@@ -147,11 +149,28 @@ def nap_ky_khoa(phien):
     raise RuntimeError("Kỳ %s chưa khoá xong sau 5 phút (trạng thái %s)" % (ky["name"], ky["status"]))
 
 
+def nap_ky_sau(phien):
+    t_qt = phien(QUAN_TRI)
+    hom = dt.date.today()
+    q = (hom.month - 1) // 3 + 1
+    nam, q = (hom.year + 1, 1) if q == 4 else (hom.year, q + 1)
+    dau = dt.date(nam, 3 * q - 2, 1)
+    cuoi = dt.date(nam + (q == 4), 1 if q == 4 else 3 * q + 1, 1) - dt.timedelta(days=1)
+    ds, _ = goi(t_qt, "GET", "/periods?limit=200")
+    if any(k["kind"] == "QUY" and k["startDate"] == dau.isoformat() for k in ds["items"]):
+        print("  Kỳ Quý %s/%d đã có, bỏ qua" % (A.LA_MA[q], nam))
+        return
+    ky, _ = goi(t_qt, "POST", "/periods", {
+        "code": "%d-Q%d" % (nam, q), "name": "Quý %s/%d" % (A.LA_MA[q], nam), "kind": "QUY", "flow": "CA_HAI",
+        "startDate": dau.isoformat(), "endDate": cuoi.isoformat()})
+    print("  Đã tạo kỳ %s" % ky["name"])
+
+
 def main():
-    chon = sys.argv[1:] or ["ke-hoach", "ky-khoa"]
+    chon = sys.argv[1:] or ["ke-hoach", "ky-khoa", "ky-sau"]
     phien = A.Phien(A._base.nap_env())
     loi = 0
-    for ten, fn in (("ke-hoach", nap_ke_hoach), ("ky-khoa", nap_ky_khoa)):
+    for ten, fn in (("ke-hoach", nap_ke_hoach), ("ky-khoa", nap_ky_khoa), ("ky-sau", nap_ky_sau)):
         if ten not in chon:
             continue
         print("==> %s" % ten)

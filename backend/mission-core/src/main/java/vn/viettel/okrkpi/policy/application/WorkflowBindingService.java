@@ -2,6 +2,7 @@ package vn.viettel.okrkpi.policy.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -132,7 +133,7 @@ public class WorkflowBindingService {
             v.id(),
             processKind,
             expectedRowVersion,
-            "policy:" + v.id() + ":" + processKind + ":" + idempotencyKey,
+            downstreamKey(v.id(), processKind, idempotencyKey),
             body);
 
     Map<String, Object> copy = new LinkedHashMap<>(body);
@@ -224,5 +225,16 @@ public class WorkflowBindingService {
   private static BusinessException invalid(String field, String message) {
     return new BusinessException(
         "COMMON-422-VALIDATION", message, List.of(new ProblemFieldError(field, message, null)));
+  }
+
+  /**
+   * Khoá chống lặp gửi workflow-service: cùng phiên bản, loại quy trình và khoá của người gọi cho
+   * ra cùng một khoá, nhưng gọn trong 64 ký tự mà quy ước Idempotency-Key cho phép (ghép thẳng hai
+   * UUID và loại quy trình vượt quá, workflow-service trả 422 và màn hình SCR-1504 báo "Mã chống
+   * gửi trùng không hợp lệ").
+   */
+  static String downstreamKey(UUID versionId, String processKind, String idempotencyKey) {
+    String raw = "policy:" + versionId + ":" + processKind + ":" + idempotencyKey;
+    return "policy:" + UUID.nameUUIDFromBytes(raw.getBytes(StandardCharsets.UTF_8));
   }
 }
