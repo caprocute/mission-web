@@ -549,6 +549,7 @@
       "defaultClientScopes": [
         "basic",
         "profile",
+        "roles",
         "mission-context"
       ],
       "protocolMappers": [

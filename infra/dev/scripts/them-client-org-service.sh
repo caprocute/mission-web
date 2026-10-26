@@ -52,8 +52,9 @@ kc add-roles -r mission --uusername "service-account-${CID}" --cclientid realm-m
   --rolename view-users --rolename manage-users
 echo "Đã gán ${ROLE}, realm-management view-users, manage-users cho service-account-${CID}"
 cid="$(kc get clients -r mission -q clientId="${CID}" --fields id --format csv --noquotes | head -1)"
-for name in profile mission-context; do
+# "roles" đưa resource_access.realm-management vào token; thiếu nó Admin API trả 403 dù đã gán vai trò.
+for name in profile roles mission-context; do
   scope="$(kc get client-scopes -r mission --fields id,name --format csv --noquotes | awk -F, -v n="${name}" '$2==n{print $1}')"
   [[ -n "${scope}" ]] && kc update "clients/${cid}/default-client-scopes/${scope}" -r mission >/dev/null
 done
-echo "Đã gắn phạm vi profile, mission-context cho ${CID}"
+echo "Đã gắn phạm vi profile, roles, mission-context cho ${CID}"
