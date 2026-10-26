@@ -206,6 +206,21 @@ public final class CelEngine {
    *     hoặc gặp lỗi lúc chạy
    */
   public Object evaluate(CelCompiledProgram compiled, Map<String, Object> variables) {
+    return evaluate(compiled, variables, true);
+  }
+
+  /**
+   * Làm nóng một chương trình đã biên dịch: thực thi một lần với dữ liệu mẫu mà không áp hạn thời
+   * gian chạy. Lần thực thi CEL đầu tiên trong JVM phải nạp lớp và khởi tạo trình thông dịch (đo
+   * được vài giây), không phải chi phí của biểu thức; service gọi hàm này khi khởi động để hạn 50
+   * ms chỉ đo bước đánh giá thật.
+   */
+  public Object warmUp(CelCompiledProgram compiled, Map<String, Object> sampleVariables) {
+    return evaluate(compiled, sampleVariables, false);
+  }
+
+  private Object evaluate(
+      CelCompiledProgram compiled, Map<String, Object> variables, boolean enforceTimeout) {
     Objects.requireNonNull(compiled, "compiled must not be null");
     if (variables == null) {
       throw new CelExecutionException(
@@ -240,7 +255,7 @@ public final class CelEngine {
           ex);
     }
     long elapsedNanos = System.nanoTime() - startNanos;
-    if (elapsedNanos > sandboxOptions.evaluationTimeout().toNanos()) {
+    if (enforceTimeout && elapsedNanos > sandboxOptions.evaluationTimeout().toNanos()) {
       throw new CelExecutionException(
           CelExecutionException.CODE_TIMEOUT,
           compiled.expression(),
