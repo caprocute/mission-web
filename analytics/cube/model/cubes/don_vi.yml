@@ -27,7 +27,9 @@ cubes:
         title: Mã đơn vị
         sql: "{CUBE}.code"
         type: string
-      - name: ten
+      # Tên theo hợp đồng platform.yaml (ví dụ của queryAnalytics, getSemanticModel: `org_unit.name`), là tên
+      # bảng điều hành SCR-1601 và tóm tắt tuần của ai-gateway truy vấn.
+      - name: name
         title: Tên đơn vị
         sql: "{CUBE}.name"
         type: string
