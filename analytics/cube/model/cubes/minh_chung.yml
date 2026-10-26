@@ -52,7 +52,7 @@ cubes:
         external: false
         measures: [so_minh_chung, so_cho_nghiem_thu]
         dimensions: [tenant_id, org_unit.id, org_unit.ma, org_unit.name, org_unit.org_path_dang,
-                     org_unit.org_path_chuyen_mon, period.id, period.ma, period.ten]
+                     org_unit.org_path_chuyen_mon, period.id, period.ma, period.label]
         refresh_key:
           every: 5 minute
         indexes:

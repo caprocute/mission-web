@@ -11,9 +11,9 @@ Thư mục này chứa mô hình Cube cho chỉ số chuẩn của SVC-15 (ADR-1
 | `model/cubes/okr.yml` | `okr`: `tien_do_o`; `okr_checkin`: mức tự tin KR |
 | `model/cubes/danh_gia.yml` | `appraisal`: `cho_tham_dinh`, phân bố mức xếp loại; `score`: điểm KPI trung bình; `rating`: đề xuất xếp loại theo cấp |
 | `model/cubes/minh_chung.yml` | `evidence`: số minh chứng chờ nghiệm thu |
-| `model/cubes/don_vi.yml`, `ky.yml` | Chiều đơn vị (đường dẫn trên hai cây), khối đối tượng, kỳ, luồng |
+| `model/cubes/don_vi.yml`, `ky.yml` | Chiều đơn vị (đường dẫn trên hai cây), khối đối tượng, kỳ, luồng (`flow.code`); tên theo ví dụ `platform.yaml` (`org_unit.name`, `period.label`, `subject_group.code`) |
 | `model/cubes/do_moi.yml` | `data_freshness`: thời điểm dữ liệu mới nhất và độ trễ (BR-16-08) |
-| `tests/` | Kiểm thử tích hợp ClickHouse + Cube với bộ ca vàng `data/golden/analytics-measures` |
+| `tests/` | Kiểm thử tích hợp ClickHouse + Cube với bộ ca vàng `data/golden/analytics-measures`; `test_mo_hinh.py` kiểm tĩnh (không cần Docker) tên thành viên mà frontend dùng |
 
 Mỗi cube có `meta.phien_ban` (phiên bản lớp ngữ nghĩa, hiện `2026.4`) và tiêu đề, mô tả tiếng Việt cho `getSemanticModel` (DV-15-04) đọc từ `/cubejs-api/v1/meta`. Truy vấn chỉ dùng được measure, dimension đã công bố; không có SQL tự do (BR-16-02).
 

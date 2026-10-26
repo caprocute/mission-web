@@ -9,7 +9,7 @@ import {
   DashboardWidgetData,
   SemanticModel,
 } from '@vt/api-client/domains';
-import { errorText } from '../dashboard-ui';
+import { errorText, valueLabel } from '../dashboard-ui';
 import { ChartHost } from './charts';
 import { VtSkeletonComponent } from '@vt/design-system';
 
@@ -111,7 +111,10 @@ export class WidgetCard {
     return (
       'Lọc: ' +
       fs
-        .map((f) => `${this.title_(f.member, 'dimensions') ?? 'Chiều'} là ${f.values.join(', ')}`)
+        .map(
+          (f) =>
+            `${this.title_(f.member, 'dimensions') ?? 'Chiều'} là ${f.values.map((v) => valueLabel(f.member, v)).join(', ')}`,
+        )
         .join('; ')
     );
   });
