@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.task.application.plan;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -20,6 +21,7 @@ import vn.viettel.okrkpi.cel.application.CelEngine;
 import vn.viettel.okrkpi.cel.domain.CelSandboxOptions;
 import vn.viettel.okrkpi.cel.domain.CelValueType;
 import vn.viettel.okrkpi.cel.domain.StaticWorkingCalendar;
+import vn.viettel.okrkpi.shared.resilience.DependencyUnavailableException;
 import vn.viettel.okrkpi.task.application.plan.PlanChecker.Check;
 import vn.viettel.okrkpi.task.application.plan.PlanChecker.Context;
 import vn.viettel.okrkpi.task.application.plan.PlanChecker.GroupWeight;
@@ -109,6 +111,24 @@ class PlanCheckerTest {
     return checker.check(items, ctx(List.of())).stream()
         .filter(c -> c.rule().equals(rule))
         .toList();
+  }
+
+  @Test
+  void quaHanChayQuyTacTra503ChuKhongLoi500() {
+    // Hạn 1 ns: làm nóng lúc khởi tạo không áp hạn nên không lỗi; lần kiểm tra thật vượt hạn.
+    CelEngine tight =
+        new CelEngine(
+            StaticWorkingCalendar.weekendsOnly(),
+            new CelSandboxOptions(
+                CelSandboxOptions.DEFAULT_MAX_EXPRESSION_LENGTH,
+                CelSandboxOptions.DEFAULT_MAX_AST_DEPTH,
+                CelSandboxOptions.DEFAULT_MAX_AST_NODE_COUNT,
+                CelSandboxOptions.DEFAULT_MAX_COMPREHENSION_ITERATIONS,
+                Duration.ofNanos(1),
+                CelSandboxOptions.DEFAULT_PROGRAM_CACHE_MAX_SIZE));
+    PlanChecker slow = new PlanChecker(tight);
+    assertThatThrownBy(() -> slow.check(balanced(), ctx(List.of())))
+        .isInstanceOf(DependencyUnavailableException.class);
   }
 
   @Test

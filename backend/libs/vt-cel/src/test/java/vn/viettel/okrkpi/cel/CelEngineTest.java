@@ -290,6 +290,12 @@ class CelEngineTest {
             ex ->
                 assertThat(((CelExecutionException) ex).errorCode())
                     .isEqualTo(CelExecutionException.CODE_TIMEOUT));
+
+    // Làm nóng không áp hạn: cùng biểu thức chậm vẫn trả kết quả.
+    CelCompiledProgram slow =
+        timeoutEngine.compile(
+            "ngay_lam_viec('2026-03-01', '2026-03-05')", Map.of(), CelValueType.INT);
+    assertThat(timeoutEngine.warmUp(slow, Map.of())).isEqualTo(1L);
   }
 
   @Test
