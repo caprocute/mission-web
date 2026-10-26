@@ -82,7 +82,12 @@ test.describe('QT-11 Hội nghị kiểm điểm và hồ sơ số', { tag: '@qa
     await batCaoTuoi(page);
     let m = main(page);
     await expect(m.getByRole('heading', { level: 1, name: 'Hội nghị kiểm điểm' })).toBeVisible();
-    await expect(m.getByRole('table', { name: 'Danh sách hội nghị kiểm điểm' })).toBeVisible();
+    // Tenant chưa có hội nghị nào thì trang hiện trạng thái trống thay cho bảng
+    await expect(
+      m
+        .getByRole('table', { name: 'Danh sách hội nghị kiểm điểm' })
+        .or(m.getByText('Không có hội nghị kiểm điểm nào.')),
+    ).toBeVisible();
     await kiemAxeOnDinh(page, 'danh sách hội nghị kiểm điểm, chế độ cao tuổi');
     await m.getByRole('button', { name: 'Lập hội nghị' }).click();
     const lap = page.getByRole('dialog', { name: 'Lập hội nghị kiểm điểm' });

@@ -311,7 +311,12 @@ const timeOf = (iso?: string | null) => {
                 }}</span>
               </div>
               @if (s.sagaStatus === 'HOAN_TAT') {
-                <p-message severity="success" [text]="msg0807(p, s)" styleClass="msg" />
+                <p-message
+                  severity="success"
+                  [text]="msg0807(p, s)"
+                  styleClass="msg"
+                  role="status"
+                />
               }
               @if (s.sagaStatus === 'DA_BU_TRU') {
                 <p-message severity="info" [text]="msg0808(p.name)" styleClass="msg" />
