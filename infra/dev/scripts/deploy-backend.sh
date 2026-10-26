@@ -265,6 +265,13 @@ done
 # Thứ tự: lược đồ Avro vào Apicurio trước mọi thao tác ghi có sự kiện; tổ chức sang org_replica trước khi giao
 # việc; phân vùng theo kỳ trước khi ghi dữ liệu của kỳ (README mục 3.2). Mỗi bước chạy lại an toàn.
 canh_bao() { echo "  Cảnh báo: $1 chưa xong; chạy lại $2 khi APISIX, Keycloak và Apicurio sẵn sàng" >&2; }
+# Service có schema tự chứa (esign, evidence, scoring) tạo <schema>.outbox_event khi khởi động lần đầu, mà publication
+# pub_outbox chỉ gồm các bảng có lúc đăng ký: phải đăng ký lại sau khi service healthy, nếu không sự kiện của chúng
+# không lên Kafka (EVT-18 ký xong không về mission-core, kế hoạch đứng ở CHO_DUYET dù yêu cầu ký đã DA_KY).
+if [[ "${SKIP_OUTBOX:-0}" != "1" ]]; then
+  echo "==> Đăng ký lại Debezium Outbox (mọi bảng outbox_event hiện có)"
+  "${SCRIPT_DIR}/dang-ky-outbox.sh" >/dev/null || canh_bao "đăng ký Debezium Outbox" "dang-ky-outbox.sh"
+fi
 # Lược đồ Avro phải có trong Apicurio trước mọi lần phát sự kiện (serde không tự đăng ký): thiếu là org-republish
 # hỏng và seed nhận 403 về sau, nên chờ Apicurio rồi đăng ký, lỗi thì dừng triển khai thay vì chỉ cảnh báo.
 # Bỏ bằng SKIP_SCHEMA=1 (ví dụ khi HA_TANG_KHONG_BAT_BUOC=apicurio).
