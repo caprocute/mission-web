@@ -52,9 +52,19 @@ kc add-roles -r mission --uusername "service-account-${CID}" --cclientid realm-m
   --rolename view-users --rolename manage-users
 echo "Đã gán ${ROLE}, realm-management view-users, manage-users cho service-account-${CID}"
 cid="$(kc get clients -r mission -q clientId="${CID}" --fields id --format csv --noquotes | head -1)"
-# "roles" đưa resource_access.realm-management vào token; thiếu nó Admin API trả 403 dù đã gán vai trò.
-for name in profile roles mission-context; do
+for name in profile mission-context; do
   scope="$(kc get client-scopes -r mission --fields id,name --format csv --noquotes | awk -F, -v n="${name}" '$2==n{print $1}')"
   [[ -n "${scope}" ]] && kc update "clients/${cid}/default-client-scopes/${scope}" -r mission >/dev/null
 done
-echo "Đã gắn phạm vi profile, roles, mission-context cho ${CID}"
+echo "Đã gắn phạm vi profile, mission-context cho ${CID}"
+# Admin API xét vai trò realm-management trong token, nên token phải có resource_access.realm-management. Realm dev
+# nhập từ bản cũ có thể thiếu client scope "roles", nên gắn thẳng mapper vai trò client vào client (giống
+# realm-mission.json) thay vì dựa vào scope đó.
+MAPPER="realm-management roles"
+if ! kc get "clients/${cid}/protocol-mappers/models" -r mission --fields name --format csv --noquotes | grep -qx "${MAPPER}"; then
+  printf '{"name":"%s","protocol":"openid-connect","protocolMapper":"oidc-usermodel-client-role-mapper","config":{"usermodel.clientRoleMapping.clientId":"realm-management","claim.name":"resource_access.${client_id}.roles","multivalued":"true","jsonType.label":"String","access.token.claim":"true","id.token.claim":"false","userinfo.token.claim":"false"}}' \
+    "${MAPPER}" | kc create "clients/${cid}/protocol-mappers/models" -r mission -f - >/dev/null
+  echo "Đã thêm mapper ${MAPPER} cho ${CID}"
+else
+  echo "Client ${CID} đã có mapper ${MAPPER}"
+fi
