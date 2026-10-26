@@ -316,4 +316,34 @@ describe('mock policies – SCR-1503, SCR-1504 (WEB-046)', () => {
     expect(stepsForLevels(['a', 'b', 'c', 'd'], 2)).toEqual(['a', 'd']);
     expect(stepsForLevels(['a', 'b', 'c'], 1)).toEqual(['c']);
   });
+
+  it('nhân bản phiên bản thành bản nháp mới: chép tham số luồng duyệt, tự tăng số, số đã có thì 422', async () => {
+    const api = setup();
+    const id = (await firstValueFrom(api.packs())).items[0].id;
+    const draft = await firstValueFrom(
+      api.createVersion(id, { baseVersion: '2.1.0', changeNote: 'Điều chỉnh thời hạn duyệt' }),
+    );
+    expect(draft.version).toBe('2.2.0');
+    expect(draft.status).toBe('NHAP');
+    expect(draft.changeNote).toBe('Điều chỉnh thời hạn duyệt');
+    const ref = { id, v: '2.2.0' };
+    const bindings = await firstValueFrom(api.workflowBindings(ref));
+    expect(bindings.map((b) => [b.templateKey, b.status])).toEqual([
+      ['duyet-ho-so-danh-gia', 'NHAP'],
+    ]);
+    expect((await firstValueFrom(api.rules(ref))).length).toBeGreaterThan(0);
+    const listed = (await firstValueFrom(api.packs())).items[0].versions ?? [];
+    expect(listed.find((v) => v.version === '2.2.0')?.status).toBe('NHAP');
+
+    const dup = await fail(
+      firstValueFrom(
+        api.createVersion(id, { baseVersion: '2.0.0', version: '2.2.0', changeNote: 'Trùng số' }),
+      ),
+    );
+    expect(dup['code']).toBe('POLICY-422-VERSION-EXISTS');
+    const noNote = await fail(
+      firstValueFrom(api.createVersion(id, { baseVersion: '2.0.0', changeNote: ' ' })),
+    );
+    expect(noNote.status).toBe(422);
+  });
 });

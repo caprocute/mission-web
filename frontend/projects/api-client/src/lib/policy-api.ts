@@ -26,6 +26,7 @@ import {
   PolicyPackList,
   PolicyPackSubmit,
   PolicyPackVersion,
+  PolicyPackVersionCreate,
   PolicyRule,
   PolicyRuleSaved,
   PolicyRuleUpdate,
@@ -75,6 +76,15 @@ export class PolicyApi {
 
   pack(id: string): Observable<PolicyPack> {
     return this.http.get<PolicyPack>(apiUrl('/policies/packs/{id}', { id }));
+  }
+
+  /**
+   * Nhân bản thành phiên bản nháp mới (`createPolicyPackVersion`, QT-15 bước 1): kế thừa quy tắc, bảng
+   * quyết định, tham số và tham số luồng duyệt của `baseVersion`; bỏ trống `version` thì máy chủ tăng
+   * số phụ. Lối duy nhất để soạn tiếp khi mọi phiên bản của gói đã khoá nội dung.
+   */
+  createVersion(id: string, body: PolicyPackVersionCreate): Observable<PolicyPackVersion> {
+    return this.http.post<PolicyPackVersion>(apiUrl('/policies/packs/{id}/versions', { id }), body);
   }
 
   version(r: PackVersionRef): Observable<WithEtag<PolicyPackVersion>> {
