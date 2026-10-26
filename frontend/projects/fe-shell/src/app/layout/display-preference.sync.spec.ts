@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { PreferenceApi } from '@vt/api-client';
 import { SessionService } from '@vt/auth';
 import { ThemeService } from '@vt/design-system';
-import { of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DisplayPreferenceSync } from './display-preference.sync';
 
@@ -86,5 +86,22 @@ describe('DisplayPreferenceSync (CNH-05)', () => {
     expect(api.put).toHaveBeenCalledTimes(1);
     vi.advanceTimersByTime(2000);
     expect(api.put).toHaveBeenCalledTimes(2);
+  });
+
+  it('bấm khi chưa đọc xong khoá thì chờ đọc xong rồi ghi kèm phiên bản, không gửi thiếu If-Match', () => {
+    const { sync, theme, api, user } = setup({});
+    const doc = new Subject<{ schemaVersion: number; items: Record<string, unknown> }>();
+    api.all.mockReturnValueOnce(doc);
+    user.set({ id: 'u1' });
+    TestBed.tick();
+    sync.toggle();
+    expect(api.put).not.toHaveBeenCalled();
+    doc.next({ schemaVersion: 1, items: { 'ui.display': item('default', 4) } });
+    expect(api.put).toHaveBeenCalledWith(
+      'ui.display',
+      expect.objectContaining({ mode: 'elderly' }),
+      4,
+    );
+    expect(theme.mode()).toBe('elderly');
   });
 });
