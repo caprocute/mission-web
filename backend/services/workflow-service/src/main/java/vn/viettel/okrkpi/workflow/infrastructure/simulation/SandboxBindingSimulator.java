@@ -21,6 +21,8 @@ import org.flowable.job.api.Job;
 import org.flowable.task.api.Task;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import vn.viettel.okrkpi.workflow.application.approval.ApprovalLevelResolver;
 import vn.viettel.okrkpi.workflow.application.approval.ApprovalLevelsAssembler;
@@ -60,8 +62,8 @@ import vn.viettel.okrkpi.workflow.infrastructure.template.TemplateSource;
  * trên H2 trong bộ nhớ, không chạm CSDL của cell, triển khai cùng danh mục mẫu qua {@link
  * TemplateDeployer} (gồm linter tám quy tắc) và dùng đúng các thành phần khởi động, phân giải cấp,
  * hoàn thành việc, gọi lại lõi của engine thật. Chỉ cây tổ chức (một cây mẫu cho mỗi lần chạy),
- * lịch nghỉ (không có ngày nghỉ) và lõi (luôn áp dụng được) là bản giả. Engine dựng lười ở lần mô
- * phỏng đầu và chạy tuần tự; mỗi lần chạy dùng một tenant ngẫu nhiên rồi xoá lịch sử.
+ * lịch nghỉ (không có ngày nghỉ) và lõi (luôn áp dụng được) là bản giả. Engine dựng sẵn khi dịch vụ
+ * sẵn sàng (xem {@link #warmUp()}) và chạy tuần tự; mỗi lần chạy dùng một tenant ngẫu nhiên rồi xoá lịch sử.
  */
 @Component
 public class SandboxBindingSimulator
@@ -297,6 +299,20 @@ public class SandboxBindingSimulator
     if (sandbox != null) {
       sandbox.engine.close();
       sandbox = null;
+    }
+  }
+
+  /**
+   * Dựng engine thử ngay khi dịch vụ sẵn sàng thay vì ở lần mô phỏng đầu: dựng mất khoảng 7–10 giây,
+   * vượt hạn đọc 3 giây của REST nội bộ nên lần mô phỏng đầu sau mỗi lần khởi động từng trả 503 ở
+   * mission-core (HT-37). Lỗi dựng chỉ ghi nhật ký; lần mô phỏng sau sẽ thử dựng lại.
+   */
+  @EventListener(ApplicationReadyEvent.class)
+  public synchronized void warmUp() {
+    try {
+      sandbox();
+    } catch (RuntimeException e) {
+      log.warn("Chưa dựng sẵn được engine Flowable thử, sẽ dựng ở lần mô phỏng đầu", e);
     }
   }
 
