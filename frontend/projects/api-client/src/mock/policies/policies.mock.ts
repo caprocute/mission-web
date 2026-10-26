@@ -19,7 +19,7 @@ import {
 } from '../../lib/models/policy';
 import { startMockJob } from '../mock-jobs';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
-import { mockSession } from '../mock-session';
+import { MOCK_ME, mockSession } from '../mock-session';
 import {
   GOLDEN_SEED,
   actualOf,
@@ -1191,6 +1191,100 @@ function submit(r: MockRequest): MockResponse {
   return out(s.version, etag(s.version.rowVersion));
 }
 
+/** Tóm tắt các phiên bản đang có của gói, đọc từ trạng thái hiện tại (không kèm manifest). */
+const versionSummaries = (packId: string) =>
+  [...versions.values()]
+    .filter((s) => s.version.policyPackId === packId)
+    .map(({ version: { manifest: _m, packCode: _c, ...rest } }) => rest);
+
+const semver = /^[0-9]+\.[0-9]+\.[0-9]+$/;
+
+/** Số phụ kế tiếp sau phiên bản lớn nhất của gói (`version` bỏ trống, suy luận như máy chủ). */
+function nextMinor(packId: string): string {
+  const all = versionSummaries(packId).map((v) => v.version.split('.').map(Number));
+  const top = all.sort((a, b) => b[0] - a[0] || b[1] - a[1] || b[2] - a[2])[0] ?? [1, -1, 0];
+  return `${top[0]}.${top[1] + 1}.0`;
+}
+
+/**
+ * Nhân bản thành phiên bản nháp (`createPolicyPackVersion`): chép quy tắc, bảng quyết định và tham số
+ * luồng duyệt của bản nguồn; trả 201 kèm `ETag`, `Location`. Số đã có thì 422 `POLICY-422-VERSION-EXISTS`.
+ */
+function createVersion(r: MockRequest): MockResponse {
+  const packId = r.pathParams['id'];
+  if (!packs.some((p) => p.id === packId))
+    return problem(404, 'Không tìm thấy bộ quy định đánh giá');
+  const b = (r.body ?? {}) as { baseVersion?: string; version?: string; changeNote?: string };
+  const note = (b.changeNote ?? '').trim();
+  if (!note || note.length > 2000) {
+    return problem(422, 'Cần nhập nội dung thay đổi, tối đa 2000 ký tự.', {
+      code: 'COMMON-422-VALIDATION',
+      errors: [{ field: 'changeNote', message: 'Cần nhập nội dung thay đổi' }],
+    } as never);
+  }
+  const base = b.baseVersion ? versions.get(vkey(packId, b.baseVersion)) : undefined;
+  if (!base) {
+    return problem(422, 'Không tìm thấy phiên bản nguồn.', {
+      code: 'COMMON-422-VALIDATION',
+      errors: [{ field: 'baseVersion', message: 'Không tìm thấy phiên bản nguồn' }],
+    } as never);
+  }
+  if (b.version !== undefined && !semver.test(b.version)) {
+    return problem(422, 'Số phiên bản phải có dạng 1.0.0.', {
+      code: 'COMMON-422-VALIDATION',
+      errors: [{ field: 'version', message: 'Số phiên bản phải có dạng 1.0.0' }],
+    } as never);
+  }
+  const target = b.version ?? nextMinor(packId);
+  if (versions.has(vkey(packId, target))) {
+    return problem(422, `Số phiên bản ${target} đã có.`, {
+      code: 'POLICY-422-VERSION-EXISTS',
+      errors: [{ field: 'version', message: 'Số phiên bản đã có' }],
+    } as never);
+  }
+  const n = 8000 + ++seq;
+  const src = structuredClone(base);
+  const {
+    effectiveFrom: _e,
+    publishedAt: _p,
+    approvedBy: _ab,
+    approvedAt: _aa,
+    goldenPassRate: _g,
+    ...kept
+  } = src.version;
+  const next: VersionState = {
+    version: {
+      ...kept,
+      id: uuid(n),
+      version: target,
+      status: 'NHAP',
+      changeNote: note,
+      createdBy: { ...MOCK_ME },
+      createdAt: new Date().toISOString(),
+      rowVersion: 1,
+    },
+    rules: src.rules.map((x, i) => ({ ...x, id: uuid(n * 100 + i), rowVersion: 1 })),
+    tables: src.tables.map((x, i) => ({ ...x, id: uuid(n * 100 + 50 + i), rowVersion: 1 })),
+    runs: [],
+    bindings: src.bindings.map((x, i) => ({
+      ...x,
+      id: uuid(n * 100 + 80 + i),
+      status: 'NHAP',
+      rowVersion: 1,
+    })),
+    publishing: null,
+  };
+  versions.set(vkey(packId, target), next);
+  return {
+    status: 201,
+    body: structuredClone(next.version),
+    headers: {
+      ...etag(1),
+      Location: `/api/v1/policies/packs/${packId}/versions/${target}`,
+    },
+  };
+}
+
 seed();
 
 export const POLICIES_MOCK: MockModule = {
@@ -1204,9 +1298,9 @@ export const POLICIES_MOCK: MockModule = {
       handle: (r) => {
         const flow = r.params.get('flow');
         const origin = r.params.get('origin');
-        const items = packs.filter(
-          (p) => (!flow || p.flow === flow) && (!origin || p.origin === origin),
-        );
+        const items = packs
+          .filter((p) => (!flow || p.flow === flow) && (!origin || p.origin === origin))
+          .map((p) => ({ ...p, versions: versionSummaries(p.id) }));
         return out({ items, nextCursor: null });
       },
     },
@@ -1254,12 +1348,10 @@ export const POLICIES_MOCK: MockModule = {
       handle: (r) => {
         const p = packs.find((x) => x.id === r.pathParams['id']);
         if (!p) return problem(404, 'Không tìm thấy bộ quy định đánh giá');
-        const vs = [...versions.values()]
-          .filter((s) => s.version.policyPackId === p.id)
-          .map(({ version: { manifest: _m, packCode: _c, ...rest } }) => rest);
-        return out({ ...p, versions: vs });
+        return out({ ...p, versions: versionSummaries(p.id) });
       },
     },
+    { method: 'POST', pattern: '/api/v1/policies/packs/:id/versions', handle: createVersion },
     {
       method: 'GET',
       pattern: '/api/v1/policies/packs/:id/versions/:v',

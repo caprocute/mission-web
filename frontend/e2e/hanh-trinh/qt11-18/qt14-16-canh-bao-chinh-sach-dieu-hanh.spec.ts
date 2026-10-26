@@ -1,8 +1,8 @@
 import { Page, expect, test } from '@playwright/test';
 import { batCaoTuoi, chiHeThong, chon, xacThucBuocLen, kiemAxeOnDinh } from '../ho-tro/kiem-tra';
-import { HE_THONG, MA_LAN_CHAY } from '../ho-tro/moi-truong';
+import { HE_THONG, MA_LAN_CHAY, cho } from '../ho-tro/moi-truong';
 import { Phien, main, spaGoto } from '../ho-tro/phien';
-import { SEED, api, kiemMoiTruong, kiemSuKien, timHoacCho } from './chung';
+import { SEED, api, choNeuChuaSan, kiemMoiTruong, kiemSuKien, timHoacCho } from './chung';
 
 /**
  * QT-14 Cảnh báo bất thường (SCR-1401), QT-15 Policy Pack và luồng duyệt động (SCR-1501..SCR-1504),
@@ -11,8 +11,10 @@ import { SEED, api, kiemMoiTruong, kiemSuKien, timHoacCho } from './chung';
  * `oversight.anomaly_alert`, `policy.policy_pack_version`, EVT-20 `analytics.anomaly.detected.v1`,
  * EVT-13 `policy.pack.published.v1`. Hành trình HT-36 đến HT-39.
  *
- * Giao diện chưa có lối tạo phiên bản Policy Pack mới (`createPolicyPackVersion` chỉ có trong hợp đồng),
- * nên HT-37 soạn trên phiên bản nháp đang có; ở chế độ giả lập là bản nháp 2.1 của gói khối Đảng.
+ * HT-37, HT-38 soạn trên phiên bản nháp đang có; ở chế độ giả lập là bản nháp 2.1 của gói khối Đảng. Trên
+ * server dev, HT-37 phát hành bản nháp của seed nên lần chạy sau không còn bản nháp: khi đó nhân bản phiên
+ * bản đã phát hành mới nhất thành bản nháp mới (`createPolicyPackVersion`, cùng lối "Tạo bản nháp mới" của
+ * giao diện) để hành trình chạy lại được nhiều lần.
  */
 const GOI_DANG = '0192a1b0-3c4d-7e5f-8a9b-000000004001';
 const CANH_BAO_MOI = 'cb-2026-0118';
@@ -28,19 +30,46 @@ interface Goi {
   versions?: { version: string; status: string }[];
 }
 
-/** Gói và phiên bản nháp để soạn: giả lập dùng bản khởi tạo, hệ thống thật tìm qua `listPolicyPacks`. */
+const coNhap = (g: Goi) => (g.versions ?? []).some((v) => v.status === 'NHAP');
+const daPhatHanh = (g: Goi) =>
+  (g.versions ?? [])
+    .filter((v) => v.status === 'DA_PHAT_HANH')
+    .map((v) => v.version)
+    .sort((x, y) => y.localeCompare(x, undefined, { numeric: true }))[0];
+
+/**
+ * Gói và phiên bản nháp để soạn: giả lập dùng bản khởi tạo, hệ thống thật tìm qua `listPolicyPacks`;
+ * không còn gói nào có bản nháp thì nhân bản bản đã phát hành mới nhất (`createPolicyPackVersion`).
+ */
 async function banNhap(s: Phien): Promise<{ goi: string; ban: string; nhan: string }> {
   if (!HE_THONG) return { goi: GOI_DANG, ban: '2.1.0', nhan: '2.1' };
   const a = await api(s, 'chinhsach');
   try {
-    const g = await timHoacCho<Goi>(
-      a,
-      'policies/packs',
-      {},
-      (x) => (x.versions ?? []).some((v) => v.status === 'NHAP'),
-      'gói chính sách có phiên bản nháp',
-    );
-    const v = g.versions!.find((x) => x.status === 'NHAP')!.version;
+    // Ưu tiên gói đang có bản nháp; không có thì lấy gói có bản đã phát hành để nhân bản
+    const ds = await a
+      .can<{ items: Goi[] }>('GET', 'policies/packs', { query: { limit: '200' } })
+      .catch((e) => choNeuChuaSan(e, 'đọc danh sách gói chính sách'));
+    const g = ds.body.items.find(coNhap) ?? ds.body.items.find((x) => !!daPhatHanh(x));
+    if (!g)
+      cho(
+        'gói chính sách có phiên bản nháp hoặc đã phát hành: chưa có dữ liệu khởi tạo phù hợp trên server dev (data/seed/e2e/README.md)',
+      );
+    let v = g.versions!.find((x) => x.status === 'NHAP')?.version;
+    if (!v) {
+      const tao = await a.can<{ version: string; status: string }>(
+        'POST',
+        `policies/packs/${g.id}/versions`,
+        {
+          body: {
+            baseVersion: daPhatHanh(g),
+            changeNote: `Bản nháp cho hành trình QT-15 (${MA_LAN_CHAY})`,
+          },
+        },
+        [201],
+      );
+      expect(tao.body.status).toBe('NHAP');
+      v = tao.body.version;
+    }
     return { goi: g.id, ban: v, nhan: v.replace(/\.0$/, '') };
   } finally {
     await a.dong();

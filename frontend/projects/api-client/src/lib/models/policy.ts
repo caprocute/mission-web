@@ -31,6 +31,7 @@ export type GoldenTestCaseList = S['GoldenTestCaseList'];
 export type PolicyTestRunSummary = S['PolicyTestRunSummary'];
 export type PolicyTestRunList = S['PolicyTestRunList'];
 export type PolicyPackSubmit = S['PolicyPackSubmit'];
+export type PolicyPackVersionCreate = S['PolicyPackVersionCreate'];
 export type PolicyManifest = S['PolicyManifest'];
 export type PolicyEvaluateOutputs = S['PolicyEvaluateOutputs'];
 export type PolicyRoundingMode = S['PolicyRoundingMode'];

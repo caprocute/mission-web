@@ -320,3 +320,98 @@ export class PolicySubmitDialog {
       });
   }
 }
+
+/**
+ * "Tạo bản nháp mới" (QT-15 bước 1, `createPolicyPackVersion`): phiên bản đã khoá nội dung (đã phát
+ * hành, ngừng áp dụng) không sửa được, nên muốn đổi công thức, bảng xếp loại hay luồng duyệt thì nhân
+ * bản thành phiên bản nháp. Máy chủ tự tăng số phiên bản và chép toàn bộ nội dung của bản nguồn.
+ */
+@Component({
+  selector: 'vt-policy-new-version-dialog',
+  imports: [FormsModule, ButtonModule, DialogModule, TextareaModule],
+  template: `
+    <p-dialog
+      header="Tạo bản nháp mới"
+      [modal]="true"
+      [(visible)]="visible"
+      [style]="{ width: 'min(560px, 96vw)' }"
+      closeAriaLabel="Đóng"
+    >
+      <p class="muted">
+        Bản nháp mới chép toàn bộ công thức, bảng xếp loại và tham số luồng duyệt của phiên bản
+        {{ vlabel(base()) }}. Phiên bản {{ vlabel(base()) }} giữ nguyên; bản nháp chỉ được áp dụng
+        sau khi đạt kiểm thử và được phê duyệt phát hành.
+      </p>
+      <label class="f">
+        <span>Nội dung thay đổi dự kiến</span>
+        <textarea
+          pTextarea
+          name="changeNote"
+          rows="3"
+          maxlength="2000"
+          data-testid="new-version-note"
+          [ngModel]="note()"
+          (ngModelChange)="note.set($event)"
+        ></textarea>
+      </label>
+      @if (error(); as e) {
+        <p class="err" role="alert">{{ e }}</p>
+      }
+      <ng-template #footer>
+        <p-button
+          label="Huỷ"
+          severity="contrast"
+          [outlined]="true"
+          (onClick)="visible.set(false)"
+        />
+        <p-button
+          label="Tạo bản nháp"
+          data-testid="new-version-create"
+          [loading]="busy()"
+          [disabled]="!note().trim()"
+          (onClick)="create()"
+        />
+      </ng-template>
+    </p-dialog>
+  `,
+  styleUrl: './policy-dialogs.css',
+})
+export class PolicyNewVersionDialog {
+  /** Phiên bản nguồn để nhân bản. */
+  readonly base = input.required<string>();
+  readonly visible = model(false);
+  readonly created = output<PolicyPackVersion>();
+
+  private readonly api = inject(PolicyApi);
+  private readonly ws = inject(PolicyWorkspace);
+  protected readonly vlabel = policyVersionLabel;
+  protected readonly note = linkedSignal(() => (this.visible(), ''));
+  protected readonly busy = signal(false);
+  protected readonly error = linkedSignal<boolean, string | null>({
+    source: () => this.visible(),
+    computation: () => null,
+  });
+
+  protected create() {
+    const id = this.ws.ref()?.id;
+    const changeNote = this.note().trim();
+    if (!id || !changeNote) return;
+    this.busy.set(true);
+    this.error.set(null);
+    this.api.createVersion(id, { baseVersion: this.base(), changeNote }).subscribe({
+      next: (v) => {
+        this.busy.set(false);
+        this.visible.set(false);
+        this.created.emit(v);
+      },
+      error: (e) => {
+        this.busy.set(false);
+        this.error.set(
+          problemCode(e) === 'POLICY-422-VERSION-EXISTS'
+            ? 'Số phiên bản kế tiếp đã có. Vui lòng tải lại danh sách phiên bản rồi thử lại.'
+            : errorText(e, 'Không tạo được bản nháp mới.'),
+        );
+      },
+    });
+  }
+}
