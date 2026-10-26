@@ -38,6 +38,7 @@ import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileUploadPart;
 import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileUploadSession;
 import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileUploadStatus;
 import vn.viettel.okrkpi.evidence.infrastructure.web.model.RescanFileObject202Response;
+import vn.viettel.okrkpi.shared.idempotency.IdempotencyExceptions;
 import vn.viettel.okrkpi.shared.idempotency.Idempotent;
 
 /**
@@ -47,7 +48,9 @@ import vn.viettel.okrkpi.shared.idempotency.Idempotent;
  *
  * <p>{@code completeFileUpload} không dùng {@link Idempotent}: thư viện chạy phương thức có khoá
  * trong một giao dịch, còn hoàn tất phải chép tệp lớn trên kho mà không giữ kết nối CSDL. Hoàn tất
- * tự bất biến theo phiên: gọi lại trả cùng đối tượng (mã đối tượng trùng mã phiên).
+ * tự bất biến theo phiên: gọi lại trả cùng đối tượng (mã đối tượng trùng mã phiên). {@code
+ * createFileUpload} cũng vậy vì mở phiên gọi kho đối tượng và OpenBao: mã phiên suy ra từ khoá nên
+ * gọi lại cùng khoá trả cùng phiên ({@link UploadService#create(CreateUpload, UUID, String)}).
  */
 @RestController
 @RequestMapping("/api/v1")
@@ -65,7 +68,6 @@ public class FilesController implements FilesApi {
   }
 
   @Override
-  @Idempotent
   public ResponseEntity<FileUploadSession> createFileUpload(
       String idempotencyKey, FileUploadCreate body) {
     UploadSession s =
@@ -79,7 +81,8 @@ public class FilesController implements FilesApi {
                 body.getOwnerRefId(),
                 body.getClassification().getValue(),
                 Boolean.TRUE.equals(body.getE2ee())),
-            CurrentCaller.actor());
+            CurrentCaller.actor(),
+            requireKey(idempotencyKey));
     return ResponseEntity.created(URI.create("/api/v1/files/uploads/" + s.id()))
         .body(session(new SessionView(s, java.util.List.of())));
   }
@@ -227,5 +230,12 @@ public class FilesController implements FilesApi {
   private static ResponseStatusException notImplemented() {
     return new ResponseStatusException(
         HttpStatus.NOT_IMPLEMENTED, "Chức năng chưa được triển khai");
+  }
+
+  private static String requireKey(String idempotencyKey) {
+    if (idempotencyKey == null || idempotencyKey.isBlank()) {
+      throw new IdempotencyExceptions.KeyRequired(false);
+    }
+    return idempotencyKey;
   }
 }

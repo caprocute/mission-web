@@ -98,7 +98,9 @@ class PlanReviewServiceTest {
     when(repo.findPlan(TENANT, PLAN.id())).thenReturn(Optional.of(PLAN));
     when(repo.lockVersion(TENANT, 20271, PLAN.id(), 1)).thenReturn(Optional.of(v));
     when(planService.version(TENANT, PLAN.id(), 1))
-        .thenReturn(new VersionView(PLAN, SNAPSHOT, v, List.of(), checks, null));
+        .thenReturn(
+            new VersionView(
+                PLAN, SNAPSHOT, v, List.of(offCatalog(UUID.randomUUID(), null)), checks, null));
     when(periods.findById(TENANT, PeriodId.of(PERIOD))).thenReturn(Optional.of(SNAPSHOT));
     when(org.headsOf(eq(TENANT), eq(UNIT), any())).thenReturn(List.of(HEAD));
   }
@@ -135,6 +137,19 @@ class PlanReviewServiceTest {
                         && s.aggregateVersion() == 5
                         && s.contentHash().length() == 64
                         && s.submittedBy().equals(AUTHOR)));
+  }
+
+  @Test
+  void guiDuyetKeHoachChuaCoCongViecTra422() {
+    VersionRow v = version(PlanVersionStatus.NHAP, 0);
+    given(v, List.of());
+    when(planService.version(TENANT, PLAN.id(), 1))
+        .thenReturn(new VersionView(PLAN, SNAPSHOT, v, List.of(), List.of(), null));
+    assertThatThrownBy(() -> service.submitVersion(TENANT, PLAN.id(), 1, 0, AUTHOR))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e -> assertThat(e.errors()).extracting(f -> f.field()).containsExactly("items"));
+    verify(repo, never()).markSubmitted(any(), any(), any(), any(), any());
   }
 
   @Test

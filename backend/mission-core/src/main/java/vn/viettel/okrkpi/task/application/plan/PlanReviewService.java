@@ -101,6 +101,15 @@ public class PlanReviewService {
     periods.assertWritable(tenant, PeriodId.of(plan.periodId()));
     VersionRow version = locked(tenant, plan, versionNo, expectedVersion, PlanCommand.SUBMIT);
     VersionView view = planService.version(tenant, planId, versionNo);
+    // Phiên bản chưa có dòng nào thì không có gì để kiểm tra theo BR-04-02..04 (suy luận từ
+    // BR-04-04:
+    // kế hoạch gửi duyệt phải có việc đủ sản phẩm, số lượng, đơn vị tính và hạn); chặn tại máy chủ.
+    if (view.items().isEmpty()) {
+      throw new BusinessException(
+          PlanService.VALIDATION,
+          "Kế hoạch chưa có công việc nào, vui lòng thêm công việc trước khi gửi duyệt",
+          List.of(new ProblemFieldError("items", "Kế hoạch chưa có công việc nào", "BR-04-04")));
+    }
     List<Check> blocking =
         view.checks().stream().filter(c -> c.level() == PlanChecker.Level.CHAN).toList();
     if (!blocking.isEmpty()) {
