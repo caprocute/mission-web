@@ -304,7 +304,7 @@ const isoDate = (d: Date) => {
                 </p>
               }
             } @else {
-              <p-message severity="success">
+              <p-message severity="success" role="status">
                 Kiểm tra toàn vẹn hoàn tất: {{ int(r.entriesChecked) }} bản ghi đều nguyên vẹn, thời
                 gian kiểm tra {{ seconds(r) }} giây.
               </p-message>

@@ -88,7 +88,7 @@ import { formatDate } from '../../task-ui';
         </p-message>
       }
       @if (info(); as m) {
-        <p-message severity="success" [text]="m" styleClass="msg" />
+        <p-message severity="success" [text]="m" styleClass="msg" role="status" />
       }
 
       <div class="actions">
