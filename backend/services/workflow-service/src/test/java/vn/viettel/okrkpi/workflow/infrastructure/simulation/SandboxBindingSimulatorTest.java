@@ -65,7 +65,8 @@ class SandboxBindingSimulatorTest {
       SampleRun run = warm.run(info, threeLevels(), SimulationSample.values()[0], List.of());
       long ms = (System.nanoTime() - start) / 1_000_000;
       assertThat(run.passed()).isTrue();
-      // Hạn đọc REST nội bộ của mission-core là 3 giây; engine đã dựng thì một lần chạy nhanh hơn nhiều.
+      // Hạn đọc REST nội bộ của mission-core là 3 giây; engine đã dựng thì một lần chạy nhanh hơn
+      // nhiều.
       assertThat(ms).isLessThan(3_000);
     } finally {
       warm.close();

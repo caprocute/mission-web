@@ -63,7 +63,8 @@ import vn.viettel.okrkpi.workflow.infrastructure.template.TemplateSource;
  * TemplateDeployer} (gồm linter tám quy tắc) và dùng đúng các thành phần khởi động, phân giải cấp,
  * hoàn thành việc, gọi lại lõi của engine thật. Chỉ cây tổ chức (một cây mẫu cho mỗi lần chạy),
  * lịch nghỉ (không có ngày nghỉ) và lõi (luôn áp dụng được) là bản giả. Engine dựng sẵn khi dịch vụ
- * sẵn sàng (xem {@link #warmUp()}) và chạy tuần tự; mỗi lần chạy dùng một tenant ngẫu nhiên rồi xoá lịch sử.
+ * sẵn sàng (xem {@link #warmUp()}) và chạy tuần tự; mỗi lần chạy dùng một tenant ngẫu nhiên rồi xoá
+ * lịch sử.
  */
 @Component
 public class SandboxBindingSimulator
@@ -303,9 +304,9 @@ public class SandboxBindingSimulator
   }
 
   /**
-   * Dựng engine thử ngay khi dịch vụ sẵn sàng thay vì ở lần mô phỏng đầu: dựng mất khoảng 7–10 giây,
-   * vượt hạn đọc 3 giây của REST nội bộ nên lần mô phỏng đầu sau mỗi lần khởi động từng trả 503 ở
-   * mission-core (HT-37). Lỗi dựng chỉ ghi nhật ký; lần mô phỏng sau sẽ thử dựng lại.
+   * Dựng engine thử ngay khi dịch vụ sẵn sàng thay vì ở lần mô phỏng đầu: dựng mất khoảng 7–10
+   * giây, vượt hạn đọc 3 giây của REST nội bộ nên lần mô phỏng đầu sau mỗi lần khởi động từng trả
+   * 503 ở mission-core (HT-37). Lỗi dựng chỉ ghi nhật ký; lần mô phỏng sau sẽ thử dựng lại.
    */
   @EventListener(ApplicationReadyEvent.class)
   public synchronized void warmUp() {
