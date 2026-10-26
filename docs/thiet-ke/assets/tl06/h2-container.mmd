@@ -1,0 +1,24 @@
+flowchart TB
+  subgraph APP["VM-APP · Compose «mission»"]
+    direction LR
+    E["<b>Tầng biên</b><br/>apisix: cổng API, kiểm JWT, giới hạn tốc độ<br/>web (nginx): shell + remote Angular<br/>keycloak 26: realm mission, OTP"]
+    S["<b>Tầng nghiệp vụ</b><br/>mission-core (MOD-01..08)<br/>org-service · workflow-service (Flowable 7)<br/>scoring-service · document-service<br/>evidence-service · esign-service<br/>integration-gateway · analytics-api · search<br/>tenant-registry · ledger-service · notification-service (Go)"]
+    H["<b>Tầng hỗ trợ</b><br/>opa: chính sách RBAC + ABAC<br/>openbao: khoá KEK, bí mật<br/>gotenberg: dựng PDF/A<br/>clamd: quét mã độc"]
+    E --> S --> H
+  end
+  subgraph DATA["VM-DATA · Compose «mission-data»"]
+    direction LR
+    MDB[("mariadb 11.8 · 12 database")]
+    VK[("valkey 8 · cache, khoá, luồng")]
+    KF[["kafka 3.9 KRaft + debezium connect"]]
+    MINIO[("minio · minh chứng, phiếu")]
+    OS[("opensearch 2.x · chỉ mục")]
+    CH[("clickhouse 25.8 + cube")]
+  end
+  E -->|JDBC Keycloak| MDB
+  S -->|JDBC| MDB
+  S --> VK
+  S --> KF
+  S -->|S3 API| MINIO
+  S --> OS
+  S --> CH

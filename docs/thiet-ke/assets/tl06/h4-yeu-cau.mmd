@@ -1,0 +1,26 @@
+%%{init: {"themeVariables":{"fontSize":"22px"},"sequence":{"actorMargin":30,"width":130,"messageFontSize":20,"actorFontSize":20,"noteFontSize":18,"messageMargin":28}}}%%
+sequenceDiagram
+  autonumber
+  participant B as Trình duyệt
+  participant L as Load Balancer
+  participant G as APISIX
+  participant K as Keycloak
+  participant W as web (nginx)
+  participant C as mission-core
+  participant P as OPA
+  participant M as MariaDB
+  B->>L: GET / (HTTPS)
+  L->>G: chuyển tiếp
+  G->>W: tuyến web /*
+  W-->>B: shell Angular + remote
+  B->>K: đăng nhập OIDC Code + PKCE (+ OTP)
+  K->>M: đọc người dùng, phiên (CSDL keycloak)
+  K-->>B: access token (JWT)
+  B->>G: POST /api/v1/task/... + Bearer + Idempotency-Key
+  G->>G: kiểm JWT qua JWKS, giới hạn tốc độ
+  G->>C: chuyển tiếp
+  C->>P: hỏi quyết định RBAC + ABAC
+  P-->>C: cho phép
+  C->>M: giao dịch: ghi bảng nghiệp vụ + bảng outbox
+  M-->>C: commit
+  C-->>B: 201 + ETag

@@ -1,0 +1,30 @@
+%%{init: {"themeVariables":{"fontSize":"20px"}}}%%
+flowchart TB
+  INET(("Internet"))
+  subgraph VPC["VPC 10.20.0.0/16"]
+    LB["Load Balancer công khai<br/>IP public · TLS 1.2/1.3"]
+    NAT["NAT Gateway<br/>(chỉ chiều ra)"]
+    subgraph S0["Subnet quản trị"]
+      B["VM-BASTION 10.20.0.10<br/>SG-BASTION · IP public"]
+    end
+    subgraph S1["Subnet ứng dụng"]
+      A["VM-APP 10.20.1.10<br/>SG-APP"]
+    end
+    subgraph S2["Subnet dữ liệu"]
+      D["VM-DATA 10.20.2.10<br/>SG-DATA"]
+      O["VM-OPS 10.20.2.20<br/>SG-OPS"]
+    end
+  end
+  INET -->|443| LB -->|8443 từ LB| A
+  INET -->|51820 UDP<br/>chỉ dải IP của đơn vị| B
+  B -->|22| A
+  B -->|22| D
+  B -->|22, 3000| O
+  A -->|3306, 9092, 6379,<br/>9200, 9000, 8123, 4000| D
+  A -->|4317/4318 OTLP| O
+  O -->|9100, 9104, 9308 scrape| D
+  O -->|9100, 8081 scrape| A
+  O -->|3306 sao lưu| D
+  A --> NAT
+  O --> NAT
+  NAT --> INET

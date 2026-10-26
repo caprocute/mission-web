@@ -1,0 +1,62 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;background:#fff;font-family:Inter,"DejaVu Sans",sans-serif;color:#1F2329}
+#f{display:inline-block;padding:18px;width:1500px}
+.row{display:flex;gap:18px}
+.vm{flex:1;border:2px solid #C9CDD2;border-radius:10px;background:#FAFAFB;padding:12px 14px}
+.vm h2{margin:0 0 4px;font-size:19px}.vm .sub{font-size:13px;color:#5B6168;margin-bottom:10px}
+.tier{border:1px dashed #C9CDD2;border-radius:8px;padding:8px;margin-bottom:10px;background:#fff}
+.tier h3{margin:0 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:#5B6168}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.c{border:1.5px solid #EE0033;background:#FDE8EC;border-radius:6px;padding:5px 8px;font-size:13px;line-height:1.3}
+.c b{display:block;font-size:13.5px}.c span{color:#5B6168;font-size:12px}
+.c.db{border-radius:14px;background:#EAF2FF;border-color:#2F6FEB}
+.c.ops{background:#F2F4F7;border-color:#5B6168}
+.arrow{text-align:center;font-size:13px;color:#5B6168;margin:6px 0}
+</style></head><body><div id="f" data-shot>
+<div class="row">
+<div class="vm" style="flex:1.35"><h2>VM-APP</h2><div class="sub">8 vCPU · 32 GB RAM · 160 GB SSD · Docker Compose project «mission» · tổng giới hạn bộ nhớ container ≈ 16 GB, còn dư địa cho JIT, đỉnh cuối kỳ và nâng cấp</div>
+ <div class="tier"><h3>Tầng biên</h3><div class="chips">
+  <div class="c"><b>apisix 3.13</b><span>cổng API, TLS nội bộ, JWT, giới hạn tốc độ · 512 MB</span></div>
+  <div class="c"><b>web (nginx)</b><span>shell + remote Angular · 128 MB</span></div>
+  <div class="c"><b>keycloak 26</b><span>realm mission, OTP · 1,5 GB</span></div></div></div>
+ <div class="tier"><h3>Tầng nghiệp vụ (Java 21 / Spring Boot 3.5)</h3><div class="chips">
+  <div class="c"><b>mission-core</b><span>MOD-01..08 · 2 GB</span></div>
+  <div class="c"><b>org-service</b><span>768 MB</span></div>
+  <div class="c"><b>workflow-service</b><span>Flowable 7 · 1 GB</span></div>
+  <div class="c"><b>scoring-service</b><span>768 MB</span></div>
+  <div class="c"><b>document-service</b><span>1 GB</span></div>
+  <div class="c"><b>evidence-service</b><span>768 MB</span></div>
+  <div class="c"><b>esign-service</b><span>768 MB</span></div>
+  <div class="c"><b>integration-gateway</b><span>768 MB</span></div>
+  <div class="c"><b>analytics-api</b><span>768 MB</span></div>
+  <div class="c"><b>search</b><span>768 MB</span></div></div></div>
+ <div class="tier"><h3>Tầng nghiệp vụ (Go)</h3><div class="chips">
+  <div class="c"><b>tenant-registry</b><span>128 MB</span></div>
+  <div class="c"><b>ledger-service</b><span>256 MB</span></div>
+  <div class="c"><b>notification-service</b><span>SSE · 256 MB</span></div></div></div>
+ <div class="tier"><h3>Tầng hỗ trợ</h3><div class="chips">
+  <div class="c ops"><b>opa 1.x</b><span>RBAC + ABAC · 256 MB</span></div>
+  <div class="c ops"><b>openbao 2.x</b><span>KEK, bí mật, raft · 256 MB</span></div>
+  <div class="c ops"><b>gotenberg 8</b><span>PDF/A · 1 GB</span></div>
+  <div class="c ops"><b>clamd 1.4</b><span>quét mã độc · 2 GB</span></div>
+  <div class="c ops"><b>cel-js-runner</b><span>256 MB</span></div>
+  <div class="c ops"><b>node-exporter, promtail</b><span>128 MB</span></div></div></div>
+</div>
+<div class="vm"><h2>VM-DATA</h2><div class="sub">8 vCPU · 32 GB RAM · 160 GB SSD hệ điều hành + 300 GB SSD dữ liệu · Compose «mission-data»</div>
+ <div class="tier"><h3>Lưu trữ giao dịch</h3><div class="chips">
+  <div class="c db"><b>mariadb 11.8 LTS</b><span>≈ 22 database · buffer pool 8 GB · binlog ROW + GTID · 10 GB</span></div>
+  <div class="c db"><b>valkey 8</b><span>cache L2, khoá, thu hồi jti · 1 GB</span></div></div></div>
+ <div class="tier"><h3>Sự kiện</h3><div class="chips">
+  <div class="c db"><b>kafka 3.9 KRaft</b><span>1 broker, giữ 7 ngày · 3 GB</span></div>
+  <div class="c db"><b>debezium connect 3.x</b><span>MariaDB connector + Outbox · 1,5 GB</span></div></div></div>
+ <div class="tier"><h3>Tìm kiếm, phân tích, tệp</h3><div class="chips">
+  <div class="c db"><b>opensearch 2.19</b><span>1 nút, heap 2 GB · 4 GB</span></div>
+  <div class="c db"><b>clickhouse 25.8</b><span>1 nút · 4 GB</span></div>
+  <div class="c db"><b>cube 1.3</b><span>lớp chỉ số · 1 GB</span></div>
+  <div class="c db"><b>minio</b><span>minh chứng, phiếu, Object Lock · 1 GB</span></div></div></div>
+ <div class="tier"><h3>Giám sát tại chỗ</h3><div class="chips">
+  <div class="c ops"><b>mysqld-exporter, kafka-exporter, node-exporter</b><span>256 MB</span></div></div></div>
+ <div class="arrow">Tổng giới hạn ≈ 26 GB, còn ≈ 6 GB cho page cache của hệ điều hành</div>
+</div></div>
+<div class="arrow" style="margin-top:12px">Kết nối từ VM-APP sang VM-DATA chỉ qua mạng riêng: 3306 (MariaDB) · 6379 (Valkey) · 9092 (Kafka) · 9200 (OpenSearch) · 8123 (ClickHouse) · 4000 (Cube) · 9000 (MinIO S3)</div>
+</div></body></html>

@@ -1,0 +1,13 @@
+%%{init: {"themeVariables":{"fontSize":"20px"}}}%%
+flowchart LR
+  subgraph W["Ghi đồng bộ"]
+    C["mission-core / service"] -->|1 giao dịch| T[("Bảng nghiệp vụ<br/>+ outbox_event")]
+  end
+  T -->|binlog ROW| D["Debezium<br/>MariaDB connector<br/>+ Outbox EventRouter"]
+  D -->|CloudEvents| K[["Kafka<br/>topic theo EVT"]]
+  K --> S["scoring-service<br/>tính điểm dần"]
+  K --> L["ledger-service<br/>sổ cái chuỗi băm"]
+  K --> N["notification-service<br/>thông báo, SSE"]
+  K --> Q["search indexer"] --> O[("OpenSearch")]
+  D -->|CDC bảng phân tích<br/>giả danh hoá| K2[["Kafka<br/>topic cdc.*"]] --> CH[("ClickHouse")] --> CU["Cube"] --> AA["analytics-api<br/>bảng điều hành"]
+  K -.->|lỗi lặp| DLQ[["topic thư chết"]]

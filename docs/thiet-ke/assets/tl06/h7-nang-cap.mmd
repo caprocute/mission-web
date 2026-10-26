@@ -1,0 +1,6 @@
+%%{init: {"themeVariables":{"fontSize":"20px"}}}%%
+flowchart LR
+  A["Tối thiểu (TL-06)<br/>≤ 2.000 tài khoản<br/>3 VM + bastion<br/>MariaDB đơn"] -->|"Bước 1: > 300 CCU<br/>hoặc cần sẵn sàng cao"| B["Tối thiểu HA<br/>thêm VM-APP thứ 2<br/>MariaDB bản sao bán đồng bộ<br/>Kafka 3 broker"]
+  B -->|"Bước 2: > 10.000 tài khoản<br/>hoặc nhiều đơn vị"| C["compact (TL-05)<br/>3 node Kubernetes hội tụ<br/>Helm chart vt-service"]
+  C -->|"Bước 3: > 50.000 tài khoản"| D["Hồ sơ S, M, L<br/>đủ node pool, nhiều vùng sự cố"]
+  D -->|"Bước 4: > 1,5 triệu tài khoản"| E["Nhiều cell<br/>QM-3 → QM-5"]

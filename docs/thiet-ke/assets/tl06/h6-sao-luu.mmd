@@ -1,0 +1,34 @@
+%%{init: {"themeVariables":{"fontSize":"20px"}}}%%
+flowchart LR
+  subgraph DATA["VM-DATA"]
+    M[("MariaDB")]
+    MI[("MinIO minh chứng")]
+    BI["binlog"]
+  end
+  subgraph APP["VM-APP"]
+    OB["OpenBao<br/>(raft snapshot)"]
+    CF["Tệp cấu hình, .env,<br/>khoá TLS (đã mã hoá)"]
+  end
+  subgraph OPS["VM-OPS – tác vụ sao lưu (cron + restic)"]
+    F["mariabackup đầy đủ<br/>01:00 hằng ngày"]
+    I["mariabackup gia tăng<br/>mỗi 4 giờ"]
+    BL["đẩy binlog<br/>mỗi 5 phút"]
+    MM["mc mirror<br/>mỗi 15 phút"]
+    SN["bao operator raft<br/>snapshot hằng ngày"]
+  end
+  S3[("Object Storage<br/>bucket sao lưu<br/>khoá phiên bản + vòng đời")]
+  SNP["Snapshot đĩa VM<br/>hằng ngày, giữ 7 bản"]
+  M --> F
+  M --> I
+  BI --> BL
+  MI --> MM
+  OB --> SN
+  CF --> SN
+  F -->|mã hoá AES-256| S3
+  I --> S3
+  BL --> S3
+  MM --> S3
+  SN --> S3
+  DATA -.-> SNP
+  APP -.-> SNP
+  OPS -.-> SNP
