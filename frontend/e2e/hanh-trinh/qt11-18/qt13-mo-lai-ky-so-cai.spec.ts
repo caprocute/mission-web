@@ -218,13 +218,14 @@ test.describe('QT-13 Mở lại kỳ và sổ cái', { tag: '@qa-07' }, () => {
           { query: { limit: '1' } },
         );
         expect(ds.body.items.length).toBeGreaterThan(0);
-        const e = await a.can<{ items: { id: string }[] }>('GET', 'ledger/entries', {
+        const e = await a.can<{ items: { eventId: string }[] }>('GET', 'ledger/entries', {
           query: { limit: '1' },
         });
+        // Hợp đồng getLedgerInclusionProof: tham số `event` (event_id), chưa niêm phong trả 409
         const proof = await a.goi('GET', 'oversight/ledger/proofs', {
-          query: { entryId: e.body.items[0].id },
+          query: { event: e.body.items[0].eventId },
         });
-        expect([200, 404], 'bằng chứng bao hàm trả về hoặc bản ghi chưa niêm phong').toContain(
+        expect([200, 409], 'bằng chứng bao hàm trả về hoặc bản ghi chưa niêm phong').toContain(
           proof.status,
         );
       } finally {
