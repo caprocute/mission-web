@@ -149,6 +149,18 @@ describe('Config Studio · Bảng quyết định (SCR-1502)', () => {
     expect(el.querySelector('[data-testid=template-error]')).toBeNull();
   });
 
+  it('dòng căn cứ chỉ hiện căn cứ pháp lý, bỏ mã quy tắc nghiệp vụ nội bộ', async () => {
+    const el = await render(DecisionTablePage, true, '[data-row="6"]');
+    await until(el, '.card-head .tag');
+    expect(text(el.querySelector('section[aria-labelledby=h-table] .muted'))).toContain(
+      'Căn cứ: QĐ Điều 11; PL 6 §12.',
+    );
+    expect(text(el.querySelector('section[aria-labelledby=h-nguoi_dung_dau] .tag'))).toBe(
+      'QĐ khoản 14.3.3',
+    );
+    expect(el.textContent).not.toMatch(/BR-\d/);
+  });
+
   it('chỉ xem: hiện nhãn mức, không có ô nhập', async () => {
     const el = await render(DecisionTablePage, false, '[data-row="6"]');
     expect(el.querySelector('[data-testid=decision-table] input')).toBeNull();

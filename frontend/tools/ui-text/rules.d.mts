@@ -8,3 +8,6 @@ export interface UiTextRule {
 }
 
 export declare const RULES: UiTextRule[];
+
+/** Tiền tố mã thiết kế nội bộ, dùng chung với `INTERNAL_CODE_PREFIXES` của `@vt/api-client`. */
+export declare const DESIGN_CODE_PREFIXES: string[];

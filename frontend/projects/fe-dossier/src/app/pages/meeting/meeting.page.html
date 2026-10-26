@@ -94,7 +94,9 @@
   }
   @for (c of specialCases(); track c.id) {
     <p class="info" data-special>
-      Trường hợp đặc thù: <strong>{{ caseLabel(c.legalRef) }}</strong> ({{ c.legalRef }}).
+      @let lr = c.legalRef | legalRef;
+      Trường hợp đặc thù: <strong>{{ caseLabel(c.legalRef) }}</strong
+      >{{ lr ? ' (' + lr + ')' : '' }}.
       @if (c.handling) {
         Cách xử lý: {{ c.handling }}.
       }

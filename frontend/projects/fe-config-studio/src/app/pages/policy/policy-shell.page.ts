@@ -1,5 +1,6 @@
 import { Component, computed, effect, inject, input } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { LegalRefPipe } from '@vt/api-client';
 import { POLICY_VERSION_STATUS_LABEL, policyVersionLabel } from '@vt/api-client/domains';
 import { VtSkeletonComponent } from '@vt/design-system';
 import { STUDIO_ACCESS } from '../../studio-permissions';
@@ -14,7 +15,7 @@ import { PolicyWorkspace } from './policy-workspace';
  */
 @Component({
   selector: 'vt-policy-shell-page',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, VtSkeletonComponent],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, VtSkeletonComponent, LegalRefPipe],
   providers: [PolicyWorkspace],
   template: `
     <nav class="crumb" aria-label="Đường dẫn">
@@ -24,7 +25,7 @@ import { PolicyWorkspace } from './policy-workspace';
     </nav>
     <header class="head">
       <h1>{{ ws.pack.value()?.name ?? 'Chính sách đánh giá' }}</h1>
-      @if (ws.pack.value()?.legalBasis; as lb) {
+      @if (ws.pack.value()?.legalBasis | legalRef; as lb) {
         <p class="sub">Căn cứ: {{ lb }}</p>
       }
     </header>

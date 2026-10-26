@@ -162,7 +162,12 @@
               <tbody>
                 @for (g of groups(); track g.legalRef) {
                   <tr>
-                    <td>{{ caseLabel(g.legalRef) }} ({{ g.legalRef }})</td>
+                    <td>
+                      {{ caseLabel(g.legalRef) }}
+                      @if (g.legalRef | legalRef; as lr) {
+                        ({{ lr }})
+                      }
+                    </td>
                     <td>{{ g.handling ?? '—' }}</td>
                     <td>{{ g.count }}</td>
                   </tr>

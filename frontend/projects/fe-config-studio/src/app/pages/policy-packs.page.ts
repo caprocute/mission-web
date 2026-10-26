@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
+import { LegalRefPipe } from '@vt/api-client';
 import {
   POLICY_VERSION_STATUS_LABEL,
   PolicyApi,
@@ -21,7 +22,7 @@ import { VtSkeletonComponent } from '@vt/design-system';
  */
 @Component({
   selector: 'vt-policy-packs-page',
-  imports: [VtSkeletonComponent, RouterLink],
+  imports: [VtSkeletonComponent, RouterLink, LegalRefPipe],
   template: `
     <header class="vt-page-head">
       <div>
@@ -42,8 +43,8 @@ import { VtSkeletonComponent } from '@vt/design-system';
             <h2>{{ p.name }}</h2>
             <p class="meta">
               <span class="flow-pill">{{ flow[p.flow] ?? p.flow }}</span>
-              @if (p.legalBasis) {
-                · Căn cứ pháp lý: <strong>{{ p.legalBasis }}</strong>
+              @if (p.legalBasis | legalRef; as lb) {
+                · Căn cứ pháp lý: <strong>{{ lb }}</strong>
               }
             </p>
           </div>

@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { LegalRefPipe } from '@vt/api-client';
 import {
   DAY_KIND_LABEL,
   PERIOD_KIND_LABEL,
@@ -147,7 +148,7 @@ export class PolicyDiffDialog {
 /** Toàn bộ biểu thức của phiên bản theo thứ tự tính (SCR-1501 "Xem dạng CEL"). */
 @Component({
   selector: 'vt-policy-expressions-dialog',
-  imports: [DialogModule],
+  imports: [DialogModule, LegalRefPipe],
   template: `
     <p-dialog
       header="Toàn bộ biểu thức"
@@ -171,7 +172,7 @@ export class PolicyDiffDialog {
               <td>
                 <pre>{{ r.expression }}</pre>
               </td>
-              <td>{{ r.legalRef ?? '—' }}</td>
+              <td>{{ (r.legalRef | legalRef) || '—' }}</td>
             </tr>
           }
         </tbody>

@@ -32,7 +32,7 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { toProblem } from '@vt/api-client';
+import { LegalRefPipe, legalRefText, toProblem } from '@vt/api-client';
 import {
   AppraisalApi,
   AppraisalFlow,
@@ -77,7 +77,7 @@ type Tab = AppraisalFlow | 'TRACE';
 
 @Component({
   selector: 'vt-rating-sheet-page',
-  imports: [VtSkeletonComponent, RouterLink],
+  imports: [VtSkeletonComponent, RouterLink, LegalRefPipe],
   templateUrl: './rating-sheet.page.html',
   styleUrl: './rating-sheet.page.css',
 })
@@ -196,10 +196,14 @@ export class RatingSheetPage {
     if (v.explanation?.text) return v.explanation.text;
     return v.snapshot.downgradeReasons.map((d) => d.text).join(' ');
   });
-  protected readonly legalRef = computed(
-    () =>
-      this.view()?.explanation?.legalRef ??
-      this.snapshot()?.downgradeReasons.find((d) => d.legalRef)?.legalRef,
+  /** Căn cứ của kết luận, đã bỏ mã nội bộ; rỗng thì không hiện. */
+  protected readonly legalRef = computed(() =>
+    [
+      this.view()?.explanation?.legalRef,
+      ...(this.snapshot()?.downgradeReasons.map((d) => d.legalRef) ?? []),
+    ]
+      .map(legalRefText)
+      .find(Boolean),
   );
   protected readonly packNote = computed(() => {
     const s = this.snapshot();

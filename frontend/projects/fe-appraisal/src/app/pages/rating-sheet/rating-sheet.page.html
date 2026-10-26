@@ -114,8 +114,8 @@
                 @if (s.explanation) {
                   <p>{{ s.explanation }}</p>
                 }
-                @if (s.legalRef) {
-                  <p class="muted small">Căn cứ: {{ s.legalRef }}</p>
+                @if (s.legalRef | legalRef; as lr) {
+                  <p class="muted small">Căn cứ: {{ lr }}</p>
                 }
                 @if (taskOf(s); as line) {
                   @if (line.evidenceId) {
