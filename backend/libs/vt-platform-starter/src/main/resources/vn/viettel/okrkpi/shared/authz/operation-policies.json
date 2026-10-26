@@ -7154,12 +7154,13 @@
       "roles": [
         "manager",
         "leader",
-        "tenant_admin"
+        "tenant_admin",
+        "appraiser"
       ],
       "scope": "Đv",
       "aal": 1,
       "fourEyes": false,
-      "source": "Mã frontend WEB-028 (suy luận)"
+      "source": "Mã frontend WEB-028 (suy luận); SCR-1101.tao chọn thành phần hội nghị (appraiser, HT-30, wiki 14)"
     },
     {
       "operationId": "listOrgSyncRuns",

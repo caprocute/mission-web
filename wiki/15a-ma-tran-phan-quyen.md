@@ -372,7 +372,7 @@ Dòng tiêu đề cột: AC-01 `platform_admin`, AC-02 `tenant_admin`, AC-03 `po
 | `SCR-0801.khoi-chay` | TL-01 Phụ lục C ghi `org_officer` khởi động saga; TL-02 ghi AC-02. |
 | `SCR-0903.tai-mau-1b` | Bảng chức năng không ghi người được tải; suy luận theo quyền xem phiếu. |
 | `SCR-0904.xem` | "Thư ký tổng hợp hỗ trợ chuẩn bị nhưng không ký": nguồn không nêu vai trò của thư ký. |
-| `SCR-1101.tao` | SCR-1101 không có nút tạo; TL-01 ghi `org_officer`, ánh xạ sang AC-07 là suy luận. |
+| `SCR-1101.tao` | SCR-1101 không có nút tạo; TL-01 ghi `org_officer`, ánh xạ sang AC-07 là suy luận. Hộp thoại lập hội nghị chọn người được kiểm điểm, chủ trì, thư ký, thành phần qua `GET /org/persons` và hiện trường hợp đặc thù qua `GET /dossiers/special-cases` (HT-30, wiki 14). |
 | `SCR-1101.gop-y` | Thành viên hội nghị là phân công trên đối tượng, không gắn với vai trò; các vai trò ngoài AC-06 là suy luận. |
 | `SCR-1101.ket-thuc` | Nguồn không nêu vai trò của chủ trì; AC-04 là suy luận. |
 | `SCR-1102.goi-con` | Nguồn không nêu ai bấm; AC-07 (người chuẩn bị) là suy luận. |

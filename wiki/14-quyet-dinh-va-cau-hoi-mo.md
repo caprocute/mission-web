@@ -2611,3 +2611,9 @@ Chạy các hành trình HT-23 đến HT-29 trên stack dev thật cho thấy sa
 ### Gộp ADR-34 với phép kiểm bao phủ hợp đồng (main, 24/10/2026)
 
 Khi gộp nhánh quản trị người dùng (ADR-34) cùng phép kiểm `kiem_hop_dong_bao_phu_chuc_nang` mới của `gen_matrix.py`, phép kiểm báo `listPersonAssignments` (GET /org/persons/{id}/assignments) chưa cấp cho inspector trong khi ma trận chức năng cấp SCR-0109.xem cho AC-10 (R/Tn). Main thêm `inspector` vào `x-mission.roles` của thao tác này, cùng cách đã làm với `listOrgSyncRuns`. Thay đổi chỉ mở rộng danh sách vai trò, không đổi hình dạng hợp đồng.
+
+### HT-30: thẩm định bị 403 khi mở hộp thoại lập hội nghị (QA, 26/10/2026)
+
+Trên dev, bước "Lập hội nghị" của HT-30 (SCR-1101, tài khoản `thamdinh` = AC-07 `appraiser`, đúng ô `SCR-1101.tao` T/Đv*) bị 403. `createDossierMeeting` và OPA đều cấp cho `appraiser`; lỗi nằm ở thao tác phụ thuộc: hộp thoại nạp danh sách cán bộ để chọn người được kiểm điểm, chủ trì, thư ký, thành phần qua `GET /org/persons` (`listOrgPersons`), mà hợp đồng chỉ cấp `[manager, leader, tenant_admin]` và org-service kiểm theo `x-mission.roles` (`ContractPolicyAdapter`). Ma trận chỉ ghi `POST /dossiers/meetings` ở cột API của `SCR-1101.tao`, nên phép kiểm `kiem_hop_dong_bao_phu_chuc_nang` không thấy chỗ lệch.
+
+Quyết định (YC-PT-09, chỉ cộng thêm): thêm `appraiser` vào `x-mission.roles` của `listOrgPersons` (phạm vi giữ `Đv`, org-service vẫn kiểm đơn vị đích thuộc cây của người gọi), vì nghiệp vụ QT-11 bước 1 đòi người chuẩn bị chọn thành phần hội nghị. Cột API của `SCR-1101.tao` ghi thêm `GET /api/v1/org/persons` và `GET /api/v1/dossiers/special-cases` để phép kiểm bao phủ giữ chỗ này. Sinh lại `operation-policies.json` và đầu ra của `gen_matrix.py`. Danh mục hành trình HT-30 bổ sung tác nhân AC-07 (`thamdinh`) cho bước lập hội nghị mà kịch bản vẫn dùng. Không đổi hình dạng hợp đồng; dev cần triển khai lại org-service (đọc `org.yaml` từ classpath), không cần sửa Keycloak.

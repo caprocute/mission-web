@@ -717,8 +717,8 @@
       "nenTang": "web",
       "qt": ["QT-11"],
       "scr": ["SCR-1101"],
-      "tacNhan": ["AC-04", "AC-06"],
-      "taiKhoan": ["lanhdao", "canbo"],
+      "tacNhan": ["AC-07", "AC-04", "AC-06"],
+      "taiKhoan": ["thamdinh", "lanhdao", "canbo"],
       "operationIds": [
         "createDossierMeeting",
         "sendDossierMeetingDraft",
