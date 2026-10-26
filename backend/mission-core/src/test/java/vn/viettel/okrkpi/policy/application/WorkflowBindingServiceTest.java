@@ -150,7 +150,9 @@ class WorkflowBindingServiceTest {
     assertThat(saved.rowVersion()).isEqualTo(1);
     ArgumentCaptor<String> key = ArgumentCaptor.forClass(String.class);
     verify(bindings).save(eq(tenant), eq(v.id()), eq("DANH_GIA"), eq(0L), key.capture(), any());
-    assertThat(key.getValue()).isEqualTo("policy:" + v.id() + ":DANH_GIA:k-1");
+    assertThat(key.getValue())
+        .isEqualTo(WorkflowBindingService.downstreamKey(v.id(), "DANH_GIA", "k-1"))
+        .hasSizeLessThanOrEqualTo(64);
     ArgumentCaptor<String> copy = ArgumentCaptor.forClass(String.class);
     verify(packs)
         .storeWorkflowBinding(eq(tenant), eq(v.id()), eq("DANH_GIA"), copy.capture(), eq(actor));
@@ -243,5 +245,15 @@ class WorkflowBindingServiceTest {
         .thenReturn(Map.of("steps", List.of()));
     assertThat(service.simulate(tenant, Map.of("templateKey", "x"), "k-9")).containsKey("steps");
     verifyNoInteractions(packs, audit);
+  }
+
+  @Test
+  void khoaGuiWorkflowServiceGonTrong64KyTuVaOnDinh() {
+    UUID ver = UUID.randomUUID();
+    String caller = UUID.randomUUID().toString();
+    String k = WorkflowBindingService.downstreamKey(ver, "KE_HOACH_QUY", caller);
+    assertThat(k).hasSizeLessThanOrEqualTo(64).startsWith("policy:");
+    assertThat(WorkflowBindingService.downstreamKey(ver, "KE_HOACH_QUY", caller)).isEqualTo(k);
+    assertThat(WorkflowBindingService.downstreamKey(ver, "OKR", caller)).isNotEqualTo(k);
   }
 }
