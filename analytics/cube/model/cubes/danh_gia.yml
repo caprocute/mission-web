@@ -62,7 +62,7 @@ cubes:
         type: rollup
         external: false
         measures: [so_ho_so, cho_tham_dinh, so_da_xep_loai]
-        dimensions: [tenant_id, luong, muc_xep_loai, org_unit.id, org_unit.ma, org_unit.ten, org_unit.org_path_dang,
+        dimensions: [tenant_id, luong, muc_xep_loai, org_unit.id, org_unit.ma, org_unit.name, org_unit.org_path_dang,
                      org_unit.org_path_chuyen_mon, period.id, period.ma, period.ten]
         refresh_key:
           every: 5 minute
@@ -127,7 +127,7 @@ cubes:
         type: rollup
         external: false
         measures: [so_nguoi, mau_nguoi, tong_diem]
-        dimensions: [tenant_id, luong, loai_anh_chup, org_unit.id, org_unit.ma, org_unit.ten, org_unit.org_path_dang,
+        dimensions: [tenant_id, luong, loai_anh_chup, org_unit.id, org_unit.ma, org_unit.name, org_unit.org_path_dang,
                      org_unit.org_path_chuyen_mon, period.id, period.ma, period.ten]
         refresh_key:
           every: 5 minute
