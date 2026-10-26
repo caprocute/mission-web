@@ -23,33 +23,73 @@ export const PERIODS = [
 export const CURRENT_PERIOD = 'p-2026q4';
 export const STALE_PERIOD = 'p-2026q3';
 
+/** `flow` là mã luồng (`flow.code`), `groupCode`, `group` là mã, tên khối (`subject_group.code`, `.ten`). */
 export interface UnitDef {
   id: string;
   name: string;
   flow: string;
+  groupCode: string;
   group: string;
 }
 
 export const UNITS: UnitDef[] = [
-  { id: 'u-btg', name: 'Ban Tuyên giáo', flow: 'Đảng', group: 'Cơ quan tham mưu' },
-  { id: 'u-ubkt', name: 'Uỷ ban Kiểm tra', flow: 'Đảng', group: 'Cơ quan tham mưu' },
-  { id: 'u-cs-01', name: 'Đảng bộ cơ sở số 1', flow: 'Đảng', group: 'Đảng bộ cơ sở' },
-  { id: 'u-cs-02', name: 'Đảng bộ cơ sở số 2', flow: 'Nhà nước', group: 'Đảng bộ cơ sở' },
-  { id: 'u-vp', name: 'Văn phòng Đảng uỷ', flow: 'Đảng', group: 'Cơ quan tham mưu' },
-  { id: 'u-btc', name: 'Ban Tổ chức', flow: 'Đảng', group: 'Cơ quan tham mưu' },
+  {
+    id: 'u-btg',
+    name: 'Ban Tuyên giáo',
+    flow: 'DANG',
+    groupCode: 'CQ_THAM_MUU',
+    group: 'Cơ quan tham mưu',
+  },
+  {
+    id: 'u-ubkt',
+    name: 'Uỷ ban Kiểm tra',
+    flow: 'DANG',
+    groupCode: 'CQ_THAM_MUU',
+    group: 'Cơ quan tham mưu',
+  },
+  {
+    id: 'u-cs-01',
+    name: 'Đảng bộ cơ sở số 1',
+    flow: 'DANG',
+    groupCode: 'DANG_BO_CO_SO',
+    group: 'Đảng bộ cơ sở',
+  },
+  {
+    id: 'u-cs-02',
+    name: 'Đảng bộ cơ sở số 2',
+    flow: 'NHA_NUOC',
+    groupCode: 'DANG_BO_CO_SO',
+    group: 'Đảng bộ cơ sở',
+  },
+  {
+    id: 'u-vp',
+    name: 'Văn phòng Đảng uỷ',
+    flow: 'DANG',
+    groupCode: 'CQ_THAM_MUU',
+    group: 'Cơ quan tham mưu',
+  },
+  {
+    id: 'u-btc',
+    name: 'Ban Tổ chức',
+    flow: 'DANG',
+    groupCode: 'CQ_THAM_MUU',
+    group: 'Cơ quan tham mưu',
+  },
 ];
 
-/** Chỉ số cấp đơn vị; `avg` lấy trung bình khi gộp, `sum` cộng dồn; `progressive` tăng dần theo tuần. */
+/**
+ * Chỉ số cấp đơn vị, cùng tên lớp ngữ nghĩa Cube (`analytics/cube/model`); `avg` lấy trung bình khi gộp,
+ * `sum` cộng dồn.
+ */
 export const UNIT_MEASURES = {
-  'okr.tien_do_o': { agg: 'avg', progressive: true },
-  'task.ty_le_dung_han': { agg: 'avg', progressive: false },
-  'task.so_viec_cham': { agg: 'sum', progressive: false },
-  'appraisal.cho_tham_dinh': { agg: 'sum', progressive: false },
-  'appraisal.diem_kpi_tb': { agg: 'avg', progressive: false },
-  'evidence.cho_nghiem_thu': { agg: 'sum', progressive: false },
-  'task.so_ngay_cham_bq': { agg: 'avg', progressive: false },
-  'okr.muc_tu_tin_kr': { agg: 'avg', progressive: false },
-  'oversight.so_canh_bao': { agg: 'sum', progressive: false },
+  'okr.tien_do_o': { agg: 'avg' },
+  'task.ty_le_dung_han': { agg: 'avg' },
+  'task.so_viec_cham': { agg: 'sum' },
+  'appraisal.cho_tham_dinh': { agg: 'sum' },
+  'score.diem_kpi_trung_binh': { agg: 'avg' },
+  'evidence.so_cho_nghiem_thu': { agg: 'sum' },
+  'task.so_ngay_cham_binh_quan': { agg: 'avg' },
+  'okr_checkin.chi_so_tu_tin': { agg: 'avg' },
 } as const;
 export type UnitMeasure = keyof typeof UNIT_MEASURES;
 const ORDER = Object.keys(UNIT_MEASURES) as UnitMeasure[];
@@ -57,28 +97,28 @@ const ORDER = Object.keys(UNIT_MEASURES) as UnitMeasure[];
 /** Giá trị theo kỳ, đơn vị, cùng thứ tự `UNIT_MEASURES`. */
 const RAW: Record<string, Record<string, number[]>> = {
   'p-2026q4': {
-    'u-btg': [92, 94, 1, 1, 93.4, 2, 0.5, 86, 0],
-    'u-ubkt': [88, 90, 2, 1, 91.8, 3, 1, 82, 1],
-    'u-cs-01': [71, 80, 3, 2, 86.2, 6, 2, 70, 1],
-    'u-cs-02': [68, 78, 3, 2, 85.1, 5, 2.5, 66, 0],
-    'u-vp': [41, 70, 4, 2, 80.6, 7, 4, 52, 2],
-    'u-btc': [85, 91, 1, 1, 90.4, 2, 1, 80, 1],
+    'u-btg': [92, 94, 1, 1, 93.4, 2, 0.5, 86],
+    'u-ubkt': [88, 90, 2, 1, 91.8, 3, 1, 82],
+    'u-cs-01': [71, 80, 3, 2, 86.2, 6, 2, 70],
+    'u-cs-02': [68, 78, 3, 2, 85.1, 5, 2.5, 66],
+    'u-vp': [41, 70, 4, 2, 80.6, 7, 4, 52],
+    'u-btc': [85, 91, 1, 1, 90.4, 2, 1, 80],
   },
   'p-2026q3': {
-    'u-btg': [88, 92, 1, 0, 92.1, 1, 0.5, 84, 0],
-    'u-ubkt': [85, 89, 1, 0, 90.6, 2, 1, 80, 0],
-    'u-cs-01': [70, 82, 2, 0, 86.8, 3, 1.5, 72, 1],
-    'u-cs-02': [66, 80, 2, 0, 84.3, 4, 2, 64, 1],
-    'u-vp': [55, 75, 3, 0, 83.2, 4, 3, 60, 1],
-    'u-btc': [84, 90, 1, 0, 89.9, 2, 1, 79, 0],
+    'u-btg': [88, 92, 1, 0, 92.1, 1, 0.5, 84],
+    'u-ubkt': [85, 89, 1, 0, 90.6, 2, 1, 80],
+    'u-cs-01': [70, 82, 2, 0, 86.8, 3, 1.5, 72],
+    'u-cs-02': [66, 80, 2, 0, 84.3, 4, 2, 64],
+    'u-vp': [55, 75, 3, 0, 83.2, 4, 3, 60],
+    'u-btc': [84, 90, 1, 0, 89.9, 2, 1, 79],
   },
   'p-2026q2': {
-    'u-btg': [86, 90, 1, 0, 91.5, 1, 0.5, 82, 0],
-    'u-ubkt': [83, 88, 2, 0, 90.1, 2, 1, 78, 0],
-    'u-cs-01': [68, 79, 3, 0, 85.9, 4, 2, 70, 0],
-    'u-cs-02': [65, 78, 2, 0, 84.0, 3, 2, 63, 1],
-    'u-vp': [60, 77, 2, 0, 84.5, 3, 2.5, 62, 0],
-    'u-btc': [82, 89, 1, 0, 89.2, 2, 1, 77, 0],
+    'u-btg': [86, 90, 1, 0, 91.5, 1, 0.5, 82],
+    'u-ubkt': [83, 88, 2, 0, 90.1, 2, 1, 78],
+    'u-cs-01': [68, 79, 3, 0, 85.9, 4, 2, 70],
+    'u-cs-02': [65, 78, 2, 0, 84.0, 3, 2, 63],
+    'u-vp': [60, 77, 2, 0, 84.5, 3, 2.5, 62],
+    'u-btc': [82, 89, 1, 0, 89.2, 2, 1, 77],
   },
 };
 
@@ -148,8 +188,9 @@ export const HOANG_SCORE_ID = 'ss-2026q4-tran-minh-hoang';
 /** Cán bộ có minh chứng liên kết ngang của đơn vị khác (mắt xích bị che, MSG-16-06). */
 export const MASKED_SCORE_ID = 'ss-2026q4-le-thu-trang';
 
-const ALL_UNIT = ORDER;
-const PERSON = ['appraisal.diem_kpi_tb', 'task.ty_le_dung_han'];
+/** Chỉ số đếm theo hồ sơ, tính từ danh sách cán bộ mẫu. */
+const COUNTS = ['appraisal.phan_bo_muc', 'score.so_nguoi'];
+const ALL_UNIT = [...ORDER, ...COUNTS];
 
 export const SEMANTIC_MODEL: SemanticModel = {
   version: '2026.4',
@@ -176,12 +217,12 @@ export const SEMANTIC_MODEL: SemanticModel = {
       drillable: false,
     },
     {
-      name: 'appraisal.diem_kpi_tb',
+      name: 'score.diem_kpi_trung_binh',
       title: 'Điểm KPI trung bình',
       type: 'number',
-      unit: 'điểm',
-      drillable: true,
+      drillable: false,
     },
+    { name: 'score.so_nguoi', title: 'Số hồ sơ có điểm', type: 'count', drillable: false },
     {
       name: 'appraisal.phan_bo_muc',
       title: 'Phân bố mức xếp loại',
@@ -189,88 +230,59 @@ export const SEMANTIC_MODEL: SemanticModel = {
       drillable: false,
     },
     {
-      name: 'evidence.cho_nghiem_thu',
+      name: 'evidence.so_cho_nghiem_thu',
       title: 'Minh chứng chờ nghiệm thu',
       type: 'count',
       drillable: true,
     },
     {
-      name: 'task.so_ngay_cham_bq',
+      name: 'task.so_ngay_cham_binh_quan',
       title: 'Số ngày chậm bình quân',
       type: 'number',
       unit: 'ngày',
       drillable: true,
     },
     {
-      name: 'okr.muc_tu_tin_kr',
-      title: 'Mức tự tin kết quả then chốt',
+      name: 'okr_checkin.chi_so_tu_tin',
+      title: 'Mức tự tin KR',
       type: 'number',
       unit: '%',
       drillable: false,
     },
-    {
-      name: 'oversight.so_canh_bao',
-      title: 'Cảnh báo bất thường',
-      type: 'count',
-      drillable: false,
-    },
   ],
   dimensions: [
+    { name: 'org_unit.name', title: 'Tên đơn vị', type: 'string', supportedMeasures: ALL_UNIT },
+    { name: 'period.label', title: 'Kỳ', type: 'string', supportedMeasures: ALL_UNIT },
     {
-      name: 'org_unit.name',
-      title: 'Đơn vị',
-      type: 'string',
-      supportedMeasures: [...ALL_UNIT, 'appraisal.phan_bo_muc'],
-    },
-    {
-      name: 'period.label',
-      title: 'Kỳ',
-      type: 'string',
-      supportedMeasures: [...ALL_UNIT, 'appraisal.phan_bo_muc'],
-    },
-    {
-      name: 'subject_group.name',
+      name: 'subject_group.ten',
       title: 'Khối đối tượng',
       type: 'string',
-      supportedMeasures: [...ALL_UNIT, 'appraisal.phan_bo_muc'],
+      supportedMeasures: ALL_UNIT,
     },
+    { name: 'subject_group.code', title: 'Mã khối', type: 'string', supportedMeasures: ALL_UNIT },
+    { name: 'flow.code', title: 'Luồng', type: 'string', supportedMeasures: ALL_UNIT },
     {
-      name: 'flow.name',
-      title: 'Luồng',
-      type: 'string',
-      supportedMeasures: [...ALL_UNIT, 'appraisal.phan_bo_muc'],
-    },
-    {
-      name: 'task_type.name',
+      name: 'task.nhom',
       title: 'Loại nhiệm vụ',
       type: 'string',
-      supportedMeasures: ['task.ty_le_dung_han', 'task.so_viec_cham', 'task.so_ngay_cham_bq'],
+      supportedMeasures: [
+        'task.ty_le_dung_han',
+        'task.so_viec_cham',
+        'task.so_ngay_cham_binh_quan',
+      ],
     },
     {
-      name: 'time.week',
-      title: 'Tuần',
-      type: 'time',
-      supportedMeasures: ['okr.tien_do_o', 'task.ty_le_dung_han', 'task.so_viec_cham'],
-    },
-    {
-      name: 'rating.level',
+      name: 'appraisal.muc_xep_loai',
       title: 'Mức xếp loại',
       type: 'string',
-      supportedMeasures: ['appraisal.phan_bo_muc'],
+      supportedMeasures: ['appraisal.phan_bo_muc', 'appraisal.cho_tham_dinh'],
     },
-    { name: 'person.name', title: 'Cán bộ', type: 'string', supportedMeasures: PERSON },
-    // chiều kỹ thuật để đi xuống (mã đơn vị, mã hồ sơ điểm); trình dựng không liệt kê
+    // chiều kỹ thuật để đi xuống (mã đơn vị); trình dựng không liệt kê
     {
       name: 'org_unit.id',
-      title: 'Mã đơn vị',
+      title: 'Mã định danh đơn vị',
       type: 'string',
-      supportedMeasures: [...ALL_UNIT, ...PERSON],
-    },
-    {
-      name: 'score_snapshot.id',
-      title: 'Mã hồ sơ điểm',
-      type: 'string',
-      supportedMeasures: PERSON,
+      supportedMeasures: ALL_UNIT,
     },
   ],
 };
@@ -429,10 +441,10 @@ export function dashboards(): AnalyticsDashboard[] {
       measures: [
         'okr.tien_do_o',
         'task.ty_le_dung_han',
-        'appraisal.diem_kpi_tb',
+        'score.diem_kpi_trung_binh',
         'appraisal.phan_bo_muc',
       ],
-      dimensions: ['period.label', 'rating.level'],
+      dimensions: ['period.label', 'appraisal.muc_xep_loai'],
       layout: [
         {
           id: 'w1',
@@ -464,10 +476,10 @@ export function dashboards(): AnalyticsDashboard[] {
           y: 0,
           w: 6,
           h: 4,
-          measure: 'appraisal.diem_kpi_tb',
+          measure: 'score.diem_kpi_trung_binh',
           dimensions: ['period.label'],
           chartType: 'COT',
-          filters: [{ member: 'flow.name', operator: 'equals', values: ['Đảng'] }],
+          filters: [{ member: 'flow.code', operator: 'equals', values: ['DANG'] }],
           drillDown: true,
         },
         {
@@ -477,7 +489,7 @@ export function dashboards(): AnalyticsDashboard[] {
           w: 6,
           h: 4,
           measure: 'appraisal.phan_bo_muc',
-          dimensions: ['rating.level'],
+          dimensions: ['appraisal.muc_xep_loai'],
           chartType: 'THANH',
           filters: [],
           drillDown: false,
@@ -505,9 +517,7 @@ export function dashboards(): AnalyticsDashboard[] {
           measure: 'okr.tien_do_o',
           dimensions: ['org_unit.name'],
           chartType: 'THANH',
-          filters: [
-            { member: 'subject_group.name', operator: 'equals', values: ['Cơ quan tham mưu'] },
-          ],
+          filters: [{ member: 'subject_group.code', operator: 'equals', values: ['CQ_THAM_MUU'] }],
           drillDown: true,
         },
       ],

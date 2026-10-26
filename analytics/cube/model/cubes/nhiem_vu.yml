@@ -114,7 +114,7 @@ cubes:
         measures: [so_viec, so_den_han, so_dung_han, so_viec_cham, so_viec_tre, tu_dung_han, mau_den_han, mau_viec_tre,
                    tong_ngay_cham]
         dimensions: [tenant_id, nhom, org_unit.id, org_unit.ma, org_unit.name, org_unit.org_path_dang,
-                     org_unit.org_path_chuyen_mon, period.id, period.ma, period.ten, period.luong]
+                     org_unit.org_path_chuyen_mon, period.id, period.ma, period.label, period.luong]
         refresh_key:
           every: 5 minute
         indexes:

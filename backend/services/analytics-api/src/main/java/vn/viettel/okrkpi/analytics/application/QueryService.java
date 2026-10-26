@@ -114,7 +114,7 @@ public class QueryService {
 
   private QueryResult execute(Scope scope, SemanticCatalog catalog, AnalyticsRequest request) {
     List<String> keys = memberKeys(catalog, request);
-    List<Map<String, Object>> rows = cube.load(scope, cubeQuery(catalog, request));
+    List<Map<String, Object>> rows = load(scope, catalog, request);
     List<Column> columns = new ArrayList<>(columns(catalog, request));
     List<List<Object>> out = new ArrayList<>();
     for (Map<String, Object> row : rows) {
@@ -125,7 +125,7 @@ public class QueryService {
       Map<List<Object>, List<Object>> before = new HashMap<>();
       if (previous.isPresent()) {
         AnalyticsRequest prior = request.withPeriod(previous.get());
-        for (Map<String, Object> row : cube.load(scope, cubeQuery(catalog, prior))) {
+        for (Map<String, Object> row : load(scope, catalog, prior)) {
           List<Object> v = values(catalog, prior, keys, row);
           int d = request.dimensions().size();
           before.put(new ArrayList<>(v.subList(0, d)), new ArrayList<>(v.subList(d, v.size())));
@@ -149,6 +149,39 @@ public class QueryService {
     boolean stale = asOf == null || asOf.isBefore(clock.instant().minus(staleAfter));
     return new QueryResult(
         catalog.version(), asOf == null ? clock.instant() : asOf, stale, columns, out);
+  }
+
+  /**
+   * Chạy truy vấn trên Cube, mỗi cube của chỉ số một lượt rồi ghép dòng theo giá trị chiều. Cube
+   * chỉ ghép được các cube có đường nối từ một cube gốc; chỉ số của hai cube cùng nối tới {@code
+   * org_unit}, {@code period} (ví dụ bốn chỉ số của SCR-1601: {@code okr}, {@code task}, {@code
+   * appraisal}) không có đường nối giữa chúng nên một truy vấn chung bị Cube từ chối (400, thành
+   * 422 {@code ANALYTICS-422-INVALID-COMBINATION}). Tách theo cube cũng tránh nhân dòng khi nối
+   * nhiều bảng sự kiện (cách ca vàng {@code tach_truy_van} của DV-15-03 đã làm).
+   */
+  List<Map<String, Object>> load(Scope scope, SemanticCatalog catalog, AnalyticsRequest request) {
+    Map<String, List<String>> byCube = new LinkedHashMap<>();
+    for (String m : request.measures()) {
+      byCube.computeIfAbsent(m.substring(0, m.indexOf('.')), k -> new ArrayList<>()).add(m);
+    }
+    if (byCube.size() <= 1) {
+      return cube.load(scope, cubeQuery(catalog, request));
+    }
+    List<String> keys = memberKeys(catalog, request);
+    int d = request.dimensions().size();
+    Map<List<Object>, Map<String, Object>> merged = new LinkedHashMap<>();
+    for (List<String> ms : byCube.values()) {
+      for (Map<String, Object> row :
+          cube.load(scope, cubeQuery(catalog, request.withMeasures(ms)))) {
+        List<Object> key = new ArrayList<>(d);
+        for (int i = 0; i < d; i++) {
+          Object v = row.get(keys.get(i));
+          key.add(v == null ? row.get(request.dimensions().get(i)) : v);
+        }
+        merged.computeIfAbsent(key, k -> new LinkedHashMap<>()).putAll(row);
+      }
+    }
+    return new ArrayList<>(merged.values());
   }
 
   /**

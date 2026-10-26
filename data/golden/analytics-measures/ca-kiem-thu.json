@@ -68,8 +68,8 @@
     {
       "ten": "Phân bố mức xếp loại",
       "tenant": "#A", "org_path": "/tw/vptw",
-      "query": {"measures": ["appraisal.so_da_xep_loai"], "dimensions": ["appraisal.muc_xep_loai"], "filters": [{"member": "appraisal.muc_xep_loai", "operator": "set"}]},
-      "ket_qua": [{"appraisal.muc_xep_loai": "HTTNV", "appraisal.so_da_xep_loai": 2}, {"appraisal.muc_xep_loai": "HTXSNV", "appraisal.so_da_xep_loai": 1}],
+      "query": {"measures": ["appraisal.phan_bo_muc"], "dimensions": ["appraisal.muc_xep_loai"], "filters": [{"member": "appraisal.muc_xep_loai", "operator": "set"}]},
+      "ket_qua": [{"appraisal.muc_xep_loai": "HTTNV", "appraisal.phan_bo_muc": 2}, {"appraisal.muc_xep_loai": "HTXSNV", "appraisal.phan_bo_muc": 1}],
       "tinh_tay": "p5 HTXSNV, p6 HTTNV, p7 HTTNV."
     },
     {

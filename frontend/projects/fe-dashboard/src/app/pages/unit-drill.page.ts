@@ -1,8 +1,10 @@
 /*
- * SCR-1603 Đi xuống tới minh chứng, bước "bấm đơn vị, rồi cán bộ" (QT-16 bước 5; WEB-047). Đường vào: bấm
- * đơn vị ở SCR-1601 hoặc một giá trị theo đơn vị ở dashboard tự dựng (SCR-1602). Danh sách cán bộ của đơn vị
- * và điểm lấy từ lớp ngữ nghĩa (`POST /analytics/query`, chiều `person.name`, `score_snapshot.id`, lọc
- * theo mã hoặc tên đơn vị; suy luận, wiki/14); bấm cán bộ mở chuỗi truy vết từ điểm (`trace/DIEM/{id}`).
+ * SCR-1603 Đi xuống tới minh chứng, bước "bấm đơn vị" (QT-16 bước 5; WEB-047). Đường vào: bấm đơn vị ở
+ * SCR-1601 hoặc một giá trị theo đơn vị ở dashboard tự dựng (SCR-1602). Số tổng hợp của đơn vị lấy từ lớp
+ * ngữ nghĩa (`POST /analytics/query`: `score.diem_kpi_trung_binh`, `score.so_nguoi`, `task.ty_le_dung_han`,
+ * lọc theo mã hoặc tên đơn vị). Kho phân tích không lưu định danh cán bộ (`person_key` đã ẩn danh) và hợp
+ * đồng chưa có thao tác cho lãnh đạo liệt kê kết quả đánh giá từng cán bộ theo đơn vị (`listAppraisalProfiles`
+ * chỉ cho người thẩm định, người quyết định), nên trang chưa có danh sách cán bộ; đề nghị ghi ở wiki/14.
  * Quyền: SCR-1603.xem; số liệu lọc theo phạm vi của người xem (BR-16-01).
  */
 import { Component, computed, inject, input } from '@angular/core';
@@ -24,10 +26,7 @@ import { VtSkeletonComponent } from '@vt/design-system';
       }
     </p>
     <h1>{{ name() || 'Đơn vị' }}</h1>
-    <p class="muted">
-      Kết quả đánh giá của cán bộ trong đơn vị. Chọn một cán bộ để xem chuỗi từ điểm đánh giá tới
-      minh chứng.
-    </p>
+    <p class="muted">Kết quả đánh giá và nhiệm vụ của đơn vị trong kỳ.</p>
     @if (res.error()) {
       <p-message severity="error" role="alert">{{ err(res.error()) }}</p-message>
     } @else if (res.hasValue()) {
@@ -36,44 +35,29 @@ import { VtSkeletonComponent } from '@vt/design-system';
           Số liệu cập nhật lúc {{ dt(res.value().dataAsOf) }}, chậm hơn thường lệ.
         </p-message>
       }
-      <div class="box">
-        <div class="table-wrap">
-          <table class="tbl">
-            <caption class="sr-only">
-              Cán bộ của đơn vị và điểm đánh giá
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Cán bộ</th>
-                <th scope="col">Điểm KPI</th>
-                <th scope="col">Tỷ lệ nhiệm vụ đúng hạn</th>
-                <th scope="col"><span class="sr-only">Thao tác</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (p of people(); track p.scoreId) {
-                <tr [attr.data-score-id]="p.scoreId">
-                  <td>{{ p.name }}</td>
-                  <td>{{ num(p.score) }}</td>
-                  <td>{{ num(p.onTime) }}%</td>
-                  <td>
-                    <a [routerLink]="['../trace', 'DIEM', p.scoreId]"
-                      >Xem chuỗi truy vết<span class="sr-only"> của {{ p.name }}</span></a
-                    >
-                  </td>
-                </tr>
-              } @empty {
-                <tr>
-                  <td colspan="4">Chưa có kết quả đánh giá của đơn vị trong kỳ này.</td>
-                </tr>
-              }
-            </tbody>
-          </table>
+      <section class="grid kpis" aria-label="Số liệu của đơn vị">
+        <div class="kpi">
+          <p class="t">Điểm KPI trung bình</p>
+          <p class="v">{{ num(totals().score) }}</p>
         </div>
+        <div class="kpi">
+          <p class="t">Số cán bộ đã có điểm</p>
+          <p class="v">{{ num(totals().people, 0) }}</p>
+        </div>
+        <div class="kpi">
+          <p class="t">Tỷ lệ nhiệm vụ đúng hạn</p>
+          <p class="v">{{ num(totals().onTime) }}%</p>
+        </div>
+      </section>
+      <div class="box">
+        <p>
+          Bảng điều hành chỉ có số liệu tổng hợp của đơn vị. Kết quả đánh giá của từng cán bộ và
+          chuỗi từ điểm đánh giá tới minh chứng xem ở hồ sơ đánh giá của cán bộ.
+        </p>
         <p class="small muted">Số liệu cập nhật lúc {{ dt(res.value().dataAsOf) }}.</p>
       </div>
     } @else {
-      <vt-skeleton variant="table" [columns]="5" label="Đang tải số liệu đơn vị" />
+      <vt-skeleton variant="stats" label="Đang tải số liệu đơn vị" />
     }
   `,
   styleUrls: ['../dashboard.css'],
@@ -90,30 +74,24 @@ export class UnitDrillPage {
     params: () => ({ id: this.id(), name: this.name(), period: this.period() }),
     stream: ({ params }) =>
       this.api.query({
-        measures: [MEASURE.diemKpi, MEASURE.dungHan],
-        dimensions: [DIMENSION.person, DIMENSION.scoreId],
+        measures: [MEASURE.diemKpi, MEASURE.soNguoiCoDiem, MEASURE.dungHan],
         filters: [
           params.id ? eq(DIMENSION.unitId, params.id) : eq(DIMENSION.unitName, params.name ?? ''),
         ],
         ...(params.period ? { periodId: params.period } : {}),
-        limit: 200,
       }),
   });
-  protected readonly people = computed(() =>
-    this.res.hasValue()
-      ? resultRows(this.res.value())
-          .map((r) => ({
-            name: String(r[DIMENSION.person]),
-            scoreId: String(r[DIMENSION.scoreId]),
-            score: cellNumber(r[MEASURE.diemKpi]),
-            onTime: cellNumber(r[MEASURE.dungHan]),
-          }))
-          .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-      : [],
-  );
+  protected readonly totals = computed(() => {
+    const r = this.res.hasValue() ? (resultRows(this.res.value())[0] ?? {}) : {};
+    return {
+      score: cellNumber(r[MEASURE.diemKpi]),
+      people: cellNumber(r[MEASURE.soNguoiCoDiem]),
+      onTime: cellNumber(r[MEASURE.dungHan]),
+    };
+  });
 
-  protected num(v: number | null) {
-    return fmtNum(v);
+  protected num(v: number | null, digits = 1) {
+    return fmtNum(v, digits);
   }
   protected dt(iso?: string | null) {
     return fmtDateTime(iso);

@@ -6,6 +6,10 @@ cubes:
     sql_table: cube_period
     meta:
       phien_ban: "2026.4"
+    joins:
+      - name: flow
+        relationship: one_to_one
+        sql: "{CUBE}.tenant_id = {flow}.tenant_id AND {CUBE}.id = {flow}.id"
     dimensions:
       - name: tenant_id
         sql: "{CUBE}.tenant_id"
@@ -21,7 +25,8 @@ cubes:
         title: Mã kỳ
         sql: "{CUBE}.code"
         type: string
-      - name: ten
+      # Tên theo hợp đồng platform.yaml (ví dụ getSemanticModel, createDashboard: `period.label`).
+      - name: label
         title: Kỳ
         sql: "{CUBE}.name"
         type: string
@@ -42,3 +47,28 @@ cubes:
         title: Ngày kết thúc kỳ
         sql: "toDateTime({CUBE}.end_date)"
         type: time
+
+  # Luồng Đảng, Nhà nước của kỳ, công bố riêng là `flow.code` theo hợp đồng platform.yaml (ví dụ createDashboard,
+  # bộ lọc luồng của SCR-1601). Cùng view với `period`, nối một một theo mã kỳ, nên mọi chỉ số đi tới `period` đều lọc
+  # được theo luồng.
+  - name: flow
+    title: Luồng đánh giá
+    description: Luồng Đảng hoặc luồng Nhà nước của kỳ
+    sql_table: cube_period
+    meta:
+      phien_ban: "2026.4"
+    dimensions:
+      - name: tenant_id
+        sql: "{CUBE}.tenant_id"
+        type: string
+        public: false
+      - name: id
+        sql: "toString({CUBE}.id)"
+        type: string
+        primary_key: true
+        public: false
+      - name: code
+        title: Luồng
+        description: Mã luồng (DANG, NHA_NUOC)
+        sql: "{CUBE}.flow"
+        type: string

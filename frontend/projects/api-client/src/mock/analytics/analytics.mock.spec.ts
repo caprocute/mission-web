@@ -65,7 +65,7 @@ describe('mock analytics – QT-16 (WEB-047, WEB-048)', () => {
   it('kết hợp chỉ số và chiều không hỗ trợ trả 422 với thông báo nghiệp vụ', async () => {
     const { api } = setup();
     const e = await errorOf(
-      firstValueFrom(api.query({ measures: ['okr.tien_do_o'], dimensions: ['task_type.name'] })),
+      firstValueFrom(api.query({ measures: ['okr.tien_do_o'], dimensions: ['task.nhom'] })),
     );
     expect(e.status).toBe(422);
     expect(e.error.detail).toBe('Chỉ số Tiến độ mục tiêu O không hỗ trợ chiều Loại nhiệm vụ.');

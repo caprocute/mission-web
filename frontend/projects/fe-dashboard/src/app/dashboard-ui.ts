@@ -1,6 +1,14 @@
 import { toProblem } from '@vt/api-client';
-import { AnalyticsFilter, Period } from '@vt/api-client/domains';
+import { AnalyticsFilter, DIMENSION, PERIOD_FLOW_LABEL, Period } from '@vt/api-client/domains';
 import { TEXT_FORBIDDEN } from '@vt/auth';
+
+/** Nhãn hiển thị của một giá trị chiều: mã luồng (`flow.code`) thành "Khối Đảng", "Khối Nhà nước". */
+export function valueLabel(member: string, value: unknown): string {
+  const v = String(value);
+  return member === DIMENSION.flow
+    ? (PERIOD_FLOW_LABEL[v as keyof typeof PERIOD_FLOW_LABEL] ?? v)
+    : v;
+}
 
 /** Ngày giờ kiểu Việt Nam: 16/11/2026 08:55. */
 export function fmtDateTime(iso?: string | null): string {
