@@ -215,6 +215,15 @@ test.describe('QT-14 QT-15 QT-16 Cảnh báo, chính sách và bảng điều h�
     // Sửa quy tắc tính chậm (`savePolicyRule`) làm một ca vàng sai: chưa đạt 100% thì không gửi duyệt được
     await m.getByRole('link', { name: 'Công thức' }).click();
     const loaiNgay = m.getByRole('combobox', { name: 'Loại ngày tính chậm' });
+    // Lần chạy trước dừng giữa chừng có thể để bản nháp ở "ngày lịch": trả về ngày làm việc và lưu trước,
+    // để bước đổi dưới đây luôn là một thay đổi thật
+    if ((await loaiNgay.locator('option:checked').innerText()).trim() === 'ngày lịch') {
+      await loaiNgay.selectOption({ label: 'ngày làm việc theo lịch của đơn vị' });
+      await m.getByRole('button', { name: 'Lưu nháp' }).click();
+      await expect(
+        m.getByText(/(Đã lưu nháp\.|Phiên bản đã thay đổi sau lần kiểm thử)/),
+      ).toBeVisible();
+    }
     await loaiNgay.selectOption({ label: 'ngày lịch' });
     await m.getByRole('button', { name: 'Lưu nháp' }).click();
     await expect(
