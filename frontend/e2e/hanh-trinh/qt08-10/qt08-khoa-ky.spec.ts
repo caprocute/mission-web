@@ -125,7 +125,7 @@ test.describe('QT-08 Khoá kỳ đánh giá', { tag: '@qa-06' }, () => {
     const tienTrinh = m.getByRole('region', { name: /^Tiến trình khoá kỳ/ });
     await expect(tienTrinh.getByRole('table', { name: /Sáu bước/ })).toBeVisible();
     await expect(
-      tienTrinh.getByRole('alert').filter({ hasText: `Kỳ ${kyChay} đã khoá lúc` }),
+      tienTrinh.getByRole('status').filter({ hasText: `Kỳ ${kyChay} đã khoá lúc` }),
     ).toBeVisible({ timeout: CHO_SAGA });
     const giay = Math.round((Date.now() - batDau) / 1000);
     ghiDoDac(
