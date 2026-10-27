@@ -7,10 +7,12 @@ realm dev (tài khoản quanly, lanhdao, quantri, canbo, kiemtra), qua API thậ
      thì lãnh đạo trả lại, quản lý nhập dòng, trình lại rồi lãnh đạo duyệt kèm ký số.
   2. Một kỳ quý đã qua ở trạng thái đã khoá, để HT-34 (tạo yêu cầu mở lại kỳ, SCR-1301) có kỳ để chọn: quản trị tạo
      kỳ, lập lệnh khoá, lãnh đạo duyệt, quản trị khởi chạy khoá kỳ, chờ saga hoàn tất.
-  3. Hồ sơ đánh giá quý cho HT-25..33, HT-39: khoá kỳ quý đầu tiên mà Policy Pack đã phát hành áp dụng (cần chạy
-     HT-37 hoặc phát hành gói trước), chờ hồ sơ của canbo sang bước tự đánh giá. Các bước tự đánh giá, thẩm định,
+  3. Phát hành Policy Pack luồng Đảng nếu tenant chưa có (phat-hanh): ca vàng, gửi duyệt với kỳ hiệu lực tương lai,
+     người quyết định ký phát hành.
+  4. Hồ sơ đánh giá quý cho HT-25..33, HT-39 (ho-so): khoá kỳ quý đầu tiên trong khoảng hiệu lực của gói luồng Đảng
+     (hồ sơ quý luồng Nhà nước đứng ở CHUA_LAP đúng thiết kế), chờ hồ sơ của canbo sang bước tự đánh giá. Các bước tự đánh giá, thẩm định,
      quyết định ký lô do chính HT-25..27 làm trên giao diện.
-  4. Kỳ quý chưa bắt đầu còn mở (luồng CA_HAI) để HT-38 (cấu hình luồng duyệt, SCR-1504) có kỳ bắt đầu áp dụng.
+  5. Kỳ quý chưa bắt đầu còn mở (luồng CA_HAI) để HT-38 (cấu hình luồng duyệt, SCR-1504) có kỳ bắt đầu áp dụng.
 
 Chạy lại không sinh trùng: bước đã đạt thì bỏ qua. Chỉ dùng thư viện chuẩn (Python 3.6 của server dev), không in
 token. Biến môi trường như seed-da-tenant-api.py: SEED_API, KEYCLOAK_PUBLIC_URL, KC_TEST_USER_PASSWORD,
@@ -19,7 +21,7 @@ KC_TEST_OTP_SECRET (đọc thêm từ infra/dev/.env).
     python3 -I infra/dev/scripts/seed-e2e-hanh-trinh.py              # cả hai phần
     python3 -I infra/dev/scripts/seed-e2e-hanh-trinh.py ke-hoach     # chỉ kế hoạch
     python3 -I infra/dev/scripts/seed-e2e-hanh-trinh.py ky-khoa      # chỉ kỳ đã khoá
-    python3 -I infra/dev/scripts/seed-e2e-hanh-trinh.py ho-so        # chỉ hồ sơ đánh giá
+    python3 -I infra/dev/scripts/seed-e2e-hanh-trinh.py phat-hanh ho-so ky-sau   # chuỗi hồ sơ đánh giá
     python3 -I infra/dev/scripts/seed-e2e-hanh-trinh.py ky-sau       # chỉ kỳ tương lai còn mở
 """
 import datetime as dt
@@ -35,7 +37,8 @@ A = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(A)
 goi, etag, LoiApi = A.goi, A.etag, A.LoiApi
 
-QUAN_LY, LANH_DAO, QUAN_TRI, CAN_BO, CHINH_SACH = "quanly", "lanhdao", "quantri", "canbo", "chinhsach"
+QUAN_LY, LANH_DAO, QUAN_TRI, CAN_BO = "quanly", "lanhdao", "quantri", "canbo"
+CHINH_SACH, QUYET_DINH = "chinhsach", "quyetdinh"
 # Kỳ đã khoá dành riêng cho hành trình: quý I của năm hiện hành, đã qua
 NAM_KHOA, QUY_KHOA = dt.date.today().year, 1
 DONG = [
@@ -187,7 +190,8 @@ def nap_ho_so(phien):
     t_cs = phien(CHINH_SACH)
     ds, _ = goi(t_cs, "GET", "/policies/packs?limit=200")
     tu = []
-    for g in ds["items"]:
+    # Hồ sơ quý luồng Nhà nước đứng ở CHUA_LAP đúng thiết kế (chỉ xếp loại năm), nên chỉ xét gói luồng Đảng
+    for g in [x for x in ds["items"] if x.get("flow") == "DANG"]:
         for v in g.get("versions", []):
             if v.get("status") != "DA_PHAT_HANH":
                 continue
@@ -195,10 +199,18 @@ def nap_ho_so(phien):
             if ct.get("effectiveFrom"):
                 tu.append(ct["effectiveFrom"][:10])
     if not tu:
-        raise RuntimeError("Chưa có Policy Pack đã phát hành; chạy HT-37 (soạn, ca vàng, phát hành) trước")
+        raise RuntimeError("Chưa có Policy Pack luồng Đảng đã phát hành; chạy bước phat-hanh trước")
     d = dt.datetime.strptime(min(tu), "%Y-%m-%d").date()
     nam, q = d.year, (d.month - 1) // 3 + 1
     if dt.date(nam, 3 * q - 2, 1) < d:
+        nam, q = (nam + 1, 1) if q == 4 else (nam, q + 1)
+    # Kỳ trong khoảng hiệu lực đã khoá ở lần trước mà chưa có hồ sơ luồng Đảng thì lấy quý kế tiếp
+    for _ in range(4):
+        dau, _c = ky_quy(nam, q)
+        ds, _ = goi(phien(QUAN_TRI), "GET", "/periods?limit=200")
+        k = next((x for x in ds["items"] if x["kind"] == "QUY" and x["startDate"] == dau.isoformat()), None)
+        if not k or k["status"] != "DA_KHOA":
+            break
         nam, q = (nam + 1, 1) if q == 4 else (nam, q + 1)
     nap_ky_khoa(phien, nam, q)
     t_cb = phien(CAN_BO)
@@ -213,13 +225,66 @@ def nap_ho_so(phien):
                        (CAN_BO, ", ".join(tt) or "chưa có hồ sơ"))
 
 
+def nap_phat_hanh(phien):
+    """Phát hành Policy Pack luồng Đảng (QT-15) khi tenant chưa có bản nào đã phát hành: chạy ca vàng, gửi duyệt với
+    kỳ hiệu lực là kỳ quý tương lai còn mở, người quyết định ký phát hành (tác vụ nền)."""
+    t_cs, t_qd = phien(CHINH_SACH), phien(QUYET_DINH)
+    ds, _ = goi(t_cs, "GET", "/policies/packs?limit=200")
+    g = next((x for x in ds["items"] if x.get("flow") == "DANG"), None)
+    if not g:
+        raise RuntimeError("Tenant chưa có Policy Pack luồng Đảng (seed-org.sh nạp policy-goi-mau.sql)")
+    if any(v.get("status") == "DA_PHAT_HANH" for v in g.get("versions", [])):
+        print("  Gói luồng Đảng đã có bản phát hành, bỏ qua")
+        return
+    v = next((x["version"] for x in g.get("versions", []) if x.get("status") in ("NHAP", "CHO_PHE_DUYET")), None)
+    if not v:
+        raise RuntimeError("Gói luồng Đảng không có bản nháp hoặc bản chờ phê duyệt để phát hành")
+    duong = "/policies/packs/%s/versions/%s" % (g["id"], v)
+    ver, e = goi(t_cs, "GET", duong)
+    if ver["status"] == "NHAP":
+        goi(t_cs, "POST", duong + "/test-runs", {}, if_match=etag(ver, e))
+        for _ in range(60):
+            runs, _ = goi(t_cs, "GET", duong + "/test-runs?limit=1")
+            r = (runs.get("items") or [{}])[0]
+            if r.get("result") and r["result"] != "DANG_CHAY":
+                break
+            time.sleep(3)
+        if r.get("result") != "DAT":
+            raise RuntimeError("Ca vàng gói luồng Đảng %s: %s %s/%s, khớp hai engine %s" % (
+                v, r.get("result"), r.get("passed"), r.get("total"), r.get("engineMatch")))
+        print("  Ca vàng đạt %s/%s" % (r["passed"], r["total"]))
+        hom = dt.date.today().isoformat()
+        kys, _ = goi(phien(QUAN_TRI), "GET", "/periods?limit=200")
+        sau = sorted((k for k in kys["items"] if k["status"] == "MO" and k["startDate"] > hom
+                      and k["flow"] in ("DANG", "CA_HAI")), key=lambda k: k["startDate"])
+        if not sau:
+            raise RuntimeError("Không có kỳ tương lai còn mở làm kỳ hiệu lực; chạy bước ky-sau trước")
+        ver, e = goi(t_cs, "GET", duong)
+        goi(t_cs, "POST", duong + "/submit", {"effectivePeriodId": sau[0]["id"], "scopes": [{"flow": "DANG"}]},
+            if_match=etag(ver, e))
+        print("  Đã gửi duyệt phát hành bản %s, hiệu lực từ %s" % (v, sau[0]["name"]))
+    ver, e = goi(t_qd, "GET", duong)
+    if ver["status"] == "CHO_PHE_DUYET":
+        goi(t_qd, "POST", duong + "/approve", {"comment": "Đồng ý phát hành bộ quy định cho dữ liệu thử."},
+            if_match=etag(ver, e))
+        print("  Người quyết định ký phát hành (tác vụ nền)")
+    for _ in range(40):
+        ver, _ = goi(t_cs, "GET", duong)
+        if ver["status"] == "DA_PHAT_HANH":
+            print("  Bản %s đã phát hành" % v)
+            return
+        time.sleep(3)
+    raise RuntimeError("Bản %s chưa phát hành sau 2 phút (trạng thái %s)" % (v, ver["status"]))
+
+
 def main():
-    chon = sys.argv[1:] or ["ke-hoach", "ky-khoa", "ho-so", "ky-sau"]
+    chon = sys.argv[1:] or ["ke-hoach", "ky-khoa", "ky-sau", "phat-hanh", "ho-so", "ky-sau"]
     phien = A.Phien(A._base.nap_env())
     loi = 0
-    for ten, fn in (("ke-hoach", nap_ke_hoach), ("ky-khoa", nap_ky_khoa), ("ho-so", nap_ho_so), ("ky-sau", nap_ky_sau)):
-        if ten not in chon:
-            continue
+    buoc = {"ke-hoach": nap_ke_hoach, "ky-khoa": nap_ky_khoa, "ky-sau": nap_ky_sau, "phat-hanh": nap_phat_hanh,
+            "ho-so": nap_ho_so}
+    for ten in chon:
+        fn = buoc[ten]
         print("==> %s" % ten)
         try:
             fn(phien)
