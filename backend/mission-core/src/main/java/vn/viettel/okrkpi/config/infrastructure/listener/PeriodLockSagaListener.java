@@ -3,8 +3,10 @@ package vn.viettel.okrkpi.config.infrastructure.listener;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import org.apache.kafka.common.header.Headers;
 import vn.viettel.okrkpi.config.application.PeriodLockProgressService;
 import vn.viettel.okrkpi.shared.inbox.InboxEnvelope;
+import vn.viettel.okrkpi.shared.outbox.OutboxHeaders;
 import vn.vtokr.sys.v1.AuditEvent;
 
 /**
@@ -28,6 +30,17 @@ public class PeriodLockSagaListener {
 
   public PeriodLockSagaListener(PeriodLockProgressService progress) {
     this.progress = Objects.requireNonNull(progress, "progress");
+  }
+
+  /**
+   * Bản ghi theo hợp đồng chung (thân Avro đăng ký ở Apicurio). {@code sys.audit.v1} là topic dùng
+   * chung: org-service ghi kiểm toán đổi ngữ cảnh (BR-00-08) dạng JSON, tiêu đề camelCase, không
+   * mang mã lược đồ. Vết saga chốt kỳ luôn là Avro (OutboxSagaJournal của workflow-service), nên
+   * bản ghi không có mã lược đồ không thuộc consumer này: bỏ qua thay vì đưa vào inbox (inbox đòi
+   * tiêu đề tenantid và chuyển thư chết).
+   */
+  public static boolean avroContract(Headers headers) {
+    return headers != null && headers.lastHeader(OutboxHeaders.APICURIO_GLOBAL_ID) != null;
   }
 
   /**
