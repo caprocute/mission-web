@@ -239,6 +239,13 @@ fi
 # --- (5) bật service -------------------------------------------------------------
 echo "==> Bật service: ${SERVICES[*]-}"
 compose up -d --no-deps --no-build ${SERVICES[@]+"${SERVICES[@]}"}
+# clamd (profile backend) là phụ thuộc của evidence-service nhưng không có ảnh dựng từ repo nên không nằm trong
+# danh sách service; `up --no-deps` ở trên không bật nó, minh chứng sẽ kết luận LOI "Không gọi được clamd" (HT-20).
+# Bật kèm khi triển khai evidence-service; lần đầu clamd tải chữ ký vài phút (healthcheck start_period 300s).
+if selected evidence-service; then
+  echo "==> Bật clamd cho evidence-service (quét minh chứng)"
+  compose up -d --no-deps clamav
+fi
 
 # Client mission-web của Keycloak phải nhận gốc web (WEB_ORIGIN) làm redirect URI; realm đã nhập từ trước thì
 # không tự cập nhật, nên thêm bằng kcadm (chạy lại không trùng).
