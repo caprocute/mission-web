@@ -90,7 +90,11 @@ export const DESIGN_CODE_PREFIXES = [
 export const RULES = [
   {
     id: 'ma-thiet-ke',
-    re: new RegExp(`\\b(${DESIGN_CODE_PREFIXES.join('|')})-([A-Z]{1,4}-)?\\d[\\w.-]*`),
+    // Ranh giới trước mã giống `legalRefText`: mã danh mục nghiệp vụ như "TC-DV-01" không phải mã thiết kế
+    re: new RegExp(
+      `(?<![\\p{L}\\d_-])(${DESIGN_CODE_PREFIXES.join('|')})-([A-Z]{1,4}-)?\\d[\\w.-]*`,
+      'u',
+    ),
     sentenceOnly: true,
     hint: 'Bỏ mã thiết kế khỏi văn bản hiển thị; giữ trong chú thích mã nguồn hoặc thuộc tính data-*.',
   },
