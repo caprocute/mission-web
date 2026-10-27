@@ -1,4 +1,12 @@
-import { Component, DestroyRef, computed, inject, linkedSignal, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  computed,
+  effect,
+  inject,
+  linkedSignal,
+  signal,
+} from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -1089,6 +1097,15 @@ export class UiPackPage {
 
   constructor() {
     this.destroyRef.onDestroy(() => this.timer && clearTimeout(this.timer));
+    // Bản đang kiểm tra tự động do lần gửi duyệt khác (phiên khác, lần mở trước) để lại: trang không theo
+    // dõi tác vụ đó nên đọc lại danh sách định kỳ tới khi kiểm tra xong (về nháp hoặc chờ duyệt), thay vì
+    // đứng mãi ở "Đang kiểm tra tự động" không có thao tác nào
+    effect((onCleanup) => {
+      if (this.ver()?.status !== 'DANG_KIEM_TRA' || this.busy() || this.versions.isLoading())
+        return;
+      const t = setTimeout(() => this.reloadVersions(), POLL_MS);
+      onCleanup(() => clearTimeout(t));
+    });
   }
 
   protected can(key: Parameters<typeof this.access.can>[0]) {

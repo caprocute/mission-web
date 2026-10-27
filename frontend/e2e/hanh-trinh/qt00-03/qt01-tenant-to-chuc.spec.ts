@@ -25,6 +25,18 @@ function timDonVi(ds: DonVi[], ten: string): DonVi | undefined {
   return undefined;
 }
 
+/**
+ * Cờ đồng bộ nhân sự từ hệ thống ngoài (org.externalSync, ADR-34) của người dùng theo vai trò: hệ thống
+ * thật đọc bản đồ cờ hiệu lực `getEffectiveFeatureFlags`; giả lập mặc định tắt như hệ thống thật.
+ */
+async function coDongBoNgoai(s: Phien, vaiTro: Parameters<typeof api>[1]): Promise<boolean> {
+  if (!HE_THONG) return false;
+  const c = await api(s, vaiTro);
+  const co = await c.can<{ flags?: Record<string, boolean> }>('GET', 'ui/feature-flags');
+  await c.dong();
+  return co.body.flags?.['org.externalSync'] === true;
+}
+
 test.describe('QT-01 Khởi tạo tenant và tổ chức', { tag: '@qa-04' }, () => {
   let s: Phien;
 
@@ -113,9 +125,16 @@ test.describe('QT-01 Khởi tạo tenant và tổ chức', { tag: '@qa-04' }, ()
     await expect(tiep).toBeEnabled();
     await tiep.click();
 
-    // Bước 5: nguồn nhân sự
+    // Bước 5: nguồn nhân sự. Đồng bộ từ hệ thống ngoài là tính năng tuỳ chọn, mặc định tắt (cờ
+    // org.externalSync, ADR-34): khi tắt, bước này không hỏi nguồn nhân sự mà báo tài khoản cán bộ do
+    // quản trị đơn vị tạo trực tiếp; khi bật mới chọn nguồn. Giả lập giữ cờ tắt như mặc định của hệ thống
     await expect(m.getByRole('heading', { name: '5. Tổ chức, nhân sự' })).toBeVisible();
-    await m.getByRole('checkbox', { name: 'CSDL CBCCVC qua NDXP' }).check();
+    if (await coDongBoNgoai(s, 'nentang')) {
+      await m.getByRole('checkbox', { name: 'CSDL CBCCVC qua NDXP' }).check();
+    } else {
+      await expect(m.getByText(/Tài khoản cán bộ do quản trị đơn vị tạo trực tiếp/)).toBeVisible();
+      await expect(m.getByRole('checkbox')).toHaveCount(0);
+    }
     await tiep.click();
 
     // Bước 6: kiểm tra tổng thể và kích hoạt (`activateConfigTenant`); trạng thái hiện bằng nhãn nghiệp vụ
@@ -251,15 +270,10 @@ test.describe('QT-01 Khởi tạo tenant và tổ chức', { tag: '@qa-04' }, ()
   });
 
   test('HT-07 QT-01 chạy đồng bộ nhân sự và xử lý sai lệch đối soát', async () => {
-    if (HE_THONG) {
-      // Đồng bộ từ hệ thống ngoài là tính năng tuỳ chọn, mặc định tắt (ADR-34): tenant chưa bật cờ thì
-      // màn hình báo chưa bật, hành trình chờ tới khi tenant thử nghiệm bật cờ
-      const c = await api(s, 'quantri');
-      const co = await c.can<{ flags?: Record<string, boolean> }>('GET', 'ui/feature-flags');
-      await c.dong();
-      if (co.body.flags?.['org.externalSync'] !== true) {
-        cho('tenant chưa bật đồng bộ nhân sự từ hệ thống ngoài (cờ org.externalSync, ADR-34)');
-      }
+    // Đồng bộ từ hệ thống ngoài là tính năng tuỳ chọn, mặc định tắt (ADR-34): tenant chưa bật cờ thì
+    // màn hình báo chưa bật, hành trình chờ tới khi tenant thử nghiệm bật cờ
+    if (HE_THONG && !(await coDongBoNgoai(s, 'quantri'))) {
+      cho('tenant chưa bật đồng bộ nhân sự từ hệ thống ngoài (cờ org.externalSync, ADR-34)');
     }
     // Giả lập: cờ đồng bộ ngoài mặc định tắt như hệ thống thật, bật bằng tham số `ff` của giả lập
     const page = await s.trang(

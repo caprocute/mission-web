@@ -1,7 +1,14 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Job, JobAccepted, JobTracker } from '@vt/api-client';
-import { PackVersionRef, PolicyApi, PolicyPackVersion, PolicyPackVersionSummary, PolicyTestRunSummary, isPolicyVersionEditable } from '@vt/api-client/domains';
+import {
+  PackVersionRef,
+  PolicyApi,
+  PolicyPackVersion,
+  PolicyPackVersionSummary,
+  PolicyTestRunSummary,
+  isPolicyVersionEditable,
+} from '@vt/api-client/domains';
 import { last, map, switchMap, tap } from 'rxjs';
 import { errorText, jobErrorText } from '../../studio-ui';
 
@@ -73,6 +80,11 @@ export class PolicyWorkspace {
   readonly running = computed(
     () => this.starting() || this.lastRun.value()?.result === 'DANG_CHAY',
   );
+  /**
+   * Phiên bản đang được đọc lại (sau khi lưu nháp, chạy kiểm thử…): ETag đang giữ có thể đã cũ, nên chưa
+   * cho chạy kiểm thử để máy chủ không từ chối vì xung đột phiên bản (409).
+   */
+  readonly versionSyncing = computed(() => this.version.isLoading());
   readonly runError = signal<string | null>(null);
   private readonly starting = signal(false);
 
@@ -131,7 +143,7 @@ export class PolicyWorkspace {
   runTests() {
     const ref = this.ref();
     const etag = this.version.value()?.etag;
-    if (!ref || !etag) return;
+    if (!ref || !etag || this.versionSyncing()) return;
     const base = this.published()?.version;
     this.starting.set(true);
     this.runError.set(null);

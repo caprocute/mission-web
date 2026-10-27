@@ -20,4 +20,15 @@ describe('onPrimaryOf', () => {
     expect(onPrimary.fg).toBe('#FFFFFF');
     expect(onPrimary.ok).toBe(true);
   });
+
+  it('bỏ qua cặp màu gói không khai, như máy chủ; màu khai sai định dạng vẫn chưa đạt', () => {
+    // Gói mặc định (data/seed/ui-pack) không khai color.danger: không được chặn "Lưu nháp"
+    const checks = contrastChecks(
+      color({ primary: '#EE0033', text: '#0F172A', background: '#F1F5F9' }),
+    );
+    expect(checks.map((c) => c.label)).toEqual(['Chữ trên nền màu chủ đạo', 'Chữ trên nền trang']);
+    expect(checks.every((c) => c.ok)).toBe(true);
+    const bad = contrastChecks(color({ primary: '#0A5FA8', danger: 'đỏ' }));
+    expect(bad.find((c) => c.label === 'Chữ trên nền màu cảnh báo')?.ok).toBe(false);
+  });
 });

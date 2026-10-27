@@ -188,7 +188,8 @@ func TestStep(t *testing.T) {
 		{KhoiTao, full, 3},
 		{DangCapPhat, full, 4},
 		{DangCauHinh, full, 4},
-		{DangCauHinh, Progress{IdpCount: 1}, 5},
+		// ADR-34: nguồn nhân sự tuỳ chọn, chưa chọn nguồn vẫn sang bước 6 (đồng bộ ngoài mặc định tắt)
+		{DangCauHinh, Progress{IdpCount: 1}, 6},
 		{DangCauHinh, Progress{IdpCount: 1, StaffSourceCnt: 1}, 6},
 		{SanSang, full, 6},
 		{DangVanHanh, full, 0},
