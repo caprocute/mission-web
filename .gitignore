@@ -21,3 +21,6 @@ frontend/dist-web/
 infra/dev/secrets/
 .chay-may-tram-logs/
 .tmp-config.bak
+
+# Thông tin kết nối của gói mở web (tools/mo-web)
+tools/mo-web/cau-hinh.env
