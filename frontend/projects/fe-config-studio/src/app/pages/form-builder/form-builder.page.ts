@@ -371,6 +371,11 @@ const CLASSIFICATIONS = [
                     Dựng 50 trường: {{ ms(r.renderMs50Fields) }} mili giây
                   </span>
                 }
+              } @else if (!tests().length) {
+                <span class="muted" data-testid="no-tests"
+                  >Biểu mẫu chưa có ca test. Nhập dữ liệu ở phần xem trước rồi bấm "Thêm dữ liệu
+                  đang nhập làm ca test" để chạy được bộ test.</span
+                >
               } @else {
                 <span class="muted"
                   >Chưa chạy bộ test cho nội dung hiện tại ({{ tests().length }} ca).</span

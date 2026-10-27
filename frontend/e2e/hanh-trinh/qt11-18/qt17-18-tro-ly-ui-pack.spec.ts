@@ -225,6 +225,16 @@ test.describe('QT-17 QT-18 Trợ lý AI và giao diện đơn vị', { tag: '@qa
     await spaGoto(page, '/config-studio/bieu-mau');
     await m.getByRole('link', { name: 'Mở để dựng' }).first().click();
     await expect(m.getByRole('heading', { level: 1, name: /^Trình dựng biểu mẫu/ })).toBeVisible();
+    // Biểu mẫu chưa có ca test (bản dựng mới trên hệ thống thật) thì nút chạy khoá: thêm dữ liệu mẫu đang
+    // hiện làm một ca, như người dùng làm theo hướng dẫn trên màn hình
+    const khongCoCa = m.getByTestId('no-tests');
+    await expect(
+      khongCoCa.or(m.getByText(/^Chưa chạy bộ test cho nội dung hiện tại/)),
+    ).toBeVisible();
+    if (await khongCoCa.isVisible()) {
+      await m.getByRole('button', { name: 'Thêm dữ liệu đang nhập làm ca test' }).click();
+      await expect(m.getByText(/^Đã thêm ca /)).toBeVisible();
+    }
     await m.getByRole('button', { name: 'Chạy bộ test biểu mẫu' }).click();
     await expect(
       m.getByText(/Bộ test (\d+)\/\1 · trình duyệt và máy chủ cùng kết quả/),
