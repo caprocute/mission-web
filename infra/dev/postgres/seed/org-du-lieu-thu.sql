@@ -62,6 +62,18 @@ FROM (VALUES
 ) AS r(child)
 ON CONFLICT DO NOTHING;
 
+-- Bản sao org_replica của mission-core chỉ nhận phiên bản nguồn mới hơn, còn cha trên cây DANG (party_parent_id)
+-- đi kèm bản ghi đơn vị. CSDL dev nạp đơn vị trước khi có cạnh DANG còn row_version 0, nên org-republish bỏ qua
+-- và bản sao thiếu cạnh: người quyết định ở cơ quan nhận 403 khi ký lô hồ sơ luồng DANG của các phòng (QA-06
+-- HT-27). Tăng row_version của bản ghi hiện hành các đơn vị con có cạnh DANG mà còn ở phiên bản 0; chạy lại không
+-- đổi gì.
+UPDATE org.org_unit o
+   SET row_version = o.row_version + 1, updated_at = now()
+  FROM org.org_unit_relation r
+ WHERE o.tenant_id = 'd0000000-0000-4000-8000-000000000001'::uuid
+   AND r.tenant_id = o.tenant_id AND r.tree = 'DANG' AND r.child_unit_id = o.id
+   AND o.valid_to = 'infinity' AND o.row_version = 0;
+
 INSERT INTO org.job_title (id, tenant_id, code, name, level, valid_from, created_by, updated_by)
 SELECT j.id::uuid, 'd0000000-0000-4000-8000-000000000001'::uuid, j.code, j.name, j.level, '2000-01-01'::date, '00000000-0000-0000-0000-000000000000'::uuid, '00000000-0000-0000-0000-000000000000'::uuid
 FROM (VALUES
