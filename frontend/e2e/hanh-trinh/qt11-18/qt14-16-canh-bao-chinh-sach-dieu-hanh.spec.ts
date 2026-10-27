@@ -30,7 +30,6 @@ interface Goi {
   versions?: { version: string; status: string }[];
 }
 
-const coNhap = (g: Goi) => (g.versions ?? []).some((v) => v.status === 'NHAP');
 const daPhatHanh = (g: Goi) =>
   (g.versions ?? [])
     .filter((v) => v.status === 'DA_PHAT_HANH')
