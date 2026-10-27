@@ -7,8 +7,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.UUID;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.junit.jupiter.api.Test;
 import vn.viettel.okrkpi.config.application.PeriodLockProgressService;
 import vn.viettel.okrkpi.shared.inbox.InboxEnvelope;
@@ -83,5 +85,18 @@ class PeriodLockSagaListenerTest {
     listener.on(otherSaga, envelope(otherSaga));
     listener.on(broken, envelope(broken));
     verify(progress, never()).apply(any(), any(), any(), any(), anyBoolean(), any(), any());
+  }
+
+  @Test
+  void chiNhanBanGhiAvroCoMaLuocDo() {
+    RecordHeaders json = new RecordHeaders();
+    json.add("tenantId", tenant.value().toString().getBytes(StandardCharsets.UTF_8));
+    json.add("contentType", "application/json".getBytes(StandardCharsets.UTF_8));
+    assertThat(PeriodLockSagaListener.avroContract(json)).isFalse();
+    assertThat(PeriodLockSagaListener.avroContract(null)).isFalse();
+
+    RecordHeaders avro = new RecordHeaders();
+    avro.add("apicurio.value.globalId", new byte[] {0, 0, 0, 0, 0, 0, 0, 7});
+    assertThat(PeriodLockSagaListener.avroContract(avro)).isTrue();
   }
 }

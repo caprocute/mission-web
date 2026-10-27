@@ -323,6 +323,9 @@ if selected mission-core && [[ "${SKIP_SEED:-0}" != "1" ]]; then
   python3 -I "${SCRIPT_DIR}/seed-ky-nhiem-vu.py" || canh_bao "nhiệm vụ mẫu" "seed-ky-nhiem-vu.py"
   sleep 31
   python3 -I "${SCRIPT_DIR}/seed-okr-mau.py" || canh_bao "OKR mẫu đã duyệt" "seed-okr-mau.py"
+  # Phiếu tự đánh giá dựng từ Mẫu 1B hiện hành của tenant; chưa phát hành thì /ui/forms/mau-1b/current trả 404.
+  sleep 31
+  python3 -I "${SCRIPT_DIR}/phat-hanh-mau-1b.py" --tat-ca || canh_bao "phát hành Mẫu 1B" "phat-hanh-mau-1b.py --tat-ca"
 fi
 
 echo "==> Container sau khi áp: $(docker ps -q | wc -l) đang chạy, $(docker ps -q --filter "label=com.docker.compose.project=${PROJECT}" | wc -l) thuộc ${PROJECT}"

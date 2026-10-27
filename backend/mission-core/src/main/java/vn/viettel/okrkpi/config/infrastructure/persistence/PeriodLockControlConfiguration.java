@@ -218,6 +218,12 @@ public class PeriodLockControlConfiguration {
       container.setMessageListener(
           (AcknowledgingMessageListener<String, byte[]>)
               (record, ack) -> {
+                if (!PeriodLockSagaListener.avroContract(record.headers())) {
+                  if (ack != null) {
+                    ack.acknowledge();
+                  }
+                  return;
+                }
                 Object payload;
                 try {
                   payload =

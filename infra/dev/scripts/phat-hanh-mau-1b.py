@@ -15,8 +15,15 @@ nháp còn dở thì đi tiếp; đặt PHAT_HANH_LAI=1 để phát hành lại 
 Đọc KC_TEST_USER_PASSWORD, KC_TEST_OTP_SECRET, KEYCLOAK_PUBLIC_URL qua lay-token-thu.py như các script seed khác;
 SEED_API (mặc định http://127.0.0.1:35000/api/v1).
 
-    python3 -I infra/dev/scripts/phat-hanh-mau-1b.py
+    python3 -I infra/dev/scripts/phat-hanh-mau-1b.py              # tenant thử d000 (quantri, quantri2)
+    python3 -I infra/dev/scripts/phat-hanh-mau-1b.py --tien-to cq # tenant UBND tỉnh e2 (cq.quantri, cq.quantri2)
+    python3 -I infra/dev/scripts/phat-hanh-mau-1b.py --tat-ca     # mọi tenant có đủ hai tài khoản quản trị
+
+Mỗi tenant cần hai tài khoản quản trị khác nhau cho bước bốn mắt (`<tiền tố>.quantri`, `<tiền tố>.quantri2`); tenant
+chỉ có một tài khoản quản trị (tu., dn.) thì không phát hành được bằng script này.
 """
+
+import argparse
 
 import importlib.util
 import json
@@ -133,9 +140,26 @@ def phat_hanh_goi(tok, tok2, ban_mau):
     print("Đã phát hành phiên bản UI Pack {}".format(ban))
 
 
+# Tiền tố tài khoản của các tenant có đủ hai quản trị viên (realm dev, infra/dev/keycloak/tai-khoan-da-tenant.json).
+TIEN_TO_DU_HAI_QUAN_TRI = ("", "cq")
+
+
 def main():
+    ap = argparse.ArgumentParser(description="Phát hành Mẫu 1B cho tenant thử của dev")
+    ap.add_argument("--tien-to", default="", help="tiền tố tài khoản của tenant, ví dụ cq (mặc định: tenant d000)")
+    ap.add_argument("--tat-ca", action="store_true", help="phát hành cho mọi tenant có đủ hai quản trị viên")
+    args = ap.parse_args()
+    ma = 0
+    for tien_to in (TIEN_TO_DU_HAI_QUAN_TRI if args.tat_ca else (args.tien_to,)):
+        ma = phat_hanh_tenant(tien_to) or ma
+    return ma
+
+
+def phat_hanh_tenant(tien_to):
     env = nap_env()
-    tok = token("quantri", env)
+    ten = (tien_to + ".") if tien_to else ""
+    print("== Tenant của {}quantri".format(ten))
+    tok = token(ten + "quantri", env)
     kq = goi(tok, "GET", "/ui/forms/{}/current".format(KHOA))
     ep = env.get("PHAT_HANH_LAI") == "1"
     if not ep and kq[0] == 200 and "self_rating_code" in (kq[1].get("schemaJson") or {}).get("properties", {}):
@@ -143,15 +167,15 @@ def main():
         return 0
     mau = json.loads(MAU_GIA_LAP.read_text(encoding="utf-8"))["forms"][KHOA]
     ban_mau = phien_ban_bieu_mau(tok, mau)
-    phat_hanh_goi(tok, token("quantri2", env), ban_mau)
-    # Bản hiện hành đọc qua bộ đệm nên cập nhật chậm vài giây sau khi phát hành.
+    phat_hanh_goi(tok, token(ten + "quantri2", env), ban_mau)
+    # Bản hiện hành đọc qua bộ đệm nên cập nhật chậm vài giây sau khi phát hành (lần đầu của tenant có thể còn 404).
     for _ in range(15):
-        kq = can(goi(tok, "GET", "/ui/forms/{}/current".format(KHOA)), 200)
-        if kq[1].get("version") == ban_mau:
+        kq = goi(tok, "GET", "/ui/forms/{}/current".format(KHOA))
+        if kq[0] == 200 and kq[1].get("version") == ban_mau:
             print("Biểu mẫu {} hiện hành: phiên bản {}".format(KHOA, ban_mau))
             return 0
         time.sleep(2)
-    print("Đã phát hành nhưng biểu mẫu hiện hành vẫn là phiên bản {}".format(kq[1].get("version")))
+    print("Đã phát hành nhưng biểu mẫu hiện hành chưa đổi (mã {}, phiên bản {})".format(kq[0], (kq[1] or {}).get("version")))
     return 1
 
 
