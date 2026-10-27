@@ -168,14 +168,14 @@ def phat_hanh_tenant(tien_to):
     mau = json.loads(MAU_GIA_LAP.read_text(encoding="utf-8"))["forms"][KHOA]
     ban_mau = phien_ban_bieu_mau(tok, mau)
     phat_hanh_goi(tok, token(ten + "quantri2", env), ban_mau)
-    # Bản hiện hành đọc qua bộ đệm nên cập nhật chậm vài giây sau khi phát hành.
+    # Bản hiện hành đọc qua bộ đệm nên cập nhật chậm vài giây sau khi phát hành (lần đầu của tenant có thể còn 404).
     for _ in range(15):
-        kq = can(goi(tok, "GET", "/ui/forms/{}/current".format(KHOA)), 200)
-        if kq[1].get("version") == ban_mau:
+        kq = goi(tok, "GET", "/ui/forms/{}/current".format(KHOA))
+        if kq[0] == 200 and kq[1].get("version") == ban_mau:
             print("Biểu mẫu {} hiện hành: phiên bản {}".format(KHOA, ban_mau))
             return 0
         time.sleep(2)
-    print("Đã phát hành nhưng biểu mẫu hiện hành vẫn là phiên bản {}".format(kq[1].get("version")))
+    print("Đã phát hành nhưng biểu mẫu hiện hành chưa đổi (mã {}, phiên bản {})".format(kq[0], (kq[1] or {}).get("version")))
     return 1
 
 
