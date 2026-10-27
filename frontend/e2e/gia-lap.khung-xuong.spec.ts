@@ -27,6 +27,8 @@ const KHONG_TAI: Record<string, string> = {
   '/oversight': 'trang mục lục các chức năng giám sát, không nạp dữ liệu',
   '/oversight/reopen-requests/new': 'biểu mẫu tạo mới; ô chọn kỳ có trạng thái chờ riêng',
   '/admin/tenants/new': 'biểu mẫu khởi tạo trống ở bước 1, không nạp dữ liệu',
+  '/admin/org/sync':
+    'cờ đồng bộ ngoài tắt trong giả lập: trang báo chưa bật, không nạp dữ liệu; trang đồng bộ kiểm ở ?ff=org.externalSync',
 };
 const OUT = join(__dirname, '..', 'dist', 'e2e-ket-qua', 'khung-xuong');
 mkdirSync(OUT, { recursive: true });

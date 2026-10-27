@@ -10,5 +10,6 @@
   "/admin/tenants/t-laocai/onboarding",
   "/admin/tenants/t-quangngai/onboarding?step=5",
   "/admin/tenants/t-quangngai/onboarding?step=6",
-  "/admin/tenants/new"
+  "/admin/tenants/new",
+  "/admin/org/sync?ff=org.externalSync"
 ]
