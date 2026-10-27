@@ -100,7 +100,7 @@ mo() {
     echo "Có mật khẩu nhưng máy chưa cài sshpass; ssh sẽ không tự đăng nhập được khi chạy nền. Cài sshpass hoặc dùng khoá SSH." >&2
   fi
   if ! { [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" 2>/dev/null; }; then
-    nohup bash "${DIR}/mo-web.sh" __giu >>"${LOG_FILE}" 2>&1 </dev/null &
+    nohup "${BASH:-bash}" "${DIR}/mo-web.sh" __giu >>"${LOG_FILE}" 2>&1 </dev/null &
     echo $! >"${PID_FILE}"
   fi
   local i

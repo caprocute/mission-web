@@ -196,21 +196,40 @@ run_migration_runner() {
 }
 
 # Service Go: migration SQL thuần của service (services-go/<svc>/db/migration/<schema>) có tạo vai trò và đặt
-# tham số vai trò, nên chạy bằng tài khoản quản trị PostgreSQL như chế độ AUTO_MIGRATE dev của chính service:
-# chỉ áp khi bảng mốc chưa có (lần đầu), lần sau báo bỏ qua.
+# tham số vai trò, nên chạy bằng tài khoản quản trị PostgreSQL như chế độ AUTO_MIGRATE dev của chính service.
+# Các service Go (tenant-registry, ledger, notification) chưa có công cụ migration riêng: áp từng tệp V*.sql theo
+# thứ tự và ghi tệp đã áp vào public.dev_go_migration của CSDL đó, để tệp mới thêm sau (ví dụ registry V4 active_dc)
+# vẫn được áp ở lần triển khai sau. Trước đây chỉ kiểm bảng mốc rồi bỏ qua cả thư mục, nên tệp mới không bao giờ
+# được áp (/config/tenants trả 500 vì thiếu cột). Lần đầu có bảng ghi mà CSDL đã có bảng mốc: tệp nào áp lỗi thì
+# coi là đã áp từ trước (mỗi tệp chạy trong một giao dịch nên lỗi không để lại gì) và ghi nhận kèm cảnh báo.
+go_psql() {
+  local db="$1"
+  shift
+  docker exec -i -e PGPASSWORD="${POSTGRES_PASSWORD:-}" mission-dev-postgres psql -h 127.0.0.1 -qtA \
+    -v ON_ERROR_STOP=1 -U "${POSTGRES_USER:-mission_admin}" -d "${db}" "$@"
+}
 run_go_migration() {
-  local db="$1" dir="$2" sentinel="$3" exists f
-  exists="$(docker exec -e PGPASSWORD="${POSTGRES_PASSWORD:-}" mission-dev-postgres psql -h 127.0.0.1 -qtA \
-    -U "${POSTGRES_USER:-mission_admin}" -d "${db}" -c "select to_regclass('${sentinel}') is not null")"
-  if [[ "${exists}" == "t" ]]; then
-    echo "  ${dir##*/}: đã có ${sentinel}, bỏ qua"
-    return 0
+  local db="$1" dir="$2" sentinel="$3" key="${2##*/}" bootstrap=0 da_ap f ten n=0
+  go_psql "${db}" -c "create table if not exists public.dev_go_migration (thu_muc text not null, tep text not null,
+    applied_at timestamptz not null default now(), primary key (thu_muc, tep))" >/dev/null
+  da_ap="$(go_psql "${db}" -c "select tep from public.dev_go_migration where thu_muc = '${key}'")"
+  if [[ -z "${da_ap}" && "$(go_psql "${db}" -c "select to_regclass('${sentinel}') is not null")" == "t" ]]; then
+    bootstrap=1
   fi
-  echo "  ${dir##*/}: áp $(find "${dir}" -maxdepth 1 -name 'V*.sql' | wc -l) tệp vào CSDL ${db}"
   while IFS= read -r f; do
-    docker exec -i -e PGPASSWORD="${POSTGRES_PASSWORD:-}" mission-dev-postgres psql -h 127.0.0.1 -q \
-      -v ON_ERROR_STOP=1 -U "${POSTGRES_USER:-mission_admin}" -d "${db}" -1 <"${f}" >/dev/null
+    ten="${f##*/}"
+    grep -qx "${ten}" <<<"${da_ap}" && continue
+    if go_psql "${db}" -1 <"${f}" >/dev/null 2>&1; then
+      n=$((n + 1))
+    elif [[ "${bootstrap}" == "1" ]]; then
+      echo "  ${key}: ${ten} lỗi khi áp lại, coi là đã áp từ trước (CSDL có ${sentinel} mà chưa có bảng ghi)" >&2
+    else
+      echo "  ${key}: áp ${ten} lỗi" >&2
+      go_psql "${db}" -1 <"${f}" >/dev/null
+    fi
+    go_psql "${db}" -c "insert into public.dev_go_migration (thu_muc, tep) values ('${key}', '${ten}')" >/dev/null
   done < <(find "${dir}" -maxdepth 1 -name 'V*.sql' | sort -V)
+  echo "  ${key}: áp ${n} tệp mới vào CSDL ${db}"
 }
 
 if [[ "${SKIP_MIGRATE:-0}" != "1" ]]; then
