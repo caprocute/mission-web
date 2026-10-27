@@ -206,4 +206,18 @@ class IncrementalScoringTest {
         .isEmpty();
     verify(jobs, never()).open(any());
   }
+
+  @Test
+  void chotKyKhongCoGoiDangThiGhimGoiNhaNuoc() {
+    when(policies.pin(PolicyBindingKey.of(TENANT, PERIOD, "DANG")))
+        .thenThrow(new vn.viettel.okrkpi.shared.error.BusinessException("POLICY-404-NO-BINDING"));
+    UUID nn = UUID.randomUUID();
+    when(policies.pin(PolicyBindingKey.of(TENANT, PERIOD, "NHA_NUOC")))
+        .thenReturn(
+            new PinnedPolicy(UUID.randomUUID(), "ND335", nn, "1.6.0", "c".repeat(64), true));
+    scoring.onPeriodLocked(TENANT, UUID.randomUUID(), PERIOD, 20271, List.of());
+    ArgumentCaptor<ScoreJob> job = ArgumentCaptor.forClass(ScoreJob.class);
+    verify(jobs).open(job.capture());
+    assertThat(job.getValue().policyPackVersionId()).isEqualTo(nn);
+  }
 }
