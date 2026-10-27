@@ -1,6 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 import { UiSduiNode, uiWidgetLabel } from '@vt/api-client';
-import { TokenTree, homeWidgets, pxOf, tokenText } from './ui-pack-tokens';
+import { TokenTree, homeWidgets, onPrimaryOf, pxOf, tokenText } from './ui-pack-tokens';
 
 /**
  * Xem trước giao diện mẫu từ token và bố cục (SCR-1801 vùng 4): đầu trang theo màu chủ đạo, thẻ "Việc
@@ -14,7 +14,7 @@ import { TokenTree, homeWidgets, pxOf, tokenText } from './ui-pack-tokens';
       class="pv"
       [class.eld]="elderly()"
       [style.--pv-primary]="c('color.primary')"
-      [style.--pv-on-primary]="c('color.onPrimary')"
+      [style.--pv-on-primary]="onPrimary()"
       [style.--pv-text]="elderly() ? '#000000' : c('color.text')"
       [style.--pv-bg]="c('color.background')"
       [style.--pv-danger]="c('color.danger')"
@@ -77,7 +77,8 @@ import { TokenTree, homeWidgets, pxOf, tokenText } from './ui-pack-tokens';
       border-bottom: 1px solid #e5e7eb;
     }
     .brand {
-      color: var(--pv-primary);
+      color: var(--pv-text);
+      border-bottom: 3px solid var(--pv-primary);
     }
     .dot {
       width: 18px;
@@ -113,7 +114,9 @@ import { TokenTree, homeWidgets, pxOf, tokenText } from './ui-pack-tokens';
       font-size: 1.4em;
     }
     .tile .hot {
-      color: var(--pv-primary);
+      color: var(--pv-text);
+      text-decoration: underline 3px var(--pv-primary);
+      text-underline-offset: 4px;
     }
     .track {
       display: block;
@@ -182,6 +185,8 @@ export class UiPackPreview {
     return Array.isArray(f) ? f.map((x) => (/\s/.test(String(x)) ? `"${x}"` : x)).join(', ') : '';
   });
   protected readonly label = uiWidgetLabel;
+  /** Chữ trên nút chính, cùng cách chọn với kiểm tra tương phản (`onPrimaryOf`). */
+  protected readonly onPrimary = computed(() => onPrimaryOf(this.tokens()));
 
   protected c(path: string) {
     return tokenText(this.tokens(), path);
