@@ -12,4 +12,7 @@ public interface CommentSealer {
 
   /** {@code null} khi {@code plain} rỗng. */
   SealedComment seal(TenantId tenant, UUID acceptanceId, String plain);
+
+  /** Giải mã nhận xét của dòng {@code acceptanceId}; mỗi lần giải mã ghi vết truy cập C2. */
+  String open(TenantId tenant, UUID acceptanceId, byte[] cipher);
 }

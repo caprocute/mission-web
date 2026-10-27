@@ -21,8 +21,18 @@ import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TASK_GROUP_LABEL, toProblem } from '@vt/api-client';
-import { EsignRequestStatus, PLAN_CHANGE_LABEL, PLAN_RECURRENCE_LABEL, PlanApi, PlanDiffLine, PlanItem, PlanSignRequest, SIGN_METHOD_LABEL, SignMethod } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import {
+  EsignRequestStatus,
+  PLAN_CHANGE_LABEL,
+  PLAN_RECURRENCE_LABEL,
+  PlanApi,
+  PlanDiffLine,
+  PlanItem,
+  PlanSignRequest,
+  SIGN_METHOD_LABEL,
+  SignMethod,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TextareaModule } from 'primeng/textarea';
@@ -32,7 +42,7 @@ import { formatDate } from '../task-ui';
 import { PLAN_STEP_UP } from './plan/step-up';
 
 type View = 'changes' | 'all';
-type Busy = 'approve' | 'return' | 'stepup' | null;
+type Busy = 'approve' | 'return' | 'stepup' | 'score' | null;
 
 /** Phương thức đã liên kết chứng thư; còn lại hiện để biết nhưng chưa chọn được (suy luận, xem wiki/05a). */
 const LINKED: SignMethod[] = ['MYSIGN'];
@@ -42,7 +52,15 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
 
 @Component({
   selector: 'vt-plan-review-page',
-  imports: [DatePipe, FormsModule, RouterLink, ButtonModule, SelectButtonModule, TextareaModule],
+  imports: [
+    VtSkeletonComponent,
+    DatePipe,
+    FormsModule,
+    RouterLink,
+    ButtonModule,
+    SelectButtonModule,
+    TextareaModule,
+  ],
   template: `
     @if (!can('SCR-0403.so-sanh')) {
       <p class="msg warn">Đồng chí không có quyền xem xét kế hoạch của đơn vị.</p>
@@ -98,7 +116,6 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
       <section class="cards" aria-label="Tóm tắt thay đổi">
         @if (d.base) {
           <div class="card">
-            <span class="num" aria-hidden="true">1</span>
             <span class="lbl">Thêm mới</span><strong class="big add">{{ x.added }}</strong>
           </div>
           <div class="card">
@@ -109,7 +126,6 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
           </div>
         } @else {
           <div class="card">
-            <span class="num" aria-hidden="true">1</span>
             <span class="lbl">Số công việc</span><strong class="big">{{ x.lines.length }}</strong>
           </div>
         }
@@ -130,7 +146,6 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
       <div class="layout">
         <section class="box" aria-labelledby="diff-h">
           <h2 class="h" id="diff-h">
-            <span class="num" aria-hidden="true">2</span>
             {{ d.base ? 'Khác biệt giữa hai phiên bản' : 'Nội dung kế hoạch' }}
           </h2>
           <div class="scroll" tabindex="0" role="region" aria-label="Bảng so sánh, cuộn ngang">
@@ -214,6 +229,51 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
           @for (c of blocking(); track $index) {
             <p class="msg err">{{ c.message }}</p>
           }
+          @if (unscored().length && t.status === 'CHO_DUYET' && can('SCR-0403.duyet-ky')) {
+            <section class="score" aria-labelledby="score-h">
+              <h3 class="h3" id="score-h">Định điểm việc ngoài danh mục</h3>
+              <p class="muted small">
+                Công việc ngoài danh mục cần được định mức khó và điểm chuẩn trước khi duyệt kế
+                hoạch.
+              </p>
+              @for (i of unscored(); track i.id) {
+                @let f = scoreForm(i.id!);
+                <div class="score-row" role="group" [attr.aria-label]="'Định điểm: ' + i.title">
+                  <span class="score-title">{{ i.title }}</span>
+                  <label>
+                    Mức khó
+                    <select
+                      [ngModel]="f.difficulty"
+                      (ngModelChange)="setScore(i.id!, 'difficulty', $event)"
+                    >
+                      <option [ngValue]="null" disabled>Chọn</option>
+                      @for (d of difficulties; track d) {
+                        <option [ngValue]="d">Mức {{ d }}</option>
+                      }
+                    </select>
+                  </label>
+                  <label>
+                    Điểm chuẩn
+                    <input
+                      type="number"
+                      min="0.5"
+                      max="50"
+                      step="0.5"
+                      [ngModel]="f.standardScore"
+                      (ngModelChange)="setScore(i.id!, 'standardScore', $event)"
+                    />
+                  </label>
+                  <p-button
+                    label="Lưu điểm"
+                    [outlined]="true"
+                    [loading]="busy() === 'score'"
+                    [disabled]="!!busy() || !validScore(f)"
+                    (onClick)="saveScore(i)"
+                  />
+                </div>
+              }
+            </section>
+          }
           @if (d.base && !simple()) {
             <p class="msg info note">
               Việc đã có minh chứng được xác nhận không được bỏ khỏi kế hoạch. Hạn của việc đang
@@ -225,9 +285,7 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
 
         <aside>
           <section class="box" aria-labelledby="info-h">
-            <h2 class="h" id="info-h">
-              <span class="num" aria-hidden="true">3</span> Thông tin trình
-            </h2>
+            <h2 class="h" id="info-h">Thông tin trình</h2>
             <dl class="meta">
               <dt>Người trình</dt>
               <dd>
@@ -250,20 +308,12 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
               }
               <dt>Hiệu lực</dt>
               <dd>Từ ngày duyệt; không hồi tố</dd>
-              @if (!simple()) {
-                <dt>Mã kiểm tra toàn vẹn</dt>
-                <dd>
-                  <code class="hash" [title]="t.contentHash ?? ''">{{
-                    shortHash(t.contentHash ?? undefined)
-                  }}</code>
-                </dd>
-              }
             </dl>
           </section>
 
           @if (t.status === 'CHO_DUYET' && (can('SCR-0403.tra-lai') || can('SCR-0403.duyet-ky'))) {
             <section class="box" aria-labelledby="dec-h">
-              <h2 class="h" id="dec-h"><span class="num" aria-hidden="true">4</span> Quyết định</h2>
+              <h2 class="h" id="dec-h">Quyết định</h2>
               <label for="rv-comment" class="sr-only">Ý kiến của người duyệt</label>
               <textarea
                 id="rv-comment"
@@ -349,18 +399,13 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
                   <p-button
                     label="Duyệt và ký số"
                     [loading]="busy() === 'approve' || waiting()"
-                    [disabled]="!!busy() || waiting() || blocking().length > 0"
+                    [disabled]="
+                      !!busy() || waiting() || blocking().length > 0 || unscored().length > 0
+                    "
                     (onClick)="approve()"
                   />
                 }
               </div>
-              @if (can('SCR-0403.duyet-ky') && !simple()) {
-                <p class="muted small">
-                  <span class="num sm" aria-hidden="true">5</span>
-                  Duyệt kế hoạch là thao tác ký số có giá trị pháp lý; hệ thống yêu cầu xác thực
-                  nhiều lớp nếu đã quá 15 phút kể từ lần xác thực gần nhất.
-                </p>
-              }
             </section>
           }
           <p class="back">
@@ -371,13 +416,12 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
         </aside>
       </div>
     } @else {
-      <p class="muted" role="status">Đang tải kế hoạch…</p>
+      <vt-skeleton variant="page" [columns]="5" label="Đang tải kế hoạch" />
     }
   `,
   styles: `
     :host {
       display: block;
-      padding: 16px 24px;
       --p-togglebutton-color: #374151;
     }
     h1 {
@@ -597,6 +641,30 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
       background: #eff6ff;
       border-color: #1d4ed8;
     }
+    .score {
+      margin-top: 16px;
+    }
+    .h3 {
+      font-size: 1em;
+      margin: 0 0 4px;
+    }
+    .score-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 8px 16px;
+      padding: 8px 0;
+      border-top: 1px solid #e5e7eb;
+    }
+    .score-row label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .score-title {
+      flex: 1 1 240px;
+      font-weight: 600;
+    }
     .err-text {
       color: #b91c1c;
       margin: 4px 0 0;
@@ -684,6 +752,52 @@ export class PlanReviewPage {
   protected readonly blocking = computed(() =>
     (this.review.value()?.version.checks ?? []).filter((c) => c.level === 'CHAN'),
   );
+  /** Việc ngoài danh mục chưa có điểm, người duyệt định điểm trước khi duyệt (BR-04-05). */
+  protected readonly unscored = computed(() =>
+    (this.review.value()?.version.items ?? []).filter(
+      (i) => !i.catalogItemId && i.standardScore == null,
+    ),
+  );
+  protected readonly difficulties = [1, 2, 3, 4, 5];
+  private readonly scores = signal<
+    Record<string, { difficulty: number | null; standardScore: number | null }>
+  >({});
+
+  protected scoreForm(id: string) {
+    return this.scores()[id] ?? { difficulty: null, standardScore: null };
+  }
+
+  protected setScore(id: string, field: 'difficulty' | 'standardScore', value: number | null) {
+    this.scores.update((m) => ({ ...m, [id]: { ...this.scoreForm(id), [field]: value } }));
+  }
+
+  protected validScore(f: { difficulty: number | null; standardScore: number | null }) {
+    const s = Number(f.standardScore);
+    return f.difficulty != null && f.standardScore != null && s >= 0.5 && s <= 50;
+  }
+
+  protected async saveScore(i: PlanItem) {
+    const d = this.review.value();
+    const f = this.scoreForm(i.id!);
+    if (!d || !this.validScore(f)) return;
+    this.busy.set('score');
+    this.error.set(null);
+    try {
+      await firstValueFrom(
+        this.api.scoreItem(d.planId, d.version.versionNo, i.id!, d.version.rowVersion, {
+          difficulty: f.difficulty!,
+          standardScore: Number(f.standardScore),
+        }),
+      );
+      this.notice.set(`Đã định điểm cho công việc "${i.title}".`);
+      this.review.reload();
+    } catch (e) {
+      this.error.set(this.message(e));
+    } finally {
+      this.busy.set(null);
+    }
+  }
+
   /** Điểm tối đa nhóm then chốt ở phiên bản gốc và phiên bản trình (tỷ trọng Policy Pack, BR-04-06). */
   protected readonly keyMax = computed(() => {
     const d = this.review.value();
@@ -723,10 +837,6 @@ export class PlanReviewPage {
 
   protected date(iso: string) {
     return formatDate(iso);
-  }
-
-  protected shortHash(h?: string) {
-    return h ? `${h.slice(0, 4)}…${h.slice(-4)}` : '—';
   }
 
   /** Mô tả một dòng ở một phiên bản: dòng thêm, bỏ hoặc không đổi ghi đủ; dòng sửa chỉ ghi phần đã đổi. */

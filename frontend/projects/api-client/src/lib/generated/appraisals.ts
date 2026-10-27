@@ -460,6 +460,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/appraisals/unit-results': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Kết quả đánh giá từng cán bộ của đơn vị trong kỳ
+     * @description Bước "bấm đơn vị" của SCR-1603 (QT-16 bước 5): lãnh đạo, quản lý xem kết quả đánh giá của từng cán bộ thuộc đơn vị (gồm cây đơn vị cấp dưới) trong một kỳ quý để mở chuỗi truy vết của điểm (`GET /analytics/trace/DIEM/{scoreSnapshotId}`). Mỗi dòng là một hồ sơ đánh giá (`appraisal.appraisal_profile`) với ảnh chụp điểm hiện hành (`current_snapshot_id`, `appraisal.score_snapshot`), mức hệ thống tính, mức đã quyết định (`final_rating_code`) và trạng thái. Chỉ đọc, không trả dữ liệu C2 (nhận xét, giải trình). Phạm vi ABAC theo chức năng `SCR-1603.xem`: `leader`, `appraiser`, `inspector` trong đơn vị và cây cấp dưới, `manager` trong đơn vị mình; dòng ngoài phạm vi không được trả. Kỳ năm dùng `listAnnualAppraisalRatings`. Bổ sung cộng thêm 26/10/2026 (wiki/14, HT-39), không đổi thao tác cũ; thứ tự theo `appraisal_profile.id`.
+     */
+    get: operations['listUnitAppraisalResults'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/appraisals/annual': {
     parameters: {
       query?: never;
@@ -703,6 +723,28 @@ export interface components {
     };
     AppraisalProfilePage: {
       items: components['schemas']['AppraisalProfileRow'][];
+      nextCursor: components['schemas']['NextCursor'];
+    };
+    /** @description Kết quả đánh giá của một cán bộ trong đơn vị và kỳ (`listUnitAppraisalResults`). Không có dữ liệu C2. */
+    UnitAppraisalResultRow: {
+      profileId: components['schemas']['Uuid'];
+      /** @description Cán bộ được đánh giá (`appraisal_profile.person_id`, họ tên theo `org_replica.person_v`). */
+      person: components['schemas']['Ref'];
+      /** @description Đơn vị của hồ sơ (`appraisal_profile.org_unit_id`), có thể là đơn vị cấp dưới của `unit`. */
+      orgUnit: components['schemas']['Ref'];
+      flow: components['schemas']['Flow'];
+      status: components['schemas']['AppraisalProfileStatus'];
+      /** @description Ảnh chụp điểm hiện hành (`appraisal_profile.current_snapshot_id`); là `id` của mắt xích `DIEM` trong `GET /analytics/trace/{objectType}/{id}`. `null` khi chưa có điểm. */
+      scoreSnapshotId: components['schemas']['Uuid'] | null;
+      /** @description Tổng điểm của ảnh chụp hiện hành (`score_snapshot.total_score`). */
+      totalScore: number | null;
+      /** @description Mức hệ thống tính của ảnh chụp hiện hành (`score_snapshot.auto_rating_code`, tham khảo). */
+      autoRatingCode: components['schemas']['RatingLevel'] | null;
+      /** @description Mức xếp loại đã quyết định (`appraisal_profile.final_rating_code`); `null` khi chưa quyết định. */
+      ratingCode: components['schemas']['RatingLevel'] | null;
+    };
+    UnitAppraisalResultPage: {
+      items: components['schemas']['UnitAppraisalResultRow'][];
       nextCursor: components['schemas']['NextCursor'];
     };
     /** @description Kết quả một nhóm tiêu chí chung (`appraisal.general_criteria_result`). */
@@ -2376,6 +2418,41 @@ export interface operations {
       404: components['responses']['NotFound'];
       409: components['responses']['Conflict'];
       428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listUnitAppraisalResults: {
+    parameters: {
+      query: {
+        /** @description Đơn vị (`org.org_unit.id`); gồm cả cây đơn vị cấp dưới theo cây của luồng. */
+        unit: components['schemas']['Uuid'];
+        /** @description Mã kỳ quý (`config.period.id`, `config.period.kind = QUY`). */
+        period: components['schemas']['Uuid'];
+        /** @description Luồng đánh giá; bỏ trống thì lấy luồng của hồ sơ hoặc mọi luồng tenant bật. */
+        flow?: components['parameters']['FlowQuery'];
+        /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
+        limit?: components['parameters']['Limit'];
+        /** @description Con trỏ mờ lấy từ `nextCursor` của trang trước. Không tự dựng giá trị. */
+        cursor?: components['parameters']['Cursor'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Một trang kết quả đánh giá của cán bộ trong đơn vị. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UnitAppraisalResultPage'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['UnprocessableEntity'];
       default: components['responses']['Problem'];
     };
   };

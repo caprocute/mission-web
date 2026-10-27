@@ -7,7 +7,7 @@
   <h1>Phiếu tự đánh giá</h1>
   <p class="msg">Đồng chí chưa có hồ sơ đánh giá nào trong kỳ hiện tại.</p>
 } @else if (!p) {
-  <p class="msg" role="status">Đang tải phiếu tự đánh giá…</p>
+  <vt-skeleton variant="form" [rows]="6" label="Đang tải phiếu tự đánh giá" />
 } @else {
   <header class="head">
     <div>
@@ -121,7 +121,7 @@
           } @else if (scoresError()) {
             <p class="msg" role="status">{{ scoresError() }}</p>
           } @else {
-            <p class="msg" role="status">Đang tải kết quả tính điểm…</p>
+            <vt-skeleton variant="stats" [rows]="3" label="Đang tải kết quả tính điểm" />
           }
         </div>
         @if (form.error()) {
@@ -136,16 +136,23 @@
             [explanation]="own.hasValue() ? own.value().explanation : undefined"
             [editable]="editable()"
             [evidences]="evidences.hasValue() ? evidences.value() : []"
+            [evidencesLoading]="evidences.isLoading()"
             [value]="self()"
             [(evidenceIds)]="evidenceIds"
             (edited)="edited($event)"
           />
+        } @else if (form.isLoading() || own.isLoading()) {
+          <vt-skeleton variant="form" [rows]="4" label="Đang tải phiếu tự đề xuất mức xếp loại" />
         }
       </div>
     }
   </div>
 
-  @if (traceOpen() && trace.hasValue()) {
-    <vt-score-trace [trace]="trace.value()" [titles]="taskTitles()" (closed)="closeTrace()" />
+  @if (traceOpen() && !trace.error()) {
+    <vt-score-trace
+      [trace]="trace.hasValue() ? trace.value() : null"
+      [titles]="taskTitles()"
+      (closed)="closeTrace()"
+    />
   }
 }

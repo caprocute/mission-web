@@ -93,6 +93,12 @@ mission:
 
 # SVC-08 (DV-08-01): outbox, idempotency trong schema evidence; kho Ceph RGW qua S3 có Object Lock.
 okrkpi:
+  # OPA chạy cùng pod (ADR-21); dev trỏ container opa qua OPA_BASE_URL. Không khai thì bộ uỷ quyền gọi
+  # 127.0.0.1:8181 và mọi thao tác có @RequiresPermission bị từ chối (fail-closed).
+  opa:
+    base-url: ${OPA_BASE_URL:http://127.0.0.1:8181}
+    connect-timeout: ${OPA_CONNECT_TIMEOUT:50ms}
+    read-timeout: ${OPA_READ_TIMEOUT:100ms}
   outbox:
     schema: evidence
     registry:

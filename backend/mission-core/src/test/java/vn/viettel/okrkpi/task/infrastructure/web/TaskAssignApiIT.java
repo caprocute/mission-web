@@ -156,6 +156,12 @@ class TaskAssignApiIT extends ContractConformanceTest {
   @Qualifier("configDataSource") private DataSource configDataSource;
 
   @Autowired
+  @Qualifier("productDataSource") private DataSource productDataSource;
+
+  @Autowired
+  @Qualifier("productTransactionManager") private PlatformTransactionManager productTm;
+
+  @Autowired
   @Qualifier("configTransactionManager") private PlatformTransactionManager configTm;
 
   private final TenantId tenant = TenantId.of(UUID.randomUUID());
@@ -193,6 +199,18 @@ class TaskAssignApiIT extends ContractConformanceTest {
           }
           return null;
         });
+    // Sản phẩm MOD-03 khai báo sẵn khi giao việc nằm ở product.deliverable phân vùng theo kỳ
+    TenantContext.call(
+        tenant,
+        () ->
+            new TransactionTemplate(productTm)
+                .execute(
+                    st ->
+                        JdbcClient.create(productDataSource)
+                            .sql("SELECT product.fn_create_period_partitions(?::regclass, ?)")
+                            .params("product.deliverable", BUCKET)
+                            .query()
+                            .listOfRows()));
   }
 
   @Test
@@ -253,6 +271,19 @@ class TaskAssignApiIT extends ContractConformanceTest {
     // Người gọi là người giao việc (quản lý): được nhắc và giao lại (YC-PT-21).
     assertThat(body(detail).get("permittedActions").toString())
         .isEqualTo("[\"SCR-1601.nhac\",\"SCR-1601.giao-lai\"]");
+    // MOD-03 khai báo sẵn sản phẩm đầu ra ghi lúc soạn sau khi giao (SCR-0701), chi tiết đếm được
+    JsonNode products = body(detail).get("products");
+    for (int i = 0; i < 50 && products.get("required").asInt() == 0; i++) {
+      Thread.sleep(200);
+      products = body(perform(get("/api/v1/tasks/" + id))).get("products");
+    }
+    assertThat(products.get("required").asInt()).isEqualTo(1);
+    assertThat(products.get("confirmed").asInt()).isZero();
+    MvcResult declared = perform(get("/api/v1/products").param("task", id));
+    assertThat(declared.getResponse().getStatus()).isEqualTo(200);
+    assertThat(body(declared).get("items").size()).isEqualTo(1);
+    assertThat(body(declared).get("items").get(0).get("name").asText())
+        .isEqualTo(draft.get("productName").asText());
     MvcResult people = perform(get("/api/v1/tasks/" + id + "/assignees"));
     assertThat(body(people).get("items").get(0).get("id").asText()).isEqualTo(LEAD.toString());
 

@@ -14,7 +14,7 @@
     } @else {
       <span class="brand-mark" aria-hidden="true">★</span>
     }
-    <span>Mission <small>Giao nhiệm vụ · OKR · KPI</small></span>
+    <span>Mission</span>
   </a>
   <span class="page-title">{{ pageTitle() }}</span>
   <span class="spacer"></span>
@@ -73,29 +73,7 @@
     <div class="sidenav-backdrop" (click)="navOpen.set(false)" aria-hidden="true"></div>
   }
   <nav class="sidenav" [class.open]="navOpen()" aria-label="Menu chính">
-    @if (platformNav().length > 0) {
-      <div class="nav-group nav-group--platform">
-        <div class="nav-group__title">Khung nền tảng &amp; Quản trị</div>
-        @for (item of platformNav(); track item.link) {
-          <a
-            [routerLink]="item.link"
-            routerLinkActive="active"
-            [routerLinkActiveOptions]="{ exact: item.link === '/' }"
-            (click)="navOpen.set(false)"
-          >
-            <i [class]="item.icon" aria-hidden="true"></i>
-            <span class="nav-copy">
-              <span>{{ item.label }}</span>
-              @if (item.subtitle) {
-                <small class="nav-sub">{{ item.subtitle }}</small>
-              }
-            </span>
-          </a>
-        }
-      </div>
-    }
     <div class="nav-group">
-      <div class="nav-group__title">Không gian làm việc</div>
       @for (item of workspaceNav(); track item.link) {
         <a
           [routerLink]="item.link"
@@ -106,15 +84,25 @@
           <i [class]="item.icon" aria-hidden="true"></i>
           <span class="nav-copy">
             <span>{{ item.label }}</span>
-            @if (item.subtitle) {
-              <small class="nav-sub">{{ item.subtitle }}</small>
-            }
           </span>
         </a>
       }
     </div>
+    @if (platformNav().length > 0) {
+      <div class="nav-group nav-group--platform">
+        <div class="nav-group__title">Quản trị</div>
+        @for (item of platformNav(); track item.link) {
+          <a [routerLink]="item.link" routerLinkActive="active" (click)="navOpen.set(false)">
+            <i [class]="item.icon" aria-hidden="true"></i>
+            <span class="nav-copy">
+              <span>{{ item.label }}</span>
+            </span>
+          </a>
+        }
+      </div>
+    }
   </nav>
-  <main id="main" class="content" tabindex="-1">
+  <main id="main" class="content" tabindex="-1" [class.is-routing]="routeLoading()">
     <vt-session-notice />
     @if (session.contextStatus() === 'KHONG_PHAN_CONG') {
       <!-- QT-00 ngoại lệ: không có phân công còn hiệu lực thì không vào trang chủ (MSG-00-06) -->
@@ -130,6 +118,9 @@
         ></button>
       </section>
     } @else {
+      @if (routeLoading()) {
+        <vt-skeleton variant="page" label="Đang mở trang" />
+      }
       <router-outlet />
     }
   </main>

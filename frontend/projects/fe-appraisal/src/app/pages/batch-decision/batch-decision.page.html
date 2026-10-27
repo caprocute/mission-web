@@ -65,7 +65,9 @@
   </div>
 </div>
 
-@if (pendingBatches().length) {
+@if (pending.isLoading() && !pending.hasValue()) {
+  <vt-skeleton variant="list" [rows]="1" label="Đang tải các lô đang ký" />
+} @else if (pendingBatches().length) {
   <section class="pending" aria-label="Lô đang ký">
     <h2>Lô đang ký</h2>
     <ul>
@@ -115,7 +117,7 @@
     @if (queue.error()) {
       <p class="msg err" role="alert">Không tải được danh sách hồ sơ. Vui lòng tải lại trang.</p>
     } @else if (queue.isLoading() && !rows().length) {
-      <p class="muted" role="status">Đang tải danh sách…</p>
+      <vt-skeleton variant="table" [columns]="5" label="Đang tải danh sách hồ sơ" />
     } @else if (!visible().length) {
       <p class="muted">Không có hồ sơ nào chờ quyết định.</p>
     } @else {
@@ -279,7 +281,7 @@
             }
           </p>
         } @else if (certs.isLoading()) {
-          <p class="muted">Đang đọc chứng thư ký số…</p>
+          <vt-skeleton variant="text" [rows]="1" label="Đang đọc chứng thư ký số" />
         } @else {
           <p class="bad">Đồng chí chưa có chứng thư ký số đã đăng ký.</p>
         }
@@ -399,14 +401,22 @@
       tabindex="-1"
       (keydown.escape)="cancelChange()"
     >
-      <h2 id="bd-dlg-h">Đổi mức quyết định</h2>
+      <h2 id="bd-dlg-h">
+        {{ d.suggested ? 'Ghi lý do khác mức hệ thống gợi ý' : 'Đổi mức quyết định' }}
+      </h2>
       <p>
         Đồng chí {{ d.row.person.name }}: mức đề xuất
         <b>{{ d.row.levels.proposed ? full[d.row.levels.proposed] : 'chưa có' }}</b
-        >, mức quyết định <b>{{ full[d.level] }}</b
-        >.
+        >, mức quyết định <b>{{ full[d.level] }}</b>
+        @if (d.suggested && d.row.autoRatingCode; as g) {
+          , khác mức hệ thống gợi ý theo kết quả tính điểm <b>{{ full[g] }}</b>
+        }
+        .
       </p>
-      <label for="bd-reason">Lý do đổi mức <span aria-hidden="true" class="req">*</span></label>
+      <label for="bd-reason"
+        >{{ d.suggested ? 'Lý do khác mức hệ thống gợi ý' : 'Lý do đổi mức' }}
+        <span aria-hidden="true" class="req">*</span></label
+      >
       <textarea
         #reasonBox
         id="bd-reason"

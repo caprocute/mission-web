@@ -11,10 +11,11 @@ import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { DASHBOARD_CAN, DASHBOARD_USER_ID } from '../dashboard-permissions';
 import { errorText, fmtDateTime } from '../dashboard-ui';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 @Component({
   selector: 'vt-my-dashboards-page',
-  imports: [RouterLink, ButtonModule, MessageModule],
+  imports: [VtSkeletonComponent, RouterLink, ButtonModule, MessageModule],
   template: `
     <p class="crumb">
       @if (can('SCR-1601.xem')) {
@@ -70,7 +71,7 @@ import { errorText, fmtDateTime } from '../dashboard-ui';
         </div>
       </div>
     } @else {
-      <p class="muted">Đang tải…</p>
+      <vt-skeleton variant="table" [columns]="4" label="Đang tải danh sách bảng điều hành" />
     }
   `,
   styleUrls: ['../dashboard.css'],

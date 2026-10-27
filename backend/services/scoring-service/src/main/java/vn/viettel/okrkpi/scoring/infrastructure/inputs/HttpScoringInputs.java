@@ -5,17 +5,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.http.HttpMethod;
 import org.springframework.web.util.UriComponentsBuilder;
 import vn.viettel.okrkpi.scoring.application.port.ScoringInputs;
 import vn.viettel.okrkpi.scoring.domain.CoreScoringInput;
+import vn.viettel.okrkpi.scoring.infrastructure.client.CoreTenant;
 import vn.viettel.okrkpi.shared.resilience.ResilientClient;
 
 /**
  * Đọc đầu vào tính điểm của MOD-04 qua {@code listAppraisalScoringInputs} và {@code
  * listAppraisalWorkItems} của {@code appraisals.yaml} (CORE-04-06) bằng {@link ResilientClient}
  * (instance {@code appraisal-inputs}). Hồ sơ có hơn 200 việc lá được đọc tiếp theo {@code
- * workItemsNextCursor} trước khi trả trang. Tenant đi theo ngữ cảnh lời gọi nội bộ (client dịch
- * vụ).
+ * workItemsNextCursor} trước khi trả trang. Token client dịch vụ gắn ở RestClient ({@code
+ * ServiceToken}), tenant đích ở {@code X-Tenant-Id} ({@link CoreTenant}).
  */
 public class HttpScoringInputs implements ScoringInputs {
 
@@ -37,7 +39,7 @@ public class HttpScoringInputs implements ScoringInputs {
     if (cursor != null) {
       uri.queryParam("cursor", cursor);
     }
-    InputPage page = client.get(uri.build().toUriString(), InputPage.class);
+    InputPage page = get(tenantId, uri.build().toUriString(), InputPage.class);
     if (page == null || page.items() == null) {
       throw new IllegalStateException("Lõi trả trang đầu vào rỗng");
     }
@@ -47,7 +49,8 @@ public class HttpScoringInputs implements ScoringInputs {
       String next = in.workItemsNextCursor();
       while (next != null) {
         WorkItemPage more =
-            client.get(
+            get(
+                tenantId,
                 UriComponentsBuilder.fromPath(BASE + "/" + in.profileId() + "/work-items")
                     .queryParam("limit", WORK_ITEM_PAGE)
                     .queryParam("cursor", next)
@@ -63,6 +66,11 @@ public class HttpScoringInputs implements ScoringInputs {
       items.add(map(in, work));
     }
     return new Page(items, page.nextCursor());
+  }
+
+  /** GET kèm tenant đích ở {@code X-Tenant-Id} ({@link CoreTenant}). */
+  private <T> T get(UUID tenantId, String uri, Class<T> type) {
+    return client.exchange(HttpMethod.GET, uri, null, CoreTenant.headers(tenantId), type);
   }
 
   static CoreScoringInput map(Input in, List<WorkItem> work) {

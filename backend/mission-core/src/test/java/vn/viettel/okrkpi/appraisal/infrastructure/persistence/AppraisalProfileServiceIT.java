@@ -27,6 +27,7 @@ import vn.viettel.okrkpi.appraisal.domain.profile.CurrentRating;
 import vn.viettel.okrkpi.appraisal.domain.profile.LevelKind;
 import vn.viettel.okrkpi.appraisal.domain.profile.RatingLevel;
 import vn.viettel.okrkpi.appraisal.domain.profile.StepCompleted;
+import vn.viettel.okrkpi.platform.db.migration.TestPostgres;
 import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.error.VersionConflictException;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
@@ -63,11 +64,8 @@ class AppraisalProfileServiceIT {
   @BeforeEach
   void setUp() throws SQLException {
     Connection c =
-        DriverManager.getConnection(
-            pg.getJdbcUrl(), "svc_appraisal", MissionCoreTestDatabase.TEST_DB_PASSWORD);
-    try (Statement st = c.createStatement()) {
-      st.execute("SET app.tenant_id = '" + tenant + "'");
-    }
+        TestPostgres.connectAsTenant(
+            pg.getJdbcUrl(), "svc_appraisal", MissionCoreTestDatabase.TEST_DB_PASSWORD, tenant);
     ds = new SingleConnectionDataSource(c, true);
     service =
         new AppraisalProfileService(

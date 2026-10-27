@@ -16,6 +16,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.postgresql.util.PGobject;
 import vn.viettel.okrkpi.platform.db.migration.TenantIsolationCatalogTest;
+import vn.viettel.okrkpi.platform.db.migration.TestPostgres;
 
 /**
  * Schema {@code oversight} (CORE-07-01) ở CSDL pool: rò rỉ tenant (RLS) do lớp cơ sở sinh trên bảy
@@ -239,10 +240,7 @@ class OversightTenantIsolationIT extends TenantIsolationCatalogTest {
         DriverManager.getConnection(jdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
       ensurePeriodPartitionsCreated(jdbcUrl(), admin, schemas());
     }
-    Connection c = DriverManager.getConnection(jdbcUrl(), "svc_oversight", TEST_PASSWORD);
-    try (Statement st = c.createStatement()) {
-      st.execute("SET app.tenant_id = '" + tenant + "'");
-    }
+    Connection c = TestPostgres.connectAsTenant(jdbcUrl(), "svc_oversight", TEST_PASSWORD, tenant);
     return c;
   }
 

@@ -13,7 +13,8 @@ const RETRY_SECONDS = [2, 4, 8, 16];
  * Đồng bộ chế độ Đảng viên cao tuổi theo người dùng trên mọi thiết bị (CNH-05, NFR-11, BR-18-09):
  * sau đăng nhập đọc khoá `ui.display` (CNH-02) và áp vào `ThemeService`; nút chuyển nhanh ghi ngay
  * lên máy chủ kèm `If-Match`. Mất mạng thì giữ lựa chọn trong phiên và thử lại; xung đột phiên bản
- * thì đọc bản mới rồi ghi lại lựa chọn vừa bấm (người dùng bấm sau cùng là ý định đúng).
+ * thì đọc bản mới rồi ghi lại lựa chọn vừa bấm (người dùng bấm sau cùng là ý định đúng). Bấm nút khi
+ * khoá chưa đọc xong thì chờ đọc xong mới ghi, để lệnh ghi mang đúng `If-Match` thay vì bị trả 428.
  */
 @Injectable({ providedIn: 'root' })
 export class DisplayPreferenceSync {
@@ -22,6 +23,10 @@ export class DisplayPreferenceSync {
   private readonly session = inject(SessionService);
   private item: UserPreferenceItem | null = null;
   private loadedFor: string | null = null;
+  /** Đang đọc khoá sau đăng nhập; trong lúc này lệnh ghi phải chờ để biết `rowVersion`. */
+  private loading = false;
+  /** Người dùng đã bấm nút trong lúc đang đọc. */
+  private pendingSave = false;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private attempt = 0;
 
@@ -41,19 +46,35 @@ export class DisplayPreferenceSync {
   toggle(): void {
     this.theme.toggleElderly();
     this.attempt = 0;
-    this.save();
+    if (this.loading) this.pendingSave = true;
+    else this.save();
   }
 
   private load(userId: string): void {
     this.loadedFor = userId;
+    this.loading = true;
     this.api.all().subscribe({
       next: (all) => {
         this.item = all.items[KEY] ?? null;
+        this.loading = false;
+        // đã bấm trong lúc đọc: lựa chọn vừa bấm thắng bản trên máy chủ, ghi kèm phiên bản vừa đọc
+        if (this.flushPending()) return;
         this.theme.applyUserPreference(this.preferenceOf(this.item));
       },
       // không đọc được: giữ bản đệm cục bộ, lần đăng nhập sau đọc lại
-      error: () => (this.loadedFor = null),
+      error: () => {
+        this.loadedFor = null;
+        this.loading = false;
+        this.flushPending();
+      },
     });
+  }
+
+  private flushPending(): boolean {
+    if (!this.pendingSave) return false;
+    this.pendingSave = false;
+    this.save();
+    return true;
   }
 
   private save(): void {

@@ -35,9 +35,18 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { JobTracker, UiFormApi, toProblem } from '@vt/api-client';
-import { APPRAISAL_FLOW_LABEL, APPRAISAL_STATUS_LABEL, AppraisalApi, AppraisalFlow, AppraisalProfile, AppraisalSelfAssessmentInput, EvidenceApi, RatingLevel } from '@vt/api-client/domains';
+import {
+  APPRAISAL_FLOW_LABEL,
+  APPRAISAL_STATUS_LABEL,
+  AppraisalApi,
+  AppraisalFlow,
+  AppraisalProfile,
+  AppraisalSelfAssessmentInput,
+  EvidenceApi,
+  RatingLevel,
+} from '@vt/api-client/domains';
 import { permittedOn } from '@vt/auth';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { firstValueFrom, map } from 'rxjs';
 import { APPRAISAL_CAN } from '../../appraisal-permissions';
 import { GeneralCriteria } from './general-criteria';
@@ -70,7 +79,15 @@ type Tab = AppraisalFlow | 'LICH_SU';
 
 @Component({
   selector: 'vt-self-assessment-page',
-  imports: [RouterLink, GeneralCriteria, ScoreResult, ScoreTrace, SelfRating, RatingTrail],
+  imports: [
+    VtSkeletonComponent,
+    RouterLink,
+    GeneralCriteria,
+    ScoreResult,
+    ScoreTrace,
+    SelfRating,
+    RatingTrail,
+  ],
   templateUrl: './self-assessment.page.html',
   styleUrl: './self-assessment.page.css',
 })
@@ -182,6 +199,8 @@ export class SelfAssessmentPage {
   protected readonly evidenceIds = linkedSignal(() => this.sa()?.breakthroughEvidenceIds ?? []);
   protected readonly dirty = linkedSignal({ source: this.profile, computation: () => false });
 
+  // skeleton-ok: danh sách minh chứng chuyển cho <vt-self-rating>, thành phần con hiện khung xương
+  // qua [evidencesLoading] trong khi tải
   protected readonly evidences = rxResource({
     params: () => (this.self().selfRatingCode === 'HTXSNV' ? true : undefined),
     stream: () => this.evidenceApi.list({ status: ['DA_XAC_NHAN'] }).pipe(map((p) => p.items)),
@@ -224,6 +243,8 @@ export class SelfAssessmentPage {
     () => this.editable() && this.mayFileSign() && !!this.refRating() && this.form.hasValue(),
   );
 
+  // skeleton-ok: vết tính chuyển cho ngăn <vt-score-trace>, ngăn mở ngay và tự hiện khung xương
+  // khi vết tính chưa về
   protected readonly trace = rxResource({
     params: () => {
       const p = this.profile();

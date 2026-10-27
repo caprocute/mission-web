@@ -51,7 +51,7 @@ describe('TenantsPage (SCR-0101)', () => {
 
   it('thẻ tổng quan, bảng 8 dòng, trạng thái khởi tạo n/6, MSG-01-01 và MSG-01-02', async () => {
     const el = (await render()).nativeElement as HTMLElement;
-    expect(text(el.querySelector('.cards'))).toContain('tối đa 5.000 đơn vị');
+    expect(text(el.querySelector('.cards'))).toContain('Đơn vị đang vận hành');
     expect(names(el)).toHaveLength(8);
     expect(text(el.querySelector('.tbl tbody'))).toContain('Đang khởi tạo 4/6');
     expect(text(el.querySelector('.notices'))).toContain(

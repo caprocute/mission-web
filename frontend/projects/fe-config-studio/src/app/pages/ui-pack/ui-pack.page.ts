@@ -38,6 +38,7 @@ import {
   tokenText,
   withHomeWidgets,
 } from './ui-pack-tokens';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 /*
  * SCR-1801 Cấu hình giao diện tenant (QT-18, TL-02b), đối chiếu đặc tả:
@@ -85,14 +86,21 @@ const draftOf = (v: UiPackVersion | undefined): Draft | null =>
 
 @Component({
   selector: 'vt-ui-pack-page',
-  imports: [FormsModule, RouterLink, ButtonModule, DialogModule, TextareaModule, UiPackPreview],
+  imports: [
+    VtSkeletonComponent,
+    FormsModule,
+    RouterLink,
+    ButtonModule,
+    DialogModule,
+    TextareaModule,
+    UiPackPreview,
+  ],
   template: `
     <header class="head">
       <div>
         <h1>Giao diện đơn vị</h1>
         <p class="sub">
-          Màu sắc, chữ và bố cục trang chủ của đơn vị. Thay đổi được áp dụng trong ngày sau khi
-          duyệt, không cần cập nhật phần mềm.
+          Màu sắc, chữ và bố cục trang chủ của đơn vị; thay đổi được áp dụng sau khi duyệt.
         </p>
       </div>
       @if (ver(); as v) {
@@ -150,7 +158,7 @@ const draftOf = (v: UiPackVersion | undefined): Draft | null =>
     @if (packs.error() || versions.error()) {
       <p class="err" role="alert">Không tải được cấu hình giao diện. Vui lòng thử lại.</p>
     } @else if (!pack()) {
-      <p>Đang tải…</p>
+      <vt-skeleton variant="form" [rows]="5" label="Đang tải cấu hình giao diện" />
     }
 
     @if (notice(); as n) {
@@ -187,12 +195,7 @@ const draftOf = (v: UiPackVersion | undefined): Draft | null =>
             <span class="chip ok">Đang áp dụng: bản {{ vlabel(cur.version) }}</span>
           }
           @if (v.policyPack; as pp) {
-            <span class="meta">
-              Bộ chính sách đánh giá {{ pp.packCode }} bản {{ pp.version }}
-              @for (f of v.forms ?? []; track f.formKey) {
-                · biểu mẫu bản {{ f.version }}
-              }
-            </span>
+            <span class="meta"> Áp dụng cùng chính sách đánh giá bản {{ pp.version }} </span>
           }
         </div>
         @if (v.status === 'DANG_KIEM_TRA') {
@@ -478,7 +481,7 @@ const draftOf = (v: UiPackVersion | undefined): Draft | null =>
                   <p class="hint">Kết quả theo bản đã lưu; lưu nháp để kiểm tra lại.</p>
                 }
               } @else if (preview.isLoading()) {
-                <p>Đang kiểm tra…</p>
+                <vt-skeleton variant="list" [rows]="3" label="Đang kiểm tra cấu hình giao diện" />
               }
             </section>
           </div>
@@ -545,7 +548,7 @@ const draftOf = (v: UiPackVersion | undefined): Draft | null =>
                   <tr>
                     <td>Trang chủ</td>
                     <td class="yes">Chọn khối, thứ tự, ẩn hiện</td>
-                    <td>Nội dung tự soạn bằng mã</td>
+                    <td>Nội dung ngoài danh mục khối có sẵn</td>
                   </tr>
                   <tr>
                     <td>Biểu mẫu nghiệp vụ</td>
@@ -564,9 +567,6 @@ const draftOf = (v: UiPackVersion | undefined): Draft | null =>
                   </tr>
                 </tbody>
               </table>
-              <p class="foot" data-testid="size">
-                Gói giao diện {{ sizeKb() }} KB, trong ngân sách 30 KB.
-              </p>
             </section>
           </div>
         </div>
@@ -582,6 +582,8 @@ const draftOf = (v: UiPackVersion | undefined): Draft | null =>
     >
       @if (components.error()) {
         <p class="err" role="alert">Không tải được danh mục. Vui lòng thử lại.</p>
+      } @else if (components.isLoading() || packs.isLoading() || versions.isLoading()) {
+        <vt-skeleton variant="list" [rows]="4" label="Đang tải danh mục khối" />
       }
       <ul class="catalog" data-testid="catalog">
         @for (c of catalog(); track c.componentKey) {
@@ -1069,10 +1071,6 @@ export class UiPackPage {
       return r && v ? { ...r, row: v.rowVersion } : undefined;
     },
     stream: ({ params }) => this.api.preview({ id: params.id, v: params.v }),
-  });
-  protected readonly sizeKb = computed(() => {
-    const b = this.preview.value()?.bundleSizeGzipBytes ?? this.ver()?.bundleSizeGzipBytes ?? 0;
-    return (b / 1024).toLocaleString('vi-VN', { maximumFractionDigits: 1 });
   });
 
   protected readonly components = rxResource({

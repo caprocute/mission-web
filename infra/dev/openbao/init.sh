@@ -23,7 +23,7 @@ if [ -f "${ENV_FILE}" ]; then
 fi
 
 BAO_ADDR="${OPENBAO_ADDR:-${BAO_ADDR:-http://127.0.0.1:${OPENBAO_PORT:-35820}}}"
-BAO_TOKEN="${OPENBAO_DEV_ROOT_TOKEN:-${BAO_TOKEN:-mission_openbao_dev_token}}"
+BAO_TOKEN="${OPENBAO_DEV_ROOT_TOKEN:-${BAO_TOKEN:?Chưa đặt OPENBAO_DEV_ROOT_TOKEN}}"
 export BAO_ADDR BAO_TOKEN
 
 echo "==> [NEN-020] Chờ OpenBao sẵn sàng tại ${BAO_ADDR}..."

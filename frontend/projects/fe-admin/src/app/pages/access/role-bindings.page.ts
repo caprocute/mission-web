@@ -15,8 +15,18 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { MSG_01_17, OrgTreeApi, ROLE_BINDING_STATUS_LABEL, ROLE_CODE_LABEL, ROLE_SCOPE_LABEL, RoleAdminApi, RoleBinding, RoleBindingStatus, RoleCode } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import {
+  MSG_01_17,
+  OrgTreeApi,
+  ROLE_BINDING_STATUS_LABEL,
+  ROLE_CODE_LABEL,
+  ROLE_SCOPE_LABEL,
+  RoleAdminApi,
+  RoleBinding,
+  RoleBindingStatus,
+  RoleCode,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { MessageModule } from 'primeng/message';
@@ -26,6 +36,7 @@ import { fmtDate } from '../../admin-ui';
 import { OrgTreeView } from '../org/org-tree-view';
 import { ACCESS_ME, ACCESS_STEP_UP, ACCESS_STYLES, accessError, statusTone } from './access-ui';
 import { GrantDialog } from './grant.dialog';
+import { RoleNames } from './role-names';
 import { ReasonDialog } from './reason.dialog';
 
 type Quick = 'all' | 'pending' | 'mine' | 'soon';
@@ -36,6 +47,7 @@ const FLOW_LABEL: Record<string, string> = { DANG: 'Khối Đảng', NHA_NUOC: '
 @Component({
   selector: 'vt-role-bindings-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -84,7 +96,13 @@ const FLOW_LABEL: Record<string, string> = { DANG: 'Khối Đảng', NHA_NUOC: '
           <h2 id="rb-z3" class="h">Vai trò đã cấp</h2>
           <p class="muted">Chọn một đơn vị trên cây để xem vai trò đã cấp.</p>
         } @else {
-          <h2 id="rb-z3" class="h">Vai trò tại {{ unitName() }}</h2>
+          <h2 id="rb-z3" class="h">
+            @if (unit.isLoading()) {
+              <vt-skeleton variant="text" [rows]="1" label="Đang tải tên đơn vị" />
+            } @else {
+              Vai trò tại {{ unitName() }}
+            }
+          </h2>
           <div class="filters" role="group" aria-label="Lọc nhanh">
             @for (q of quicks(); track q.key) {
               <button
@@ -100,7 +118,7 @@ const FLOW_LABEL: Record<string, string> = { DANG: 'Khối Đảng', NHA_NUOC: '
             <label for="rb-role" class="sr-only">Lọc vai trò</label>
             <p-select
               inputId="rb-role"
-              [options]="roleOptions"
+              [options]="roleOptions()"
               optionLabel="label"
               optionValue="value"
               [ngModel]="role()"
@@ -151,7 +169,7 @@ const FLOW_LABEL: Record<string, string> = { DANG: 'Khối Đảng', NHA_NUOC: '
                       }
                     </td>
                     <td>
-                      {{ roleLabel[b.roleCode] }}
+                      {{ names.label(b.roleCode) }}
                     </td>
                     <td>
                       {{ scopeLabel[b.scope] }}
@@ -211,18 +229,25 @@ const FLOW_LABEL: Record<string, string> = { DANG: 'Khối Đảng', NHA_NUOC: '
                   </tr>
                 } @empty {
                   <tr>
-                    <td [attr.colspan]="simple() ? 6 : 7" class="muted">
-                      {{ page.isLoading() ? 'Đang tải…' : 'Không có vai trò phù hợp bộ lọc.' }}
-                    </td>
+                    @if (page.isLoading()) {
+                      <td [attr.colspan]="simple() ? 6 : 7">
+                        <vt-skeleton
+                          variant="table"
+                          [header]="false"
+                          [columns]="6"
+                          label="Đang tải danh sách vai trò"
+                        />
+                      </td>
+                    } @else {
+                      <td [attr.colspan]="simple() ? 6 : 7" class="muted">
+                        Không có vai trò phù hợp bộ lọc.
+                      </td>
+                    }
                   </tr>
                 }
               </tbody>
             </table>
           </div>
-          <p class="muted small">
-            Vai trò hết thời hạn sẽ tự hết hiệu lực, không cần thu hồi. Vai trò bị thu hồi hết hiệu
-            lực ngay.
-          </p>
         }
       </section>
     </div>
@@ -328,19 +353,20 @@ export class RoleBindingsPage {
   private readonly me = inject(ACCESS_ME);
   protected readonly can = inject(ADMIN_CAN);
 
-  protected readonly roleLabel = ROLE_CODE_LABEL;
+  protected readonly names = inject(RoleNames);
   protected readonly scopeLabel = ROLE_SCOPE_LABEL;
   protected readonly statusLabel = ROLE_BINDING_STATUS_LABEL;
   protected readonly flowLabel = FLOW_LABEL;
   protected readonly date = fmtDate;
   protected readonly tone = statusTone;
-  protected readonly roleOptions = [
-    { value: null, label: 'Mọi vai trò' },
+  protected readonly roleOptions = computed(() => [
+    { value: null as string | null, label: 'Mọi vai trò' },
     ...(Object.keys(ROLE_CODE_LABEL) as RoleCode[]).map((value) => ({
-      value,
+      value: value as string | null,
       label: ROLE_CODE_LABEL[value],
     })),
-  ];
+    ...this.names.activeCustom().map((r) => ({ value: r.code as string | null, label: r.name })),
+  ]);
 
   /** Chế độ Đảng viên cao tuổi rút gọn: bỏ cột người cấp, người duyệt (NFR-11). */
   protected readonly simple = computed(
@@ -349,7 +375,7 @@ export class RoleBindingsPage {
 
   protected readonly selected = signal<string | null>(null);
   protected readonly quick = signal<Quick>('all');
-  protected readonly role = signal<RoleCode | null>(null);
+  protected readonly role = signal<string | null>(null);
   protected readonly subunits = signal(false);
   protected readonly grantOpen = signal(false);
   protected readonly reasonOpen = signal(false);
@@ -358,7 +384,7 @@ export class RoleBindingsPage {
   protected readonly busy = signal<string | null>(null);
   protected readonly notices = signal<{ kind: 'success' | 'warn' | 'error'; text: string }[]>([]);
 
-  private readonly unit = rxResource({
+  protected readonly unit = rxResource({
     params: () => this.selected() ?? undefined,
     stream: ({ params }) => this.units.unit(params),
   });
@@ -401,7 +427,7 @@ export class RoleBindingsPage {
     const p = this.pending();
     if (!p) return '';
     const b = p.binding;
-    const what = `vai trò ${ROLE_CODE_LABEL[b.roleCode]} của đồng chí ${b.person.name} tại ${b.orgUnit.name}`;
+    const what = `vai trò ${this.names.label(b.roleCode)} của đồng chí ${b.person.name} tại ${b.orgUnit.name}`;
     return p.kind === 'reject'
       ? `Từ chối đề nghị cấp ${what}. Bản ghi được giữ lại để tra cứu.`
       : `Thu hồi ${what} ngay bây giờ. Bản ghi không bị xoá.`;
@@ -430,8 +456,8 @@ export class RoleBindingsPage {
       {
         kind: 'success',
         text: b.sensitive
-          ? MSG_01_17(ROLE_CODE_LABEL[b.roleCode], b.person.name)
-          : `Đã cấp vai trò ${ROLE_CODE_LABEL[b.roleCode]} cho đồng chí ${b.person.name}, hiệu lực từ ${fmtDate(b.validFrom)}.`,
+          ? MSG_01_17(this.names.label(b.roleCode), b.person.name)
+          : `Đã cấp vai trò ${this.names.label(b.roleCode)} cho đồng chí ${b.person.name}, hiệu lực từ ${fmtDate(b.validFrom)}.`,
       },
     ]);
     this.page.reload();
@@ -446,7 +472,7 @@ export class RoleBindingsPage {
         this.notices.set([
           {
             kind: 'success',
-            text: `Đã duyệt vai trò ${ROLE_CODE_LABEL[r.roleCode]} của đồng chí ${r.person.name}; vai trò có hiệu lực từ ${fmtDate(r.validFrom)}.`,
+            text: `Đã duyệt vai trò ${this.names.label(r.roleCode)} của đồng chí ${r.person.name}; vai trò có hiệu lực từ ${fmtDate(r.validFrom)}.`,
           },
         ]);
         this.page.reload();
@@ -480,7 +506,7 @@ export class RoleBindingsPage {
         this.notices.set([
           {
             kind: 'success',
-            text: `${p.kind === 'reject' ? 'Đã từ chối đề nghị cấp' : 'Đã thu hồi'} vai trò ${ROLE_CODE_LABEL[r.roleCode]} của đồng chí ${r.person.name}.`,
+            text: `${p.kind === 'reject' ? 'Đã từ chối đề nghị cấp' : 'Đã thu hồi'} vai trò ${this.names.label(r.roleCode)} của đồng chí ${r.person.name}.`,
           },
         ]);
         this.page.reload();

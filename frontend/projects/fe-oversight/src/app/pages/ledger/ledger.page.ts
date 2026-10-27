@@ -18,8 +18,21 @@ import { Component, DestroyRef, computed, effect, inject, signal, untracked } fr
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { LEDGER_ACTOR_KIND_LABEL, LEDGER_AGGREGATE_TYPE_LABEL, ledgerAggregateTypeLabel, LEDGER_ANCHOR_TARGET_LABEL, LEDGER_DEFAULT_RANGE_DAYS, LEDGER_VERIFY_KIND_LABEL, LedgerApi, LedgerEntry, LedgerEntryFilter, LedgerVerifyKind, LedgerVerifyRun, verifyRunIdOf } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import {
+  LEDGER_ACTOR_KIND_LABEL,
+  LEDGER_AGGREGATE_TYPE_LABEL,
+  ledgerAggregateTypeLabel,
+  LEDGER_ANCHOR_TARGET_LABEL,
+  LEDGER_DEFAULT_RANGE_DAYS,
+  LEDGER_VERIFY_KIND_LABEL,
+  LedgerApi,
+  LedgerEntry,
+  LedgerEntryFilter,
+  LedgerVerifyKind,
+  LedgerVerifyRun,
+  verifyRunIdOf,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
@@ -37,7 +50,15 @@ const isoDate = (d: Date) => {
 
 @Component({
   selector: 'vt-ledger-page',
-  imports: [FormsModule, RouterLink, ButtonModule, InputTextModule, MessageModule, SelectModule],
+  imports: [
+    VtSkeletonComponent,
+    FormsModule,
+    RouterLink,
+    ButtonModule,
+    InputTextModule,
+    MessageModule,
+    SelectModule,
+  ],
   template: `
     <p class="crumb"><a routerLink="../reopen-requests">Hậu kiểm, mở lại kỳ</a></p>
     <header class="head">
@@ -74,7 +95,7 @@ const isoDate = (d: Date) => {
 
     <!-- vùng 1 -->
     <form class="box filter" (ngSubmit)="search()" aria-labelledby="f-h">
-      <h2 id="f-h" class="h"><span class="num" aria-hidden="true">1</span> Tra cứu</h2>
+      <h2 id="f-h" class="h">Tra cứu</h2>
       <div class="grid">
         <div class="f">
           <label for="lg-type">Loại đối tượng</label>
@@ -147,7 +168,7 @@ const isoDate = (d: Date) => {
         <!-- vùng 2 -->
         <section class="box" aria-labelledby="t-h">
           <h2 id="t-h" class="h">
-            <span class="num" aria-hidden="true">2</span> Bản ghi sổ cái
+            Bản ghi sổ cái
             @if (rows().length) {
               <span class="small muted">({{ rows().length }}{{ cursor() ? '+' : '' }})</span>
             }
@@ -212,9 +233,18 @@ const isoDate = (d: Date) => {
                     </tr>
                   } @empty {
                     <tr>
-                      <td colspan="6" class="muted">
-                        {{ page.isLoading() ? 'Đang tải…' : 'Không có bản ghi nào khớp bộ lọc.' }}
-                      </td>
+                      @if (page.isLoading()) {
+                        <td colspan="6">
+                          <vt-skeleton
+                            variant="table"
+                            [header]="false"
+                            [columns]="6"
+                            label="Đang tải sổ cái"
+                          />
+                        </td>
+                      } @else {
+                        <td colspan="6" class="muted">Không có bản ghi nào khớp bộ lọc.</td>
+                      }
                     </tr>
                   }
                 </tbody>
@@ -235,9 +265,7 @@ const isoDate = (d: Date) => {
         <!-- vùng 3 -->
         @if (run(); as r) {
           <section class="box" aria-labelledby="c-h">
-            <h2 id="c-h" class="h">
-              <span class="num" aria-hidden="true">3</span> Kết quả kiểm tra toàn vẹn
-            </h2>
+            <h2 id="c-h" class="h">Kết quả kiểm tra toàn vẹn</h2>
             @if (!r.finishedAt) {
               <p class="muted" role="status">
                 Đang kiểm tra: đã rà {{ int(r.entriesChecked) }} bản ghi…
@@ -276,7 +304,7 @@ const isoDate = (d: Date) => {
                 </p>
               }
             } @else {
-              <p-message severity="success">
+              <p-message severity="success" role="status">
                 Kiểm tra toàn vẹn hoàn tất: {{ int(r.entriesChecked) }} bản ghi đều nguyên vẹn, thời
                 gian kiểm tra {{ seconds(r) }} giây.
               </p-message>
@@ -288,7 +316,7 @@ const isoDate = (d: Date) => {
       <aside>
         <!-- vùng 4 -->
         <section class="box" aria-labelledby="r-h">
-          <h2 id="r-h" class="h"><span class="num" aria-hidden="true">4</span> Lần kiểm tra</h2>
+          <h2 id="r-h" class="h">Lần kiểm tra</h2>
           @if (runs().length > 1) {
             <label for="lg-run" class="sr-only">Chọn lần kiểm tra</label>
             <p-select
@@ -330,6 +358,8 @@ const isoDate = (d: Date) => {
               <dt>Bắt đầu</dt>
               <dd>{{ dt(r.startedAt) }}</dd>
             </dl>
+          } @else if (runsLoading()) {
+            <vt-skeleton variant="detail" [rows]="4" label="Đang tải lần kiểm tra toàn vẹn" />
           } @else {
             <p class="muted">Chưa có lần kiểm tra nào.</p>
           }
@@ -358,11 +388,9 @@ const isoDate = (d: Date) => {
 
         <!-- vùng 5 -->
         <section class="box" aria-labelledby="s-h" aria-live="polite">
-          <h2 id="s-h" class="h">
-            <span class="num" aria-hidden="true">5</span> Niêm phong và đối chứng
-          </h2>
+          <h2 id="s-h" class="h">Niêm phong và đối chứng</h2>
           @if (detail.isLoading()) {
-            <p class="muted">Đang tải bản ghi…</p>
+            <vt-skeleton variant="text" [rows]="4" label="Đang tải bản ghi" />
           } @else if (detail.value(); as d) {
             <dl
               class="meta"
@@ -657,6 +685,8 @@ export class LedgerPage {
 
   // vùng 4, 3: lần kiểm tra
   protected readonly runs = signal<LedgerVerifyRun[]>([]);
+  /** Danh sách lần kiểm tra đang tải lần đầu (khung xương vùng 4). */
+  protected readonly runsLoading = signal(true);
   protected readonly runId = signal<string | null>(null);
   protected readonly run = computed<LedgerVerifyRun | null>(
     () => this.runs().find((r) => r.id === this.runId()) ?? this.runs()[0] ?? null,
@@ -699,11 +729,15 @@ export class LedgerPage {
     });
     this.api.verifyRuns().subscribe({
       next: (list) => {
+        this.runsLoading.set(false);
         this.runs.set(list);
         const m = list[0]?.firstMismatch?.entryId;
         if (m && !this.selectedId()) this.selectedId.set(m);
       },
-      error: (e) => this.error.set(errorText(e)),
+      error: (e) => {
+        this.runsLoading.set(false);
+        this.error.set(errorText(e));
+      },
     });
     inject(DestroyRef).onDestroy(() => clearTimeout(this.pollTimer));
   }

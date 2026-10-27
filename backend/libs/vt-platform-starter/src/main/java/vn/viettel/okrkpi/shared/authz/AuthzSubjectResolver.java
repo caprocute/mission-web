@@ -84,8 +84,17 @@ public class AuthzSubjectResolver {
       clientId = jwt.getClaimAsString("azp");
     }
     List<String> roles = extractRoles(jwt, authorities);
+    // Token client credentials của Keycloak: preferred_username là service-account-<azp>; realm
+    // dev không có scope service_account nên thường thiếu claim client_id, và tài khoản dịch vụ
+    // vẫn mang realm role mặc định (default-roles-*, service_client) nên không thể dựa vào danh
+    // sách vai trò rỗng.
+    boolean serviceAccount =
+        clientId != null
+            && ("service-account-" + clientId).equals(jwt.getClaimAsString("preferred_username"));
     String kind =
-        (jwt.getClaimAsString("client_id") != null && roles.isEmpty()) ? "client" : "user";
+        serviceAccount || (jwt.getClaimAsString("client_id") != null && roles.isEmpty())
+            ? "client"
+            : "user";
     String acr = normalizeAcr(jwt.getClaimAsString("acr"));
     Long authTime = asEpochSeconds(jwt.getClaims().get("auth_time"));
     List<String> flows = asStringList(jwt.getClaims().get("flows"));

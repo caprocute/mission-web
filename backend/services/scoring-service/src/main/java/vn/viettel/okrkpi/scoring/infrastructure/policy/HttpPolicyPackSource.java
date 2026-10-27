@@ -1,10 +1,12 @@
 package vn.viettel.okrkpi.scoring.infrastructure.policy;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.http.HttpMethod;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.util.UriComponentsBuilder;
 import vn.viettel.okrkpi.scoring.application.port.PolicyPackSource;
@@ -13,6 +15,7 @@ import vn.viettel.okrkpi.scoring.domain.PinnedPolicy;
 import vn.viettel.okrkpi.scoring.domain.PolicyBindingKey;
 import vn.viettel.okrkpi.scoring.domain.PolicyContent;
 import vn.viettel.okrkpi.scoring.domain.PolicyRuleSource;
+import vn.viettel.okrkpi.scoring.infrastructure.client.CoreTenant;
 import vn.viettel.okrkpi.shared.resilience.ResilientClient;
 
 /**
@@ -20,8 +23,9 @@ import vn.viettel.okrkpi.shared.resilience.ResilientClient;
  * ResilientClient} (Resilience4j: time limiter 3 s, circuit breaker, bulkhead; instance {@code
  * policy-pack}). Phân giải bằng {@code resolvePolicyPack}; nội dung phiên bản bằng {@code
  * getPolicyPackVersion}, {@code listPolicyRules}, {@code listDecisionTables} và {@code
- * exportDecisionTableDmn}. Các thao tác nội dung hiện chưa khai {@code service_client} trong {@code
- * x-mission.roles} và gói đã ký ({@code bundleObjectKey}) chưa được sinh; ghi ở wiki trang 14.
+ * exportDecisionTableDmn}, mọi thao tác khai {@code service_client} (QA-06, 25/10/2026); token
+ * client dịch vụ gắn ở RestClient ({@code ServiceToken}), tenant đích ở {@code X-Tenant-Id}. Gói đã
+ * ký ({@code bundleObjectKey}) chưa được sinh; ghi ở wiki trang 14.
  */
 public class HttpPolicyPackSource implements PolicyPackSource {
 
@@ -49,7 +53,7 @@ public class HttpPolicyPackSource implements PolicyPackSource {
     }
     Resolved r;
     try {
-      r = client.get(uri.build().toUriString(), Resolved.class);
+      r = get(key.tenantId(), uri.build().toUriString(), Resolved.class);
     } catch (HttpClientErrorException.NotFound e) {
       return Optional.empty();
     }
@@ -68,27 +72,33 @@ public class HttpPolicyPackSource implements PolicyPackSource {
 
   @Override
   public PolicyContent load(UUID tenantId, UUID packId, UUID versionId, String version) {
-    String v = version != null ? version : versionOf(packId, versionId);
-    Version detail = client.get(VERSION, Version.class, packId, v);
+    String v = version != null ? version : versionOf(tenantId, packId, versionId);
+    Version detail = get(tenantId, VERSION, Version.class, packId, v);
     if (detail == null || !versionId.equals(detail.id())) {
       throw new IllegalStateException("MOD-05 trả phiên bản khác phiên bản đã yêu cầu");
     }
-    Items<Rule> rules = client.get(VERSION + "/rules", RuleList.class, packId, v);
-    Items<Table> tables = client.get(VERSION + "/decision-tables", TableList.class, packId, v);
+    Items<Rule> rules = get(tenantId, VERSION + "/rules", RuleList.class, packId, v);
+    Items<Table> tables = get(tenantId, VERSION + "/decision-tables", TableList.class, packId, v);
     List<DecisionTableSource> dmn = new ArrayList<>();
     for (Table t : tables.items()) {
       String xml =
-          client.get(VERSION + "/decision-tables/{key}/dmn", String.class, packId, v, t.tableKey());
+          get(
+              tenantId,
+              VERSION + "/decision-tables/{key}/dmn",
+              String.class,
+              packId,
+              v,
+              t.tableKey());
       dmn.add(new DecisionTableSource(t.tableKey(), xml));
     }
     return new PolicyContent(
         new PinnedPolicy(packId, detail.packCode(), versionId, v, detail.contentHash(), false),
-        detail.manifest(),
+        manifest(detail.manifest()),
         rules.items().stream().map(HttpPolicyPackSource::rule).toList(),
         dmn);
   }
 
-  private String versionOf(UUID packId, UUID versionId) {
+  private String versionOf(UUID tenantId, UUID packId, UUID versionId) {
     String cursor = null;
     do {
       UriComponentsBuilder uri =
@@ -97,7 +107,7 @@ public class HttpPolicyPackSource implements PolicyPackSource {
       if (cursor != null) {
         uri.queryParam("cursor", cursor);
       }
-      VersionList page = client.get(uri.build().toUriString(), VersionList.class);
+      VersionList page = get(tenantId, uri.build().toUriString(), VersionList.class);
       for (Summary s : page.items()) {
         if (versionId.equals(s.id())) {
           return s.version();
@@ -106,6 +116,44 @@ public class HttpPolicyPackSource implements PolicyPackSource {
       cursor = page.nextCursor();
     } while (cursor != null);
     throw new IllegalStateException("Không tìm thấy phiên bản " + versionId + " của gói " + packId);
+  }
+
+  /**
+   * Manifest như {@code policy.yaml}: hợp đồng trả {@code inputs} (và có thể {@code inputs_nam},
+   * {@code ngu_canh}) dạng mảng {@code PolicyInputDeclaration} có {@code name}, còn bộ biên dịch,
+   * bộ ghép đầu vào và bộ xếp loại đọc dạng ánh xạ tên → khai báo như tệp gói. Đổi mảng về ánh xạ
+   * giữ thứ tự; khối đã là ánh xạ để nguyên (QA-06: thiếu bước này mọi biến đầu vào bị coi là chưa
+   * khai, gói bị từ chối với POLICY-422-CEL-TYPE).
+   */
+  static Map<String, Object> manifest(Map<String, Object> raw) {
+    if (raw == null) {
+      return Map.of();
+    }
+    Map<String, Object> m = new LinkedHashMap<>(raw);
+    for (String block : List.of("inputs", "inputs_nam", "ngu_canh")) {
+      if (m.get(block) instanceof List<?> list) {
+        Map<String, Object> byName = new LinkedHashMap<>();
+        for (Object item : list) {
+          if (item instanceof Map<?, ?> decl && decl.get("name") != null) {
+            Map<String, Object> rest = new LinkedHashMap<>();
+            decl.forEach(
+                (k, v) -> {
+                  if (!"name".equals(k)) {
+                    rest.put(String.valueOf(k), v);
+                  }
+                });
+            byName.put(String.valueOf(decl.get("name")), rest);
+          }
+        }
+        m.put(block, byName);
+      }
+    }
+    return m;
+  }
+
+  /** GET kèm tenant đích ở {@code X-Tenant-Id} ({@link CoreTenant}). */
+  private <T> T get(UUID tenantId, String uri, Class<T> type, Object... vars) {
+    return client.exchange(HttpMethod.GET, uri, null, CoreTenant.headers(tenantId), type, vars);
   }
 
   private static PolicyRuleSource rule(Rule r) {

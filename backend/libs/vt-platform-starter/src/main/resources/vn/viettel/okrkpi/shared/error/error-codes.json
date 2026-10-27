@@ -1,7 +1,7 @@
 {
   "description": "Danh mục mã lỗi <MODULE>-<HTTP>-<TÊN> trích từ contracts/openapi (NEN-009). Không sửa tay: chạy tools/extract-error-codes.mjs.",
   "source": "contracts/openapi/**/*.yaml",
-  "count": 204,
+  "count": 208,
   "codes": [
     {
       "code": "AI-403-C3-FORBIDDEN",
@@ -344,6 +344,26 @@
       ]
     },
     {
+      "code": "CONFIG-409-CUSTOM-ROLE-NAME",
+      "module": "CONFIG",
+      "status": 409,
+      "name": "CUSTOM-ROLE-NAME",
+      "type": "https://okrkpi.vn/problems/custom-role-name",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-409-CUSTOM-ROLE-RETIRED",
+      "module": "CONFIG",
+      "status": 409,
+      "name": "CUSTOM-ROLE-RETIRED",
+      "type": "https://okrkpi.vn/problems/custom-role-retired",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
       "code": "CONFIG-409-DATE-EXISTS",
       "module": "CONFIG",
       "status": 409,
@@ -422,6 +442,16 @@
       "name": "CELL-OVER-CAPACITY",
       "type": "https://okrkpi.vn/problems/cell-over-capacity",
       "msg": "MSG-01-03",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-422-CUSTOM-ROLE-WIDER",
+      "module": "CONFIG",
+      "status": 422,
+      "name": "CUSTOM-ROLE-WIDER",
+      "type": "https://okrkpi.vn/problems/custom-role-wider",
       "sources": [
         "modules/config.yaml"
       ]
@@ -1093,6 +1123,17 @@
       "status": 409,
       "name": "SYNC-RUNNING",
       "type": "https://okrkpi.vn/problems/sync-running",
+      "sources": [
+        "modules/org.yaml"
+      ]
+    },
+    {
+      "code": "ORG-409-USERNAME-TAKEN",
+      "module": "ORG",
+      "status": 409,
+      "name": "USERNAME-TAKEN",
+      "type": "https://okrkpi.vn/problems/username-taken",
+      "msg": "MSG-01-20",
       "sources": [
         "modules/org.yaml"
       ]

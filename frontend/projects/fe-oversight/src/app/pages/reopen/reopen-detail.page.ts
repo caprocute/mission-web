@@ -20,8 +20,20 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { OrgApi, toProblem } from '@vt/api-client';
-import { PERIOD_STATUS_LABEL, REOPEN_APPROVER_ROLE_LABEL, REOPEN_AUDIT_KIND_LABEL, REOPEN_BASIS_LABEL, REOPEN_LIMITS, REOPEN_PENDING_STATUSES, REOPEN_STATUS_LABEL, RATING_LEVEL_LABEL, ReopenApi, ReopenApproverSlot, ReopenRequest } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import {
+  PERIOD_STATUS_LABEL,
+  REOPEN_APPROVER_ROLE_LABEL,
+  REOPEN_AUDIT_KIND_LABEL,
+  REOPEN_BASIS_LABEL,
+  REOPEN_LIMITS,
+  REOPEN_PENDING_STATUSES,
+  REOPEN_STATUS_LABEL,
+  RATING_LEVEL_LABEL,
+  ReopenApi,
+  ReopenApproverSlot,
+  ReopenRequest,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { MessageModule } from 'primeng/message';
@@ -41,6 +53,7 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
 @Component({
   selector: 'vt-reopen-detail-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -104,7 +117,7 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
         <div>
           <!-- vùng 2 -->
           <section class="box" aria-labelledby="scope-h">
-            <h2 class="h" id="scope-h"><span class="num" aria-hidden="true">2</span> Phạm vi</h2>
+            <h2 class="h" id="scope-h">Phạm vi</h2>
             <dl class="meta">
               <dt>Loại hậu kiểm</dt>
               <dd>{{ r.auditKind ? auditKind[r.auditKind] : '—' }}</dd>
@@ -150,6 +163,8 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
                           @if (r.basis?.code) {
                             theo {{ r.basis?.code }}
                           }
+                        } @else if (it.unitId && unitsRes.isLoading()) {
+                          <vt-skeleton variant="text" [rows]="1" label="Đang tải tên đơn vị" />
                         } @else if (it.unitId) {
                           {{ unitName(it.unitId) }}
                         } @else {
@@ -174,13 +189,16 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
 
           <!-- vùng 3 -->
           <section class="box" aria-labelledby="reason-h">
-            <h2 class="h" id="reason-h">
-              <span class="num" aria-hidden="true">3</span> Lý do mở lại
-            </h2>
+            <h2 class="h" id="reason-h">Lý do mở lại</h2>
             <p class="reason">{{ r.reason }}</p>
             <h3 class="h3" id="impact-h">Ảnh hưởng dự kiến (tính thử, chưa áp dụng)</h3>
             @if (impact.isLoading()) {
-              <p class="muted">Đang tính thử…</p>
+              <vt-skeleton
+                variant="table"
+                [rows]="3"
+                [columns]="4"
+                label="Đang tính thử ảnh hưởng"
+              />
             } @else if (impact.error()) {
               <p class="muted">Chưa tính thử được: {{ impactError() }}</p>
             } @else if (impact.value(); as im) {
@@ -231,9 +249,7 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
         <aside>
           <!-- vùng 4 -->
           <section class="box" aria-labelledby="appr-h">
-            <h2 class="h" id="appr-h">
-              <span class="num" aria-hidden="true">4</span> Hai người duyệt
-            </h2>
+            <h2 class="h" id="appr-h">Hai người duyệt</h2>
             <ol class="slots">
               @for (s of r.approvers ?? []; track s.round) {
                 <li [class]="slotTone(r, s)">
@@ -258,20 +274,13 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
                 </li>
               }
             </ol>
-            @if (!simple()) {
-              <p class="small muted">
-                <!-- BR-13-02, BR-13-03 -->
-                Hai người duyệt phải là hai người khác nhau, khác người tạo yêu cầu và chưa tham gia
-                thẩm định, quyết định hồ sơ được mở lại. Yêu cầu luôn cần đủ hai người duyệt.
-              </p>
-            }
+            <!-- BR-13-02, BR-13-03: hai người duyệt khác nhau, khác người tạo; máy chủ kiểm khi ghi -->
           </section>
 
           <!-- vùng 5 -->
           @if (canDecide()) {
             <section class="box decide" aria-labelledby="dec-h">
               <h2 class="h" id="dec-h">
-                <span class="num" aria-hidden="true">5</span>
                 {{ r.status === 'CHO_DUYET_1' ? 'Duyệt lượt thứ nhất' : 'Duyệt lượt thứ hai' }}
               </h2>
               <label for="dec-comment">Ý kiến người duyệt (bắt buộc, 10–2.000 ký tự)</label>
@@ -286,10 +295,6 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
               ></textarea>
               <p id="dec-hint" class="small muted">
                 {{ msg1302 }}
-                @if (r.status === 'CHO_DUYET_2' && !simple()) {
-                  Khi đủ hai phê duyệt, hệ thống mở lại kỳ {{ r.period.label }} chỉ trong phạm vi đã
-                  duyệt đến hết thời hạn, ghi sổ cái và thông báo người được giao sửa dữ liệu.
-                }
               </p>
               <div class="actions">
                 @if (can('SCR-1301.tu-choi')) {
@@ -351,7 +356,7 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
         </ng-template>
       </p-dialog>
     } @else {
-      <p class="muted">Đang tải yêu cầu…</p>
+      <vt-skeleton variant="detail" label="Đang tải yêu cầu" />
     }
   `,
   styles: `
@@ -609,7 +614,7 @@ export class ReopenDetailPage {
   }
   private readonly org = inject(OrgApi);
   /** Tên đơn vị trong phạm vi; danh mục tổ chức chỉ nạp khi yêu cầu có phạm vi đơn vị. */
-  private readonly unitsRes = rxResource({
+  protected readonly unitsRes = rxResource({
     params: () => (this.current()?.scopeDetail?.items?.some((i) => i.unitId) ? true : undefined),
     stream: () => this.org.units('children'),
   });

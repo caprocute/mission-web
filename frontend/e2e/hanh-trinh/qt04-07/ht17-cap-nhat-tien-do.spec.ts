@@ -80,9 +80,11 @@ test.describe('Nhiệm vụ', { tag: '@qa-03' }, () => {
     await dialog.getByRole('slider', { name: 'Tiến độ' }).focus();
     for (let i = 0; i < TIEN_DO.buocTang; i++) await page.keyboard.press('ArrowRight');
     await dialog.getByRole('textbox', { name: 'Kết quả đã làm' }).fill(TIEN_DO.ghiChu);
-    const luu = dialog.getByRole('button', { name: /^Lưu \d+%$/ });
-    const moi = Number((await luu.innerText()).match(/(\d+)%/)![1]);
+    // Mỗi nấc 5%; chờ nhãn nút theo kịp lần nhấn phím cuối rồi mới đọc (đọc ngay có thể còn giá trị trung gian)
+    const moi = Math.min(100, truoc + 5 * TIEN_DO.buocTang);
     expect(moi, 'phần trăm mới phải lớn hơn trước').toBeGreaterThan(truoc);
+    const luu = dialog.getByRole('button', { name: `Lưu ${moi}%`, exact: true });
+    await expect(luu).toBeVisible();
     await luu.click();
     await expect(dialog).toBeHidden();
     await expect(m.getByRole('status').filter({ hasText: 'Đã lưu tiến độ.' })).toBeVisible();

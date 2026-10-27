@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.PostgreSQLContainer;
 import vn.viettel.okrkpi.MissionCoreTestDatabase;
+import vn.viettel.okrkpi.platform.db.migration.TestPostgres;
 
 /**
  * Lớp bảo vệ thứ hai ở CSDL cho dữ liệu kỳ đã khoá (CORE-04-01, TL-03 "Bảo vệ dữ liệu kỳ đã khoá ở
@@ -120,9 +121,10 @@ class PeriodStateGuardIT {
   void chiPhiTriggerTrenMuoiNghinDong() throws SQLException {
     UUID tenant = UUID.randomUUID();
     UUID period = UUID.randomUUID();
-    try (Connection c = admin();
+    try (Connection c =
+            TestPostgres.connectAsTenant(
+                pg.getJdbcUrl(), pg.getUsername(), pg.getPassword(), tenant);
         Statement st = c.createStatement()) {
-      st.execute("SET app.tenant_id = '" + tenant + "'");
       setState(st, period, "MO");
       bulkInsert(st, tenant, period, "w", 2_000); // làm nóng
       long best = Long.MAX_VALUE;
@@ -197,11 +199,8 @@ class PeriodStateGuardIT {
 
   private static Connection svc(UUID tenant) throws SQLException {
     Connection c =
-        DriverManager.getConnection(
-            pg.getJdbcUrl(), "svc_task", MissionCoreTestDatabase.TEST_DB_PASSWORD);
-    try (Statement st = c.createStatement()) {
-      st.execute("SET app.tenant_id = '" + tenant + "'");
-    }
+        TestPostgres.connectAsTenant(
+            pg.getJdbcUrl(), "svc_task", MissionCoreTestDatabase.TEST_DB_PASSWORD, tenant);
     return c;
   }
 }

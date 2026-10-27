@@ -1,9 +1,17 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
-import { AnalyticsApi, AnalyticsRow, DIMENSION, DashboardWidget, DashboardWidgetData, SemanticModel } from '@vt/api-client/domains';
-import { errorText } from '../dashboard-ui';
+import {
+  AnalyticsApi,
+  AnalyticsRow,
+  DIMENSION,
+  DashboardWidget,
+  DashboardWidgetData,
+  SemanticModel,
+} from '@vt/api-client/domains';
+import { errorText, valueLabel } from '../dashboard-ui';
 import { ChartHost } from './charts';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 /**
  * Một widget của dashboard tự dựng (SCR-1602): tiêu đề dựng từ tên chỉ số, chiều của lớp ngữ nghĩa, biểu đồ
@@ -13,7 +21,7 @@ import { ChartHost } from './charts';
  */
 @Component({
   selector: 'vt-widget-card',
-  imports: [ChartHost],
+  imports: [VtSkeletonComponent, ChartHost],
   template: `
     <h2 class="wt">{{ title() }}</h2>
     @if (filterText(); as f) {
@@ -30,7 +38,7 @@ import { ChartHost } from './charts';
     } @else if (preview.error()) {
       <p class="err" role="alert">{{ err(preview.error()) }}</p>
     } @else {
-      <p class="muted small">Đang tải…</p>
+      <vt-skeleton variant="chart" label="Đang tải biểu đồ" />
     }
   `,
   styles: `
@@ -103,7 +111,10 @@ export class WidgetCard {
     return (
       'Lọc: ' +
       fs
-        .map((f) => `${this.title_(f.member, 'dimensions') ?? 'Chiều'} là ${f.values.join(', ')}`)
+        .map(
+          (f) =>
+            `${this.title_(f.member, 'dimensions') ?? 'Chiều'} là ${f.values.map((v) => valueLabel(f.member, v)).join(', ')}`,
+        )
         .join('; ')
     );
   });

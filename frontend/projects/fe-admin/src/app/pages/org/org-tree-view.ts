@@ -14,6 +14,7 @@ import { OrgTimeQuery, OrgTreeApi, OrgTreeNode, OrgUnitSearchHit } from '@vt/api
 import { InputTextModule } from 'primeng/inputtext';
 import { Subscription, debounceTime, forkJoin, of, Subject, switchMap } from 'rxjs';
 import { errorText } from '../../admin-ui';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 interface Row {
   node: OrgTreeNode;
@@ -35,7 +36,7 @@ export function prevDay(iso: string): string {
  */
 @Component({
   selector: 'vt-org-tree-view',
-  imports: [FormsModule, InputTextModule],
+  imports: [VtSkeletonComponent, FormsModule, InputTextModule],
   template: `
     <label for="org-q" class="sr-only">Tìm đơn vị</label>
     <input
@@ -57,12 +58,19 @@ export function prevDay(iso: string): string {
             </button>
           </li>
         } @empty {
-          <li class="muted small">{{ searching() ? 'Đang tìm…' : 'Không có đơn vị phù hợp.' }}</li>
+          @if (searching()) {
+            <li><vt-skeleton variant="list" [rows]="2" label="Đang tìm đơn vị" /></li>
+          } @else {
+            <li class="muted small">Không có đơn vị phù hợp.</li>
+          }
         }
       </ul>
     }
     @if (error(); as e) {
       <p class="err" role="alert">{{ e }}</p>
+    }
+    @if (loading().has('') && !rows().length) {
+      <vt-skeleton variant="tree" [header]="false" label="Đang tải cây tổ chức" />
     }
     <ul role="tree" aria-label="Cơ cấu tổ chức" class="tree">
       @for (r of rows(); track r.node.id) {
@@ -86,17 +94,24 @@ export function prevDay(iso: string): string {
           }}</span>
           <span class="lbl">
             <span class="nm">{{ r.node.name }}</span>
-            @if (loading().has(r.node.id)) {
-              <span class="muted small"> đang tải…</span>
-            }
           </span>
         </li>
+        @if (loading().has(r.node.id)) {
+          <!-- Nhánh đang nạp lười: khung xương các nút con, thụt lề theo tầng con -->
+          <li role="none" class="sk-branch" [style.--lv]="r.level">
+            <vt-skeleton variant="tree" [rows]="2" label="Đang mở nhánh" />
+          </li>
+        }
       }
     </ul>
   `,
   styles: `
     .full {
       width: 100%;
+    }
+    .sk-branch {
+      list-style: none;
+      padding-left: calc(var(--lv) * 18px + 4px);
     }
     .muted {
       color: #4b5563;

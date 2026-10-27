@@ -174,8 +174,10 @@ okrkpi:
         period: ${INTEG_CELL_TRANSFER_PERIOD:PT10S}
     # DV-13-06: lần đồng bộ kéo hết trang cho org-service (CSDL CBCCVC qua NDXP, hồ sơ HRM có
     # trigger: RUN): lịch đêm ở connector.schedule_cron, "Đồng bộ ngay" và chạy lại thư chết.
+    # ADR-34: đồng bộ nhân sự từ hệ thống ngoài là tính năng tuỳ chọn, mặc định tắt (cùng công tắc
+    # okrkpi.org.external-sync.enabled của org-service); bật bằng INTEG_SYNC_RUN_ENABLED=true.
     sync-run:
-      enabled: ${INTEG_SYNC_RUN_ENABLED:true}
+      enabled: ${INTEG_SYNC_RUN_ENABLED:false}
       period: ${INTEG_SYNC_RUN_PERIOD:PT10S}
       max-pages: ${INTEG_SYNC_RUN_MAX_PAGES:5000}
       fetch-attempts: ${INTEG_SYNC_RUN_FETCH_ATTEMPTS:3}

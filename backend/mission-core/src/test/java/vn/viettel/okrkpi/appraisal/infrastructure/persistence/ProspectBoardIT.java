@@ -36,6 +36,7 @@ import vn.viettel.okrkpi.appraisal.application.prospect.ProspectEligibility;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.config.api.PeriodStatus;
+import vn.viettel.okrkpi.platform.db.migration.TestPostgres;
 import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.kernel.PeriodId;
@@ -86,10 +87,9 @@ class ProspectBoardIT {
   @BeforeEach
   void setUp() throws SQLException {
     Connection c =
-        DriverManager.getConnection(
-            pg.getJdbcUrl(), "svc_appraisal", MissionCoreTestDatabase.TEST_DB_PASSWORD);
+        TestPostgres.connectAsTenant(
+            pg.getJdbcUrl(), "svc_appraisal", MissionCoreTestDatabase.TEST_DB_PASSWORD, tenant);
     try (Statement st = c.createStatement()) {
-      st.execute("SET app.tenant_id = '" + tenant + "'");
       person(st, weak, "KHTNV", false, null);
       person(st, flagged, "HTNV", true, null);
       person(st, good, "HTTNV", false, "NHOM_2");

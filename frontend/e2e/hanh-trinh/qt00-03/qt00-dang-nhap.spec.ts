@@ -32,13 +32,13 @@ test.describe('QT-00 Đăng nhập và chọn ngữ cảnh', { tag: '@qa-04' }, 
     const m = main(page);
     await expect(m.getByRole('heading', { level: 1, name: /^Xin chào/ })).toBeVisible();
     const thongTin = m.getByRole('region', { name: 'Thông tin của tôi' });
-    await expect(thongTin.getByText('Việc của tôi hôm nay')).toBeVisible();
+    await expect(thongTin.getByText('Việc của tôi hôm nay', { exact: true })).toBeVisible();
     await expect(thongTin.getByRole('link', { name: /Xem tất cả việc của tôi/ })).toBeVisible();
     await kiemAxe(page, 'trang chủ');
 
     // Chế độ Đảng viên cao tuổi (NFR-11): trang chủ vẫn dùng được, không lỗi truy cập
     await batCaoTuoi(page);
-    await expect(thongTin.getByText('Việc của tôi hôm nay')).toBeVisible();
+    await expect(thongTin.getByText('Việc của tôi hôm nay', { exact: true })).toBeVisible();
     await kiemAxe(page, 'trang chủ, chế độ cao tuổi');
 
     // Từ trang chủ tới "Việc của tôi" trong một chạm
@@ -97,11 +97,22 @@ test.describe('QT-00 Đăng nhập và chọn ngữ cảnh', { tag: '@qa-04' }, 
 
   test('HT-03 QT-00 vai trò thẩm định bị hỏi OTP, thao tác phê duyệt đòi xác thực lại', async () => {
     if (HE_THONG) {
-      // Tài khoản AAL2 (AC-07) đăng nhập: Keycloak phải hỏi mã OTP
+      // Tài khoản AAL2 (AC-07) đăng nhập: Keycloak phải hỏi mã OTP. Dev tắt OTP (tat-otp-dev.sh) thì realm
+      // không hỏi mã mà cấp thẳng phiên aal2 cho client web; khi đó kiểm claim acr của token thay cho bước OTP
       await s.trang('thamdinh', '/');
-      expect(s.daHoiOtp.has('thamdinh'), 'Keycloak hỏi OTP khi đăng nhập vai trò thẩm định').toBe(
-        true,
-      );
+      if (!s.daHoiOtp.has('thamdinh')) {
+        const than = (await s.token('thamdinh'))
+          .split('.')[1]
+          .replace(/-/g, '+')
+          .replace(/_/g, '/');
+        const acr = (JSON.parse(Buffer.from(than, 'base64').toString('utf8')) as { acr?: string })
+          .acr;
+        expect(
+          acr,
+          'Keycloak không hỏi OTP (dev tắt OTP) thì phiên vai trò thẩm định phải là aal2',
+        ).toBe('aal2');
+        ghiCho('bước Keycloak hỏi OTP: dev đã tắt OTP (tat-otp-dev.sh), chỉ kiểm phiên aal2');
+      }
     } else {
       // Giả lập: chọn phân công thẩm định (AAL2) thì hiện hộp xác thực nhiều lớp
       const page = await s.trang('quanly', '/?mock-org=kiem-nhiem');

@@ -13,7 +13,6 @@ import {
   RoleBindingCreate,
   RoleBindingPage,
   RoleBindingStatus,
-  RoleCode,
 } from './models/role-binding';
 import { MAX_PAGE_LIMIT } from '@vt/api-client';
 
@@ -23,7 +22,8 @@ export interface RoleBindingQuery {
   orgUnitId?: string;
   includeSubunits?: boolean;
   personId?: string;
-  role?: RoleCode;
+  /** Vai trò hệ thống hoặc mã vai trò tuỳ chỉnh `tc_…` (BS-04). */
+  role?: string;
   status?: RoleBindingStatus;
   awaitingMe?: boolean;
   cursor?: string;

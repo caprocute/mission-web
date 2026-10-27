@@ -1,9 +1,21 @@
 import { Component, computed, input, linkedSignal, model, output, untracked } from '@angular/core';
 import { UiFormVersion } from '@vt/api-client';
-import { AppraisalRatingExplanation, Evidence, RATING_LEVEL_LABEL, RatingLevel } from '@vt/api-client/domains';
+import {
+  AppraisalRatingExplanation,
+  Evidence,
+  RATING_LEVEL_LABEL,
+  RatingLevel,
+} from '@vt/api-client/domains';
+import { VtSkeletonComponent } from '@vt/design-system';
 import { FormUi, VtFormComponent } from '@vt/form-engine';
 import type { JSONSchema7 } from 'json-schema';
-import { SelfForm, compareRating, formRules } from './self-assessment-rules';
+import {
+  SELF_RATING_KEY,
+  SelfForm,
+  compareRating,
+  formRules,
+  toModel,
+} from './self-assessment-rules';
 
 /**
  * SCR-0901 vùng 4: mức hệ thống tham khảo kèm giải thích (trường 8, BR-09-10) và biểu mẫu động Mẫu 1B
@@ -14,7 +26,7 @@ import { SelfForm, compareRating, formRules } from './self-assessment-rules';
  */
 @Component({
   selector: 'vt-self-rating',
-  imports: [VtFormComponent],
+  imports: [VtFormComponent, VtSkeletonComponent],
   template: `
     <section class="box" aria-labelledby="sa-h">
       <h2 id="sa-h" class="sec">Tự đề xuất mức xếp loại</h2>
@@ -53,7 +65,11 @@ import { SelfForm, compareRating, formRules } from './self-assessment-rules';
               {{ e.title }}
             </label>
           } @empty {
-            <p class="hint">Chưa có minh chứng nào được xác nhận.</p>
+            @if (evidencesLoading()) {
+              <vt-skeleton variant="list" [rows]="2" label="Đang tải minh chứng đã xác nhận" />
+            } @else {
+              <p class="hint">Chưa có minh chứng nào được xác nhận.</p>
+            }
           }
         </fieldset>
       }
@@ -113,6 +129,8 @@ export class SelfRating {
   readonly explanation = input<AppraisalRatingExplanation | undefined>();
   readonly editable = input(false);
   readonly evidences = input<Evidence[]>([]);
+  /** Danh sách minh chứng đang tải: hiện khung xương thay câu "Chưa có minh chứng". */
+  readonly evidencesLoading = input(false);
   /** Nội dung phiếu đã lưu (giá trị ban đầu của biểu mẫu). */
   readonly value = input.required<SelfForm>();
   readonly evidenceIds = model<string[]>([]);
@@ -139,7 +157,7 @@ export class SelfRating {
   );
   protected readonly initial = computed(() => {
     this.formKey();
-    return untracked(() => ({ ...this.current() }));
+    return untracked(() => toModel(this.current()));
   });
 
   protected readonly direction = computed(() => {
@@ -150,7 +168,7 @@ export class SelfRating {
   protected changed(model: Record<string, unknown>) {
     const v = this.current();
     const next: SelfForm = {
-      selfRatingCode: (model['selfRatingCode'] as RatingLevel | null) ?? v.selfRatingCode,
+      selfRatingCode: (model[SELF_RATING_KEY] as RatingLevel | null) ?? v.selfRatingCode,
       breakthrough: (model['breakthrough'] as string | undefined) ?? '',
       reason: (model['reason'] as string | undefined) ?? '',
       content: (model['content'] as string | undefined) ?? '',

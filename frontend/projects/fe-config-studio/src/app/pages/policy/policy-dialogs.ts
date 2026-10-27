@@ -10,8 +10,21 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { DAY_KIND_LABEL, PERIOD_KIND_LABEL, PeriodApi, PolicyApi, PolicyDiffChange, PolicyPackVersion, PolicyRule, QUALITY_METHOD_LABEL, RETURN_REASON_LABEL, policyVersionLabel } from '@vt/api-client/domains';
+import { LegalRefPipe } from '@vt/api-client';
+import {
+  DAY_KIND_LABEL,
+  PERIOD_KIND_LABEL,
+  PeriodApi,
+  PolicyApi,
+  PolicyDiffChange,
+  PolicyPackVersion,
+  PolicyRule,
+  QUALITY_METHOD_LABEL,
+  RETURN_REASON_LABEL,
+  policyVersionLabel,
+} from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
+import { VtSkeletonComponent } from '@vt/design-system';
 import { DialogModule } from 'primeng/dialog';
 import { TextareaModule } from 'primeng/textarea';
 import { errorText, fmtDate, fmtNum, problemCode } from '../../studio-ui';
@@ -35,7 +48,7 @@ export const VALUE_LABEL: Record<string, string> = {
 /** So sánh phiên bản đang mở với bản đang áp dụng (SCR-1501 nút "So sánh"). */
 @Component({
   selector: 'vt-policy-diff-dialog',
-  imports: [DialogModule],
+  imports: [DialogModule, VtSkeletonComponent],
   template: `
     <p-dialog
       [header]="'So sánh với bản ' + vlabel(base())"
@@ -82,7 +95,7 @@ export const VALUE_LABEL: Record<string, string> = {
           <p>Hai phiên bản giống nhau.</p>
         }
       } @else {
-        <p class="muted">Đang so sánh…</p>
+        <vt-skeleton variant="table" [columns]="3" [rows]="4" label="Đang so sánh hai phiên bản" />
       }
     </p-dialog>
   `,
@@ -135,7 +148,7 @@ export class PolicyDiffDialog {
 /** Toàn bộ biểu thức của phiên bản theo thứ tự tính (SCR-1501 "Xem dạng CEL"). */
 @Component({
   selector: 'vt-policy-expressions-dialog',
-  imports: [DialogModule],
+  imports: [DialogModule, LegalRefPipe],
   template: `
     <p-dialog
       header="Toàn bộ biểu thức"
@@ -159,7 +172,7 @@ export class PolicyDiffDialog {
               <td>
                 <pre>{{ r.expression }}</pre>
               </td>
-              <td>{{ r.legalRef ?? '—' }}</td>
+              <td>{{ (r.legalRef | legalRef) || '—' }}</td>
             </tr>
           }
         </tbody>
@@ -180,7 +193,7 @@ export class PolicyExpressionsDialog {
  */
 @Component({
   selector: 'vt-policy-submit-dialog',
-  imports: [FormsModule, ButtonModule, DialogModule, TextareaModule],
+  imports: [FormsModule, ButtonModule, DialogModule, TextareaModule, VtSkeletonComponent],
   template: `
     <p-dialog
       header="Gửi phê duyệt phát hành"
@@ -193,26 +206,30 @@ export class PolicyExpressionsDialog {
         Phiên bản {{ vlabel(ws.ref()?.v ?? '') }} đã đạt toàn bộ test case. Sau khi gửi, phiên bản
         không sửa được nữa cho tới khi có kết quả phê duyệt.
       </p>
-      <label class="f">
-        <span>Kỳ đánh giá bắt đầu áp dụng</span>
-        <select
-          class="native"
-          name="period"
-          data-testid="submit-period"
-          [ngModel]="period()"
-          (ngModelChange)="period.set($event)"
-        >
-          <option value="">Chọn kỳ đánh giá</option>
-          @for (p of periods(); track p.id) {
-            <option [value]="p.id">
-              {{ p.name }} ({{ kindLabel[p.kind] }}, từ {{ date(p.startDate) }})
-            </option>
+      @if (periodsRes.isLoading()) {
+        <vt-skeleton variant="form" [rows]="1" label="Đang tải kỳ đánh giá" />
+      } @else {
+        <label class="f">
+          <span>Kỳ đánh giá bắt đầu áp dụng</span>
+          <select
+            class="native"
+            name="period"
+            data-testid="submit-period"
+            [ngModel]="period()"
+            (ngModelChange)="period.set($event)"
+          >
+            <option value="">Chọn kỳ đánh giá</option>
+            @for (p of periods(); track p.id) {
+              <option [value]="p.id">
+                {{ p.name }} ({{ kindLabel[p.kind] }}, từ {{ date(p.startDate) }})
+              </option>
+            }
+          </select>
+          @if (!periodsRes.isLoading() && !periods().length) {
+            <small class="muted">Chưa có kỳ đánh giá sắp tới nào để áp dụng.</small>
           }
-        </select>
-        @if (!periodsRes.isLoading() && !periods().length) {
-          <small class="muted">Chưa có kỳ đánh giá sắp tới nào để áp dụng.</small>
-        }
-      </label>
+        </label>
+      }
       <label class="f">
         <span>Ghi chú gửi người phê duyệt</span>
         <textarea
@@ -301,5 +318,100 @@ export class PolicySubmitDialog {
           );
         },
       });
+  }
+}
+
+/**
+ * "Tạo bản nháp mới" (QT-15 bước 1, `createPolicyPackVersion`): phiên bản đã khoá nội dung (đã phát
+ * hành, ngừng áp dụng) không sửa được, nên muốn đổi công thức, bảng xếp loại hay luồng duyệt thì nhân
+ * bản thành phiên bản nháp. Máy chủ tự tăng số phiên bản và chép toàn bộ nội dung của bản nguồn.
+ */
+@Component({
+  selector: 'vt-policy-new-version-dialog',
+  imports: [FormsModule, ButtonModule, DialogModule, TextareaModule],
+  template: `
+    <p-dialog
+      header="Tạo bản nháp mới"
+      [modal]="true"
+      [(visible)]="visible"
+      [style]="{ width: 'min(560px, 96vw)' }"
+      closeAriaLabel="Đóng"
+    >
+      <p class="muted">
+        Bản nháp mới chép toàn bộ công thức, bảng xếp loại và tham số luồng duyệt của phiên bản
+        {{ vlabel(base()) }}. Phiên bản {{ vlabel(base()) }} giữ nguyên; bản nháp chỉ được áp dụng
+        sau khi đạt kiểm thử và được phê duyệt phát hành.
+      </p>
+      <label class="f">
+        <span>Nội dung thay đổi dự kiến</span>
+        <textarea
+          pTextarea
+          name="changeNote"
+          rows="3"
+          maxlength="2000"
+          data-testid="new-version-note"
+          [ngModel]="note()"
+          (ngModelChange)="note.set($event)"
+        ></textarea>
+      </label>
+      @if (error(); as e) {
+        <p class="err" role="alert">{{ e }}</p>
+      }
+      <ng-template #footer>
+        <p-button
+          label="Huỷ"
+          severity="contrast"
+          [outlined]="true"
+          (onClick)="visible.set(false)"
+        />
+        <p-button
+          label="Tạo bản nháp"
+          data-testid="new-version-create"
+          [loading]="busy()"
+          [disabled]="!note().trim()"
+          (onClick)="create()"
+        />
+      </ng-template>
+    </p-dialog>
+  `,
+  styleUrl: './policy-dialogs.css',
+})
+export class PolicyNewVersionDialog {
+  /** Phiên bản nguồn để nhân bản. */
+  readonly base = input.required<string>();
+  readonly visible = model(false);
+  readonly created = output<PolicyPackVersion>();
+
+  private readonly api = inject(PolicyApi);
+  private readonly ws = inject(PolicyWorkspace);
+  protected readonly vlabel = policyVersionLabel;
+  protected readonly note = linkedSignal(() => (this.visible(), ''));
+  protected readonly busy = signal(false);
+  protected readonly error = linkedSignal<boolean, string | null>({
+    source: () => this.visible(),
+    computation: () => null,
+  });
+
+  protected create() {
+    const id = this.ws.ref()?.id;
+    const changeNote = this.note().trim();
+    if (!id || !changeNote) return;
+    this.busy.set(true);
+    this.error.set(null);
+    this.api.createVersion(id, { baseVersion: this.base(), changeNote }).subscribe({
+      next: (v) => {
+        this.busy.set(false);
+        this.visible.set(false);
+        this.created.emit(v);
+      },
+      error: (e) => {
+        this.busy.set(false);
+        this.error.set(
+          problemCode(e) === 'POLICY-422-VERSION-EXISTS'
+            ? 'Số phiên bản kế tiếp đã có. Vui lòng tải lại danh sách phiên bản rồi thử lại.'
+            : errorText(e, 'Không tạo được bản nháp mới.'),
+        );
+      },
+    });
   }
 }

@@ -12,6 +12,32 @@
   </head>
   <body>
     <!-- WEB-014: nginx thay giá trị ngCspNonce bằng nonce của từng yêu cầu (CSP_NONCE của Angular) -->
-    <vt-root ngCspNonce="__CSP_NONCE__"></vt-root>
+    <!-- YC-PT-28: khung xương của khung trang trong lúc tải ứng dụng; Angular thay khi khởi động xong -->
+    <vt-root ngCspNonce="__CSP_NONCE__">
+      <div class="vt-boot" role="status" aria-busy="true">
+        <span class="vt-boot__sr">Đang mở ứng dụng</span>
+        <div class="vt-boot__top" aria-hidden="true">
+          <span class="vt-boot__b vt-boot__logo"></span>
+          <span class="vt-boot__b vt-boot__search"></span>
+          <span class="vt-boot__b vt-boot__avatar"></span>
+        </div>
+        <div class="vt-boot__body" aria-hidden="true">
+          <div class="vt-boot__nav">
+            <span class="vt-boot__b"></span><span class="vt-boot__b"></span>
+            <span class="vt-boot__b"></span><span class="vt-boot__b"></span>
+            <span class="vt-boot__b"></span><span class="vt-boot__b"></span>
+          </div>
+          <div class="vt-boot__main">
+            <span class="vt-boot__b vt-boot__h1"></span>
+            <span class="vt-boot__b vt-boot__p"></span>
+            <div class="vt-boot__cards">
+              <span class="vt-boot__b"></span><span class="vt-boot__b"></span>
+              <span class="vt-boot__b"></span><span class="vt-boot__b"></span>
+            </div>
+            <span class="vt-boot__b vt-boot__panel"></span>
+          </div>
+        </div>
+      </div>
+    </vt-root>
   </body>
 </html>

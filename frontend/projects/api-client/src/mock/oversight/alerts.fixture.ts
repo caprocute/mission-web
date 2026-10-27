@@ -5,6 +5,7 @@ import type {
   EvidenceChainNode,
 } from '../../lib/models/alert';
 import { MOCK_ME } from '../mock-session';
+import { LOCKED_PROFILE } from '../appraisals/locked-profiles';
 
 /**
  * Dữ liệu giả lập SCR-1401 (WEB-044): tám cảnh báo còn mở phủ đủ tám dấu hiệu của QT-14 và ba cảnh báo đã
@@ -133,7 +134,7 @@ export function alertFixtures(): AnomalyAlert[] {
       status: 'DA_GIAO_KIEM_TRA',
       detectedAt: at(3, '02:00'),
       evidenceChain: [
-        node('DIEM', 'ap-2026q2-tran-minh-hoang', 'Điểm xếp loại Quý II/2026 của Trần Minh Hoàng', [
+        node('DIEM', LOCKED_PROFILE.hoangQ2, 'Điểm xếp loại Quý II/2026 của Trần Minh Hoàng', [
           node('NHIEM_VU', 't-tc-3', 'Nhiệm vụ then chốt 3', [
             node('SAN_PHAM', 'sp-tc-3', 'Kết quả nghiệm thu: hệ số C từ 0,85 thành 0,95', [
               node('BAN_GHI_SO_CAI', 'le-17-1042', 'Nghiệm thu sản phẩm sau khi khoá kỳ'),

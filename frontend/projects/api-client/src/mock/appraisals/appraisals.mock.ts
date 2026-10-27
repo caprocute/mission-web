@@ -18,12 +18,14 @@ import { mockSession } from '../mock-session';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 import fixture from './appraisals.json';
 import { annualRoutes, resetAnnual } from './annual';
+import { unitResultRoutes } from './unit-results';
 import {
   DECISION_SCORES,
   batchDecisionRoutes,
   decisionQueue,
   resetBatchDecisions,
 } from './batch-decision';
+import { lockedProfileRows } from './locked-profiles';
 import { MOCK_MANAGER, PROPOSAL_BLOCKED, RESULT_MINE, ratingSheets } from './rating-sheet';
 import {
   ACCEPTED_BY_VIEWER,
@@ -55,6 +57,8 @@ import {
  * Quyết định hàng loạt SCR-0904 (WEB-038): 48 hồ sơ chờ quyết định và quy tắc ký lô ở `batch-decision.ts`.
  *
  * Xếp loại năm SCR-1001 và phân nhóm triển vọng SCR-1002 (WEB-039): dữ liệu và quy tắc ở `annual.ts`.
+ *
+ * Kết quả đánh giá từng cán bộ của đơn vị (bước đơn vị của SCR-1603, AP-09): `unit-results.ts`.
  */
 
 const ME = [...fixture.mine, ...RESULT_MINE];
@@ -334,6 +338,14 @@ function list(req: MockRequest): MockResponse {
     .filter((p) => !flow || p.flow === flow)
     .filter((p) => !q || p.person.name.toLocaleLowerCase('vi').includes(q))
     .map(row)
+    // hồ sơ của kỳ đã khoá (hậu kiểm, mở lại kỳ); chỉ hiện khi lọc đúng trạng thái `DA_KHOA`
+    .concat(
+      lockedProfileRows()
+        .filter((r) => wanted.includes(r.status))
+        .filter((r) => !period || r.period.id === period)
+        .filter((r) => !flow || r.flow === flow)
+        .filter((r) => !q || r.person.name.toLocaleLowerCase('vi').includes(q)),
+    )
     .filter((r) => !group || r.subjectGroup?.id === group)
     .sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''));
   const limit = Math.min(Number(req.params.get('limit') ?? 50), 200);
@@ -647,6 +659,7 @@ export const APPRAISALS_MOCK: MockModule = {
     { method: 'POST', pattern: '/api/v1/appraisals/exports', handle: exportProfiles },
     ...batchDecisionRoutes({ store, stepUpRequired, pageQuery }),
     ...annualRoutes(),
+    ...unitResultRoutes(),
     {
       method: 'GET',
       pattern: '/api/v1/appraisals/export-jobs/:id',

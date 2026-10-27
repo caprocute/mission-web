@@ -63,7 +63,8 @@ describe('AssignTaskPage (SCR-0501)', () => {
   it('soạn mới: khung trống với người giao và người nghiệm thu mặc định', async () => {
     const el = (await render(undefined)).nativeElement as HTMLElement;
     expect(text(el.querySelector('.head'))).toContain('người giao Lê Minh Châu');
-    expect(text(el.querySelector('.checks'))).toContain('Chọn dòng của kế hoạch đã duyệt');
+    // chưa có tên nhiệm vụ thì chưa gọi kiểm tra tức thì (máy chủ trả 422 khi tên trống)
+    expect(text(el.querySelector('.checks'))).not.toContain('Chọn dòng của kế hoạch đã duyệt');
   });
 
   it('ẩn nút theo quyền SCR-0501', async () => {

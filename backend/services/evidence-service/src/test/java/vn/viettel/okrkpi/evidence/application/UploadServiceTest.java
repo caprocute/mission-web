@@ -11,6 +11,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,6 +40,7 @@ import vn.viettel.okrkpi.evidence.domain.StoredFile;
 import vn.viettel.okrkpi.evidence.domain.UploadSession;
 import vn.viettel.okrkpi.evidence.domain.UploadSession.Status;
 import vn.viettel.okrkpi.shared.error.BusinessException;
+import vn.viettel.okrkpi.shared.idempotency.IdempotencyExceptions;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 
@@ -197,6 +199,27 @@ class UploadServiceTest {
                 new CreateUpload(
                     "a.pdf", type, content.length, sha(content), "product", null, cls, e2ee),
                 USER));
+  }
+
+  @Test
+  void moPhienCungKhoaTraLaiPhienCuKhacNoiDungBaoKhoaDungSai() throws Exception {
+    when(storage.createMultipart(any(), anyString())).thenReturn("rgw-1");
+    byte[] file = pdf(100);
+    CreateUpload cmd =
+        new CreateUpload(
+            "a.pdf", "application/pdf", file.length, sha(file), "product", null, "C1", false);
+    UploadSession first = inTenant(() -> service.create(cmd, USER, "khoa-1"));
+    UploadSession again = inTenant(() -> service.create(cmd, USER, "khoa-1"));
+    assertThat(again.id()).isEqualTo(first.id());
+    verify(storage, times(1)).createMultipart(any(), anyString());
+    assertThat(inTenant(() -> service.create(cmd, USER, "khoa-2")).id()).isNotEqualTo(first.id());
+
+    byte[] other = pdf(200);
+    CreateUpload changed =
+        new CreateUpload(
+            "a.pdf", "application/pdf", other.length, sha(other), "product", null, "C1", false);
+    assertThat(code(() -> inTenant(() -> service.create(changed, USER, "khoa-1"))))
+        .isEqualTo(new IdempotencyExceptions.Mismatch().errorCode().code());
   }
 
   @Test

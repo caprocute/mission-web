@@ -99,6 +99,46 @@ test_unit_scope_is_own_unit_only if {
 	ko.deny == {"out_of_scope"}
 }
 
+# Đơn vị gắn vai trò (role_units, QA-06): vai trò giao ở đơn vị gốc kèm cấp dưới áp cho đơn vị anh em của phân công
+# đang chọn; vai trò giao ở đơn vị khác thay cho đơn vị của phân công; giao không kèm cấp dưới thì Cd chỉ là đơn vị đó.
+org_roles := {"t1": object.union(org.t1, {
+	"subtree": object.union(org.t1.subtree, {"r": ["r", "u1", "u11", "u12", "u2"]}),
+	"role_units": {"nv1": {
+		"appraiser": {"unit": ["r"], "subtree": ["r"]},
+		"manager": {"unit": ["u2"], "subtree": []},
+		"leader": {"unit": ["u11"], "subtree": []},
+	}},
+})}
+
+decide_roles(subject, action, resource) := d if {
+	d := authz.decision with input as {
+		"subject": subject,
+		"action": action,
+		"resource": object.union({"tenant_id": "t1", "classification": "C1"}, resource),
+		"context": {"now": now},
+	}
+		with data.org as org_roles
+}
+
+test_role_unit_subtree_covers_sibling_of_assignment if {
+	d := decide_roles(user(["appraiser"]), "SCR-0902.xem", {"owner_unit_id": "u2"})
+	d.allow
+}
+
+test_role_unit_replaces_assignment_unit if {
+	ok := decide_roles(user(["manager"]), "SCR-0501.soan", {"owner_unit_id": "u2"})
+	ok.allow
+	ko := decide_roles(user(["manager"]), "SCR-0501.soan", {"owner_unit_id": "u1"})
+	ko.deny == {"out_of_scope"}
+}
+
+test_role_unit_without_subunits_limits_subtree_scope if {
+	ok := decide_roles(user(["leader"]), "SCR-0203.xem", {"owner_unit_id": "u11"})
+	ok.allow
+	ko := decide_roles(user(["leader"]), "SCR-0203.xem", {"owner_unit_id": "u12"})
+	ko.deny == {"out_of_scope"}
+}
+
 test_self_scope_uses_assignee_ids if {
 	d := decide(user(["member"]), "SCR-0503.nhan-viec", {"owner_unit_id": "u2", "assignee_ids": ["nv1"]})
 	d.allow
@@ -563,4 +603,167 @@ test_member_still_cannot_put_other_config if {
 test_client_cannot_self_service if {
 	d := api({"kind": "client", "tenant_id": "t1", "user_id": "svc"}, "config", "PUT", {"tenant_id": "t1", "type": "user_preference"})
 	not d.allow
+}
+
+# CORE-08-17: analytics-api (client credentials) gọi đúng thao tác hợp đồng khai service_client thì qua, trong tenant
+# được uỷ quyền; thao tác khác cùng module, sai phương thức, khác tenant hoặc chủ thể người dùng đều bị từ chối.
+client_op(subject, op, module, method, resource) := d if {
+	d := authz.decision with input as {
+		"subject": subject,
+		"request": {"module": module, "method": method, "operation": op},
+		"resource": resource,
+		"context": {"now": now},
+	}
+		with data.org as org
+}
+
+svc := {"kind": "client", "tenant_id": "t1", "user_id": "svc"}
+
+test_client_contract_operation_allowed if {
+	d := client_op(svc, "listDashboardDefs", "config", "GET", {"tenant_id": "t1"})
+	d.allow
+}
+
+test_client_contract_operation_write_allowed if {
+	d := client_op(svc, "replaceDashboardDef", "config", "PUT", {"tenant_id": "t1"})
+	d.allow
+}
+
+test_client_other_config_operation_denied if {
+	d := client_op(svc, "replaceFeatureFlag", "config", "PUT", {"tenant_id": "t1"})
+	not d.allow
+	"role_not_allowed" in d.deny
+}
+
+test_client_operation_without_name_denied if {
+	d := api(svc, "config", "GET", {"tenant_id": "t1"})
+	not d.allow
+}
+
+test_client_operation_method_mismatch_denied if {
+	d := client_op(svc, "listDashboardDefs", "config", "DELETE", {"tenant_id": "t1"})
+	not d.allow
+}
+
+test_client_operation_module_mismatch_denied if {
+	d := client_op(svc, "listDashboardDefs", "okr", "GET", {"tenant_id": "t1"})
+	not d.allow
+}
+
+test_client_operation_other_tenant_denied if {
+	d := client_op(svc, "listDashboardDefs", "config", "GET", {"tenant_id": "t2"})
+	not d.allow
+	"out_of_scope" in d.deny
+}
+
+test_user_cannot_use_client_operation if {
+	d := client_op(user(["member"]), "createDashboardDef", "config", "POST", {"tenant_id": "t1"})
+	not d.allow
+}
+
+# QA-03 HT-08: quyền POST module okr của AC-05, AC-06 không mở đường duyệt hay trả lại OKR; máy chủ
+# gửi kèm khoá chức năng SCR-0203 nên chỉ AC-04 qua được.
+test_okr_review_needs_scr0203_function if {
+	every act in ["SCR-0203.duyet", "SCR-0203.duyet-lo", "SCR-0203.tra-lai"] {
+		d := authz.decision with input as {
+			"subject": user(["manager", "member"]),
+			"action": act,
+			"request": {"module": "okr", "method": "POST"},
+			"resource": {"tenant_id": "t1", "owner_unit_id": "u1"},
+			"context": {"now": now},
+		}
+			with data.org as org
+		not d.allow
+	}
+}
+
+test_okr_review_leader_allowed if {
+	every act in ["SCR-0203.duyet", "SCR-0203.duyet-lo", "SCR-0203.tra-lai"] {
+		d := authz.decision with input as {
+			"subject": user(["leader"]),
+			"action": act,
+			"request": {"module": "okr", "method": "POST"},
+			"resource": {"tenant_id": "t1", "owner_unit_id": "u1"},
+			"context": {"now": now},
+		}
+			with data.org as org
+		d.allow
+	}
+}
+
+# ------------------------------------------------------------------ Vai trò tuỳ chỉnh (BS-04, BR-01-23)
+
+tenant_roles := {"t1": {
+	"tc_t1_lanh_dao_hep": {
+		"base": "leader",
+		"status": "HIEU_LUC",
+		"permissions": {"SCR-0203.duyet": "Dv"},
+	},
+	"tc_t1_ngung": {
+		"base": "leader",
+		"status": "NGUNG",
+		"permissions": {"SCR-0203.duyet": "Cd"},
+	},
+	"tc_t1_mo_rong": {
+		"base": "member",
+		"status": "HIEU_LUC",
+		"permissions": {"SCR-0203.duyet": "Tn"},
+	},
+	"tc_t1_quan_tri": {
+		"base": "tenant_admin",
+		"status": "HIEU_LUC",
+		"permissions": {"SCR-0108.xem": "Tn"},
+	},
+}}
+
+decide_custom(subject, action, resource) := d if {
+	d := authz.decision with input as {
+		"subject": subject,
+		"action": action,
+		"resource": object.union({"tenant_id": "t1", "classification": "C1"}, resource),
+		"context": {"now": now},
+	}
+		with data.org as org
+		with data.tenant_roles as tenant_roles
+}
+
+test_custom_role_allows_listed_function_in_narrowed_scope if {
+	d := decide_custom(user(["tc_t1_lanh_dao_hep"]), "SCR-0203.duyet", {"owner_unit_id": "u1"})
+	d.allow == true
+}
+
+test_custom_role_narrowed_scope_denies_subtree if {
+	d := decide_custom(user(["tc_t1_lanh_dao_hep"]), "SCR-0203.duyet", {"owner_unit_id": "u11"})
+	d.allow == false
+	"out_of_scope" in d.deny
+}
+
+test_custom_role_denies_function_not_listed if {
+	d := decide_custom(user(["tc_t1_lanh_dao_hep"]), "SCR-0204.xem", {"owner_unit_id": "u1"})
+	d.allow == false
+	"role_not_allowed" in d.deny
+}
+
+test_retired_custom_role_has_no_effect if {
+	d := decide_custom(user(["tc_t1_ngung"]), "SCR-0203.duyet", {"owner_unit_id": "u1"})
+	"role_not_allowed" in d.deny
+}
+
+test_custom_role_cannot_exceed_base_role if {
+	d := decide_custom(user(["tc_t1_mo_rong"]), "SCR-0203.duyet", {"owner_unit_id": "u1"})
+	"role_not_allowed" in d.deny
+}
+
+test_custom_role_of_other_tenant_ignored if {
+	s := object.union(user(["tc_t1_lanh_dao_hep"]), {"tenant_id": "t2"})
+	d := decide_custom(s, "SCR-0203.duyet", {"tenant_id": "t2", "owner_unit_id": "u1"})
+	"role_not_allowed" in d.deny
+}
+
+test_custom_role_inherits_aal2_of_base if {
+	s := object.union(user(["tc_t1_quan_tri"]), {"acr": "aal1"})
+	d := decide_custom(s, "SCR-0108.xem", {"owner_unit_id": "u1"})
+	d.allow == false
+	d2 := decide_custom(user(["tc_t1_quan_tri"]), "SCR-0108.xem", {"owner_unit_id": "u1"})
+	d2.allow == true
 }

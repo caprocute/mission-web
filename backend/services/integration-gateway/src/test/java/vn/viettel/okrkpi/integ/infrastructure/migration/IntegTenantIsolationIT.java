@@ -168,7 +168,8 @@ class IntegTenantIsolationIT extends TenantIsolationCatalogTest {
         }
       }
       assertThat(count).isEqualTo(1);
-      st.execute("SET app.tenant_id = '" + t + "'");
+      svc.setAutoCommit(false);
+      st.execute("SELECT set_config('app.tenant_id', '" + t + "', true)");
       assertThatThrownBy(() -> st.executeUpdate("DELETE FROM integ.mapping_xref"))
           .isInstanceOfSatisfying(
               SQLException.class, e -> assertThat(e.getSQLState()).isEqualTo("42501"));

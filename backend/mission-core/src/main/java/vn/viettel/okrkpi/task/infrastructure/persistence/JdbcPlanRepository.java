@@ -3,6 +3,7 @@ package vn.viettel.okrkpi.task.infrastructure.persistence;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -664,6 +665,38 @@ public class JdbcPlanRepository implements PlanRepository {
     return jdbc.sql(
             "UPDATE task.plan_version SET status = 'CHO_DUYET', submitted_at = now(),"
                 + " content_hash = ?, return_reason = NULL, updated_by = ?, updated_at = now(),"
+                + " row_version = row_version + 1 WHERE period_bucket = ? AND tenant_id = ? AND id = ?"
+                + " RETURNING row_version")
+        .params(contentHash, actor, plan.periodBucket(), tenant.value(), version.id())
+        .query(Long.class)
+        .single();
+  }
+
+  @Override
+  public long scoreItem(
+      TenantId tenant,
+      PlanRow plan,
+      VersionRow version,
+      UUID itemId,
+      int difficulty,
+      BigDecimal standardScore,
+      byte[] contentHash,
+      UUID actor) {
+    jdbc.sql(
+            "UPDATE task.plan_item SET difficulty = ?, standard_score = ?, updated_by = ?,"
+                + " updated_at = now() WHERE period_bucket = ? AND tenant_id = ?"
+                + " AND plan_version_id = ? AND id = ?")
+        .params(
+            difficulty,
+            standardScore,
+            actor,
+            plan.periodBucket(),
+            tenant.value(),
+            version.id(),
+            itemId)
+        .update();
+    return jdbc.sql(
+            "UPDATE task.plan_version SET content_hash = ?, updated_by = ?, updated_at = now(),"
                 + " row_version = row_version + 1 WHERE period_bucket = ? AND tenant_id = ? AND id = ?"
                 + " RETURNING row_version")
         .params(contentHash, actor, plan.periodBucket(), tenant.value(), version.id())

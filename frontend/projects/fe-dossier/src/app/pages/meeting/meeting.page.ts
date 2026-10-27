@@ -21,9 +21,17 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { JobTracker, toProblem } from '@vt/api-client';
-import { COMMENT_KIND_LABEL, DossierApi, DossierCommentKind, MEETING_ROLE_LABEL, MEETING_STATUS_LABEL, PARTICIPANT_STATUS_LABEL, RATING_LEVEL_LABEL } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import { JobTracker, LegalRefPipe, toProblem } from '@vt/api-client';
+import {
+  COMMENT_KIND_LABEL,
+  DossierApi,
+  DossierCommentKind,
+  MEETING_ROLE_LABEL,
+  MEETING_STATUS_LABEL,
+  PARTICIPANT_STATUS_LABEL,
+  RATING_LEVEL_LABEL,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { firstValueFrom, last, map } from 'rxjs';
 import { DOSSIER_CAN } from '../../dossier-permissions';
 import { DOSSIER_STEP_UP } from '../../step-up';
@@ -42,7 +50,7 @@ import {
 
 @Component({
   selector: 'vt-meeting-page',
-  imports: [DatePipe, RouterLink, MeetingSidePanel],
+  imports: [VtSkeletonComponent, DatePipe, RouterLink, MeetingSidePanel, LegalRefPipe],
   templateUrl: './meeting.page.html',
   styleUrl: './meeting.page.css',
 })

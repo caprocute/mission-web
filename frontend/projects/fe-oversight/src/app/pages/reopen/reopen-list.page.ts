@@ -9,8 +9,14 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { REOPEN_BASIS_LABEL, REOPEN_STATUS_LABEL, ReopenApi, ReopenRequest, ReopenRequestFilter } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import {
+  REOPEN_BASIS_LABEL,
+  REOPEN_STATUS_LABEL,
+  ReopenApi,
+  ReopenRequest,
+  ReopenRequestFilter,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { SelectButtonModule } from 'primeng/selectbutton';
@@ -30,7 +36,15 @@ const FILTERS: Record<View, ReopenRequestFilter> = {
 
 @Component({
   selector: 'vt-reopen-list-page',
-  imports: [FormsModule, RouterLink, ButtonModule, MessageModule, SelectButtonModule, TagModule],
+  imports: [
+    VtSkeletonComponent,
+    FormsModule,
+    RouterLink,
+    ButtonModule,
+    MessageModule,
+    SelectButtonModule,
+    TagModule,
+  ],
   template: `
     <div class="head">
       <div>
@@ -66,7 +80,7 @@ const FILTERS: Record<View, ReopenRequestFilter> = {
     @if (rows.error()) {
       <p-message severity="error">{{ loadError() }}</p-message>
     } @else if (rows.isLoading() && !rows.hasValue()) {
-      <p class="muted">Đang tải danh sách…</p>
+      <vt-skeleton variant="table" [columns]="5" label="Đang tải danh sách yêu cầu" />
     } @else {
       <div class="table-wrap">
         <table class="tbl">

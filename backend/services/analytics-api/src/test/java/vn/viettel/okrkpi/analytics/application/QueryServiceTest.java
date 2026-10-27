@@ -159,6 +159,41 @@ class QueryServiceTest {
     assertThat(r.stale()).isFalse();
   }
 
+  /**
+   * HT-39: bốn chỉ số của SCR-1601 thuộc nhiều cube không nối nhau; mỗi cube chạy một truy vấn,
+   * dòng ghép theo giá trị chiều.
+   */
+  @Test
+  void measuresOfSeveralCubesRunOneCubeQueryEachAndMergeByDimension() {
+    cube.rows =
+        (s, q) ->
+            ((List<?>) q.get("measures")).contains("okr.tien_do_o")
+                ? List.of(
+                    row("org_unit.ten", "Huyện A", "okr.tien_do_o", "80", "okr.so_muc_tieu", "3"),
+                    row("org_unit.ten", "Huyện B", "okr.tien_do_o", "50", "okr.so_muc_tieu", "2"))
+                : List.of(
+                    row("org_unit.ten", "Huyện B", "task.so_nhiem_vu", "7"),
+                    row("org_unit.ten", "Huyện C", "task.so_nhiem_vu", "1"));
+    QueryResult res =
+        service.query(
+            viewer(UNIT_TINH),
+            req(
+                List.of("okr.tien_do_o", "task.so_nhiem_vu", "okr.so_muc_tieu"),
+                List.of("org_unit.ten")));
+    assertThat(cube.queries)
+        .extracting(q -> q.get("measures"))
+        .containsExactly(List.of("okr.tien_do_o", "okr.so_muc_tieu"), List.of("task.so_nhiem_vu"));
+    assertThat(res.columns())
+        .extracting(Column::name)
+        .containsExactly("org_unit.ten", "okr.tien_do_o", "task.so_nhiem_vu", "okr.so_muc_tieu");
+    java.util.function.Function<String, java.math.BigDecimal> n = java.math.BigDecimal::new;
+    assertThat(res.rows())
+        .containsExactly(
+            java.util.Arrays.asList("Huyện A", n.apply("80"), null, n.apply("3")),
+            java.util.Arrays.asList("Huyện B", n.apply("50"), n.apply("7"), n.apply("2")),
+            java.util.Arrays.asList("Huyện C", null, n.apply("1"), null));
+  }
+
   @Test
   void periodFilterAndPreviousPeriodComparison() {
     cube.rows =

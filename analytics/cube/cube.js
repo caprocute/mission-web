@@ -22,7 +22,7 @@ const ORG_PATH = /^(\/[a-z0-9][a-z0-9._-]*)+$/;
 const DB = process.env.CUBEJS_DB_NAME;
 // Cube gắn đơn vị: phải lọc theo nhánh cây tổ chức. Cube khác chỉ lọc theo tenant.
 const SCOPED = new Set(['org_unit', 'task', 'okr', 'okr_checkin', 'appraisal', 'score', 'rating', 'evidence']);
-const TENANT_ONLY = new Set(['period', 'subject_group', 'data_freshness']);
+const TENANT_ONLY = new Set(['period', 'flow', 'subject_group', 'data_freshness']);
 
 // Driver ClickHouse của một tenant. Hai điểm khác driver gốc:
 // - SQL_tenant_id nằm trong cấu hình mặc định của client, nên áp cho cả câu lệnh command (DDL, dựng pre-aggregation),

@@ -30,6 +30,7 @@ import vn.viettel.okrkpi.scoring.application.port.ScoreChunkQueue;
 import vn.viettel.okrkpi.scoring.application.port.ScoreJobStore;
 import vn.viettel.okrkpi.scoring.application.port.ScoringInputs;
 import vn.viettel.okrkpi.scoring.application.port.StoredScores;
+import vn.viettel.okrkpi.scoring.infrastructure.client.ServiceToken;
 import vn.viettel.okrkpi.scoring.infrastructure.events.IncrementalScoringConsumers;
 import vn.viettel.okrkpi.scoring.infrastructure.inputs.HttpScoringInputs;
 import vn.viettel.okrkpi.scoring.infrastructure.persistence.JdbcScoreChunkQueue;
@@ -50,6 +51,7 @@ public class ScoringWorkerConfiguration {
   ScoringInputs scoringInputs(
       ResilientClientFactory clients,
       ObjectProvider<RestClient.Builder> builders,
+      ServiceToken coreServiceToken,
       @Value("${mission.scoring.inputs.base-url:http://127.0.0.1:8080}") String baseUrl,
       @Value("${mission.scoring.inputs.read-timeout:PT30S}") Duration readTimeout) {
     // Một trang 200 hồ sơ kèm việc lá lớn hơn nhiều lời gọi thường, nên thời hạn đọc riêng (TL-01
@@ -58,7 +60,12 @@ public class ScoringWorkerConfiguration {
     http.setConnectTimeout(Duration.ofMillis(500));
     http.setReadTimeout(readTimeout);
     RestClient client =
-        builders.getIfAvailable(RestClient::builder).baseUrl(baseUrl).requestFactory(http).build();
+        builders
+            .getIfAvailable(RestClient::builder)
+            .baseUrl(baseUrl)
+            .requestFactory(http)
+            .requestInterceptor(coreServiceToken.interceptor())
+            .build();
     return new HttpScoringInputs(clients.create("appraisal-inputs", client));
   }
 

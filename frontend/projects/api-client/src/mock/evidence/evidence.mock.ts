@@ -198,6 +198,15 @@ function ifMatch(v: StoredVersion, req: MockRequest): MockResponse | null {
       });
 }
 
+/** Thân yêu cầu theo hợp đồng mang tệp trong `files[]`; giả lập giữ một tệp mỗi phiên bản. */
+function draftOf(body: unknown): EvidenceVersionDraft {
+  const b = body as EvidenceVersionDraft & {
+    files?: { objectId: string; reuseJustification?: string }[];
+  };
+  const f = b.files?.[0];
+  return f ? { ...b, objectId: f.objectId, reuseJustification: f.reuseJustification } : b;
+}
+
 /** Kiểm nội dung nháp theo `EvidenceVersionDraft`; trả lỗi 422 theo trường. */
 function validateDraft(d: EvidenceVersionDraft): FieldError[] {
   const errors: FieldError[] = [];
@@ -240,7 +249,7 @@ function createVersion(req: MockRequest): MockResponse {
     return problem(409, 'Phiên bản mới nhất chưa kết thúc, không tạo được phiên bản mới.', {
       code: 'PRODUCT-409-OPEN-VERSION-EXISTS',
     });
-  const d = req.body as EvidenceVersionDraft;
+  const d = draftOf(req.body);
   const errors = validateDraft(d);
   if (errors.length) return problem(422, 'Dữ liệu không hợp lệ', { errors });
   const v: StoredVersion = {
@@ -283,7 +292,7 @@ function saveVersion(req: MockRequest): MockResponse {
         code: 'PRODUCT-409-INVALID-STATE',
       },
     );
-  const d = req.body as EvidenceVersionDraft;
+  const d = draftOf(req.body);
   const errors = validateDraft(d);
   if (errors.length) return problem(422, 'Dữ liệu không hợp lệ', { errors });
   applyDraft(v, d);

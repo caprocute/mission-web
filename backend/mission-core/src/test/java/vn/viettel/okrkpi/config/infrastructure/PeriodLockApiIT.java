@@ -168,6 +168,13 @@ class PeriodLockApiIT extends ContractConformanceTest {
     assertThat(dup.getResponse().getStatus()).isEqualTo(409);
     assertThat(body(dup).get("code").asText()).isEqualTo("PERIOD-409-ORDER-EXISTS");
 
+    // Kỳ đọc lại mang lệnh hiện hành (SCR-0801 hiện người lập và "chờ phê duyệt", QA-06 HT-23)
+    MvcResult withOrder = perform(get("/api/v1/periods/" + id));
+    assertResponseConforms(withOrder, "/periods/{id}", PathItem.HttpMethod.GET);
+    assertThat(body(withOrder).get("currentLockOrder").get("id").asText()).isEqualTo(oid);
+    assertThat(body(withOrder).get("currentLockOrder").get("status").asText())
+        .isEqualTo("CHO_DUYET");
+
     // Tự duyệt bị chặn.
     String approve = base + "/lock-orders/" + oid + "/approve";
     MvcResult self =

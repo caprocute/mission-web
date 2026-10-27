@@ -14,12 +14,21 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { AnalyticsApi, FileApi, TRACE_OBJECT_LABEL, TRACE_OBJECT_NOUN, TRACE_STATUS_LABEL, TraceLink, TraceObjectType } from '@vt/api-client/domains';
+import {
+  AnalyticsApi,
+  FileApi,
+  TRACE_OBJECT_LABEL,
+  TRACE_OBJECT_NOUN,
+  TRACE_STATUS_LABEL,
+  TraceLink,
+  TraceObjectType,
+} from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { TagModule } from 'primeng/tag';
 import { DASHBOARD_CAN } from '../dashboard-permissions';
 import { errorText, fmtDate, fmtDateTime, fmtNum } from '../dashboard-ui';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 interface EvidenceVersionRow {
   versionNo: number;
@@ -30,7 +39,7 @@ interface EvidenceVersionRow {
 
 @Component({
   selector: 'vt-trace-page',
-  imports: [RouterLink, ButtonModule, MessageModule, TagModule],
+  imports: [VtSkeletonComponent, RouterLink, ButtonModule, MessageModule, TagModule],
   template: `
     <p class="crumb">
       @if (can('SCR-1601.xem')) {
@@ -271,7 +280,7 @@ interface EvidenceVersionRow {
         </div>
       }
     } @else {
-      <p class="muted">Đang tải…</p>
+      <vt-skeleton variant="detail" label="Đang tải vết tính" />
     }
   `,
   styleUrls: ['../dashboard.css'],

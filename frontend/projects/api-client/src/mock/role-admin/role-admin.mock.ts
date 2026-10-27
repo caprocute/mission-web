@@ -198,7 +198,7 @@ function grant(r: MockRequest): MockResponse {
     flow: body.flow ?? null,
     validFrom: body.validFrom!,
     validTo: body.validTo!,
-    sensitive: SENSITIVE.includes(body.roleCode),
+    sensitive: (SENSITIVE as readonly string[]).includes(body.roleCode),
     grantedBy: ref(MOCK_ME.id),
     grantedAt: nowIso(),
     reason: body.reason!.trim(),

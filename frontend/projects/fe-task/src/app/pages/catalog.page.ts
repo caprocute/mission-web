@@ -17,8 +17,17 @@ import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TASK_GROUP_LABEL, toProblem } from '@vt/api-client';
-import { CATALOG_ITEM_STATUS_LABEL, CatalogApi, CatalogImportJob, CatalogItem, CatalogItemSaveResult, CatalogItemStatus, WORK_CATALOG_STATUS_LABEL, WorkCatalog } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import {
+  CATALOG_ITEM_STATUS_LABEL,
+  CatalogApi,
+  CatalogImportJob,
+  CatalogItem,
+  CatalogItemSaveResult,
+  CatalogItemStatus,
+  WORK_CATALOG_STATUS_LABEL,
+  WorkCatalog,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { InputTextModule } from 'primeng/inputtext';
@@ -44,6 +53,7 @@ interface Filters {
 @Component({
   selector: 'vt-catalog-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     ButtonModule,
     CheckboxModule,
@@ -156,6 +166,7 @@ interface Filters {
           ariaLabel="Vị trí việc làm"
           appendTo="body"
           styleClass="f-pos"
+          [loading]="positions.isLoading()"
         />
         @if (!simple()) {
           <p-select
@@ -279,7 +290,18 @@ interface Filters {
                     }
                   </tr>
                 } @empty {
-                  @if (!page.isLoading()) {
+                  @if (page.isLoading()) {
+                    <tr>
+                      <td [attr.colspan]="colCount()">
+                        <vt-skeleton
+                          variant="table"
+                          [header]="false"
+                          [columns]="5"
+                          label="Đang tải danh mục"
+                        />
+                      </td>
+                    </tr>
+                  } @else {
                     <tr>
                       <td [attr.colspan]="colCount()" class="muted empty">
                         Không có công việc phù hợp bộ lọc.
@@ -344,10 +366,6 @@ interface Filters {
                   }
                 </dd>
               </dl>
-              <p class="muted small">
-                Sửa mục đã dùng ở kỳ đã khoá sẽ tạo phiên bản mới; kỳ cũ giữ nguyên phiên bản đã
-                tính điểm.
-              </p>
               @if (canEdit() && c.status !== 'HET_HIEU_LUC') {
                 <p-button
                   label="Sửa"
@@ -366,7 +384,7 @@ interface Filters {
               @if (latestImport(); as j) {
                 <p>{{ j.fileName }} · {{ fmt(j.totalRows) }} dòng</p>
                 @if (j.status === 'DANG_XU_LY') {
-                  <p class="muted">Đang kiểm tra tệp…</p>
+                  <vt-skeleton variant="text" [rows]="2" label="Đang kiểm tra tệp" />
                 } @else {
                   <ul class="imp">
                     <li>
@@ -395,6 +413,8 @@ interface Filters {
                     />
                   }
                 }
+              } @else if (latest.isLoading()) {
+                <vt-skeleton variant="list" [rows]="2" label="Đang tải kết quả nhập Excel" />
               } @else {
                 <p class="muted">Chưa nhập tệp nào cho phiên bản này.</p>
               }
@@ -411,7 +431,7 @@ interface Filters {
         (saved)="onSaved($event)"
       />
     } @else {
-      <p class="muted" aria-busy="true">Đang tải danh mục…</p>
+      <vt-skeleton variant="page" [columns]="5" label="Đang tải danh mục" />
     }
   `,
   styles: `
@@ -748,7 +768,7 @@ export class CatalogPage {
     computation: () => [],
   });
 
-  private readonly latest = rxResource({
+  protected readonly latest = rxResource({
     params: () => this.catalogId() ?? undefined,
     stream: ({ params }) => this.api.latestImport(params),
   });

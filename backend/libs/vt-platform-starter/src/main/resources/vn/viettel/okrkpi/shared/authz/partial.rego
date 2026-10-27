@@ -79,8 +79,38 @@ scope_ok("Gn") if {
 	input.resource.designated_id == input.subject.user_id
 }
 
+# Cd/Đv xét theo đơn vị gắn vai trò (data.org[tenant].role_units do mission-core nạp), như authz.rego; người dùng
+# chưa có dữ liệu vai trò thì giữ cách cũ theo đơn vị của phân công (QA-06, wiki 14).
+role_bound := data.org[input.subject.tenant_id].role_units[input.subject.user_id]
+
 allow if {
 	some r in fn_effective
 	g := fn.grants[r]
+	not g.scope in {"Cd", "Đv"}
 	scope_ok(g.scope)
+}
+
+allow if {
+	some r in fn_effective
+	g := fn.grants[r]
+	g.scope in {"Cd", "Đv"}
+	not role_bound[r]
+	scope_ok(g.scope)
+}
+
+allow if {
+	some r in fn_effective
+	g := fn.grants[r]
+	g.scope in {"Cd", "Đv"}
+	input.resource.tenant_id == input.subject.tenant_id
+	some u in role_bound[r].unit
+	input.resource.owner_unit_id == u
+}
+
+allow if {
+	some r in fn_effective
+	fn.grants[r].scope == "Cd"
+	input.resource.tenant_id == input.subject.tenant_id
+	some x in role_bound[r].subtree
+	input.resource.ancestor_unit_id == x
 }

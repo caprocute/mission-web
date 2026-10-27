@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { toProblem } from '@vt/api-client';
-import { TEXT_FORBIDDEN } from '@vt/auth';
+import { forbiddenText } from '@vt/auth';
 
 /** Số theo cách viết Việt Nam: 1.184.200. */
 export const fmtInt = (n: number) => n.toLocaleString('vi-VN');
@@ -29,9 +29,9 @@ export function fmtDate(iso: string): string {
   return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
 }
 
-/** Văn bản lỗi cho người dùng: 403 dùng câu không có quyền chung, còn lại `title` của RFC 9457. */
+/** Văn bản lỗi cho người dùng: 403 nêu lý do máy chủ trả về (hoặc câu chung), còn lại `title` của RFC 9457. */
 export function errorText(err: unknown, fallback: string): string {
-  if (err instanceof HttpErrorResponse && err.status === 403) return TEXT_FORBIDDEN;
   const p = toProblem(err);
-  return p.status === 403 ? TEXT_FORBIDDEN : p.title || fallback;
+  if (p.status === 403 || (err instanceof HttpErrorResponse && err.status === 403)) return forbiddenText(p);
+  return p.title || fallback;
 }

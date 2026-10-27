@@ -32,10 +32,22 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { toProblem } from '@vt/api-client';
-import { AppraisalApi, AppraisalFlow, AppraisalProfileView, AppraisalScoreGroup, AppraisalScoreTaskLine, AppraisalScoreTraceStep, DossierApi, GENERAL_CRITERIA_LEVEL_LABEL, RATING_LEVELS, RATING_LEVEL_LABEL, RatingLevel } from '@vt/api-client/domains';
+import { LegalRefPipe, legalRefText, toProblem } from '@vt/api-client';
+import {
+  AppraisalApi,
+  AppraisalFlow,
+  AppraisalProfileView,
+  AppraisalScoreGroup,
+  AppraisalScoreTaskLine,
+  AppraisalScoreTraceStep,
+  DossierApi,
+  GENERAL_CRITERIA_LEVEL_LABEL,
+  RATING_LEVELS,
+  RATING_LEVEL_LABEL,
+  RatingLevel,
+} from '@vt/api-client/domains';
 import { permittedOn } from '@vt/auth';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { firstValueFrom } from 'rxjs';
 import { APPRAISAL_CAN } from '../../appraisal-permissions';
 import { MSG_09_07 } from '../review/review-rules';
@@ -44,8 +56,10 @@ import {
   DECIDED,
   FLOW_TAB_LABEL,
   MSG_09_12,
+  MSG_SUGGESTED_REASON,
   MSG_PROPOSAL_SOD,
   checkProposal,
+  needsReason,
   complaintOpen,
   componentGroups,
   conditionGroups,
@@ -63,7 +77,7 @@ type Tab = AppraisalFlow | 'TRACE';
 
 @Component({
   selector: 'vt-rating-sheet-page',
-  imports: [RouterLink],
+  imports: [VtSkeletonComponent, RouterLink, LegalRefPipe],
   templateUrl: './rating-sheet.page.html',
   styleUrl: './rating-sheet.page.css',
 })
@@ -81,6 +95,7 @@ export class RatingSheetPage {
   protected readonly criteriaLabel = GENERAL_CRITERIA_LEVEL_LABEL;
   protected readonly flowLabel = FLOW_TAB_LABEL;
   protected readonly msg0912 = MSG_09_12;
+  protected readonly msgSuggested = MSG_SUGGESTED_REASON;
   protected readonly vn = vn;
   protected readonly pct = pct;
   protected readonly dmy = dmy;
@@ -181,10 +196,14 @@ export class RatingSheetPage {
     if (v.explanation?.text) return v.explanation.text;
     return v.snapshot.downgradeReasons.map((d) => d.text).join(' ');
   });
-  protected readonly legalRef = computed(
-    () =>
-      this.view()?.explanation?.legalRef ??
-      this.snapshot()?.downgradeReasons.find((d) => d.legalRef)?.legalRef,
+  /** Căn cứ của kết luận, đã bỏ mã nội bộ; rỗng thì không hiện. */
+  protected readonly legalRef = computed(() =>
+    [
+      this.view()?.explanation?.legalRef,
+      ...(this.snapshot()?.downgradeReasons.map((d) => d.legalRef) ?? []),
+    ]
+      .map(legalRefText)
+      .find(Boolean),
   );
   protected readonly packNote = computed(() => {
     const s = this.snapshot();
@@ -265,13 +284,19 @@ export class RatingSheetPage {
   protected readonly rating = linkedSignal<RatingLevel>(() => this.appraised() ?? 'HTTNV');
   protected readonly reason = linkedSignal({ source: this.profile, computation: () => '' });
   protected readonly comment = linkedSignal({ source: this.profile, computation: () => '' });
-  protected readonly differs = computed(
+  protected readonly suggested = computed(() => this.snapshot()?.autoRatingCode ?? null);
+  protected readonly differs = computed(() =>
+    needsReason(this.rating(), this.appraised(), this.suggested()),
+  );
+  /** Khác mức thẩm định thì dùng MSG-09-12; chỉ khác mức hệ thống gợi ý thì nhắc theo BS-03 DC-05. */
+  protected readonly differsAppraised = computed(
     () => !!this.appraised() && this.rating() !== this.appraised(),
   );
   protected readonly errors = computed(() =>
     checkProposal(
       { rating: this.rating(), reason: this.reason(), comment: this.comment() },
       this.appraised(),
+      this.suggested(),
     ),
   );
   protected readonly tried = linkedSignal({ source: this.profile, computation: () => false });

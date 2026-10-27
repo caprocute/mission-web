@@ -5,6 +5,7 @@ import { TASK_STATUS_LABEL, TaskStatus } from '@vt/api-client';
 import { PermissionService, screenKeys } from '@vt/auth';
 import { MessageModule } from 'primeng/message';
 import { CHI_SO, nhiemVuCuaToi } from '../chuyen-mon-data';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 /**
  * Trang "Chuyên môn giáo dục" của plugin (ADR-05 lớp 4, WEB-051): tổng hợp nhiệm vụ chuyên môn của
@@ -13,7 +14,7 @@ import { CHI_SO, nhiemVuCuaToi } from '../chuyen-mon-data';
  */
 @Component({
   selector: 'vt-giaoduc-chuyen-mon-page',
-  imports: [RouterLink, DatePipe, MessageModule],
+  imports: [VtSkeletonComponent, RouterLink, DatePipe, MessageModule],
   template: `
     <h1>Chuyên môn giáo dục</h1>
     <p class="lead">Theo dõi nhiệm vụ chuyên môn của đồng chí trong kỳ đánh giá hiện tại.</p>
@@ -55,7 +56,18 @@ import { CHI_SO, nhiemVuCuaToi } from '../chuyen-mon-data';
             <td>{{ t.dueDate | date: 'dd/MM/yyyy' }}</td>
           </tr>
         } @empty {
-          @if (!data.isLoading()) {
+          @if (data.isLoading()) {
+            <tr>
+              <td colspan="3">
+                <vt-skeleton
+                  variant="table"
+                  [header]="false"
+                  [columns]="3"
+                  label="Đang tải nhiệm vụ"
+                />
+              </td>
+            </tr>
+          } @else {
             <tr>
               <td colspan="3" class="muted">Chưa có nhiệm vụ trong kỳ.</td>
             </tr>

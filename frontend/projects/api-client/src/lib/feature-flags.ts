@@ -65,6 +65,12 @@ export class FeatureFlagService {
   }
 }
 
+/**
+ * Cờ đồng bộ người dùng và tổ chức từ hệ thống ngoài (HRM, CSDL cán bộ, SCIM; ADR-34). Mặc định tắt:
+ * tài khoản và cơ cấu do quản trị tạo trực tiếp trong ứng dụng, màn hình đồng bộ và đối soát ẩn đi.
+ */
+export const EXTERNAL_SYNC_FLAG = 'org.externalSync';
+
 /** Chặn tuyến khi cờ tắt: `canMatch: [featureFlagGuard('ai.weeklySummary')]`. */
 export function featureFlagGuard(key: string): CanMatchFn {
   return () => inject(FeatureFlagService).isEnabled(key);

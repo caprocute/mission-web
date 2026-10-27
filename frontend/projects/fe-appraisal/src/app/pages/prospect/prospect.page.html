@@ -39,10 +39,7 @@
   </div>
 </div>
 
-<p class="msg warn">
-  Kết quả phân nhóm là thông tin hạn chế: chỉ lãnh đạo và cán bộ tổ chức của đơn vị được xem. Hệ
-  thống chỉ đưa gợi ý để tham khảo; khi xếp khác gợi ý, đồng chí ghi lý do điều chỉnh.
-</p>
+<p class="msg warn">Thông tin hạn chế: chỉ lãnh đạo và cán bộ tổ chức của đơn vị được xem.</p>
 
 <p class="sr" role="status" aria-live="polite">{{ announce() }}</p>
 @if (notice()) {
@@ -179,12 +176,8 @@
 
   <div class="bottom">
     <section class="card" aria-labelledby="pg-hint">
-      <h2 id="pg-hint">Gợi ý ban đầu của hệ thống (tham khảo)</h2>
-      <p>
-        Gợi ý sắp xếp theo điểm năm, số năm liền hoàn thành xuất sắc nhiệm vụ và kết quả quy hoạch.
-        Hệ thống <strong>không</strong> tự phân nhóm; người có thẩm quyền xếp nhóm và ghi lý do khi
-        khác gợi ý.
-      </p>
+      <h2 id="pg-hint">Gợi ý sắp xếp (tham khảo)</h2>
+      <p>Theo điểm năm, số năm liền hoàn thành xuất sắc nhiệm vụ và kết quả quy hoạch.</p>
       @if (adjusted().length) {
         <h3>Điều chỉnh khác gợi ý ({{ adjusted().length }})</h3>
         <ul class="adj">
@@ -246,7 +239,7 @@
     </section>
   </div>
 } @else {
-  <p class="muted" role="status">Đang tải…</p>
+  <vt-skeleton variant="page" label="Đang tải hồ sơ quy hoạch" />
 }
 
 @if (showCriteria() || confirmSubmit()) {
@@ -260,12 +253,16 @@
     >
       @if (showCriteria()) {
         <h2 id="pg-dlg">Tiêu chí phân nhóm triển vọng (Phụ lục 5)</h2>
-        <dl class="crit">
-          @for (r of criteriaRows(); track r.code) {
-            <dt>{{ r.name }}</dt>
-            <dd>{{ r.criteria || 'Theo quy định của khối.' }}</dd>
-          }
-        </dl>
+        @if (criteria.isLoading() || year.isLoading() || board.isLoading()) {
+          <vt-skeleton variant="detail" [rows]="4" label="Đang tải tiêu chí phân nhóm" />
+        } @else {
+          <dl class="crit">
+            @for (r of criteriaRows(); track r.code) {
+              <dt>{{ r.name }}</dt>
+              <dd>{{ r.criteria || 'Theo quy định của khối.' }}</dd>
+            }
+          </dl>
+        }
         <p class="muted small">
           Người xếp loại năm không hoàn thành nhiệm vụ hoặc có hai quý liên tiếp không hoàn thành
           nhiệm vụ không được đưa vào Nhóm 1, Nhóm 2.

@@ -8,7 +8,9 @@ thử (RFC 6238, SHA-1, 6 số, bước 30 giây, khoá dạng chuỗi như fron
 Biến môi trường: KC_URL (gốc Keycloak trình duyệt dùng, quyết định claim iss; mặc định KEYCLOAK_PUBLIC_URL, rồi
 http://127.0.0.1:35080), KC_REALM (mission),
 KC_CLIENT_ID (mission-web), KC_REDIRECT_URI (http://localhost:4200/), SMOKE_USER (canbo),
-KC_TEST_USER_PASSWORD, KC_TEST_OTP_SECRET. In access token ra stdout; lỗi in ra stderr, mã thoát 1.
+KC_TEST_USER_PASSWORD, KC_TEST_OTP_SECRET, KC_ACR_VALUES (mặc định aal2; đặt rỗng để không xin). Xin aal2 vì khi
+server dev tắt OTP (tat-otp-dev.sh) nhánh OTP theo vai trò không còn tự nâng phiên quản trị lên aal2, mà API quản trị
+đòi aal2; khi OTP còn bật, biểu mẫu OTP vẫn được điền như cũ. In access token ra stdout; lỗi in ra stderr, mã thoát 1.
 Không in mật khẩu, mã OTP hay token vào nhật ký.
 """
 import base64
@@ -104,6 +106,9 @@ def main() -> int:
             "code_challenge_method": "S256",
         }
     )
+    acr_values = os.environ.get("KC_ACR_VALUES", "aal2")
+    if acr_values:
+        query += "&" + urllib.parse.urlencode({"acr_values": acr_values})
 
     def post(url: str, fields: dict) -> Optional[str]:
         try:
@@ -120,7 +125,16 @@ def main() -> int:
     if stop.location is None and page is not None:
         if 'name="otp"' not in page:
             raise RuntimeError("đăng nhập không qua (sai mật khẩu hoặc tài khoản bị khoá?)")
-        post(_form_action(page), {"otp": totp(otp_secret)})
+        # Phiên quản trị có thể qua hai bước OTP liên tiếp (nhánh OTP theo vai trò rồi nhánh step-up aal2);
+        # Keycloak không nhận lại mã đã dùng nên bước sau đợi sang chu kỳ 30 giây kế tiếp.
+        used = None
+        for _ in range(3):
+            if page is None or 'name="otp"' not in page or stop.location is not None:
+                break
+            while totp(otp_secret) == used:
+                time.sleep(1)
+            used = totp(otp_secret)
+            page = post(_form_action(page), {"otp": used})
     if stop.location is None:
         raise RuntimeError("không nhận được mã ủy quyền sau bước OTP")
     params = urllib.parse.parse_qs(urllib.parse.urlsplit(stop.location).query)

@@ -102,6 +102,9 @@ export async function kyDangMo(
  * Người giao (`quanly`) soạn nhiệm vụ đột xuất cho người chủ trì `canBo` rồi giao (QT-05: SCR-0501,
  * `createTaskDraft` → `assignTask`). Trả nhiệm vụ đã giao.
  */
+/** Số nhiệm vụ đã giao trong lần chạy: từ việc thứ hai thêm hậu tố để tên không trùng giữa các hành trình. */
+let soViecDaGiao = 0;
+
 export async function giaoNhiemVu(
   quanLy: ApiHeThong,
   nguoiGiao: DanhTinh,
@@ -119,7 +122,7 @@ export async function giaoNhiemVu(
       unitName: '',
       assignerId: nguoiGiao.sub,
       assignerName: nguoiGiao.ten,
-      title: thay(title),
+      title: ++soViecDaGiao > 1 ? `${thay(title)} (${soViecDaGiao})` : thay(title),
       leadPersonId: canBo.sub,
       coAssignees: [],
       dueDate: han,

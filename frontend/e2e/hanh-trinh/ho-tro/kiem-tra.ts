@@ -61,6 +61,15 @@ export async function batCaoTuoi(page: Page) {
   await expect(page.locator('html')).toHaveAttribute('data-mode', 'elderly');
 }
 
+/** Về chế độ chữ thường nếu lần chạy trước để lại chế độ cao tuổi (lưu ở máy chủ, CNH-02). */
+export async function tatCaoTuoi(page: Page) {
+  const daBat = page.getByRole('button', { name: 'Chữ thường', pressed: true });
+  const nut = page.getByRole('button', { name: 'Chữ lớn' });
+  await expect(nut.or(daBat).first()).toBeVisible();
+  if (await daBat.isVisible()) await daBat.click();
+  await expect(page.locator('html')).not.toHaveAttribute('data-mode', 'elderly');
+}
+
 /**
  * Bước chỉ chạy trên hệ thống thật (đọc lại qua API, kiểm sự kiện); ở chế độ giả lập ghi chú
  * `khong-ap-dung` để báo cáo nói rõ bước nào chưa được kiểm.
@@ -82,14 +91,16 @@ export const dau = () => String(Date.now()).slice(-8);
  */
 export async function xacThucBuocLen(page: Page, user: string, xong: Locator, batBuoc: boolean) {
   const dialog = page.getByRole('dialog', { name: 'Xác thực nhiều lớp' });
+  // Phiên vừa bước lên thì không hỏi lại; khi đó chờ thẳng kết quả ký số bất đồng bộ.
   if (batBuoc) await expect(dialog).toBeVisible();
-  else await expect(dialog.or(xong).first()).toBeVisible();
+  else await expect(dialog.or(xong).first()).toBeVisible({ timeout: HE_THONG ? 60_000 : 5_000 });
   if (await dialog.isVisible()) {
     const popup = HE_THONG ? page.waitForEvent('popup') : null;
     await dialog.getByRole('button', { name: 'Xác thực' }).click();
     if (popup) await completePopup(await popup, user);
   }
-  await expect(xong).toBeVisible();
+  // Hệ thống thật ký số bất đồng bộ (MySign giả lập, TSA) rồi mới báo xong qua tác vụ 202.
+  await expect(xong).toBeVisible({ timeout: HE_THONG ? 60_000 : 5_000 });
 }
 
 /** Chọn một mục của p-select PrimeNG (danh sách hiện ở `body`); bấm lại tới khi danh sách mở. */

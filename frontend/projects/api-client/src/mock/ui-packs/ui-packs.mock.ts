@@ -422,7 +422,7 @@ function checks(v: UiPackVersion, mode: 'default' | 'elderly' = 'default'): UiPa
       : {
           code: 'SIZE',
           passed: true,
-          message: `Gói ${fmt(kb)} KB, trong ngân sách 30 KB.`,
+          message: 'Dung lượng giao diện trong giới hạn cho phép.',
         },
   );
   if (v.elderMode) {

@@ -20,8 +20,20 @@ import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Job, JobTracker } from '@vt/api-client';
-import { ORG_CHANGE_TYPE_LABEL, ORG_UNIT_TYPE_LABEL, OrgChangeOrder, OrgTimeQuery, OrgTreeApi, OrgUnitAssignment, OrgUnitDetail, OrgUnitVersion, UNIT_ASSIGNMENT_KIND_LABEL, orgImportErrors, orgUnitLevelLabel } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import {
+  ORG_CHANGE_TYPE_LABEL,
+  ORG_UNIT_TYPE_LABEL,
+  OrgChangeOrder,
+  OrgTimeQuery,
+  OrgTreeApi,
+  OrgUnitAssignment,
+  OrgUnitDetail,
+  OrgUnitVersion,
+  UNIT_ASSIGNMENT_KIND_LABEL,
+  orgImportErrors,
+  orgUnitLevelLabel,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
@@ -44,6 +56,7 @@ const FLOW_LABEL: Record<string, string> = {
 @Component({
   selector: 'vt-org-tree-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     ButtonModule,
     InputTextModule,
@@ -120,12 +133,6 @@ const FLOW_LABEL: Record<string, string> = {
 
     @if (asOf(); as d) {
       <p class="warnbox" role="status">{{ msg0108(date(d)) }}</p>
-    } @else if (!simple()) {
-      <p class="warnbox">
-        Cây hiển thị các đơn vị đang có hiệu lực. Chọn <strong>Xem tại ngày</strong>, ví dụ
-        30/06/2025 (trước sắp xếp đơn vị hành chính cấp xã 01/07/2025), để tái hiện đúng cơ cấu đã
-        dùng khi đánh giá quý II/2025; chế độ đó chỉ đọc.
-      </p>
     }
     @if (importJob(); as j) {
       <p-message
@@ -218,12 +225,20 @@ const FLOW_LABEL: Record<string, string> = {
                     {{ u.parentId ? (u.parentName ?? '') : 'Không có (đơn vị cấp cao nhất)' }}
                   </dd>
                   <dt>Đơn vị tiền thân</dt>
-                  <dd>{{ predecessorsText() }}</dd>
+                  <dd>
+                    @if (preds.isLoading()) {
+                      <vt-skeleton variant="text" [rows]="1" label="Đang tải đơn vị tiền thân" />
+                    } @else {
+                      {{ predecessorsText() }}
+                    }
+                  </dd>
                 </div>
               </dl>
             }
+          } @else if (unit.isLoading()) {
+            <vt-skeleton variant="detail" label="Đang tải thông tin đơn vị" />
           } @else {
-            <p class="muted" aria-busy="true">Chọn một đơn vị trên cây.</p>
+            <p class="muted">Chọn một đơn vị trên cây.</p>
           }
         </section>
 
@@ -260,7 +275,13 @@ const FLOW_LABEL: Record<string, string> = {
                     </span>
                   </li>
                 } @empty {
-                  <li class="muted">Chưa có thay đổi.</li>
+                  @if (history.isLoading()) {
+                    <li>
+                      <vt-skeleton variant="list" [rows]="3" label="Đang tải lịch sử thay đổi" />
+                    </li>
+                  } @else {
+                    <li class="muted">Chưa có thay đổi.</li>
+                  }
                 }
               </ol>
             </section>
@@ -288,11 +309,23 @@ const FLOW_LABEL: Record<string, string> = {
                       <td>
                         <span class="tag">{{ kindOf[a.kind] }}</span>
                       </td>
-                      <td>{{ period(a) }}</td>
+                      <td style="white-space: nowrap">{{ period(a) }}</td>
                     </tr>
                   } @empty {
                     <tr>
-                      <td colspan="4" class="muted">Không có phân công còn hiệu lực.</td>
+                      @if (assign.isLoading()) {
+                        <td colspan="4">
+                          <vt-skeleton
+                            variant="table"
+                            [header]="false"
+                            [columns]="4"
+                            [rows]="4"
+                            label="Đang tải phân công tại đơn vị"
+                          />
+                        </td>
+                      } @else {
+                        <td colspan="4" class="muted">Không có phân công còn hiệu lực.</td>
+                      }
                     </tr>
                   }
                 </tbody>
@@ -303,10 +336,6 @@ const FLOW_LABEL: Record<string, string> = {
                 Xem tất cả {{ allAssign().length }} phân công
               </button>
             }
-            <p class="muted small">
-              Người được điều động giữa kỳ được đánh giá theo Phụ lục 6: công tác tại đơn vị mới
-              dưới 2 tháng thì đơn vị cũ đánh giá.
-            </p>
           </section>
         </div>
       </div>
@@ -375,7 +404,7 @@ const FLOW_LABEL: Record<string, string> = {
     }
     .pair {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
       gap: 16px;
     }
     .pair.one {
@@ -571,7 +600,7 @@ export class OrgTreePage {
     this.unit.hasValue() ? this.unit.value() : null,
   );
   /** Tên đơn vị tiền thân: đọc từng đơn vị tại ngày trước hiệu lực của phiên bản đang xem. */
-  private readonly preds = rxResource({
+  protected readonly preds = rxResource({
     params: () => {
       const u = this.u();
       if (!u?.predecessorIds?.length) return undefined;
@@ -593,12 +622,12 @@ export class OrgTreePage {
   protected readonly predecessorsText = computed(() => {
     const ids = this.u()?.predecessorIds ?? [];
     if (!ids.length) return 'Không có';
-    if (!this.preds.hasValue()) return 'Đang tải…';
+    if (!this.preds.hasValue()) return '…';
     const names = this.preds.value().filter((n): n is string => !!n);
     return names.length ? names.join('; ') : `${ids.length} đơn vị`;
   });
   /** Vùng 4 chỉ theo trục ghi nhận: lịch sử là toàn bộ trục hiệu lực (hợp đồng không nhận `asOf`). */
-  private readonly history = rxResource({
+  protected readonly history = rxResource({
     params: this.params,
     stream: ({ params }) =>
       this.api.history(params.id, { recordedAsOf: params.t.recordedAsOf }, { limit: 50 }),
@@ -606,7 +635,7 @@ export class OrgTreePage {
   protected readonly historyRows = computed(() =>
     this.history.hasValue() ? this.history.value().items : [],
   );
-  private readonly assign = rxResource({
+  protected readonly assign = rxResource({
     params: this.params,
     stream: ({ params }) => this.api.assignments(params.id, params.t, { limit: 200 }),
   });
@@ -645,7 +674,7 @@ export class OrgTreePage {
   }
   protected period(a: OrgUnitAssignment) {
     const from = a.validFrom ? fmtDate(a.validFrom) : '';
-    return a.validTo ? `${from} → ${fmtDate(prevDay(a.validTo))}` : `${from} →`;
+    return a.validTo ? `${from} – ${fmtDate(prevDay(a.validTo))}` : `Từ ${from}`;
   }
   protected late(h: OrgUnitVersion): number {
     const days = Math.round(

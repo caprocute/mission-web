@@ -5,6 +5,7 @@ import { KeyResult, OkrApi, OkrPeerLink, ProblemPresenter, progressPct } from '@
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 import { CONFIDENCE_SHORT, confidenceSeverity, formatDate, formatValue } from '../../okr-ui';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 /**
  * Bảng bên phải SCR-0201 (Hình 7.3 vùng 4, 5): lịch sử check-in của KR đang chọn, vướng mắc gần
@@ -13,7 +14,7 @@ import { CONFIDENCE_SHORT, confidenceSeverity, formatDate, formatValue } from '.
  */
 @Component({
   selector: 'vt-kr-side-panel',
-  imports: [ButtonModule, TagModule, RouterLink],
+  imports: [VtSkeletonComponent, ButtonModule, TagModule, RouterLink],
   template: `
     @let k = kr();
     <section class="box" aria-labelledby="kr-hist-title">
@@ -21,7 +22,7 @@ import { CONFIDENCE_SHORT, confidenceSeverity, formatDate, formatValue } from '.
       @if (history.error()) {
         <p class="err" role="alert">{{ historyError() }}</p>
       } @else if (history.isLoading() && !history.hasValue()) {
-        <p class="muted" aria-live="polite">Đang tải lịch sử check-in…</p>
+        <vt-skeleton variant="list" [rows]="3" label="Đang tải lịch sử check-in" />
       } @else if (rows().length === 0) {
         <p class="muted">KR chưa có lần check-in nào.</p>
       } @else {
@@ -74,8 +75,7 @@ import { CONFIDENCE_SHORT, confidenceSeverity, formatDate, formatValue } from '.
             Xem tất cả {{ taskCount }} nhiệm vụ liên kết
           </a>
         }
-        <!-- BR-03-07 -->
-        <p class="note">Tiến độ nhiệm vụ không tự cộng vào giá trị KR.</p>
+        <!-- BR-03-07: tiến độ nhiệm vụ không tự cộng vào KR; nhắc ở màn hình check-in, không lặp ở đây -->
       }
       @if (canCheckIn()) {
         <p-button
@@ -92,19 +92,12 @@ import { CONFIDENCE_SHORT, confidenceSeverity, formatDate, formatValue } from '.
         @for (l of peerLinks(); track l.id) {
           <p>
             {{ l.fromLabel }} phối hợp với
-            <strong>{{ l.peerUnitName }} · {{ l.peerCode }} "{{ l.peerTitle }}"</strong>. Thay đổi
-            của bên kia được thông báo cho chủ sở hữu KR.
+            <strong>{{ l.peerUnitName }} · {{ l.peerCode }} "{{ l.peerTitle }}"</strong>.
           </p>
         }
       </section>
     }
-    <section class="box" aria-labelledby="rule-title">
-      <h2 class="h" id="rule-title">Mức tự tin thấp</h2>
-      <p>
-        KR có mức tự tin <strong>Thấp</strong> hai tuần liên tiếp được đưa lên bảng điều hành của
-        lãnh đạo đơn vị.
-      </p>
-    </section>
+    <!-- Quy tắc "tự tin Thấp hai tuần liên tiếp thì đưa lên bảng điều hành" chỉ báo khi xảy ra (okr-tree), không in thường trực -->
   `,
   styles: `
     /* Đỏ thương hiệu đậm hơn token chính (#ee0033 chỉ đạt 4,48:1 với nền trắng, xem WEB-059) để chữ và nền màu đạt WCAG AA */

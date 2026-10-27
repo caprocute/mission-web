@@ -34,7 +34,7 @@ import {
   jobLocation,
 } from '@vt/api-client';
 import { permittedOn } from '@vt/auth';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
@@ -75,6 +75,7 @@ const ROW_HEIGHT = 52;
 @Component({
   selector: 'vt-okr-tree-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     ScrollingModule,
     ButtonModule,
@@ -92,7 +93,7 @@ const ROW_HEIGHT = 52;
         <button type="button" class="linkbtn" (click)="tree.reload()">Thử lại</button>
       </p-message>
     } @else if (data(); as t) {
-      <header class="head">
+      <header class="vt-page-head head">
         <div>
           <h1>Cây mục tiêu OKR</h1>
           <p class="muted">
@@ -106,20 +107,47 @@ const ROW_HEIGHT = 52;
           </p>
         </div>
         <div class="actions">
-          @if (!simple()) {
-            <div class="seg" role="group" aria-label="Chế độ hiển thị">
-              @for (v of views; track v.value) {
-                <button
-                  type="button"
-                  [class.on]="view() === v.value"
-                  [attr.aria-pressed]="view() === v.value"
-                  (click)="setView(v.value)"
-                >
-                  {{ v.label }}
-                </button>
-              }
-            </div>
+          @if (canAssist()) {
+            <p-button
+              label="Trợ lý AI"
+              icon="pi pi-sparkles"
+              severity="secondary"
+              [text]="true"
+              data-act="tro-ly"
+              (onClick)="openAssistant()"
+            />
           }
+          @if (can('SCR-0203.xem')) {
+            <p-button
+              label="Phê duyệt OKR"
+              icon="pi pi-check-square"
+              severity="secondary"
+              [outlined]="true"
+              (onClick)="openReview()"
+            />
+          }
+          @if (canAdd()) {
+            <p-button label="Thêm mục tiêu" icon="pi pi-plus" (onClick)="addObjective()" />
+          }
+        </div>
+      </header>
+
+      <div class="toolbar">
+        @if (!simple()) {
+          <div class="seg" role="group" aria-label="Chế độ hiển thị">
+            @for (v of views; track v.value) {
+              <button
+                type="button"
+                [class.on]="view() === v.value"
+                [attr.aria-pressed]="view() === v.value"
+                (click)="setView(v.value)"
+              >
+                {{ v.label }}
+              </button>
+            }
+          </div>
+        }
+        <span class="period">
           <label for="okr-period" class="inline">Kỳ</label>
           <p-select
             inputId="okr-period"
@@ -130,40 +158,19 @@ const ROW_HEIGHT = 52;
             (ngModelChange)="setPeriod($event)"
             appendTo="body"
           />
-          @if (!simple()) {
-            <p-button
-              label="Xuất mẫu"
-              icon="pi pi-download"
-              severity="contrast"
-              [outlined]="true"
-              [loading]="exporting()"
-              [disabled]="t.objectives.length === 0"
-              (onClick)="exportReport()"
-            />
-          }
-          @if (can('SCR-0203.xem')) {
-            <p-button
-              label="Phê duyệt OKR"
-              icon="pi pi-check-square"
-              severity="contrast"
-              [outlined]="true"
-              (onClick)="openReview()"
-            />
-          }
-          @if (canAssist()) {
-            <p-button
-              label="Trợ lý AI"
-              icon="pi pi-sparkles"
-              severity="secondary"
-              data-act="tro-ly"
-              (onClick)="openAssistant()"
-            />
-          }
-          @if (canAdd()) {
-            <p-button label="Thêm mục tiêu" icon="pi pi-plus" (onClick)="addObjective()" />
-          }
-        </div>
-      </header>
+        </span>
+        @if (!simple()) {
+          <p-button
+            label="Xuất mẫu"
+            icon="pi pi-download"
+            severity="secondary"
+            [text]="true"
+            [loading]="exporting()"
+            [disabled]="t.objectives.length === 0"
+            (onClick)="exportReport()"
+          />
+        }
+      </div>
 
       @if (exportJob() || exportError()) {
         <section class="box" aria-label="Xuất mẫu báo cáo OKR">
@@ -366,7 +373,7 @@ const ROW_HEIGHT = 52;
         </div>
       }
     } @else {
-      <p class="muted" aria-live="polite">Đang tải cây mục tiêu…</p>
+      <vt-skeleton variant="tree" [rows]="8" label="Đang tải cây mục tiêu" />
     }
   `,
   styles: `
@@ -375,25 +382,19 @@ const ROW_HEIGHT = 52;
       --okr-accent: #c4002a;
     }
     .head {
+      margin-bottom: 12px;
+    }
+    .toolbar {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 16px;
+      gap: 12px;
       flex-wrap: wrap;
       margin-bottom: 16px;
-      padding: 18px 22px;
-      background: linear-gradient(135deg, #ffffff 0%, #fff8f9 100%);
-      border: 1px solid #e2e8f0;
-      border-left: 4px solid var(--okr-accent);
-      border-radius: 14px;
-      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
     }
-    h1 {
-      font-size: 1.45rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      color: #0f172a;
-      margin: 2px 0 4px;
+    .period {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
     }
     .muted {
       color: #4b5563;

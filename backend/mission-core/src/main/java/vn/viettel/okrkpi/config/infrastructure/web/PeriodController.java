@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import vn.viettel.okrkpi.config.application.NewPeriod;
 import vn.viettel.okrkpi.config.application.PeriodConfigService;
+import vn.viettel.okrkpi.config.application.PeriodLockService;
 import vn.viettel.okrkpi.config.application.PeriodView;
 import vn.viettel.okrkpi.config.application.port.PeriodRepository;
 import vn.viettel.okrkpi.config.domain.PeriodState;
@@ -56,14 +57,17 @@ public class PeriodController {
   private final CursorCodec cursors;
   private final Callers callers;
   private final ConfigIdempotency idempotency;
+  private final ObjectProvider<PeriodLockService> locks;
 
   public PeriodController(
       PeriodConfigService periods,
       CursorCodec cursors,
       ObjectProvider<AuthzSubjectResolver> subjects,
       ObjectProvider<PeriodCaller> callers,
-      ConfigIdempotency idempotency) {
+      ConfigIdempotency idempotency,
+      ObjectProvider<PeriodLockService> locks) {
     this.idempotency = Objects.requireNonNull(idempotency, "idempotency");
+    this.locks = Objects.requireNonNull(locks, "locks");
     this.periods = Objects.requireNonNull(periods, "periods");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
     this.callers = new Callers(subjects, callers);
@@ -135,6 +139,7 @@ public class PeriodController {
         periods
             .get(TenantContext.require(), PeriodId.of(id))
             .map(PeriodController::toDto)
+            .map(this::withLockOrder)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     return ETags.ok(dto, dto.getRowVersion());
   }
@@ -178,7 +183,19 @@ public class PeriodController {
         cursors.page(
             fetched, page, v -> CursorKey.of(v.period().startDate(), v.period().id().value()));
     return new PeriodPage(
-        result.items().stream().map(PeriodController::toDto).toList(), result.nextCursor());
+        result.items().stream().map(PeriodController::toDto).map(this::withLockOrder).toList(),
+        result.nextCursor());
+  }
+
+  /** Gắn lệnh khoá hiện hành của kỳ (không có bộ khoá kỳ trong ngữ cảnh thì để trống). */
+  private Period withLockOrder(Period dto) {
+    PeriodLockService service = locks.getIfAvailable();
+    if (service != null) {
+      service
+          .current(TenantContext.require(), PeriodId.of(dto.getId()))
+          .ifPresent(o -> dto.setCurrentLockOrder(PeriodLockController.toDto(o)));
+    }
+    return dto;
   }
 
   static Period toDto(PeriodView view) {

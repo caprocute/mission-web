@@ -19,8 +19,31 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { OrgApi, toProblem } from '@vt/api-client';
-import { ALERT_ACTION_LABEL, ALERT_NOTE_LIMITS, ALERT_SUBJECT_TYPE_LABEL, ALERT_VERDICT_LABEL, ANOMALY_ALERT_STATUS_LABEL, ANOMALY_OPEN_STATUSES, ANOMALY_SEVERITY_LABEL, ANOMALY_SIGNALS, ANOMALY_SIGNAL_LABEL, ANOMALY_SIGNAL_SUGGESTION, AlertActionInput, AlertApi, AlertFilter, AlertVerdict, AnomalyAlert, AnomalyAlertStatus, AnomalyAlertSummary, AnomalySeverity, AnomalySignalCode, EVIDENCE_CHAIN_KIND_LABEL, EvidenceChainNode, PeriodApi } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import {
+  ALERT_ACTION_LABEL,
+  ALERT_NOTE_LIMITS,
+  ALERT_SUBJECT_TYPE_LABEL,
+  ALERT_VERDICT_LABEL,
+  ANOMALY_ALERT_STATUS_LABEL,
+  ANOMALY_OPEN_STATUSES,
+  ANOMALY_SEVERITY_LABEL,
+  ANOMALY_SIGNALS,
+  ANOMALY_SIGNAL_LABEL,
+  ANOMALY_SIGNAL_SUGGESTION,
+  AlertActionInput,
+  AlertApi,
+  AlertFilter,
+  AlertVerdict,
+  AnomalyAlert,
+  AnomalyAlertStatus,
+  AnomalyAlertSummary,
+  AnomalySeverity,
+  AnomalySignalCode,
+  EVIDENCE_CHAIN_KIND_LABEL,
+  EvidenceChainNode,
+  PeriodApi,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { MultiSelectModule } from 'primeng/multiselect';
@@ -46,6 +69,7 @@ const CLOSED_STATUSES: AnomalyAlertStatus[] = [
 @Component({
   selector: 'vt-alert-center-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     NgTemplateOutlet,
     RouterLink,
@@ -63,7 +87,7 @@ const CLOSED_STATUSES: AnomalyAlertStatus[] = [
       <div>
         <h1>Trung tâm cảnh báo bất thường</h1>
         <p class="muted">
-          Hệ thống rà soát dữ liệu đánh giá lúc 02:00 hằng đêm để phát hiện tám dấu hiệu bất thường.
+          Các dấu hiệu bất thường được phát hiện từ dữ liệu đánh giá.
           @if (counts(); as k) {
             Trong 90 ngày qua có {{ k.newCount }} cảnh báo mới.
           }
@@ -82,7 +106,7 @@ const CLOSED_STATUSES: AnomalyAlertStatus[] = [
       <div>
         <!-- vùng 1 -->
         <section class="box" aria-labelledby="l-h">
-          <h2 class="h" id="l-h"><span class="num" aria-hidden="true">1</span> Cảnh báo</h2>
+          <h2 class="h" id="l-h">Cảnh báo</h2>
           <p-selectbutton
             [options]="views"
             optionLabel="label"
@@ -165,7 +189,7 @@ const CLOSED_STATUSES: AnomalyAlertStatus[] = [
               />
             }
           } @else {
-            <p class="muted">Đang tải…</p>
+            <vt-skeleton variant="list" [rows]="5" label="Đang tải cảnh báo" />
           }
         </section>
 
@@ -225,7 +249,7 @@ const CLOSED_STATUSES: AnomalyAlertStatus[] = [
           <!-- vùng 2 -->
           <section class="box" aria-labelledby="d-h" [attr.data-signal]="a.signalCode">
             <h2 class="h" id="d-h">
-              <span class="num" aria-hidden="true">2</span> {{ signalLabel[a.signalCode] }}
+              {{ signalLabel[a.signalCode] }}
               <p-tag
                 [value]="'Mức ' + severityLabel[a.severity].toLowerCase()"
                 [severity]="sevTone(a.severity)"
@@ -315,7 +339,7 @@ const CLOSED_STATUSES: AnomalyAlertStatus[] = [
 
           <!-- vùng 3 -->
           <section class="box" aria-labelledby="x-h">
-            <h2 class="h" id="x-h"><span class="num" aria-hidden="true">3</span> Xử lý</h2>
+            <h2 class="h" id="x-h">Xử lý</h2>
             @if (autoActions(a).length) {
               <h3 class="h3">Tác động tự động</h3>
               <ul class="plain-list">
@@ -355,7 +379,9 @@ const CLOSED_STATUSES: AnomalyAlertStatus[] = [
               </ul>
             }
 
-            @if (a.status === 'CO_VI_PHAM') {
+            @if (a.status === 'CO_VI_PHAM' && period.isLoading()) {
+              <vt-skeleton variant="text" [rows]="1" label="Đang tải trạng thái kỳ đánh giá" />
+            } @else if (a.status === 'CO_VI_PHAM') {
               <p-message severity="warn" styleClass="mt">
                 @if (periodLocked()) {
                   Kỳ {{ a.period?.label }} đã khoá. Kết luận có vi phạm cần được thi hành qua yêu
@@ -416,6 +442,7 @@ const CLOSED_STATUSES: AnomalyAlertStatus[] = [
                   <p-select
                     inputId="cb-assignee"
                     [options]="inspectors()"
+                    [loading]="persons.isLoading()"
                     optionLabel="label"
                     optionValue="value"
                     [ngModel]="assignee()"
@@ -467,7 +494,7 @@ const CLOSED_STATUSES: AnomalyAlertStatus[] = [
           </section>
         </div>
       } @else {
-        <section class="box"><p class="muted">Đang tải cảnh báo…</p></section>
+        <vt-skeleton variant="detail" label="Đang tải cảnh báo" />
       }
     </div>
   `,
@@ -661,7 +688,7 @@ export class AlertCenterPage {
   });
 
   /** Người được giao kiểm tra: hợp đồng chưa có danh mục cán bộ cơ quan kiểm tra, tạm dùng danh mục tổ chức. */
-  private readonly persons = rxResource({
+  protected readonly persons = rxResource({
     params: () => (this.current() && this.canHandle(this.current()!) ? true : undefined),
     stream: () => this.org.persons(),
   });
@@ -673,7 +700,7 @@ export class AlertCenterPage {
   );
 
   /** Trạng thái kỳ để chọn câu MSG-14-04 khi kết luận có vi phạm. */
-  private readonly period = rxResource({
+  protected readonly period = rxResource({
     params: () =>
       this.current()?.status === 'CO_VI_PHAM' ? this.current()?.period?.id : undefined,
     stream: ({ params }) => this.periods.get(params),

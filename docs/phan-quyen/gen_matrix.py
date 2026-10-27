@@ -15,8 +15,16 @@ Dùng:
   python3 docs/phan-quyen/gen_matrix.py --ts      # chỉ sinh lại tệp TypeScript
   python3 docs/phan-quyen/gen_matrix.py --rego    # chỉ sinh lại dữ liệu và ca kiểm thử của gói OPA (NEN-040)
   python3 docs/phan-quyen/gen_matrix.py --rego-check  # kiểm tra dữ liệu OPA có khớp ma trận không
+  python3 docs/phan-quyen/gen_matrix.py --bo-sung-api # thêm ô suy luận (*) vào bảng API cho đủ bao phủ rồi ghi lại ma-tran.json
 
-Chỉ cần Python 3 và openpyxl (không cài thêm gói nào).
+Mọi lệnh đều kiểm tra "bao phủ" trước: (1) bảng API theo module (OPA/mission-core kiểm bằng bảng này) phải
+cho ít nhất những phương thức mà ma trận chức năng (giao diện ẩn/hiện bằng bảng này) và hợp đồng OpenAPI
+(`x-mission.roles`) đã cấp cho cùng vai trò (kiem_bao_phu_api); (2) hợp đồng OpenAPI phải cấp vai trò cho
+mọi thao tác mà ma trận chức năng đã cấp, vì org-service kiểm theo `x-mission.roles` của từng operation
+(kiem_hop_dong_bao_phu_chuc_nang). Nếu không, người dùng thấy chức năng nhưng máy chủ trả 403 (YC-PT-21,
+24/10/2026). Lệch thì dừng với mã 1 và liệt kê từng ô.
+
+Chỉ cần Python 3 và openpyxl; có PyYAML thì kiểm thêm hợp đồng OpenAPI, không có thì bỏ qua phần hợp đồng.
 """
 import json
 import re
@@ -56,7 +64,199 @@ def load():
     missing = [s for s in d["man_hinh"] if s not in {f["scr"] for f in d["chuc_nang"]}]
     if missing:
         raise SystemExit(f"Màn hình chưa có dòng nào trong ma trận: {', '.join(missing)}")
+    if "--bo-sung-api" not in sys.argv:
+        thieu = kiem_bao_phu_api(d)
+        if thieu:
+            for t in thieu:
+                print(t, file=sys.stderr)
+            raise SystemExit(f"Bảng API thiếu {len(thieu)} ô so với ma trận chức năng/hợp đồng; "
+                             "chạy gen_matrix.py --bo-sung-api rồi rà lại ô đã thêm.")
+        lech = kiem_hop_dong_bao_phu_chuc_nang(d)
+        if lech:
+            for t in lech:
+                print(t, file=sys.stderr)
+            raise SystemExit(f"Hợp đồng OpenAPI thiếu {len(lech)} vai trò so với ma trận chức năng; "
+                             "thêm vai trò vào x-mission.roles hoặc bỏ ô trong ma trận.")
     return d, acs
+
+
+CONTRACTS = ROOT / "contracts" / "openapi" / "modules"
+METHOD_PREFIX_RE = re.compile(r"((?:GET|POST|PUT|PATCH|DELETE)(?:/(?:GET|POST|PUT|PATCH|DELETE))*)\s+`?$")
+API_PATH_RE = re.compile(r"/api/v1/([a-z][a-z0-9-]*)")
+FULL_API_PATH_RE = re.compile(r"(?:((?:GET|POST|PUT|PATCH|DELETE)(?:/(?:GET|POST|PUT|PATCH|DELETE))*)\s+)?`?(/api/v1/[^`\s,)]+)")
+# Vai trò kỹ thuật (AC-11 client credentials, AC-12 trợ lý AI) không đi qua giao diện; không kiểm bao phủ.
+USER_ROLE_SKIP_AC = {"AC-11", "AC-12"}
+# Tên realm role của AC-11 trong `x-mission.roles` của hợp đồng OpenAPI.
+CONTRACT_CLIENT_ROLE = "service_client"
+# Đường dẫn hợp đồng không đi qua bảng API theo module: tài nguyên tự phục vụ `/config/me/...` do luật
+# self_service của okrkpi.authz quyết định (CNH-02), báo truy cập bất thường không kiểm OPA, `/registry/resolve`
+# shell gọi trước khi có vai trò. Không được dùng chúng để mở rộng quyền ghi module `config` cho vai trò thường
+# (ca kiểm thử authz_test "member_still_cannot_put_other_config" giữ nguyên tắc này).
+CONTRACT_SKIP_RE = re.compile(r"^/(config/me(/|$)|config/security/report-suspicious$|registry/resolve$)")
+
+
+def _api_can_thiet_tu_chuc_nang(d):
+    """{(module, role): {method: [khoá chức năng]}} mà ma trận chức năng ngụ ý.
+
+    Ô có quyền của một chức năng web kéo theo quyền gọi API ghi trong cột `api`: đường dẫn có tiền tố
+    phương thức (`POST /api/v1/...`, `POST/PUT /api/v1/...`) đòi đúng phương thức đó; đường dẫn không
+    ghi phương thức chỉ đòi GET (mở màn hình là đọc), không suy đoán phương thức ghi. Ô ký hiệu R (Xem)
+    chỉ đòi GET dù cột `api` ghi phương thức ghi: vai trò chỉ xem không được suy ra quyền ghi.
+    """
+    out = {}
+    for f, role, read_only in _o_co_quyen(d):
+        for m in API_PATH_RE.finditer(f["api"]):
+            prefix = METHOD_PREFIX_RE.search(f["api"][max(0, m.start() - 40):m.start()])
+            methods = prefix.group(1).split("/") if prefix else ["GET"]
+            for meth in methods:
+                if read_only and meth != "GET":
+                    continue
+                out.setdefault((m.group(1), role), {}).setdefault(meth, []).append(f["key"])
+    return out
+
+
+def _o_co_quyen(d):
+    """Các bộ (chức năng web, vai trò người dùng, chỉ xem?) mà ma trận chức năng cấp quyền."""
+    role_of = {r["ac"]: r["role"] for r in d["vai_tro"]}
+    for f in d["chuc_nang"]:
+        if not f["web"]:
+            continue
+        for ac, v in f["quyen"].items():
+            if ac in USER_ROLE_SKIP_AC or v in ("-", "H") or v.startswith("A"):
+                continue
+            yield f, role_of[ac], v.startswith("R")
+
+
+def _hop_dong(d):
+    """{(METHOD, đường dẫn không tiền tố /api/v1): (operationId, [x-mission.roles])} của mọi hợp đồng; {} nếu thiếu PyYAML."""
+    try:
+        import yaml  # noqa: PLC0415 - tuỳ chọn, chỉ để đọc hợp đồng
+    except ImportError:
+        return {}
+    out = {}
+    for tep in sorted(CONTRACTS.glob("*.yaml")):
+        doc = yaml.safe_load(tep.read_text(encoding="utf-8")) or {}
+        for path, item in (doc.get("paths") or {}).items():
+            if not isinstance(item, dict):
+                continue
+            for meth, op in item.items():
+                if meth.upper() in HTTP_METHODS and isinstance(op, dict):
+                    mission = op.get("x-mission") or {}
+                    out[(meth.upper(), path)] = (op.get("operationId", f"{meth.upper()} {path}"),
+                                                 list(mission.get("roles", [])))
+    return out
+
+
+def kiem_hop_dong_bao_phu_chuc_nang(d):
+    """Hợp đồng OpenAPI phải cấp vai trò cho mọi thao tác mà ma trận chức năng đã cấp; trả về danh sách lệch.
+
+    org-service kiểm `x-mission.roles` theo từng operation (ContractPolicyAdapter), nên một vai trò có ô trong
+    ma trận chức năng mà không có trong `roles` của operation tương ứng sẽ thấy chức năng rồi bị 403
+    (ví dụ `inspector` với `GET /org/sync-runs`, lượt đo 24/10/2026). Chỉ xét đường dẫn trong cột `api` khớp
+    nguyên văn một đường dẫn hợp đồng và không kèm chuỗi truy vấn; operation không khai `roles` thì không xét.
+    """
+    ops = _hop_dong(d)
+    if not ops:
+        return []
+    lech = {}
+    for f, role, read_only in _o_co_quyen(d):
+        for m in FULL_API_PATH_RE.finditer(f["api"]):
+            methods = (m.group(1) or "GET").split("/")
+            path = m.group(2)[len("/api/v1"):]
+            if "?" in path:
+                # Đường dẫn kèm truy vấn (`/tasks?assignee=me`) là cách dùng tự phục vụ của một operation
+                # rộng hơn; vai trò ở đó do phạm vi quyết định, không so với `roles` của operation.
+                continue
+            for meth in methods:
+                if read_only and meth != "GET":
+                    continue
+                op = ops.get((meth, path))
+                if op and op[1] and role not in op[1]:
+                    lech.setdefault((meth, path, op[0], role), []).append(f["key"])
+    return [f"Hợp đồng {op} ({meth} {path}) chưa cấp cho {role} dù ma trận chức năng cấp ở {', '.join(sorted(set(keys)))}"
+            for (meth, path, op, role), keys in sorted(lech.items())]
+
+
+def _thao_tac_client(d):
+    """{operationId: {module, method}} của mọi thao tác hợp đồng khai `service_client` (AC-11)."""
+    ops = _hop_dong(d)
+    if not ops:
+        raise SystemExit("Sinh dữ liệu OPA cần PyYAML để đọc hợp đồng OpenAPI (thao tác của AC-11).")
+    out = {}
+    for (meth, path), (op_id, roles) in sorted(ops.items()):
+        if CONTRACT_CLIENT_ROLE in roles:
+            out[op_id] = {"module": path.strip("/").split("/")[0], "method": meth}
+    return out
+
+
+def _api_can_thiet_tu_hop_dong(d):
+    """{(module, role): {method: [operationId]}} mà `x-mission.roles` của hợp đồng OpenAPI cấp cho vai trò người dùng."""
+    user_roles = {r["role"] for r in d["vai_tro"] if r["ac"] not in USER_ROLE_SKIP_AC}
+    out = {}
+    for (meth, path), (op_id, roles) in _hop_dong(d).items():
+        if CONTRACT_SKIP_RE.match(path):
+            continue
+        module = path.strip("/").split("/")[0]
+        for role in roles:
+            if role in user_roles:
+                out.setdefault((module, role), {}).setdefault(meth, []).append(op_id)
+    return out
+
+
+def kiem_bao_phu_api(d):
+    """Danh sách ô bảng API còn thiếu so với ma trận chức năng và hợp đồng; rỗng là đạt."""
+    rows = {a["module"]: a for a in d["api"]}
+    ac_of = {r["role"]: r["ac"] for r in d["vai_tro"]}
+    thieu = []
+    for nguon, ten in ((_api_can_thiet_tu_chuc_nang(d), "ma trận chức năng"),
+                       (_api_can_thiet_tu_hop_dong(d), "hợp đồng")):
+        for (module, role), by_meth in sorted(nguon.items()):
+            row = rows.get(module)
+            if row is None:
+                # Module chưa có dòng API: OPA từ chối mọi vai trò; SCIM là đường của hệ ngoài (AC-11), không xét.
+                if module in ("Users", "Groups", "Schemas", "ResourceTypes", "ServiceProviderConfig"):
+                    continue
+                thieu.append(f"API {module}: chưa có dòng trong bảng API; {ten} cần {role} "
+                             f"{' '.join(sorted(by_meth))} ({', '.join(sorted(set(sum(by_meth.values(), [])))[:4])})")
+                continue
+            have = {t.rstrip("*") for t in row["quyen"].get(ac_of[role], "-").split() if t != "-"}
+            for meth, vi_du in sorted(by_meth.items()):
+                if meth not in have:
+                    thieu.append(f"API {module} {role} thiếu {meth} theo {ten}: {', '.join(sorted(set(vi_du))[:4])}")
+    return thieu
+
+
+def bo_sung_api(d):
+    """Thêm phương thức còn thiếu vào bảng API dưới dạng ô suy luận (`*`) và ghi chú; trả về số ô đã thêm."""
+    rows = {a["module"]: a for a in d["api"]}
+    ac_of = {r["role"]: r["ac"] for r in d["vai_tro"]}
+    acs = [r["ac"] for r in d["vai_tro"]]
+    them = 0
+    for nguon, ten in ((_api_can_thiet_tu_chuc_nang(d), "ma trận chức năng"),
+                       (_api_can_thiet_tu_hop_dong(d), "hợp đồng OpenAPI")):
+        for (module, role), by_meth in sorted(nguon.items()):
+            if module in ("Users", "Groups", "Schemas", "ResourceTypes", "ServiceProviderConfig"):
+                continue
+            row = rows.get(module)
+            if row is None:
+                row = {"module": module, "quyen": {ac: "-" for ac in acs},
+                       "ghi_chu": "Bổ sung 24/10/2026 từ hợp đồng OpenAPI (suy luận).", "nguon": "contracts/openapi",
+                       "ngoai_baseline": True}
+                d["api"].append(row)
+                rows[module] = row
+            ac = ac_of[role]
+            toks = [t for t in row["quyen"].get(ac, "-").split() if t != "-"]
+            have = {t.rstrip("*") for t in toks}
+            moi = [m for m in HTTP_METHODS if m in by_meth and m not in have]
+            if not moi:
+                continue
+            toks += [m + "*" for m in moi]
+            row["quyen"][ac] = " ".join(sorted(toks, key=lambda t: HTTP_METHODS.index(t.rstrip("*"))))
+            vi_du = sorted({x for m in moi for x in by_meth[m]})[:3]
+            ghi = f"{role} {' '.join(moi)} theo {ten} ({', '.join(vi_du)})"
+            row["ghi_chu"] = (row.get("ghi_chu", "").rstrip() + " Bổ sung 24/10/2026 (suy luận, YC-PT-21): " + ghi + ".").strip()
+            them += len(moi)
+    return them
 
 
 def esc(s):
@@ -339,6 +539,76 @@ def ts_source(d):
 REGO_DIR = ROOT / "backend" / "opa" / "okrkpi"
 REGO_DATA = REGO_DIR / "generated" / "data.json"
 REGO_CASES = REGO_DIR / "matrix_cases_test.rego"
+# Danh mục quyền cho vai trò tuỳ chỉnh (CORE-08-18, BS-04): GET /config/permission-catalog của MOD-08
+CATALOG = (ROOT / "backend" / "mission-core" / "src" / "main" / "resources" / "vn" / "viettel" / "okrkpi" / "config"
+           / "domain" / "permission-catalog.json")
+# Bản sao cho dữ liệu giả lập của web (`useMockApi`), cùng nội dung với bản của mission-core.
+MOCK_CATALOG = ROOT / "frontend" / "projects" / "api-client" / "src" / "mock" / "custom-roles" / "permission-catalog.json"
+# Vai trò không dùng làm vai trò gốc của vai trò tuỳ chỉnh (BS-04 mục giới hạn; ba vai trò cần duyệt thứ hai)
+NOT_CUSTOMIZABLE = {"tenant_admin", "platform_admin", "decider", "second_approver", "policy_author"}
+# Tên chức năng hiển thị cho người quản trị (YC-PT-24): bỏ ghi chú kỹ thuật trong ngoặc, mã trạng thái, mã màn hình.
+TECH_PAREN_RE = re.compile(r"\s*\((?:[^()]*(?:`|SCR-|tác vụ|bước \d|phiên bản n|JSON|PDF/A|C2|step-up|thư ký|chủ trì)[^()]*)\)")
+TEN_HIEN_THI = {
+    "SCR-0102.buoc-4-5": "Khai báo đăng nhập tập trung, kiểm tra kết nối, nhập tổ chức ban đầu",
+    "SCR-0102.kich-hoat": "Kích hoạt tenant",
+    "SCR-0102.huy": "Huỷ yêu cầu khởi tạo tenant",
+    "SCR-0105.duyet": "Duyệt thứ hai hoặc từ chối đề nghị cấp vai trò cần duyệt",
+    "SCR-0503.nhan-viec": "Nhận việc",
+    "SCR-0602.rut": "Rút lại đề nghị đang chờ duyệt của mình",
+    "SCR-0902.xem": "Xem hàng đợi, chi tiết hồ sơ, mở minh chứng",
+    "SCR-0902.xuat": "Xuất danh sách hàng đợi",
+    "SCR-0903.tai-mau-1b": "Tải Mẫu 1B đã ký",
+    "SCR-1101.thu-ky": "Ghi ý kiến tại hội nghị, lập biên bản",
+    "SCR-1101.ket-thuc": "Kết thúc hội nghị, khởi động ký biên bản",
+    "SCR-1301.duyet-1": "Phê duyệt thứ nhất, ký số",
+    "SCR-1301.duyet-2": "Phê duyệt thứ hai, ký số, mở lại kỳ",
+    "SCR-1302.xuat": "Xuất bằng chứng kèm chữ ký",
+    "SCR-1602.chia-se": "Chia sẻ bảng theo dõi (riêng, đơn vị, toàn tenant)",
+    "SCR-1603.xuat": "Xuất chuỗi bằng chứng",
+    "SCR-1801.quay-lui": "Quay lui về phiên bản tương thích",
+    "SCR-0801.xem": "Xem danh sách kỳ, lệnh khoá kỳ và tiến trình chốt kỳ",
+    "SCR-1102.tai-goi": "Tải gói hồ sơ hội nghị",
+    "SCR-1502.soan": "Soạn bảng quyết định, lưu nháp, xuất tệp",
+    "SCR-1505.de-nghi-phat-hanh": "Đề nghị phát hành mẫu luồng kèm tham số và kiểm thử",
+}
+
+
+# Ngoặc chứa từ kỹ thuật bị bỏ hẳn; từ kỹ thuật ngoài ngoặc thay theo bảng từ của wiki/16 (YC-PT-24).
+TECH_WORD_PAREN_RE = re.compile(r"\s*\((?:[^()]*(?:SSO|VNeID|MFA|wizard|desktop|saga|BS-\d|four-eyes|UI Pack|"
+                                r"mẫu \+ tham số|nội bộ nền tảng|Viettel|BA cấu hình)[^()]*)\)")
+TU_THAY_THE = [("Policy Pack", "bộ quy định đánh giá"), ("UI Pack", "bộ giao diện"), ("tenant", "đơn vị triển khai"),
+               ("Tenant", "Đơn vị triển khai"), (", BA cấu hình", ""), (" (four-eyes)", ""),
+               ("lên engine từng cell", "trên từng cụm máy chủ"), ("saga", "tiến trình"),
+               ("xác thực MFA", "xác thực nhiều lớp"), ("tải theo cell", "tải theo cụm máy chủ"),
+               ("trên engine kiểm thử riêng", "trên môi trường kiểm thử riêng"), (" cell", " cụm máy chủ")]
+
+
+# Tên vai trò trên giao diện, trùng ROLE_CODE_LABEL của @vt/api-client (baseline mục 10).
+TEN_VAI_TRO = {
+    "platform_admin": "Quản trị nền tảng",
+    "tenant_admin": "Quản trị đơn vị",
+    "policy_author": "Quản trị nghiệp vụ",
+    "leader": "Lãnh đạo đơn vị",
+    "manager": "Cán bộ quản lý trực tiếp",
+    "member": "Cán bộ, công chức, viên chức",
+    "appraiser": "Cán bộ thẩm định",
+    "decider": "Người có thẩm quyền quyết định",
+    "second_approver": "Người duyệt thứ hai",
+    "inspector": "Cán bộ kiểm tra, giám sát",
+}
+
+
+def clean_name(ten):
+    """Tên hiển thị không còn mã thiết kế hay từ kỹ thuật (YC-PT-10, YC-PT-24; wiki/16)."""
+    out = TECH_WORD_PAREN_RE.sub("", TECH_PAREN_RE.sub("", ten))
+    for a, b in TU_THAY_THE:
+        out = out.replace(a, b)
+    out = out.strip()
+    return out[:1].upper() + out[1:]
+
+
+def display_name(key, ten):
+    return clean_name(TEN_HIEN_THI.get(key, ten))
 
 SCOPE_CODES = ("B", "Gn", "Đv", "Cd", "Tn", "N")
 SCOPE_TOKEN_RE = re.compile(r"(?<![\w-])(B|Gn|Đv|Cd|Tn|N)(?![\w-])")
@@ -572,6 +842,11 @@ def rego_data(d):
                                                          key=HTTP_METHODS.index)}
         api[row["module"]] = {"roles": m, "outside_baseline": row["ngoai_baseline"]}
 
+    # AC-11 không có ô nào trong bảng API theo module: hệ thống ngoài và service nội bộ chỉ được gọi đúng những
+    # thao tác mà hợp đồng khai `service_client` (OPA so `request.operation`), không được cả module. Thiếu bảng này
+    # thì cổng dịch vụ như `listDashboardDefs` (CORE-08-17) bị từ chối `role_not_allowed` (lượt đo 25/10/2026).
+    client_operations = _thao_tac_client(d)
+
     classification = {role_of[r["ac"]]: {k: _classification(r[k]) for k in ("C0", "C1", "C2", "C3")}
                       for r in d["muc_du_lieu"]}
 
@@ -589,6 +864,7 @@ def rego_data(d):
         "roles": roles,
         "functions": functions,
         "api": api,
+        "client_operations": client_operations,
         "classification": classification,
         "constraints": constraints,
     }
@@ -649,20 +925,64 @@ def rego_cases(data):
                 f"function_cases[\"{g}\"] := ["]
         out += [f"\t{_rego_obj(c)}," for c in groups[g]]
         out += ["]"]
-    out += ["", f"# {len(acases)} ca API: module x vai trò x phương thức", "api_cases := ["]
-    out += [f"\t{_rego_obj(c)}," for c in acases]
-    out += ["]", ""]
+    # Ca API chia theo module, cùng lý do thời hạn như trên
+    out += ["", f"# {len(acases)} ca API: module x vai trò x phương thức"]
+    for mod in sorted({c["module"] for c in acases}):
+        out += ["", f"test_api_matrix_{mod} if api_group_ok(\"{mod}\")", "", f"api_cases[\"{mod}\"] := ["]
+        out += [f"\t{_rego_obj(c)}," for c in acases if c["module"] == mod]
+        out += ["]"]
+    out += [""]
     return "\n".join(out)
+
+
+def catalog(d, data):
+    """Danh mục quyền theo nhóm quy trình > màn hình > chức năng, dạng `PermissionCatalog` của config.yaml.
+    Phạm vi viết theo hợp đồng (`Dv` thay cho `Đv`)."""
+    api_scope = lambda s: "Dv" if s == "Đv" else s
+    roles = []
+    for r in d["vai_tro"]:
+        meta = data["roles"][r["role"]]
+        if meta["kind"] != "user":
+            continue
+        roles.append({"code": r["role"], "name": TEN_VAI_TRO.get(r["role"], clean_name(r["ten"])), "description": clean_name(r["mo_ta"]), "aal2": meta["aal2"],
+                      "customizable": r["role"] not in NOT_CUSTOMIZABLE})
+    groups = []
+    for qt, qt_name in d["quy_trinh"].items():
+        screens = []
+        for scr, scr_name in d["man_hinh"].items():
+            fns = []
+            for f in d["chuc_nang"]:
+                if f["qt"] != qt or f["scr"] != scr or not f["web"]:
+                    continue
+                g = data["functions"][f["key"]]["grants"]
+                grants = {role: {"level": v["level"], "scope": api_scope(v["scope"]), "inferred": v["inferred"]}
+                          for role, v in sorted(g.items())
+                          if role in data["roles"] and data["roles"][role]["kind"] == "user" and v["scope"]}
+                if grants:
+                    fns.append({"key": f["key"], "name": display_name(f["key"], f["ten"]), "grants": grants})
+            if fns:
+                screens.append({"code": scr, "name": clean_name(scr_name), "functions": fns})
+        if screens:
+            groups.append({"code": qt, "name": clean_name(qt_name), "screens": screens})
+    return {"version": data["meta"]["matrix_version"], "roles": roles, "groups": groups}
 
 
 def rego_outputs(d):
     data = rego_data(d)
     return {REGO_DATA: json.dumps(data, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-            REGO_CASES: rego_cases(data)}
+            REGO_CASES: rego_cases(data),
+            CATALOG: json.dumps(catalog(d, data), ensure_ascii=False, indent=1) + "\n",
+            MOCK_CATALOG: json.dumps(catalog(d, data), ensure_ascii=False, indent=1) + "\n"}
 
 
 def main(argv):
     d, acs = load()
+    if "--bo-sung-api" in argv:
+        n = bo_sung_api(d)
+        DATA.write_text(json.dumps(d, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        con = kiem_bao_phu_api(d)
+        print(f"Đã thêm {n} ô suy luận vào bảng API; còn thiếu {len(con)}. Chạy lại gen_matrix.py và --rego để sinh đầu ra.")
+        return 1 if con else 0
     if "--rego" in argv or "--rego-check" in argv:
         # Chỉ đụng tới backend/opa (NEN-040); không sinh lại xlsx, Markdown hay TypeScript
         outs = rego_outputs(d)
@@ -678,7 +998,7 @@ def main(argv):
             p.parent.mkdir(parents=True, exist_ok=True)
             if not p.exists() or p.read_text(encoding="utf-8") != t:
                 p.write_text(t, encoding="utf-8")
-        print(f"Đã sinh dữ liệu OPA: {len(outs)} tệp trong {REGO_DIR.relative_to(ROOT)}.")
+        print(f"Đã sinh dữ liệu OPA và danh mục quyền: {len(outs)} tệp.")
         return 0
     blocks = md_blocks(d, acs)
     old = WIKI.read_text(encoding="utf-8")

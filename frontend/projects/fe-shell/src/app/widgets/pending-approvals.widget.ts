@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { CardModule } from 'primeng/card';
 import { BadgeModule } from 'primeng/badge';
 
-/** `vt.widget.pendingApprovals`: hộp việc chờ duyệt (lấy từ workflow-service ở giai đoạn sau). */
+/** `vt.widget.pendingApprovals`: hộp việc chờ duyệt (số liệu lấy từ workflow-service ở giai đoạn sau). */
 @Component({
   selector: 'vt-pending-approvals-widget',
   imports: [CardModule, BadgeModule],
@@ -29,6 +29,9 @@ import { BadgeModule } from 'primeng/badge';
       justify-content: space-between;
       padding: 10px 0;
       border-bottom: 1px solid var(--p-content-border-color, #eee);
+    }
+    li:last-child {
+      border-bottom: 0;
     }
   `,
 })

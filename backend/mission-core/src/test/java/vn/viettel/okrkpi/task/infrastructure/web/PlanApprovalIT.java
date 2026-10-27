@@ -259,6 +259,18 @@ class PlanApprovalIT extends ContractConformanceTest {
     assertThat(request.getValue().callerToken()).isEqualTo(TOKEN);
     assertThat(request.getValue().signMethod()).isEqualTo("MYSIGN");
 
+    // Giao diện đọc lại phiên bản sau 202 để theo dõi yêu cầu ký (PlanVersion.signRequestId), và
+    // kế hoạch báo số lần điều chỉnh tối đa để mở nút "Tạo điều chỉnh" (Plan.adjustmentsMax).
+    MvcResult reread = perform(get("/api/v1/plans/" + id + "/versions/1"));
+    assertThat(body(reread).get("signRequestId").asText()).isEqualTo(signRequest.toString());
+    assertResponseConforms(reread, "/plans/{id}/versions/{v}", PathItem.HttpMethod.GET);
+    MvcResult planRead = perform(get("/api/v1/plans").param("period", period.toString()));
+    assertThat(planRead.getResponse().getStatus())
+        .as(planRead.getResponse().getContentAsString(StandardCharsets.UTF_8))
+        .isEqualTo(200);
+    assertThat(body(planRead).get("items").get(0).get("adjustmentsMax").asInt()).isEqualTo(2);
+    assertResponseConforms(planRead, "/plans", PathItem.HttpMethod.GET);
+
     // Job theo dõi được bởi chính người duyệt; nguồn ký trả băm đã khoá và người được ký.
     InMemoryJobRegistry.setActorOverride(new ActorId(HEAD));
     MvcResult job = perform(get("/api/v1/jobs/" + signRequest));

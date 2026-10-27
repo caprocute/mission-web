@@ -15,8 +15,17 @@ import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { OkrApi, OrgApi, SimilarTask, TASK_STATUS_LABEL, TaskApi, toProblem } from '@vt/api-client';
-import { AiApi, AssignBatchResult, CatalogApi, SOURCE_DOC_STATUS_LABEL, SOURCE_SYSTEM_LABEL, SourceDocApi, TaskSuggestion, TaskSuggestionFields } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import {
+  AiApi,
+  AssignBatchResult,
+  CatalogApi,
+  SOURCE_DOC_STATUS_LABEL,
+  SOURCE_SYSTEM_LABEL,
+  SourceDocApi,
+  TaskSuggestion,
+  TaskSuggestionFields,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { TagModule } from 'primeng/tag';
@@ -32,6 +41,7 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
 @Component({
   selector: 'vt-from-document-page',
   imports: [
+    VtSkeletonComponent,
     DatePipe,
     FormsModule,
     RouterLink,
@@ -99,13 +109,9 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
       <div class="layout">
         <section class="doc" aria-labelledby="doc-title">
           <h2 id="doc-title" class="h">
-            <span class="num" aria-hidden="true">1</span>
             {{ d.docNumber }} · {{ date(d.docDate) }}
             <p-tag [value]="system(d.sourceSystem)" severity="info" />
-            <span class="muted small"
-              >· nhận lúc {{ d.receivedAt | date: 'dd/MM HH:mm' }} · văn bản điện tử
-              {{ d.format }}</span
-            >
+            <span class="muted small">· nhận lúc {{ d.receivedAt | date: 'dd/MM HH:mm' }}</span>
           </h2>
           <div class="paper">
             <p class="issuer">{{ d.issuerHeader }}</p>
@@ -142,7 +148,6 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
           @let x = extraction.value();
           <div class="ai-head">
             <h2 id="ai-title" class="h">
-              <span class="num" aria-hidden="true">2</span>
               <span class="ai-label"
                 >Nội dung do AI tạo
                 @if (x && !simple()) {
@@ -151,12 +156,12 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
               </span>
             </h2>
             <p class="muted small msg07">
-              Ô viền tím do AI điền. Sửa ô nào thì ô đó thành dữ liệu do người nhập.
+              Ô viền tím do AI điền; đồng chí kiểm tra và sửa nếu cần.
             </p>
           </div>
 
           @if (extraction.isLoading()) {
-            <p class="muted">Đang tải nhiệm vụ AI trích…</p>
+            <vt-skeleton variant="list" [rows]="3" label="Đang tải nhiệm vụ trích từ văn bản" />
           } @else if (x?.status === 'DANG_TRICH') {
             <p class="muted">AI đang trích nhiệm vụ từ văn bản này, vui lòng mở lại sau ít phút.</p>
           } @else if (x?.status === 'KHONG_TRICH_DUOC') {
@@ -181,6 +186,9 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
                 [units]="units()"
                 [catalog]="catalog()"
                 [keyResults]="keyResults()"
+                [unitsLoading]="unitsRes.isLoading()"
+                [catalogLoading]="catalogRes.isLoading()"
+                [keyResultsLoading]="template.isLoading() || krRes.isLoading()"
                 [maxDate]="period()?.endDate"
                 [errors]="s.id === selectedId() ? fieldErrors() : {}"
                 (pick)="select(s)"
@@ -193,7 +201,6 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
               @if (s.decision === 'CHO_XAC_NHAN' && s.similar.length) {
                 @let old = s.similar[0];
                 <div class="dup" role="note">
-                  <span class="num" aria-hidden="true">3</span>
                   <div>
                     <p>
                       Nhiệm vụ {{ n }} gần giống <strong>{{ old.code }}</strong> "{{ old.title }}"
@@ -220,7 +227,6 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
 
               @if (can('SCR-0502.xac-nhan') && d.status === 'CHO_XU_LY') {
                 <div class="bar" role="group" [attr.aria-label]="'Xử lý nhiệm vụ ' + n">
-                  <span class="num" aria-hidden="true">4</span>
                   @if (s.decision === 'CHO_XAC_NHAN') {
                     <p-button
                       [label]="s.id === editingId() ? 'Xong sửa' : 'Sửa'"
@@ -304,13 +310,12 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
         (confirmed)="dismiss($event)"
       />
     } @else {
-      <p class="muted">Đang tải văn bản…</p>
+      <vt-skeleton variant="detail" label="Đang tải văn bản" />
     }
   `,
   styles: `
     :host {
       display: block;
-      padding: 16px 24px;
     }
     .top {
       display: flex;
@@ -520,10 +525,16 @@ export class FromDocumentPage {
     params: () => (this.can('SCR-0502.nhan-van-ban') ? this.id() : undefined),
     stream: ({ params }) => this.ai.extraction(params),
   });
-  private readonly template = rxResource({ stream: () => this.taskApi.newDraft() });
-  private readonly unitsRes = rxResource({ stream: () => this.orgApi.units('unit') });
-  private readonly catalogRes = rxResource({ stream: () => this.catalogApi.items({ limit: 200 }) });
-  private readonly krRes = rxResource({
+  // skeleton-ok: chỉ cấp kỳ (hạn tối đa, kỳ nạp KR); ô chọn KR trong vt-suggestion-card gắn [loading] theo nó
+  protected readonly template = rxResource({ stream: () => this.taskApi.newDraft() });
+  // skeleton-ok: chỉ cấp lựa chọn cho ô chọn đơn vị trong vt-suggestion-card, ô đó gắn [loading]
+  protected readonly unitsRes = rxResource({ stream: () => this.orgApi.units('unit') });
+  // skeleton-ok: chỉ cấp lựa chọn cho ô chọn danh mục trong vt-suggestion-card, ô đó gắn [loading]
+  protected readonly catalogRes = rxResource({
+    stream: () => this.catalogApi.items({ limit: 200 }),
+  });
+  // skeleton-ok: chỉ cấp lựa chọn cho ô chọn KR trong vt-suggestion-card, ô đó gắn [loading]
+  protected readonly krRes = rxResource({
     params: () => this.template.value()?.period.id,
     stream: ({ params }) =>
       params ? this.okrApi.keyResults(params) : of({ items: [], nextCursor: null }),

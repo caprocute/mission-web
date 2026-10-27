@@ -381,15 +381,17 @@ export function checkPlan(
     if (!removed.find((r) => r.originItemId === b.id)?.changeReason?.trim())
       add('BR-04-10', 'CHAN', `Dòng "${b.title}" bị bỏ so với phiên bản đã duyệt, cần ghi lý do.`);
   }
-  for (const g of ['THUONG_XUYEN', 'THEN_CHOT'] as TaskGroup[]) {
-    const max = fixture.groupWeights[g];
-    if (totals[g] > max)
-      add(
-        'BR-04-06',
-        'CHAN',
-        `Tổng điểm nhóm ${GROUP_LABEL[g]} là ${totals[g]}, vượt điểm tối đa ${max}.`,
-      );
-  }
+  // BR-04-06 như máy chủ: điểm dòng là trọng số trong nhóm, nhóm có việc đạt đủ điểm tối đa, nhóm
+  // chưa có việc chấm điểm chỉ cảnh báo (TL-02 QT-04, SCR-0403)
+  if (totals.THUONG_XUYEN + totals.THEN_CHOT > 0)
+    for (const g of ['THUONG_XUYEN', 'THEN_CHOT'] as TaskGroup[]) {
+      if (totals[g] <= 0)
+        warnings.push({
+          rule: 'BR-04-06',
+          level: 'CANH_BAO',
+          message: `Tổng điểm nhóm ${GROUP_LABEL[g]} là 0, chưa đạt điểm tối đa ${fixture.groupWeights[g]}.`,
+        });
+    }
   out.push(...warnings);
   const linked = new Set(items.map((i) => i.keyResultId).filter(Boolean));
   for (const k of keyResults().filter((k) => !linked.has(k.id)))
@@ -616,6 +618,31 @@ function returnPlan(req: MockRequest): MockResponse {
   return ok(versionOf(hit.p, hit.v), etag(hit.v));
 }
 
+/** Định điểm việc ngoài danh mục của phiên bản chờ duyệt (BR-04-05, `scoreOffCatalogPlanItem`). */
+function scoreItem(req: MockRequest): MockResponse {
+  const hit = pending(req);
+  if ('status' in hit) return hit;
+  const item = hit.v.items.find((i) => i.id === req.pathParams['itemId']);
+  if (!item) return problem(404, 'Không tìm thấy công việc trong kế hoạch');
+  if (item.catalogItemId)
+    return problem(422, 'Công việc trong danh mục đã có điểm theo danh mục', {
+      errors: [{ field: 'itemId', message: 'Chỉ định điểm việc ngoài danh mục', rule: 'BR-04-05' }],
+    });
+  const body = req.body as { difficulty?: number; standardScore?: number };
+  const d = Number(body?.difficulty);
+  const sc = Number(body?.standardScore);
+  const errors = [];
+  if (!Number.isInteger(d) || d < 1 || d > 5)
+    errors.push({ field: 'difficulty', message: 'Mức khó từ 1 đến 5', rule: 'BR-04-14' });
+  if (!(sc >= 0.5 && sc <= 50))
+    errors.push({ field: 'standardScore', message: 'Điểm chuẩn từ 0,5 đến 50', rule: 'BR-04-05' });
+  if (errors.length) return problem(422, 'Điểm định cho công việc chưa hợp lệ', { errors });
+  item.standardScore = sc;
+  item.pendingScore = false;
+  hit.v.rowVersion += 1;
+  return ok(versionOf(hit.p, hit.v), etag(hit.v));
+}
+
 /** "Duyệt và ký số": BR-04-08, MFA trong 15 phút, rồi tạo yêu cầu ký 120 giây (MSG-04-09), trả 202 Job. */
 function approve(req: MockRequest): MockResponse {
   const hit = pending(req);
@@ -640,6 +667,12 @@ function approve(req: MockRequest): MockResponse {
     };
     return r;
   }
+  // như máy chủ: sau tách vai trò và MFA mới kiểm việc ngoài danh mục chưa định điểm
+  const unscored = v.items.filter((i) => !i.catalogItemId && i.standardScore == null).length;
+  if (unscored)
+    return problem(422, 'Dữ liệu chưa hợp lệ', {
+      detail: `Còn ${unscored} công việc ngoài danh mục chưa được định điểm`,
+    });
   const body = req.body as { signMethod?: SignMethod; comment?: string };
   if (body?.signMethod !== 'MYSIGN')
     return problem(422, 'Chứng thư số chưa liên kết', {
@@ -790,6 +823,11 @@ export const PLANS_MOCK: MockModule = {
     { method: 'POST', pattern: '/api/v1/plans/:id/versions', handle: createAdjustment },
     { method: 'GET', pattern: '/api/v1/plans/:id/versions/:v/diff', handle: diff },
     { method: 'POST', pattern: '/api/v1/plans/:id/versions/:v/return', handle: returnPlan },
+    {
+      method: 'POST',
+      pattern: '/api/v1/plans/:id/versions/:v/items/:itemId/score',
+      handle: scoreItem,
+    },
     { method: 'POST', pattern: '/api/v1/plans/:id/versions/:v/approve', handle: approve },
     { method: 'GET', pattern: '/api/v1/esign/requests/:id', handle: signStatus },
   ],

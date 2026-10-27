@@ -59,10 +59,42 @@ const ENUM_WORDS = (() => {
   return [...set];
 })();
 
+/**
+ * Tiền tố mã thiết kế nội bộ (màn hình, quy trình, quy tắc nghiệp vụ, thông điệp, yêu cầu…). Hàm
+ * `legalRefText` của `@vt/api-client` lọc các mã này khỏi trường căn cứ đến từ dữ liệu, với danh sách
+ * `INTERNAL_CODE_PREFIXES` phải trùng danh sách này (`check.mjs` kiểm).
+ */
+export const DESIGN_CODE_PREFIXES = [
+  'SCR',
+  'QT',
+  'BR',
+  'MSG',
+  'ADR',
+  'EVT',
+  'MOD',
+  'SVC',
+  'NFR',
+  'SEC',
+  'OPS',
+  'PERF',
+  'DR',
+  'AC',
+  'TL',
+  'WEB',
+  'BS',
+  'YC',
+  'TASK',
+  'DV',
+];
+
 export const RULES = [
   {
     id: 'ma-thiet-ke',
-    re: /\b(SCR|QT|BR|MSG|ADR|EVT|MOD|SVC|NFR|SEC|OPS|PERF|DR|AC|TL|WEB|BS|YC)-\d[\w.-]*/,
+    // Ranh giới trước mã giống `legalRefText`: mã danh mục nghiệp vụ như "TC-DV-01" không phải mã thiết kế
+    re: new RegExp(
+      `(?<![\\p{L}\\d_-])(${DESIGN_CODE_PREFIXES.join('|')})-([A-Z]{1,4}-)?\\d[\\w.-]*`,
+      'u',
+    ),
     sentenceOnly: true,
     hint: 'Bỏ mã thiết kế khỏi văn bản hiển thị; giữ trong chú thích mã nguồn hoặc thuộc tính data-*.',
   },
@@ -115,5 +147,13 @@ export const RULES = [
     id: 'xung-ho',
     re: /\b(anh\/chị|Anh\/chị|anh chị|Anh chị|bạn hãy|Bạn hãy)\b/,
     hint: 'Xưng hô thống nhất "đồng chí" (wiki/16).',
+  },
+  {
+    id: 'dang-tai-tron',
+    // YC-PT-28: vùng dữ liệu đang tải hiện khung xương, không in chữ "Đang tải…"; tiến độ gửi hay
+    // nhận tệp ("Đang tải lên…", "Đang tải xuống…") là trạng thái thao tác nên được phép
+    re: /Đang tải(?! lên| xuống| tệp)[^…]*(…|\.\.\.)/,
+    allow: [/bản mới nhất để so sánh/],
+    hint: 'Vùng dữ liệu đang tải dùng <vt-skeleton> của @vt/design-system với bố cục gần nội dung sắp hiện, không in chữ "Đang tải…".',
   },
 ];

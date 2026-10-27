@@ -1,8 +1,21 @@
 import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { fieldErrors, toProblem } from '@vt/api-client';
-import { DAY_KIND_LABEL, POLICY_VERSION_STATUS_LABEL, PolicyApi, PolicyRounding, PolicyRule, PolicyRuleSaved, QUALITY_METHOD_LABEL, RATING_LEVEL_LABEL, RETURN_REASON_LABEL, ROUNDING_MODE_LABEL, RatingLevel, policyVersionLabel } from '@vt/api-client/domains';
+import { LegalRefPipe, fieldErrors, toProblem } from '@vt/api-client';
+import {
+  DAY_KIND_LABEL,
+  POLICY_VERSION_STATUS_LABEL,
+  PolicyApi,
+  PolicyRounding,
+  PolicyRule,
+  PolicyRuleSaved,
+  QUALITY_METHOD_LABEL,
+  RATING_LEVEL_LABEL,
+  RETURN_REASON_LABEL,
+  ROUNDING_MODE_LABEL,
+  RatingLevel,
+  policyVersionLabel,
+} from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { concatMap, from, tap, toArray } from 'rxjs';
 import { STUDIO_ACCESS } from '../../studio-permissions';
@@ -10,6 +23,7 @@ import { errorText, fmtNum } from '../../studio-ui';
 import { celSyntaxError, unknownVariables } from './cel-check';
 import { PolicyDiffDialog, PolicyExpressionsDialog, PolicySubmitDialog } from './policy-dialogs';
 import { PolicyWorkspace } from './policy-workspace';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 /**
  * Ba khối của điểm KPI nhiệm vụ (PL 3): số lượng, chất lượng, tiến độ. Gói nhập từ `policy.yaml` đặt
@@ -33,11 +47,13 @@ const GROUP_TOTAL_NHA_NUOC = 70;
 @Component({
   selector: 'vt-formula-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     ButtonModule,
     PolicyDiffDialog,
     PolicyExpressionsDialog,
     PolicySubmitDialog,
+    LegalRefPipe,
   ],
   template: `
     <div class="toolbar">
@@ -105,14 +121,16 @@ const GROUP_TOTAL_NHA_NUOC = 70;
     }
     @if (rules.error()) {
       <p class="err" role="alert">Không tải được công thức. Vui lòng thử lại.</p>
+    } @else if (rules.isLoading() && !rules.hasValue()) {
+      <vt-skeleton variant="cards" [rows]="3" label="Đang tải công thức" />
     }
 
     @if (rule('kpi_nhiem_vu'); as kpi) {
       <section class="card" aria-labelledby="h-kpi">
         <div class="card-head">
           <h2 id="h-kpi">Công thức điểm KPI của nhiệm vụ</h2>
-          @if (kpi.legalRef) {
-            <span class="tag">{{ kpi.legalRef }}</span>
+          @if (kpi.legalRef | legalRef; as lr) {
+            <span class="tag">{{ lr }}</span>
           }
         </div>
         <p class="strip" data-testid="kpi-strip">
@@ -371,8 +389,14 @@ const GROUP_TOTAL_NHA_NUOC = 70;
             @if (dirty().length) {
               <p class="small muted">Kết quả theo bản đã lưu; lưu nháp để xem theo thay đổi mới.</p>
             }
-          } @else if (preview.isLoading()) {
-            <p class="muted">Đang tính…</p>
+          } @else if (cases.isLoading() || preview.isLoading()) {
+            <vt-skeleton
+              variant="table"
+              [header]="false"
+              [columns]="3"
+              [rows]="4"
+              label="Đang tính thử với hồ sơ mẫu"
+            />
           }
         </section>
       </div>

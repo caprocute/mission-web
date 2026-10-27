@@ -29,7 +29,7 @@ import {
   TaskDetail,
   toProblem,
 } from '@vt/api-client';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { TabsModule } from 'primeng/tabs';
@@ -63,6 +63,7 @@ export function coefficient(lateWorkingDays: number): number {
 @Component({
   selector: 'vt-task-detail-page',
   imports: [
+    VtSkeletonComponent,
     RouterLink,
     ButtonModule,
     MessageModule,
@@ -182,7 +183,7 @@ export function coefficient(lateWorkingDays: number): number {
           [text]="
             'Nhiệm vụ đã quá hạn ' +
             late(t) +
-            ' ngày làm việc. Hệ số tiến độ dự kiến C = ' +
+            ' ngày làm việc; điểm tiến độ dự kiến còn ' +
             cText(t) +
             '.'
           "
@@ -415,8 +416,10 @@ export function coefficient(lateWorkingDays: number): number {
           <section class="box">
             <h2 class="h">Thông tin</h2>
             <dl>
-              <dt>Nguồn</dt>
-              <dd>{{ t.sourceRef ?? '—' }}</dd>
+              @if (t.sourceRef) {
+                <dt>Văn bản nguồn</dt>
+                <dd>{{ t.sourceRef }}</dd>
+              }
               <dt>Đơn vị</dt>
               <dd>{{ t.unitName }}</dd>
               <dt>Người giao</dt>
@@ -461,7 +464,7 @@ export function coefficient(lateWorkingDays: number): number {
           }
           @if (!simple()) {
             <section class="box">
-              <h2 class="h">Vòng đời</h2>
+              <h2 class="h">Tiến trình xử lý</h2>
               <ol class="steps">
                 @for (s of lifecycle; track s) {
                   <li
@@ -511,7 +514,7 @@ export function coefficient(lateWorkingDays: number): number {
         (saved)="onDecided($event)"
       />
     } @else {
-      <p class="muted" aria-busy="true">Đang tải nhiệm vụ…</p>
+      <vt-skeleton variant="detail" label="Đang tải nhiệm vụ" />
     }
   `,
   styles: `
@@ -817,7 +820,7 @@ export class TaskDetailPage {
   protected lead(t: TaskDetail) {
     return (
       t.coAssignees.find((c) => c.role === 'CHU_TRI')?.name ??
-      (t.role === 'CHU_TRI' ? 'Đồng chí (người đang xem)' : '—')
+      (t.role === 'CHU_TRI' ? 'Đồng chí' : '—')
     );
   }
   protected kind(k: keyof typeof CAUSE_KIND_LABEL) {

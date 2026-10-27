@@ -25,6 +25,7 @@ import vn.viettel.okrkpi.MissionCoreTestDatabase;
 import vn.viettel.okrkpi.appraisal.application.scoring.ScoringInputService;
 import vn.viettel.okrkpi.appraisal.application.scoring.port.ScoringInputRepository.ScoringInput;
 import vn.viettel.okrkpi.appraisal.domain.selfassessment.SelfAssessmentForm;
+import vn.viettel.okrkpi.platform.db.migration.TestPostgres;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 
@@ -152,11 +153,8 @@ class ScoringInputIT {
 
   private static SingleConnectionDataSource connect(UUID tenantId) throws SQLException {
     Connection c =
-        DriverManager.getConnection(
-            pg.getJdbcUrl(), "svc_appraisal", MissionCoreTestDatabase.TEST_DB_PASSWORD);
-    try (Statement st = c.createStatement()) {
-      st.execute("SET app.tenant_id = '" + tenantId + "'");
-    }
+        TestPostgres.connectAsTenant(
+            pg.getJdbcUrl(), "svc_appraisal", MissionCoreTestDatabase.TEST_DB_PASSWORD, tenantId);
     return new SingleConnectionDataSource(c, true);
   }
 

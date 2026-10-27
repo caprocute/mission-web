@@ -78,8 +78,14 @@
 <div class="layout" [class.one]="simple()">
   <section class="card" aria-labelledby="an-list">
     <h2 id="an-list" class="sr">Bảng tổng hợp xếp loại năm</h2>
-    @if (data.isLoading() && !rows().length) {
-      <p class="muted" role="status">Đang tải…</p>
+    <!-- Bảng chờ cả danh sách kỳ: khi kỳ chưa về, tài nguyên bảng còn chờ tham số, chưa "đang tải" -->
+    @if ((periods.isLoading() || data.isLoading()) && !rows().length) {
+      <vt-skeleton
+        variant="table"
+        [columns]="5"
+        [header]="false"
+        label="Đang tải bảng tổng hợp xếp loại năm"
+      />
     } @else if (!rows().length && data.hasValue()) {
       <p class="muted" role="status">
         {{ warningsOnly() ? 'Không có hồ sơ có cảnh báo liên thông.' : 'Chưa có hồ sơ năm.' }}
@@ -169,7 +175,9 @@
   @if (selected(); as s) {
     <aside class="card side" aria-labelledby="an-ex" aria-live="polite">
       <h2 id="an-ex">Giải thích liên thông · {{ s.person.name }}</h2>
-      @if (explanation.error()) {
+      @if (s.annualScore === null || s.annualScore === undefined) {
+        <p class="msg">Hồ sơ chưa có điểm năm nên chưa có phần giải thích.</p>
+      } @else if (explanation.error()) {
         <p class="msg err" role="alert">Chưa tải được giải thích của hồ sơ này.</p>
       } @else if (ex(); as e) {
         <p>
@@ -213,7 +221,7 @@
           khoá giữ nguyên quy định đã áp dụng tại thời điểm khoá.
         </p>
       } @else {
-        <p class="muted" role="status">Đang tải giải thích…</p>
+        <vt-skeleton variant="text" [rows]="4" label="Đang tải giải thích" />
       }
       @if (s.reassignFlag) {
         <div class="reassign">

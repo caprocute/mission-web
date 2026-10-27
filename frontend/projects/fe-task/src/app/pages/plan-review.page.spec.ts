@@ -8,7 +8,7 @@ import {
   idempotencyInterceptor,
   mockApiInterceptor,
 } from '@vt/api-client';
-import { of } from 'rxjs';
+import { firstValueFrom, of } from 'rxjs';
 import { TASK_CAN } from '../task-permissions';
 import { PlanReviewPage } from './plan-review.page';
 import { PLAN_STEP_UP } from './plan/step-up';
@@ -101,6 +101,37 @@ describe('PlanReviewPage (SCR-0403)', () => {
     expect(el.querySelectorAll('.tbl tbody tr')).toHaveLength(6);
     expect([...el.querySelectorAll('.tbl th')].map(text)).not.toContain('Thay đổi');
     expect(text(el.querySelector('.msg.info'))).toContain('chưa gửi duyệt');
+  });
+
+  it('BR-04-05: định điểm việc ngoài danh mục trước khi bật duyệt và ký số', async () => {
+    await render('.tbl tbody tr', () => true, {}, 'plan-2027-q1');
+    const { PlanApi } = await import('@vt/api-client/domains');
+    const api = TestBed.inject(PlanApi);
+    const p = (await firstValueFrom(api.list())).find((x) => x.id === 'plan-2027-q1')!;
+    const ws = await firstValueFrom(api.workspace(p));
+    const saved = await firstValueFrom(api.save(p.id, ws.version, ws.version.items.slice(0, 5)));
+    await firstValueFrom(api.submit(p.id, saved));
+    const fixture = TestBed.createComponent(PlanReviewPage);
+    fixture.componentRef.setInput('id', p.id);
+    fixture.autoDetectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    await until(el, '.score-row');
+    const duyet = () =>
+      [...el.querySelectorAll('button')].find((b) => text(b) === 'Duyệt và ký số')!;
+    expect(duyet().disabled).toBe(true);
+    const row = el.querySelector('.score-row')!;
+    const sel = row.querySelector('select') as HTMLSelectElement;
+    sel.value = sel.options[3].value;
+    sel.dispatchEvent(new Event('change'));
+    const input = row.querySelector('input') as HTMLInputElement;
+    input.value = '7.5';
+    input.dispatchEvent(new Event('input'));
+    await until(el, '.score-row button', (b) => !(b as HTMLButtonElement).disabled);
+    (row.querySelector('button') as HTMLButtonElement).click();
+    await until(el, '.msg.ok', (e) => text(e).startsWith('Đã định điểm'));
+    await until(el, '.dec-actions', () => !el.querySelector('.score-row'));
+    expect(el.querySelector('.score-row')).toBeNull();
+    expect(duyet().disabled).toBe(false);
   });
 
   it('trả lại bắt buộc ý kiến, sau đó kế hoạch thành TRA_LAI', async () => {

@@ -27,10 +27,11 @@ import {
   loadSheddingInterceptor,
   mockApiInterceptor,
   FeatureFlagService,
+  MyCustomRolesLoader,
   mockApiActive,
   setMockHomeBase,
 } from '@vt/api-client';
-import { SessionService, authInterceptor, provideVtAuth } from '@vt/auth';
+import { PermissionService, SessionService, authInterceptor, provideVtAuth } from '@vt/auth';
 import { provideDesignSystem } from '@vt/design-system';
 import {
   BUILTIN_SDUI_COMPONENTS,
@@ -163,6 +164,31 @@ export function buildAppConfig(
         return session.ready.then(() => {
           if (cfg.auth.enabled && !session.isAuthenticated()) return;
           return flags.load();
+        });
+      }),
+      // Vai trò tuỳ chỉnh của tenant (BS-04): chỉ người giữ vai trò `tc_…` mới cần nạp định nghĩa để
+      // menu, tuyến và nút mở đúng các chức năng đã chọn; nạp lại khi đổi phân công.
+      provideAppInitializer(() => {
+        const loader = inject(MyCustomRolesLoader);
+        const permissions = inject(PermissionService);
+        const session = inject(SessionService);
+        const refresh = async () => {
+          const roles = session.user()?.roles ?? [];
+          permissions.setCustomRoles(
+            roles.some((r) => String(r).startsWith('tc_')) ? await loader.load() : [],
+          );
+        };
+        let loaded = session.assignment()?.id;
+        effect(() => {
+          const id = session.assignment()?.id;
+          if (id !== loaded) {
+            loaded = id;
+            void refresh();
+          }
+        });
+        return session.ready.then(() => {
+          if (cfg.auth.enabled && !session.isAuthenticated()) return;
+          return refresh();
         });
       }),
     ],

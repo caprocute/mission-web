@@ -12,7 +12,15 @@ import { Router, RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { last } from 'rxjs';
 import { JobAccepted, JobTracker, toProblem } from '@vt/api-client';
-import { WF_ROLLOUT_STATUS_LABEL, WF_TEMPLATE_STATUS_LABEL, WfLintIssue, WorkflowTemplate, WorkflowTemplateApi, WorkflowTemplateSummary, lintBpmn } from '@vt/api-client/domains';
+import {
+  WF_ROLLOUT_STATUS_LABEL,
+  WF_TEMPLATE_STATUS_LABEL,
+  WfLintIssue,
+  WorkflowTemplate,
+  WorkflowTemplateApi,
+  WorkflowTemplateSummary,
+  lintBpmn,
+} from '@vt/api-client/domains';
 import { STUDIO_ACCESS } from '../../studio-permissions';
 import { STUDIO_STEP_UP } from '../../studio-step-up';
 import { errorText, fmtDate, jobErrorText, problemCode } from '../../studio-ui';
@@ -29,6 +37,7 @@ import {
   paramsFromSchema,
   schemaFromParams,
 } from './wf-model';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 /*
  * SCR-1505 Thư viện và trình soạn mẫu luồng (nội bộ nền tảng), QT-15, BS-01 (đã duyệt 19/10/2026).
@@ -50,7 +59,7 @@ const titleOf = (code: string) => WF_TITLE[code] ?? 'Mẫu quy trình';
 
 @Component({
   selector: 'vt-wf-templates-page',
-  imports: [RouterLink, ButtonModule, WfDiagram, WfFlowEditor],
+  imports: [VtSkeletonComponent, RouterLink, ButtonModule, WfDiagram, WfFlowEditor],
   template: `
     <h1>Mẫu quy trình dùng chung</h1>
     <p class="sub">
@@ -68,7 +77,7 @@ const titleOf = (code: string) => WF_TITLE[code] ?? 'Mẫu quy trình';
         @if (list.error()) {
           <p class="err">Không tải được thư viện mẫu.</p>
         } @else if (!list.value()) {
-          <p>Đang tải…</p>
+          <vt-skeleton variant="list" [rows]="5" label="Đang tải thư viện mẫu" />
         }
         @for (g of groups(); track g.code) {
           <h2>{{ g.title }}</h2>
@@ -247,9 +256,17 @@ const titleOf = (code: string) => WF_TITLE[code] ?? 'Mẫu quy trình';
               Triển khai cuốn chiếu ngoài giờ cao điểm: cụm thí điểm nội bộ trước, các cụm lớn sau
               cùng. Lỗi ở một cụm thì đặt lại phiên bản trước làm mặc định.
             </p>
+          } @else if (t.status === 'HIEU_LUC' && rollouts.isLoading()) {
+            <h2 id="ro-h">Triển khai lên các cụm máy chủ</h2>
+            <vt-skeleton
+              variant="table"
+              [columns]="3"
+              [rows]="3"
+              label="Đang tải tình hình triển khai"
+            />
           }
         } @else {
-          <p>Đang tải…</p>
+          <vt-skeleton variant="detail" label="Đang tải mẫu quy trình" />
         }
       </section>
 

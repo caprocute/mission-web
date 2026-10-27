@@ -261,7 +261,7 @@ copy_source() {
   commit="$(git -C "${REPO_ROOT}" rev-parse --short HEAD)"
   echo "==> Chép mã nguồn commit ${commit} vào ${DEV_SERVER_REPO_DIR} (git archive; .env, data/ trên máy chủ không bị đụng)"
   git -C "${REPO_ROOT}" archive --format=tar HEAD |
-    remote "mkdir -p $(printf '%q' "${DEV_SERVER_REPO_DIR}") && tar -C $(printf '%q' "${DEV_SERVER_REPO_DIR}") -xf - && chmod +x $(printf '%q' "${NEW_INFRA_DIR}")/scripts/*.sh"
+    remote "mkdir -p $(printf '%q' "${DEV_SERVER_REPO_DIR}") && tar -C $(printf '%q' "${DEV_SERVER_REPO_DIR}") -xf - && chmod +x $(printf '%q' "${NEW_INFRA_DIR}")/scripts/*.sh && mkdir -p $(printf '%q' "${NEW_INFRA_DIR}/debezium/vt-outbox-smt")"
 }
 
 ensure_env() {
@@ -284,6 +284,13 @@ build_and_copy_jars() {
     (cd "${REPO_ROOT}/backend/${m}" && tar -cf - target/*.jar) |
       remote "mkdir -p $(printf '%q' "${DEV_SERVER_REPO_DIR}/backend/${m}") && rm -f $(printf '%q' "${DEV_SERVER_REPO_DIR}/backend/${m}")/target/*.jar && tar -C $(printf '%q' "${DEV_SERVER_REPO_DIR}/backend/${m}") -xf -"
   done
+  # dang-ky-outbox.sh dựng jar SMT từ jar vt-platform-starter; máy chủ không có Maven nên chép kèm.
+  m="libs/vt-platform-starter"
+  if compgen -G "${REPO_ROOT}/backend/${m}/target/vt-platform-starter-*.jar" >/dev/null; then
+    echo "  chép backend/${m}/target/*.jar (cho dang-ky-outbox.sh)"
+    (cd "${REPO_ROOT}/backend/${m}" && tar -cf - target/vt-platform-starter-*.jar) |
+      remote "mkdir -p $(printf '%q' "${DEV_SERVER_REPO_DIR}/backend/${m}") && rm -f $(printf '%q' "${DEV_SERVER_REPO_DIR}/backend/${m}")/target/*.jar && tar -C $(printf '%q' "${DEV_SERVER_REPO_DIR}/backend/${m}") -xf -"
+  fi
 }
 
 # Bản web dựng trên máy trạm khi có Node: esbuild của `ng build` treo trên máy chủ CentOS 7 tải cao. Ảnh web khi

@@ -4,10 +4,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
@@ -19,6 +23,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.support.TransactionOperations;
 import vn.viettel.okrkpi.evidence.application.ObjectStorage.Part;
 import vn.viettel.okrkpi.evidence.application.ObjectStorage.StoredObject;
@@ -34,6 +39,7 @@ import vn.viettel.okrkpi.evidence.domain.UploadSession.Status;
 import vn.viettel.okrkpi.shared.audit.C2Access;
 import vn.viettel.okrkpi.shared.authz.RequiresPermission;
 import vn.viettel.okrkpi.shared.error.BusinessException;
+import vn.viettel.okrkpi.shared.idempotency.IdempotencyExceptions;
 import vn.viettel.okrkpi.shared.kernel.Ids;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 
@@ -164,6 +170,18 @@ public class UploadService {
   /** {@code createFileUpload}: kiểm kiểu và kích thước (SEC-48), mở multipart ở bucket tạm. */
   @RequiresPermission(operationId = "createFileUpload")
   public UploadSession create(CreateUpload cmd, UUID actor) {
+    return create(cmd, actor, null);
+  }
+
+  /**
+   * Như {@link #create(CreateUpload, UUID)} nhưng tự chống gửi trùng theo {@code Idempotency-Key}:
+   * mã phiên cố định theo tenant, người gọi và khoá, gọi lại cùng khoá trả lại phiên đã mở. Không
+   * dùng {@code @Idempotent} vì thư viện giữ giao dịch CSDL suốt thời gian chạy phương thức, còn mở
+   * phiên phải gọi kho đối tượng và OpenBao; khi các lời gọi đó chậm, kết nối đứng chờ trong giao
+   * dịch bị CSDL cắt ({@code idle_in_transaction_session_timeout}) và lệnh SQL kế tiếp lỗi 08P01.
+   */
+  @RequiresPermission(operationId = "createFileUpload")
+  public UploadSession create(CreateUpload cmd, UUID actor, String idempotencyKey) {
     UUID tenant = TenantContext.require().value();
     FileKind kind =
         FileKind.ofMediaType(cmd.mediaType())
@@ -180,7 +198,13 @@ public class UploadService {
       throw new BusinessException("FILE-413-TOO-LARGE");
     }
     byte[] sha = parseSha(cmd.declaredSha256Hex());
-    UUID id = Ids.newUuidV7();
+    UUID id = idempotencyKey == null ? Ids.newUuidV7() : sessionIdOf(tenant, actor, idempotencyKey);
+    if (idempotencyKey != null) {
+      Optional<UploadSession> opened = tx.execute(t -> sessions.find(id));
+      if (opened.isPresent()) {
+        return replay(opened.get(), cmd, sha, actor);
+      }
+    }
     String stagingBucket = ObjectLocation.stagingBucketOf(settings.cell());
     storage.ensureStagingBucket(stagingBucket, 2);
     String rgwUploadId =
@@ -205,8 +229,56 @@ public class UploadService {
             cmd.ownerRefId(),
             name.ciphertext(),
             name.dekId());
-    tx.executeWithoutResult(s -> sessions.insert(session));
+    try {
+      tx.executeWithoutResult(s -> sessions.insert(session));
+    } catch (DuplicateKeyException e) {
+      // Hai lời gọi cùng khoá chạy song song: giữ phiên đã ghi trước, huỷ multipart vừa mở thừa.
+      storage.abortMultipart(ObjectLocation.staging(settings.cell(), tenant, id), rgwUploadId);
+      return replay(tx.execute(t -> sessions.find(id)).orElseThrow(() -> e), cmd, sha, actor);
+    }
     return session;
+  }
+
+  /** Mã phiên của một lần mở có khoá chống gửi trùng: cố định theo tenant, người gọi và khoá. */
+  static UUID sessionIdOf(UUID tenant, UUID actor, String idempotencyKey) {
+    if (idempotencyKey.isEmpty()
+        || idempotencyKey.length() > 64
+        || idempotencyKey.chars().anyMatch(c -> c < 0x21 || c > 0x7e)) {
+      throw new IdempotencyExceptions.KeyRequired(true);
+    }
+    try {
+      byte[] h =
+          MessageDigest.getInstance("SHA-256")
+              .digest(
+                  ("upload:" + tenant + ":" + actor + ":" + idempotencyKey)
+                      .getBytes(StandardCharsets.UTF_8));
+      h[6] = (byte) ((h[6] & 0x0f) | 0x80);
+      h[8] = (byte) ((h[8] & 0x3f) | 0x80);
+      long hi = 0;
+      long lo = 0;
+      for (int i = 0; i < 8; i++) {
+        hi = (hi << 8) | (h[i] & 0xff);
+        lo = (lo << 8) | (h[i + 8] & 0xff);
+      }
+      return new UUID(hi, lo);
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /** Phiên đã mở bằng cùng khoá: trả lại khi cùng nội dung yêu cầu, ngược lại báo khoá dùng sai. */
+  private static UploadSession replay(UploadSession s, CreateUpload cmd, byte[] sha, UUID actor) {
+    boolean same =
+        s.userId().equals(actor)
+            && Arrays.equals(s.declaredSha256(), sha)
+            && s.declaredSize() == cmd.declaredSize()
+            && Objects.equals(s.classification(), cmd.classification())
+            && Objects.equals(s.ownerModule(), cmd.ownerModule())
+            && Objects.equals(s.ownerRefId(), cmd.ownerRefId());
+    if (!same) {
+      throw new IdempotencyExceptions.Mismatch();
+    }
+    return s;
   }
 
   /** {@code getFileUpload}: trạng thái và các phần đã nhận để tải tiếp. */

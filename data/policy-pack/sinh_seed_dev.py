@@ -9,6 +9,15 @@ GoldenSuiteYaml) ở trạng thái đã duyệt, không ký số. Chỉ dùng ch
 
 Cách chạy (từ gốc repo, cần PyYAML), rồi commit tệp SQL:
     python3 -I data/policy-pack/sinh_seed_dev.py > infra/dev/postgres/seed/policy-goi-mau.sql
+Gói chính quyền cho cùng tenant thử (tiền tố d2 để mã không trùng gói Đảng):
+    POLICY_GOI=data/policy-pack/khoi-chinh-quyen/nd335 POLICY_UID_PREFIX=d2 POLICY_SECTOR=KHOI_CHINH_QUYEN \
+        python3 -I data/policy-pack/sinh_seed_dev.py > infra/dev/postgres/seed/policy-goi-mau-nha-nuoc.sql
+
+Sinh cho tenant khác (bộ dữ liệu thử đa tenant, data/seed/da-tenant) bằng biến môi trường: POLICY_GOI (thư mục gói,
+tương đối gốc repo), POLICY_TENANT (UUID tenant), POLICY_UID_PREFIX (hai ký tự hex đầu UUID của bộ dữ liệu, để mã
+gói, phiên bản, quy tắc không trùng tenant khác), POLICY_SECTOR (KHOI_DANG, KHOI_CHINH_QUYEN, DOANH_NGHIEP),
+POLICY_ACTOR, POLICY_APPROVER (UUID người soạn, người duyệt ca mẫu, khác nhau). Ví dụ trong
+data/seed/da-tenant/sinh_seed.py (hàm `sinh_policy`).
 """
 import hashlib
 import json
@@ -20,13 +29,16 @@ import xml.etree.ElementTree as ET
 import yaml
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-GOI = os.path.join(REPO, "data/policy-pack/khoi-dang/quy-dinh-moi")
-TENANT = "d0000000-0000-4000-8000-000000000001"
-ACTOR = "00000000-0000-7000-8000-000000000000"
+GOI_TUONG_DOI = os.environ.get("POLICY_GOI", "data/policy-pack/khoi-dang/quy-dinh-moi")
+GOI = os.path.join(REPO, GOI_TUONG_DOI)
+TENANT = os.environ.get("POLICY_TENANT", "d0000000-0000-4000-8000-000000000001")
+ACTOR = os.environ.get("POLICY_ACTOR", "00000000-0000-7000-8000-000000000000")
 # Người duyệt ca mẫu khác người soạn (BR-15-08), tài khoản kỹ thuật của seed.
-APPROVER = "00000000-0000-7000-8000-000000000001"
-PACK_ID = "d0000000-0000-4000-8000-0000000c0001"
-VERSION_ID = "d0000000-0000-4000-8000-0000000c0021"
+APPROVER = os.environ.get("POLICY_APPROVER", "00000000-0000-7000-8000-000000000001")
+UID_PREFIX = os.environ.get("POLICY_UID_PREFIX", "d0")
+SECTOR = os.environ.get("POLICY_SECTOR", "KHOI_DANG")
+PACK_ID = f"{UID_PREFIX}000000-0000-4000-8000-0000000c0001"
+VERSION_ID = f"{UID_PREFIX}000000-0000-4000-8000-0000000c0021"
 NS = {"d": "https://www.omg.org/spec/DMN/20211108/MODEL/"}
 NGUON_CA = {"KHACH_HANG", "BA", "VAN_BAN"}
 THAM_SO = re.compile(r"tham_so\.([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)")
@@ -41,7 +53,7 @@ def q(v):
 
 
 def uid(n):
-    return f"d0000000-0000-4000-8000-{n:012x}"
+    return f"{UID_PREFIX}000000-0000-4000-8000-{n:012x}"
 
 
 def bang(meta):
@@ -156,9 +168,9 @@ def main():
     cases = ca_mau(suite)
     w = sys.stdout.write
     w(
-        "-- SINH TỰ ĐỘNG bởi data/policy-pack/sinh_seed_dev.py từ data/policy-pack/khoi-dang/quy-dinh-moi, không sửa tay.\n"
-        "-- Policy Pack giả lập luồng Đảng cho tenant thử (MOD-05, QT-15, SCR-1501..SCR-1503): hợp đồng chưa có API\n"
-        "-- tạo gói nên seed làm việc của importPack (gói + phiên bản nháp 2.1.0, manifest từ policy.yaml, quy tắc từ\n"
+        f"-- SINH TỰ ĐỘNG bởi data/policy-pack/sinh_seed_dev.py từ {GOI_TUONG_DOI}, không sửa tay.\n"
+        f"-- Policy Pack giả lập luồng {meta['luong']} cho tenant thử {TENANT} (MOD-05, QT-15, SCR-1501..SCR-1503): hợp đồng chưa có API\n"
+        f"-- tạo gói nên seed làm việc của importPack (gói + phiên bản nháp {meta['version']}, manifest từ policy.yaml, quy tắc từ\n"
         "-- definitions), thêm ba bảng quyết định từ dmn/ và bộ ca mẫu đã duyệt, chưa ký số. Chỉ dữ liệu dev. Chạy\n"
         "-- lại không sinh bản ghi trùng và không đụng phiên bản đã đóng băng (chỉ chèn dòng còn thiếu). Nạp bởi\n"
         "-- scripts/seed-org.sh.\n"
@@ -166,7 +178,7 @@ def main():
     )
     w(
         "INSERT INTO policy.policy_pack (id, tenant_id, created_by, updated_by, code, name, sector, flow, origin, legal_basis)\n"
-        f"SELECT '{PACK_ID}', '{TENANT}', '{ACTOR}', '{ACTOR}', {q(meta['id'])}, {q(meta['ten'])}, 'KHOI_DANG',\n"
+        f"SELECT '{PACK_ID}', '{TENANT}', '{ACTOR}', '{ACTOR}', {q(meta['id'])}, {q(meta['ten'])}, '{SECTOR}',\n"
         f"       {q(meta['luong'])}, 'GOC_TOAN_CUC', {q(can_cu)}\n"
         f"WHERE NOT EXISTS (SELECT 1 FROM policy.policy_pack WHERE tenant_id = '{TENANT}' AND code = {q(meta['id'])});\n\n"
     )

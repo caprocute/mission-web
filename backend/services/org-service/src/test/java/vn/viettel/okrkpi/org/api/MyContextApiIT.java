@@ -34,6 +34,7 @@ import vn.viettel.okrkpi.org.application.port.IdentityContextPort.StoredContext;
 import vn.viettel.okrkpi.org.support.ContractValidator;
 import vn.viettel.okrkpi.org.support.Fixtures;
 import vn.viettel.okrkpi.org.support.IntegrationTestBase;
+import vn.viettel.okrkpi.org.support.PlainAvroTestEncoder;
 import vn.viettel.okrkpi.org.support.TestJwt;
 
 /**
@@ -97,6 +98,20 @@ class MyContextApiIT extends IntegrationTestBase {
     assertThat(stored.getValue().flows()).containsExactly("NHA_NUOC");
     assertThat(stored.getValue().roles()).containsExactly("member");
     assertThat(fx.outboxCount(tenant, "sys.audit.v1")).isEqualTo(1);
+    // sys.audit.v1 dùng chung: thân Avro đúng AuditEvent.avsc, tiêu đề phong bì chữ thường như vt-platform-starter
+    Fixtures.AuditRow audit = fx.auditEvents(tenant).get(0);
+    assertThat(audit.event().getObjectType()).isEqualTo("ASSIGNMENT");
+    assertThat(audit.event().getActorAssignmentId()).isEqualTo(primary);
+    assertThat(audit.event().getOutcome()).isEqualTo("THANH_CONG");
+    assertThat(audit.schemaVersion()).isEqualTo(1);
+    com.fasterxml.jackson.databind.JsonNode h = new com.fasterxml.jackson.databind.ObjectMapper().readTree(audit.headers());
+    assertThat(h.get("tenantid").asText()).isEqualTo(tenant.toString());
+    assertThat(h.get("actorid").asText()).isEqualTo(person.toString());
+    assertThat(h.get("ce_type").asText()).isEqualTo("AuditEvent");
+    assertThat(h.get("aggregateversion").asText()).isEqualTo("0");
+    assertThat(h.get("apicurio.value.globalId").asLong()).isEqualTo(PlainAvroTestEncoder.GLOBAL_ID);
+    assertThat(h.has("tenantId")).isFalse();
+    assertThat(h.has("contentType")).isFalse();
   }
 
   @Test

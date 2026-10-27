@@ -5,6 +5,7 @@ import { ButtonModule } from 'primeng/button';
 import { UI_FORM_STATUS_LABEL, UiFormSummary, UiPackApi } from '@vt/api-client';
 import { STUDIO_ACCESS } from '../../studio-permissions';
 import { errorText, fmtDate } from '../../studio-ui';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 /**
  * Danh sách biểu mẫu động của đơn vị (đường vào SCR-1802, QT-18): mở bản nháp để dựng, hoặc tạo bản
@@ -12,7 +13,7 @@ import { errorText, fmtDate } from '../../studio-ui';
  */
 @Component({
   selector: 'vt-forms-page',
-  imports: [RouterLink, ButtonModule],
+  imports: [VtSkeletonComponent, RouterLink, ButtonModule],
   template: `
     <h1>Biểu mẫu động</h1>
     <p class="sub">
@@ -25,7 +26,7 @@ import { errorText, fmtDate } from '../../studio-ui';
     @if (forms.error()) {
       <p class="err" role="alert">Không tải được danh sách biểu mẫu. Vui lòng thử lại.</p>
     } @else if (!forms.value()) {
-      <p>Đang tải…</p>
+      <vt-skeleton variant="table" [columns]="4" label="Đang tải danh sách biểu mẫu" />
     } @else {
       <table data-testid="forms">
         <caption class="sr-only">

@@ -15,9 +15,25 @@ import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { AssigneeRef, OkrApi, OrgApi, OrgPerson, SimilarTask, TASK_GROUP_LABEL, TASK_PRIORITY_LABEL, TASK_SOURCE_LABEL, TASK_STATUS_LABEL, TaskApi, TaskDraft, TaskGroup, TaskPriority, TaskSource, toProblem } from '@vt/api-client';
+import {
+  AssigneeRef,
+  OkrApi,
+  OrgApi,
+  OrgPerson,
+  SimilarTask,
+  TASK_GROUP_LABEL,
+  TASK_PRIORITY_LABEL,
+  TASK_SOURCE_LABEL,
+  TASK_STATUS_LABEL,
+  TaskApi,
+  TaskDraft,
+  TaskGroup,
+  TaskPriority,
+  TaskSource,
+  toProblem,
+} from '@vt/api-client';
 import { CatalogApi, PlanApi, PlanItemRef } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DrawerModule } from 'primeng/drawer';
@@ -35,6 +51,8 @@ import { AssignSidePanel } from './assign/assign-side.panel';
 const opts = <K extends string>(m: Record<K, string>) =>
   (Object.keys(m) as K[]).map((value) => ({ value, label: m[value] }));
 const SOURCES: TaskSource[] = ['KE_HOACH', 'VAN_BAN', 'DOT_XUAT'];
+/** Giá trị lựa chọn trỏ tới nhiệm vụ nháp đã sinh từ kế hoạch, phân biệt với mã dòng kế hoạch. */
+const DRAFT_PREFIX = 'nhap:';
 const MAX_MILESTONES = 10;
 
 /** Nhóm cán bộ theo đơn vị cho ô chọn người (bản sao cây tổ chức `org_replica`). */
@@ -52,6 +70,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
 @Component({
   selector: 'vt-assign-task-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -182,9 +201,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
       <div class="cols">
         <div>
           <section class="box" aria-labelledby="s1">
-            <h2 id="s1" class="h">
-              <span class="num" aria-hidden="true">1</span> Nguồn và nội dung
-            </h2>
+            <h2 id="s1" class="h">Nguồn và nội dung</h2>
             <span class="lbl" id="src-lbl">Nguồn nhiệm vụ <span class="req">*</span></span>
             <p-selectbutton
               [options]="sourceOptions"
@@ -214,7 +231,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                       (ngModelChange)="applyPlanItem($event)"
                       styleClass="full"
                       appendTo="body"
-                      [loading]="plans.isLoading()"
+                      [loading]="plans.isLoading() || planDrafts.isLoading()"
                     />
                   </div>
                   <div>
@@ -232,6 +249,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                       (ngModelChange)="applyCatalog($event)"
                       styleClass="full"
                       appendTo="body"
+                      [loading]="catalog.isLoading()"
                     />
                   </div>
                 </div>
@@ -294,6 +312,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                 (ngModelChange)="applyCatalog($event)"
                 styleClass="full"
                 appendTo="body"
+                [loading]="catalog.isLoading()"
               />
             }
 
@@ -333,6 +352,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                   (ngModelChange)="set('keyResultId', $event ?? undefined)"
                   styleClass="full"
                   appendTo="body"
+                  [loading]="krs.isLoading()"
                 />
               </div>
               <div>
@@ -352,7 +372,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
           </section>
 
           <section class="box" aria-labelledby="s2">
-            <h2 id="s2" class="h"><span class="num" aria-hidden="true">2</span> Phân công</h2>
+            <h2 id="s2" class="h">Phân công</h2>
             @if (!bulk()) {
               <div class="grid2">
                 <div>
@@ -370,6 +390,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                     (ngModelChange)="set('leadPersonId', $event)"
                     styleClass="full"
                     appendTo="body"
+                    [loading]="persons.isLoading()"
                   />
                   @if (check.value()?.workload; as w) {
                     <small class="muted"
@@ -394,6 +415,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                     (ngModelChange)="setCo($event)"
                     styleClass="full"
                     appendTo="body"
+                    [loading]="persons.isLoading() || units.isLoading()"
                   />
                 </div>
               </div>
@@ -430,6 +452,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                   (ngModelChange)="set('acceptorId', $event)"
                   styleClass="full"
                   appendTo="body"
+                  [loading]="persons.isLoading()"
                 />
                 <small class="muted"
                   >Khác người chủ trì và người phối hợp (Phụ lục 4, mục V.1)</small
@@ -504,6 +527,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                   (ngModelChange)="bulkUnits.set($event)"
                   styleClass="full"
                   appendTo="body"
+                  [loading]="childUnits.isLoading()"
                 />
                 <small class="muted"
                   >Mỗi đơn vị nhận là chủ trì nhiệm vụ của mình; người đứng đầu đơn vị phân công
@@ -514,9 +538,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
           </section>
 
           <section class="box" aria-labelledby="s3">
-            <h2 id="s3" class="h">
-              <span class="num" aria-hidden="true">3</span> Sản phẩm và tiêu chuẩn
-            </h2>
+            <h2 id="s3" class="h">Sản phẩm và tiêu chuẩn</h2>
             <div class="grid3">
               <div>
                 <label for="as-prod">Sản phẩm <span class="req">*</span></label>
@@ -624,7 +646,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
         }
       </p-drawer>
     } @else {
-      <p class="muted" aria-busy="true">Đang tải…</p>
+      <vt-skeleton variant="form" [rows]="6" label="Đang tải biểu mẫu giao nhiệm vụ" />
     }
   `,
   styles: `
@@ -856,30 +878,45 @@ export class AssignTaskPage {
   protected readonly persons = rxResource({
     stream: () => this.org.persons().pipe(map((p) => p.items)),
   });
-  private readonly units = rxResource({
+  protected readonly units = rxResource({
     stream: () => this.org.units('unit').pipe(map((p) => p.items)),
   });
-  private readonly childUnits = rxResource({
+  protected readonly childUnits = rxResource({
     stream: () => this.org.units('children').pipe(map((p) => p.items)),
   });
   protected readonly plans = rxResource({
     params: () => this.period()?.id,
     stream: ({ params }) => this.planApi.approvedItems(params).pipe(map((p) => p.items)),
   });
-  private readonly krs = rxResource({
+  protected readonly krs = rxResource({
     params: () => this.period()?.id,
     stream: ({ params }) => this.okrApi.keyResults(params).pipe(map((p) => p.items)),
   });
-  private readonly catalog = rxResource({
+  protected readonly catalog = rxResource({
     stream: () => this.catalogApi.items({ limit: 200 }).pipe(map((p) => p.items)),
   });
 
-  protected readonly planOptions = computed(() =>
-    (this.plans.value() ?? []).map((i) => ({
+  /**
+   * Nhiệm vụ nháp đã sinh từ kế hoạch đã duyệt (EVT-03, QT-05 bước 3): dòng kế hoạch đó không còn trong
+   * `approvedItems` nên đưa nháp vào cùng danh sách chọn, chọn thì mở nháp để giao (chỉ khi soạn mới).
+   */
+  protected readonly planDrafts = rxResource({
+    params: () => (!this.id() && this.period() ? this.period()!.id : undefined),
+    stream: ({ params }) =>
+      this.api
+        .unitTasks({ status: ['NHAP'], source: 'KE_HOACH', period: params, limit: 200 })
+        .pipe(map((p) => p.items)),
+  });
+  protected readonly planOptions = computed(() => [
+    ...(this.plans.hasValue() ? this.plans.value() : []).map((i) => ({
       value: i.id,
       label: `${i.planCode} · dòng ${i.lineNo} · ${i.title} (phiên bản ${i.version})`,
     })),
-  );
+    ...(this.planDrafts.hasValue() ? this.planDrafts.value() : []).map((t) => ({
+      value: DRAFT_PREFIX + t.id,
+      label: `${t.code} · ${t.title} (nhiệm vụ nháp từ kế hoạch)`,
+    })),
+  ]);
   protected readonly catalogOptions = computed(() =>
     (this.catalog.value() ?? []).map((c) => ({
       value: c.id,
@@ -938,10 +975,20 @@ export class AssignTaskPage {
     ),
     { initialValue: null },
   );
-  protected readonly check = rxResource({
-    params: () => this.checkInput() ?? undefined,
+  /** Máy chủ bắt buộc tên nhiệm vụ (422 khi trống), nên chỉ kiểm khi đã có tên. */
+  // skeleton-ok: kết quả chuyển cho vt-assign-side-panel qua [loading], panel tự hiện khung xương
+  private readonly check$ = rxResource({
+    params: () => {
+      const f = this.checkInput();
+      return f && f.title.trim() ? f : undefined;
+    },
     stream: ({ params }) => this.api.assignCheck(params),
   });
+  /** Đọc an toàn: `value()` của resource lỗi sẽ ném lỗi (lỗi console khi máy chủ trả 4xx). */
+  protected readonly check = {
+    value: computed(() => (this.check$.hasValue() ? this.check$.value() : undefined)),
+    isLoading: this.check$.isLoading,
+  };
 
   private readonly blocking = computed(() => {
     const r = this.check.value();
@@ -976,7 +1023,13 @@ export class AssignTaskPage {
   }
   /** Chọn dòng kế hoạch: sao chép sản phẩm, số lượng, hạn, tiêu chuẩn từ dòng kế hoạch (QT-05 bước 1a). */
   protected applyPlanItem(id: string) {
-    const i: PlanItemRef | undefined = this.plans.value()?.find((x) => x.id === id);
+    if (id?.startsWith(DRAFT_PREFIX)) {
+      void this.router.navigate(['/tasks/assign', id.slice(DRAFT_PREFIX.length)]);
+      return;
+    }
+    const i: PlanItemRef | undefined = this.plans.hasValue()
+      ? this.plans.value().find((x) => x.id === id)
+      : undefined;
     this.form.update((f) =>
       f && i
         ? {

@@ -21,6 +21,7 @@ import vn.viettel.okrkpi.config.domain.LockCancelRequest;
 import vn.viettel.okrkpi.config.domain.LockOrderStatus;
 import vn.viettel.okrkpi.config.domain.LockStep;
 import vn.viettel.okrkpi.config.domain.PeriodLockOrder;
+import vn.viettel.okrkpi.shared.kernel.Ids;
 import vn.viettel.okrkpi.shared.kernel.PeriodId;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 
@@ -177,6 +178,43 @@ public class JdbcLockOrderRepository implements LockOrderRepository {
                     rs.getString("compensation_action"),
                     instant(rs, "compensated_at")))
         .list();
+  }
+
+  @Override
+  public Optional<PeriodLockOrder> findBySaga(TenantId tenantId, UUID sagaId) {
+    return one("WHERE tenant_id = ? AND saga_id = ?", tenantId.value(), sagaId);
+  }
+
+  @Override
+  public void upsertStep(TenantId tenantId, UUID lockOrderId, LockStep step) {
+    String summary;
+    try {
+      summary = json.writeValueAsString(Objects.requireNonNullElse(step.resultSummary(), Map.of()));
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException(e);
+    }
+    jdbc.sql(
+            """
+            INSERT INTO config.period_lock_step (id, tenant_id, lock_order_id, step_no, name, status,
+                   started_at, finished_at, result_summary, compensation_action, compensated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?)
+            ON CONFLICT (lock_order_id, step_no) DO UPDATE SET status = EXCLUDED.status,
+                   started_at = EXCLUDED.started_at, finished_at = EXCLUDED.finished_at,
+                   result_summary = EXCLUDED.result_summary,
+                   compensated_at = EXCLUDED.compensated_at
+            """)
+        .param(Ids.newUuidV7())
+        .param(tenantId.value())
+        .param(lockOrderId)
+        .param(step.stepNo() + 1)
+        .param(step.name())
+        .param(step.status())
+        .param(ts(step.startedAt()))
+        .param(ts(step.finishedAt()))
+        .param(summary)
+        .param(step.compensationAction())
+        .param(ts(step.compensatedAt()))
+        .update();
   }
 
   private Optional<PeriodLockOrder> one(String where, Object... params) {

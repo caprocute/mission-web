@@ -227,6 +227,28 @@ public class PeriodLockService {
         .map(o -> new Progress(o, sixSteps(orders.steps(tenantId, o.id()))));
   }
 
+  /**
+   * Tiến độ theo mã saga cho tác vụ {@code PERIOD_LOCK} ({@code /api/v1/jobs/{id}}): mã tác vụ trả
+   * lúc khởi chạy là mã saga (QA-06 HT-23).
+   */
+  @Transactional(value = TX, readOnly = true)
+  public Optional<Progress> progressOfSaga(TenantId tenantId, UUID sagaId) {
+    return orders
+        .findBySaga(tenantId, sagaId)
+        .map(o -> new Progress(o, sixSteps(orders.steps(tenantId, o.id()))));
+  }
+
+  /**
+   * Lệnh khoá hiện hành của kỳ cho trường {@code currentLockOrder} của {@code Period}: lệnh chưa
+   * huỷ, nếu không có thì lệnh gần nhất (kể cả đã huỷ). SCR-0801 hiện người lập, người duyệt và
+   * trạng thái lệnh từ trường này (HT-23), hiện kết quả hoàn tác và cho lập lệnh mới khi lệnh gần
+   * nhất đã huỷ (HT-24).
+   */
+  @Transactional(value = TX, readOnly = true)
+  public Optional<PeriodLockOrder> current(TenantId tenantId, PeriodId periodId) {
+    return orders.active(tenantId, periodId).or(() -> orders.latest(tenantId, periodId));
+  }
+
   /** Lệnh của kỳ theo mã (để phát lại phản hồi đã lưu). */
   @Transactional(value = TX, readOnly = true)
   public Optional<PeriodLockOrder> find(TenantId tenantId, PeriodId periodId, UUID orderId) {

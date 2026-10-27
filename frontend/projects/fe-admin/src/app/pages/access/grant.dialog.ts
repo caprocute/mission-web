@@ -1,8 +1,26 @@
-import { Component, effect, inject, input, model, output, signal, untracked } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  model,
+  output,
+  signal,
+  untracked,
+} from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { OrgApi } from '@vt/api-client';
-import { ROLE_CODE_LABEL, ROLE_SCOPE_LABEL, RoleAdminApi, RoleBinding, RoleBindingScope, RoleCode, SENSITIVE_ROLES } from '@vt/api-client/domains';
+import {
+  ROLE_CODE_LABEL,
+  ROLE_SCOPE_LABEL,
+  RoleAdminApi,
+  RoleBinding,
+  RoleBindingScope,
+  RoleCode,
+  SENSITIVE_ROLES,
+} from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
@@ -11,10 +29,11 @@ import { SelectModule } from 'primeng/select';
 import { TextareaModule } from 'primeng/textarea';
 import { map } from 'rxjs';
 import { ACCESS_STEP_UP, accessError, dayEnd, dayStart, isoDay } from './access-ui';
+import { RoleNames } from './role-names';
 
 interface Draft {
   personId: string | null;
-  roleCode: RoleCode | null;
+  roleCode: string | null;
   scope: RoleBindingScope;
   flow: 'DANG' | 'NHA_NUOC' | '';
   from: string;
@@ -66,6 +85,7 @@ const draft = (): Draft => ({
             inputId="gr-person"
             styleClass="full"
             [options]="people()"
+            [loading]="persons.isLoading()"
             optionLabel="label"
             optionValue="value"
             [filter]="true"
@@ -83,7 +103,7 @@ const draft = (): Draft => ({
           <p-select
             inputId="gr-role"
             styleClass="full"
-            [options]="roles"
+            [options]="roles()"
             optionLabel="label"
             optionValue="value"
             placeholder="Chọn vai trò"
@@ -157,7 +177,7 @@ const draft = (): Draft => ({
       }
       @if (sensitive()) {
         <p-message severity="warn" styleClass="msg">
-          Vai trò {{ roleLabel[d().roleCode!] }} là vai trò nhạy cảm: đề nghị chỉ có hiệu lực sau
+          Vai trò {{ names.label(d().roleCode) }} là vai trò nhạy cảm: đề nghị chỉ có hiệu lực sau
           khi một người duyệt thứ hai khác đồng chí phê duyệt.
         </p-message>
       }
@@ -214,11 +234,15 @@ export class GrantDialog {
   readonly unitName = input('');
   readonly granted = output<RoleBinding>();
 
-  protected readonly roleLabel = ROLE_CODE_LABEL;
-  protected readonly roles = (Object.keys(ROLE_CODE_LABEL) as RoleCode[]).map((value) => ({
-    value,
-    label: ROLE_CODE_LABEL[value],
-  }));
+  protected readonly names = inject(RoleNames);
+  /** Vai trò hệ thống rồi đến vai trò tuỳ chỉnh đang dùng của đơn vị triển khai (BS-04). */
+  protected readonly roles = computed(() => [
+    ...(Object.keys(ROLE_CODE_LABEL) as RoleCode[]).map((value) => ({
+      value: value as string,
+      label: ROLE_CODE_LABEL[value],
+    })),
+    ...this.names.activeCustom().map((r) => ({ value: r.code, label: r.name })),
+  ]);
   protected readonly scopes = (Object.keys(ROLE_SCOPE_LABEL) as RoleBindingScope[]).map(
     (value) => ({ value, label: ROLE_SCOPE_LABEL[value] }),
   );
@@ -228,7 +252,7 @@ export class GrantDialog {
     { value: 'NHA_NUOC', label: 'Khối Nhà nước' },
   ];
 
-  private readonly persons = rxResource({
+  protected readonly persons = rxResource({
     params: () => (this.visible() ? true : undefined),
     stream: () =>
       this.org
@@ -248,7 +272,7 @@ export class GrantDialog {
 
   protected readonly sensitive = () => {
     const r = this.d().roleCode;
-    return !!r && SENSITIVE_ROLES.includes(r);
+    return !!r && SENSITIVE_ROLES.includes(r as RoleCode);
   };
   protected readonly ready = () => {
     const d = this.d();

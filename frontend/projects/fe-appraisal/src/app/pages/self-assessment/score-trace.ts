@@ -1,5 +1,7 @@
 import { Component, ElementRef, afterNextRender, input, output, viewChild } from '@angular/core';
+import { LegalRefPipe } from '@vt/api-client';
 import { AppraisalScoreTrace, AppraisalScoreTraceStep } from '@vt/api-client/domains';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 const RULE: Record<string, string> = {
   kpi_nhiem_vu: 'KPI nhiệm vụ',
@@ -14,6 +16,7 @@ const RULE: Record<string, string> = {
  */
 @Component({
   selector: 'vt-score-trace',
+  imports: [VtSkeletonComponent, LegalRefPipe],
   template: `
     @let t = trace();
     <div
@@ -29,31 +32,35 @@ const RULE: Record<string, string> = {
         <h2 id="tr-h">Vết tính</h2>
         <button type="button" class="close" (click)="closed.emit()">Đóng</button>
       </div>
-      <p class="meta">
-        <!-- Phiên bản bộ máy tính điểm (engineVersion) chỉ dùng tra cứu nội bộ, không hiện. -->
-        Bộ quy định đánh giá {{ t.policyVersion }} · {{ t.steps.length }} bước tính
-      </p>
-      <ol>
-        @for (s of t.steps; track s.stepNo) {
-          <li>
-            <p class="rule">
-              <b>{{ rule(s) }}</b>
-              @if (s.taskId && titles()[s.taskId]) {
-                · {{ titles()[s.taskId] }}
+      @if (t) {
+        <p class="meta">
+          <!-- Phiên bản bộ máy tính điểm (engineVersion) chỉ dùng tra cứu nội bộ, không hiện. -->
+          Bộ quy định đánh giá {{ t.policyVersion }} · {{ t.steps.length }} bước tính
+        </p>
+        <ol>
+          @for (s of t.steps; track s.stepNo) {
+            <li>
+              <p class="rule">
+                <b>{{ rule(s) }}</b>
+                @if (s.taskId && titles()[s.taskId]) {
+                  · {{ titles()[s.taskId] }}
+                }
+              </p>
+              @if (s.explanation) {
+                <p>{{ s.explanation }}</p>
               }
-            </p>
-            @if (s.explanation) {
-              <p>{{ s.explanation }}</p>
-            }
-            @if (s.inputs['nguon']) {
-              <p class="src">Nguồn: {{ s.inputs['nguon'] }}</p>
-            }
-            @if (s.legalRef) {
-              <p class="src">Căn cứ: {{ s.legalRef }}</p>
-            }
-          </li>
-        }
-      </ol>
+              @if (s.inputs['nguon']) {
+                <p class="src">Nguồn: {{ s.inputs['nguon'] }}</p>
+              }
+              @if (s.legalRef | legalRef; as lr) {
+                <p class="src">Căn cứ: {{ lr }}</p>
+              }
+            </li>
+          }
+        </ol>
+      } @else {
+        <vt-skeleton variant="list" [rows]="5" label="Đang tải vết tính" />
+      }
     </div>
   `,
   styles: `
@@ -104,7 +111,8 @@ const RULE: Record<string, string> = {
   `,
 })
 export class ScoreTrace {
-  readonly trace = input.required<AppraisalScoreTrace>();
+  /** Vết tính; `null` khi đang tải (ngăn hiện khung xương). */
+  readonly trace = input.required<AppraisalScoreTrace | null>();
   /** Tên nhiệm vụ theo `taskId`, lấy từ ảnh chụp điểm. */
   readonly titles = input<Record<string, string>>({});
   readonly closed = output<void>();

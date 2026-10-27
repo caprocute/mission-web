@@ -17,6 +17,21 @@ import { OVERSIGHT_STEP_UP } from '../../step-up';
 import { ReopenCreatePage } from './reopen-create.page';
 import { ReopenDetailPage } from './reopen-detail.page';
 import { ReopenListPage } from './reopen-list.page';
+import { ReopenApi } from '@vt/api-client/domains';
+
+let instance: unknown;
+
+/** Hồ sơ Quý I/2026 (đã khoá) của Nguyễn Văn Bình trong giả lập `locked-profiles.ts`. */
+const BINH_Q1 = '01928f3e-7b1a-7c3e-9a51-3f2d9c1d1311';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+interface CreatePageView {
+  profileOptions(): { value: string; label: string }[];
+  profilesRes: { isLoading(): boolean };
+  setPeriod(id: string | null): void;
+  addTarget(id: string | null): void;
+  targets(): string[];
+}
 
 /** WEB-043: SCR-1301 trên dữ liệu giả lập: danh sách, chi tiết hai người duyệt, tạo yêu cầu. */
 async function render<T>(
@@ -48,6 +63,7 @@ async function render<T>(
     ],
   });
   const fixture = TestBed.createComponent(cmp);
+  instance = fixture.componentInstance;
   if (id) fixture.componentRef.setInput('id', id);
   fixture.autoDetectChanges();
   return fixture.nativeElement as HTMLElement;
@@ -150,33 +166,92 @@ describe('ReopenDetailPage (SCR-1301)', () => {
 });
 
 describe('ReopenCreatePage (SCR-1301)', () => {
-  it('tạo yêu cầu từ căn cứ khiếu nại rồi sang trang chi tiết', async () => {
-    // nơi gọi (SCR-1202) truyền sẵn kỳ, căn cứ và hồ sơ qua tham số truy vấn
-    const q = convertToParamMap({
-      periodId: 'p-2026q1',
-      basisKind: 'KHIEU_NAI',
-      basisCode: 'KN-2026-0040',
-      profileId: 'ap-2026q1-nguyen-van-binh',
-    });
-    const el = await render(ReopenCreatePage, () => true, undefined, [
+  const withQuery = (params: Record<string, string>) => {
+    const q = convertToParamMap(params);
+    return [
       {
         provide: ActivatedRoute,
         useValue: { snapshot: { queryParamMap: q }, queryParamMap: of(q) },
       },
-    ]);
+    ];
+  };
+  const REASON =
+    'Thi hành kết luận khiếu nại KN-2026-0040: điều chỉnh hệ số C của nhiệm vụ thường xuyên 4.';
+
+  async function submitAndCapture(el: HTMLElement) {
+    const create = vi.spyOn(TestBed.inject(ReopenApi), 'create');
     const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-    await until(el, '#rq-profile');
-    expect(text(el.querySelector('.chips'))).toContain('Hồ sơ đánh giá theo KN-2026-0040');
-    expect((el.querySelector('#rq-basis-code') as HTMLInputElement).value).toBe('KN-2026-0040');
-    type(
-      el,
-      '#rq-reason',
-      'Thi hành kết luận khiếu nại KN-2026-0040: điều chỉnh hệ số C của nhiệm vụ thường xuyên 4.',
-    );
+    type(el, '#rq-reason', REASON);
     await press(el, 'Tạo yêu cầu');
     for (let i = 0; i < 100 && !nav.mock.calls.length; i++)
       await new Promise((r) => setTimeout(r, 20));
+    return { input: create.mock.calls[0]?.[0], nav };
+  }
+
+  it('tạo yêu cầu từ căn cứ khiếu nại: hồ sơ chọn sẵn hiện họ tên, gửi mã hồ sơ UUID, sang chi tiết', async () => {
+    // nơi gọi (SCR-1202) truyền sẵn kỳ, căn cứ và hồ sơ qua tham số truy vấn
+    const el = await render(
+      ReopenCreatePage,
+      () => true,
+      undefined,
+      withQuery({
+        periodId: 'p-2026q1',
+        basisKind: 'KHIEU_NAI',
+        basisCode: 'KN-2026-0040',
+        profileId: BINH_Q1,
+      }),
+    );
+    await until(el, '#rq-profile');
+    await until(el, '.chips li', has('Nguyễn Văn Bình'));
+    expect(text(el.querySelector('.chips'))).toContain('Nguyễn Văn Bình · Phòng Tổng hợp');
+    expect(text(el)).not.toContain(BINH_Q1);
+    expect((el.querySelector('#rq-basis-code') as HTMLInputElement).value).toBe('KN-2026-0040');
+    const { input, nav } = await submitAndCapture(el);
+    expect(input?.scopeIds).toEqual([BINH_Q1]);
+    expect(input?.scopeDetail.items.map((i) => i.profileId)).toEqual([BINH_Q1]);
     expect(nav).toHaveBeenCalled();
     expect(nav.mock.calls[0][0][0]).toBe('..');
+  });
+
+  it('HT-34: hồ sơ chọn từ danh sách hồ sơ của kỳ đã khoá (không còn ô tự gõ mã hồ sơ)', async () => {
+    const el = await render(
+      ReopenCreatePage,
+      () => true,
+      undefined,
+      withQuery({ basisKind: 'CANH_BAO', basisCode: 'CB-2026-0120' }),
+    );
+    const page = instance as CreatePageView;
+    await until(el, '#rq-profile');
+    // chưa chọn kỳ: ô chọn hồ sơ bị khoá, có hướng dẫn chọn kỳ trước, không gọi danh sách hồ sơ
+    expect(el.querySelector('input[name="profile"], input#rq-profile[pinputtext]')).toBeNull();
+    expect(
+      el.querySelector('p-select[name="profile"] .p-disabled, p-select[name="profile"].p-disabled'),
+    ).not.toBeNull();
+    expect(text(el.querySelector('#h-profile'))).toContain('Chọn kỳ đã khoá trước');
+    expect(page.profileOptions()).toEqual([]);
+
+    page.setPeriod('p-2026q1');
+    for (let i = 0; i < 100 && !page.profileOptions().length; i++)
+      await new Promise((r) => setTimeout(r, 20));
+    const opts = page.profileOptions();
+    expect(opts.map((o) => o.label)).toEqual(
+      expect.arrayContaining([
+        'Nguyễn Văn Bình · Phòng Tổng hợp',
+        'Vũ Quốc Khánh · Văn phòng Đảng uỷ',
+      ]),
+    );
+    expect(opts.every((o) => UUID.test(o.value) && !o.label.includes(o.value))).toBe(true);
+    expect(opts.some((o) => o.label.includes('Trần Minh Hoàng'))).toBe(false); // hồ sơ Quý II
+
+    page.addTarget(BINH_Q1);
+    await until(el, '.chips li', has('Nguyễn Văn Bình'));
+    expect(page.profileOptions().map((o) => o.value)).not.toContain(BINH_Q1);
+    // đổi kỳ bỏ hồ sơ của kỳ cũ
+    page.setPeriod('p-2026q2');
+    expect(page.targets()).toEqual([]);
+    page.setPeriod('p-2026q1');
+    page.addTarget(BINH_Q1);
+    const { input } = await submitAndCapture(el);
+    expect(input).toMatchObject({ periodId: 'p-2026q1', scope: 'HO_SO', scopeIds: [BINH_Q1] });
   });
 });

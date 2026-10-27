@@ -452,12 +452,7 @@ function start(req: MockRequest): MockResponse {
   };
   startStep(s, 2);
   f.saga = s;
-  log(
-    s,
-    `Khởi chạy tiến trình khoá kỳ theo quy trình phiên bản ${SAGA_TEMPLATE.version}.`,
-    null,
-    ME,
-  );
+  log(s, 'Khởi chạy tiến trình khoá kỳ.', null, ME);
   log(
     s,
     'Bước 0 đạt, có cảnh báo: 9 minh chứng ở trạng thái Đã nộp, chưa được nghiệm thu, không được tính trong kỳ.',

@@ -7,6 +7,8 @@ import java.time.Clock;
 import java.time.Duration;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
+import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestClient;
@@ -32,6 +34,9 @@ import vn.viettel.okrkpi.shared.resilience.ResilientClientFactory;
 @EnableConfigurationProperties(AnalyticsProperties.class)
 public class AnalyticsConfiguration {
 
+  /** Hạn đọc mỗi lượt gọi Cube, khớp resilience4j.timelimiter.instances.cube. */
+  private static final Duration CUBE_READ_TIMEOUT = Duration.ofSeconds(10);
+
   @Bean
   Clock analyticsClock() {
     return Clock.systemUTC();
@@ -55,7 +60,18 @@ public class AnalyticsConfiguration {
       ObjectMapper json,
       CubeTokens tokens,
       Clock clock) {
-    RestClient.Builder builder = builders.getIfAvailable(RestClient::builder);
+    // Cube giữ mỗi lượt /load tới continueWaitTimeout (mặc định 5 s) rồi mới trả "Continue wait",
+    // nên hạn đọc 3 s mặc định của REST nội bộ cắt truy vấn chậm thành 503 (HT-39). Hạn đọc riêng
+    // bằng timelimiter của instance cube (10 s); tổng thời gian vẫn chặn bởi cube-timeout.
+    RestClient.Builder builder =
+        builders
+            .getIfAvailable(RestClient::builder)
+            .requestFactory(
+                ClientHttpRequestFactoryBuilder.detect()
+                    .build(
+                        ClientHttpRequestFactorySettings.defaults()
+                            .withConnectTimeout(Duration.ofMillis(500))
+                            .withReadTimeout(CUBE_READ_TIMEOUT)));
     return new CubeRestClient(
         clients.create("cube", builder.baseUrl(p.cubeUrl()).build()),
         tokens,

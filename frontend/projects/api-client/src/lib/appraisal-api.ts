@@ -25,6 +25,7 @@ import {
   DossierFormPreviewRequest,
   ProspectGroupBoard,
   ProspectGroupBoardInput,
+  UnitAppraisalResultPage,
 } from './models/appraisal';
 import { Job } from '@vt/api-client';
 
@@ -228,6 +229,28 @@ export class AppraisalApi {
     if (filter.q) params['q'] = filter.q;
     if (filter.cursor) params['cursor'] = filter.cursor;
     return this.http.get<AnnualRatingPage>('/api/v1/appraisals/annual', { params });
+  }
+
+  /**
+   * Kết quả đánh giá từng cán bộ của đơn vị (gồm cây cấp dưới) trong một kỳ quý cho bước đi xuống của
+   * SCR-1603 (`GET /appraisals/unit-results`, AP-09): mỗi dòng có mã ảnh chụp điểm hiện hành để mở chuỗi
+   * truy vết. Máy chủ chỉ trả dòng trong phạm vi của người gọi.
+   */
+  unitResults(filter: {
+    unitId: string;
+    period: string;
+    flow?: AppraisalFlow;
+    limit?: number;
+    cursor?: string | null;
+  }): Observable<UnitAppraisalResultPage> {
+    const params: Record<string, string> = {
+      unit: filter.unitId,
+      period: filter.period,
+      limit: String(Math.min(filter.limit ?? 50, 200)),
+    };
+    if (filter.flow) params['flow'] = filter.flow;
+    if (filter.cursor) params['cursor'] = filter.cursor;
+    return this.http.get<UnitAppraisalResultPage>('/api/v1/appraisals/unit-results', { params });
   }
 
   /** Giải thích liên thông quý–năm của một hồ sơ năm (vùng 2, 4 của SCR-1001). */

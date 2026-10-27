@@ -39,6 +39,7 @@ Service hỏi `POST /v1/data/okrkpi/authz/decision` với `input`:
 | `subject.acr`, `subject.auth_time` | chuỗi, giây Unix | Mức xác thực và thời điểm xác thực; `acr = "aal2"` là phiên AAL2 |
 | `action` | chuỗi | Khoá chức năng của ma trận, dạng `SCR-qqnn.<khoá>` (ví dụ `SCR-0703.xac-nhan`) |
 | `request.module`, `request.method` | chuỗi | Module API (`/api/v1/<module>`) và phương thức HTTP; có thể gửi cùng `action`, khi đó phải qua cả hai |
+| `request.operation` | chuỗi | Mã thao tác OpenAPI (`operationId`). Chủ thể `kind = "client"` (AC-11) không có dòng trong bảng API theo module, nên chỉ qua lớp API khi thao tác nằm trong `client_operations` (thao tác hợp đồng khai `service_client`) và khớp `module`, `method` |
 | `resource.tenant_id`, `resource.owner_unit_id` | chuỗi | Tenant và đơn vị chủ quản của đối tượng |
 | `resource.owner_ids`, `resource.assignee_ids` | mảng | Người sở hữu, chủ trì, phối hợp (phạm vi B) |
 | `resource.designated_ids`, `resource.delegate_ids` | mảng | Người được giao, chỉ định trên chính đối tượng, và người duyệt thay (phạm vi Gn) |
@@ -61,12 +62,13 @@ Không nằm trong bundle này (gốc bundle chỉ là `okrkpi`); CORE-00-03 n�
 {
   "<tenant_id>": {
     "subtree": { "<unit_id>": ["<unit_id>", "<đơn vị con>", "<đơn vị cháu>"] },
-    "managed_units": { "<user_id>": ["<unit_id>"] }
+    "managed_units": { "<user_id>": ["<unit_id>"] },
+    "role_units": { "<user_id>": { "<vai trò>": { "unit": ["<unit_id>"], "subtree": ["<unit_id gắn kèm cấp dưới>"] } } }
   }
 }
 ```
 
-`subtree[u]` gồm chính `u` và mọi đơn vị cấp dưới hiện hành (mỗi dòng `ancestor_id → descendant_id` của bảng đóng). Thiếu dữ liệu của tenant thì phạm vi Cd thất bại (fail closed).
+`subtree[u]` gồm chính `u` và mọi đơn vị cấp dưới hiện hành (mỗi dòng `ancestor_id → descendant_id` của bảng đóng). Thiếu dữ liệu của tenant thì phạm vi Cd thất bại (fail closed). `role_units` lấy từ `config.role_binding` đang hiệu lực: khi có, Cd/Đv của vai trò đó xét theo đơn vị gắn vai trò (Đv: `unit`; Cd: `unit` và cây con của mỗi đơn vị trong `subtree`) thay cho `subject.unit_id`. mission-core (`OpaOrgDataPublisher`) ghi `PUT /v1/data/org/<tenant>` khi khởi động và mỗi 5 phút (QA-06, wiki 14).
 
 ## Kiểm tra, đóng gói, ký
 

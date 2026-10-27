@@ -1,7 +1,7 @@
 import { InjectionToken, Injector, inject } from '@angular/core';
 import { RUNTIME_CONFIG, fieldErrors, mockStepUp, toProblem } from '@vt/api-client';
 import { ROLE_ADMIN_MESSAGES } from '@vt/api-client/domains';
-import { SessionService, TEXT_FORBIDDEN } from '@vt/auth';
+import { SessionService, forbiddenText } from '@vt/auth';
 
 /** Cửa sổ MFA cho thao tác thay đổi quyền: 15 phút (BR-01-15, BR-00-02). */
 const MAX_AGE_SEC = 900;
@@ -55,14 +55,14 @@ export const ACCESS_ME = new InjectionToken<() => string | null>('vt.fe-admin.ac
   },
 });
 
-/** Lỗi hiển thị: mã nghiệp vụ có MSG thì hiện MSG (kể cả 403), 403 khác hiện câu không có quyền chung. */
+/** Lỗi hiển thị: mã nghiệp vụ có MSG thì hiện MSG (kể cả 403), 403 khác hiện lý do máy chủ trả về hoặc câu chung. */
 export function accessError(
   err: unknown,
   fallback: string,
 ): { text: string; fields: Record<string, string> } {
   const p = toProblem(err);
   const mapped = p.code ? ROLE_ADMIN_MESSAGES[p.code] : undefined;
-  const text = mapped ?? (p.status === 403 ? TEXT_FORBIDDEN : p.title || fallback);
+  const text = mapped ?? (p.status === 403 ? forbiddenText(p) : p.title || fallback);
   return { text, fields: fieldErrors(p) };
 }
 

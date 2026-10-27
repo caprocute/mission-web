@@ -60,7 +60,7 @@ public class PlanApprovalController {
       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
       @RequestBody ApprovePlanVersionRequest body) {
-    long expected = ETags.expectedVersion(ifMatch, "PLAN_VERSION");
+    long expected = ETags.expectedVersion(ifMatch, "TASK");
     PlanApprovalService.Approver approver = callers.approver();
     PlanApprovalService.ApproveCommand cmd =
         new PlanApprovalService.ApproveCommand(

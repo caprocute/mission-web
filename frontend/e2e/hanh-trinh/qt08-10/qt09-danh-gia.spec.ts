@@ -1,5 +1,5 @@
 import { Page, expect, test } from '@playwright/test';
-import { batCaoTuoi, chiHeThong, dau } from '../ho-tro/kiem-tra';
+import { batCaoTuoi, chiHeThong, dau, tatCaoTuoi } from '../ho-tro/kiem-tra';
 import { HE_THONG, cho, ghiCho } from '../ho-tro/moi-truong';
 import { Phien, TenTaiKhoan, main } from '../ho-tro/phien';
 import { choSuKien, coKafkaUi } from '../ho-tro/su-kien';
@@ -81,6 +81,7 @@ test.describe('QT-09 Tự đánh giá, thẩm định và quyết định xếp 
     let m = main(page);
     await expect(m.getByRole('heading', { level: 1, name: /^Phiếu tự đánh giá/ })).toBeVisible();
     await expect(trangThai(page)).toHaveText(/Đang tự đánh giá/);
+    if (HE_THONG) await tatCaoTuoi(page);
     const nhanXet = m.getByRole('textbox', { name: /^Ưu điểm, hạn chế, hướng khắc phục/ });
     await nhanXet.fill(`Hoàn thành đúng hạn các nhiệm vụ then chốt (lần thử ${dau()}).`);
     await m.getByRole('button', { name: 'Lưu nháp' }).click();
@@ -171,6 +172,10 @@ test.describe('QT-09 Tự đánh giá, thẩm định và quyết định xếp 
       m.getByRole('heading', { level: 1, name: /^Phiếu xếp loại cá nhân/ }),
     ).toBeVisible();
     await m.getByRole('combobox', { name: /^Mức đề xuất/ }).selectOption('HTTNV');
+    // Khác mức hệ thống gợi ý của ảnh chụp điểm thì phải ghi lý do (BS-03 DC-05)
+    const lyDoDeXuat = m.getByRole('textbox', { name: /^Lý do khác mức/ });
+    if (await lyDoDeXuat.isVisible())
+      await lyDoDeXuat.fill('Mức đề xuất căn cứ kết quả nghiệm thu các nhiệm vụ trong kỳ.');
     await m.getByRole('button', { name: 'Ghi mức đề xuất' }).click();
     await expect(
       thongBao(page, /Đã ghi mức đề xuất .+ chuyển tới cấp có thẩm quyền quyết định/),
@@ -220,11 +225,26 @@ test.describe('QT-09 Tự đánh giá, thẩm định và quyết định xếp 
       m.getByRole('heading', { level: 1, name: /^Quyết định xếp loại hàng loạt/ }),
     ).toBeVisible();
     const kyLo = m.getByRole('button', { name: /^Quyết định và ký lô \(\d+\)/ });
+    // Danh sách hồ sơ nạp sau tiêu đề; chờ nút bật trước khi kết luận dev chưa có hồ sơ
+    if (HE_THONG)
+      await expect(kyLo)
+        .toBeEnabled({ timeout: 15_000 })
+        .catch(() => undefined);
     if (HE_THONG && (await kyLo.isDisabled()))
       cho('chưa có hồ sơ chờ quyết định trên dev (HT-26 đưa hồ sơ tới bước này)');
     await kiemAxe(page, 'quyết định xếp loại hàng loạt');
     const soQd = `E2E-${dau()}/QĐ`;
     await m.getByRole('textbox', { name: 'Số quyết định' }).fill(soQd);
+    // Hồ sơ có mức khác mức hệ thống gợi ý: ghi lý do trước khi ký lô (BS-03 DC-05)
+    if (await m.getByText('Khác mức gợi ý · cần ghi lý do').count()) {
+      await kyLo.click();
+      const lyDo = page.getByRole('dialog', { name: 'Ghi lý do khác mức hệ thống gợi ý' });
+      await lyDo
+        .getByRole('textbox', { name: /^Lý do khác mức hệ thống gợi ý/ })
+        .fill('Kết quả công tác cả năm tốt hơn điểm tính tự động của kỳ.');
+      await lyDo.getByRole('button', { name: 'Ghi lý do' }).click();
+      await expect(lyDo).toBeHidden();
+    }
     await bamCoXacThuc(page, 'quyetdinh', kyLo, thongBao(page, /Đã gửi yêu cầu ký lô \d+ hồ sơ/));
     await expect(
       thongBao(page, new RegExp(`Đã hoàn tất quyết định ${soQd}: \\d+ hồ sơ đã ký số`)),
@@ -235,6 +255,8 @@ test.describe('QT-09 Tự đánh giá, thẩm định và quyết định xếp 
 
     // AC-06 xem phiếu xếp loại đã quyết định, có vết tính giải thích điểm (SCR-0903)
     page = await s.trang('canbo', '/appraisal/ket-qua');
+    // Chế độ chữ lớn lưu theo tài khoản: lần chạy HT-25 dở có thể để lại, khi đó phiếu ẩn thẻ "Vết tính"
+    if (HE_THONG) await tatCaoTuoi(page);
     m = main(page);
     await m
       .getByRole('link', { name: /Đã có quyết định/ })
@@ -244,7 +266,12 @@ test.describe('QT-09 Tự đánh giá, thẩm định và quyết định xếp 
       m.getByRole('heading', { level: 1, name: /^Phiếu xếp loại cá nhân/ }),
     ).toBeVisible();
     await expect(thongBao(page, /đã được quyết định: /)).toBeVisible();
-    await expect(m.getByRole('button', { name: /^Tải Mẫu 1B/ })).toBeVisible();
+    // Mẫu 1B đã ký chỉ có sau khi gói hồ sơ số của đơn vị sinh và ký (MOD-06, bất đồng bộ); trên hệ thống thật
+    // chưa có thì ghi chờ thay vì đánh trượt cả hành trình.
+    const taiMau = m.getByRole('button', { name: /^Tải Mẫu 1B/ });
+    if (HE_THONG && !(await taiMau.isVisible()))
+      ghiCho('Mẫu 1B đã ký của hồ sơ chưa sinh: gói hồ sơ số của đơn vị chưa sinh và ký');
+    else await expect(taiMau).toBeVisible();
     await m.getByRole('tab', { name: 'Vết tính' }).click();
     await expect(m.getByRole('tab', { name: 'Vết tính' })).toHaveAttribute('aria-selected', 'true');
     await kiemAxe(page, 'phiếu xếp loại đã quyết định');

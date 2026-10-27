@@ -31,6 +31,7 @@ import vn.viettel.okrkpi.config.api.PeriodStatus;
 import vn.viettel.okrkpi.dossier.application.comment.port.CommentSealer;
 import vn.viettel.okrkpi.dossier.application.transfer.CellTransferPartsService;
 import vn.viettel.okrkpi.dossier.application.transfer.TransferImportService;
+import vn.viettel.okrkpi.platform.db.migration.TestPostgres;
 import vn.viettel.okrkpi.shared.audit.AuditEvent;
 import vn.viettel.okrkpi.shared.audit.AuditEventType;
 import vn.viettel.okrkpi.shared.audit.AuditLogger;
@@ -425,11 +426,8 @@ class TransferPartsIT {
 
   private static Connection service(String role, UUID tenant) throws SQLException {
     Connection c =
-        DriverManager.getConnection(
-            pg.getJdbcUrl(), role, MissionCoreTestDatabase.TEST_DB_PASSWORD);
-    try (Statement st = c.createStatement()) {
-      st.execute("SET app.tenant_id = '" + tenant + "'");
-    }
+        TestPostgres.connectAsTenant(
+            pg.getJdbcUrl(), role, MissionCoreTestDatabase.TEST_DB_PASSWORD, tenant);
     return c;
   }
 

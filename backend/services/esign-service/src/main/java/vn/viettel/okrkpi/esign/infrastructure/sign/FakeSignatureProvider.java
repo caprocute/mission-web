@@ -140,12 +140,30 @@ public class FakeSignatureProvider implements SignatureProvider {
         .toList();
   }
 
+  /**
+   * Mỗi người ký có một chứng thư giả lập còn hiệu lực, để màn hình ký lô (SCR-0904 trường 7) trên
+   * dev có chứng thư để chọn như với nhà cung cấp thật (DV-10-04). Mã DER riêng theo người vì
+   * {@code esign.certificate_ref} duy nhất theo (tenant, băm chứng thư).
+   */
+  @Override
+  public List<SignedItem.Certificate> certificates(UUID tenantId, UUID personId) {
+    return List.of(
+        certificate(
+            ("FAKE-CERT:" + personId).getBytes(StandardCharsets.UTF_8),
+            "FAKE-" + personId,
+            clock.instant()));
+  }
+
   private static SignedItem.Certificate certificate(Instant now) {
+    return certificate(CERT_DER, "FAKE-0001", now);
+  }
+
+  private static SignedItem.Certificate certificate(byte[] der, String serialNo, Instant now) {
     return new SignedItem.Certificate(
-        CERT_DER,
+        der,
         "CN=Người ký thử nghiệm",
         "CN=Nhà cung cấp giả lập",
-        "FAKE-0001",
+        serialNo,
         now.minus(Duration.ofDays(1)),
         now.plus(Duration.ofDays(365)),
         "GOOD",

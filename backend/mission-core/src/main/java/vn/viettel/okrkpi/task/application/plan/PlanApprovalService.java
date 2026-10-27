@@ -124,7 +124,7 @@ public class PlanApprovalService {
             .lockVersion(tenant, plan.periodBucket(), planId, versionNo)
             .orElseThrow(NoSuchElementException::new);
     if (version.rowVersion() != expectedVersion) {
-      throw new VersionConflictException("PLAN_VERSION", expectedVersion, version.rowVersion());
+      throw new VersionConflictException("TASK", expectedVersion, version.rowVersion());
     }
     PlanTransition result =
         PlanVersionStateMachine.apply(version.status(), PlanCommand.APPROVE, true);

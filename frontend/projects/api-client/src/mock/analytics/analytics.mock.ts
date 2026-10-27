@@ -75,62 +75,49 @@ const periodLabel = (id: string) => PERIODS.find((p) => p.id === id)?.label ?? i
 const previousOf = (id: string) => PERIODS.find((p) => p.id === id)?.previous ?? null;
 
 type Fact = Record<string, string | number>;
-const PERSON_DIMS = new Set(['person.name', 'score_snapshot.id', 'rating.level']);
-const WEEKS = 6;
+/** Chiều theo hồ sơ của từng cán bộ (mức xếp loại); kho phân tích không có chiều định danh cán bộ. */
+const PROFILE_DIMS = new Set(['appraisal.muc_xep_loai']);
 
-/** Bản ghi chi tiết của một kỳ theo hạt cần cho các chiều được hỏi (đơn vị, tuần, loại nhiệm vụ, cán bộ). */
+/** Bản ghi chi tiết của một kỳ theo hạt cần cho các chiều được hỏi (đơn vị, loại nhiệm vụ, hồ sơ). */
 function facts(periodId: string, dims: string[]): Fact[] {
   const out: Fact[] = [];
   const label = periodLabel(periodId);
-  if (dims.some((d) => PERSON_DIMS.has(d))) {
+  const unitDims = (u: (typeof UNITS)[number]): Fact => ({
+    'org_unit.id': u.id,
+    'org_unit.name': u.name,
+    'flow.code': u.flow,
+    'subject_group.code': u.groupCode,
+    'subject_group.ten': u.group,
+    'period.label': label,
+  });
+  if (dims.some((d) => PROFILE_DIMS.has(d))) {
     for (const p of people(periodId)) {
-      const u = UNITS.find((x) => x.id === p.unitId)!;
       out.push({
-        'org_unit.id': u.id,
-        'org_unit.name': u.name,
-        'flow.name': u.flow,
-        'subject_group.name': u.group,
-        'period.label': label,
-        'person.name': p.name,
-        'score_snapshot.id': p.scoreId,
-        'rating.level': p.rating,
-        'appraisal.diem_kpi_tb': p.score,
-        'task.ty_le_dung_han': p.onTime,
+        ...unitDims(UNITS.find((x) => x.id === p.unitId)!),
+        'appraisal.muc_xep_loai': p.rating,
         'appraisal.phan_bo_muc': 1,
       });
     }
     return out;
   }
-  const weeks = dims.includes('time.week') ? WEEKS : 0;
-  const types = dims.includes('task_type.name') ? ['Then chốt', 'Thường xuyên'] : [null];
+  const types = dims.includes('task.nhom') ? ['Then chốt', 'Thường xuyên'] : [null];
   for (const u of UNITS) {
     const v = unitValues(periodId, u.id);
     if (!v) continue;
-    const base: Fact = {
-      'org_unit.id': u.id,
-      'org_unit.name': u.name,
-      'flow.name': u.flow,
-      'subject_group.name': u.group,
-      'period.label': label,
-      // số cán bộ theo mức để phân bố mức khi không hỏi chiều cán bộ
-      'appraisal.phan_bo_muc': people(periodId).filter((p) => p.unitId === u.id).length,
-    };
+    const n = people(periodId).filter((p) => p.unitId === u.id).length;
+    // số hồ sơ theo đơn vị để phân bố mức, số người có điểm khi không hỏi chiều hồ sơ
+    const base: Fact = { ...unitDims(u), 'appraisal.phan_bo_muc': n, 'score.so_nguoi': n };
     for (const t of types) {
       const split = t === null ? 1 : t === 'Then chốt' ? 0.4 : 0.6;
-      const rows = weeks ? Array.from({ length: weeks }, (_, i) => i + 1) : [0];
-      for (const w of rows) {
-        const f: Fact = { ...base };
-        if (t) f['task_type.name'] = t;
-        if (w) f['time.week'] = `Tuần ${w}`;
-        for (const m of Object.keys(UNIT_MEASURES) as UnitMeasure[]) {
-          let x = v[m];
-          if (UNIT_MEASURES[m].agg === 'sum') x = Math.round(x * split);
-          else if (t === 'Then chốt' && m === 'task.ty_le_dung_han') x -= 4;
-          if (w && UNIT_MEASURES[m].progressive) x = Math.round(x * (0.55 + (0.45 * w) / WEEKS));
-          f[m] = x;
-        }
-        out.push(f);
+      const f: Fact = { ...base };
+      if (t) f['task.nhom'] = t;
+      for (const m of Object.keys(UNIT_MEASURES) as UnitMeasure[]) {
+        let x = v[m];
+        if (UNIT_MEASURES[m].agg === 'sum') x = Math.round(x * split);
+        else if (t === 'Then chốt' && m === 'task.ty_le_dung_han') x -= 4;
+        f[m] = x;
       }
+      out.push(f);
     }
   }
   return out;
@@ -154,12 +141,7 @@ function matches(f: Fact, filters: AnalyticsFilter[]): boolean {
   });
 }
 
-const aggOf = (m: string) =>
-  m in UNIT_MEASURES
-    ? UNIT_MEASURES[m as UnitMeasure].agg
-    : m === 'appraisal.phan_bo_muc'
-      ? 'sum'
-      : 'avg';
+const aggOf = (m: string) => (m in UNIT_MEASURES ? UNIT_MEASURES[m as UnitMeasure].agg : 'sum');
 
 function aggregate(rows: Fact[], m: string): number | null {
   const xs = rows.map((r) => r[m]).filter((x): x is number => typeof x === 'number');

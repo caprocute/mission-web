@@ -19,8 +19,23 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { toProblem } from '@vt/api-client';
-import { COMPLAINT_KIND_HINT, COMPLAINT_KIND_LABEL, COMPLAINT_LIMITS, COMPLAINT_OPEN_STATUSES, COMPLAINT_RESOLUTION_LABEL, COMPLAINT_STATUS_LABEL, ComplainableProfile, Complaint, ComplaintApi, ComplaintInput, ComplaintKind, FileApi, FileRejectedError, RATING_LEVEL_LABEL } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import {
+  COMPLAINT_KIND_HINT,
+  COMPLAINT_KIND_LABEL,
+  COMPLAINT_LIMITS,
+  COMPLAINT_OPEN_STATUSES,
+  COMPLAINT_RESOLUTION_LABEL,
+  COMPLAINT_STATUS_LABEL,
+  ComplainableProfile,
+  Complaint,
+  ComplaintApi,
+  ComplaintInput,
+  ComplaintKind,
+  FileApi,
+  FileRejectedError,
+  RATING_LEVEL_LABEL,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DialogModule } from 'primeng/dialog';
@@ -49,6 +64,7 @@ interface Attached {
 @Component({
   selector: 'vt-complaint-form-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -65,7 +81,7 @@ interface Attached {
     @if (complaint.error()) {
       <p-message severity="error">{{ loadError() }}</p-message>
     } @else if (id() && !current()) {
-      <p class="muted">Đang tải khiếu nại…</p>
+      <vt-skeleton variant="form" [rows]="5" label="Đang tải khiếu nại" />
     } @else {
       <!-- vùng 1 -->
       <header class="head">
@@ -118,12 +134,16 @@ interface Attached {
 
       <div class="cols">
         <div>
-          @if (isDraft()) {
+          @if (isDraft() && eligible.isLoading()) {
+            <vt-skeleton
+              variant="form"
+              [rows]="4"
+              label="Đang tải kết quả đánh giá có thể khiếu nại"
+            />
+          } @else if (isDraft()) {
             <!-- vùng 2 -->
             <section class="box" aria-labelledby="r-h">
-              <h2 class="h" id="r-h">
-                <span class="num" aria-hidden="true">2</span> Kết quả, hình thức
-              </h2>
+              <h2 class="h" id="r-h">Kết quả, hình thức</h2>
               <div class="field">
                 <label for="kn-profile" id="kn-profile-l">Kết quả bị khiếu nại (bắt buộc)</label>
                 <p-select
@@ -158,7 +178,7 @@ interface Attached {
 
             <!-- vùng 3 -->
             <section class="box" aria-labelledby="c-h">
-              <h2 class="h" id="c-h"><span class="num" aria-hidden="true">3</span> Nội dung</h2>
+              <h2 class="h" id="c-h">Nội dung</h2>
               <div class="field">
                 <span class="label" id="kn-targets-l">Cấu phần bị khiếu nại (chọn ít nhất 1)</span>
                 <ul class="chips" aria-labelledby="kn-targets-l">
@@ -371,6 +391,8 @@ interface Attached {
                   />
                 }
               </section>
+            } @else if (responses.isLoading()) {
+              <vt-skeleton variant="text" [rows]="4" label="Đang tải văn bản trả lời" />
             }
           }
         </div>
@@ -378,9 +400,7 @@ interface Attached {
         <aside>
           <!-- vùng 4 -->
           <section class="box" aria-labelledby="s-h">
-            <h2 class="h" id="s-h">
-              <span class="num" aria-hidden="true">4</span> Quy trình xử lý
-            </h2>
+            <h2 class="h" id="s-h">Quy trình xử lý</h2>
             <ol class="steps">
               @for (s of steps; track s.title) {
                 <li>
@@ -393,9 +413,7 @@ interface Attached {
           @if (!simple()) {
             <!-- vùng 5 -->
             <section class="box" aria-labelledby="i-h">
-              <h2 class="h" id="i-h">
-                <span class="num" aria-hidden="true">5</span> Ảnh hưởng khi gửi
-              </h2>
+              <h2 class="h" id="i-h">Ảnh hưởng khi gửi</h2>
               <ul class="impact">
                 <li>Hồ sơ đánh giá chuyển nhánh khiếu nại; kết quả hiện hành vẫn có hiệu lực.</li>
                 <li>Gói hồ sơ năm có hồ sơ này bị chặn ký cho tới khi có kết luận.</li>

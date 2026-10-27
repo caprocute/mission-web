@@ -230,9 +230,16 @@ public class OkrComposeController {
         });
   }
 
-  /** CORE-01-06: phê duyệt (BR-02-08), phát EVT-01 cùng giao dịch. */
+  /**
+   * CORE-01-06: phê duyệt (BR-02-08), phát EVT-01 cùng giao dịch. Kiểm theo chức năng SCR-0203 của
+   * ma trận (chỉ AC-04), không chỉ theo phương thức của module: quyền POST module okr của AC-05,
+   * AC-06 không được mở đường duyệt OKR (QA-03 HT-08 ca phủ định).
+   */
   @PostMapping("/objectives/{id}/approve")
-  @RequiresPermission(operationId = "approveOkrObjective", module = "okr")
+  @RequiresPermission(
+      operationId = "approveOkrObjective",
+      module = "okr",
+      action = "SCR-0203.duyet")
   public ResponseEntity<OkrObjective> approveOkrObjective(
       @PathVariable("id") UUID id,
       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
@@ -255,7 +262,10 @@ public class OkrComposeController {
 
   /** CORE-01-06: trả lại có ý kiến bắt buộc (BR-02-09), thông báo người soạn qua EVT-21. */
   @PostMapping("/objectives/{id}/return")
-  @RequiresPermission(operationId = "returnOkrObjective", module = "okr")
+  @RequiresPermission(
+      operationId = "returnOkrObjective",
+      module = "okr",
+      action = "SCR-0203.tra-lai")
   public ResponseEntity<OkrObjective> returnOkrObjective(
       @PathVariable("id") UUID id,
       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
@@ -359,7 +369,10 @@ public class OkrComposeController {
 
   /** CORE-01-06: duyệt hàng loạt các bộ "Đạt", trả 202 và chạy nền, mỗi bộ một giao dịch. */
   @PostMapping("/objectives/approve-batch")
-  @RequiresPermission(operationId = "approveOkrObjectivesBatch", module = "okr")
+  @RequiresPermission(
+      operationId = "approveOkrObjectivesBatch",
+      module = "okr",
+      action = "SCR-0203.duyet-lo")
   public ResponseEntity<Job> approveOkrObjectivesBatch(
       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
       @RequestBody OkrApproveBatchRequest body) {

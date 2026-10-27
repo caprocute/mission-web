@@ -2,9 +2,10 @@
  * SCR-1601 Bảng điều hành lãnh đạo (QT-16 bước 1 – 4, 8; TL-02 SCR-1601; WEB-047).
  * Trường: 1 kỳ (`config.period`, mặc định kỳ đang mở); 2 tiến độ mục tiêu O `okr.tien_do_o`; 3 nhiệm vụ đúng
  * hạn `task.ty_le_dung_han`; 4 việc chậm `task.so_viec_cham`; 5 hồ sơ chờ thẩm định `appraisal.cho_tham_dinh`;
- * 6 tiến độ theo đơn vị (chiều `org_unit`, ngưỡng màu suy luận 80/60, wiki/14); 7 xu hướng 6 tuần kỳ này và
- * kỳ trước; 8 tóm tắt tuần `ai.suggestion_log` kind TOM_TAT_TUAN (nhãn "Nội dung do AI tạo", nguồn, thời
- * điểm, BR-16-06); 9 việc cần chỉ đạo (`GET /tasks?overdue&includeSubunits`, sắp theo mức trễ).
+ * 6 tiến độ theo đơn vị (chiều `org_unit`, ngưỡng màu suy luận 80/60, wiki/14); 7 xu hướng 6 tuần (lớp
+ * ngữ nghĩa chưa có tiến độ theo tuần nên hiện trạng thái rỗng, wiki/14); 8 tóm tắt tuần `ai.suggestion_log`
+ * kind TOM_TAT_TUAN (nhãn "Nội dung do AI tạo", nguồn, thời điểm, BR-16-06); 9 việc cần chỉ đạo
+ * (`GET /tasks?overdue&includeSubunits`, sắp theo mức trễ).
  * Chức năng: tải bảng (các truy vấn `POST /analytics/query` song song), so với quý trước, lọc khối và luồng,
  * bấm đơn vị mở SCR-1603, Nhắc (`POST /tasks/{id}/reminders`, EVT-21, MSG-16-02), Giao lại (`POST
  * /tasks/{id}/reassign`, EVT-04, MSG-16-03), Xem dữ liệu đã dùng (`GET /ai/suggestions/{id}/sources`), Xuất
@@ -18,7 +19,17 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { OrgApi, TaskApi, TaskSummary } from '@vt/api-client';
-import { AiSourceList, AnalyticsApi, AnalyticsQueryResult, DIMENSION, MEASURE, PREVIOUS_SUFFIX, PeriodApi, cellNumber, resultRows } from '@vt/api-client/domains';
+import {
+  AiSourceList,
+  AnalyticsApi,
+  AnalyticsQueryResult,
+  DIMENSION,
+  MEASURE,
+  PREVIOUS_SUFFIX,
+  PeriodApi,
+  cellNumber,
+  resultRows,
+} from '@vt/api-client/domains';
 import { permittedOn } from '@vt/auth';
 import { MenuItem } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -29,7 +40,6 @@ import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 import { forkJoin } from 'rxjs';
-import { LineChart } from '../charts/charts';
 import { DASHBOARD_CAN } from '../dashboard-permissions';
 import {
   eq,
@@ -38,8 +48,10 @@ import {
   fmtDateTime,
   fmtNum,
   progressStatus,
+  valueLabel,
   weekOfPeriod,
 } from '../dashboard-ui';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 interface Kpi {
   key: string;
@@ -52,6 +64,7 @@ interface Kpi {
 @Component({
   selector: 'vt-leader-dashboard-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -61,18 +74,13 @@ interface Kpi {
     SelectModule,
     TagModule,
     TextareaModule,
-    LineChart,
   ],
   template: `
     <div class="head">
       <div>
         <h1>Bảng điều hành</h1>
         <p class="muted">
-          {{ periodName() }}
-          @if (week(); as w) {
-            , {{ w }}
-          }
-          .
+          {{ periodName() }}{{ week() ? ', ' + week() : '' }}.
           @if (asOf(); as t) {
             Số liệu cập nhật lúc {{ dt(t) }}, theo phạm vi đơn vị đồng chí phụ trách.
           }
@@ -117,6 +125,9 @@ interface Kpi {
         <p-select
           inputId="bd-group"
           [options]="groupOptions()"
+          optionLabel="label"
+          optionValue="value"
+          [loading]="optionsRes.isLoading()"
           [ngModel]="group()"
           (ngModelChange)="group.set($event)"
           [showClear]="true"
@@ -128,6 +139,9 @@ interface Kpi {
         <p-select
           inputId="bd-flow"
           [options]="flowOptions()"
+          optionLabel="label"
+          optionValue="value"
+          [loading]="optionsRes.isLoading()"
           [ngModel]="flow()"
           (ngModelChange)="flow.set($event)"
           [showClear]="true"
@@ -167,7 +181,7 @@ interface Kpi {
           }
         </div>
       } @empty {
-        <p class="muted">Đang tải…</p>
+        <vt-skeleton variant="stats" label="Đang tải chỉ số" />
       }
     </section>
 
@@ -226,7 +240,19 @@ interface Kpi {
                     </tr>
                   } @empty {
                     <tr>
-                      <td colspan="4">Chưa có số liệu của kỳ này.</td>
+                      @if (periodsRes.isLoading() || unitRes.isLoading()) {
+                        <td colspan="4">
+                          <vt-skeleton
+                            variant="table"
+                            [header]="false"
+                            [columns]="3"
+                            [rows]="5"
+                            label="Đang tải tiến độ theo đơn vị"
+                          />
+                        </td>
+                      } @else {
+                        <td colspan="4">Chưa có số liệu của kỳ này.</td>
+                      }
                     </tr>
                   }
                 </tbody>
@@ -237,17 +263,13 @@ interface Kpi {
 
         <section class="box" aria-labelledby="bd-trend-h">
           <h2 class="h" id="bd-trend-h">Xu hướng tiến độ 6 tuần</h2>
-          @if (trendRes.hasValue()) {
-            <vt-line-chart
-              [columns]="trendRes.value().columns"
-              [rows]="trendRes.value().rows"
-              caption="Tiến độ mục tiêu O theo tuần, kỳ này và kỳ trước"
-              [seriesNames]="[periodName(), previousName()]"
-            />
-          } @else if (trendRes.error()) {
-            <p-message severity="error">{{ err(trendRes.error()) }}</p-message>
+          @if (periodsRes.isLoading() || unitRes.isLoading()) {
+            <vt-skeleton variant="list" [rows]="2" label="Đang tải xu hướng tiến độ" />
           } @else {
-            <p class="muted">Đang tải…</p>
+            <p class="muted">
+              Chưa có số liệu tiến độ theo từng tuần của kỳ. Tiến độ mới nhất của từng đơn vị ở bảng
+              trên.
+            </p>
           }
         </section>
       </div>
@@ -271,11 +293,12 @@ interface Kpi {
                 label="Xem dữ liệu đã dùng"
                 [text]="true"
                 size="small"
+                [loading]="busy() === 'nguon'"
                 (onClick)="openSources(s.id)"
               />
             }
-          } @else if (summaryRes.isLoading()) {
-            <p class="muted">Đang tải…</p>
+          } @else if (periodsRes.isLoading() || summaryRes.isLoading()) {
+            <vt-skeleton variant="list" [rows]="4" label="Đang tải tổng hợp" />
           } @else {
             <p class="muted">Chưa có tóm tắt tuần này.</p>
           }
@@ -320,7 +343,9 @@ interface Kpi {
                 </div>
               </li>
             } @empty {
-              @if (!taskRes.isLoading()) {
+              @if (periodsRes.isLoading() || taskRes.isLoading()) {
+                <li><vt-skeleton variant="list" [rows]="4" label="Đang tải việc chậm" /></li>
+              } @else {
                 <li class="muted">Không có việc chậm trong phạm vi.</li>
               }
             }
@@ -344,6 +369,7 @@ interface Kpi {
           <p-select
             inputId="gl-person"
             [options]="personOptions()"
+            [loading]="personsRes.isLoading()"
             optionLabel="name"
             optionValue="id"
             [filter]="true"
@@ -481,16 +507,6 @@ export class LeaderDashboardPage {
     this.periodOptions().find((p) => p.id === this.periodId()),
   );
   protected readonly periodName = computed(() => this.period()?.name ?? 'Kỳ hiện hành');
-  protected readonly previousName = computed(() => {
-    const ps = this.periodOptions();
-    const cur = this.period();
-    const prev =
-      cur &&
-      ps
-        .filter((p) => p.endDate < cur.startDate)
-        .sort((a, b) => b.endDate.localeCompare(a.endDate))[0];
-    return prev?.name ?? 'Kỳ trước';
-  });
   protected readonly week = computed(() => weekOfPeriod(this.period()));
 
   protected readonly compare = signal(false);
@@ -527,24 +543,16 @@ export class LeaderDashboardPage {
         dimensions: [DIMENSION.unitId, DIMENSION.unitName],
       }),
   });
-  protected readonly trendRes = rxResource({
-    params: () => this.params(),
-    stream: ({ params }) =>
-      this.api.query({
-        ...params,
-        compareToPreviousPeriod: true,
-        measures: [MEASURE.tienDoO],
-        dimensions: [DIMENSION.week],
-        timeGranularity: 'week',
-      }),
-  });
-  /** Giá trị cho bộ lọc khối, luồng lấy từ chính lớp ngữ nghĩa (không đặt danh sách trong mã). */
-  private readonly optionsRes = rxResource({
+  /**
+   * Giá trị cho bộ lọc khối, luồng lấy từ chính lớp ngữ nghĩa (không đặt danh sách trong mã): lọc theo mã
+   * (`subject_group.code`, `flow.code` như ví dụ của hợp đồng), hiện tên khối và nhãn luồng.
+   */
+  protected readonly optionsRes = rxResource({
     params: () => this.periodId() ?? undefined,
     stream: ({ params }) =>
       forkJoin(
-        [DIMENSION.subjectGroup, DIMENSION.flow].map((d) =>
-          this.api.query({ periodId: params, measures: [MEASURE.tienDoO], dimensions: [d] }),
+        [[DIMENSION.subjectGroup, DIMENSION.subjectGroupName], [DIMENSION.flow]].map((dimensions) =>
+          this.api.query({ periodId: params, measures: [MEASURE.tienDoO], dimensions }),
         ),
       ),
   });
@@ -565,7 +573,7 @@ export class LeaderDashboardPage {
   protected readonly directives = computed(() =>
     this.taskRes.hasValue() ? this.taskRes.value().items : [],
   );
-  private readonly personsRes = rxResource({
+  protected readonly personsRes = rxResource({
     params: () => (this.reassigning() ? true : undefined),
     stream: () => this.orgApi.persons(),
   });
@@ -597,7 +605,7 @@ export class LeaderDashboardPage {
     }));
   });
   private readonly results = computed(() =>
-    [this.kpiRes, this.unitRes, this.trendRes]
+    [this.kpiRes, this.unitRes]
       .filter((r) => r.hasValue())
       .map((r) => r.value() as AnalyticsQueryResult),
   );
@@ -620,10 +628,17 @@ export class LeaderDashboardPage {
     { label: 'Tệp Excel', command: () => this.exportReport('XLSX') },
   ];
 
-  private values(i: number): string[] {
+  private values(i: number): { value: string; label: string }[] {
     if (!this.optionsRes.hasValue()) return [];
     const r = this.optionsRes.value()[i];
-    return r ? r.rows.map((row) => String(row[0])).filter((v) => v && v !== 'null') : [];
+    if (!r) return [];
+    return r.rows
+      .filter((row) => row[0] !== null && row[0] !== '')
+      .map((row) => {
+        const value = String(row[0]);
+        const label = i === 0 ? String(row[1] ?? value) : valueLabel(DIMENSION.flow, value);
+        return { value, label };
+      });
   }
 
   protected num(v: number | null) {
@@ -659,9 +674,17 @@ export class LeaderDashboardPage {
   }
 
   protected openSources(id: string) {
+    // Nút chờ trong lúc nạp nguồn; hộp thoại chỉ mở khi dữ liệu đã về
+    this.busy.set('nguon');
     this.api.summarySources(id).subscribe({
-      next: (s) => this.sources.set(s),
-      error: (e) => this.error.set(errorText(e)),
+      next: (s) => {
+        this.busy.set(null);
+        this.sources.set(s);
+      },
+      error: (e) => {
+        this.busy.set(null);
+        this.error.set(errorText(e));
+      },
     });
   }
 

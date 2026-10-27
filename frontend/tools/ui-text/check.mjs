@@ -26,7 +26,7 @@ import {
   TemplateLiteral,
   ASTWithSource,
 } from '@angular/compiler';
-import { RULES } from './rules.mjs';
+import { DESIGN_CODE_PREFIXES, RULES } from './rules.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const PROJECTS = join(ROOT, 'projects');
@@ -276,6 +276,26 @@ for (const f of files) {
   const src = readFileSync(f, 'utf8');
   if (f.endsWith('.html')) scanTemplate(f, src, 1, ignoredLines(src));
   else scanTs(f, src);
+}
+
+// Bộ lọc mã nội bộ khỏi trường căn cứ đến từ dữ liệu (`legalRefText` của @vt/api-client) phải nhận
+// đúng các tiền tố mà kiểm tra này coi là mã thiết kế, để mã lọt qua dữ liệu cũng không hiện ra
+const LEGAL_REF = join(PROJECTS, 'api-client/src/lib/legal-ref.ts');
+{
+  const src = readFileSync(LEGAL_REF, 'utf8');
+  const body = /INTERNAL_CODE_PREFIXES\s*=\s*\[([^\]]*)\]/.exec(src)?.[1] ?? '';
+  const got = [...body.matchAll(/'([A-Z]+)'/g)].map((m) => m[1]);
+  const missing = DESIGN_CODE_PREFIXES.filter((p) => !got.includes(p));
+  const extra = got.filter((p) => !DESIGN_CODE_PREFIXES.includes(p));
+  if (!got.length || missing.length || extra.length)
+    findings.push({
+      file: relative(ROOT, LEGAL_REF),
+      line: src.slice(0, src.indexOf('INTERNAL_CODE_PREFIXES')).split('\n').length,
+      rule: 'tien-to-ma-lech',
+      match: [...missing.map((p) => `thiếu ${p}`), ...extra.map((p) => `thừa ${p}`)].join(', '),
+      text: 'INTERNAL_CODE_PREFIXES khác DESIGN_CODE_PREFIXES của tools/ui-text/rules.mjs',
+      hint: 'Giữ hai danh sách tiền tố mã nội bộ trùng nhau.',
+    });
 }
 
 if (JSON_OUT) console.log(JSON.stringify(findings, null, 1));

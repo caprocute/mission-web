@@ -196,21 +196,40 @@ run_migration_runner() {
 }
 
 # Service Go: migration SQL thuần của service (services-go/<svc>/db/migration/<schema>) có tạo vai trò và đặt
-# tham số vai trò, nên chạy bằng tài khoản quản trị PostgreSQL như chế độ AUTO_MIGRATE dev của chính service:
-# chỉ áp khi bảng mốc chưa có (lần đầu), lần sau báo bỏ qua.
+# tham số vai trò, nên chạy bằng tài khoản quản trị PostgreSQL như chế độ AUTO_MIGRATE dev của chính service.
+# Các service Go (tenant-registry, ledger, notification) chưa có công cụ migration riêng: áp từng tệp V*.sql theo
+# thứ tự và ghi tệp đã áp vào public.dev_go_migration của CSDL đó, để tệp mới thêm sau (ví dụ registry V4 active_dc)
+# vẫn được áp ở lần triển khai sau. Trước đây chỉ kiểm bảng mốc rồi bỏ qua cả thư mục, nên tệp mới không bao giờ
+# được áp (/config/tenants trả 500 vì thiếu cột). Lần đầu có bảng ghi mà CSDL đã có bảng mốc: tệp nào áp lỗi thì
+# coi là đã áp từ trước (mỗi tệp chạy trong một giao dịch nên lỗi không để lại gì) và ghi nhận kèm cảnh báo.
+go_psql() {
+  local db="$1"
+  shift
+  docker exec -i -e PGPASSWORD="${POSTGRES_PASSWORD:-}" mission-dev-postgres psql -h 127.0.0.1 -qtA \
+    -v ON_ERROR_STOP=1 -U "${POSTGRES_USER:-mission_admin}" -d "${db}" "$@"
+}
 run_go_migration() {
-  local db="$1" dir="$2" sentinel="$3" exists f
-  exists="$(docker exec -e PGPASSWORD="${POSTGRES_PASSWORD:-}" mission-dev-postgres psql -h 127.0.0.1 -qtA \
-    -U "${POSTGRES_USER:-mission_admin}" -d "${db}" -c "select to_regclass('${sentinel}') is not null")"
-  if [[ "${exists}" == "t" ]]; then
-    echo "  ${dir##*/}: đã có ${sentinel}, bỏ qua"
-    return 0
+  local db="$1" dir="$2" sentinel="$3" key="${2##*/}" bootstrap=0 da_ap f ten n=0
+  go_psql "${db}" -c "create table if not exists public.dev_go_migration (thu_muc text not null, tep text not null,
+    applied_at timestamptz not null default now(), primary key (thu_muc, tep))" >/dev/null
+  da_ap="$(go_psql "${db}" -c "select tep from public.dev_go_migration where thu_muc = '${key}'")"
+  if [[ -z "${da_ap}" && "$(go_psql "${db}" -c "select to_regclass('${sentinel}') is not null")" == "t" ]]; then
+    bootstrap=1
   fi
-  echo "  ${dir##*/}: áp $(find "${dir}" -maxdepth 1 -name 'V*.sql' | wc -l) tệp vào CSDL ${db}"
   while IFS= read -r f; do
-    docker exec -i -e PGPASSWORD="${POSTGRES_PASSWORD:-}" mission-dev-postgres psql -h 127.0.0.1 -q \
-      -v ON_ERROR_STOP=1 -U "${POSTGRES_USER:-mission_admin}" -d "${db}" -1 <"${f}" >/dev/null
+    ten="${f##*/}"
+    grep -qx "${ten}" <<<"${da_ap}" && continue
+    if go_psql "${db}" -1 <"${f}" >/dev/null 2>&1; then
+      n=$((n + 1))
+    elif [[ "${bootstrap}" == "1" ]]; then
+      echo "  ${key}: ${ten} lỗi khi áp lại, coi là đã áp từ trước (CSDL có ${sentinel} mà chưa có bảng ghi)" >&2
+    else
+      echo "  ${key}: áp ${ten} lỗi" >&2
+      go_psql "${db}" -1 <"${f}" >/dev/null
+    fi
+    go_psql "${db}" -c "insert into public.dev_go_migration (thu_muc, tep) values ('${key}', '${ten}')" >/dev/null
   done < <(find "${dir}" -maxdepth 1 -name 'V*.sql' | sort -V)
+  echo "  ${key}: áp ${n} tệp mới vào CSDL ${db}"
 }
 
 if [[ "${SKIP_MIGRATE:-0}" != "1" ]]; then
@@ -272,6 +291,13 @@ done
 # Thứ tự: lược đồ Avro vào Apicurio trước mọi thao tác ghi có sự kiện; tổ chức sang org_replica trước khi giao
 # việc; phân vùng theo kỳ trước khi ghi dữ liệu của kỳ (README mục 3.2). Mỗi bước chạy lại an toàn.
 canh_bao() { echo "  Cảnh báo: $1 chưa xong; chạy lại $2 khi APISIX, Keycloak và Apicurio sẵn sàng" >&2; }
+# Service có schema tự chứa (esign, evidence, scoring) tạo <schema>.outbox_event khi khởi động lần đầu, mà publication
+# pub_outbox chỉ gồm các bảng có lúc đăng ký: phải đăng ký lại sau khi service healthy, nếu không sự kiện của chúng
+# không lên Kafka (EVT-18 ký xong không về mission-core, kế hoạch đứng ở CHO_DUYET dù yêu cầu ký đã DA_KY).
+if [[ "${SKIP_OUTBOX:-0}" != "1" ]]; then
+  echo "==> Đăng ký lại Debezium Outbox (mọi bảng outbox_event hiện có)"
+  "${SCRIPT_DIR}/dang-ky-outbox.sh" >/dev/null || canh_bao "đăng ký Debezium Outbox" "dang-ky-outbox.sh"
+fi
 # Lược đồ Avro phải có trong Apicurio trước mọi lần phát sự kiện (serde không tự đăng ký): thiếu là org-republish
 # hỏng và seed nhận 403 về sau, nên chờ Apicurio rồi đăng ký, lỗi thì dừng triển khai thay vì chỉ cảnh báo.
 # Bỏ bằng SKIP_SCHEMA=1 (ví dụ khi HA_TANG_KHONG_BAT_BUOC=apicurio).
@@ -292,6 +318,7 @@ if selected mission-core && [[ "${SKIP_SEED:-0}" != "1" ]]; then
   "${SCRIPT_DIR}/them-client-integration-gateway.sh" >/dev/null ||
     canh_bao "client integration-gateway" "them-client-integration-gateway.sh"
   "${SCRIPT_DIR}/them-client-mission-core.sh" >/dev/null || canh_bao "client mission-core" "them-client-mission-core.sh"
+  "${SCRIPT_DIR}/them-client-analytics-api.sh" >/dev/null || canh_bao "client analytics-api" "them-client-analytics-api.sh"
   "${SCRIPT_DIR}/seed-org.sh" || canh_bao "seed tổ chức" "seed-org.sh"
   if selected org-service || docker ps -q --filter name=mission-dev-org-service | grep -q .; then
     "${SCRIPT_DIR}/dong-bo-to-chuc.sh" || canh_bao "đồng bộ tổ chức sang mission-core" "dong-bo-to-chuc.sh"
@@ -303,6 +330,9 @@ if selected mission-core && [[ "${SKIP_SEED:-0}" != "1" ]]; then
   python3 -I "${SCRIPT_DIR}/seed-ky-nhiem-vu.py" || canh_bao "nhiệm vụ mẫu" "seed-ky-nhiem-vu.py"
   sleep 31
   python3 -I "${SCRIPT_DIR}/seed-okr-mau.py" || canh_bao "OKR mẫu đã duyệt" "seed-okr-mau.py"
+  # Phiếu tự đánh giá dựng từ Mẫu 1B hiện hành của tenant; chưa phát hành thì /ui/forms/mau-1b/current trả 404.
+  sleep 31
+  python3 -I "${SCRIPT_DIR}/phat-hanh-mau-1b.py" --tat-ca || canh_bao "phát hành Mẫu 1B" "phat-hanh-mau-1b.py --tat-ca"
 fi
 
 echo "==> Container sau khi áp: $(docker ps -q | wc -l) đang chạy, $(docker ps -q --filter "label=com.docker.compose.project=${PROJECT}" | wc -l) thuộc ${PROJECT}"

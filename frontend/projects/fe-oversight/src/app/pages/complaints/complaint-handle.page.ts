@@ -23,8 +23,25 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { OrgApi, toProblem } from '@vt/api-client';
-import { AppraisalSimulationResult, COMPLAINT_KIND_LABEL, COMPLAINT_REJECT_REASON_LABEL, COMPLAINT_RESOLUTION_LABEL, COMPLAINT_STATUS_LABEL, COMPLAINT_STAGE_LABEL, Complaint, ComplaintAdjustment, ComplaintApi, ComplaintRejectReasonCode, ComplaintResolution, ComplaintResponseRecord, ComplaintStatus, ExplanationParty, RATING_LEVEL_LABEL, RatingLevel } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import {
+  AppraisalSimulationResult,
+  COMPLAINT_KIND_LABEL,
+  COMPLAINT_REJECT_REASON_LABEL,
+  COMPLAINT_RESOLUTION_LABEL,
+  COMPLAINT_STATUS_LABEL,
+  COMPLAINT_STAGE_LABEL,
+  Complaint,
+  ComplaintAdjustment,
+  ComplaintApi,
+  ComplaintRejectReasonCode,
+  ComplaintResolution,
+  ComplaintResponseRecord,
+  ComplaintStatus,
+  ExplanationParty,
+  RATING_LEVEL_LABEL,
+  RatingLevel,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
@@ -61,6 +78,7 @@ const SIGN_REASON = 'Cần xác thực bổ sung để ký số văn bản trả
 @Component({
   selector: 'vt-complaint-handle-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -89,7 +107,7 @@ const SIGN_REASON = 'Cần xác thực bổ sung để ký số văn bản trả
     <div class="grid">
       <!-- vùng 1 -->
       <section class="box list" aria-labelledby="l-h">
-        <h2 class="h" id="l-h"><span class="num" aria-hidden="true">1</span> Khiếu nại</h2>
+        <h2 class="h" id="l-h">Khiếu nại</h2>
         <p-selectbutton
           [options]="views"
           optionLabel="label"
@@ -125,7 +143,7 @@ const SIGN_REASON = 'Cần xác thực bổ sung để ký số văn bản trả
             }
           </ul>
         } @else {
-          <p class="muted">Đang tải…</p>
+          <vt-skeleton variant="list" [rows]="5" label="Đang tải danh sách khiếu nại" />
         }
       </section>
 
@@ -148,7 +166,7 @@ const SIGN_REASON = 'Cần xác thực bổ sung để ký số văn bản trả
           <!-- vùng 2 -->
           <section class="box" aria-labelledby="c-h">
             <h2 class="h" id="c-h">
-              <span class="num" aria-hidden="true">2</span> {{ c.code }}
+              {{ c.code }}
               <p-tag [value]="kindLabel[c.kind]" severity="secondary" />
               <p-tag [value]="statusText(c.status)" [severity]="severity(c.status)" />
             </h2>
@@ -221,8 +239,10 @@ const SIGN_REASON = 'Cần xác thực bổ sung để ký số văn bản trả
 
           <!-- vùng 3 -->
           <section class="box" aria-labelledby="g-h">
-            <h2 class="h" id="g-h"><span class="num" aria-hidden="true">3</span> Giải trình</h2>
-            @if (asks().length) {
+            <h2 class="h" id="g-h">Giải trình</h2>
+            @if (records.isLoading() && !asks().length) {
+              <vt-skeleton variant="list" [rows]="2" label="Đang tải yêu cầu giải trình" />
+            } @else if (asks().length) {
               <ul class="records">
                 @for (a of asks(); track a.ask.id) {
                   <li [class.ask]="!a.answer" [class.answer]="!!a.answer">
@@ -279,6 +299,7 @@ const SIGN_REASON = 'Cần xác thực bổ sung để ký số văn bản trả
                 <p-multiselect
                   inputId="yc-parties"
                   [options]="partyOptions()"
+                  [loading]="orgOptions.isLoading()"
                   optionLabel="label"
                   optionValue="value"
                   [ngModel]="parties()"
@@ -322,7 +343,7 @@ const SIGN_REASON = 'Cần xác thực bổ sung để ký số văn bản trả
 
           <!-- vùng 4 -->
           <section class="box" aria-labelledby="k-h">
-            <h2 class="h" id="k-h"><span class="num" aria-hidden="true">4</span> Kết luận</h2>
+            <h2 class="h" id="k-h">Kết luận</h2>
             @if (canConclude()) {
               <div class="field">
                 <label for="kl-outcome" id="kl-outcome-l">Kết quả xử lý (bắt buộc)</label>
@@ -485,6 +506,8 @@ const SIGN_REASON = 'Cần xác thực bổ sung để ký số văn bản trả
               }
               @if (conclusionText(); as t) {
                 <p class="text">{{ t }}</p>
+              } @else if (records.isLoading()) {
+                <vt-skeleton variant="text" [rows]="3" label="Đang tải nội dung kết luận" />
               }
             } @else {
               <p class="muted">Chưa có kết luận.</p>
@@ -516,9 +539,7 @@ const SIGN_REASON = 'Cần xác thực bổ sung để ký số văn bản trả
           @if (needsReopen()) {
             <!-- vùng 5 -->
             <section class="box" aria-labelledby="t-h">
-              <h2 class="h" id="t-h">
-                <span class="num" aria-hidden="true">5</span> Thi hành kết luận
-              </h2>
+              <h2 class="h" id="t-h">Thi hành kết luận</h2>
               <p>
                 Kỳ {{ c.period.label }} đã khoá nên điều chỉnh phải qua yêu cầu mở lại kỳ có hai
                 người duyệt; không có cách sửa trực tiếp.
@@ -541,7 +562,7 @@ const SIGN_REASON = 'Cần xác thực bổ sung để ký số văn bản trả
           }
         </div>
       } @else {
-        <section class="box"><p class="muted">Đang tải khiếu nại…</p></section>
+        <vt-skeleton variant="detail" label="Đang tải khiếu nại" />
       }
     </div>
 

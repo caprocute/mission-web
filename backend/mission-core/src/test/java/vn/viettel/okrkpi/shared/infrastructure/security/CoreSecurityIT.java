@@ -71,6 +71,12 @@ class CoreSecurityIT {
           "unit", String.valueOf(s.unitId()),
           "roles", s.roles());
     }
+
+    /** Cổng nội bộ thử: chỉ trả tenant đọc từ token chuyển tiếp. */
+    @GetMapping("/internal/v1/test-security/tenant")
+    Map<String, Object> internalTenant() {
+      return Map.of("tenant", TenantContext.require().value().toString());
+    }
   }
 
   @DynamicPropertySource
@@ -131,6 +137,17 @@ class CoreSecurityIT {
     assertProblem(
         call("/api/v1/test-security/whoami", token(KEY, c -> c.claim("unit_id", "phong-1"))), 401);
     assertProblem(call("/api/v1/test-security/whoami", "khong-phai-jwt"), 401);
+  }
+
+  @Test
+  void internalGateReadsTenantFromForwardedTokenAndRejectsBadToken() throws Exception {
+    MvcResult ok = call("/internal/v1/test-security/tenant", token(KEY, c -> {}));
+    assertThat(ok.getResponse().getStatus()).isEqualTo(200);
+    assertThat(json.readTree(ok.getResponse().getContentAsByteArray()).path("tenant").asText())
+        .isEqualTo(tenant.toString());
+    assertProblem(call("/internal/v1/test-security/tenant", token(OTHER, c -> {})), 401);
+    MvcResult none = mvc.perform(get("/internal/v1/test-security/tenant")).andReturn();
+    assertThat(none.getResponse().getStatus()).isEqualTo(403);
   }
 
   @Test

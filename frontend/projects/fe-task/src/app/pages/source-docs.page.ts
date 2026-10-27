@@ -8,26 +8,40 @@ import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { toProblem } from '@vt/api-client';
-import { SOURCE_DOC_STATUS_LABEL, SOURCE_SYSTEM_LABEL, SourceDocApi, SourceDocStatus, SourceDocSummary } from '@vt/api-client/domains';
+import {
+  SOURCE_DOC_STATUS_LABEL,
+  SOURCE_SYSTEM_LABEL,
+  SourceDocApi,
+  SourceDocStatus,
+  SourceDocSummary,
+} from '@vt/api-client/domains';
 import { MessageModule } from 'primeng/message';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TagModule } from 'primeng/tag';
 import { TASK_CAN } from '../task-permissions';
 import { TagSeverity, formatDate } from '../task-ui';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 type Filter = SourceDocStatus | 'TAT_CA';
 
 @Component({
   selector: 'vt-source-docs-page',
-  imports: [DatePipe, FormsModule, RouterLink, MessageModule, SelectButtonModule, TagModule],
+  imports: [
+    VtSkeletonComponent,
+    DatePipe,
+    FormsModule,
+    RouterLink,
+    MessageModule,
+    SelectButtonModule,
+    TagModule,
+  ],
   template: `
     <h1>Văn bản đến</h1>
     @if (!can('SCR-0502.nhan-van-ban')) {
       <p-message severity="warn" text="Chức năng này dành cho lãnh đạo đơn vị nhận văn bản." />
     } @else {
       <p class="muted">
-        Văn bản chỉ đạo nhận từ hệ thống quản lý văn bản điện tử. Hệ thống dùng AI trích các nhiệm
-        vụ trong văn bản; người giao việc xác nhận từng nhiệm vụ trước khi giao.
+        Văn bản chỉ đạo chuyển đến; xác nhận các nhiệm vụ trích từ văn bản trước khi giao.
       </p>
       <p-selectbutton
         [options]="filters"
@@ -43,7 +57,7 @@ type Filter = SourceDocStatus | 'TAT_CA';
       @if (docs.error()) {
         <p-message severity="error" [text]="error()" />
       } @else if (docs.isLoading() && !rows().length) {
-        <p class="muted">Đang tải…</p>
+        <vt-skeleton variant="table" [columns]="4" label="Đang tải danh sách văn bản" />
       } @else if (!rows().length) {
         <p class="muted">Không có văn bản nào.</p>
       } @else {
@@ -89,7 +103,6 @@ type Filter = SourceDocStatus | 'TAT_CA';
   styles: `
     :host {
       display: block;
-      padding: 16px 24px;
       --p-togglebutton-color: #374151;
     }
     h1 {

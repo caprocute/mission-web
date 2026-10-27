@@ -37,7 +37,7 @@ import {
   ProblemPresenter,
 } from '@vt/api-client';
 import { permittedOn } from '@vt/auth';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { MultiSelectModule } from 'primeng/multiselect';
@@ -76,6 +76,7 @@ const newKey = () => `k${++seq}`;
 @Component({
   selector: 'vt-objective-compose-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -92,7 +93,7 @@ const newKey = () => `k${++seq}`;
         <a [routerLink]="treeLink" class="linkbtn">Về cây mục tiêu</a>
       </p-message>
     } @else if (!ctx() || !form()) {
-      <p class="muted" role="status">Đang tải dữ liệu soạn mục tiêu…</p>
+      <vt-skeleton variant="form" [rows]="5" label="Đang tải biểu mẫu soạn mục tiêu" />
     } @else {
       @let c = ctx()!;
       @let f = form()!;
@@ -507,17 +508,6 @@ const newKey = () => `k${++seq}`;
                 </li>
               }
             </ul>
-            <p class="muted small">
-              Khi trình, hệ thống kiểm tra lại toàn bộ quy tắc, kể cả quy tắc người xác nhận phải
-              khác chủ sở hữu KR. Bộ quy tắc OKR phiên bản {{ c.policy.version }}.
-            </p>
-          </section>
-          <section class="box" aria-labelledby="pr-h">
-            <h2 id="pr-h" class="sec">Phân rã</h2>
-            <p class="small">
-              Sau khi duyệt, mỗi KR có thể gắn chương trình (Tầng 2) và nhiệm vụ trong Kế hoạch quý
-              (Tầng 3). Một nhiệm vụ chỉ tính điểm ở một nhóm.
-            </p>
           </section>
         </aside>
       </div>

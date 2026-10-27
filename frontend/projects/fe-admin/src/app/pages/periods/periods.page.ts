@@ -31,9 +31,25 @@ import {
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { JobTracker, fieldErrors, toProblem } from '@vt/api-client';
-import { LOCK_ORDER_STATUS_LABEL, LOCK_STEP_STATUS_LABEL, PERIOD_FLOW_LABEL, PERIOD_KIND_LABEL, PERIOD_STATUS_LABEL, Period, PeriodApi, PeriodJobAccepted, PeriodLockDiagram, PeriodLockProgress, PeriodLockStep, PeriodLockStepStatus, SAGA_ACTIVE_STATUSES, SAGA_STATUS_LABEL, SCORE_BATCH_STATUS_LABEL, SagaStatus } from '@vt/api-client/domains';
+import {
+  LOCK_ORDER_STATUS_LABEL,
+  LOCK_STEP_STATUS_LABEL,
+  PERIOD_FLOW_LABEL,
+  PERIOD_KIND_LABEL,
+  PERIOD_STATUS_LABEL,
+  Period,
+  PeriodApi,
+  PeriodJobAccepted,
+  PeriodLockDiagram,
+  PeriodLockProgress,
+  PeriodLockStep,
+  PeriodLockStepStatus,
+  SAGA_ACTIVE_STATUSES,
+  SAGA_STATUS_LABEL,
+  SagaStatus,
+} from '@vt/api-client/domains';
 import { TEXT_FORBIDDEN } from '@vt/auth';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
@@ -96,6 +112,7 @@ const timeOf = (iso?: string | null) => {
 @Component({
   selector: 'vt-periods-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     ButtonModule,
     DialogModule,
@@ -135,7 +152,7 @@ const timeOf = (iso?: string | null) => {
             <button type="button" class="link" (click)="periods.reload()">Thử lại</button>
           </p-message>
         } @else if (!periods.hasValue()) {
-          <p class="muted">Đang tải…</p>
+          <vt-skeleton variant="list" [rows]="4" label="Đang tải danh sách kỳ" />
         } @else {
           <ul class="plist">
             @for (p of periods.value(); track p.id) {
@@ -288,18 +305,18 @@ const timeOf = (iso?: string | null) => {
           @if (pr(); as s) {
             <section class="box" aria-labelledby="h-saga">
               <div class="row-head">
-                <h2 id="h-saga" class="h">
-                  Tiến trình khoá kỳ
-                  @if (s.templateVersion) {
-                    (quy trình phiên bản {{ s.templateVersion }})
-                  }
-                </h2>
+                <h2 id="h-saga" class="h">Tiến trình khoá kỳ</h2>
                 <span class="status" [class]="'status ' + sagaTone(s.sagaStatus)" role="status">{{
                   sagaLabel[s.sagaStatus]
                 }}</span>
               </div>
               @if (s.sagaStatus === 'HOAN_TAT') {
-                <p-message severity="success" [text]="msg0807(p, s)" styleClass="msg" />
+                <p-message
+                  severity="success"
+                  [text]="msg0807(p, s)"
+                  styleClass="msg"
+                  role="status"
+                />
               }
               @if (s.sagaStatus === 'DA_BU_TRU') {
                 <p-message severity="info" [text]="msg0808(p.name)" styleClass="msg" />
@@ -312,12 +329,7 @@ const timeOf = (iso?: string | null) => {
                 <div class="card">
                   <p class="label">Đã tính điểm</p>
                   <p class="big">{{ int(s.totals.scored) }}</p>
-                  <p class="muted small">
-                    {{ scoredPercent(s) }}%
-                    @if (s.ratePerMinute) {
-                      · khoảng {{ int(s.ratePerMinute) }} hồ sơ/phút
-                    }
-                  </p>
+                  <p class="muted small">{{ scoredPercent(s) }}%</p>
                 </div>
                 <div class="card">
                   <p class="label">Lỗi chờ xử lý</p>
@@ -327,7 +339,7 @@ const timeOf = (iso?: string | null) => {
                   <p class="label">Dự kiến hoàn tất</p>
                   <p class="big">{{ time(s.estimatedFinishAt) || '—' }}</p>
                   @if (s.budgetFinishAt) {
-                    <p class="muted small">thời hạn cho phép: {{ time(s.budgetFinishAt) }}</p>
+                    <p class="muted small">chậm nhất: {{ time(s.budgetFinishAt) }}</p>
                   }
                 </div>
               </div>
@@ -349,7 +361,7 @@ const timeOf = (iso?: string | null) => {
                       <th scope="col">Trạng thái</th>
                       <th scope="col">Thời gian</th>
                       <th scope="col">Kết quả</th>
-                      <th scope="col">Hoàn tác</th>
+                      <th scope="col">Nếu huỷ toàn bộ</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -519,40 +531,15 @@ const timeOf = (iso?: string | null) => {
                   </table>
                 </div>
               </section>
-            }
-
-            @if (!simple() && batches.value()?.length) {
-              <details class="box">
-                <summary class="h">Lô tính điểm ({{ batches.value()!.length }})</summary>
-                <div class="scroll">
-                  <table class="tbl">
-                    <thead>
-                      <tr>
-                        <th scope="col">Mã lô</th>
-                        <th scope="col">Đơn vị</th>
-                        <th scope="col" class="num">Số hồ sơ</th>
-                        <th scope="col">Trạng thái</th>
-                        <th scope="col" class="num">Số lần thử</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (b of batches.value(); track b.id) {
-                        <tr>
-                          <td class="mono">{{ b.id }}</td>
-                          <td>{{ b.unit?.name }}</td>
-                          <td class="num">{{ int(b.profileCount) }}</td>
-                          <td>{{ batchLabel[b.status] }}</td>
-                          <td class="num">{{ b.attempts }}</td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
-              </details>
+            } @else if (failures.isLoading() && s.totals.failed > 0) {
+              <section class="box" aria-labelledby="h-fail">
+                <h2 id="h-fail" class="h">Hồ sơ lỗi ({{ int(s.totals.failed) }})</h2>
+                <vt-skeleton variant="table" [columns]="4" [rows]="3" label="Đang tải hồ sơ lỗi" />
+              </section>
             }
 
             <section class="box" aria-labelledby="h-events">
-              <h2 id="h-events" class="h">Nhật ký sự kiện</h2>
+              <h2 id="h-events" class="h">Diễn biến</h2>
               <ol class="events">
                 @for (e of events.value() ?? []; track e.ledgerEntryId ?? e.at + e.event) {
                   <li>
@@ -566,9 +553,20 @@ const timeOf = (iso?: string | null) => {
                     </span>
                   </li>
                 } @empty {
-                  <li class="muted">Chưa có sự kiện.</li>
+                  @if (events.isLoading()) {
+                    <li>
+                      <vt-skeleton variant="list" [rows]="3" label="Đang tải diễn biến khoá kỳ" />
+                    </li>
+                  } @else {
+                    <li class="muted">Chưa có sự kiện.</li>
+                  }
                 }
               </ol>
+            </section>
+          } @else if (progress.isLoading()) {
+            <section class="box" aria-labelledby="h-saga-sk">
+              <h2 id="h-saga-sk" class="h">Tiến trình khoá kỳ</h2>
+              <vt-skeleton variant="page" [columns]="5" label="Đang tải tiến trình khoá kỳ" />
             </section>
           } @else if (lockGone() && p.status === 'DA_KHOA') {
             <section class="box">
@@ -687,7 +685,7 @@ const timeOf = (iso?: string | null) => {
           }
         </ol>
       } @else {
-        <p class="muted">Đang tải sơ đồ…</p>
+        <vt-skeleton variant="list" [rows]="4" label="Đang tải sơ đồ" />
       }
     </p-dialog>
   `,
@@ -1025,7 +1023,6 @@ export class PeriodsPage {
   protected readonly orderLabel = LOCK_ORDER_STATUS_LABEL;
   protected readonly sagaLabel = SAGA_STATUS_LABEL;
   protected readonly stepLabel = LOCK_STEP_STATUS_LABEL;
-  protected readonly batchLabel = SCORE_BATCH_STATUS_LABEL;
   protected readonly stepIcon = STEP_ICON;
   protected readonly int = fmtInt;
   protected readonly date = fmtDate;
@@ -1071,10 +1068,6 @@ export class PeriodsPage {
   protected readonly failures = rxResource({
     params: () => this.lockId(),
     stream: ({ params }) => this.quiet(this.api.failures(params)),
-  });
-  protected readonly batches = rxResource({
-    params: () => (this.simple() ? undefined : this.lockId()),
-    stream: ({ params }) => this.quiet(this.api.batches(params)),
   });
   protected readonly events = rxResource({
     params: () => this.lockId(),
@@ -1326,7 +1319,9 @@ export class PeriodsPage {
       .pipe(last(), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (job) => {
-          if (job.status !== 'HOAN_TAT') this.actionError.set(job.problem?.detail ?? failText);
+          // Tiến trình bị huỷ theo đề nghị đã duyệt (BR-08-09) kết thúc DA_HUY: không phải lỗi, kết
+          // quả hoàn tác hiện ở MSG-08-08 của tiến trình.
+          if (job.status === 'THAT_BAI') this.actionError.set(job.problem?.detail ?? failText);
           this.periods.reload();
           if (this.lockId()) this.reloadSaga();
         },
@@ -1384,7 +1379,6 @@ export class PeriodsPage {
   private reloadSaga() {
     this.progress.reload();
     this.failures.reload();
-    this.batches.reload();
     this.events.reload();
   }
 

@@ -30,6 +30,7 @@ import vn.viettel.okrkpi.task.application.plan.PlanService.VersionView;
 import vn.viettel.okrkpi.task.application.plan.port.PlanApprovalInbox;
 import vn.viettel.okrkpi.task.application.plan.port.PlanNotices;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository;
+import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.ItemRow;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.PendingPlan;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.PlanRow;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.ReviewRow;
@@ -37,6 +38,7 @@ import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.VersionRow;
 import vn.viettel.okrkpi.task.domain.plan.PlanCommand;
 import vn.viettel.okrkpi.task.domain.plan.PlanTransition;
 import vn.viettel.okrkpi.task.domain.plan.PlanVersionStateMachine;
+import vn.viettel.okrkpi.task.domain.plan.PlanVersionStatus;
 
 /**
  * Gửi duyệt, trả lại và danh sách chờ duyệt của kế hoạch quý (QT-04 bước 5, 7b; SCR-0402, SCR-0403;
@@ -99,6 +101,15 @@ public class PlanReviewService {
     periods.assertWritable(tenant, PeriodId.of(plan.periodId()));
     VersionRow version = locked(tenant, plan, versionNo, expectedVersion, PlanCommand.SUBMIT);
     VersionView view = planService.version(tenant, planId, versionNo);
+    // Phiên bản chưa có dòng nào thì không có gì để kiểm tra theo BR-04-02..04 (suy luận từ
+    // BR-04-04:
+    // kế hoạch gửi duyệt phải có việc đủ sản phẩm, số lượng, đơn vị tính và hạn); chặn tại máy chủ.
+    if (view.items().isEmpty()) {
+      throw new BusinessException(
+          PlanService.VALIDATION,
+          "Kế hoạch chưa có công việc nào, vui lòng thêm công việc trước khi gửi duyệt",
+          List.of(new ProblemFieldError("items", "Kế hoạch chưa có công việc nào", "BR-04-04")));
+    }
     List<Check> blocking =
         view.checks().stream().filter(c -> c.level() == PlanChecker.Level.CHAN).toList();
     if (!blocking.isEmpty()) {
@@ -168,6 +179,95 @@ public class PlanReviewService {
     return planService.version(tenant, planId, versionNo);
   }
 
+  /**
+   * Người duyệt định độ khó (1–5, BR-04-14) và điểm chuẩn cho dòng ngoài danh mục của phiên bản
+   * {@code CHO_DUYET} trước khi duyệt (BR-04-05, {@code scoreOffCatalogPlanItem}); mã băm nội dung
+   * tính lại để bước ký số khớp nội dung đã định điểm.
+   */
+  @Transactional(PlanService.TX)
+  public VersionView scoreItem(
+      TenantId tenant,
+      UUID planId,
+      int versionNo,
+      UUID itemId,
+      long expectedVersion,
+      Integer difficulty,
+      java.math.BigDecimal standardScore,
+      UUID actor) {
+    List<ProblemFieldError> invalid = new ArrayList<>();
+    if (difficulty == null || difficulty < 1 || difficulty > 5) {
+      invalid.add(new ProblemFieldError("difficulty", "Mức khó từ 1 đến 5", "BR-04-14"));
+    }
+    if (standardScore == null
+        || standardScore.compareTo(new java.math.BigDecimal("0.5")) < 0
+        || standardScore.compareTo(java.math.BigDecimal.valueOf(50)) > 0) {
+      invalid.add(new ProblemFieldError("standardScore", "Điểm chuẩn từ 0,5 đến 50", "BR-04-05"));
+    }
+    if (!invalid.isEmpty()) {
+      throw new BusinessException(
+          PlanService.VALIDATION, "Điểm định cho công việc chưa hợp lệ", invalid);
+    }
+    PlanRow plan = plans.findPlan(tenant, planId).orElseThrow(NoSuchElementException::new);
+    periods.assertWritable(tenant, PeriodId.of(plan.periodId()));
+    VersionRow version =
+        plans
+            .lockVersion(tenant, plan.periodBucket(), planId, versionNo)
+            .orElseThrow(NoSuchElementException::new);
+    if (version.rowVersion() != expectedVersion) {
+      throw new VersionConflictException("TASK", expectedVersion, version.rowVersion());
+    }
+    if (version.status() != PlanVersionStatus.CHO_DUYET) {
+      throw new BusinessException(
+          PlanService.INVALID_TRANSITION, "Chỉ định điểm khi kế hoạch đang chờ duyệt");
+    }
+    if (org != null && !org.headsOf(tenant, plan.ownerUnitId(), today()).contains(actor)) {
+      throw new BusinessException(OUT_OF_SCOPE, "Chỉ người duyệt kế hoạch được định điểm");
+    }
+    List<ItemRow> items = new ArrayList<>(plans.items(tenant, plan.periodBucket(), version.id()));
+    int at = -1;
+    for (int i = 0; i < items.size(); i++) {
+      if (items.get(i).id().equals(itemId)) {
+        at = i;
+      }
+    }
+    if (at < 0) {
+      throw new NoSuchElementException();
+    }
+    ItemRow old = items.get(at);
+    if (old.catalogItemId() != null) {
+      throw new BusinessException(
+          PlanService.VALIDATION,
+          "Công việc trong danh mục đã có điểm theo danh mục",
+          List.of(
+              new ProblemFieldError("itemId", "Chỉ định điểm việc ngoài danh mục", "BR-04-05")));
+    }
+    java.math.BigDecimal score = standardScore.setScale(3, java.math.RoundingMode.HALF_UP);
+    items.set(
+        at,
+        new ItemRow(
+            old.id(),
+            old.itemNo(),
+            old.catalogItemId(),
+            old.catalogCode(),
+            old.keyResultId(),
+            old.title(),
+            old.taskGroup(),
+            old.lead(),
+            old.coAssignees(),
+            old.productName(),
+            old.quantity(),
+            old.unit(),
+            difficulty,
+            score,
+            old.dueDate(),
+            old.originItemId(),
+            old.changeReason(),
+            old.recurrence()));
+    byte[] hash = PlanContentHash.of(plan, versionNo, items);
+    plans.scoreItem(tenant, plan, version, itemId, difficulty, score, hash, actor);
+    return planService.version(tenant, planId, versionNo);
+  }
+
   /** Một dòng chờ duyệt kèm kỳ. */
   public record Review(ReviewRow row, PeriodSnapshot period) {}
 
@@ -224,7 +324,7 @@ public class PlanReviewService {
             .lockVersion(tenant, plan.periodBucket(), plan.id(), versionNo)
             .orElseThrow(NoSuchElementException::new);
     if (version.rowVersion() != expected) {
-      throw new VersionConflictException("PLAN_VERSION", expected, version.rowVersion());
+      throw new VersionConflictException("TASK", expected, version.rowVersion());
     }
     PlanTransition result = PlanVersionStateMachine.apply(version.status(), command, true);
     if (result instanceof PlanTransition.Rejected r) {

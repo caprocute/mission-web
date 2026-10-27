@@ -1,6 +1,7 @@
 import { Component, computed, input, model, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AssignCheckItem, AssignCheckResult, SimilarTask, TASK_STATUS_LABEL } from '@vt/api-client';
+import { VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
@@ -8,17 +9,15 @@ import { formatDate } from '../../task-ui';
 
 /**
  * SCR-0501 vùng 4 và phần bên phải: "Kiểm tra trước khi giao" (QT-05 bước 5), lý do tạo mới khi có
- * nhiệm vụ gần giống (BR-05-06, MSG-05-03), giải thích "Sau khi giao" và khối lượng của người chủ trì
+ * nhiệm vụ gần giống (BR-05-06, MSG-05-03) và khối lượng của người chủ trì
  * theo tuần (BR-05-11, MSG-05-04). Kết quả kiểm tra do máy chủ trả; trang chỉ hiển thị.
  */
 @Component({
   selector: 'vt-assign-side-panel',
-  imports: [FormsModule, ButtonModule, TagModule, TextareaModule],
+  imports: [VtSkeletonComponent, FormsModule, ButtonModule, TagModule, TextareaModule],
   template: `
     <section class="box" aria-labelledby="chk-title" aria-live="polite">
-      <h2 id="chk-title" class="h">
-        <span class="num" aria-hidden="true">4</span> Kiểm tra trước khi giao
-      </h2>
+      <h2 id="chk-title" class="h">Kiểm tra trước khi giao</h2>
       @if (result(); as r) {
         <ul class="checks">
           @for (i of items(); track $index) {
@@ -66,23 +65,14 @@ import { formatDate } from '../../task-ui';
           >
         }
       } @else if (loading()) {
-        <p class="muted">Đang kiểm tra…</p>
+        <vt-skeleton variant="list" [rows]="3" label="Đang kiểm tra trước khi giao" />
       } @else {
         <p class="muted">Điền nội dung nhiệm vụ để hệ thống kiểm tra.</p>
       }
     </section>
 
     @if (!simple()) {
-      <section class="box">
-        <h2 class="h">Sau khi giao</h2>
-        <!-- Giao việc phát sự kiện NhiemVuDaGiao (EVT-04) để gửi thông báo -->
-        <p>
-          Nhiệm vụ chuyển sang trạng thái <strong>Đã giao</strong>; người chủ trì và người phối hợp
-          nhận được thông báo. Nhiệm vụ chuyển sang <strong>Đang thực hiện</strong> khi người chủ
-          trì bấm Nhận việc hoặc cập nhật tiến độ lần đầu.
-        </p>
-      </section>
-
+      <!-- Giao việc phát sự kiện NhiemVuDaGiao (EVT-04) để gửi thông báo; không in giải thích vòng đời lên màn hình (YC-PT-24) -->
       @if (result()?.workload; as w) {
         <section class="box" aria-labelledby="wl-title">
           <h2 id="wl-title" class="h">Khối lượng của người chủ trì</h2>

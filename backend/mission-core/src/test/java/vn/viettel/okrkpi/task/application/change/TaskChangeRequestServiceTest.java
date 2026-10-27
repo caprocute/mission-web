@@ -190,6 +190,24 @@ class TaskChangeRequestServiceTest {
   }
 
   @Test
+  void previewAcceptsDateBeforeCauseAndReasonButSubmitDoesNot() {
+    // Hộp thoại xem trước ngay khi cán bộ nhập hạn mới, trước khi chọn nguyên nhân và viết lý do.
+    Draft dateOnly = new Draft("GIA_HAN", LocalDate.of(2026, 11, 4), null, null, null, null, "");
+    assertThat(service.previewChangeRequest(TENANT, TASK, dateOnly, actor(LEAD)).extraWorkingDays())
+        .isEqualTo(3);
+    assertThatThrownBy(() -> service.submitChangeRequest(TENANT, TASK, dateOnly, actor(LEAD)))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e ->
+                assertThat(e.errors())
+                    .extracting(f -> f.field())
+                    .containsExactlyInAnyOrder("causeClaimed", "reason"));
+    Draft badCause = new Draft("GIA_HAN", LocalDate.of(2026, 11, 4), null, null, "SAI", null, "");
+    assertThatThrownBy(() -> service.previewChangeRequest(TENANT, TASK, badCause, actor(LEAD)))
+        .isInstanceOf(BusinessException.class);
+  }
+
+  @Test
   void holidayCalendarCountsWorkingDaysAndThreshold() {
     WorkingCalendarApi cal = mock(WorkingCalendarApi.class);
     when(cal.countWorkingDays(eq(TENANT), any(), any())).thenReturn(11L);

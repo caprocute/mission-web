@@ -51,9 +51,10 @@ cubes:
         type: count
         filters:
           - sql: "{CUBE}.status = 'CHO_THAM_DINH'"
-      - name: so_da_xep_loai
-        title: Số hồ sơ đã có mức xếp loại
-        description: Dùng cùng chiều Mức xếp loại để có phân bố mức xếp loại
+      # Tên theo hợp đồng platform.yaml (ví dụ updateDashboard: `appraisal.phan_bo_muc`).
+      - name: phan_bo_muc
+        title: Phân bố mức xếp loại
+        description: Số hồ sơ đã có mức xếp loại; dùng cùng chiều Mức xếp loại để có phân bố
         type: count
         filters:
           - sql: "{CUBE}.final_rating_code IS NOT NULL"
@@ -61,9 +62,9 @@ cubes:
       - name: theo_don_vi_ky
         type: rollup
         external: false
-        measures: [so_ho_so, cho_tham_dinh, so_da_xep_loai]
-        dimensions: [tenant_id, luong, muc_xep_loai, org_unit.id, org_unit.ma, org_unit.ten, org_unit.org_path_dang,
-                     org_unit.org_path_chuyen_mon, period.id, period.ma, period.ten]
+        measures: [so_ho_so, cho_tham_dinh, phan_bo_muc]
+        dimensions: [tenant_id, luong, muc_xep_loai, org_unit.id, org_unit.ma, org_unit.name, org_unit.org_path_dang,
+                     org_unit.org_path_chuyen_mon, period.id, period.ma, period.label]
         refresh_key:
           every: 5 minute
         indexes:
@@ -127,8 +128,8 @@ cubes:
         type: rollup
         external: false
         measures: [so_nguoi, mau_nguoi, tong_diem]
-        dimensions: [tenant_id, luong, loai_anh_chup, org_unit.id, org_unit.ma, org_unit.ten, org_unit.org_path_dang,
-                     org_unit.org_path_chuyen_mon, period.id, period.ma, period.ten]
+        dimensions: [tenant_id, luong, loai_anh_chup, org_unit.id, org_unit.ma, org_unit.name, org_unit.org_path_dang,
+                     org_unit.org_path_chuyen_mon, period.id, period.ma, period.label]
         refresh_key:
           every: 5 minute
         indexes:

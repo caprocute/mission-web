@@ -60,9 +60,37 @@ def lap(tac_gia: str, duyet: str, ky: dict, can_cu: str, ten: str, than: dict) -
     return o
 
 
+def trinh(tac_gia: str, ky: dict, can_cu: str, ten: str, than: dict) -> dict:
+    """Soạn (nếu chưa có) và trình một mục tiêu mẫu, để ở trạng thái chờ duyệt (ca phủ định HT-08)."""
+    o = mau(tac_gia, ky, than["ownerUnitId"], ten)
+    if not o:
+        _, o, _ = goi(tac_gia, "POST", "/okr/objectives",
+                      dict(than, periodId=ky["id"], title=ten, basisIds=[can_cu]))
+    if o["status"] in ("NHAP", "TRA_LAI"):
+        _, o, e = goi(tac_gia, "GET", f"/okr/objectives/{o['id']}")
+        _, o, _ = goi(tac_gia, "POST", f"/okr/objectives/{o['id']}/submit", if_match=etag(o, e))
+    print(f"Mục tiêu mẫu chờ duyệt: {ten} ({o['status']})")
+    return o
+
+
 def kr(ten: str, nguoi_xac_nhan: str) -> dict:
     return {"title": ten, "metricType": "TY_LE", "unit": "%", "baselineValue": 0, "targetValue": 100,
             "direction": "TANG", "weight": 1, "verifierPersonId": nguoi_xac_nhan, "checkinFrequency": "TUAN"}
+
+
+def nap_ky(ky: dict, can_cu: str, t_pgd: str, t_gd: str, t_cb: str, t_ld: str, t_ql: str) -> None:
+    so = lap(t_pgd, t_gd, ky, can_cu, "Nâng cao chất lượng tham mưu của Sở",
+             {"ownerType": "TAP_THE", "ownerUnitId": SO,
+              "keyResults": [kr("Tỷ lệ văn bản tham mưu đúng hạn", claims(t_gd)["sub"])]})
+    lap(t_cb, t_ld, ky, can_cu, "Hoàn thành đúng hạn báo cáo tổng hợp",
+        {"ownerType": "CA_NHAN", "ownerUnitId": PHONG_TH, "ownerPersonId": claims(t_cb)["sub"],
+         "parentObjectiveId": so["id"],
+         "keyResults": [kr("Tỷ lệ báo cáo tổng hợp nộp đúng hạn", claims(t_ql)["sub"])]})
+    # 3. Một mục tiêu cá nhân để ở chờ duyệt: ca phủ định HT-08 thử phê duyệt trái quyền bằng `quanly` (403)
+    trinh(t_cb, ky, can_cu, "Chuẩn hoá mẫu biểu báo cáo của phòng",
+          {"ownerType": "CA_NHAN", "ownerUnitId": PHONG_TH, "ownerPersonId": claims(t_cb)["sub"],
+           "parentObjectiveId": so["id"],
+           "keyResults": [kr("Tỷ lệ mẫu biểu được chuẩn hoá", claims(t_ql)["sub"])]})
 
 
 def main() -> int:
@@ -71,20 +99,16 @@ def main() -> int:
     t_pgd, t_gd = token("phogiamdocso", env), token("giamdocso", env)
     t_cb, t_ld, t_ql = token("canbo", env), token("lanhdao", env), token("quanly", env)
     _, ds, _ = goi(t_pgd, "GET", "/periods?status=MO&limit=200")
-    ky = next((k for k in ds["items"] if k["startDate"] <= hom <= k["endDate"]), None)
-    if not ky:
+    # Mọi kỳ đang mở bao trùm hôm nay: màn hình soạn mục tiêu mặc định chọn một kỳ trong số đó
+    kys = [k for k in ds["items"] if k["startDate"] <= hom <= k["endDate"]]
+    if not kys:
         sys.exit("Chưa có kỳ đang mở bao trùm hôm nay: chạy seed-ky-hien-hanh.sh trước")
     _, cc, _ = goi(t_pgd, "GET", "/okr/bases?limit=20")
     if not cc["items"]:
         sys.exit("Chưa có căn cứ OKR: chạy seed-org.sh (okr-can-cu-thu.sql) trước")
     can_cu = cc["items"][0]["id"]
-    so = lap(t_pgd, t_gd, ky, can_cu, "Nâng cao chất lượng tham mưu của Sở",
-             {"ownerType": "TAP_THE", "ownerUnitId": SO,
-              "keyResults": [kr("Tỷ lệ văn bản tham mưu đúng hạn", claims(t_gd)["sub"])]})
-    lap(t_cb, t_ld, ky, can_cu, "Hoàn thành đúng hạn báo cáo tổng hợp",
-        {"ownerType": "CA_NHAN", "ownerUnitId": PHONG_TH, "ownerPersonId": claims(t_cb)["sub"],
-         "parentObjectiveId": so["id"],
-         "keyResults": [kr("Tỷ lệ báo cáo tổng hợp nộp đúng hạn", claims(t_ql)["sub"])]})
+    for ky in kys:
+        nap_ky(ky, can_cu, t_pgd, t_gd, t_cb, t_ld, t_ql)
     return 0
 
 

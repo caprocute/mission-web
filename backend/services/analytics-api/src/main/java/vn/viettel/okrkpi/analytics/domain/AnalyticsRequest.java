@@ -27,6 +27,19 @@ public record AnalyticsRequest(
     }
   }
 
+  /** Cùng truy vấn với một phần chỉ số (chạy riêng theo từng cube). */
+  public AnalyticsRequest withMeasures(List<String> subset) {
+    return new AnalyticsRequest(
+        subset,
+        dimensions,
+        filters,
+        periodId,
+        unitId,
+        timeGranularity,
+        compareToPreviousPeriod,
+        limit);
+  }
+
   public AnalyticsRequest withPeriod(UUID period) {
     return new AnalyticsRequest(
         measures, dimensions, filters, period, unitId, timeGranularity, false, limit);

@@ -11,3 +11,4 @@ export * from './lib/contrast';
 export * from './lib/token-compiler';
 export * from './lib/vt-column-picker.component';
 export * from './lib/vt-saved-filters.component';
+export * from './lib/vt-skeleton.component';

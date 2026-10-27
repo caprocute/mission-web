@@ -12,7 +12,9 @@ Toàn bộ dữ liệu là giả lập: tỉnh Phú Lâm không có thật, tên
 
 **Đổi tài khoản.** Bấm tên người dùng ở góc trên, chọn "Đăng xuất", rồi đăng nhập tài khoản khác. Khi muốn so sánh hai vai trò cùng lúc, mở thêm một cửa sổ ẩn danh.
 
-**Kỳ đánh giá.** Bộ nạp đã tạo kỳ "Quý IV/2026" ở cả ba tenant; mọi mục tiêu và nhiệm vụ thử nằm trong kỳ này.
+**Kỳ đánh giá.** Bộ nạp đã tạo hai kỳ ở cả ba tenant: "Quý III/2026" là kỳ trước, có mục tiêu đã duyệt với lịch sử check-in và lệnh khoá kỳ đã được duyệt nhưng chưa khởi chạy; "Quý IV/2026" là kỳ hiện hành chứa toàn bộ mục tiêu, nhiệm vụ, kế hoạch đang thử.
+
+**Bảng đối chiếu.** Muốn biết một tính năng cụ thể đã có dữ liệu để thử hay chưa, vai trò nào dùng được và tài khoản nào nên đăng nhập, tra [`BANG-DOI-CHIEU-VAI-TRO.md`](BANG-DOI-CHIEU-VAI-TRO.md); bảng đó liệt kê đủ 179 chức năng của ma trận phân quyền, ô nào trống đều ghi lý do và cách mở khoá.
 
 **Nạp lại dữ liệu.** Người quản trị môi trường chạy `infra/dev/scripts/seed-da-tenant.sh` trên server dev. Bộ nạp chạy lại không sinh trùng, chỉ bổ sung phần còn thiếu.
 
@@ -46,19 +48,41 @@ Tài khoản tiêu biểu: Chủ tịch Hội đồng thành viên `dn.chutich` 
 
 ## 3. Dữ liệu đã nạp sẵn
 
-Bộ nạp đi đúng luồng nghiệp vụ như người dùng thao tác trên màn hình, nên mọi bản ghi đều có lịch sử, người soạn, người duyệt và sự kiện như dữ liệu thật.
+Bộ nạp đi đúng luồng nghiệp vụ như người dùng thao tác trên màn hình (soạn rồi trình rồi duyệt, giao rồi nhận rồi cập nhật tiến độ), nên mọi bản ghi đều có lịch sử, người soạn, người duyệt, ý kiến và sự kiện như dữ liệu thật. Dữ liệu được bổ sung theo nguyên tắc: với mỗi tài khoản, mọi màn hình mà vai trò của họ được dùng đều phải có dữ liệu đúng trạng thái để thao tác, hoặc có lý do rõ vì sao còn trống. Mỗi lần nạp, bộ nạp in bảng thống kê số bản ghi mới và đã có theo tenant.
 
-**Cây mục tiêu.** Mỗi tenant có một mục tiêu cấp cao nhất đã duyệt, phân rã xuống đơn vị cấp dưới và tới mục tiêu cá nhân. Ví dụ ở khối Đảng: mục tiêu của Tỉnh ủy "Lãnh đạo hoàn thành kiểm điểm, đánh giá, xếp loại chất lượng năm 2026 theo Quy định 366-QĐ/TW" do Phó Bí thư Thường trực soạn, Bí thư phê duyệt; mục tiêu của Ban Tổ chức, của Phòng Cán bộ và mục tiêu cá nhân của chuyên viên `tu.chuyenviencb` nối tiếp nhau bên dưới. Khối chính quyền có cây từ mục tiêu "Cải cách hành chính và chuyển đổi số của tỉnh đạt chỉ tiêu năm 2026" xuống Sở Tài chính, Trung tâm Phục vụ hành chính công, UBND xã. Doanh nghiệp có cây từ mục tiêu sản xuất kinh doanh quý IV xuống Xí nghiệp số 1, Phòng Kinh doanh và tới công nhân, nhân viên.
+**Hai kỳ đánh giá.** Quý III/2026 là kỳ trước: mỗi tenant có hai bộ mục tiêu đã duyệt với ba lần check-in mỗi kết quả then chốt (tiến độ tăng dần đến cuối quý), quản trị đã lập lệnh khoá kỳ theo một văn bản căn cứ và người đứng đầu đã phê duyệt lệnh, nhưng chưa khởi chạy khoá vì tenant chưa phát hành Policy Pack (xem KB-X4). Quý IV/2026 là kỳ hiện hành đang mở.
 
-**Mục tiêu đang chờ duyệt.** Mỗi tenant có một bộ mục tiêu cá nhân đã trình nhưng chưa duyệt, để người lãnh đạo thử thao tác phê duyệt hoặc trả lại: `tu.chuyenvienth2` chờ `tu.chanhvp`; `cq.chuyenviennv` chờ `cq.giamdocsnv`; `dn.nhanvienkd2` chờ `dn.tonggiamdoc`.
+**Cây mục tiêu và mọi trạng thái của mục tiêu.** Mỗi tenant có 8 đến 10 bộ mục tiêu trong quý IV: một mục tiêu cấp cao nhất đã duyệt (Tỉnh ủy, UBND tỉnh, Công ty), phân rã xuống ban, sở, xí nghiệp, phòng rồi tới mục tiêu cá nhân. Ngoài các bộ đã duyệt, mỗi tenant có đủ ba trạng thái còn lại để thử: một bộ đang **chờ duyệt** (`tu.chuyenvienth2` chờ `tu.chanhvp`; `cq.chuyenviennv` chờ `cq.giamdocsnv`; `dn.nhanvienkd2` chờ `dn.tonggiamdoc`), một bộ bị **trả lại** kèm ý kiến của người duyệt (`tu.phobantc`, `cq.truongphongccvc`, `dn.truongphongkt`) và một bộ còn ở **nháp** chưa trình (`tu.chuyenvienth`, `cq.vienchuctt`, `dn.chuyenviennhansu`).
 
-**Check-in.** Các mục tiêu cá nhân đã duyệt có lần check-in đầu tiên với mức tự tin cao hoặc trung bình, nên cây mục tiêu hiện tiến độ khác 0.
+**Check-in nhiều lần.** Các kết quả then chốt đã duyệt có từ một đến ba lần check-in nên có lịch sử để xem biểu đồ tiến độ; có lần nhảy vọt hơn 50% so với lần trước (đã xác nhận thay đổi lớn) và có lần với mức tự tin thấp kèm vướng mắc (công nhân `dn.congnhan` báo số lần phản ánh mất nước còn cao).
 
-**Nhiệm vụ.** Mỗi tenant có năm hoặc sáu nhiệm vụ do cán bộ quản lý giao: một phần đã được nhận và đang thực hiện với phần trăm tiến độ khác nhau, một phần mới giao đang chờ người chủ trì nhận. Nhiều nhiệm vụ liên kết với KR của mục tiêu cá nhân.
+**Nhiệm vụ ở đủ bảy trạng thái.** Mỗi tenant có 11 hoặc 12 nhiệm vụ, phân bổ như sau:
 
-**Danh mục công việc.** Mỗi tenant có một danh mục công việc đang hiệu lực, 6 hoặc 7 mục có mức khó, điểm chuẩn, tiêu chuẩn chất lượng và yêu cầu minh chứng, dùng khi lập kế hoạch quý và khi giao việc.
+| Trạng thái | Khối Đảng | Khối chính quyền | Doanh nghiệp |
+|---|---|---|---|
+| Nháp, chưa giao | "Dự thảo hướng dẫn kiểm điểm tập thể, cá nhân năm 2026" (`tu.truongphongcb` soạn) | "Chuẩn bị nội dung phiên họp thường kỳ UBND tỉnh" (`cq.truongphongth`) | "Dự thảo quy chế trả lương theo kết quả KPI năm 2027" (`dn.truongphongtchc`) |
+| Đã giao, chờ nhận | "Lập danh sách cán bộ diện Ban Thường vụ quản lý…" (`tu.chuyenviencb`); "Chuẩn bị tài liệu Hội nghị Ban Thường vụ tháng 11" (`tu.chuyenvienth2`); "Cập nhật lịch công tác tuần…" đã giao lại từ `tu.chuyenvienth` sang `tu.chuyenvienth2` và đã nhắc việc | "Tổng hợp tình hình giải ngân vốn đầu tư công…" (`cq.chuyenvienns2`); "Thống kê hồ sơ thủ tục hành chính trễ hạn quý IV" (`cq.vienchuctt`); "Kiểm tra việc chấp hành dự toán năm 2026…" đã giao lại sang `cq.chuyenvienns2`, đã nhắc việc | "Thay thế đồng hồ nước đến hạn kiểm định…" (`dn.congnhan`); "Xử lý phản ánh về chất lượng nước…" (`dn.nhanvienkd2`); "Rà soát danh sách khách hàng nợ tiền nước…" đã giao lại sang `dn.nhanvienkd`, đã nhắc việc |
+| Đang thực hiện | "Thẩm định hồ sơ đánh giá cán bộ khối Mặt trận…" 40% có điểm nghẽn đang xử lý; "Xây dựng dự thảo báo cáo sơ kết…" 60% đã được gia hạn; "Giới thiệu quần chúng ưu tú tại thôn Đông Hòa" 30% có đề nghị đổi số lượng chờ duyệt | "Thẩm định dự toán ngân sách năm 2027…" 45% có điểm nghẽn đã giải quyết; "Xây dựng báo cáo kinh tế - xã hội tháng 11" 20% có đề nghị gia hạn chờ duyệt; "Rà soát dữ liệu cán bộ, công chức…" 70% đã được đổi số lượng; "Rà soát, niêm yết công khai thủ tục hành chính" 50% ở xã | "Khắc phục điểm rò rỉ ống phân phối D110…" 60% có điểm nghẽn đang xử lý; "Phát triển khách hàng mới tại khu đô thị phía Đông" 40% đã được gia hạn; "Xây dựng bộ chỉ tiêu KPI năm 2027…" 30% có đề nghị đổi sản phẩm chờ duyệt |
+| Chờ nghiệm thu | "Rà soát hồ sơ bổ nhiệm lại cán bộ…" (`tu.chuyenviencb` trình, `tu.truongphongcb` nghiệm thu) | "Rà soát, cập nhật biểu mẫu thủ tục hành chính lĩnh vực đất đai" (`cq.vienchuctt`, `cq.giamdoctt`) | "Ký hợp đồng dịch vụ cấp nước với 20 hộ dân đường Lê Lợi nối dài" (`dn.nhanvienkd`, `dn.truongphongkd`) |
+| Hoàn thành | "Tổng hợp ý kiến góp ý dự thảo Quy chế làm việc của Tỉnh ủy" | "Thẩm định phương án phân bổ kinh phí mua sắm tài sản" | "Súc xả tuyến ống cấp nước khu dân cư số 2" |
+| Tạm dừng (đề nghị tạm dừng đã duyệt) | "Biên tập Bản tin Thông tin nội bộ số tháng 11" | "Tổ chức lớp bồi dưỡng nghiệp vụ đánh giá cán bộ…" | "Lắp đặt đồng hồ tổng khu vực đo lường số 4" |
+| Huỷ (đề nghị huỷ đã duyệt) | "Tổ chức buổi sinh hoạt chuyên đề về Quy định 366-QĐ/TW tại chi bộ" | "Lập báo cáo thống kê tình hình kinh tế - xã hội của xã quý IV" | "Khảo sát nhu cầu đấu nối cấp nước tại xóm Cầu Mới" |
 
-**Căn cứ.** Mỗi tenant có ba hoặc bốn văn bản căn cứ (nghị quyết, kế hoạch, chương trình, chỉ thị, quyết định giao chỉ tiêu) để chọn khi soạn mục tiêu.
+Nhờ vậy, chi tiết nhiệm vụ có đủ nhật ký tiến độ, lịch sử trạng thái, điểm nghẽn (mở, đang xử lý, đã giải quyết), đề nghị điều chỉnh đủ bốn loại (gia hạn, đổi số lượng, đổi sản phẩm, tạm dừng, huỷ) ở cả ba kết cục (chờ duyệt, đã duyệt, từ chối), lần nhắc việc và lần giao lại kèm lý do. Nhiều nhiệm vụ liên kết với kết quả then chốt của mục tiêu cá nhân.
+
+**Kế hoạch công tác quý.** Mỗi tenant có hai kế hoạch quý IV ở trạng thái khác nhau: khối Đảng có kế hoạch Ban Tổ chức (bốn dòng, `tu.phobantc` lập) đang chờ `tu.truongbantc` duyệt và kế hoạch Tỉnh ủy còn nháp; khối chính quyền có kế hoạch Sở Tài chính đã duyệt kèm ký số (chỉ gồm dòng danh mục) và kế hoạch UBND tỉnh bị Chủ tịch trả lại với ý kiến bổ sung; doanh nghiệp có kế hoạch Xí nghiệp số 1 chờ Giám đốc Xí nghiệp duyệt và kế hoạch Công ty còn nháp. Các dòng kế hoạch lấy từ danh mục công việc hoặc là việc ngoài danh mục chờ định điểm, có dòng gắn kết quả then chốt.
+
+**Vai trò theo đơn vị.** Vai trò của 51 tài khoản được ghi thành bản ghi vai trò theo đơn vị (nguồn sự thật của phân quyền): lãnh đạo và người thẩm định ở đơn vị mình kèm cấp dưới; quản lý, cán bộ, quản trị nghiệp vụ ở đơn vị mình; quản trị tenant, cấp quyết định, người duyệt thứ hai, kiểm tra ở toàn tenant. Màn hình "Vai trò theo đơn vị" và "Hồ sơ quyền" vì vậy có dữ liệu cho mọi người, và uỷ quyền chỉ lãnh đạo của đơn vị mới khai được.
+
+**Uỷ quyền khi vắng mặt.** Bí thư Tỉnh ủy uỷ quyền duyệt thay cho Phó Bí thư Thường trực; Chánh Văn phòng giao `tu.chuyenvienth2` check-in thay kết quả then chốt của `tu.chuyenvienth`; Giám đốc Sở Tài chính uỷ quyền duyệt thay cho Phó Giám đốc và giao `cq.chuyenvienns2` check-in thay; Giám đốc Xí nghiệp uỷ quyền duyệt thay cho Tổ trưởng.
+
+**Cấp vai trò có thời hạn.** Quản trị tenant đã lập các đề nghị cấp vai trò: `tu.chuyenvienth2` làm quản lý trực tiếp Phòng Tổng hợp (Chánh Văn phòng đã duyệt, đang hiệu lực) và `tu.ubkt` làm người thẩm định toàn Đảng bộ (chờ duyệt); `cq.chuyenvienns2` làm quản lý Phòng Chuyển đổi số (`cq.quantri` lập, `cq.quantri2` duyệt, đúng nguyên tắc bốn mắt) và `cq.chuyenvienth` làm quản lý Phòng Tổng hợp (chờ duyệt); `dn.nhanvienkd` làm quản lý Phòng Kinh doanh (Tổng Giám đốc đã duyệt).
+
+**Policy Pack mẫu.** Mỗi tenant có một gói cấu hình nghiệp vụ ở bản nháp để quản trị nghiệp vụ xem công thức, ba bảng quyết định xếp loại và bộ ca mẫu đã duyệt: khối Đảng dùng gói theo Quy định mới của Trung ương, khối chính quyền và doanh nghiệp dùng gói theo Nghị định 335/2025. Gói chưa phát hành, nên muốn chạy khoá kỳ và xem hồ sơ đánh giá phải đi qua KB-X4.
+
+**Danh mục công việc và căn cứ.** Mỗi tenant có một danh mục công việc đang hiệu lực (6 hoặc 7 mục có mức khó, điểm chuẩn, tiêu chuẩn chất lượng, yêu cầu minh chứng) và ba hoặc bốn văn bản căn cứ (nghị quyết, kế hoạch, chương trình, chỉ thị, quyết định giao chỉ tiêu).
+
+**Chưa có sẵn, có lý do.** Minh chứng (tệp thật phải qua quét vi-rút, nộp ở KB-X5), hồ sơ đánh giá cuối kỳ và xếp loại (chỉ sinh khi khoá kỳ với gói đã phát hành, KB-X4), khiếu nại và mở lại kỳ (cần kết quả xếp loại), đăng ký nhiệm vụ từ danh mục (dữ liệu tổ chức thử chưa có vị trí việc làm), trợ lý AI (dịch vụ chưa bật trên dev). Chi tiết từng chức năng ở bảng đối chiếu.
 
 ## 4. Kịch bản khối Đảng (Đảng bộ tỉnh Phú Lâm)
 
@@ -66,7 +90,7 @@ Bộ nạp đi đúng luồng nghiệp vụ như người dùng thao tác trên 
 
 Tài khoản: `tu.chuyenviencb` (Chuyên viên Phòng Cán bộ, Ban Tổ chức Tỉnh ủy).
 
-1. Đăng nhập. Trang chủ "Việc của tôi hôm nay" hiện hai nhiệm vụ: "Thẩm định hồ sơ đánh giá cán bộ khối Mặt trận Tổ quốc và các đoàn thể tỉnh" (đang thực hiện, 40%) và "Lập danh sách cán bộ diện Ban Thường vụ quản lý thuộc đối tượng đánh giá năm 2026" (mới giao).
+1. Đăng nhập. Trang chủ "Việc của tôi hôm nay" hiện các nhiệm vụ: "Thẩm định hồ sơ đánh giá cán bộ khối Mặt trận Tổ quốc và các đoàn thể tỉnh" (đang thực hiện, 40%, có điểm nghẽn đang được trưởng phòng xử lý), "Lập danh sách cán bộ diện Ban Thường vụ quản lý thuộc đối tượng đánh giá năm 2026" (mới giao) và "Rà soát hồ sơ bổ nhiệm lại cán bộ diện Ban Thường vụ quản lý đến hạn trong quý IV" (đã trình, chờ nghiệm thu).
 2. Mở nhiệm vụ mới giao, bấm "Nhận việc". Trạng thái chuyển sang đang thực hiện.
 3. Mở nhiệm vụ thẩm định, cập nhật tiến độ lên 60% kèm ghi chú (ví dụ "Đã thẩm định 9/14 hồ sơ"). Lịch sử tiến độ hiện thêm một dòng.
 4. Vào "Mục tiêu, OKR", mở mục tiêu cá nhân "Thẩm định đúng hạn các hồ sơ đánh giá cán bộ được phân công". KR "Số hồ sơ được phân công đã thẩm định xong" đang ở 11/30.
@@ -116,6 +140,51 @@ Tài khoản: `tu.bithuchibo` rồi `tu.dangvien`.
 2. `tu.chuyenvientcdv` (Quản trị nghiệp vụ) vào "Cấu hình nghiệp vụ": xem bộ quy tắc đánh giá, chạy bộ ca kiểm thử mẫu. Có thể soạn nhưng không tự phát hành được; phát hành cần người khác duyệt và ký.
 3. `tu.quantri` (Quản trị hệ thống) vào "Quản trị": xem cây tổ chức có cả cây chuyên môn và cây tổ chức Đảng, danh sách kỳ đánh giá. Tài khoản này không có mục "Việc của tôi" vì không phải đối tượng được đánh giá.
 
+### KB-D7. Điểm nghẽn và đề nghị điều chỉnh nhiệm vụ
+
+Tài khoản: `tu.truongphongcb`, `tu.chuyenvienth`, `tu.bithuchibo`, `tu.dangvien`.
+
+1. Đăng nhập `tu.truongphongcb`, mở nhiệm vụ "Thẩm định hồ sơ đánh giá cán bộ khối Mặt trận Tổ quốc…". Phần điểm nghẽn có một điểm nghẽn do chuyên viên báo (nhóm nguyên nhân phối hợp, mức ảnh hưởng trung bình) đang ở trạng thái "đang xử lý" với người xử lý là chính trưởng phòng. Ghi kết quả xử lý và đóng điểm nghẽn.
+2. Đăng nhập `tu.chuyenvienth`, mở nhiệm vụ "Xây dựng dự thảo báo cáo sơ kết công tác xây dựng Đảng quý IV". Lịch sử đề nghị có một đề nghị gia hạn đã được trưởng phòng chấp nhận (nguyên nhân khách quan), hạn mới đã thay vào nhiệm vụ. Thử gửi thêm một đề nghị gia hạn nữa: hệ thống chỉ cho gửi khi không còn đề nghị cùng loại đang chờ, và lý do phải từ 20 ký tự.
+3. Đăng nhập `tu.bithuchibo`, mở nhiệm vụ "Giới thiệu quần chúng ưu tú tại thôn Đông Hòa…". Có đề nghị đổi số lượng của đảng viên đang chờ quyết định; chọn nguyên nhân (khách quan hay chủ quan), chấp nhận hoặc từ chối với ý kiến. Đăng nhập `tu.dangvien` để thấy kết quả và lý do.
+
+Kết quả mong đợi: chỉ người chủ trì gửi được đề nghị và báo điểm nghẽn; chỉ người giao việc quyết định đề nghị và đóng điểm nghẽn; mọi quyết định đều lưu nguyên nhân do người giao xác định, tách khỏi nguyên nhân người thực hiện tự khai.
+
+### KB-D8. Nghiệm thu, tạm dừng, huỷ, giao lại và nhắc việc
+
+Tài khoản: `tu.truongphongcb`, `tu.truongphongth`, `tu.chuyenvienth2`.
+
+1. `tu.truongphongcb` mở "Rà soát hồ sơ bổ nhiệm lại cán bộ…" đang chờ nghiệm thu (chuyên viên đã cập nhật 100% và trình). Nghiệm thu hoàn thành; nhiệm vụ chuyển sang hoàn thành và tính vào kết quả của chuyên viên. Muốn chấm chất lượng theo 5 mức trên minh chứng, làm KB-X5 trước.
+2. `tu.truongphongth` mở "Biên tập Bản tin Thông tin nội bộ số tháng 11": nhiệm vụ đang tạm dừng vì đề nghị tạm dừng của `tu.chuyenvienth2` đã được chấp nhận; lịch sử trạng thái ghi rõ. Dùng "Tiếp tục" để đưa về đang thực hiện.
+3. Cũng `tu.truongphongth`, mở "Cập nhật lịch công tác tuần của Thường trực Tỉnh ủy…": việc đã được giao lại từ `tu.chuyenvienth` sang `tu.chuyenvienth2` với lý do ghi trong lịch sử và đã được nhắc việc một lần. Nhắc lại ngay: hệ thống từ chối vì cùng người, cùng việc chỉ nhắc một lần trong 24 giờ.
+4. `tu.truongphongth` mở nhiệm vụ nháp "Dự thảo hướng dẫn kiểm điểm…" của Phòng Cán bộ: không thấy, vì nháp chỉ người soạn (`tu.truongphongcb`) thấy. Đăng nhập `tu.truongphongcb` để hoàn thiện và giao.
+5. `tu.bithuchibo` mở "Tổ chức buổi sinh hoạt chuyên đề về Quy định 366-QĐ/TW tại chi bộ": đã huỷ theo đề nghị của đảng viên với lý do đã duyệt; không còn nút thao tác.
+
+### KB-D9. Kế hoạch công tác quý của Ban Tổ chức
+
+Tài khoản: `tu.phobantc` rồi `tu.truongbantc`.
+
+1. `tu.phobantc` vào "Kế hoạch quý", mở kế hoạch quý IV của Ban Tổ chức: bốn dòng lấy từ danh mục công việc và một dòng gắn kết quả then chốt, trạng thái chờ duyệt, không sửa được.
+2. `tu.truongbantc` mở cùng kế hoạch, xem kết quả kiểm tra (đủ trường, có điểm chuẩn, một người chủ trì mỗi dòng). Trả lại với ý kiến; `tu.phobantc` sửa và gửi lại; `tu.truongbantc` duyệt và ký số (bước ký số cần xác thực bước lên; nếu dev chưa cấu hình, hệ thống báo rõ). Kế hoạch này có một dòng ngoài danh mục "chờ chấm điểm": máy chủ chỉ cho duyệt sau khi cơ quan thẩm định định độ khó và điểm chuẩn cho dòng đó, bước này chưa có trên dev nên hệ thống báo "còn 1 công việc ngoài danh mục chưa được định điểm"; muốn duyệt thử, bỏ dòng đó khi sửa lại kế hoạch.
+3. `tu.phobithu` mở kế hoạch nháp của Tỉnh ủy, thêm dòng rồi gửi duyệt cho `tu.bithu`.
+
+### KB-D10. Uỷ quyền khi vắng mặt và cấp vai trò có thời hạn
+
+Tài khoản: `tu.phobithu`, `tu.chuyenvienth2`, `tu.quantri`, `tu.chanhvp`.
+
+1. `tu.phobithu` vào hàng chờ phê duyệt: nhờ uỷ quyền duyệt thay của Bí thư (đang hiệu lực, có thời hạn), Phó Bí thư thấy và duyệt được bộ mục tiêu trình lên Tỉnh ủy, nhưng không duyệt được bộ do chính mình soạn.
+2. `tu.chuyenvienth2` mở kết quả then chốt "Số báo cáo tổng hợp nộp đúng hạn" của `tu.chuyenvienth`: có nút check-in nhờ uỷ quyền check-in thay do Chánh Văn phòng giao; lần check-in ghi rõ người thực hiện thay.
+3. `tu.quantri` vào "Vai trò theo đơn vị": đề nghị cấp vai trò người thẩm định cho `tu.ubkt` đang chờ duyệt thứ hai; `tu.chanhvp` (hoặc `tu.bithu`) duyệt. Vai trò quản lý trực tiếp Phòng Tổng hợp cấp cho `tu.chuyenvienth2` đã hiệu lực, nên tài khoản này giao được việc trong phòng (thử ở "Giao việc").
+4. `tu.quantri` thử tự duyệt đề nghị do mình lập: bị từ chối (nguyên tắc bốn mắt). Xem "Hồ sơ quyền" của `tu.chuyenvienth2`: vai trò gốc, vai trò cấp thêm có hạn, uỷ quyền nhận được.
+
+### KB-D11. Kỳ trước và lệnh khoá kỳ
+
+Tài khoản: `tu.quantri`, `tu.bithu`, `tu.truongphongcb`.
+
+1. `tu.quantri` vào "Kỳ đánh giá": quý III/2026 có lệnh khoá kỳ đã được Bí thư phê duyệt, chưa khởi chạy; quý IV đang mở. Khởi chạy lệnh ngay sẽ không sinh hồ sơ đánh giá vì tenant chưa phát hành Policy Pack; làm KB-X4 trước.
+2. `tu.bithu` mở lệnh khoá: thấy văn bản căn cứ, người lập, thời điểm duyệt; không khởi chạy được vì người khởi chạy phải khác người duyệt.
+3. `tu.truongphongcb` vào "Mục tiêu, OKR", chọn kỳ quý III: hai bộ mục tiêu đã duyệt với ba lần check-in mỗi kết quả then chốt; bảng điều hành so sánh quý IV với quý III.
+
 ## 5. Kịch bản khối chính quyền (UBND tỉnh Phú Lâm)
 
 ### KB-C1. Cây mục tiêu từ tỉnh xuống sở, phòng, xã
@@ -159,6 +228,37 @@ Tài khoản: `cq.truongphongcds` rồi `cq.chutich`.
 2. Cùng tài khoản đó không có nút phát hành bản mình soạn.
 3. `cq.quantri2` duyệt và phát hành. `cq.thanhtra` (Thanh tra viên) tra sổ cái thấy hai người khác nhau đã soạn và duyệt.
 
+### KB-C7. Điểm nghẽn đã giải quyết, đề nghị chờ duyệt và đã duyệt
+
+Tài khoản: `cq.chuyenvienns`, `cq.truongphongth`, `cq.chuyenviennv`.
+
+1. `cq.chuyenvienns` mở "Thẩm định dự toán ngân sách năm 2027…": điểm nghẽn về đơn vị nộp hồ sơ chậm đã được trưởng phòng nhận xử lý và đóng với kết quả ghi rõ; nhật ký tiến độ có hai mốc.
+2. `cq.truongphongth` mở "Xây dựng báo cáo tình hình kinh tế - xã hội tháng 11": đề nghị gia hạn của chuyên viên đang chờ; xem trước hệ quả (hạn mới vẫn trong kỳ) rồi quyết định.
+3. `cq.chuyenviennv` mở "Rà soát dữ liệu cán bộ, công chức…": số lượng sản phẩm đã đổi theo đề nghị được duyệt; thử rút một đề nghị đang chờ (chỉ rút được đề nghị của chính mình và còn chờ duyệt).
+
+### KB-C8. Kế hoạch quý đã duyệt và kế hoạch bị trả lại
+
+Tài khoản: `cq.phogiamdocstc`, `cq.giamdocstc`, `cq.phochutich`, `cq.chutich`.
+
+1. `cq.giamdocstc` mở kế hoạch quý IV của Sở Tài chính: đã duyệt kèm ký số (mọi dòng thuộc danh mục, có điểm chuẩn), lịch sử ghi người lập, người duyệt và phiên ký số.
+2. `cq.phogiamdocstc` tạo "Điều chỉnh" để sinh phiên bản 2, thêm dòng, gửi duyệt; `cq.giamdocstc` so sánh hai phiên bản, duyệt và ký số phiên bản 2. Nếu dịch vụ ký số vừa khởi động lại, lần bấm đầu có thể báo hệ thống đang bận; thử lại sau ít phút.
+3. `cq.phochutich` mở kế hoạch UBND tỉnh: bị Chủ tịch trả lại với ý kiến "Đề nghị bổ sung dòng về sắp xếp tổ chức…"; bổ sung dòng, gửi lại; `cq.chutich` duyệt.
+
+### KB-C9. Bốn mắt khi cấp quyền và uỷ quyền ở Sở Tài chính
+
+Tài khoản: `cq.quantri`, `cq.quantri2`, `cq.chuyenvienns2`, `cq.phogiamdocstc`.
+
+1. `cq.quantri` vào "Vai trò theo đơn vị": vai trò quản lý Phòng Chuyển đổi số của `cq.chuyenvienns2` đã hiệu lực do `cq.quantri2` duyệt; đề nghị cấp quản lý Phòng Tổng hợp cho `cq.chuyenvienth` đang chờ. `cq.quantri` không duyệt được đề nghị của chính mình; `cq.quantri2` duyệt hoặc từ chối.
+2. `cq.chuyenvienns2` check-in thay kết quả then chốt của `cq.chuyenvienns` nhờ uỷ quyền do Giám đốc Sở giao; `cq.phogiamdocstc` thấy hàng chờ duyệt của Sở nhờ uỷ quyền duyệt thay.
+3. `cq.giamdocstc` thu hồi uỷ quyền duyệt thay trước hạn; `cq.phogiamdocstc` không còn thấy hàng chờ.
+
+### KB-C10. Kỳ trước, lệnh khoá và bảng điều hành so sánh quý
+
+Tài khoản: `cq.quantri`, `cq.chutich`.
+
+1. `cq.quantri` xem quý III/2026: lệnh khoá kỳ theo Công văn của UBND tỉnh đã được Chủ tịch duyệt; quý IV đang mở với 12 nhiệm vụ, 9 bộ mục tiêu.
+2. `cq.chutich` mở "Bảng điều hành": tỷ lệ việc đúng hạn, việc chậm, điểm nghẽn mở, mục tiêu chờ duyệt theo sở, ngành; so với quý trước; nhắc người chủ trì việc chậm và giao lại việc chưa nhận ngay trên bảng.
+
 ## 6. Kịch bản doanh nghiệp (Công ty TNHH MTV Cấp nước Phú Lâm)
 
 ### KB-N1. Công nhân xử lý sự cố trên điện thoại
@@ -181,6 +281,28 @@ Tài khoản: `dn.congnhan` (Công nhân vận hành, Xí nghiệp Cấp nước
 1. `dn.chutich` (Chủ tịch Hội đồng thành viên) xem cây mục tiêu Công ty: sản lượng nước thương phẩm, tỷ lệ thất thoát (18,5% xuống 16%), số khách hàng mới; mở "Bảng điều hành".
 2. `dn.kiemsoatvien` chỉ có quyền kiểm tra, giám sát: thấy sổ cái và cảnh báo, không có "Việc của tôi", không có nút giao việc hay duyệt.
 3. `dn.chuyenviennhansu` (Quản trị nghiệp vụ) vào "Cấu hình nghiệp vụ" để xem nơi cấu hình bộ KPI và công thức tính điểm riêng của doanh nghiệp. Khác biệt cách chấm giữa doanh nghiệp và khối nhà nước là cấu hình theo hồ sơ khách hàng, không phải mã riêng.
+
+### KB-N4. Công nhân báo điểm nghẽn, check-in tự tin thấp
+
+Tài khoản: `dn.congnhan`, `dn.totruong`, `dn.truongphongtchc`.
+
+1. `dn.congnhan` mở "Khắc phục điểm rò rỉ ống phân phối D110…": điểm nghẽn thiếu vật tư đang được Tổ trưởng xử lý; kết quả then chốt "Số lần khách hàng phản ánh mất nước" có lần check-in mức tự tin thấp kèm vướng mắc.
+2. `dn.totruong` đóng điểm nghẽn với kết quả, xem lịch sử check-in của công nhân trên cây mục tiêu của Xí nghiệp.
+3. `dn.truongphongtchc` mở "Xây dựng bộ chỉ tiêu KPI năm 2027…": đề nghị đổi sản phẩm của chuyên viên nhân sự chờ quyết định.
+
+### KB-N5. Kế hoạch Xí nghiệp và uỷ quyền không được tự duyệt
+
+Tài khoản: `dn.totruong`, `dn.giamdocxn`.
+
+1. `dn.totruong` lập kế hoạch quý IV của Xí nghiệp số 1 (đang chờ duyệt). Dù Giám đốc Xí nghiệp đã uỷ quyền duyệt thay cho Tổ trưởng, Tổ trưởng không duyệt được kế hoạch do chính mình lập.
+2. `dn.giamdocxn` duyệt kế hoạch; `dn.tonggiamdoc` hoàn thiện kế hoạch nháp của Công ty và gửi `dn.chutich` duyệt.
+
+### KB-N6. Cấp vai trò quản lý có thời hạn cho nhân viên
+
+Tài khoản: `dn.quantri`, `dn.nhanvienkd`, `dn.nhanvienkd2`.
+
+1. `dn.quantri` xem vai trò quản lý Phòng Kinh doanh cấp cho `dn.nhanvienkd` (Tổng Giám đốc đã duyệt, có hạn 60 ngày).
+2. `dn.nhanvienkd` giao một việc cho `dn.nhanvienkd2` trong phòng; `dn.nhanvienkd2` nhận việc. Khi hết hạn vai trò, nút giao việc biến mất.
 
 ## 7. Kịch bản xuyên tenant: tách dữ liệu và phân quyền
 
@@ -208,8 +330,26 @@ So sánh menu của các tài khoản cùng tenant để thấy giao diện ch�
 1. `dn.tonggiamdoc` vừa là người soạn mục tiêu Công ty vừa có vai trò lãnh đạo. Mở mục tiêu đó: không có nút phê duyệt, chỉ Chủ tịch Hội đồng thành viên duyệt được.
 2. `tu.phobantc` soạn mục tiêu của Ban Tổ chức; người duyệt là `tu.truongbantc`.
 
+### KB-X4. Phát hành Policy Pack và khoá kỳ quý trước
+
+Làm lần lượt ở mỗi tenant với bộ tài khoản tương ứng (khối Đảng: `tu.chuyenvientcdv`, `tu.bithu`, `tu.quantri`; khối chính quyền: `cq.truongphongccvc`, `cq.chutich`, `cq.quantri`; doanh nghiệp: `dn.chuyenviennhansu`, `dn.chutich`, `dn.quantri`).
+
+1. Quản trị nghiệp vụ vào "Cấu hình nghiệp vụ": gói mẫu ở bản nháp với công thức, ba bảng quyết định và bộ ca mẫu đã duyệt. Chạy lại bộ ca mẫu, xem kết quả đạt, gửi phê duyệt phát hành.
+2. Cấp có thẩm quyền xem kết quả ca mẫu rồi ký số phê duyệt phát hành (cần xác thực bước lên).
+3. Quản trị tenant khởi chạy lệnh khoá kỳ quý III đã được duyệt. Theo dõi tiến trình: hệ thống tạo hồ sơ đánh giá cho từng người trong kỳ, tính kết quả theo gói vừa phát hành.
+4. Sau khi khoá: cán bộ xem phiếu tự đánh giá và nộp (ký số); người thẩm định xem hàng đợi; cấp quyết định xếp loại hàng loạt; từ đây mở được khiếu nại, hội nghị kiểm điểm, mở lại kỳ.
+
+Nếu bước ký số hay xác thực bước lên chưa chạy trên dev, ghi lại thông báo; phần còn lại của bộ dữ liệu không phụ thuộc bước này.
+
+### KB-X5. Nộp minh chứng và nghiệm thu chất lượng 5 mức
+
+1. Người chủ trì một nhiệm vụ đang thực hiện (ví dụ `cq.vienchuctt` với việc chờ nghiệm thu, hoặc `dn.nhanvienkd` với hợp đồng cấp nước) tải lên một tệp bất kỳ làm minh chứng, chọn sản phẩm tương ứng, nộp.
+2. Hệ thống quét tệp rồi mới cho nộp; tệp hiện trong "Minh chứng" của nhiệm vụ.
+3. Người giao việc mở minh chứng, kiểm tra toàn vẹn, xác nhận nghiệm thu theo 5 mức chất lượng hoặc yêu cầu bổ sung.
+4. Người kiểm tra (`tu.ubkt`, `cq.thanhtra`, `dn.kiemsoatvien`) đi từ bảng điều hành xuống tới minh chứng vừa nộp; lần mở tệp được ghi vào nhật ký truy cập.
+
 ## 8. Ghi chú khi thử
 
-Một số màn hình cuối kỳ (phiếu tự đánh giá, thẩm định, quyết định xếp loại, hội nghị kiểm điểm) cần kỳ đánh giá năm và hồ sơ được lập; bộ dữ liệu này mới nạp kỳ quý IV với mục tiêu và nhiệm vụ, nên các màn hình đó mở được nhưng danh sách có thể trống. Khi gặp thông báo lỗi hoặc màn hình trống mà theo kịch bản phải có dữ liệu, ghi lại tài khoản, bước và ảnh chụp để đối chiếu.
+Các màn hình cuối kỳ (phiếu tự đánh giá, thẩm định, quyết định xếp loại, hội nghị kiểm điểm, khiếu nại, mở lại kỳ) chỉ có dữ liệu sau khi làm KB-X4; minh chứng chỉ có sau KB-X5. Bảng đối chiếu `BANG-DOI-CHIEU-VAI-TRO.md` ghi tình trạng từng chức năng. Các bước ký số (duyệt kế hoạch, phát hành gói, ký phiếu) đi qua dịch vụ ký số giả lập trên dev; khi dịch vụ vừa khởi động lại, lần gọi đầu có thể báo hệ thống đang bận, thử lại là được. Các bước uỷ quyền, cấp vai trò, duyệt lệnh khoá cần xác thực bước lên ở máy chủ. Bộ nạp vẫn thử các bước đó và ghi vào danh sách lỗi của bảng thống kê nếu máy chủ dev từ chối, nên khi một mục trong tài liệu này không thấy dữ liệu, xem lại bảng thống kê của lần nạp gần nhất trước khi ghi nhận lỗi. Khi gặp thông báo lỗi hoặc màn hình trống mà theo kịch bản phải có dữ liệu, ghi lại tài khoản, bước và ảnh chụp để đối chiếu.
 
-Nguồn dữ liệu duy nhất là `data/seed/da-tenant/du_lieu.py`. Muốn thêm người, đơn vị, mục tiêu hay nhiệm vụ, sửa tệp đó, chạy `python3 -I data/seed/da-tenant/sinh_seed.py` để sinh lại tệp SQL, tài khoản và bảng tài khoản, rồi nạp lại bằng `infra/dev/scripts/seed-da-tenant.sh`.
+Nguồn dữ liệu duy nhất là `data/seed/da-tenant/du_lieu.py`. Muốn thêm người, đơn vị, mục tiêu, nhiệm vụ, kế hoạch hay uỷ quyền, sửa tệp đó, chạy `python3 -I data/seed/da-tenant/sinh_seed.py` để sinh lại tệp SQL, tài khoản, bảng tài khoản và Policy Pack mẫu, chạy `python3 -I data/seed/da-tenant/sinh_bang_doi_chieu.py` để sinh lại bảng đối chiếu, rồi nạp lại bằng `infra/dev/scripts/seed-da-tenant.sh`.

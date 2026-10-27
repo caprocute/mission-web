@@ -38,7 +38,7 @@ import {
   ProblemPresenter,
   krProgress,
 } from '@vt/api-client';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { MessageModule } from 'primeng/message';
 import { forkJoin, map } from 'rxjs';
 import { OKR_CAN } from '../../okr-permissions';
@@ -63,12 +63,19 @@ const LEVELS: { id: Confidence; label: string }[] = [
 
 @Component({
   selector: 'vt-okr-checkin-page',
-  imports: [FormsModule, MessageModule, CheckinList, CheckinTrend, CheckinHistory],
+  imports: [
+    VtSkeletonComponent,
+    FormsModule,
+    MessageModule,
+    CheckinList,
+    CheckinTrend,
+    CheckinHistory,
+  ],
   template: `
     @if (list.error()) {
       <p-message severity="error" styleClass="msg">{{ listError() }}</p-message>
     } @else if (!listData()) {
-      <p class="muted" role="status">Đang tải KR cần check-in…</p>
+      <vt-skeleton variant="page" [columns]="4" label="Đang tải kết quả then chốt cần cập nhật" />
     } @else {
       <header class="head">
         <div>
@@ -110,12 +117,21 @@ const LEVELS: { id: Confidence; label: string }[] = [
       }
       @if (historyOpen() && detail(); as k) {
         <div #historyBox>
-          <vt-checkin-history
-            [code]="k.code"
-            [unit]="k.unit"
-            [items]="historyItems()"
-            (closed)="closeHistory()"
-          />
+          @if (history.status() === 'loading') {
+            <vt-skeleton
+              variant="table"
+              [rows]="4"
+              [columns]="5"
+              label="Đang tải lịch sử check-in"
+            />
+          } @else {
+            <vt-checkin-history
+              [code]="k.code"
+              [unit]="k.unit"
+              [items]="historyItems()"
+              (closed)="closeHistory()"
+            />
+          }
         </div>
       }
 
@@ -197,7 +213,7 @@ const LEVELS: { id: Confidence; label: string }[] = [
                         {{ fmtValue(s.value, k.unit) }}, cập nhật lúc {{ when(s.fetchedAt) }}
                       </small>
                     } @else if (source.isLoading()) {
-                      <small role="status">Đang lấy số liệu nguồn…</small>
+                      <vt-skeleton variant="text" [rows]="1" label="Đang lấy số liệu nguồn" />
                     }
                     @if (!simple()) {
                       <button type="button" class="link" (click)="source.reload()">
@@ -327,10 +343,14 @@ const LEVELS: { id: Confidence; label: string }[] = [
             }
           </form>
           @if (!simple()) {
-            <vt-checkin-trend [kr]="k" [history]="historyItems()" [current]="parsed()" />
+            @if (history.status() === 'loading') {
+              <vt-skeleton variant="chart" label="Đang tải diễn biến kết quả then chốt" />
+            } @else {
+              <vt-checkin-trend [kr]="k" [history]="historyItems()" [current]="parsed()" />
+            }
           }
         } @else if (selectedId()) {
-          <p class="muted" role="status">Đang tải KR…</p>
+          <vt-skeleton variant="form" [rows]="3" label="Đang tải kết quả then chốt" />
         }
       </div>
     }

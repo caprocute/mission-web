@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.task.application.plan;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -20,6 +21,7 @@ import vn.viettel.okrkpi.cel.application.CelEngine;
 import vn.viettel.okrkpi.cel.domain.CelSandboxOptions;
 import vn.viettel.okrkpi.cel.domain.CelValueType;
 import vn.viettel.okrkpi.cel.domain.StaticWorkingCalendar;
+import vn.viettel.okrkpi.shared.resilience.DependencyUnavailableException;
 import vn.viettel.okrkpi.task.application.plan.PlanChecker.Check;
 import vn.viettel.okrkpi.task.application.plan.PlanChecker.Context;
 import vn.viettel.okrkpi.task.application.plan.PlanChecker.GroupWeight;
@@ -112,6 +114,24 @@ class PlanCheckerTest {
   }
 
   @Test
+  void quaHanChayQuyTacTra503ChuKhongLoi500() {
+    // Hạn 1 ns: làm nóng lúc khởi tạo không áp hạn nên không lỗi; lần kiểm tra thật vượt hạn.
+    CelEngine tight =
+        new CelEngine(
+            StaticWorkingCalendar.weekendsOnly(),
+            new CelSandboxOptions(
+                CelSandboxOptions.DEFAULT_MAX_EXPRESSION_LENGTH,
+                CelSandboxOptions.DEFAULT_MAX_AST_DEPTH,
+                CelSandboxOptions.DEFAULT_MAX_AST_NODE_COUNT,
+                CelSandboxOptions.DEFAULT_MAX_COMPREHENSION_ITERATIONS,
+                Duration.ofNanos(1),
+                CelSandboxOptions.DEFAULT_PROGRAM_CACHE_MAX_SIZE));
+    PlanChecker slow = new PlanChecker(tight);
+    assertThatThrownBy(() -> slow.check(balanced(), ctx(List.of())))
+        .isInstanceOf(DependencyUnavailableException.class);
+  }
+
+  @Test
   void keHoachHopLeKhongCoKetQua() {
     assertThat(checker.check(balanced(), ctx(List.of()))).isEmpty();
   }
@@ -176,22 +196,28 @@ class PlanCheckerTest {
   }
 
   @Test
-  void br0406ThenChotVuotDiemToiDaBiChan() {
-    // 25/75: then chốt 75 > 70 chặn MSG-04-06, thường xuyên 25 < 30 cảnh báo.
+  void br0406DiemDongLaTrongSoTrongNhomNenLechTyLeKhongBiChan() {
+    // 25/75 theo điểm dòng: điểm dòng là trọng số trong nhóm, mỗi nhóm có việc đạt đủ điểm tối đa.
     List<ItemRow> items =
-        List.of(line(1, "THUONG_XUYEN", 2.5), line(2, "THEN_CHOT", 4), line(3, "THEN_CHOT", 3.5));
+        List.of(line(1, "THUONG_XUYEN", 2.5), line(2, "THEN_CHOT", 40), line(3, "THEN_CHOT", 35));
     List<Check> out = rule(items, "BR-04-06");
-    assertThat(out).hasSize(2);
-    Check over = out.stream().filter(c -> c.level() == Level.CHAN).findFirst().orElseThrow();
-    assertThat(over.msg()).isEqualTo("MSG-04-06");
-    assertThat(over.message()).isEqualTo("Tổng điểm nhóm then chốt là 75, vượt điểm tối đa 70.");
+    assertThat(out).isEmpty();
+    assertThat(PlanChecker.blocking(out)).isFalse();
+  }
+
+  @Test
+  void br0406NhomChuaCoViecLaCanhBaoKhongChan() {
+    List<ItemRow> items = List.of(line(1, "THUONG_XUYEN", 5), line(2, "THUONG_XUYEN", 5));
+    List<Check> out = rule(items, "BR-04-06");
     assertThat(out)
-        .anySatisfy(
+        .singleElement()
+        .satisfies(
             c -> {
               assertThat(c.level()).isEqualTo(Level.CANH_BAO);
-              assertThat(c.message()).contains("thường xuyên là 25");
+              assertThat(c.message())
+                  .isEqualTo("Tổng điểm nhóm then chốt là 0, chưa đạt điểm tối đa 70.");
             });
-    assertThat(PlanChecker.blocking(out)).isTrue();
+    assertThat(PlanChecker.blocking(out)).isFalse();
   }
 
   @Test

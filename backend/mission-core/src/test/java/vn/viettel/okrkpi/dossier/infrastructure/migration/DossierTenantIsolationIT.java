@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import vn.viettel.okrkpi.platform.db.migration.TenantIsolationCatalogTest;
+import vn.viettel.okrkpi.platform.db.migration.TestPostgres;
 
 /**
  * Schema {@code dossier} (CORE-06-01) ở CSDL pool: rò rỉ tenant (RLS) do lớp cơ sở sinh trên sáu
@@ -298,10 +299,7 @@ class DossierTenantIsolationIT extends TenantIsolationCatalogTest {
 
   private Connection svc(UUID tenant) throws SQLException {
     admin().close();
-    Connection c = DriverManager.getConnection(jdbcUrl(), "svc_dossier", TEST_PASSWORD);
-    try (Statement st = c.createStatement()) {
-      st.execute("SET app.tenant_id = '" + tenant + "'");
-    }
+    Connection c = TestPostgres.connectAsTenant(jdbcUrl(), "svc_dossier", TEST_PASSWORD, tenant);
     return c;
   }
 

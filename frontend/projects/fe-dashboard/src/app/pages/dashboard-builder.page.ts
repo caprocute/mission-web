@@ -16,7 +16,18 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { OrgApi, toProblem } from '@vt/api-client';
-import { AnalyticsApi, AnalyticsDashboard, CHART_TYPES, CHART_TYPE_LABEL, DASHBOARD_LIMITS, DashboardShareScope, DashboardWidget, SHARE_SCOPE_LABEL, SemanticDimension, SemanticMeasure } from '@vt/api-client/domains';
+import {
+  AnalyticsApi,
+  AnalyticsDashboard,
+  CHART_TYPES,
+  CHART_TYPE_LABEL,
+  DASHBOARD_LIMITS,
+  DashboardShareScope,
+  DashboardWidget,
+  SHARE_SCOPE_LABEL,
+  SemanticDimension,
+  SemanticMeasure,
+} from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DialogModule } from 'primeng/dialog';
@@ -30,6 +41,7 @@ import { WidgetCard } from '../charts/widget-card';
 import { DASHBOARD_CAN } from '../dashboard-permissions';
 import { eq, errorText, fmtDateTime } from '../dashboard-ui';
 import { defaultHeight, gridArea, pack, suggestChart } from './dashboard-layout';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 const WIDTHS = [
   { label: 'Một phần tư', value: 3 },
@@ -41,6 +53,7 @@ const WIDTHS = [
 @Component({
   selector: 'vt-dashboard-builder-page',
   imports: [
+    VtSkeletonComponent,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -126,6 +139,9 @@ const WIDTHS = [
       @if (!previewMode()) {
         <aside class="box catalog" aria-labelledby="db-cat-h">
           <h2 class="h" id="db-cat-h">Chỉ số</h2>
+          @if (modelRes.isLoading() && !measures().length) {
+            <vt-skeleton variant="list" [rows]="6" label="Đang tải danh mục chỉ số" />
+          }
           <ul class="plain-list">
             @for (m of measures(); track m.name) {
               <li
@@ -176,39 +192,44 @@ const WIDTHS = [
       }
 
       <section class="canvas" aria-label="Lưới dashboard">
-        <div class="board">
-          @for (w of widgets(); track w.id; let i = $index) {
-            <section
-              class="box widget"
-              [class.sel]="!previewMode() && selectedId() === w.id"
-              [style.grid-area]="area(i)"
-              [attr.data-widget-id]="w.id"
-              (dragover)="$event.preventDefault()"
-              (drop)="dropOnWidget($event, w)"
-            >
-              <vt-widget-card [widget]="w" [model]="model()" [interactive]="previewMode()" />
-              @if (!previewMode()) {
-                <p-button
-                  [label]="selectedId() === w.id ? 'Đang chọn' : 'Chọn để sửa'"
-                  [text]="true"
-                  size="small"
-                  [attr.aria-pressed]="selectedId() === w.id"
-                  (onClick)="selectedId.set(w.id)"
-                />
-              }
-            </section>
-          }
-          @if (!previewMode()) {
-            <div
-              class="drop"
-              (dragover)="$event.preventDefault()"
-              (drop)="dropNew($event)"
-              [style.grid-column]="'1 / -1'"
-            >
-              Thả chỉ số vào đây, hoặc bấm nút thêm cạnh tên chỉ số.
-            </div>
-          }
-        </div>
+        <!-- Sửa dashboard đã có: chờ bố cục đã lưu về rồi mới dựng lưới, tránh hiện lưới trống -->
+        @if (loaded.isLoading()) {
+          <vt-skeleton variant="dashboard" label="Đang tải bố cục dashboard" />
+        } @else {
+          <div class="board">
+            @for (w of widgets(); track w.id; let i = $index) {
+              <section
+                class="box widget"
+                [class.sel]="!previewMode() && selectedId() === w.id"
+                [style.grid-area]="area(i)"
+                [attr.data-widget-id]="w.id"
+                (dragover)="$event.preventDefault()"
+                (drop)="dropOnWidget($event, w)"
+              >
+                <vt-widget-card [widget]="w" [model]="model()" [interactive]="previewMode()" />
+                @if (!previewMode()) {
+                  <p-button
+                    [label]="selectedId() === w.id ? 'Đang chọn' : 'Chọn để sửa'"
+                    [text]="true"
+                    size="small"
+                    [attr.aria-pressed]="selectedId() === w.id"
+                    (onClick)="selectedId.set(w.id)"
+                  />
+                }
+              </section>
+            }
+            @if (!previewMode()) {
+              <div
+                class="drop"
+                (dragover)="$event.preventDefault()"
+                (drop)="dropNew($event)"
+                [style.grid-column]="'1 / -1'"
+              >
+                Thả chỉ số vào đây, hoặc bấm nút thêm cạnh tên chỉ số.
+              </div>
+            }
+          </div>
+        }
       </section>
 
       @if (!previewMode()) {
@@ -301,6 +322,7 @@ const WIDTHS = [
                 <p-select
                   inputId="wp-fval"
                   [options]="filterValues()"
+                  [loading]="filterValuesRes.isLoading()"
                   [ngModel]="filterValue()"
                   (ngModelChange)="filterValue.set($event)"
                   placeholder="Chọn giá trị"
@@ -375,6 +397,7 @@ const WIDTHS = [
           <p-multiselect
             inputId="cs-units"
             [options]="unitOptions()"
+            [loading]="unitsRes.isLoading()"
             optionLabel="name"
             optionValue="id"
             [ngModel]="shareUnits()"
@@ -530,7 +553,7 @@ export class DashboardBuilderPage {
     );
   });
   /** Giá trị lọc lấy từ lớp ngữ nghĩa (truy vấn theo đúng chiều), không nhập tự do. */
-  private readonly filterValuesRes = rxResource({
+  protected readonly filterValuesRes = rxResource({
     params: () => {
       const d = this.filterDim();
       const m = this.selected()?.measure;
@@ -549,7 +572,7 @@ export class DashboardBuilderPage {
   protected readonly shareScope = signal<DashboardShareScope>('RIENG');
   protected readonly shareUnits = signal<string[]>([]);
   protected readonly shareError = signal<string | null>(null);
-  private readonly unitsRes = rxResource({
+  protected readonly unitsRes = rxResource({
     params: () => (this.sharing() ? true : undefined),
     stream: () =>
       forkJoin([this.orgApi.units('unit'), this.orgApi.units('children')]).pipe(

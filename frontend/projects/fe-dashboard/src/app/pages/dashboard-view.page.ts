@@ -16,10 +16,19 @@ import { DASHBOARD_CAN, DASHBOARD_USER_ID } from '../dashboard-permissions';
 import { DefaultDashboardStore } from '../default-dashboard';
 import { errorText, fmtDateTime } from '../dashboard-ui';
 import { gridArea } from './dashboard-layout';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 @Component({
   selector: 'vt-dashboard-view-page',
-  imports: [FormsModule, RouterLink, ButtonModule, MessageModule, SelectModule, WidgetCard],
+  imports: [
+    VtSkeletonComponent,
+    FormsModule,
+    RouterLink,
+    ButtonModule,
+    MessageModule,
+    SelectModule,
+    WidgetCard,
+  ],
   template: `
     <p class="crumb"><a routerLink="..">Dashboard của tôi</a></p>
     @if (res.error()) {
@@ -79,20 +88,25 @@ import { gridArea } from './dashboard-layout';
           Số liệu cập nhật lúc {{ dt(b.data?.dataAsOf) }}, chậm hơn thường lệ.
         </p-message>
       }
-      <div class="board">
-        @for (w of b.layout; track w.id) {
-          <section class="box widget" [style.grid-area]="area(w)" [attr.data-widget-id]="w.id">
-            <vt-widget-card
-              [widget]="w"
-              [model]="model()"
-              [data]="dataOf(w.id)"
-              [periodId]="periodId()"
-            />
-          </section>
-        }
-      </div>
+      <!-- Nhãn chỉ số, chiều của khối lấy từ mô hình ngữ nghĩa: chờ mô hình về rồi mới dựng lưới khối -->
+      @if (modelRes.isLoading()) {
+        <vt-skeleton variant="dashboard" label="Đang tải bảng điều hành" />
+      } @else {
+        <div class="board">
+          @for (w of b.layout; track w.id) {
+            <section class="box widget" [style.grid-area]="area(w)" [attr.data-widget-id]="w.id">
+              <vt-widget-card
+                [widget]="w"
+                [model]="model()"
+                [data]="dataOf(w.id)"
+                [periodId]="periodId()"
+              />
+            </section>
+          }
+        </div>
+      }
     } @else {
-      <p class="muted">Đang tải…</p>
+      <vt-skeleton variant="dashboard" label="Đang tải bảng điều hành" />
     }
   `,
   styleUrls: ['../dashboard.css', './dashboard-layout.css'],
@@ -111,7 +125,7 @@ export class DashboardViewPage {
   protected readonly periodId = linkedSignal<string | null>(
     () => this.periods().find((p) => p.status === 'MO' && !p.notStarted)?.id ?? null,
   );
-  private readonly modelRes = rxResource({ stream: () => this.api.semanticModel() });
+  protected readonly modelRes = rxResource({ stream: () => this.api.semanticModel() });
   protected readonly model = computed(() =>
     this.modelRes.hasValue() ? this.modelRes.value() : null,
   );

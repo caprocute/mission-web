@@ -5,7 +5,7 @@ import { catchError, of, switchMap } from 'rxjs';
 import { OkrApi, progressPct } from '@vt/api-client';
 import { PermissionService } from '@vt/auth';
 import { CardModule } from 'primeng/card';
-import { VtProgressBarComponent } from '@vt/design-system';
+import { VtProgressBarComponent, VtSkeletonComponent } from '@vt/design-system';
 
 /** Số mục tiêu hiện trên trang chủ (BR-02-01 khuyến nghị tối đa 3 mục tiêu mỗi kỳ). */
 const TOP = 3;
@@ -18,19 +18,21 @@ const TOP = 3;
  */
 @Component({
   selector: 'vt-okr-progress-widget',
-  imports: [RouterLink, CardModule, VtProgressBarComponent],
+  imports: [VtSkeletonComponent, RouterLink, CardModule, VtProgressBarComponent],
   template: `
     @if (canView) {
       <p-card [header]="scope() === 'unit' ? 'Tiến độ OKR của đơn vị' : 'Tiến độ OKR của tôi'">
         @for (o of top(); track o.id) {
           <div class="row">
-            <span>{{ o.code }}. {{ o.title }}</span>
+            <span class="title">{{ o.code }}. {{ o.title }}</span>
             <vt-progress-bar [value]="o.pct" [label]="o.title" />
           </div>
         } @empty {
-          <p class="muted">
-            {{ loaded() ? 'Chưa có mục tiêu trong kỳ đánh giá đang mở.' : 'Đang tải mục tiêu…' }}
-          </p>
+          @if (loaded()) {
+            <p class="muted">Chưa có mục tiêu trong kỳ đánh giá đang mở.</p>
+          } @else {
+            <vt-skeleton variant="text" [rows]="3" label="Đang tải mục tiêu" />
+          }
         }
         <a routerLink="/okr" class="more">Xem cây mục tiêu →</a>
       </p-card>
@@ -40,7 +42,10 @@ const TOP = 3;
     .row {
       display: grid;
       gap: 6px;
-      margin-bottom: 14px;
+      margin-bottom: 16px;
+    }
+    .title {
+      font-weight: 500;
     }
     .muted {
       color: var(--p-text-muted-color, #566275);

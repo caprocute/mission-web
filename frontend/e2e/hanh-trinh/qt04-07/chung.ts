@@ -3,6 +3,7 @@ import { Browser, BrowserContext, Locator, Page, expect, request, test } from '@
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { crc32 } from 'node:zlib';
 import { completePopup } from '../../dang-nhap-keycloak';
 import { ApiHeThong } from '../ho-tro/api';
 import { HE_THONG, MA_LAN_CHAY, MOI_TRUONG, bienConThieu, cho, ghiCho } from '../ho-tro/moi-truong';
@@ -38,6 +39,53 @@ export function seed<T = Record<string, string | number>>(khoa: string): T {
 export function eicar(): Buffer {
   const p = SEED['eicar'] as unknown as { phan: string[] };
   return Buffer.from(p.phan.join(''), 'latin1');
+}
+
+/**
+ * Tệp Word (.docx) chứa chuẩn EICAR: máy chủ kiểm chữ ký tệp trước khi quét (SEC-48) nên chuỗi EICAR trần
+ * khai là PDF bị từ chối vì sai định dạng; gói zip có `word/document.xml` qua được kiểm định dạng và trình
+ * quét mã độc mở gói nên vẫn phát hiện (SEC-47). Zip lưu thẳng, không nén.
+ */
+export function eicarDocx(): Buffer {
+  const tep: [string, Buffer][] = [
+    ['[Content_Types].xml', Buffer.from('<?xml version="1.0"?><Types/>')],
+    ['word/document.xml', Buffer.from('<?xml version="1.0"?><w:document/>')],
+    ['eicar.com', eicar()],
+  ];
+  const dau: Buffer[] = [];
+  const muc: Buffer[] = [];
+  let viTri = 0;
+  for (const [ten, noiDung] of tep) {
+    const tenB = Buffer.from(ten);
+    const crc = crc32(noiDung);
+    const h = Buffer.alloc(30);
+    h.writeUInt32LE(0x04034b50, 0);
+    h.writeUInt16LE(20, 4);
+    h.writeUInt32LE(crc, 14);
+    h.writeUInt32LE(noiDung.length, 18);
+    h.writeUInt32LE(noiDung.length, 22);
+    h.writeUInt16LE(tenB.length, 26);
+    const c = Buffer.alloc(46);
+    c.writeUInt32LE(0x02014b50, 0);
+    c.writeUInt16LE(20, 4);
+    c.writeUInt16LE(20, 6);
+    c.writeUInt32LE(crc, 16);
+    c.writeUInt32LE(noiDung.length, 20);
+    c.writeUInt32LE(noiDung.length, 24);
+    c.writeUInt16LE(tenB.length, 28);
+    c.writeUInt32LE(viTri, 42);
+    dau.push(h, tenB, noiDung);
+    muc.push(c, tenB);
+    viTri += h.length + tenB.length + noiDung.length;
+  }
+  const cd = Buffer.concat(muc);
+  const k = Buffer.alloc(22);
+  k.writeUInt32LE(0x06054b50, 0);
+  k.writeUInt16LE(tep.length, 8);
+  k.writeUInt16LE(tep.length, 10);
+  k.writeUInt32LE(cd.length, 12);
+  k.writeUInt32LE(viTri, 16);
+  return Buffer.concat([...dau, cd, k]);
 }
 
 /** Topic của EVT theo baseline (wiki 18); ghi đè được bằng `E2E_TOPIC_EVT<số>` nếu hạ tầng đặt tên khác. */
@@ -212,14 +260,17 @@ export class PhienQt {
   async dong() {
     if (this.caoTuoi && this.that) {
       // trả tài khoản thử về chế độ thường để hành trình khác không chạy nhầm chế độ
+      // giới hạn thời gian từng tài khoản: khi bước chính đã lỗi, mở lại trang có thể chờ tới hết thời
+      // gian của cả ca và che mất lỗi thật
       for (const u of this.users) {
-        try {
-          const p = await this.that.trang(u, '/');
-          const nut = p.getByRole('button', { name: 'Chữ thường' });
-          if (await nut.isVisible()) await nut.click();
-        } catch {
-          // bỏ qua: dọn là phần phụ
-        }
+        await Promise.race([
+          (async () => {
+            const p = await this.that!.trang(u, '/');
+            const nut = p.getByRole('button', { name: 'Chữ thường' });
+            if (await nut.isVisible()) await nut.click({ timeout: 5_000 });
+          })(),
+          new Promise((xong) => setTimeout(xong, 20_000)),
+        ]).catch(() => undefined); // bỏ qua: dọn là phần phụ
       }
     }
     for (const a of this.api.values()) await a.dong();
@@ -374,7 +425,7 @@ export async function moNhiemVu(
   const ds = m.getByRole('region', { name: 'Danh sách nhiệm vụ' });
   if (ten) {
     await m.getByRole('searchbox', { name: 'Tìm nhiệm vụ' }).fill(timKiem);
-    await ds.getByRole('link', { name: ten }).click();
+    await ds.getByRole('link', { name: ten, exact: true }).click();
   } else {
     // việc chủ trì đang thực hiện, chưa xong: tiến độ lớn hơn 0 và nhỏ hơn 100
     await ds

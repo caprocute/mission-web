@@ -9,8 +9,21 @@ import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TaskApi, toProblem } from '@vt/api-client';
-import { Deliverable, EVIDENCE_STATUS_LABEL, EvidenceApi, EvidenceVersionStatus, FILTER_QUERY_PARAM, createListPersonalization, decodeCriteria, encodeCriteria } from '@vt/api-client/domains';
-import { VtColumnPickerComponent, VtSavedFiltersComponent } from '@vt/design-system';
+import {
+  Deliverable,
+  EVIDENCE_STATUS_LABEL,
+  EvidenceApi,
+  EvidenceVersionStatus,
+  FILTER_QUERY_PARAM,
+  createListPersonalization,
+  decodeCriteria,
+  encodeCriteria,
+} from '@vt/api-client/domains';
+import {
+  VtColumnPickerComponent,
+  VtSavedFiltersComponent,
+  VtSkeletonComponent,
+} from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { firstValueFrom, forkJoin, map } from 'rxjs';
 import { EVIDENCE_CAN } from '../evidence-permissions';
@@ -23,7 +36,13 @@ import {
 
 @Component({
   selector: 'vt-evidence-list-page',
-  imports: [RouterLink, ButtonModule, VtColumnPickerComponent, VtSavedFiltersComponent],
+  imports: [
+    VtSkeletonComponent,
+    RouterLink,
+    ButtonModule,
+    VtColumnPickerComponent,
+    VtSavedFiltersComponent,
+  ],
   template: `
     @if (!can('SCR-0701.xem')) {
       <p class="msg warn">Đồng chí không có quyền xem minh chứng.</p>
@@ -32,6 +51,8 @@ import {
       <h1>Sản phẩm, minh chứng của nhiệm vụ</h1>
       @if (t) {
         <p class="muted sub">{{ t.code }} · {{ t.title }}</p>
+      } @else if (taskRes.isLoading()) {
+        <vt-skeleton variant="text" [rows]="1" label="Đang tải thông tin nhiệm vụ" />
       }
       @if (error(); as err) {
         <p class="msg err" role="alert">{{ err }}</p>
@@ -83,7 +104,7 @@ import {
           }
         </ul>
       } @else {
-        <p class="muted" aria-busy="true">Đang tải…</p>
+        <vt-skeleton variant="list" [rows]="5" label="Đang tải danh sách sản phẩm" />
       }
     } @else if (reviewer() === 'me') {
       <h1>Minh chứng chờ tôi nghiệm thu</h1>
@@ -110,6 +131,8 @@ import {
         </ul>
       } @else if (mine.error()) {
         <p class="msg err" role="alert">Không tải được hàng chờ nghiệm thu.</p>
+      } @else {
+        <vt-skeleton variant="list" [rows]="5" label="Đang tải minh chứng chờ nghiệm thu" />
       }
     } @else {
       <h1>Minh chứng của tôi</h1>
@@ -174,20 +197,25 @@ import {
                   }
                 </div>
               </div>
-              <a class="p-button p-component lnk" [routerLink]="[e.id]">Mở</a>
+              <a
+                class="p-button p-component p-button-outlined p-button-secondary lnk"
+                [routerLink]="[e.id]"
+                >Mở</a
+              >
             </li>
           }
         </ul>
       } @else if (mine.error()) {
         <p class="msg err" role="alert">Không tải được danh sách minh chứng.</p>
+      } @else {
+        <vt-skeleton variant="list" [rows]="5" label="Đang tải minh chứng của tôi" />
       }
     }
   `,
   styles: `
     :host {
       display: block;
-      padding: 16px 24px;
-      max-width: 960px;
+      max-width: 1100px;
     }
     h1 {
       font-size: 1.5rem;

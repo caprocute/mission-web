@@ -49,6 +49,19 @@ FROM (VALUES
 ) AS r(child)
 ON CONFLICT DO NOTHING;
 
+-- Cây Đảng cùng dạng cây chuyên môn: hồ sơ luồng DANG xét phạm vi người thẩm định, người quyết định theo cây
+-- DANG (SCR-0904.ky-lo), thiếu cạnh cha thì người quyết định ở cơ quan không ký được lô của các phòng (QA-06).
+INSERT INTO org.org_unit_relation (version_id, id, tenant_id, tree, parent_unit_id, child_unit_id, relation_type,
+                                   valid_from, created_by, updated_by)
+SELECT md5('org_unit_relation:DANG:' || r.child)::uuid, md5('relation:DANG:' || r.child)::uuid, 'd0000000-0000-4000-8000-000000000001'::uuid, 'DANG',
+       'd0000000-0000-4000-8000-000000000100'::uuid, r.child::uuid, 'TRUC_THUOC', '2000-01-01'::date, '00000000-0000-0000-0000-000000000000'::uuid, '00000000-0000-0000-0000-000000000000'::uuid
+FROM (VALUES
+  ('d0000000-0000-4000-8000-000000000101'),
+  ('d0000000-0000-4000-8000-000000000102'),
+  ('d0000000-0000-4000-8000-000000000103')
+) AS r(child)
+ON CONFLICT DO NOTHING;
+
 INSERT INTO org.job_title (id, tenant_id, code, name, level, valid_from, created_by, updated_by)
 SELECT j.id::uuid, 'd0000000-0000-4000-8000-000000000001'::uuid, j.code, j.name, j.level, '2000-01-01'::date, '00000000-0000-0000-0000-000000000000'::uuid, '00000000-0000-0000-0000-000000000000'::uuid
 FROM (VALUES
@@ -105,12 +118,16 @@ SELECT md5('person:' || p.id)::uuid, p.id, 'd0000000-0000-4000-8000-000000000001
 FROM seed_person p
 ON CONFLICT DO NOTHING;
 
--- CSDL dev đã nạp trước khi có cột trên: đánh dấu lại, chỉ đổi dòng còn false (chạy lại không đổi gì).
+-- CSDL dev đã nạp trước khi có cột trên: đánh dấu lại và tăng row_version để org-republish ghi đè bản sao
+-- org_replica (chỉ nhận phiên bản nguồn mới hơn). Dòng đã đánh dấu mà còn row_version 0 là dòng của bản seed cũ
+-- quên tăng phiên bản, bản sao vẫn ghi không phải đảng viên nên luồng DANG không lập hồ sơ cho canbo (QA-06
+-- HT-25..29); chạy lại không đổi gì.
 UPDATE org.person o
-   SET is_party_member = true
+   SET is_party_member = true, row_version = o.row_version + 1
   FROM seed_person p
  WHERE o.tenant_id = 'd0000000-0000-4000-8000-000000000001'::uuid AND o.id = p.id
-   AND p.username IN (SELECT username FROM seed_party_member) AND NOT o.is_party_member;
+   AND p.username IN (SELECT username FROM seed_party_member)
+   AND (NOT o.is_party_member OR o.row_version = 0);
 
 INSERT INTO org.assignment (version_id, id, tenant_id, person_id, org_unit_id, job_title_id, kind, branch,
                             valid_from, created_by, updated_by)
@@ -118,6 +135,21 @@ SELECT md5('assignment-version:' || p.id)::uuid, md5('assignment:' || p.id)::uui
        p.title_id, 'CHINH', 'CHINH_QUYEN', '2000-01-01'::date, '00000000-0000-0000-0000-000000000000'::uuid, '00000000-0000-0000-0000-000000000000'::uuid
 FROM seed_person p
 ON CONFLICT DO NOTHING;
+
+-- Vị trí việc làm "Chuyên viên tổng hợp" của Phòng Tổng hợp gắn cho canbo, để đăng ký nhiệm vụ từ danh mục theo vị
+-- trí (SCR-0503, HT-15) có mục để chọn; danh mục công việc thử gắn vị trí này cho TH-02, TH-03
+-- (task-danh-muc-thu.sql). Câu UPDATE tăng row_version để org-republish ghi đè bản sao org_replica.
+INSERT INTO org.position (version_id, id, tenant_id, org_unit_id, code, name, headcount, valid_from, created_by,
+                          updated_by)
+VALUES (md5('position-version:d0000000-0000-4000-8000-000000000401')::uuid,
+        'd0000000-0000-4000-8000-000000000401', 'd0000000-0000-4000-8000-000000000001',
+        'd0000000-0000-4000-8000-000000000101', 'CV-TONG-HOP', 'Chuyên viên tổng hợp', 2, '2000-01-01'::date,
+        '00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-000000000000')
+ON CONFLICT DO NOTHING;
+
+UPDATE org.assignment a SET position_id = 'd0000000-0000-4000-8000-000000000401', row_version = a.row_version + 1
+FROM seed_person p
+WHERE a.person_id = p.id AND a.kind = 'CHINH' AND a.position_id IS NULL AND p.username = 'canbo';
 
 -- Trưởng đơn vị (is_head): lanhdao đứng đầu phòng 101, giamdocso đứng đầu Sở 100. Màn soạn mục tiêu lấy người xác
 -- nhận KR từ trưởng đơn vị sở hữu và đơn vị cấp trên (SCR-0202 trường 14), thiếu trưởng đơn vị thì không trình được.

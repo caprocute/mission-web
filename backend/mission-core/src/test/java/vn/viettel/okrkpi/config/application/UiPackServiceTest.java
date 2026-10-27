@@ -170,6 +170,7 @@ class UiPackServiceTest {
   final List<String> notices = new ArrayList<>();
   final List<String> audits = new ArrayList<>();
   final List<UiPackChecker.Result> checkerResults = new ArrayList<>();
+  boolean checkerBroken;
   final UiPackNotices noticePort =
       new UiPackNotices() {
         @Override
@@ -186,7 +187,12 @@ class UiPackServiceTest {
       new UiPackService(
           repo,
           noticePort,
-          (t, doc) -> List.copyOf(checkerResults),
+          (t, doc) -> {
+            if (checkerBroken) {
+              throw new IllegalStateException("Kho đối tượng không phản hồi");
+            }
+            return List.copyOf(checkerResults);
+          },
           jobs,
           (t, role, at) -> List.of(AUTHOR, REVIEWER),
           (t, a, action, type, id, agg, v) -> audits.add(action + ":" + id + ":" + v),
@@ -405,6 +411,21 @@ class UiPackServiceTest {
     jobs.accepted(TENANT, lost, AUTHOR);
     service.check(TENANT, pack, "9.9.9", lost);
     assertThat(jobs.state.get(lost)).isEqualTo("THAT_BAI");
+  }
+
+  @Test
+  void checkCrashReturnsVersionToDraftSoAuthorCanResubmit() {
+    UUID pack = packId();
+    service.create(TENANT, AUTHOR, pack, "1.0.0", null);
+    checkerBroken = true;
+    String job = service.submit(TENANT, AUTHOR, pack, "1.0.0", 0);
+    assertThat(jobs.state.get(job)).isEqualTo("THAT_BAI");
+    UiPackVersion back = service.get(TENANT, pack, "1.0.0");
+    assertThat(back.status()).isEqualTo(UiPackVersionStatus.NHAP);
+
+    checkerBroken = false;
+    String again = service.submit(TENANT, AUTHOR, pack, "1.0.0", back.rowVersion());
+    assertThat(jobs.state.get(again)).startsWith("HOAN_TAT");
   }
 
   @Test

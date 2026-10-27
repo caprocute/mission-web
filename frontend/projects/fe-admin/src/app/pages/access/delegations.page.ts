@@ -11,8 +11,14 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { DELEGATION_KIND_LABEL, DELEGATION_STATUS_LABEL, Delegation, OrgTreeApi, RoleAdminApi } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import {
+  DELEGATION_KIND_LABEL,
+  DELEGATION_STATUS_LABEL,
+  Delegation,
+  OrgTreeApi,
+  RoleAdminApi,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { ADMIN_CAN } from '../../admin-permissions';
@@ -24,7 +30,15 @@ import { ReasonDialog } from './reason.dialog';
 
 @Component({
   selector: 'vt-delegations-page',
-  imports: [RouterLink, ButtonModule, MessageModule, OrgTreeView, DelegationDialog, ReasonDialog],
+  imports: [
+    VtSkeletonComponent,
+    RouterLink,
+    ButtonModule,
+    MessageModule,
+    OrgTreeView,
+    DelegationDialog,
+    ReasonDialog,
+  ],
   template: `
     @if (can('SCR-0105.xem')) {
       <p><a routerLink="../access" class="link">← Vai trò theo đơn vị</a></p>
@@ -32,9 +46,7 @@ import { ReasonDialog } from './reason.dialog';
     <header class="head">
       <div>
         <h1>Uỷ quyền khi vắng mặt</h1>
-        <p class="muted">
-          Uỷ quyền phải có thời hạn và người nhận không được uỷ quyền lại cho người khác.
-        </p>
+        <p class="muted">Giao người khác xử lý thay công việc trong thời gian đồng chí vắng mặt.</p>
       </div>
       @if (can('SCR-0107.tao')) {
         <p-button
@@ -58,7 +70,11 @@ import { ReasonDialog } from './reason.dialog';
 
       <section class="box" aria-labelledby="dl-z2" aria-live="polite">
         <h2 id="dl-z2" class="h">
-          {{ selected() ? 'Uỷ quyền tại ' + unitName() : 'Uỷ quyền' }}
+          @if (selected() && unit.isLoading()) {
+            <vt-skeleton variant="text" [rows]="1" label="Đang tải tên đơn vị" />
+          } @else {
+            {{ selected() ? 'Uỷ quyền tại ' + unitName() : 'Uỷ quyền' }}
+          }
         </h2>
         @if (!selected()) {
           <p class="muted">Chọn một đơn vị trên cây để xem uỷ quyền.</p>
@@ -113,9 +129,18 @@ import { ReasonDialog } from './reason.dialog';
                   </tr>
                 } @empty {
                   <tr>
-                    <td colspan="6" class="muted">
-                      {{ page.isLoading() ? 'Đang tải…' : 'Đơn vị chưa có uỷ quyền nào.' }}
-                    </td>
+                    @if (page.isLoading()) {
+                      <td colspan="6">
+                        <vt-skeleton
+                          variant="table"
+                          [header]="false"
+                          [columns]="6"
+                          label="Đang tải danh sách uỷ quyền"
+                        />
+                      </td>
+                    } @else {
+                      <td colspan="6" class="muted">Đơn vị chưa có uỷ quyền nào.</td>
+                    }
                   </tr>
                 }
               </tbody>
@@ -205,7 +230,7 @@ export class DelegationsPage {
   protected readonly busy = signal(false);
   protected readonly notices = signal<{ kind: 'success' | 'error'; text: string }[]>([]);
 
-  private readonly unit = rxResource({
+  protected readonly unit = rxResource({
     params: () => this.selected() ?? undefined,
     stream: ({ params }) => this.units.unit(params),
   });

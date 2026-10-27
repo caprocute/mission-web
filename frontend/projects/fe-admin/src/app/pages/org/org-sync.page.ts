@@ -17,8 +17,17 @@
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Job, JobTracker } from '@vt/api-client';
-import { OrgDiscrepancy, OrgSyncApi, OrgSyncRun, SYNC_RUN_STATUS_LABEL, SYNC_SOURCE_LABEL, SYNC_SOURCE_TITLE, SyncSource, hasDeadLetters } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import {
+  OrgDiscrepancy,
+  OrgSyncApi,
+  OrgSyncRun,
+  SYNC_RUN_STATUS_LABEL,
+  SYNC_SOURCE_LABEL,
+  SYNC_SOURCE_TITLE,
+  SyncSource,
+  hasDeadLetters,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { Observable, Subscription } from 'rxjs';
 import { ADMIN_CAN } from '../../admin-permissions';
@@ -38,14 +47,13 @@ export const MSG_01_14 = (source: string, at: string, reason: string) =>
 
 @Component({
   selector: 'vt-org-sync-page',
-  imports: [ButtonModule, OrgSyncList, OrgSyncSide, OrgSyncSchedulePanel],
+  imports: [ButtonModule, OrgSyncList, OrgSyncSide, OrgSyncSchedulePanel, VtSkeletonComponent],
   template: `
     <header class="head">
       <div>
         <h1>Đồng bộ và đối soát nhân sự</h1>
         <p class="muted">
-          Đồng bộ nhân sự từ các CSDL nguồn và đối soát dữ liệu lệch; dữ liệu nguồn chỉ được sửa tại
-          nơi quản lý nguồn.
+          Cập nhật nhân sự từ các cơ sở dữ liệu nguồn và xử lý thông tin chưa khớp.
         </p>
       </div>
       @if (can('SCR-0104.dong-bo')) {
@@ -67,21 +75,25 @@ export const MSG_01_14 = (source: string, at: string, reason: string) =>
     }
 
     <section class="cards" aria-label="Trạng thái nguồn">
-      @for (s of sources(); track s.connector) {
-        <article class="card">
-          <h2 class="lbl">{{ srcTitle[s.connector] }}</h2>
-          <p class="big" [class]="'big r-' + s.status">{{ statusLabel[s.status] }}</p>
-          <p class="muted">{{ cardLine(s) }}</p>
-        </article>
-      }
-      @if (counts(); as c) {
-        <article class="card">
-          <h2 class="lbl">Lệch cần đối soát</h2>
-          <p class="big total">{{ int(c.CAO + c.VUA + c.THAP) }}</p>
-          <p class="muted">
-            {{ int(c.CAO) }} mục mức Cao; đơn vị chưa kích hoạt được khi còn mục mức Cao
-          </p>
-        </article>
+      @if ((runs.isLoading() && !runs.hasValue()) || (totals.isLoading() && !totals.hasValue())) {
+        <vt-skeleton variant="stats" [rows]="5" label="Đang tải trạng thái đồng bộ" />
+      } @else {
+        @for (s of sources(); track s.connector) {
+          <article class="card">
+            <h2 class="lbl">{{ srcTitle[s.connector] }}</h2>
+            <p class="big" [class]="'big r-' + s.status">{{ statusLabel[s.status] }}</p>
+            <p class="muted">{{ cardLine(s) }}</p>
+          </article>
+        }
+        @if (counts(); as c) {
+          <article class="card">
+            <h2 class="lbl">Lệch cần đối soát</h2>
+            <p class="big total">{{ int(c.CAO + c.VUA + c.THAP) }}</p>
+            <p class="muted">
+              {{ int(c.CAO) }} mục mức Cao; đơn vị chưa kích hoạt được khi còn mục mức Cao
+            </p>
+          </article>
+        }
       }
     </section>
     @if (loadError(); as e) {
@@ -119,6 +131,7 @@ export const MSG_01_14 = (source: string, at: string, reason: string) =>
       <vt-org-sync-side
         [row]="detail()"
         [runs]="runRows()"
+        [runsLoading]="runs.isLoading() && !runs.hasValue()"
         [simple]="simple()"
         [canRetryRun]="can('SCR-0104.dong-bo')"
         (retry)="retry($event)"

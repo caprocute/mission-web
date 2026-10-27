@@ -1,8 +1,8 @@
 {
   "description": "Bảng chính sách thao tác trích từ mở rộng x-mission trong contracts/openapi/modules/*.yaml (NEN-014). Không sửa tay: chạy tools/extract-x-mission.mjs.",
   "source": "contracts/openapi/modules/*.yaml",
-  "count": 481,
-  "aal2Count": 84,
+  "count": 497,
+  "aal2Count": 91,
   "fourEyesCount": 19,
   "operations": [
     {
@@ -1353,6 +1353,28 @@
       "source": "BS-03 ADR-33 (suy luận đường dẫn)"
     },
     {
+      "operationId": "createCustomRole",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "POST",
+      "path": "/config/custom-roles",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [
+        "SCR-0110"
+      ],
+      "roles": [
+        "tenant_admin"
+      ],
+      "scope": "Tn",
+      "aal": 2,
+      "fourEyes": false,
+      "source": "BS-04 SCR-0110; ma trận SCR-0110.sua"
+    },
+    {
       "operationId": "createDashboard",
       "file": "platform.yaml",
       "module": "analytics",
@@ -2315,6 +2337,28 @@
       "source": "TL-02b QT-18 bước 1 (suy luận)"
     },
     {
+      "operationId": "createUserAccount",
+      "file": "org.yaml",
+      "module": "org",
+      "errorModule": "ORG",
+      "method": "POST",
+      "path": "/org/users",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [
+        "SCR-0108"
+      ],
+      "roles": [
+        "tenant_admin"
+      ],
+      "scope": "Tn",
+      "aal": 2,
+      "fourEyes": false,
+      "source": "BS-04 SCR-0108 \"Thêm người dùng\""
+    },
+    {
       "operationId": "createWorkflowTemplate",
       "file": "platform.yaml",
       "module": "workflow",
@@ -2931,7 +2975,8 @@
         "SCR-1502"
       ],
       "roles": [
-        "policy_author"
+        "policy_author",
+        "service_client"
       ],
       "scope": "Tn",
       "aal": 1,
@@ -3481,6 +3526,29 @@
       "aal": 1,
       "fourEyes": false,
       "source": "BS-03 ADR-33 (suy luận đường dẫn)"
+    },
+    {
+      "operationId": "getCustomRole",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "GET",
+      "path": "/config/custom-roles/{id}",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [
+        "SCR-0110"
+      ],
+      "roles": [
+        "tenant_admin",
+        "inspector"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-04 SCR-0110"
     },
     {
       "operationId": "getDashboard",
@@ -4619,6 +4687,29 @@
       "source": "TL-02a SCR-0801 trường 4 đến 9, 12; ma trận SCR-0801.xem"
     },
     {
+      "operationId": "getPermissionCatalog",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "GET",
+      "path": "/config/permission-catalog",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [
+        "SCR-0110"
+      ],
+      "roles": [
+        "tenant_admin",
+        "inspector"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-04 SCR-0110; ma trận SCR-0110.xem"
+    },
+    {
       "operationId": "getPlanVersion",
       "file": "tasks.yaml",
       "module": "plans",
@@ -4692,7 +4783,8 @@
       "roles": [
         "policy_author",
         "tenant_admin",
-        "decider"
+        "decider",
+        "service_client"
       ],
       "scope": "Tn",
       "aal": 1,
@@ -5257,6 +5349,29 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-02b SCR-1801 bảng trường"
+    },
+    {
+      "operationId": "getUserAccount",
+      "file": "org.yaml",
+      "module": "org",
+      "errorModule": "ORG",
+      "method": "GET",
+      "path": "/org/users/{id}",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [
+        "SCR-0109"
+      ],
+      "roles": [
+        "tenant_admin",
+        "inspector"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-04 SCR-0109"
     },
     {
       "operationId": "getWorkflowBinding",
@@ -6044,6 +6159,30 @@
       "source": "BS-03 ADR-33; TL-03 bổ sung `policy.customer_profile_version` (suy luận đường dẫn)"
     },
     {
+      "operationId": "listCustomRoles",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "GET",
+      "path": "/config/custom-roles",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [
+        "SCR-0110",
+        "SCR-0105"
+      ],
+      "roles": [
+        "tenant_admin",
+        "inspector"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-04 SCR-0110"
+    },
+    {
       "operationId": "listDashboardDefs",
       "file": "config.yaml",
       "module": "config",
@@ -6106,7 +6245,8 @@
       "roles": [
         "policy_author",
         "tenant_admin",
-        "decider"
+        "decider",
+        "service_client"
       ],
       "scope": "Tn",
       "aal": 1,
@@ -6460,6 +6600,30 @@
       "source": "TL-02a SCR-0801 \"Lịch ngày nghỉ\"; ma trận SCR-0801.tao-ky"
     },
     {
+      "operationId": "listJobTitles",
+      "file": "org.yaml",
+      "module": "org",
+      "errorModule": "ORG",
+      "method": "GET",
+      "path": "/org/job-titles",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [
+        "SCR-0108",
+        "SCR-0109"
+      ],
+      "roles": [
+        "tenant_admin",
+        "inspector"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-04; TL-03 org.job_title"
+    },
+    {
       "operationId": "listLedgerEntries",
       "file": "oversight.yaml",
       "module": "ledger",
@@ -6529,6 +6693,36 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-01 PL C (GET /appraisals?period=&flow=); TL-02b SCR-0901 Đường vào"
+    },
+    {
+      "operationId": "listMyCustomRoles",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "GET",
+      "path": "/config/me/custom-roles",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-00"
+      ],
+      "scr": [
+        "SCR-0001"
+      ],
+      "roles": [
+        "tenant_admin",
+        "policy_author",
+        "leader",
+        "manager",
+        "member",
+        "appraiser",
+        "decider",
+        "second_approver",
+        "inspector"
+      ],
+      "scope": "B",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-04 mục ADR-34 điểm 5"
     },
     {
       "operationId": "listMyEsignCertificates",
@@ -6960,12 +7154,13 @@
       "roles": [
         "manager",
         "leader",
-        "tenant_admin"
+        "tenant_admin",
+        "appraiser"
       ],
       "scope": "Đv",
       "aal": 1,
       "fourEyes": false,
-      "source": "Mã frontend WEB-028 (suy luận)"
+      "source": "Mã frontend WEB-028 (suy luận); SCR-1101.tao chọn thành phần hội nghị (appraiser, HT-30, wiki 14)"
     },
     {
       "operationId": "listOrgSyncRuns",
@@ -6982,12 +7177,13 @@
         "SCR-0104"
       ],
       "roles": [
-        "tenant_admin"
+        "tenant_admin",
+        "inspector"
       ],
       "scope": "Tn",
       "aal": 1,
       "fourEyes": false,
-      "source": "TL-02a SCR-0104 trường 1, 2"
+      "source": "TL-02a SCR-0104 trường 1, 2; TL-02 bảng tác nhân (AC-10 đọc nhật ký đồng bộ), ma trận SCR-0104.xem"
     },
     {
       "operationId": "listOrgSyncSchedules",
@@ -7234,7 +7430,8 @@
         "tenant_admin",
         "appraiser",
         "manager",
-        "leader"
+        "leader",
+        "inspector"
       ],
       "scope": "Đv",
       "aal": 1,
@@ -7387,7 +7584,8 @@
       "roles": [
         "policy_author",
         "tenant_admin",
-        "decider"
+        "decider",
+        "service_client"
       ],
       "scope": "Tn",
       "aal": 1,
@@ -7412,7 +7610,8 @@
       "roles": [
         "policy_author",
         "tenant_admin",
-        "decider"
+        "decider",
+        "service_client"
       ],
       "scope": "Tn",
       "aal": 1,
@@ -7828,6 +8027,31 @@
       "source": "TL-02b QT-18 bước 10 (suy luận)"
     },
     {
+      "operationId": "listUnitAppraisalResults",
+      "file": "appraisals.yaml",
+      "module": "appraisals",
+      "errorModule": "APPRAISAL",
+      "method": "GET",
+      "path": "/appraisals/unit-results",
+      "owner": "MOD-04",
+      "qt": [
+        "QT-16"
+      ],
+      "scr": [
+        "SCR-1603"
+      ],
+      "roles": [
+        "leader",
+        "manager",
+        "appraiser",
+        "inspector"
+      ],
+      "scope": "Cd (leader, appraiser, inspector); Đv (manager)",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "suy luận từ TL-02 SCR-1603 (đi xuống đơn vị, cán bộ, điểm) và wiki/14 HT-39; TL-03 appraisal_profile.current_snapshot_id, final_rating_code, score_snapshot.total_score, auto_rating_code"
+    },
+    {
       "operationId": "listUnitTasks",
       "file": "tasks.yaml",
       "module": "tasks",
@@ -7857,6 +8081,29 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-01 PL C; TL-02a SCR-0201, SCR-0501 (đường vào menu \"Nhiệm vụ\", QT-05 bước 3), SCR-0601 \"Duyệt đề nghị\"; TL-02b SCR-1601"
+    },
+    {
+      "operationId": "listUserAccounts",
+      "file": "org.yaml",
+      "module": "org",
+      "errorModule": "ORG",
+      "method": "GET",
+      "path": "/org/users",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [
+        "SCR-0108"
+      ],
+      "roles": [
+        "tenant_admin",
+        "inspector"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-04 SCR-0108"
     },
     {
       "operationId": "listWorkCatalogs",
@@ -8009,6 +8256,29 @@
       "aal": 2,
       "fourEyes": false,
       "source": "BS-01 SCR-1505 Bố cục; ma trận SCR-1505.thu-vien (vai trò con wf_template_author)"
+    },
+    {
+      "operationId": "lockUserAccount",
+      "file": "org.yaml",
+      "module": "org",
+      "errorModule": "ORG",
+      "method": "POST",
+      "path": "/org/users/{id}/lock",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [
+        "SCR-0108",
+        "SCR-0109"
+      ],
+      "roles": [
+        "tenant_admin"
+      ],
+      "scope": "Tn",
+      "aal": 2,
+      "fourEyes": false,
+      "source": "BS-04 SCR-0108 \"Khoá\""
     },
     {
       "operationId": "mapOrgDiscrepancy",
@@ -9149,6 +9419,28 @@
       "source": "TL-02b SCR-1201 \"Xác nhận bảo lưu\""
     },
     {
+      "operationId": "resetUserPassword",
+      "file": "org.yaml",
+      "module": "org",
+      "errorModule": "ORG",
+      "method": "POST",
+      "path": "/org/users/{id}/reset-password",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [
+        "SCR-0109"
+      ],
+      "roles": [
+        "tenant_admin"
+      ],
+      "scope": "Tn",
+      "aal": 2,
+      "fourEyes": false,
+      "source": "BS-04 SCR-0109 \"Đặt lại mật khẩu\""
+    },
+    {
       "operationId": "resolveOrgDiscrepancies",
       "file": "org.yaml",
       "module": "org",
@@ -9310,6 +9602,28 @@
       "aal": 2,
       "fourEyes": false,
       "source": "TL-02a QT-08 ngoại lệ (suy luận)"
+    },
+    {
+      "operationId": "retireCustomRole",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "POST",
+      "path": "/config/custom-roles/{id}/retire",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [
+        "SCR-0110"
+      ],
+      "roles": [
+        "tenant_admin"
+      ],
+      "scope": "Tn",
+      "aal": 2,
+      "fourEyes": false,
+      "source": "BS-04 SCR-0110; ma trận SCR-0110.sua"
     },
     {
       "operationId": "retryFailedPeriodLock",
@@ -10901,6 +11215,29 @@
       "source": "TL-01 PL C \"/tasks/{id}/transitions\""
     },
     {
+      "operationId": "unlockUserAccount",
+      "file": "org.yaml",
+      "module": "org",
+      "errorModule": "ORG",
+      "method": "POST",
+      "path": "/org/users/{id}/unlock",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [
+        "SCR-0108",
+        "SCR-0109"
+      ],
+      "roles": [
+        "tenant_admin"
+      ],
+      "scope": "Tn",
+      "aal": 2,
+      "fourEyes": false,
+      "source": "BS-04 SCR-0108 \"Mở khoá\""
+    },
+    {
       "operationId": "unregisterPushDevice",
       "file": "platform.yaml",
       "module": "notifications",
@@ -11040,6 +11377,28 @@
       "aal": 1,
       "fourEyes": false,
       "source": "BS-03 ADR-33; baseline mục 9.1 (vòng đời phiên bản)"
+    },
+    {
+      "operationId": "updateCustomRole",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "PUT",
+      "path": "/config/custom-roles/{id}",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [
+        "SCR-0110"
+      ],
+      "roles": [
+        "tenant_admin"
+      ],
+      "scope": "Tn",
+      "aal": 2,
+      "fourEyes": false,
+      "source": "BS-04 SCR-0110; ma trận SCR-0110.sua"
     },
     {
       "operationId": "updateDashboard",
@@ -11382,6 +11741,28 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-02b SCR-1801 \"Lưu nháp\"; ma trận SCR-1801.soan"
+    },
+    {
+      "operationId": "updateUserAccount",
+      "file": "org.yaml",
+      "module": "org",
+      "errorModule": "ORG",
+      "method": "PATCH",
+      "path": "/org/users/{id}",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [
+        "SCR-0109"
+      ],
+      "roles": [
+        "tenant_admin"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-04 SCR-0109 \"Sửa thông tin\""
     },
     {
       "operationId": "updateWorkflowTemplate",

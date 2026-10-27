@@ -100,8 +100,26 @@ describe('LeaderDashboardPage (SCR-1601)', () => {
     await until(el, '.directives li[data-task-id]');
     expect(el.querySelectorAll('.directives li[data-task-id]').length).toBe(3);
     expect(text(el.querySelector('.directives'))).toContain('Trễ 6 ngày làm việc');
-    expect(el.querySelector('svg.line polyline')).not.toBeNull();
+    expect(text(el)).toContain('Chưa có số liệu tiến độ theo từng tuần của kỳ.');
     expect(text(el)).not.toMatch(TECH);
+  });
+
+  it('bộ lọc khối, luồng: lọc theo mã của lớp ngữ nghĩa, hiện tên khối và nhãn luồng', async () => {
+    const el = await render(LeaderDashboardPage);
+    await until(el, 'tr[data-unit-id="u-vp"]');
+    const cmp = instance as {
+      optionsRes: { hasValue(): boolean };
+      groupOptions(): { value: string; label: string }[];
+      flowOptions(): { value: string; label: string }[];
+      group: { set(v: string | null): void };
+    };
+    for (let i = 0; i < 200 && !cmp.optionsRes.hasValue(); i++)
+      await new Promise((r) => setTimeout(r, 20));
+    expect(cmp.groupOptions()).toContainEqual({ value: 'CQ_THAM_MUU', label: 'Cơ quan tham mưu' });
+    expect(cmp.flowOptions()).toContainEqual({ value: 'NHA_NUOC', label: 'Khối Nhà nước' });
+    cmp.group.set('DANG_BO_CO_SO');
+    await until(el, 'table.units tbody', (b) => b.querySelectorAll('tr').length === 2);
+    expect(el.querySelector('tr[data-unit-id="u-cs-02"]')).not.toBeNull();
   });
 
   it('so với quý trước thêm cột và chênh lệch; kỳ đang khoá báo số liệu chậm, chưa có tóm tắt', async () => {
@@ -109,7 +127,7 @@ describe('LeaderDashboardPage (SCR-1601)', () => {
     await until(el, 'tr[data-unit-id="u-vp"]');
     await press(el, 'So với quý trước');
     await until(el, 'th', has('Quý trước'));
-    expect(text(el.querySelector('tr[data-unit-id="u-vp"]'))).toContain('55%');
+    await until(el, 'tr[data-unit-id="u-vp"]', has('55%'));
     await until(el, '.kpi', has('so với quý trước'));
     (instance as { periodId: { set(v: string): void } }).periodId.set('p-2026q3');
     await until(el, 'p-message', has('chậm hơn thường lệ'));
@@ -159,16 +177,53 @@ describe('LeaderDashboardPage (SCR-1601)', () => {
 });
 
 describe('UnitDrillPage và TracePage (SCR-1603)', () => {
-  it('đơn vị: cán bộ sắp theo điểm, dẫn tới chuỗi truy vết', async () => {
+  it('đơn vị: số tổng hợp của đơn vị, chưa có danh sách cán bộ', async () => {
     const el = await render(UnitDrillPage, { id: 'u-vp', name: 'Văn phòng Đảng uỷ' });
-    await until(el, 'tr[data-score-id]');
-    const rows = [...el.querySelectorAll('tr[data-score-id]')];
-    expect(rows.length).toBe(3);
-    expect(text(rows[0])).toContain('Lê Thu Trang');
-    expect(rows[0].querySelector('a')?.getAttribute('href')).toContain(
-      'trace/DIEM/ss-2026q4-le-thu-trang',
-    );
+    await until(el, '.kpi', has('Điểm KPI trung bình'));
+    const kpis = [...el.querySelectorAll('.kpi')].map(text);
+    expect(kpis).toEqual([
+      'Điểm KPI trung bình80,6',
+      'Số cán bộ đã có điểm3',
+      'Tỷ lệ nhiệm vụ đúng hạn70%',
+    ]);
+    expect(text(el)).toContain('Bảng điều hành chỉ có số liệu tổng hợp của đơn vị.');
+    expect(el.querySelector('a[href*="trace"]')).toBeNull();
     expect(text(el)).not.toMatch(TECH);
+  });
+
+  it('đơn vị có mã và kỳ: bảng kết quả từng cán bộ, liên kết tới chuỗi truy vết của điểm', async () => {
+    const el = await render(UnitDrillPage, {
+      id: 'u-vp',
+      name: 'Văn phòng Đảng uỷ',
+      period: 'p-2026q4',
+    });
+    await until(el, 'table.people tbody', (b) => b.querySelectorAll('tr').length === 3);
+    expect([...el.querySelectorAll('.kpi')].map(text)[0]).toBe('Điểm KPI trung bình80,6');
+    const rows = [...el.querySelectorAll('table.people tbody tr')];
+    expect(text(rows[0])).toContain('Lê Thu Trang');
+    expect(text(rows[0])).toContain('82,5');
+    expect(text(rows[0])).toContain('Hoàn thành nhiệm vụ (hệ thống gợi ý)');
+    expect(text(rows[0])).toContain('Chờ quyết định');
+    const links = [...el.querySelectorAll('table.people a')];
+    expect(links.map(text)).toEqual([
+      'Xem chuỗi truy vết của Lê Thu Trang',
+      'Xem chuỗi truy vết của Mai Xuân Phúc',
+      'Xem chuỗi truy vết của Cao Thị Yến',
+    ]);
+    expect(links[0].getAttribute('href')).toBe('/dashboard/trace/DIEM/ss-2026q4-le-thu-trang');
+    expect(text(el)).not.toContain('Bảng điều hành chỉ có số liệu tổng hợp của đơn vị.');
+    expect(text(el)).not.toMatch(TECH);
+  });
+
+  it('đơn vị: không có quyền xem chuỗi truy vết thì không gọi danh sách cán bộ', async () => {
+    const el = await render(
+      UnitDrillPage,
+      { id: 'u-vp', name: 'Văn phòng Đảng uỷ', period: 'p-2026q4' },
+      (k) => k !== 'SCR-1603.xem',
+    );
+    await until(el, '.kpi', has('Điểm KPI trung bình'));
+    expect(el.querySelector('table.people')).toBeNull();
+    expect(el.querySelector('a[href*="trace"]')).toBeNull();
   });
 
   it('chuỗi tám mắt xích; minh chứng có phiên bản và thông báo phiên bản được tính điểm', async () => {
@@ -211,7 +266,7 @@ describe('Dashboard tự dựng (SCR-1602)', () => {
     const v = await render(DashboardViewPage, { id: 'db-bang-bi-thu' });
     await until(v, '[data-widget-id="w4"] .bars li');
     expect(v.querySelectorAll('[data-widget-id]').length).toBe(4);
-    expect(text(v.querySelector('[data-widget-id="w3"]'))).toContain('Lọc: Luồng là Đảng');
+    expect(text(v.querySelector('[data-widget-id="w3"]'))).toContain('Lọc: Luồng là Khối Đảng');
     expect([...v.querySelectorAll('a')].map(text)).toContain('Sửa');
     expect(text(v)).not.toMatch(TECH);
     TestBed.resetTestingModule();
@@ -233,7 +288,7 @@ describe('Dashboard tự dựng (SCR-1602)', () => {
     };
     cmp.addWidget('okr.tien_do_o');
     await until(el, '[data-widget-id] .stat-v');
-    cmp.addDimension('task_type.name');
+    cmp.addDimension('task.nhom');
     await until(
       el,
       '.props .err',

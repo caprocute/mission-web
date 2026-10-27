@@ -8,9 +8,9 @@
       "schemaJson": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
-        "required": ["selfRatingCode", "content"],
+        "required": ["self_rating_code", "content"],
         "properties": {
-          "selfRatingCode": {
+          "self_rating_code": {
             "type": "string",
             "title": "Mức tự đề xuất",
             "oneOf": [
@@ -45,7 +45,7 @@
       },
       "uiJson": {
         "widgets": {
-          "selfRatingCode": "vt.input.catalog",
+          "self_rating_code": "vt.input.catalog",
           "breakthrough": "vt.input.textarea",
           "reason": "vt.input.textarea",
           "content": "vt.input.textarea"
@@ -60,13 +60,13 @@
         },
         {
           "field": "reason",
-          "expr": "selfRatingCode == ctx.mucThamKhao || (size(reason) >= 20 && size(reason) <= 2000)",
+          "expr": "self_rating_code == ctx.mucThamKhao || (size(reason) >= 20 && size(reason) <= 2000)",
           "message": "Mức tự đề xuất khác mức hệ thống tham khảo. Đồng chí cần ghi giải trình từ 20 đến 2.000 ký tự trước khi nộp.",
           "serverOnly": false
         },
         {
           "field": "breakthrough",
-          "expr": "selfRatingCode != 'HTXSNV' || (size(breakthrough) > 0 && ctx.soMinhChung > 0)",
+          "expr": "self_rating_code != 'HTXSNV' || (size(breakthrough) > 0 && ctx.soMinhChung > 0)",
           "message": "Đề xuất mức Hoàn thành xuất sắc nhiệm vụ cần mô tả giải pháp đột phá và gắn ít nhất một minh chứng đã được xác nhận.",
           "serverOnly": false
         }

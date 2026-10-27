@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -38,6 +39,7 @@ import vn.viettel.okrkpi.contract.tasks.model.PersonWorkload;
 import vn.viettel.okrkpi.contract.tasks.model.PersonWorkloadWeeksInner;
 import vn.viettel.okrkpi.contract.tasks.model.TaskAssignee;
 import vn.viettel.okrkpi.contract.tasks.model.TaskDetail;
+import vn.viettel.okrkpi.contract.tasks.model.TaskDetailAllOfProducts;
 import vn.viettel.okrkpi.contract.tasks.model.TaskDetailAllOfSourceDoc;
 import vn.viettel.okrkpi.contract.tasks.model.TaskDraft;
 import vn.viettel.okrkpi.contract.tasks.model.TaskDraftTemplate;
@@ -58,6 +60,7 @@ import vn.viettel.okrkpi.shared.paging.CursorKey;
 import vn.viettel.okrkpi.shared.paging.CursorPage;
 import vn.viettel.okrkpi.shared.paging.PageRequest;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
+import vn.viettel.okrkpi.task.api.TaskProductCounts;
 import vn.viettel.okrkpi.task.application.assign.TaskAssignService;
 import vn.viettel.okrkpi.task.application.assign.TaskDraftService;
 import vn.viettel.okrkpi.task.application.assign.TaskQueryService;
@@ -122,6 +125,14 @@ public class TaskAssignController {
     this.blockers = Objects.requireNonNull(blockers, "blockers");
     this.changes = Objects.requireNonNull(changes, "changes");
     this.directions = Objects.requireNonNull(directions, "directions");
+  }
+
+  private TaskProductCounts products = (tenant, taskId) -> TaskProductCounts.Counts.NONE;
+
+  /** Số sản phẩm do MOD-03 cung cấp; không có bean thì giữ 0. */
+  @Autowired(required = false)
+  void setProductCounts(TaskProductCounts products) {
+    this.products = Objects.requireNonNull(products, "products");
   }
 
   @PostMapping
@@ -259,6 +270,8 @@ public class TaskAssignController {
     } else {
       dto.setBlockers(blockers.listOf(tenant, t).stream().map(TaskBlockerController::dto).toList());
       TaskChangeRequestController.decorate(dto, changes, tenant, t);
+      TaskProductCounts.Counts c = products.of(tenant, t.id());
+      dto.setProducts(new TaskDetailAllOfProducts(c.confirmed(), c.pendingReview(), c.required()));
     }
     TaskDelayRiskController.view(delayRisks.find(tenant, t)).ifPresent(dto::delayRisk);
     Set<String> actions =

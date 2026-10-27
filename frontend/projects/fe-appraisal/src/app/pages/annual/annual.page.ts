@@ -32,8 +32,15 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { toProblem } from '@vt/api-client';
-import { AnnualRatingPage, AnnualRatingRow, AppraisalApi, PeriodApi, RATING_LEVEL_LABEL, RatingLevel } from '@vt/api-client/domains';
-import { ThemeService } from '@vt/design-system';
+import {
+  AnnualRatingPage,
+  AnnualRatingRow,
+  AppraisalApi,
+  PeriodApi,
+  RATING_LEVEL_LABEL,
+  RatingLevel,
+} from '@vt/api-client/domains';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { EMPTY, Observable, expand, firstValueFrom, map, reduce } from 'rxjs';
 import { APPRAISAL_CAN } from '../../appraisal-permissions';
 import { LEVEL_SHORT } from '../batch-decision/batch-decision-rules';
@@ -57,7 +64,7 @@ interface Loaded {
 
 @Component({
   selector: 'vt-annual-page',
-  imports: [RouterLink],
+  imports: [VtSkeletonComponent, RouterLink],
   templateUrl: './annual.page.html',
   styleUrl: './annual.page.css',
 })
@@ -135,8 +142,12 @@ export class AnnualPage {
   protected readonly selected = computed(
     () => this.rows().find((r) => r.id === this.selectedId()) ?? null,
   );
+  // Hồ sơ chưa có điểm năm (luồng chưa tính xong) thì máy chủ trả 409, nên không hỏi giải thích
   protected readonly explanation = rxResource({
-    params: () => this.selectedId() ?? undefined,
+    params: () => {
+      const s = this.selected();
+      return s && s.annualScore != null ? s.id : undefined;
+    },
     stream: ({ params }) => this.api.annualExplanation(params),
   });
   protected readonly ex = computed(() =>

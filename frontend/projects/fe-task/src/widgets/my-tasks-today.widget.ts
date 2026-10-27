@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { TaskApi } from '@vt/api-client';
 import { PermissionService } from '@vt/auth';
+import { VtSkeletonComponent } from '@vt/design-system';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
 import { daysLeft, statusSeverity } from '../app/task-ui';
@@ -14,26 +15,32 @@ import { daysLeft, statusSeverity } from '../app/task-ui';
  */
 @Component({
   selector: 'vt-my-tasks-today-widget',
-  imports: [RouterLink, CardModule, TagModule],
+  imports: [VtSkeletonComponent, RouterLink, CardModule, TagModule],
   template: `
     @if (canList) {
       <p-card>
         <ng-template #title>Việc của tôi hôm nay</ng-template>
         <!-- giữ chỗ đủ số dòng limit ngay từ đầu để liên kết "Xem tất cả" không nhảy khi dữ liệu về (CLS, WEB-059) -->
-        <ul class="list" [style.min-height]="listMinHeight()">
-          @for (t of top(); track t.id) {
-            <li>
-              @if (canDetail) {
-                <a [routerLink]="['/tasks', t.id]">{{ t.title }}</a>
-              } @else {
-                <span>{{ t.title }}</span>
-              }
-              <p-tag [value]="due(t.dueDate)" [severity]="sev(t)" />
-            </li>
-          } @empty {
-            <li class="muted">Không có việc cần xử lý hôm nay.</li>
-          }
-        </ul>
+        @if (page() === undefined) {
+          <div [style.min-height]="listMinHeight()">
+            <vt-skeleton variant="list" [rows]="limit()" label="Đang tải việc của tôi hôm nay" />
+          </div>
+        } @else {
+          <ul class="list" [style.min-height]="listMinHeight()">
+            @for (t of top(); track t.id) {
+              <li>
+                @if (canDetail) {
+                  <a [routerLink]="['/tasks', t.id]">{{ t.title }}</a>
+                } @else {
+                  <span>{{ t.title }}</span>
+                }
+                <p-tag [value]="due(t.dueDate)" [severity]="sev(t)" />
+              </li>
+            } @empty {
+              <li class="muted">Không có việc cần xử lý hôm nay.</li>
+            }
+          </ul>
+        }
         <a routerLink="/tasks" class="more">Xem tất cả việc của tôi →</a>
       </p-card>
     }
@@ -53,9 +60,16 @@ import { daysLeft, statusSeverity } from '../app/task-ui';
       border-bottom: 1px solid var(--p-content-border-color, #eee);
       min-height: var(--vt-min-touch, 40px);
     }
+    li:last-child {
+      border-bottom: 0;
+    }
     li a {
       color: var(--vt-color-text);
       text-decoration: none;
+    }
+    li p-tag {
+      flex-shrink: 0;
+      white-space: nowrap;
     }
     li a:hover {
       color: var(--vt-color-primary-strong, #d1002d);
@@ -79,7 +93,7 @@ export class MyTasksTodayWidget {
   protected readonly canList = this.permissions.can('SCR-0503.xem');
   protected readonly canDetail = this.permissions.can('SCR-0601.xem');
   // widget SDUI phải chịu được lỗi API: lỗi thì hiện như danh sách rỗng, không làm hỏng trang chủ
-  private readonly page = toSignal(
+  protected readonly page = toSignal(
     this.canList
       ? inject(TaskApi)
           .myTasks({ status: ['DA_GIAO', 'DANG_THUC_HIEN'] })

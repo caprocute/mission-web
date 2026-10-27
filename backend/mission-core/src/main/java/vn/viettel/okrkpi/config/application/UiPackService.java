@@ -336,8 +336,39 @@ public class UiPackService {
       }
     } catch (RuntimeException e) {
       log.error("Kiểm tra UI Pack {} phiên bản {} lỗi", packId, version, e);
+      // Giao dịch kiểm tra đã hoàn tác nên phiên bản còn ở DANG_KIEM_TRA; trả về nháp để người soạn
+      // gửi lại được, nếu không trang chỉ còn "Đang kiểm tra tự động" mà không có thao tác nào.
+      returnToDraft(tenantId, packId, version);
       jobs.failed(
-          tenantId, jobId, "Không chạy được kiểm tra tự động, vui lòng gửi lại.", List.of());
+          tenantId,
+          jobId,
+          "Không chạy được kiểm tra tự động, phiên bản đã trở về nháp, vui lòng gửi lại.",
+          List.of());
+    }
+  }
+
+  private void returnToDraft(TenantId tenantId, UUID packId, String version) {
+    try {
+      writes.executeWithoutResult(
+          s ->
+              repo.findVersion(tenantId, packId, version)
+                  .filter(v -> v.status() == UiPackVersionStatus.DANG_KIEM_TRA)
+                  .ifPresent(
+                      current -> {
+                        UiPackVersion next = current.checked(false, clock.instant());
+                        if (repo.updateVersion(tenantId, next, current.rowVersion())) {
+                          audit.changed(
+                              tenantId,
+                              next.updatedBy(),
+                              "KIEM_TRA_UI_PACK_KHONG_DAT",
+                              OBJECT_TYPE,
+                              version,
+                              next.id(),
+                              next.rowVersion());
+                        }
+                      }));
+    } catch (RuntimeException e) {
+      log.error("Không trả được UI Pack {} phiên bản {} về nháp", packId, version, e);
     }
   }
 

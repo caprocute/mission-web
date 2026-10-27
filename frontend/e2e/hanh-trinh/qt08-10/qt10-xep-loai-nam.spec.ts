@@ -31,6 +31,12 @@ test.describe('QT-10 Xếp loại năm và phân nhóm triển vọng', { tag: '
     await batCaoTuoi(page);
     const bang = m.getByRole('table');
     const nguoi = bang.getByRole('rowheader').getByRole('button');
+    // Máy chủ thật trả chậm hơn bản giả lập: chờ dòng đầu trước khi kết luận danh sách rỗng
+    if (HE_THONG)
+      await nguoi
+        .first()
+        .waitFor({ timeout: 15_000 })
+        .catch(() => undefined);
     if (HE_THONG && (await nguoi.count()) === 0)
       cho('chưa có kết quả xếp loại năm trên dev (bốn kỳ quý dựng bằng dữ liệu khởi tạo)');
     await expect(nguoi.first()).toBeVisible();
@@ -40,12 +46,23 @@ test.describe('QT-10 Xếp loại năm và phân nhóm triển vọng', { tag: '
     const loc = m.getByRole('button', { name: 'Chỉ hiện hồ sơ có cảnh báo liên thông' });
     await loc.click();
     await expect(loc).toHaveAttribute('aria-pressed', 'true');
-    const coCanhBao = await nguoi.count();
-    if (HE_THONG && coCanhBao === 0) {
+    let chon = nguoi.filter({ hasText: 'Bùi Văn Khánh' });
+    if (HE_THONG) {
+      // Trên dev chỉ hồ sơ năm đã có điểm năm mới mở được giải thích (luồng Nhà nước chưa có điểm năm)
+      const taiLai = page.waitForResponse(
+        (r) => r.url().includes('/appraisals/annual?') && !r.url().includes('flag='),
+      );
       await loc.click();
       await expect(loc).toHaveAttribute('aria-pressed', 'false');
+      await taiLai;
+      await nguoi.first().waitFor();
+      const dong = bang.getByRole('row').filter({ has: page.getByRole('rowheader') });
+      const coDiem: number[] = [];
+      for (let i = 0; i < (await dong.count()); i++)
+        if ((await dong.nth(i).getByRole('cell').nth(4).innerText()).trim() !== '—') coDiem.push(i);
+      if (coDiem.length === 0) cho('chưa có hồ sơ năm nào đã tính điểm năm trên dev');
+      chon = dong.nth(coDiem[0]).getByRole('rowheader').getByRole('button');
     }
-    const chon = HE_THONG ? nguoi.first() : nguoi.filter({ hasText: 'Bùi Văn Khánh' });
     const ten = (await chon.innerText()).trim();
     await chon.click();
     const giaiThich = m.getByRole('complementary').filter({
@@ -89,7 +106,12 @@ test.describe('QT-10 Xếp loại năm và phân nhóm triển vọng', { tag: '
 
     await chiHeThong('listAnnualAppraisalRatings trả bảng tổng hợp có bốn quý', async () => {
       const c = await api(s, 'thamdinh');
-      const r = await c.can<{ items: { quarterRatings: unknown[] }[] }>('GET', 'appraisals/annual');
+      // Kỳ năm mới nhất, như màn hình chọn khi không truyền ?period=
+      const ky = await c.can<{ items: { id: string }[] }>('GET', 'periods?kind=NAM');
+      const r = await c.can<{ items: { quarterRatings: unknown[] }[] }>(
+        'GET',
+        `appraisals/annual?period=${ky.body.items[0].id}`,
+      );
       expect(r.body.items.length).toBeGreaterThan(0);
       expect(r.body.items[0].quarterRatings).toHaveLength(4);
       await c.dong();
@@ -102,6 +124,11 @@ test.describe('QT-10 Xếp loại năm và phân nhóm triển vọng', { tag: '
     const m = main(page);
     await expect(m.getByRole('heading', { level: 1, name: /^Phân nhóm triển vọng/ })).toBeVisible();
     const doi = m.getByRole('button', { name: /^Đổi nhóm, thứ tự của / });
+    if (HE_THONG)
+      await doi
+        .first()
+        .waitFor({ timeout: 15_000 })
+        .catch(() => undefined);
     if (HE_THONG && (await doi.count()) === 0)
       cho('danh sách phân nhóm trên dev chưa có cán bộ hoặc đã trình (cần kỳ năm đã xếp loại)');
     await expect(m.getByRole('heading', { level: 2, name: /^Nhóm 1 – / })).toBeVisible();
@@ -112,11 +139,15 @@ test.describe('QT-10 Xếp loại năm và phân nhóm triển vọng', { tag: '
     const ten = ((await nut.getAttribute('aria-label')) ?? '').replace('Đổi nhóm, thứ tự của ', '');
     await nut.click();
     const menu = m.getByRole('group', { name: `Thao tác với ${ten}` });
-    await menu.getByRole('button', { name: 'Chuyển sang Nhóm 2' }).click();
-    await expect(thongBao(page, `Đã đưa ${ten} vào Nhóm 2`)).toBeVisible();
-    await m
-      .getByRole('textbox', { name: 'Lý do điều chỉnh' })
-      .fill('Kiểm thử hành trình: điều chỉnh nhóm theo nhận xét của tập thể lãnh đạo.');
+    // Lần chạy trước trên dev có thể đã đổi nhóm người này: chọn nhóm đích đầu tiên menu đưa ra
+    const chuyen = menu.getByRole('button', { name: /^Chuyển sang Nhóm \d/ }).first();
+    const nhom = ((await chuyen.textContent()) ?? '').trim().replace('Chuyển sang ', '');
+    await chuyen.click();
+    await expect(thongBao(page, `Đã đưa ${ten} vào ${nhom}`)).toBeVisible();
+    // Ô lý do chỉ hiện khi khác nhóm gợi ý; máy chủ chưa sinh gợi ý (wiki 14) nên trên dev có thể không có
+    const lyDo = m.getByRole('textbox', { name: 'Lý do điều chỉnh' });
+    if (!HE_THONG || (await lyDo.count()) > 0)
+      await lyDo.fill('Kiểm thử hành trình: điều chỉnh nhóm theo nhận xét của tập thể lãnh đạo.');
     await m.getByRole('button', { name: 'Lưu nháp' }).click();
     await expect(thongBao(page, 'Đã lưu nháp danh sách phân nhóm.')).toBeVisible();
 

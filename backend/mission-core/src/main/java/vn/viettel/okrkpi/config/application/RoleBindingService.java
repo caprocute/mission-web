@@ -9,10 +9,12 @@ import java.util.UUID;
 import org.springframework.transaction.annotation.Transactional;
 import vn.viettel.okrkpi.config.api.AccessDirectory;
 import vn.viettel.okrkpi.config.application.port.AccessEvents;
+import vn.viettel.okrkpi.config.application.port.CustomRoleRepository;
 import vn.viettel.okrkpi.config.application.port.RoleBindingRepository;
 import vn.viettel.okrkpi.config.application.port.RoleBindingRepository.Counts;
 import vn.viettel.okrkpi.config.application.port.RoleBindingRepository.Filter;
 import vn.viettel.okrkpi.config.domain.AccessChange;
+import vn.viettel.okrkpi.config.domain.CustomRole;
 import vn.viettel.okrkpi.config.domain.RoleBinding;
 import vn.viettel.okrkpi.config.domain.RoleBinding.EndKind;
 import vn.viettel.okrkpi.config.domain.RoleBinding.Scope;
@@ -39,13 +41,28 @@ public class RoleBindingService {
   private final AccessEvents events;
   private final AccessDirectory directory;
   private final Clock clock;
+  private final CustomRoleRepository customRoles;
 
   public RoleBindingService(
       RoleBindingRepository bindings, AccessEvents events, AccessDirectory directory, Clock clock) {
+    this(bindings, events, directory, clock, null);
+  }
+
+  /**
+   * {@code customRoles} khác null thì nhận cả vai trò tuỳ chỉnh đang hiệu lực của tenant
+   * (CORE-08-18).
+   */
+  public RoleBindingService(
+      RoleBindingRepository bindings,
+      AccessEvents events,
+      AccessDirectory directory,
+      Clock clock,
+      CustomRoleRepository customRoles) {
     this.bindings = Objects.requireNonNull(bindings, "bindings");
     this.events = Objects.requireNonNull(events, "events");
     this.directory = directory;
     this.clock = Objects.requireNonNull(clock, "clock");
+    this.customRoles = customRoles;
   }
 
   /** Dữ liệu cấp vai trò ({@code RoleBindingCreate}). */
@@ -66,7 +83,7 @@ public class RoleBindingService {
   public RoleBinding grant(TenantId tenantId, AccessActor actor, Grant g) {
     actor.requireAny(TENANT_ADMIN);
     actor.requireStepUp("grantRoleBinding", clock);
-    if (!RoleBinding.ROLES.contains(g.roleCode())) {
+    if (!RoleBinding.ROLES.contains(g.roleCode()) && !activeCustomRole(tenantId, g.roleCode())) {
       throw invalid("roleCode", "Vai trò không hợp lệ.");
     }
     validity(g.validFrom(), g.validTo());
@@ -293,5 +310,11 @@ public class RoleBindingService {
   static BusinessException invalid(String field, String message) {
     return new BusinessException(
         "COMMON-422-VALIDATION", message, List.of(new ProblemFieldError(field, message, null)));
+  }
+
+  private boolean activeCustomRole(TenantId tenantId, String code) {
+    return customRoles != null
+        && CustomRole.isCustomCode(code)
+        && customRoles.findByCode(tenantId, code).map(CustomRole::active).orElse(false);
   }
 }

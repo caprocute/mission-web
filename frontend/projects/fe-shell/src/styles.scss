@@ -49,6 +49,11 @@
     background: var(--vt-color-background);
     line-height: 1.5;
   }
+  /* Màu liên kết mặc định thống nhất (thay màu xanh tím mặc định của trình duyệt) */
+  a,
+  a:visited {
+    color: #1d4ed8;
+  }
   :focus-visible {
     /* viền tiêu điểm đạt 3:1 với nền trắng (WCAG 1.4.11), WEB-059 */
     outline: 3px solid var(--vt-color-primary-strong, #d1002d);
@@ -57,46 +62,117 @@
 }
 
 @layer app {
+  /* Tiêu đề trang thống nhất (YC-PT-24): tiêu đề, tối đa một dòng mô tả, hành động chính bên phải */
+  .vt-page-head,
   .vt-hero-banner {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #4c0519 100%);
-    color: #ffffff;
-    border-radius: 16px;
-    padding: 20px 24px;
-    box-shadow: var(--vt-shadow-md);
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    gap: 16px;
+    align-items: flex-end;
+    gap: 12px 24px;
     flex-wrap: wrap;
-    margin-bottom: 18px;
+    margin-bottom: 20px;
   }
 
+  .vt-page-head h1,
   .vt-hero-banner h1 {
-    margin: 0 0 4px;
-    color: #ffffff;
-    font-size: 1.5rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-  }
-
-  .vt-hero-banner p {
     margin: 0;
-    color: rgba(241, 245, 249, 0.86);
-    font-size: 0.92rem;
+    color: var(--vt-color-text);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
   }
 
-  .vt-hero-kicker {
-    display: inline-block;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #fde047;
-    background: rgba(250, 204, 21, 0.14);
-    border: 1px solid rgba(250, 204, 21, 0.32);
-    padding: 3px 10px;
-    border-radius: 999px;
-    margin-bottom: 6px;
+  .vt-page-head p,
+  .vt-hero-banner p {
+    margin: 4px 0 0;
+    color: var(--vt-color-text-muted);
+    font-size: 0.95rem;
+  }
+
+  .vt-page-head__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  /* Trang mục lục của một phân hệ: lưới thẻ, mỗi thẻ là một liên kết gồm biểu tượng, tên, một dòng mô tả */
+  .vt-hub {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+
+  .vt-hub-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    height: 100%;
+    padding: 18px 20px;
+    background: var(--vt-color-surface, #ffffff);
+    border: 1px solid var(--vt-color-border, #e2e8f0);
+    border-radius: var(--vt-radius-card, 12px);
+    color: var(--vt-color-text);
+    text-decoration: none;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .vt-hub-card:hover {
+    border-color: #cbd5e1;
+    box-shadow: var(--vt-shadow-sm);
+  }
+
+  .vt-hub-card > i {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    background: #fff1f2;
+    color: var(--vt-color-primary-strong, #d1002d);
+  }
+
+  .vt-hub-card strong {
+    display: block;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .vt-hub-card span {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--vt-color-text-muted);
+    line-height: 1.45;
+  }
+
+  /* Liên kết trình bày như nút không gạch chân */
+  a.p-button,
+  a.p-button:hover {
+    text-decoration: none;
+  }
+
+  /* Thẻ nội dung thống nhất cho các khối trên trang */
+  .vt-card {
+    background: var(--vt-color-surface, #ffffff);
+    border: 1px solid var(--vt-color-border, #e2e8f0);
+    border-radius: var(--vt-radius-card, 12px);
+    padding: 20px;
+  }
+
+  /* Tiêu đề thẻ PrimeNG: đậm vừa phải, cỡ đồng nhất giữa các phân hệ */
+  .p-card .p-card-title {
+    font-size: 1.05rem;
+    font-weight: 600;
   }
 
   .vt-stat-strip {
@@ -118,21 +194,142 @@
   }
 
   .vt-stat-card__label {
-    font-size: 0.78rem;
-    font-weight: 700;
+    font-size: 0.85rem;
+    font-weight: 500;
     color: var(--vt-color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
   }
 
   .vt-stat-card__value {
-    font-size: 1.55rem;
-    font-weight: 800;
+    font-size: 1.6rem;
+    font-weight: 700;
     color: var(--vt-color-text);
   }
 
   .vt-stat-card__sub {
     font-size: 0.82rem;
     color: var(--vt-color-text-muted);
+  }
+}
+
+/* Khung xương khi tải ứng dụng (YC-PT-28): markup tĩnh trong index.html, chỉ dùng lớp, không style nội dòng (CSP) */
+@layer app {
+  /* Trong lúc tải phân hệ cho tuyến mới, ẩn trang cũ và chỉ hiện khung xương (đặt ở đây vì trang
+     do router chèn không mang thuộc tính đóng gói style của khung) */
+  main.content.is-routing > router-outlet ~ * {
+    display: none;
+  }
+  .vt-boot {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  .vt-boot__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .vt-boot__b {
+    display: block;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #e2e8f0 0%, #f1f5f9 40%, #e2e8f0 80%);
+    background-size: 300% 100%;
+    animation: vt-boot-shimmer 1.4s ease-in-out infinite;
+  }
+  .vt-boot__top {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 60px;
+    padding: 0 18px;
+    background: #fff;
+    border-bottom: 1px solid var(--vt-color-border);
+  }
+  .vt-boot__logo {
+    width: 7.5rem;
+    height: 1.6rem;
+  }
+  .vt-boot__search {
+    width: 18rem;
+    height: 2.25rem;
+    margin-left: auto;
+  }
+  .vt-boot__avatar {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+  }
+  .vt-boot__body {
+    display: flex;
+    flex: 1;
+  }
+  .vt-boot__nav {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 248px;
+    padding: 20px 16px;
+    background: #fff;
+    border-right: 1px solid var(--vt-color-border);
+  }
+  .vt-boot__nav .vt-boot__b {
+    height: 1.1rem;
+  }
+  .vt-boot__main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 1600px;
+    padding: 24px 32px;
+  }
+  .vt-boot__h1 {
+    width: 16rem;
+    height: 1.8rem;
+  }
+  .vt-boot__p {
+    width: 28rem;
+    max-width: 100%;
+    height: 0.9rem;
+    margin-bottom: 12px;
+  }
+  .vt-boot__cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 16px;
+  }
+  .vt-boot__cards .vt-boot__b {
+    height: 6rem;
+    border-radius: var(--vt-radius-card);
+  }
+  .vt-boot__panel {
+    height: 18rem;
+    margin-top: 4px;
+    border-radius: var(--vt-radius-card);
+  }
+  @media (max-width: 960px) {
+    .vt-boot__nav,
+    .vt-boot__search {
+      display: none;
+    }
+    .vt-boot__main {
+      padding: 16px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .vt-boot__b {
+      animation: none;
+      background: #e2e8f0;
+    }
+  }
+  @keyframes vt-boot-shimmer {
+    0% {
+      background-position: 100% 0;
+    }
+    100% {
+      background-position: 0 0;
+    }
   }
 }

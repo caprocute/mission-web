@@ -11,19 +11,29 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { ACCESS_EVENT_KIND_LABEL, DELEGATION_KIND_LABEL, DELEGATION_STATUS_LABEL, ROLE_BINDING_STATUS_LABEL, ROLE_CODE_LABEL, ROLE_SCOPE_LABEL, RoleAdminApi, RoleBinding } from '@vt/api-client/domains';
+import {
+  ACCESS_EVENT_KIND_LABEL,
+  DELEGATION_KIND_LABEL,
+  DELEGATION_STATUS_LABEL,
+  ROLE_BINDING_STATUS_LABEL,
+  ROLE_SCOPE_LABEL,
+  RoleAdminApi,
+  RoleBinding,
+} from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { map } from 'rxjs';
 import { ADMIN_CAN } from '../../admin-permissions';
 import { fmtDate, fmtDateTime } from '../../admin-ui';
 import { ACCESS_STEP_UP, ACCESS_STYLES, accessError, statusTone } from './access-ui';
+import { RoleNames } from './role-names';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 const LIVE = ['HIEU_LUC', 'SAP_HIEU_LUC', 'CHO_DUYET'];
 
 @Component({
   selector: 'vt-person-access-page',
-  imports: [RouterLink, ButtonModule, MessageModule],
+  imports: [VtSkeletonComponent, RouterLink, ButtonModule, MessageModule],
   template: `
     <p><a routerLink="../access" class="link">← Vai trò theo đơn vị</a></p>
     <header class="head">
@@ -66,7 +76,7 @@ const LIVE = ['HIEU_LUC', 'SAP_HIEU_LUC', 'CHO_DUYET'];
             @for (b of sorted(); track b.id) {
               <tr [class.ended]="!live(b)">
                 <td>
-                  {{ roleLabel[b.roleCode] }}
+                  {{ names.label(b.roleCode) }}
                 </td>
                 <td>
                   {{ b.orgUnit.name }}
@@ -88,9 +98,18 @@ const LIVE = ['HIEU_LUC', 'SAP_HIEU_LUC', 'CHO_DUYET'];
               </tr>
             } @empty {
               <tr>
-                <td colspan="5" class="muted">
-                  {{ bindings.isLoading() ? 'Đang tải…' : 'Chưa có vai trò nào được cấp.' }}
-                </td>
+                @if (bindings.isLoading()) {
+                  <td colspan="5">
+                    <vt-skeleton
+                      variant="table"
+                      [header]="false"
+                      [columns]="5"
+                      label="Đang tải vai trò đã cấp"
+                    />
+                  </td>
+                } @else {
+                  <td colspan="5" class="muted">Chưa có vai trò nào được cấp.</td>
+                }
               </tr>
             }
           </tbody>
@@ -114,7 +133,13 @@ const LIVE = ['HIEU_LUC', 'SAP_HIEU_LUC', 'CHO_DUYET'];
             <span [class]="'pill ' + tone(d.status)">{{ delegationStatus[d.status] }}</span>
           </li>
         } @empty {
-          <li class="muted">Không có uỷ quyền nào.</li>
+          @if (delegationPage.isLoading()) {
+            <li>
+              <vt-skeleton variant="list" [rows]="2" label="Đang tải danh sách uỷ quyền" />
+            </li>
+          } @else {
+            <li class="muted">Không có uỷ quyền nào.</li>
+          }
         }
       </ul>
     </section>
@@ -132,7 +157,13 @@ const LIVE = ['HIEU_LUC', 'SAP_HIEU_LUC', 'CHO_DUYET'];
             >
           </li>
         } @empty {
-          <li class="muted">{{ history.isLoading() ? 'Đang tải…' : 'Chưa có sự kiện nào.' }}</li>
+          @if (history.isLoading()) {
+            <li>
+              <vt-skeleton variant="list" [rows]="3" label="Đang tải lịch sử thay đổi quyền" />
+            </li>
+          } @else {
+            <li class="muted">Chưa có sự kiện nào.</li>
+          }
         }
       </ol>
     </section>
@@ -179,7 +210,7 @@ export class PersonAccessPage {
   private readonly stepUp = inject(ACCESS_STEP_UP);
   protected readonly can = inject(ADMIN_CAN);
 
-  protected readonly roleLabel = ROLE_CODE_LABEL;
+  protected readonly names = inject(RoleNames);
   protected readonly scopeLabel = ROLE_SCOPE_LABEL;
   protected readonly statusLabel = ROLE_BINDING_STATUS_LABEL;
   protected readonly kindLabel = DELEGATION_KIND_LABEL;
@@ -200,7 +231,7 @@ export class PersonAccessPage {
     params: () => this.personId() || undefined,
     stream: ({ params }) => this.api.bindings({ personId: params }),
   });
-  private readonly delegationPage = rxResource({
+  protected readonly delegationPage = rxResource({
     params: () => this.personId() || undefined,
     stream: ({ params }) => this.api.delegations({ personId: params }),
   });

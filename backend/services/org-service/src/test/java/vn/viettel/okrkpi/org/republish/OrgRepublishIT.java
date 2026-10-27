@@ -14,10 +14,7 @@ import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
+
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -26,7 +23,7 @@ import vn.viettel.okrkpi.org.application.republish.EntityKind;
 import vn.viettel.okrkpi.org.application.republish.OrgRepublishService;
 import vn.viettel.okrkpi.org.application.republish.RepublishReport;
 import vn.viettel.okrkpi.org.application.republish.RepublishRequest;
-import vn.viettel.okrkpi.org.infrastructure.republish.PayloadEncoder;
+
 import vn.viettel.okrkpi.org.infrastructure.tenant.TenantContextHolder;
 import vn.viettel.okrkpi.org.republish.RepublishTestSupport.Received;
 import vn.viettel.okrkpi.org.republish.RepublishTestSupport.Replica;
@@ -39,7 +36,6 @@ import vn.vtokr.sys.v1.AuditEvent;
 
 /** DV-04-08 · {@code org-republish} trên PostgreSQL 17 + Kafka Testcontainers, đọc bằng {@code svc_org} (RLS). */
 @ActiveProfiles("republish")
-@Import(OrgRepublishIT.Encoder.class)
 class OrgRepublishIT extends IntegrationTestBase {
 
   static final Duration WAIT = Duration.ofSeconds(30);
@@ -51,15 +47,6 @@ class OrgRepublishIT extends IntegrationTestBase {
     registry.add("okrkpi.org.republish.bootstrap-servers", RepublishTestSupport.KAFKA::getBootstrapServers);
     registry.add("okrkpi.org.republish.registry-url", () -> "http://registry.invalid/apis/registry/v3");
     registry.add("okrkpi.org.republish.exit-on-finish", () -> "false");
-  }
-
-  @TestConfiguration
-  static class Encoder {
-    @Bean
-    @Primary
-    PayloadEncoder plainAvroEncoder() {
-      return new RepublishTestSupport.PlainAvroEncoder();
-    }
   }
 
   @Autowired

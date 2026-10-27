@@ -25,7 +25,7 @@ describe('mock ui-forms – Mẫu 1B cho SCR-0901', () => {
     const f = await firstValueFrom(api.current('mau-1b'));
     expect(f.status).toBe('DA_PHAT_HANH');
     expect(Object.keys((f.schemaJson as { properties: object }).properties)).toEqual([
-      'selfRatingCode',
+      'self_rating_code',
       'breakthrough',
       'reason',
       'content',

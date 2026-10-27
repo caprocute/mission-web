@@ -9,6 +9,10 @@
 # Khi tắt: bước auth-otp-form, direct-grant-validate-otp và các nhánh phụ OTP theo vai trò -> DISABLED; nhánh step-up
 # aal2 thêm bước "Allow access" nên vẫn trả acr aal2 mà không hỏi mã. Khi bật: đưa về REQUIRED, CONDITIONAL và xoá
 # bước "Allow access". Khoá OTP của tài khoản thử được giữ, script cũ gửi kèm mã OTP vẫn chạy.
+# Khi tắt còn đặt acr mặc định aal2 cho client web (default.acr.values): đăng nhập thường đi qua nhánh aal2 (không hỏi
+# mã) nên token mang acr aal2 ngay, tài khoản có vai trò AAL2 (quản trị, thẩm định, quyết định) không còn gặp hộp
+# "Xác thực nhiều lớp" sau khi đăng nhập (BR-00-01). Thao tác yêu cầu bước lên còn mới (khoá kỳ, đổi quyền) vẫn hỏi
+# lại khi quá hạn, bấm "Xác thực" là qua. Khi bật thì xoá thuộc tính này.
 # Keycloak chỉ nhập keycloak/realm-mission.json ở lần khởi động đầu, nên thay đổi này tồn tại qua các lần triển khai
 # lại; chỉ khi xoá dữ liệu Keycloak mới phải chạy lại script. Đọc KEYCLOAK_ADMIN, KEYCLOAK_ADMIN_PASSWORD từ
 # infra/dev/.env; không in mật khẩu.
@@ -87,5 +91,19 @@ print(next(e["id"] for e in json.load(sys.stdin) if e.get("providerId") == "allo
 elif [[ "${MUC}" == "REQUIRED" && -n "${allow_id}" ]]; then
   kc delete "authentication/executions/${allow_id}" -r "${REALM}" >/dev/null
   doi=$((doi + 1))
+fi
+# acr mặc định của client web (BR-00-01): tắt OTP thì đăng nhập thẳng ở aal2; bật lại thì trả về aal1 như thiết kế.
+WEB_CLIENT="${AUTH_CLIENT_ID:-mission-web}"
+web_id="$(kc get clients -r "${REALM}" -q clientId="${WEB_CLIENT}" --fields id --format csv --noquotes | head -1)"
+if [[ -n "${web_id}" ]]; then
+  acr_hien="$(kc get "clients/${web_id}" -r "${REALM}" --fields attributes | python3 -I -c '
+import json, sys
+print(json.load(sys.stdin).get("attributes", {}).get("default.acr.values", ""))')"
+  acr_can=""
+  [[ "${MUC}" == "DISABLED" ]] && acr_can="aal2"
+  if [[ "${acr_hien}" != "${acr_can}" ]]; then
+    kc update "clients/${web_id}" -r "${REALM}" -s "attributes.\"default.acr.values\"=${acr_can}" >/dev/null
+    doi=$((doi + 1))
+  fi
 fi
 echo "Realm ${REALM}: đã đổi ${doi} bước (OTP $([[ "${MUC}" == DISABLED ]] && echo tắt || echo bật); luồng ${BROWSER_FLOW}, ${DIRECT_FLOW})"

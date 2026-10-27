@@ -40,19 +40,37 @@ const KH = seed<{
 interface KeHoach {
   id: string;
   currentVersion: { versionNo: number; status: string };
+  adjustmentsUsed?: number;
+  adjustmentsMax?: number;
 }
 
 /**
  * Hệ thống thật: kế hoạch của đơn vị người lập trong kỳ đang mở, tạo mới nếu chưa có (`createPlan`,
  * đơn vị lấy theo ngữ cảnh phân công). Trả đường dẫn mở đúng kế hoạch đó trên SCR-0402.
  */
-async function keHoachHeThong(s: PhienQt): Promise<{ api: ApiHeThong; id: string; url: string }> {
+async function keHoachHeThong(
+  s: PhienQt,
+): Promise<{ api: ApiHeThong; id: string; url: string } | null> {
   const api = await s.apiCua('quanly');
   const ky = await kyDangMo(await s.apiCua('quantri'), 'QUY');
   const ds = await api.can<{ items: KeHoach[] }>('GET', 'plans', {
     query: { period: ky.id, limit: '200' },
   });
+  // lần chạy trước dừng giữa chừng để lại kế hoạch chờ duyệt: lãnh đạo trả lại để lập tiếp
+  const dang = ds.body.items.find((p) => p.currentVersion.status === 'CHO_DUYET');
+  if (dang) {
+    const ld = await s.apiCua('lanhdao');
+    const duongDan = `plans/${dang.id}/versions/${dang.currentVersion.versionNo}`;
+    const v = await ld.can<{ rowVersion: number }>('GET', duongDan);
+    await ld.can('POST', `${duongDan}/return`, {
+      body: { comment: 'Trả lại để chạy lại kiểm thử đầu cuối' },
+      ifMatch: `"${v.body.rowVersion}"`,
+    });
+    dang.currentVersion.status = 'TRA_LAI';
+  }
   let kh = ds.body.items.find((p) => ['NHAP', 'TRA_LAI'].includes(p.currentVersion.status));
+  // mỗi đơn vị một kế hoạch mỗi kỳ: kế hoạch đã duyệt ở lần chạy trước thì không lập lại được
+  if (!kh && ds.body.items.some((p) => p.currentVersion.status === 'DA_DUYET')) return null;
   if (!kh) kh = (await api.can<KeHoach>('POST', 'plans', { body: { periodId: ky.id } })).body;
   return { api, id: kh.id, url: `/plans?plan=${kh.id}&v=${kh.currentVersion.versionNo}` };
 }
@@ -145,10 +163,14 @@ async function guiDuyet(page: Page) {
   await expect(m.getByText(/Đã lưu nháp lúc/)).toBeVisible();
   const kiem = m.getByRole('region', { name: 'Kiểm tra kế hoạch' });
   await expect(kiem.getByRole('listitem').filter({ hasText: /^Lỗi/ })).toHaveCount(0);
-  await m.getByRole('button', { name: 'Gửi duyệt' }).click();
-  await expect(
-    thongBao(page, 'Đã gửi duyệt kế hoạch; lãnh đạo được thông báo để phê duyệt.'),
-  ).toBeVisible();
+  // nút tắt trong lúc lưu và kiểm tra lại sau khi lưu; bấm lúc nút vừa tắt thì không có tác dụng, nên
+  // bấm lại khi nút bật mà chưa có thông báo (máy chủ thật chậm hơn giả lập)
+  const gui = m.getByRole('button', { name: 'Gửi duyệt' });
+  const daGui = thongBao(page, 'Đã gửi duyệt kế hoạch; lãnh đạo được thông báo để phê duyệt.');
+  await expect(async () => {
+    if (!(await daGui.isVisible()) && (await gui.isEnabled())) await gui.click({ timeout: 2_000 });
+    await expect(daGui).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: 30_000 });
   await expect(m.getByText(/phiên bản \d+ · Chờ duyệt/).first()).toBeVisible();
 }
 
@@ -187,6 +209,16 @@ async function moPheDuyet(
  */
 async function duyetKySo(page: Page, nguoiKhacLap = HE_THONG): Promise<boolean> {
   const m = main(page);
+  // BR-04-05: người duyệt định mức khó và điểm chuẩn cho việc ngoài danh mục rồi mới duyệt được
+  const dinhDiem = m.getByRole('group', { name: /^Định điểm: / });
+  for (let lan = 0; lan < 20 && (await dinhDiem.count()); lan++) {
+    const dong = dinhDiem.first();
+    const ten = await dong.getAttribute('aria-label');
+    await dong.getByRole('combobox', { name: 'Mức khó' }).selectOption({ label: 'Mức 3' });
+    await dong.getByRole('spinbutton', { name: 'Điểm chuẩn' }).fill('5');
+    await dong.getByRole('button', { name: 'Lưu điểm' }).click();
+    await expect(m.getByRole('group', { name: ten! })).toHaveCount(0, { timeout: 15_000 });
+  }
   await m.getByRole('button', { name: 'Duyệt và ký số' }).click();
   if (!nguoiKhacLap) {
     await xacThucBuocLen(
@@ -230,7 +262,11 @@ test.describe('Kế hoạch quý', { tag: '@qa-05' }, () => {
     // AC-05 mở kế hoạch quý nháp của đơn vị (SCR-0402)
     let planUrl = '/plans';
     let api: ApiHeThong | null = null;
-    if (HE_THONG) ({ api, url: planUrl } = await keHoachHeThong(s));
+    if (HE_THONG) {
+      const kh = await keHoachHeThong(s);
+      test.skip(!kh, 'Kế hoạch quý của đơn vị đã được duyệt ở lần chạy trước (HT-12 dùng lại)');
+      ({ api, url: planUrl } = kh!);
+    }
     let page = await s.as('quanly', planUrl);
     let m = main(page);
     await expect(m.getByRole('heading', { level: 1, name: /^Kế hoạch công tác/ })).toBeVisible();
@@ -354,6 +390,11 @@ test.describe('Kế hoạch quý', { tag: '@qa-05' }, () => {
       });
       const kh = ds.body.items[0];
       if (!kh) test.skip(true, 'Chờ: chưa có kế hoạch đã duyệt trong kỳ (chạy HT-11 trước)');
+      // BR-04-10: mỗi kỳ chỉ điều chỉnh một số lần; dev chạy lại nhiều lượt có thể đã dùng hết
+      test.skip(
+        kh.adjustmentsMax != null && (kh.adjustmentsUsed ?? 0) >= kh.adjustmentsMax,
+        'Chờ: kế hoạch đã dùng hết số lần điều chỉnh của kỳ ở các lượt chạy trước',
+      );
       planId = kh.id;
       planUrl = `/plans?plan=${kh.id}&v=${kh.currentVersion.versionNo}`;
     }

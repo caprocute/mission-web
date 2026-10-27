@@ -88,6 +88,19 @@ export interface ContrastCheck {
 const fmt = (n: number) => n.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
 export const ratioText = (n: number) => `${fmt(n)} : 1`;
 
+/**
+ * Màu chữ trên nền màu chủ đạo: `color.onPrimary` của gói; gói chỉ khai `onPrimaryStrong` hoặc chưa khai
+ * thì lấy trắng hay đen, màu nào tương phản cao hơn với màu chủ đạo. Xem trước và kiểm tra tương phản
+ * dùng chung một màu nên ô xem trước không hiện cặp màu mà kiểm tra chưa xét.
+ */
+export function onPrimaryOf(tree: TokenTree): string {
+  const own = tokenText(tree, 'color.onPrimary') || tokenText(tree, 'color.onPrimaryStrong');
+  if (own) return own;
+  const p = tokenText(tree, 'color.primary');
+  if (!isHex(p)) return '#FFFFFF';
+  return contrastRatio('#FFFFFF', p) >= contrastRatio('#000000', p) ? '#FFFFFF' : '#000000';
+}
+
 /** Các cặp màu chữ, nền phải đạt AA (4,5 : 1); chế độ cao tuổi chữ trên nền trang ≥ 7 : 1. */
 export function contrastChecks(tree: TokenTree, elderly = false): ContrastCheck[] {
   const pairs: [string, string, string, number][] = [
@@ -96,7 +109,11 @@ export function contrastChecks(tree: TokenTree, elderly = false): ContrastCheck[
     ['#FFFFFF', 'color.danger', 'Chữ trên nền màu cảnh báo', 4.5],
   ];
   return pairs.map(([fgPath, bgPath, label, need]) => {
-    const fg = fgPath.startsWith('#') ? fgPath : tokenText(tree, fgPath);
+    const fg = fgPath.startsWith('#')
+      ? fgPath
+      : fgPath === 'color.onPrimary'
+        ? onPrimaryOf(tree)
+        : tokenText(tree, fgPath);
     const bg = tokenText(tree, bgPath);
     const ratio = isHex(fg) && isHex(bg) ? contrastRatio(fg, bg) : 0;
     return { fg, bg, label, ratio, need, ok: ratio >= need };

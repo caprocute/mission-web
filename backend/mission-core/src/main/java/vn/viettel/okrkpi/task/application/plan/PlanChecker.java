@@ -1,7 +1,7 @@
 package vn.viettel.okrkpi.task.application.plan;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -14,7 +14,9 @@ import java.util.Set;
 import java.util.UUID;
 import vn.viettel.okrkpi.cel.application.CelCompiledProgram;
 import vn.viettel.okrkpi.cel.application.CelEngine;
+import vn.viettel.okrkpi.cel.domain.CelExecutionException;
 import vn.viettel.okrkpi.cel.domain.CelValueType;
+import vn.viettel.okrkpi.shared.resilience.DependencyUnavailableException;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.Assignee;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.ItemRow;
 import vn.viettel.okrkpi.task.domain.catalog.CatalogRules;
@@ -24,9 +26,12 @@ import vn.viettel.okrkpi.task.domain.catalog.CatalogRules;
  * dòng chưa lưu và không ghi CSDL. BR-04-03, BR-04-04 là biểu thức CEL dùng chung với cel-js qua bộ
  * ca {@code data/golden/plan-rules/}; các quy tắc còn lại cần cả bảng kế hoạch nên viết bằng Java.
  *
- * <p>BR-04-06 so phần điểm của nhóm với điểm tối đa của nhóm trong Policy Pack: điểm nhóm = tổng
- * điểm các dòng của nhóm / tổng điểm mọi dòng × tổng điểm tối đa các nhóm, làm tròn một chữ số;
- * vượt thì chặn, thiếu thì cảnh báo (suy luận từ "tỷ trọng" của BR-04-06 và công thức điểm nhóm).
+ * <p>BR-04-06: điểm từng dòng là trọng số trong nhóm, điểm nhóm tối đa bằng điểm tối đa của nhóm
+ * trong Policy Pack (TL-02 QT-04 ví dụ BR-04-06 và SCR-0403: thêm, bỏ dòng không làm nhóm vượt điểm
+ * tối đa). Nhóm có dòng đã chấm điểm đạt đủ điểm tối đa; nhóm chưa có dòng nào đã chấm điểm thì
+ * cảnh báo "chưa đạt". Trọng số dòng không thể làm nhóm vượt tỷ trọng nên kế hoạch không bị chặn vì
+ * quy tắc này (trước đây so phần điểm của nhóm trên tổng mọi dòng, khiến mọi kế hoạch lệch khỏi
+ * đúng tỷ lệ của gói bị chặn).
  */
 public class PlanChecker {
 
@@ -97,6 +102,21 @@ public class PlanChecker {
     this.cel = Objects.requireNonNull(cel, "cel");
     this.complete = cel.compile(BR_04_04_CEL, COMPLETE_VARS, CelValueType.BOOL);
     this.vague = cel.compile(BR_04_03_CEL, VAGUE_VARS, CelValueType.BOOL);
+    // Làm nóng khi khởi động: lần đánh giá đầu tiên trong JVM nạp lớp của trình thông dịch (đo được
+    // 2,5 s trên dev) làm lần lưu kế hoạch đầu tiên vượt hạn 50 ms.
+    Map<String, Object> sample =
+        Map.of(
+            "san_pham", "Báo cáo",
+            "so_luong", 1.0,
+            "don_vi_tinh", "báo cáo",
+            "han", "2027-01-15",
+            "dau_ky", "2027-01-01",
+            "cuoi_ky", "2027-03-31");
+    cel.warmUp(complete, sample);
+    Map<String, Object> vagueSample = new HashMap<>(sample);
+    vagueSample.keySet().retainAll(VAGUE_VARS.keySet());
+    vagueSample.put("co_tu_mo_ho", true);
+    cel.warmUp(vague, vagueSample);
   }
 
   public List<Check> check(List<ItemRow> items, Context ctx) {
@@ -110,7 +130,7 @@ public class PlanChecker {
       Map<String, Object> vagueVars = new HashMap<>(vars);
       vagueVars.keySet().retainAll(VAGUE_VARS.keySet());
       vagueVars.put("co_tu_mo_ho", word != null);
-      if (!Boolean.TRUE.equals(cel.evaluate(vague, vagueVars))) {
+      if (!Boolean.TRUE.equals(evaluate(vague, vagueVars))) {
         out.add(
             new Check(
                 "BR-04-03",
@@ -125,7 +145,7 @@ public class PlanChecker {
       }
       Map<String, Object> completeVars = new HashMap<>(vars);
       completeVars.keySet().retainAll(COMPLETE_VARS.keySet());
-      if (!Boolean.TRUE.equals(cel.evaluate(complete, completeVars))) {
+      if (!Boolean.TRUE.equals(evaluate(complete, completeVars))) {
         out.add(
             new Check(
                 "BR-04-04",
@@ -160,6 +180,22 @@ public class PlanChecker {
       }
     }
     return out;
+  }
+
+  /**
+   * Quá hạn chạy CEL là máy chủ đang quá tải chứ không phải dữ liệu sai: trả 503 kèm {@code
+   * Retry-After} (ServiceUnavailable của {@code common.yaml}) thay vì lỗi 500 chung.
+   */
+  private Object evaluate(CelCompiledProgram program, Map<String, Object> vars) {
+    try {
+      return cel.evaluate(program, vars);
+    } catch (CelExecutionException e) {
+      if (CelExecutionException.CODE_TIMEOUT.equals(e.errorCode())) {
+        throw new DependencyUnavailableException(
+            "cel", DependencyUnavailableException.Reason.TIMEOUT, Duration.ofSeconds(1), e);
+      }
+      throw e;
+    }
   }
 
   /** Có kết quả mức chặn (dùng khi gửi duyệt, CORE-02-08). */
@@ -203,47 +239,19 @@ public class PlanChecker {
   }
 
   private static void groupWeights(List<ItemRow> items, List<GroupWeight> groups, List<Check> out) {
-    BigDecimal all = BigDecimal.ZERO;
-    Map<String, BigDecimal> perGroup = new HashMap<>();
-    for (ItemRow i : items) {
-      if (i.standardScore() == null) {
-        continue;
-      }
-      all = all.add(i.standardScore());
-      for (GroupWeight g : groups) {
-        if (g.taskGroups().contains(i.taskGroup())) {
-          perGroup.merge(g.code(), i.standardScore(), BigDecimal::add);
-        }
-      }
-    }
-    if (all.signum() == 0) {
+    if (items.stream().allMatch(i -> i.standardScore() == null)) {
       return;
     }
-    BigDecimal total =
-        groups.stream().map(GroupWeight::maxPoints).reduce(BigDecimal.ZERO, BigDecimal::add);
     for (GroupWeight g : groups) {
-      BigDecimal x =
-          perGroup
-              .getOrDefault(g.code(), BigDecimal.ZERO)
-              .multiply(total)
-              .divide(all, 1, RoundingMode.HALF_UP);
-      String label = GROUP_LABELS.getOrDefault(g.code(), "nhiệm vụ");
-      int cmp = x.compareTo(g.maxPoints());
-      if (cmp > 0) {
-        out.add(
-            new Check(
-                "BR-04-06",
-                Level.CHAN,
-                null,
-                "Tổng điểm nhóm "
-                    + label
-                    + " là "
-                    + plain(x)
-                    + ", vượt điểm tối đa "
-                    + plain(g.maxPoints())
-                    + ".",
-                "MSG-04-06"));
-      } else if (cmp < 0) {
+      boolean scored =
+          items.stream()
+              .anyMatch(
+                  i ->
+                      i.standardScore() != null
+                          && i.standardScore().signum() > 0
+                          && g.taskGroups().contains(i.taskGroup()));
+      if (!scored) {
+        String label = GROUP_LABELS.getOrDefault(g.code(), "nhiệm vụ");
         out.add(
             new Check(
                 "BR-04-06",
@@ -251,9 +259,7 @@ public class PlanChecker {
                 null,
                 "Tổng điểm nhóm "
                     + label
-                    + " là "
-                    + plain(x)
-                    + ", chưa đạt điểm tối đa "
+                    + " là 0, chưa đạt điểm tối đa "
                     + plain(g.maxPoints())
                     + ".",
                 null));

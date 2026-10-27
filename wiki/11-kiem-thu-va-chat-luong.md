@@ -202,6 +202,7 @@ Ngưỡng dưới đây lấy từ TL-01 (J2, J3, J6) và TL-04 mục 9.8. Ngư�
 | ZAP | không có cảnh báo High | ZAP quét thụ động và chủ động | phát hành vào staging |
 | ASVS | 100% mục áp dụng ở mức 2; mức 3 cho V2, V3, V6 | bảng tự đánh giá QA-13 | phát hành chính |
 | Nội dung giao diện | `npm run check:ui-text` và `gia-lap.noi-dung.spec.ts` xanh | CI web | hợp nhất |
+| Khung xương khi tải (YC-PT-28) | `npm run check:skeleton` (tự chạy trước `build:all`) và `gia-lap.khung-xuong.spec.ts` xanh | CI web | hợp nhất |
 
 ### Năm môi trường kiểm thử và dữ liệu thử
 
@@ -288,7 +289,7 @@ Phân bổ theo task như sau. QA-04 nhận QT-00 đến QT-03. QA-05 nhận QT-
 | HT-36 | Xem cảnh báo bất thường, giao kiểm tra và kết luận | AC-10 | QT-14 | SCR-1401, SCR-1603 | `listAnomalyAlerts`, `getAnomalyAlert`, `createAlertAction` | EVT-20 | QA-07 | Có |
 | HT-37 | Soạn phiên bản Policy Pack, chạy ca vàng và phát hành | AC-03, AC-08 | QT-15 | SCR-1501, SCR-1502, SCR-1503 | `createPolicyPackVersion`, `savePolicyRule`, `saveDecisionTable`, `runPolicyTests` … | EVT-13 | QA-07 | Có |
 | HT-38 | Cấu hình luồng duyệt từ mẫu và mô phỏng ràng buộc | AC-03 | QT-15 | SCR-1504 | `listPolicyWorkflowTemplates`, `saveWorkflowBinding`, `simulateWorkflowBinding` | – | QA-07 |  |
-| HT-39 | Bảng điều hành, dựng dashboard và đi xuống tới minh chứng | AC-04, AC-05 | QT-16 | SCR-1601, SCR-1602, SCR-1603 | `queryAnalytics`, `createDashboard`, `getDashboard`, `getTraceChain` | – | QA-07 | Có |
+| HT-39 | Bảng điều hành, dựng dashboard và đi xuống tới minh chứng | AC-04, AC-05 | QT-16 | SCR-1601, SCR-1602, SCR-1603 | `queryAnalytics`, `listUnitAppraisalResults`, `createDashboard`, `getDashboard`, `getTraceChain` | – | QA-07 | Có |
 | HT-40 | Trợ lý AI gợi ý kết quả then chốt, người dùng chấp nhận hoặc bỏ qua | AC-06, AC-12 | QT-17 | SCR-1701 | `assistOkrDraft`, `reviewOkrKeyResults`, `decideAiSuggestion` | – | QA-07 | Có |
 | HT-41 | Soạn, xem trước và phát hành UI Pack cùng biểu mẫu động | AC-02 | QT-18 | SCR-1801, SCR-1802 | `createUiPackVersion`, `createUiFormVersion`, `runUiFormTests`, `attachUiPackForm` … | EVT-23 | QA-07 | Có |
 | HT-42 | Chế độ Đảng viên cao tuổi trên di động | AC-06 | QT-18 | SCR-1803 | `getCurrentUiPack`, `listMyTasks` | – | MOB (di động) | Có |

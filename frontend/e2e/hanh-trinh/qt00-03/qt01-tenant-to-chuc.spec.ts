@@ -251,7 +251,21 @@ test.describe('QT-01 Khởi tạo tenant và tổ chức', { tag: '@qa-04' }, ()
   });
 
   test('HT-07 QT-01 chạy đồng bộ nhân sự và xử lý sai lệch đối soát', async () => {
-    const page = await s.trang('quantri', '/admin/org/sync');
+    if (HE_THONG) {
+      // Đồng bộ từ hệ thống ngoài là tính năng tuỳ chọn, mặc định tắt (ADR-34): tenant chưa bật cờ thì
+      // màn hình báo chưa bật, hành trình chờ tới khi tenant thử nghiệm bật cờ
+      const c = await api(s, 'quantri');
+      const co = await c.can<{ flags?: Record<string, boolean> }>('GET', 'ui/feature-flags');
+      await c.dong();
+      if (co.body.flags?.['org.externalSync'] !== true) {
+        cho('tenant chưa bật đồng bộ nhân sự từ hệ thống ngoài (cờ org.externalSync, ADR-34)');
+      }
+    }
+    // Giả lập: cờ đồng bộ ngoài mặc định tắt như hệ thống thật, bật bằng tham số `ff` của giả lập
+    const page = await s.trang(
+      'quantri',
+      HE_THONG ? '/admin/org/sync' : '/admin/org/sync?ff=org.externalSync',
+    );
     const m = main(page);
     await expect(
       m.getByRole('heading', { level: 1, name: 'Đồng bộ và đối soát nhân sự' }),
@@ -264,7 +278,11 @@ test.describe('QT-01 Khởi tạo tenant và tổ chức', { tag: '@qa-04' }, ()
       // "Đồng bộ ngay" mở một lần chạy cho mỗi nguồn (cùng thời điểm bắt đầu). Mọi nguồn dừng ở LOI khi org-service
       // chưa nối được integration-gateway hay nguồn nhân sự: ghi chờ kèm lý do của máy chủ thay cho chờ hết hạn nhãn
       // "Đã đồng bộ"; nguồn chưa cấu hình kết nối (SCIM, HRM trên dev) chỉ làm lần đồng bộ thành công một phần
-      interface LanChay { status: string; startedAt: string; reason?: string }
+      interface LanChay {
+        status: string;
+        startedAt: string;
+        reason?: string;
+      }
       const c = await api(s, 'quantri');
       let lan: LanChay[] = [];
       await expect

@@ -243,8 +243,10 @@ public class EsignService {
   /**
    * Chứng thư của người gọi ở mọi nhà cung cấp tenant được dùng (DV-10-04): hỏi từng nhà cung cấp,
    * lưu chứng thư mới hoặc cập nhật kết quả kiểm tra thu hồi vào {@code esign.certificate_ref}, rồi
-   * trả danh sách đã lưu. Nhà cung cấp lỗi thì bỏ qua và dùng dữ liệu đã lưu.
+   * trả danh sách đã lưu. Nhà cung cấp lỗi thì bỏ qua và dùng dữ liệu đã lưu. Chạy trong giao dịch
+   * để ghi {@code esign.certificate_ref} mang ngữ cảnh tenant của RLS.
    */
+  @Transactional
   public List<CertificateRef> certificatesOf(UUID tenantId, UUID caller) {
     for (SignatureProvider provider : providers.enabledFor(tenantId)) {
       try {

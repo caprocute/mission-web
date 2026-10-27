@@ -20,6 +20,40 @@ import {
 
 const enc = encodeURIComponent;
 
+/** Tệp của phiên bản theo hợp đồng (`EvidenceVersion.files[]`, `EvidenceVersionFileInput`). */
+type WireFile = Partial<EvidenceVersion> & { objectId: string };
+type WireVersion = EvidenceVersion & { files?: WireFile[] };
+
+/**
+ * Hợp đồng trả và nhận tệp dạng mảng `files`; màn hình SCR-0701, SCR-0703 dùng một tệp mỗi phiên bản,
+ * nên client gộp tệp đầu vào các trường phẳng của `EvidenceVersion` và ngược lại khi gửi.
+ */
+export function fromWire(v: WireVersion): EvidenceVersion {
+  const f = v?.files?.[0];
+  if (!f || v.objectId) return v;
+  return {
+    ...v,
+    objectId: f.objectId,
+    objectVersionId: f.objectVersionId ?? null,
+    contentSha256: f.contentSha256 ?? null,
+    sizeBytes: f.sizeBytes ?? null,
+    mediaType: f.mediaType ?? null,
+    fileName: f.fileName ?? null,
+    scanStatus: f.scanStatus ?? v.scanStatus,
+    isDuplicateSuspect: f.isDuplicateSuspect ?? v.isDuplicateSuspect,
+    duplicateOf: f.duplicateOf ?? null,
+    reuseJustification: f.reuseJustification ?? null,
+  };
+}
+
+function toWire(d: EvidenceVersionDraft) {
+  const { objectId, reuseJustification, ...rest } = d;
+  return {
+    ...rest,
+    files: objectId ? [{ objectId, ...(reuseJustification ? { reuseJustification } : {}) }] : [],
+  };
+}
+
 /**
  * Client cho `/api/v1/evidences` và `/api/v1/products` của MOD-03 (QT-07) theo hợp đồng
  * `contracts/openapi/modules/products.yaml`: nộp minh chứng SCR-0701 (WEB-032).
@@ -73,39 +107,47 @@ export class EvidenceApi {
   }
 
   version(id: string, versionNo: number): Observable<EvidenceVersion> {
-    return this.http.get<EvidenceVersion>(`/api/v1/evidences/${enc(id)}/versions/${versionNo}`);
+    return this.http
+      .get<EvidenceVersion>(`/api/v1/evidences/${enc(id)}/versions/${versionNo}`)
+      .pipe(map(fromWire));
   }
 
   /** "Lưu nháp" lần đầu hoặc nộp lại sau bổ sung: tạo phiên bản n+1 `NHAP`. */
   createVersion(id: string, draft: EvidenceVersionDraft): Observable<EvidenceVersion> {
-    return this.http.post<EvidenceVersion>(`/api/v1/evidences/${enc(id)}/versions`, draft);
+    return this.http
+      .post<EvidenceVersion>(`/api/v1/evidences/${enc(id)}/versions`, toWire(draft))
+      .pipe(map(fromWire));
   }
 
   /** "Lưu nháp" phiên bản đang `NHAP` (kèm `If-Match`). */
   saveVersion(id: string, v: EvidenceVersion, draft: EvidenceVersionDraft) {
-    return this.http.put<EvidenceVersion>(
-      `/api/v1/evidences/${enc(id)}/versions/${v.versionNo}`,
-      draft,
-      { headers: { 'If-Match': `"${v.rowVersion}"` } },
-    );
+    return this.http
+      .put<EvidenceVersion>(`/api/v1/evidences/${enc(id)}/versions/${v.versionNo}`, toWire(draft), {
+        headers: { 'If-Match': `"${v.rowVersion}"` },
+      })
+      .pipe(map(fromWire));
   }
 
   /** "Nộp để nghiệm thu": `NHAP` → `DA_NOP` (EVT-07); máy chủ kiểm BR-07-02, 03, 04, 09. */
   submit(id: string, v: EvidenceVersion): Observable<EvidenceSubmitResult> {
-    return this.http.post<EvidenceSubmitResult>(
-      `/api/v1/evidences/${enc(id)}/versions/${v.versionNo}/submit`,
-      { attested: true },
-      { headers: { 'If-Match': `"${v.rowVersion}"` } },
-    );
+    return this.http
+      .post<EvidenceSubmitResult>(
+        `/api/v1/evidences/${enc(id)}/versions/${v.versionNo}/submit`,
+        { attested: true },
+        { headers: { 'If-Match': `"${v.rowVersion}"` } },
+      )
+      .pipe(map((r) => ({ ...r, version: fromWire(r.version) })));
   }
 
   // ── Nghiệm thu SCR-0703 ──
 
   /** Mở nghiệm thu: lần đầu `DA_NOP` → `DANG_NGHIEM_THU`; lần nào cũng kiểm toàn vẹn (MSG-07-13). */
   openReview(id: string, v: EvidenceVersion): Observable<EvidenceVersion> {
-    return this.http.post<EvidenceVersion>(this.versionPath(id, v, 'open-review'), null, {
-      headers: { 'If-Match': `"${v.rowVersion}"` },
-    });
+    return this.http
+      .post<EvidenceVersion>(this.versionPath(id, v, 'open-review'), null, {
+        headers: { 'If-Match': `"${v.rowVersion}"` },
+      })
+      .pipe(map(fromWire));
   }
 
   /** "Xác nhận nghiệm thu" (EVT-08); cần phiên AAL2 trong 15 phút (BR-07-11). */

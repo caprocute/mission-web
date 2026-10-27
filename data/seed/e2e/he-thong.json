@@ -1,10 +1,10 @@
 {
   "$comment": "Dữ liệu đầu vào của hành trình QA-03 trên hệ thống thật. Chỉ là dữ liệu thử, không có thông tin cá nhân thật. Chuỗi {MA} được thay bằng tiền tố của lần chạy (E2E_RUN_ID) để dọn và để hai lần chạy không đụng nhau. Đơn vị và hồ sơ cán bộ lấy từ seed realm và org (QA-01, B9), không tạo ở đây.",
   "ky": {
-    "$comment": "Dùng kỳ đang mở bao trùm hôm nay nếu có; không có thì quản trị đơn vị tạo kỳ tháng này.",
+    "$comment": "Dùng kỳ quý đang mở bao trùm hôm nay nếu có; không có thì quản trị đơn vị tạo kỳ quý này. Kỳ quý vì Việc của tôi và trang chủ mặc định hiện kỳ hiện hành, mà máy chủ ưu tiên kỳ quý khi nhiều kỳ cùng mở (PeriodApi.current).",
     "code": "E2E-{THANG}",
     "name": "Kỳ kiểm thử đầu cuối {THANG}",
-    "kind": "THANG",
+    "kind": "QUY",
     "flow": "CA_HAI"
   },
   "nhiemVu": {

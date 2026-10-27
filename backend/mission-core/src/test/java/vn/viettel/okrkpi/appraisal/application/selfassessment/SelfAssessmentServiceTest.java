@@ -81,6 +81,22 @@ class SelfAssessmentServiceTest {
   }
 
   @Test
+  void hoSoChuaCoTieuChiTraDanhMucMacDinhChuaDanhDau() {
+    List<SelfAssessmentRepository.CriteriaRow> rows =
+        SelfAssessmentService.withDefaultCriteria(List.of());
+    assertThat(rows).hasSize(9);
+    assertThat(rows).allMatch(r -> "TU_DANH_GIA".equals(r.stage()) && !r.met());
+    assertThat(rows.get(0).code()).isEqualTo("TCC-01");
+    assertThat(rows.get(0).level()).isEqualTo(CriteriaLevel.KHONG_DAM_BAO);
+
+    List<SelfAssessmentRepository.CriteriaRow> stored =
+        List.of(
+            new SelfAssessmentRepository.CriteriaRow(
+                "TU_DANH_GIA", "TCC-01", BigDecimal.ONE, CriteriaLevel.THUC_HIEN_TOT, true));
+    assertThat(SelfAssessmentService.withDefaultCriteria(stored)).isEqualTo(stored);
+  }
+
+  @Test
   void luuNhapMaHoaVaQuyDoiTieuChi() {
     SelfAssessmentService.View v = service.save(TENANT, id(), 3L, person, form(RatingLevel.HTNV));
     assertThat(v.form().content()).isEqualTo("Hoàn thành nhiệm vụ trọng tâm.");

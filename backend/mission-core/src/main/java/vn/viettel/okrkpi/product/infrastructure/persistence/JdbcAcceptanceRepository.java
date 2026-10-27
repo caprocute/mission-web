@@ -6,8 +6,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -109,5 +112,53 @@ public class JdbcAcceptanceRepository implements AcceptanceRepository {
         .params(periodBucket, tenant.value(), evidenceId, versionNo)
         .query(Integer.class)
         .single();
+  }
+
+  @Override
+  public Optional<StoredAcceptance> latestOfVersion(
+      TenantId tenant, int periodBucket, UUID versionId) {
+    return jdbc.sql(
+            "SELECT id, evidence_version_id, decision, quality_level, criteria_results::text AS"
+                + " criteria, revision_cause, is_objective_revision, revision_count, comment_enc,"
+                + " reviewer_id, decided_at, on_behalf_of, delegation_id FROM product.acceptance"
+                + " WHERE period_bucket = ? AND tenant_id = ? AND evidence_version_id = ? ORDER BY"
+                + " decided_at DESC LIMIT 1")
+        .params(periodBucket, tenant.value(), versionId)
+        .query(
+            (rs, i) ->
+                new StoredAcceptance(
+                    rs.getObject("id", UUID.class),
+                    rs.getObject("evidence_version_id", UUID.class),
+                    rs.getString("decision"),
+                    rs.getBigDecimal("quality_level"),
+                    criteria(rs.getString("criteria")),
+                    rs.getString("revision_cause"),
+                    rs.getBoolean("is_objective_revision"),
+                    rs.getInt("revision_count"),
+                    rs.getBytes("comment_enc"),
+                    rs.getObject("reviewer_id", UUID.class),
+                    rs.getTimestamp("decided_at").toInstant(),
+                    rs.getObject("on_behalf_of", UUID.class),
+                    rs.getObject("delegation_id", UUID.class)))
+        .optional();
+  }
+
+  private List<CriterionResult> criteria(String text) {
+    List<CriterionResult> out = new ArrayList<>();
+    if (text == null) {
+      return out;
+    }
+    try {
+      for (JsonNode n : json.readTree(text)) {
+        out.add(
+            new CriterionResult(
+                n.path("criterionCode").asText(),
+                n.path("passed").asBoolean(),
+                n.hasNonNull("note") ? n.get("note").asText() : null));
+      }
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException(e);
+    }
+    return out;
   }
 }

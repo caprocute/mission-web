@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Import;
+
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -25,7 +25,6 @@ import vn.viettel.okrkpi.org.support.IntegrationTestBase;
  * Testcontainers. Mục tiêu đề xuất dưới 30 phút (suy luận); kết quả ghi vào báo cáo task.
  */
 @ActiveProfiles("republish")
-@Import(OrgRepublishIT.Encoder.class)
 class OrgRepublishPerformanceIT extends IntegrationTestBase {
 
   private static final Logger LOG = LoggerFactory.getLogger(OrgRepublishPerformanceIT.class);

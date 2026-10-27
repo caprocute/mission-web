@@ -3,7 +3,7 @@
 // và kiểm tra lệch bằng `npm run check:permissions` (WEB-054).
 
 /** Phiên bản ma trận phân quyền đã sinh ra tệp này. */
-export const PERMISSION_MATRIX_VERSION = '1.0 (19/10/2026)';
+export const PERMISSION_MATRIX_VERSION = '1.1 (24/10/2026)';
 
 /** Khoá chức năng web của ma trận (wiki/15a), dạng `SCR-qqnn.<khoá>`. */
 export type PermissionKey =
@@ -39,6 +39,15 @@ export type PermissionKey =
   | 'SCR-0107.xem'
   | 'SCR-0107.tao'
   | 'SCR-0107.thu-hoi'
+  | 'SCR-0108.xem'
+  | 'SCR-0108.them'
+  | 'SCR-0108.khoa'
+  | 'SCR-0109.xem'
+  | 'SCR-0109.sua'
+  | 'SCR-0109.phan-cong'
+  | 'SCR-0109.dat-lai-mat-khau'
+  | 'SCR-0110.xem'
+  | 'SCR-0110.sua'
   | 'SCR-0201.xem'
   | 'SCR-0201.them'
   | 'SCR-0201.check-in'
@@ -227,6 +236,15 @@ export const PERMISSION_TABLE: Readonly<Record<PermissionKey, string>> = {
   'SCR-0107.xem': 'tenant_admin* leader inspector*',
   'SCR-0107.tao': 'leader',
   'SCR-0107.thu-hoi': 'leader',
+  'SCR-0108.xem': 'tenant_admin inspector',
+  'SCR-0108.them': 'tenant_admin',
+  'SCR-0108.khoa': 'tenant_admin',
+  'SCR-0109.xem': 'tenant_admin inspector',
+  'SCR-0109.sua': 'tenant_admin',
+  'SCR-0109.phan-cong': 'tenant_admin',
+  'SCR-0109.dat-lai-mat-khau': 'tenant_admin',
+  'SCR-0110.xem': 'tenant_admin inspector',
+  'SCR-0110.sua': 'tenant_admin',
   'SCR-0201.xem': 'leader* manager member',
   'SCR-0201.them': 'manager',
   'SCR-0201.check-in': 'manager member',
@@ -404,7 +422,8 @@ export type ApiModule =
   | 'registry'
   | 'workflow'
   | 'jobs'
-  | 'search';
+  | 'search'
+  | 'iam';
 
 /**
  * Vai trò được gọi từng phương thức của module API, cách nhau bởi dấu cách; hậu tố `*` đánh dấu
@@ -417,21 +436,22 @@ export const API_PERMISSION_TABLE: Readonly<
     GET: 'leader manager member inspector*',
     POST: 'leader manager member',
     PUT: 'manager member',
+    DELETE: 'manager* member*',
   },
   tasks: {
-    GET: 'leader manager member appraiser* inspector*',
-    POST: 'leader manager member',
-    PUT: 'manager',
-    PATCH: 'manager',
-    DELETE: 'manager',
+    GET: 'platform_admin* tenant_admin* policy_author* leader manager member appraiser* decider* second_approver* inspector*',
+    POST: 'tenant_admin* leader manager member',
+    PUT: 'leader* manager member*',
+    PATCH: 'leader* manager',
+    DELETE: 'leader* manager',
   },
   plans: {
     GET: 'leader manager member* appraiser',
-    POST: 'leader manager',
+    POST: 'leader manager appraiser*',
     PUT: 'manager',
   },
   catalog: {
-    GET: 'policy_author leader* manager member',
+    GET: 'policy_author leader* manager member appraiser*',
     POST: 'policy_author manager',
     PUT: 'policy_author* manager',
   },
@@ -441,13 +461,13 @@ export const API_PERMISSION_TABLE: Readonly<
   },
   evidences: {
     GET: 'leader manager member appraiser inspector',
-    POST: 'manager member',
+    POST: 'tenant_admin* manager member',
     PUT: 'member',
   },
   appraisals: {
     GET: 'leader manager member appraiser decider inspector',
     POST: 'leader manager member appraiser decider inspector*',
-    PUT: 'leader member',
+    PUT: 'leader member appraiser*',
   },
   policies: {
     GET: 'tenant_admin* policy_author leader* appraiser* decider',
@@ -457,32 +477,36 @@ export const API_PERMISSION_TABLE: Readonly<
   dossiers: {
     GET: 'leader manager member appraiser decider',
     POST: 'leader* manager* member appraiser decider',
+    PUT: 'leader* manager* member*',
+    PATCH: 'leader* member* appraiser*',
   },
   oversight: {
-    GET: 'member appraiser decider second_approver inspector',
-    POST: 'member appraiser decider second_approver inspector',
-    PUT: 'member',
+    GET: 'manager* member appraiser decider second_approver inspector',
+    POST: 'manager* member appraiser decider second_approver inspector',
+    PUT: 'member appraiser*',
   },
   config: {
     GET: 'platform_admin tenant_admin policy_author* leader manager member appraiser decider second_approver inspector',
-    POST: 'platform_admin tenant_admin leader',
+    POST: 'platform_admin tenant_admin leader second_approver',
     PUT: 'tenant_admin policy_author',
     PATCH: 'platform_admin tenant_admin',
-    DELETE: 'platform_admin',
+    DELETE: 'platform_admin tenant_admin*',
   },
   periods: {
     GET: 'tenant_admin policy_author* leader manager member appraiser decider second_approver inspector',
     POST: 'tenant_admin leader second_approver',
   },
   org: {
-    GET: 'platform_admin* tenant_admin leader manager member appraiser decider second_approver inspector',
-    POST: 'tenant_admin',
-    PUT: 'tenant_admin leader manager member appraiser decider second_approver inspector',
+    GET: 'platform_admin* tenant_admin policy_author* leader manager member appraiser decider second_approver inspector',
+    POST: 'platform_admin* tenant_admin policy_author* leader* manager* member* appraiser* decider* second_approver* inspector*',
+    PUT: 'platform_admin* tenant_admin policy_author* leader manager member appraiser decider second_approver inspector',
+    PATCH: 'tenant_admin',
   },
   files: {
     GET: 'leader manager member appraiser decider inspector',
-    POST: 'manager member',
+    POST: 'tenant_admin* manager member',
     PUT: 'member',
+    DELETE: 'member*',
   },
   ledger: {
     GET: 'appraiser inspector',
@@ -491,10 +515,13 @@ export const API_PERMISSION_TABLE: Readonly<
   esign: {
     GET: 'leader member appraiser decider second_approver*',
     POST: 'leader member appraiser decider second_approver',
+    DELETE: 'leader* member* appraiser* decider* second_approver*',
   },
   notifications: {
     GET: 'platform_admin tenant_admin policy_author leader manager member appraiser decider second_approver inspector',
     POST: 'platform_admin* tenant_admin policy_author leader manager member appraiser decider second_approver inspector',
+    PUT: 'platform_admin* tenant_admin* policy_author* leader* manager* member* appraiser* decider* second_approver* inspector*',
+    DELETE: 'platform_admin* tenant_admin* policy_author* leader* manager* member* appraiser* decider* second_approver* inspector*',
   },
   analytics: {
     GET: 'leader manager appraiser inspector',
@@ -507,7 +534,7 @@ export const API_PERMISSION_TABLE: Readonly<
   },
   ui: {
     GET: 'platform_admin* tenant_admin policy_author leader manager member appraiser decider second_approver inspector',
-    POST: 'tenant_admin',
+    POST: 'tenant_admin policy_author*',
     PUT: 'tenant_admin policy_author*',
   },
   registry: {
@@ -515,13 +542,18 @@ export const API_PERMISSION_TABLE: Readonly<
     POST: 'platform_admin',
   },
   workflow: {
-    GET: 'tenant_admin policy_author* leader manager member appraiser decider second_approver inspector',
-    POST: 'tenant_admin* leader manager member appraiser decider second_approver inspector',
+    GET: 'platform_admin* tenant_admin policy_author* leader manager member appraiser decider second_approver inspector',
+    POST: 'platform_admin* tenant_admin* leader manager member appraiser decider second_approver inspector',
+    PUT: 'platform_admin*',
   },
   jobs: {
     GET: 'platform_admin tenant_admin policy_author leader manager member appraiser decider second_approver inspector',
+    DELETE: 'platform_admin* tenant_admin* policy_author* leader* manager* member* appraiser* decider* second_approver* inspector*',
   },
   search: {
     GET: 'leader manager member appraiser decider second_approver inspector',
+  },
+  iam: {
+    POST: 'tenant_admin*',
   },
 };

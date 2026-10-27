@@ -1,5 +1,10 @@
 import { ProblemDetails } from '@vt/api-client';
-import { AppraisalProfileRow, EsignCertificate, RATING_LEVELS, RatingLevel } from '@vt/api-client/domains';
+import {
+  AppraisalProfileRow,
+  EsignCertificate,
+  RATING_LEVELS,
+  RatingLevel,
+} from '@vt/api-client/domains';
 
 /**
  * Quy tắc và cách trình bày của SCR-0904 chạy trên trình duyệt để phản hồi tức thì; máy chủ kiểm lại khi
@@ -68,6 +73,14 @@ export function proposedOf(r: AppraisalProfileRow): RatingLevel | null {
   return r.levels.proposed ?? r.levels.appraised ?? r.autoRatingCode ?? null;
 }
 
+/**
+ * Mức quyết định khác mức hệ thống gợi ý theo kết quả tính điểm thì phải ghi lý do, kể cả khi giữ đúng mức
+ * đề xuất (BS-03 DC-05, máy chủ trả `APPRAISAL-422-SUGGESTED-REASON-REQUIRED`).
+ */
+export function differsSuggested(r: AppraisalProfileRow, level: RatingLevel | null): boolean {
+  return !!level && !!r.autoRatingCode && level !== r.autoRatingCode;
+}
+
 export interface LevelShare {
   level: RatingLevel;
   count: number;
@@ -106,12 +119,15 @@ export function noteOf(
   r: AppraisalProfileRow,
   decided: RatingLevel | null,
   headBlocked: boolean,
+  hasReason = false,
 ): string {
   if (r.isHead)
     return headBlocked
       ? 'Người đứng đầu: chờ các đơn vị trực thuộc có mức'
       : 'Quy tắc người đứng đầu: đạt';
   if (decided && decided !== proposedOf(r)) return 'Đổi mức · đã ghi lý do';
+  if (differsSuggested(r, decided))
+    return hasReason ? 'Khác mức gợi ý · đã ghi lý do' : 'Khác mức gợi ý · cần ghi lý do';
   if (r.totalScore !== null && r.totalScore !== undefined && r.totalScore < 60)
     return 'Dưới 60 điểm';
   if (r.differsExplained) return 'Khác mức · đã giải trình';

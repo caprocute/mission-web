@@ -330,5 +330,18 @@ class PeriodLockServiceTest {
     public List<LockStep> steps(TenantId tenantId, UUID lockOrderId) {
       return steps.getOrDefault(lockOrderId, List.of());
     }
+
+    @Override
+    public Optional<PeriodLockOrder> findBySaga(TenantId tenantId, UUID sagaId) {
+      return rows.values().stream().filter(o -> sagaId.equals(o.sagaId())).findFirst();
+    }
+
+    @Override
+    public void upsertStep(TenantId tenantId, UUID lockOrderId, LockStep step) {
+      List<LockStep> list = new ArrayList<>(steps.getOrDefault(lockOrderId, List.of()));
+      list.removeIf(x -> x.stepNo() == step.stepNo());
+      list.add(step);
+      steps.put(lockOrderId, list);
+    }
   }
 }

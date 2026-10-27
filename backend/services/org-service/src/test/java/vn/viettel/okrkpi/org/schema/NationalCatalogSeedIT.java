@@ -54,9 +54,11 @@ class NationalCatalogSeedIT {
     chayBangMigOrg(Files.readString(MIGRATION)); // kiểm thử khác có thể đã dọn bảng
     try (Connection c = PostgresSupport.as("svc_org", PostgresSupport.SVC_PASSWORD);
         Statement s = c.createStatement()) {
-      s.execute("SET app.tenant_id = '" + TENANT_HE_THONG + "'");
+      c.setAutoCommit(false);
+      s.execute("SELECT set_config('app.tenant_id', '" + TENANT_HE_THONG + "', true)");
       assertThat(dem(s, "SELECT count(*) FROM org.subject_group")).isEqualTo(9);
-      s.execute("SET app.tenant_id = '00000000-0000-7000-8000-0000000000ff'");
+      c.commit();
+      s.execute("SELECT set_config('app.tenant_id', '00000000-0000-7000-8000-0000000000ff', true)");
       assertThat(dem(s, "SELECT count(*) FROM org.subject_group WHERE tenant_id = '" + TENANT_HE_THONG + "'"))
           .isZero();
     }

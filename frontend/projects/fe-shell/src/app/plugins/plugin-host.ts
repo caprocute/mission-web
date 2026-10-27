@@ -66,14 +66,13 @@ export class PluginHost {
   readonly plugins = this._plugins.asReadonly();
   private ready: Promise<void> | null = null;
 
-  /** Mục menu "Không gian làm việc" cho từng plugin đã nạp. */
+  /** Mục menu nhóm công việc cho từng plugin đã nạp (menu chỉ hiện nhãn, không hiện dòng mô tả). */
   readonly navItems = computed<NavItem[]>(() =>
     this._plugins().map((p) => ({
       label: p.title,
       icon: p.icon,
       link: `/plugin/${p.short}`,
       section: 'workspace',
-      subtitle: p.subtitle,
     })),
   );
 

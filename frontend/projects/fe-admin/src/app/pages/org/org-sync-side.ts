@@ -1,5 +1,13 @@
 import { Component, computed, input, output } from '@angular/core';
-import { OrgDiscrepancy, OrgSyncRun, SUGGESTED_ACTION_LABEL, SYNC_RUN_STATUS_LABEL, SYNC_SOURCE_LABEL, hasDeadLetters } from '@vt/api-client/domains';
+import {
+  OrgDiscrepancy,
+  OrgSyncRun,
+  SUGGESTED_ACTION_LABEL,
+  SYNC_RUN_STATUS_LABEL,
+  SYNC_SOURCE_LABEL,
+  hasDeadLetters,
+} from '@vt/api-client/domains';
+import { VtSkeletonComponent } from '@vt/design-system';
 import { fmtDate, fmtDateTime } from '../../admin-ui';
 
 /**
@@ -8,6 +16,7 @@ import { fmtDate, fmtDateTime } from '../../admin-ui';
  */
 @Component({
   selector: 'vt-org-sync-side',
+  imports: [VtSkeletonComponent],
   template: `
     <section class="box" aria-labelledby="z4" aria-live="polite">
       <h2 id="z4" class="h">Chi tiết bản ghi</h2>
@@ -37,8 +46,8 @@ import { fmtDate, fmtDateTime } from '../../admin-ui';
           <p class="info">
             <!-- EVT-15: máy chủ ghi phiên bản mới valid_from = hiệu lực, recorded_from = lúc duyệt -->
             Khi chấp nhận, phân công được cập nhật có hiệu lực từ ngày
-            {{ d.effectiveFrom ? date(d.effectiveFrom) : 'ghi trong quyết định' }}, thời điểm ghi
-            nhận là lúc duyệt; các bên liên quan nhận được thông báo thay đổi phân công.
+            {{ d.effectiveFrom ? date(d.effectiveFrom) : 'ghi trong quyết định' }}; các bên liên
+            quan nhận được thông báo thay đổi phân công.
           </p>
         }
       } @else {
@@ -71,6 +80,20 @@ import { fmtDate, fmtDateTime } from '../../admin-ui';
                 }
               </td>
             </tr>
+          } @empty {
+            @if (runsLoading()) {
+              <tr>
+                <td colspan="3">
+                  <vt-skeleton
+                    variant="table"
+                    [header]="false"
+                    [columns]="3"
+                    [rows]="4"
+                    label="Đang tải nhật ký đồng bộ"
+                  />
+                </td>
+              </tr>
+            }
           }
         </tbody>
       </table>
@@ -163,6 +186,8 @@ import { fmtDate, fmtDateTime } from '../../admin-ui';
 export class OrgSyncSide {
   readonly row = input<OrgDiscrepancy | null>(null);
   readonly runs = input<OrgSyncRun[]>([]);
+  /** Nhật ký đồng bộ còn đang tải lần đầu (trang cha nạp `GET /org/sync-runs`). */
+  readonly runsLoading = input(false);
   readonly simple = input(false);
   readonly canRetryRun = input(false);
   readonly retry = output<OrgSyncRun>();

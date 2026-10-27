@@ -42,6 +42,7 @@ import vn.viettel.okrkpi.appraisal.application.profile.port.AppraisalProfileRepo
 import vn.viettel.okrkpi.appraisal.application.review.port.ReviewRepository.Scope;
 import vn.viettel.okrkpi.appraisal.application.selfassessment.port.TextSealer;
 import vn.viettel.okrkpi.appraisal.domain.profile.RatingLevel;
+import vn.viettel.okrkpi.platform.db.migration.TestPostgres;
 import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer.SerializedPayload;
@@ -95,11 +96,8 @@ class BatchDecisionIT {
   @BeforeEach
   void setUp() throws SQLException {
     Connection c =
-        DriverManager.getConnection(
-            pg.getJdbcUrl(), "svc_appraisal", MissionCoreTestDatabase.TEST_DB_PASSWORD);
-    try (Statement st = c.createStatement()) {
-      st.execute("SET app.tenant_id = '" + tenant + "'");
-    }
+        TestPostgres.connectAsTenant(
+            pg.getJdbcUrl(), "svc_appraisal", MissionCoreTestDatabase.TEST_DB_PASSWORD, tenant);
     ds = new SingleConnectionDataSource(c, true);
     tx = new TransactionTemplate(new DataSourceTransactionManager(ds));
     jdbc = JdbcClient.create(ds);

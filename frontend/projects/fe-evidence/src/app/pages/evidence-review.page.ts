@@ -27,9 +27,18 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { toProblem } from '@vt/api-client';
-import { EVIDENCE_STATUS_LABEL, EvidenceApi, EvidenceCriterionResult, EvidenceDecisionResult, EvidenceVersion, FileApi, QUALITY_LEVELS, QualityLevel } from '@vt/api-client/domains';
+import {
+  EVIDENCE_STATUS_LABEL,
+  EvidenceApi,
+  EvidenceCriterionResult,
+  EvidenceDecisionResult,
+  EvidenceVersion,
+  FileApi,
+  QUALITY_LEVELS,
+  QualityLevel,
+} from '@vt/api-client/domains';
 import { permittedOn } from '@vt/auth';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtSkeletonComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { firstValueFrom } from 'rxjs';
 import { EVIDENCE_CAN } from '../evidence-permissions';
@@ -58,7 +67,7 @@ const fmtDateTime = (iso?: string | null) => {
 
 @Component({
   selector: 'vt-evidence-review-page',
-  imports: [FormsModule, RouterLink, ButtonModule],
+  imports: [VtSkeletonComponent, FormsModule, RouterLink, ButtonModule],
   template: `
     @if (!can('SCR-0703.mo')) {
       <p class="msg warn">Đồng chí không có quyền nghiệm thu minh chứng.</p>
@@ -98,15 +107,16 @@ const fmtDateTime = (iso?: string | null) => {
       @if (ver(); as v) {
         @if (v.isDuplicateSuspect && v.duplicateOf; as m) {
           <p class="msg warn">
-            Minh chứng có tệp trùng mã băm với {{ m.taskCode }}. Giải trình của người nộp: "{{
-              v.reuseJustification
-            }}".
+            Minh chứng có tệp trùng nội dung với {{ m.taskCode }}.
+            @if (v.reuseJustification) {
+              Giải trình của người nộp: "{{ v.reuseJustification }}".
+            }
           </p>
         }
         <div class="layout">
           <div>
             <section class="box" aria-labelledby="ev-h">
-              <h2 class="h" id="ev-h"><span class="num" aria-hidden="true">1</span> Minh chứng</h2>
+              <h2 class="h" id="ev-h">Minh chứng</h2>
               <ul class="files">
                 @if (v.sourceDocRef) {
                   <li>
@@ -128,11 +138,6 @@ const fmtDateTime = (iso?: string | null) => {
                     <i class="pi pi-paperclip" aria-hidden="true"></i>
                     <span>
                       <strong>{{ v.fileName }}</strong>
-                      @if (!elderly() && v.contentSha256) {
-                        <span class="muted small hash">
-                          · mã kiểm tra {{ shortHash(v.contentSha256) }}</span
-                        >
-                      }
                       @if (v.integrity?.verified) {
                         <span class="chip SACH">đã kiểm tra toàn vẹn</span>
                       }
@@ -157,9 +162,7 @@ const fmtDateTime = (iso?: string | null) => {
             </section>
 
             <section class="box" aria-labelledby="crit-h">
-              <h2 class="h" id="crit-h">
-                <span class="num" aria-hidden="true">2</span> Đối chiếu tiêu chuẩn chất lượng
-              </h2>
+              <h2 class="h" id="crit-h">Đối chiếu tiêu chuẩn chất lượng</h2>
               @if (rows().length) {
                 <div
                   class="scroll"
@@ -244,9 +247,7 @@ const fmtDateTime = (iso?: string | null) => {
               </section>
             } @else {
               <section class="box" aria-labelledby="lv-h">
-                <h2 class="h" id="lv-h">
-                  <span class="num" aria-hidden="true">3</span> Mức chất lượng (B)
-                </h2>
+                <h2 class="h" id="lv-h">Mức chất lượng (B)</h2>
                 @if (decidable() && !criteriaDone()) {
                   <p class="muted small" id="lv-hint">
                     Vui lòng đánh giá tất cả tiêu chuẩn chất lượng trước khi chọn mức.
@@ -321,12 +322,25 @@ const fmtDateTime = (iso?: string | null) => {
 
               <section class="box" aria-labelledby="pv-h" aria-live="polite">
                 <h2 class="h" id="pv-h">
-                  <span class="num" aria-hidden="true">4</span> Xem trước điểm
-                  @if (preview.value()?.policyVersion; as pv) {
+                  Xem trước điểm
+                  @if (preview.hasValue() && preview.value()?.policyVersion; as pv) {
                     <span class="muted small">({{ pv }})</span>
                   }
                 </h2>
-                @if (preview.value(); as p) {
+                @if (preview.error()) {
+                  <!-- score-preview 422 khi kỳ chưa có lần tính điểm nào chứa nhiệm vụ (wiki 14) -->
+                  <p class="muted">
+                    Chưa xem trước được điểm của nhiệm vụ này; điểm được tính sau khi xác nhận
+                    nghiệm thu.
+                  </p>
+                } @else if (preview.isLoading()) {
+                  <vt-skeleton
+                    variant="detail"
+                    [rows]="4"
+                    [header]="false"
+                    label="Đang tính điểm xem trước"
+                  />
+                } @else if (preview.hasValue() && preview.value(); as p) {
                   <dl class="meta">
                     <dt>Khối lượng (A)</dt>
                     <dd>{{ fmt(p.a) }}</dd>
@@ -391,10 +405,10 @@ const fmtDateTime = (iso?: string | null) => {
           </aside>
         </div>
       } @else if (busy() === 'open') {
-        <p class="muted" aria-busy="true">Đang mở minh chứng và kiểm tra toàn vẹn…</p>
+        <vt-skeleton variant="detail" label="Đang mở minh chứng và kiểm tra toàn vẹn" />
       }
     } @else {
-      <p class="muted" aria-busy="true">Đang tải minh chứng…</p>
+      <vt-skeleton variant="detail" label="Đang tải minh chứng" />
     }
   `,
   styleUrl: './evidence-page.scss',
@@ -578,10 +592,6 @@ export class EvidenceReviewPage {
 
   protected fmt(x: number, d = 2) {
     return num(x, d);
-  }
-
-  protected shortHash(h: string) {
-    return `${h.slice(0, 4)}…${h.slice(-4)}`;
   }
 
   protected setPassed(i: number, passed: boolean) {

@@ -6,12 +6,18 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { DossierApi, DossierPackageStatus, PACKAGE_KIND_LABEL, PACKAGE_STATUS_LABEL } from '@vt/api-client/domains';
+import {
+  DossierApi,
+  DossierPackageStatus,
+  PACKAGE_KIND_LABEL,
+  PACKAGE_STATUS_LABEL,
+} from '@vt/api-client/domains';
 import { DossierTabs } from '../dossier-tabs';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 @Component({
   selector: 'vt-packages-page',
-  imports: [DatePipe, RouterLink, DossierTabs],
+  imports: [VtSkeletonComponent, DatePipe, RouterLink, DossierTabs],
   templateUrl: './packages.page.html',
   styleUrl: '../meetings/meetings.page.css',
 })

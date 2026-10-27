@@ -3,7 +3,7 @@
     Không mở được phiếu xếp loại. Hồ sơ không tồn tại hoặc đồng chí không có quyền xem hồ sơ này.
   </p>
 } @else if (!profile()) {
-  <p class="muted" role="status">Đang tải phiếu xếp loại…</p>
+  <vt-skeleton variant="detail" label="Đang tải phiếu xếp loại" />
 }
 
 @if (profile(); as p) {
@@ -26,7 +26,7 @@
       }
       @if (canDownload()) {
         <button type="button" class="btn" [disabled]="busy() === 'download'" (click)="download()">
-          {{ busy() === 'download' ? 'Đang tải…' : 'Tải Mẫu 1B (PDF/A)' }}
+          {{ busy() === 'download' ? 'Đang tải xuống…' : 'Tải Mẫu 1B (PDF/A)' }}
         </button>
       }
       @if (fileUrl(); as url) {
@@ -91,7 +91,7 @@
         Kết quả của luồng này đang được tính hoặc chưa có. Vui lòng quay lại sau.
       </p>
     } @else if (!snapshot()) {
-      <p class="muted" role="status">Đang tải kết quả…</p>
+      <vt-skeleton variant="stats" [rows]="3" label="Đang tải kết quả" />
     } @else if (tab() === 'TRACE') {
       <section class="card" aria-labelledby="trace-h">
         <h2 id="trace-h">Vết tính điểm</h2>
@@ -114,8 +114,8 @@
                 @if (s.explanation) {
                   <p>{{ s.explanation }}</p>
                 }
-                @if (s.legalRef) {
-                  <p class="muted small">Căn cứ: {{ s.legalRef }}</p>
+                @if (s.legalRef | legalRef; as lr) {
+                  <p class="muted small">Căn cứ: {{ lr }}</p>
                 }
                 @if (taskOf(s); as line) {
                   @if (line.evidenceId) {
@@ -137,7 +137,7 @@
         } @else if (trace.error()) {
           <p class="msg err" role="alert">Không tải được vết tính. Vui lòng thử lại sau.</p>
         } @else {
-          <p class="muted" role="status">Đang tải vết tính…</p>
+          <vt-skeleton variant="list" [rows]="4" label="Đang tải vết tính" />
         }
       </section>
     } @else {
@@ -285,6 +285,8 @@
               {{ o.head }} ⇒ <b>{{ o.total }} điểm</b>. Hai kết quả được lưu riêng, không ghi đè
               nhau.
             </p>
+          } @else if (other.isLoading()) {
+            <vt-skeleton variant="text" [rows]="1" label="Đang tải kết quả luồng còn lại" />
           }
         </section>
 
@@ -347,9 +349,12 @@
         }
       </select>
       @if (differs()) {
-        <p id="w-rating" class="warn" role="status">{{ msg0912 }}</p>
+        <p id="w-rating" class="warn" role="status">
+          {{ differsAppraised() ? msg0912 : msgSuggested }}
+        </p>
         <label class="field" for="f-reason"
-          >Lý do khác mức thẩm định <span class="req">*</span></label
+          >{{ differsAppraised() ? 'Lý do khác mức thẩm định' : 'Lý do khác mức hệ thống gợi ý' }}
+          <span class="req">*</span></label
         >
         <textarea
           id="f-reason"

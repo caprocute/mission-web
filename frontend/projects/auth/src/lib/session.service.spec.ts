@@ -8,6 +8,7 @@ import { MSG_00_06, MSG_00_07, TEXT_SESSION_EXPIRED } from './messages';
 import {
   AAL2_TTL_MS,
   DEV_ROLES_KEY,
+  hoTen,
   SessionService,
   isLoopbackHttp,
   requiresAal2,
@@ -396,5 +397,18 @@ describe('isLoopbackHttp: issuer HTTP chỉ được miễn TLS trên máy cục
     expect(isLoopbackHttp('http://127.0.0.1.example.vn/realms/mission')).toBe(false);
     expect(isLoopbackHttp('https://sso.example.vn/realms/mission')).toBe(false);
     expect(isLoopbackHttp('')).toBe(false);
+  });
+});
+
+describe('hoTen', () => {
+  it('ghép họ, đệm rồi tên theo thứ tự tiếng Việt từ family_name và given_name', () => {
+    expect(
+      hoTen({ name: 'Bộ Nguyễn Văn Cán', given_name: 'Bộ', family_name: 'Nguyễn Văn Cán' }),
+    ).toBe('Nguyễn Văn Cán Bộ');
+  });
+
+  it('thiếu họ hoặc tên thì dùng claim name, rồi preferred_username', () => {
+    expect(hoTen({ name: 'Nguyễn Văn Minh', given_name: 'Minh' })).toBe('Nguyễn Văn Minh');
+    expect(hoTen({ preferred_username: 'canbo' })).toBe('canbo');
   });
 });

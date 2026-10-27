@@ -2,19 +2,19 @@
  "nguon": {
   "contracts/openapi/common/common.yaml": "63da29c718eec4e25da12d05c89fa470e28c80488cbfc2d365558188f6ac2f4c",
   "contracts/openapi/modules/appraisals.yaml": "4adbba75a7a05240ac19a441b0d062cdeebd031576fd83ca52cc5467f14a549c",
-  "contracts/openapi/modules/config.yaml": "c141dc049d2458b4216060294e1a38be50abaa12278846294e0d0ec95af6f95d",
+  "contracts/openapi/modules/config.yaml": "3497e9241c36975c744a31f4033ced4271f1715a4bf69588f1d9be3f60df9a9a",
   "contracts/openapi/modules/dossiers.yaml": "0bff8d5db23e5dc1b7ddac0b0a1360befc4431539d8df71f090fa36af54a5ebe",
   "contracts/openapi/modules/jobs.yaml": "437a610d30b202a36e221f7284fbe43c38fea4ae71d082fca1fb54d546bc1c91",
   "contracts/openapi/modules/okr.yaml": "b2b7d9d7406f15d3e1cba1a1511cdafe5817e9d3e84b4e4ae879ee037dc37794",
-  "contracts/openapi/modules/org.yaml": "bb16ae3020cc8843e33ee719595cb360cce391ee29dd6f6c04faae64b6407b37",
+  "contracts/openapi/modules/org.yaml": "8dbcfe1a796e680c9789bd7af325267a72b528ccde6f503e2f4acd2d8d217f3a",
   "contracts/openapi/modules/oversight.yaml": "633c9da557b8e7b5d714514347b1b6bdebe2770f88216590a3d157346250bccc",
   "contracts/openapi/modules/platform.yaml": "461312c0012bc563e8b5542d4d7a49c3245166dd3beb761393971cc176d05cd4",
-  "contracts/openapi/modules/policies.yaml": "93d3338282d2ea664ba02730cca8a75064fea844bad737b1fcb3f35607912f95",
+  "contracts/openapi/modules/policies.yaml": "8688555632f2c20d072bf57c4b1c4e8ccdd8ef75cad3b5df03b997e50f0b0951",
   "contracts/openapi/modules/products.yaml": "6f76d7a95e984e7072c5707d234c90d27dbd3c1303188e63ba7efdcd2b442424",
   "contracts/openapi/modules/scim.yaml": "e7a560b74af11e5c1a444ea081b02cd497e42a2108c448d511b51f2580a56f8d",
   "contracts/openapi/modules/tasks.yaml": "92996bb8fc94c049c3f8a51b8d8679490c33cd540eac723c8acf6b092bf91614",
   "infra/dev/apisix/apisix.yaml": "b0de0fbedc936988ab3d46a44b6c7bf93500d7edf8853ec025d6ef67259a61dc",
-  "infra/dev/docker-compose.yml": "6349ba4d5edba69c912e79ff9d106c195ca0a5506d84d1b1f347eb882e5d888d"
+  "infra/dev/docker-compose.yml": "f483cd4f8ae4ea0f4b0416e12349224f66136457c1493ad49431091824f89929"
  },
  "operations": [
   {
@@ -132,6 +132,24 @@
    "path": "/api/v1/config/delegations"
   },
   {
+   "id": "getPermissionCatalog",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/config/permission-catalog"
+  },
+  {
+   "id": "listCustomRoles",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/config/custom-roles"
+  },
+  {
+   "id": "listMyCustomRoles",
+   "module": "config",
+   "owner": "MOD-08",
+   "path": "/api/v1/config/me/custom-roles"
+  },
+  {
    "id": "listDossierMeetings",
    "module": "dossiers",
    "owner": "MOD-06",
@@ -220,6 +238,18 @@
    "module": "org",
    "owner": "SVC-04",
    "path": "/api/v1/org/persons"
+  },
+  {
+   "id": "listUserAccounts",
+   "module": "org",
+   "owner": "SVC-04",
+   "path": "/api/v1/org/users"
+  },
+  {
+   "id": "listJobTitles",
+   "module": "org",
+   "owner": "SVC-04",
+   "path": "/api/v1/org/job-titles"
   },
   {
    "id": "listOrgUnits",
@@ -512,126 +542,126 @@
  ],
  "ports": {
   "analytics-api": [
-   "${ANALYTICS_API_PORT:-35118}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${ANALYTICS_API_PORT:-35118}:8080"
   ],
   "apicurio": [
-   "${APICURIO_PORT:-35081}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${APICURIO_PORT:-35081}:8080"
   ],
   "apisix": [
-   "${APISIX_PORT:-35000}:9080"
+   "${BIND_ADDRESS:-127.0.0.1}:${APISIX_PORT:-35000}:9080"
   ],
   "cel-js-runner": [],
   "clamav": [],
   "clickhouse": [
-   "${CLICKHOUSE_HTTP_PORT:-35123}:8123"
+   "${BIND_ADDRESS:-127.0.0.1}:${CLICKHOUSE_HTTP_PORT:-35123}:8123"
   ],
   "clickhouse-lam-moi": [],
   "cube": [
-   "${CUBE_PORT:-35400}:4000"
+   "${BIND_ADDRESS:-127.0.0.1}:${CUBE_PORT:-35400}:4000"
   ],
   "debezium": [
-   "${DEBEZIUM_PORT:-35083}:8083"
+   "${BIND_ADDRESS:-127.0.0.1}:${DEBEZIUM_PORT:-35083}:8083"
   ],
   "document-service": [
-   "${DOCUMENT_SERVICE_PORT:-35114}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${DOCUMENT_SERVICE_PORT:-35114}:8080"
   ],
   "esign-service": [
-   "${ESIGN_SERVICE_PORT:-35116}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${ESIGN_SERVICE_PORT:-35116}:8080"
   ],
   "evidence-service": [
-   "${EVIDENCE_SERVICE_PORT:-35115}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${EVIDENCE_SERVICE_PORT:-35115}:8080"
   ],
   "gotenberg": [
-   "${GOTENBERG_PORT:-35330}:3000"
+   "${BIND_ADDRESS:-127.0.0.1}:${GOTENBERG_PORT:-35330}:3000"
   ],
   "grafana": [
-   "${GRAFANA_PORT:-35300}:3000"
+   "${BIND_ADDRESS:-127.0.0.1}:${GRAFANA_PORT:-35300}:3000"
   ],
   "hr-gia-lap": [],
   "integration-gateway": [
-   "${INTEGRATION_GATEWAY_PORT:-35117}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${INTEGRATION_GATEWAY_PORT:-35117}:8080"
   ],
   "kafka": [
    "${KAFKA_TUNNEL_BIND:-127.0.0.1}:${KAFKA_PORT:-35092}:9095",
-   "${KAFKA_EXTERNAL_PORT:-35094}:9094"
+   "${BIND_ADDRESS:-127.0.0.1}:${KAFKA_EXTERNAL_PORT:-35094}:9094"
   ],
   "kafka-init": [],
   "keycloak": [
-   "${KEYCLOAK_PORT:-35080}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${KEYCLOAK_PORT:-35080}:8080"
   ],
   "ledger-service": [
-   "${LEDGER_SERVICE_PORT:-35120}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${LEDGER_SERVICE_PORT:-35120}:8080"
   ],
   "llm-mock": [
-   "${LLM_MOCK_PORT:-35340}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${LLM_MOCK_PORT:-35340}:8080"
   ],
   "loki": [
-   "${LOKI_PORT:-35310}:3100"
+   "${BIND_ADDRESS:-127.0.0.1}:${LOKI_PORT:-35310}:3100"
   ],
   "minio": [
-   "${MINIO_API_PORT:-35900}:9000",
-   "${MINIO_CONSOLE_PORT:-35901}:9001"
+   "${BIND_ADDRESS:-127.0.0.1}:${MINIO_API_PORT:-35900}:9000",
+   "${BIND_ADDRESS:-127.0.0.1}:${MINIO_CONSOLE_PORT:-35901}:9001"
   ],
   "minio-init": [],
   "mission-core": [
-   "${MISSION_CORE_PORT:-35100}:8080",
+   "${BIND_ADDRESS:-127.0.0.1}:${MISSION_CORE_PORT:-35100}:8080",
    "127.0.0.1:${MISSION_CORE_MGMT_PORT:-35101}:8081"
   ],
   "notification-service": [
-   "${NOTIFICATION_SERVICE_PORT:-35121}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${NOTIFICATION_SERVICE_PORT:-35121}:8080"
   ],
   "opa": [
-   "${OPA_PORT:-35181}:8181"
+   "${BIND_ADDRESS:-127.0.0.1}:${OPA_PORT:-35181}:8181"
   ],
   "openbao": [
-   "${OPENBAO_PORT:-35820}:8200"
+   "${BIND_ADDRESS:-127.0.0.1}:${OPENBAO_PORT:-35820}:8200"
   ],
   "openbao-init": [],
   "opensearch": [
-   "${OPENSEARCH_PORT:-35200}:9200"
+   "${BIND_ADDRESS:-127.0.0.1}:${OPENSEARCH_PORT:-35200}:9200"
   ],
   "org-service": [
-   "${ORG_SERVICE_PORT:-35111}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${ORG_SERVICE_PORT:-35111}:8080"
   ],
   "otel-collector": [
-   "${OTEL_GRPC_PORT:-35317}:4317",
-   "${OTEL_HTTP_PORT:-35318}:4318"
+   "${BIND_ADDRESS:-127.0.0.1}:${OTEL_GRPC_PORT:-35317}:4317",
+   "${BIND_ADDRESS:-127.0.0.1}:${OTEL_HTTP_PORT:-35318}:4318"
   ],
   "pgbouncer": [
-   "${PGBOUNCER_PORT:-35433}:6432"
+   "${BIND_ADDRESS:-127.0.0.1}:${PGBOUNCER_PORT:-35433}:6432"
   ],
   "postgres": [
-   "${POSTGRES_PORT:-35432}:5432"
+   "${BIND_ADDRESS:-127.0.0.1}:${POSTGRES_PORT:-35432}:5432"
   ],
   "prometheus": [
-   "${PROMETHEUS_PORT:-35990}:9090"
+   "${BIND_ADDRESS:-127.0.0.1}:${PROMETHEUS_PORT:-35990}:9090"
   ],
   "provision-gia-lap": [],
   "scoring-service": [
-   "${SCORING_SERVICE_PORT:-35113}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${SCORING_SERVICE_PORT:-35113}:8080"
   ],
   "search": [
-   "${SEARCH_SERVICE_PORT:-35119}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${SEARCH_SERVICE_PORT:-35119}:8080"
   ],
   "softhsm-init": [],
   "superset": [
-   "${SUPERSET_PORT:-35088}:8088"
+   "${BIND_ADDRESS:-127.0.0.1}:${SUPERSET_PORT:-35088}:8088"
   ],
   "tempo": [
-   "${TEMPO_PORT:-35320}:3200"
+   "${BIND_ADDRESS:-127.0.0.1}:${TEMPO_PORT:-35320}:3200"
   ],
   "tenant-registry": [
-   "${TENANT_REGISTRY_PORT:-35110}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${TENANT_REGISTRY_PORT:-35110}:8080"
   ],
   "tsa-mock": [
-   "${TSA_MOCK_PORT:-35350}:8318"
+   "${BIND_ADDRESS:-127.0.0.1}:${TSA_MOCK_PORT:-35350}:8318"
   ],
   "valkey": [
-   "${VALKEY_PORT:-35379}:6379"
+   "${BIND_ADDRESS:-127.0.0.1}:${VALKEY_PORT:-35379}:6379"
   ],
   "web": [],
   "workflow-service": [
-   "${WORKFLOW_SERVICE_PORT:-35112}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${WORKFLOW_SERVICE_PORT:-35112}:8080"
   ]
  },
  "routes": [

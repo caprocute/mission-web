@@ -1,7 +1,18 @@
 import { Component, computed, effect, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { JobAccepted } from '@vt/api-client';
-import { PackVersionRef, PeriodApi, PolicyApi, PolicyDiffChange, PolicyPackVersion, PolicyTestCaseResult, PolicyTestRunSummary, RATING_LEVEL_LABEL, RatingLevel, policyVersionLabel } from '@vt/api-client/domains';
+import {
+  PackVersionRef,
+  PeriodApi,
+  PolicyApi,
+  PolicyDiffChange,
+  PolicyPackVersion,
+  PolicyTestCaseResult,
+  PolicyTestRunSummary,
+  RATING_LEVEL_LABEL,
+  RatingLevel,
+  policyVersionLabel,
+} from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { combineLatest, map, of } from 'rxjs';
 import { STUDIO_ACCESS } from '../../studio-permissions';
@@ -9,6 +20,7 @@ import { fmtDate, fmtNum } from '../../studio-ui';
 import { PARAM_LABEL, PolicySubmitDialog, VALUE_LABEL } from './policy-dialogs';
 import { PolicyWorkspace } from './policy-workspace';
 import { AddTestCaseDialog, ApprovePolicyDialog, RejectPolicyDialog } from './test-case-dialogs';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 type Filter = 'ALL' | 'PASS' | 'FAIL';
 
@@ -46,6 +58,7 @@ const time = (iso: string | null | undefined) => {
 @Component({
   selector: 'vt-test-case-page',
   imports: [
+    VtSkeletonComponent,
     ButtonModule,
     PolicySubmitDialog,
     AddTestCaseDialog,
@@ -54,12 +67,16 @@ const time = (iso: string | null | undefined) => {
   ],
   template: `
     <div class="top">
-      <p class="sub" data-testid="suite" [attr.data-suite]="suite()?.code">
-        {{ suiteText() }}
-        @if (suite()?.pending; as n) {
-          <span class="pending">{{ n }} ca mới đang chờ ký duyệt.</span>
-        }
-      </p>
+      @if (suiteRes.isLoading() && !suite()) {
+        <vt-skeleton class="sub" variant="text" [rows]="1" label="Đang tải bộ ca mẫu" />
+      } @else {
+        <p class="sub" data-testid="suite" [attr.data-suite]="suite()?.code">
+          {{ suiteText() }}
+          @if (suite()?.pending; as n) {
+            <span class="pending">{{ n }} ca mới đang chờ ký duyệt.</span>
+          }
+        </p>
+      }
       <div class="toolbar">
         @if (canAdd()) {
           <p-button
@@ -254,7 +271,7 @@ const time = (iso: string | null | undefined) => {
         } @else if (!history().length && !historyRes.isLoading()) {
           <p class="muted">Phiên bản chưa được chạy kiểm thử.</p>
         } @else {
-          <p class="muted">Đang tải…</p>
+          <vt-skeleton variant="table" [columns]="4" label="Đang tải lịch sử kiểm thử" />
         }
       </section>
 
@@ -297,7 +314,11 @@ const time = (iso: string | null | undefined) => {
           }
         </section>
 
-        @if (failDetail(); as f) {
+        @if (failRes.isLoading() && !failDetail()) {
+          <section class="card fail" aria-label="Lỗi ở lần chạy không đạt">
+            <vt-skeleton variant="text" [rows]="3" label="Đang tải chi tiết lần chạy không đạt" />
+          </section>
+        } @else if (failDetail(); as f) {
           <section class="card fail" aria-labelledby="h-fail" data-testid="fail-detail">
             <h2 id="h-fail">Lỗi ở lần #{{ f.runNo }}{{ fixedLater() ? ' (đã sửa)' : '' }}</h2>
             @for (c of failedCases(f.cases); track c.goldenTestCaseId) {
@@ -737,7 +758,9 @@ export class TestCasePage {
     },
     { equal: sameRun },
   );
-  private readonly failRes = rxResource({
+  // skeleton-ok: chỉ nạp khi lịch sử chạy đã về và có lần không đạt; lúc lịch sử đang tải, vùng lịch sử
+  // có khung xương riêng, thẻ lỗi chưa có lý do để hiện
+  protected readonly failRes = rxResource({
     params: () => {
       const f = this.failItem();
       return f ? { ref: f.ref, id: f.run.id } : undefined;

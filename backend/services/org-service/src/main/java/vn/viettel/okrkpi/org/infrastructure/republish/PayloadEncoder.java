@@ -11,7 +11,14 @@ public interface PayloadEncoder extends AutoCloseable {
   default void close() {
   }
 
-  /** Avro nhị phân không tiền tố; mã lược đồ đi riêng vào tiêu đề {@code apicurio.value.globalId}. */
-  record Encoded(byte[] bytes, Long globalId) {
+  /**
+   * Avro nhị phân không tiền tố; mã lược đồ đi riêng vào tiêu đề {@code apicurio.value.globalId}. {@code schemaVersion}
+   * là phiên bản lược đồ trong registry (cột {@code outbox_event.schema_version}), null khi không dùng registry.
+   */
+  record Encoded(byte[] bytes, Long globalId, Integer schemaVersion) {
+
+    public Encoded(byte[] bytes, Long globalId) {
+      this(bytes, globalId, null);
+    }
   }
 }

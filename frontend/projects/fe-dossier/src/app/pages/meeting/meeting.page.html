@@ -1,7 +1,7 @@
 <p class="back"><a routerLink="..">← Danh sách hội nghị kiểm điểm</a></p>
 
 @if (data.isLoading() && !m()) {
-  <p role="status">Đang tải hội nghị…</p>
+  <vt-skeleton variant="detail" label="Đang tải hội nghị kiểm điểm" />
 } @else if (data.error() && !m()) {
   <p class="err" role="alert">Không tải được hội nghị kiểm điểm. Vui lòng thử lại.</p>
 } @else if (m(); as m) {
@@ -89,9 +89,14 @@
     }
   </div>
 
+  @if (special.isLoading()) {
+    <vt-skeleton variant="text" [rows]="1" label="Đang tải trường hợp đặc thù" />
+  }
   @for (c of specialCases(); track c.id) {
     <p class="info" data-special>
-      Trường hợp đặc thù: <strong>{{ caseLabel(c.legalRef) }}</strong> ({{ c.legalRef }}).
+      @let lr = c.legalRef | legalRef;
+      Trường hợp đặc thù: <strong>{{ caseLabel(c.legalRef) }}</strong
+      >{{ lr ? ' (' + lr + ')' : '' }}.
       @if (c.handling) {
         Cách xử lý: {{ c.handling }}.
       }
@@ -189,7 +194,9 @@
       <h2 id="mt-cm">
         Góp ý cho dự thảo kiểm điểm <small>{{ commentList().length }} góp ý</small>
       </h2>
-      @if (commentList().length === 0) {
+      @if (comments.isLoading() && !comments.hasValue()) {
+        <vt-skeleton variant="list" [rows]="3" label="Đang tải góp ý" />
+      } @else if (commentList().length === 0) {
         <p class="muted">Chưa có góp ý.</p>
       }
       <ul class="comments">

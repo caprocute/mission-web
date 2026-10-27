@@ -1,14 +1,30 @@
 import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { toProblem } from '@vt/api-client';
-import { DecisionRule, DecisionTable, DecisionTableSaved, EXPLANATION_VARIABLES, HIT_POLICY_LABEL, POLICY_VERSION_STATUS_LABEL, PolicyApi, PolicyRule, RATING_LEVELS, GENERAL_CRITERIA_LEVEL_LABEL, RATING_LEVEL_LABEL, RatingLevel, shadowedDecisionRows, unknownTemplateVariables } from '@vt/api-client/domains';
+import { LegalRefPipe, toProblem } from '@vt/api-client';
+import {
+  DecisionRule,
+  DecisionTable,
+  DecisionTableSaved,
+  EXPLANATION_VARIABLES,
+  HIT_POLICY_LABEL,
+  POLICY_VERSION_STATUS_LABEL,
+  PolicyApi,
+  PolicyRule,
+  RATING_LEVELS,
+  GENERAL_CRITERIA_LEVEL_LABEL,
+  RATING_LEVEL_LABEL,
+  RatingLevel,
+  shadowedDecisionRows,
+  unknownTemplateVariables,
+} from '@vt/api-client/domains';
 import { ButtonModule } from 'primeng/button';
 import { Observable, concatMap, from, of, tap, toArray } from 'rxjs';
 import { STUDIO_ACCESS } from '../../studio-permissions';
 import { errorText } from '../../studio-ui';
 import { celSyntaxError } from './cel-check';
 import { PolicyWorkspace } from './policy-workspace';
+import { VtSkeletonComponent } from '@vt/design-system';
 
 const TABLE_KEY = 'xep_loai';
 const TEMPLATE_KEY = 'ha_muc';
@@ -34,7 +50,7 @@ const VARIABLE_HINT: Record<string, string> = {
  */
 @Component({
   selector: 'vt-decision-table-page',
-  imports: [FormsModule, ButtonModule],
+  imports: [VtSkeletonComponent, FormsModule, ButtonModule, LegalRefPipe],
   template: `
     <div class="toolbar">
       <p-button
@@ -88,8 +104,8 @@ const VARIABLE_HINT: Record<string, string> = {
         <h2 id="h-table">Bảng xếp loại</h2>
         <p class="muted">
           {{ hitLabel[t.hitPolicy] }}, xét lần lượt từ trên xuống.
-          @if (t.legalRef) {
-            Căn cứ: {{ t.legalRef }}.
+          @if (t.legalRef | legalRef; as lr) {
+            Căn cứ: {{ lr }}.
           }
         </p>
         <div class="scroll">
@@ -229,6 +245,9 @@ const VARIABLE_HINT: Record<string, string> = {
       </section>
 
       <div class="grid">
+        @if (rules.isLoading() && !rules.hasValue()) {
+          <vt-skeleton variant="cards" [rows]="2" label="Đang tải quy tắc xếp loại" />
+        }
         @for (k of ruleKeys; track k) {
           @if (expr()[k] !== undefined) {
             <section class="card" [attr.aria-labelledby]="'h-' + k">
@@ -236,7 +255,7 @@ const VARIABLE_HINT: Record<string, string> = {
                 <h2 [id]="'h-' + k">
                   {{ k === 'muc_cuoi' ? 'Quy tắc mức cuối cùng' : 'Quy tắc người đứng đầu' }}
                 </h2>
-                @if (ruleOf(k)?.legalRef; as lr) {
+                @if (ruleOf(k)?.legalRef | legalRef; as lr) {
                   <span class="tag">{{ lr }}</span>
                 }
               </div>
@@ -313,7 +332,7 @@ const VARIABLE_HINT: Record<string, string> = {
     } @else if (table.error()) {
       <p class="err" role="alert">Không tải được bảng quyết định. Vui lòng thử lại.</p>
     } @else {
-      <p class="muted">Đang tải…</p>
+      <vt-skeleton variant="table" [columns]="6" label="Đang tải bảng quyết định" />
     }
   `,
   styles: `

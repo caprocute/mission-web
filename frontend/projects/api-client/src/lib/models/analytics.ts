@@ -40,26 +40,31 @@ export type AiSuggestionPage = S['AiSuggestionPage'];
 export type AiSource = S['AiSource'];
 export type AiSourceList = S['AiSourceList'];
 
-/** Chỉ số, chiều chuẩn mà SCR-1601 dùng (TL-02 SCR-1601 bảng trường; lớp ngữ nghĩa phiên bản 2026.4). */
+/**
+ * Chỉ số, chiều mà các trang dùng trực tiếp (SCR-1601, SCR-1603), đúng tên lớp ngữ nghĩa Cube
+ * `analytics/cube/model` phiên bản 2026.4. Tên hợp đồng `platform.yaml` có nêu (`org_unit.name`,
+ * `period.label`, `subject_group.code`, `flow.code`, `appraisal.phan_bo_muc`) thì Cube công bố đúng tên đó;
+ * điểm KPI trung bình nằm ở cube `score` (hợp đồng ví dụ `appraisal.diem_kpi_tb`, wiki/14). Kiểm tĩnh
+ * `analytics/cube/tests/test_mo_hinh.py` đối chiếu các hằng số này với mô hình Cube.
+ */
 export const MEASURE = {
   tienDoO: 'okr.tien_do_o',
   dungHan: 'task.ty_le_dung_han',
   viecCham: 'task.so_viec_cham',
   choThamDinh: 'appraisal.cho_tham_dinh',
-  diemKpi: 'appraisal.diem_kpi_tb',
+  diemKpi: 'score.diem_kpi_trung_binh',
+  soNguoiCoDiem: 'score.so_nguoi',
   phanBoMuc: 'appraisal.phan_bo_muc',
 } as const;
 
 export const DIMENSION = {
   unitId: 'org_unit.id',
   unitName: 'org_unit.name',
-  week: 'time.week',
   period: 'period.label',
-  flow: 'flow.name',
-  subjectGroup: 'subject_group.name',
-  person: 'person.name',
-  scoreId: 'score_snapshot.id',
-  rating: 'rating.level',
+  flow: 'flow.code',
+  subjectGroup: 'subject_group.code',
+  subjectGroupName: 'subject_group.ten',
+  rating: 'appraisal.muc_xep_loai',
 } as const;
 
 /** Hậu tố cột so sánh kỳ trước khi `compareToPreviousPeriod` (ví dụ của hợp đồng: `okr.tien_do_o.previous`). */
