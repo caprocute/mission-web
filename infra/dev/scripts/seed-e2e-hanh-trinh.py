@@ -7,7 +7,10 @@ realm dev (tài khoản quanly, lanhdao, quantri, canbo, kiemtra), qua API thậ
      thì lãnh đạo trả lại, quản lý nhập dòng, trình lại rồi lãnh đạo duyệt kèm ký số.
   2. Một kỳ quý đã qua ở trạng thái đã khoá, để HT-34 (tạo yêu cầu mở lại kỳ, SCR-1301) có kỳ để chọn: quản trị tạo
      kỳ, lập lệnh khoá, lãnh đạo duyệt, quản trị khởi chạy khoá kỳ, chờ saga hoàn tất.
-  3. Kỳ quý kế tiếp (chưa bắt đầu, luồng CA_HAI) để HT-38 (cấu hình luồng duyệt, SCR-1504) có kỳ bắt đầu áp dụng.
+  3. Hồ sơ đánh giá quý cho HT-25..33, HT-39: khoá kỳ quý đầu tiên mà Policy Pack đã phát hành áp dụng (cần chạy
+     HT-37 hoặc phát hành gói trước), chờ hồ sơ của canbo sang bước tự đánh giá. Các bước tự đánh giá, thẩm định,
+     quyết định ký lô do chính HT-25..27 làm trên giao diện.
+  4. Kỳ quý chưa bắt đầu còn mở (luồng CA_HAI) để HT-38 (cấu hình luồng duyệt, SCR-1504) có kỳ bắt đầu áp dụng.
 
 Chạy lại không sinh trùng: bước đã đạt thì bỏ qua. Chỉ dùng thư viện chuẩn (Python 3.6 của server dev), không in
 token. Biến môi trường như seed-da-tenant-api.py: SEED_API, KEYCLOAK_PUBLIC_URL, KC_TEST_USER_PASSWORD,
@@ -16,7 +19,8 @@ KC_TEST_OTP_SECRET (đọc thêm từ infra/dev/.env).
     python3 -I infra/dev/scripts/seed-e2e-hanh-trinh.py              # cả hai phần
     python3 -I infra/dev/scripts/seed-e2e-hanh-trinh.py ke-hoach     # chỉ kế hoạch
     python3 -I infra/dev/scripts/seed-e2e-hanh-trinh.py ky-khoa      # chỉ kỳ đã khoá
-    python3 -I infra/dev/scripts/seed-e2e-hanh-trinh.py ky-sau       # chỉ kỳ kế tiếp
+    python3 -I infra/dev/scripts/seed-e2e-hanh-trinh.py ho-so        # chỉ hồ sơ đánh giá
+    python3 -I infra/dev/scripts/seed-e2e-hanh-trinh.py ky-sau       # chỉ kỳ tương lai còn mở
 """
 import datetime as dt
 import importlib.util
@@ -31,7 +35,7 @@ A = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(A)
 goi, etag, LoiApi = A.goi, A.etag, A.LoiApi
 
-QUAN_LY, LANH_DAO, QUAN_TRI, CAN_BO = "quanly", "lanhdao", "quantri", "canbo"
+QUAN_LY, LANH_DAO, QUAN_TRI, CAN_BO, CHINH_SACH = "quanly", "lanhdao", "quantri", "canbo", "chinhsach"
 # Kỳ đã khoá dành riêng cho hành trình: quý I của năm hiện hành, đã qua
 NAM_KHOA, QUY_KHOA = dt.date.today().year, 1
 DONG = [
@@ -111,17 +115,22 @@ def nap_ke_hoach(phien):
     raise RuntimeError("Kế hoạch chưa có dòng đã duyệt sau 2 phút (ký số hoặc duyệt chưa xong)")
 
 
-def nap_ky_khoa(phien):
+def ky_quy(nam, q):
+    dau = dt.date(nam, 3 * q - 2, 1)
+    cuoi = dt.date(nam + (q == 4), 1 if q == 4 else 3 * q + 1, 1) - dt.timedelta(days=1)
+    return dau, cuoi
+
+
+def nap_ky_khoa(phien, nam=NAM_KHOA, quy=QUY_KHOA):
     t_qt, t_ld = phien(QUAN_TRI), phien(LANH_DAO)
-    dau = dt.date(NAM_KHOA, 3 * QUY_KHOA - 2, 1)
-    cuoi = dt.date(NAM_KHOA, 3 * QUY_KHOA + 1, 1) - dt.timedelta(days=1)
+    dau, cuoi = ky_quy(nam, quy)
     ds, _ = goi(t_qt, "GET", "/periods?limit=200")
     ky = next((k for k in ds["items"] if k["kind"] == "QUY" and k["startDate"] == dau.isoformat()
                and k["endDate"] == cuoi.isoformat()), None)
     if not ky:
         mau = ky_hien_hanh(t_qt)
         ky, _ = goi(t_qt, "POST", "/periods", {
-            "code": "%d-Q%d" % (NAM_KHOA, QUY_KHOA), "name": "Quý %s/%d" % (A.LA_MA[QUY_KHOA], NAM_KHOA),
+            "code": "%d-Q%d" % (nam, quy), "name": "Quý %s/%d" % (A.LA_MA[quy], nam),
             "kind": "QUY", "flow": mau["flow"], "startDate": dau.isoformat(), "endDate": cuoi.isoformat()})
         print("  Đã tạo kỳ %s" % ky["name"])
     duong = "/periods/%s" % ky["id"]
@@ -142,7 +151,7 @@ def nap_ky_khoa(phien):
         elif lenh["status"] == "DA_DUYET":
             # Máy chủ đòi khoá chống lặp của lệnh khởi chạy theo kỳ: CK-<năm>Q<quý>
             goi(t_qt, "POST", duong + "/lock", {"lockOrderId": lenh["id"]}, if_match=etag(lenh),
-                idem="CK-%dQ%d" % (NAM_KHOA, QUY_KHOA))
+                idem="CK-%dQ%d" % (nam, quy))
             print("  Đã khởi chạy khoá kỳ")
         else:
             time.sleep(5)
@@ -150,27 +159,65 @@ def nap_ky_khoa(phien):
 
 
 def nap_ky_sau(phien):
+    """Bảo đảm có một kỳ quý chưa bắt đầu còn mở (kỳ kế tiếp có thể đã bị khoá để lập hồ sơ ở bước ho-so)."""
     t_qt = phien(QUAN_TRI)
     hom = dt.date.today()
-    q = (hom.month - 1) // 3 + 1
-    nam, q = (hom.year + 1, 1) if q == 4 else (hom.year, q + 1)
-    dau = dt.date(nam, 3 * q - 2, 1)
-    cuoi = dt.date(nam + (q == 4), 1 if q == 4 else 3 * q + 1, 1) - dt.timedelta(days=1)
+    nam, q = hom.year, (hom.month - 1) // 3 + 1
     ds, _ = goi(t_qt, "GET", "/periods?limit=200")
-    if any(k["kind"] == "QUY" and k["startDate"] == dau.isoformat() for k in ds["items"]):
-        print("  Kỳ Quý %s/%d đã có, bỏ qua" % (A.LA_MA[q], nam))
-        return
-    ky, _ = goi(t_qt, "POST", "/periods", {
-        "code": "%d-Q%d" % (nam, q), "name": "Quý %s/%d" % (A.LA_MA[q], nam), "kind": "QUY", "flow": "CA_HAI",
-        "startDate": dau.isoformat(), "endDate": cuoi.isoformat()})
-    print("  Đã tạo kỳ %s" % ky["name"])
+    for _ in range(8):
+        nam, q = (nam + 1, 1) if q == 4 else (nam, q + 1)
+        dau, cuoi = ky_quy(nam, q)
+        co = next((k for k in ds["items"] if k["kind"] == "QUY" and k["startDate"] == dau.isoformat()), None)
+        if co and co["status"] == "MO":
+            print("  Kỳ %s chưa bắt đầu và đang mở, bỏ qua" % co["name"])
+            return
+        if not co:
+            ky, _ = goi(t_qt, "POST", "/periods", {
+                "code": "%d-Q%d" % (nam, q), "name": "Quý %s/%d" % (A.LA_MA[q], nam), "kind": "QUY",
+                "flow": "CA_HAI", "startDate": dau.isoformat(), "endDate": cuoi.isoformat()})
+            print("  Đã tạo kỳ %s" % ky["name"])
+            return
+    raise RuntimeError("Không tìm được quý tương lai còn trống để tạo kỳ")
+
+
+def nap_ho_so(phien):
+    """Hồ sơ đánh giá quý chỉ được lập khi khoá một kỳ có Policy Pack đã phát hành áp dụng (EVT-09, MOD-04).
+    Khoá kỳ quý đầu tiên trong khoảng hiệu lực của gói đã phát hành sớm nhất, rồi chờ hồ sơ của cán bộ thử sang
+    bước tự đánh giá (EVT-10 của scoring-service mở hồ sơ CHUA_LAP)."""
+    t_cs = phien(CHINH_SACH)
+    ds, _ = goi(t_cs, "GET", "/policies/packs?limit=200")
+    tu = []
+    for g in ds["items"]:
+        for v in g.get("versions", []):
+            if v.get("status") != "DA_PHAT_HANH":
+                continue
+            ct, _ = goi(t_cs, "GET", "/policies/packs/%s/versions/%s" % (g["id"], v["version"]))
+            if ct.get("effectiveFrom"):
+                tu.append(ct["effectiveFrom"][:10])
+    if not tu:
+        raise RuntimeError("Chưa có Policy Pack đã phát hành; chạy HT-37 (soạn, ca vàng, phát hành) trước")
+    d = dt.datetime.strptime(min(tu), "%Y-%m-%d").date()
+    nam, q = d.year, (d.month - 1) // 3 + 1
+    if dt.date(nam, 3 * q - 2, 1) < d:
+        nam, q = (nam + 1, 1) if q == 4 else (nam, q + 1)
+    nap_ky_khoa(phien, nam, q)
+    t_cb = phien(CAN_BO)
+    for _ in range(36):
+        hs, _ = goi(t_cb, "GET", "/appraisals/profiles/mine?limit=50")
+        tt = sorted({h["status"] for h in hs.get("items", [])})
+        if any(x != "CHUA_LAP" for x in tt):
+            print("  Hồ sơ của %s: %s" % (CAN_BO, ", ".join(tt)))
+            return
+        time.sleep(5)
+    raise RuntimeError("Hồ sơ của %s chưa sang tự đánh giá sau 3 phút (trạng thái %s); kiểm scoring-service" %
+                       (CAN_BO, ", ".join(tt) or "chưa có hồ sơ"))
 
 
 def main():
-    chon = sys.argv[1:] or ["ke-hoach", "ky-khoa", "ky-sau"]
+    chon = sys.argv[1:] or ["ke-hoach", "ky-khoa", "ho-so", "ky-sau"]
     phien = A.Phien(A._base.nap_env())
     loi = 0
-    for ten, fn in (("ke-hoach", nap_ke_hoach), ("ky-khoa", nap_ky_khoa), ("ky-sau", nap_ky_sau)):
+    for ten, fn in (("ke-hoach", nap_ke_hoach), ("ky-khoa", nap_ky_khoa), ("ho-so", nap_ho_so), ("ky-sau", nap_ky_sau)):
         if ten not in chon:
             continue
         print("==> %s" % ten)
