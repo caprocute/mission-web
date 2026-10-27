@@ -48,7 +48,10 @@ test.describe('QT-17 QT-18 Trợ lý AI và giao diện đơn vị', { tag: '@qa
       const a = await api(s, 'canbo');
       try {
         const r = await a.goi('POST', 'ai/assist/okr', { body: { question: SEED.troLy.cauHoi } });
-        if ([404, 502, 503].includes(r.status)) cho('ai-gateway (SVC-16) chưa chạy ở server dev');
+        // Dev chưa triển khai ai-gateway: APISIX không có tuyến AI nên lệnh rơi về nginx của web (405) hoặc báo
+        // 404, 502, 503. Ca này không áp dụng trên dev cho tới khi có ai-gateway
+        if ([404, 405, 502, 503].includes(r.status))
+          cho('không áp dụng trên dev: ai-gateway (SVC-16) chưa được triển khai ở server dev');
       } finally {
         await a.dong();
       }

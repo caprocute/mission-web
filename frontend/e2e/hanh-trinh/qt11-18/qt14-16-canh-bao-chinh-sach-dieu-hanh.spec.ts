@@ -45,30 +45,38 @@ async function banNhap(s: Phien): Promise<{ goi: string; ban: string; nhan: stri
   if (!HE_THONG) return { goi: GOI_DANG, ban: '2.1.0', nhan: '2.1' };
   const a = await api(s, 'chinhsach');
   try {
-    // Ưu tiên gói đang có bản nháp; không có thì lấy gói có bản đã phát hành để nhân bản
+    // Mỗi lần chạy tạo một bản nháp mới (`createPolicyPackVersion`) từ bản đã phát hành mới nhất, không có thì
+    // từ bản mới nhất của gói: bản nháp của lần trước có thể đã gửi duyệt hoặc còn dữ liệu sửa dở. Máy chủ không
+    // cho tạo thêm khi gói đang có bản nháp thì dùng lại bản nháp đó.
     const ds = await a
       .can<{ items: Goi[] }>('GET', 'policies/packs', { query: { limit: '200' } })
       .catch((e) => choNeuChuaSan(e, 'đọc danh sách gói chính sách'));
-    const g = ds.body.items.find(coNhap) ?? ds.body.items.find((x) => !!daPhatHanh(x));
+    const moiNhat = (x: Goi) =>
+      (x.versions ?? [])
+        .map((v) => v.version)
+        .sort((p, q) => q.localeCompare(p, undefined, { numeric: true }))[0];
+    const g = ds.body.items.find((x) => !!daPhatHanh(x)) ?? ds.body.items.find((x) => !!moiNhat(x));
     if (!g)
       cho(
-        'gói chính sách có phiên bản nháp hoặc đã phát hành: chưa có dữ liệu khởi tạo phù hợp trên server dev (data/seed/e2e/README.md)',
+        'gói chính sách có phiên bản: chưa có dữ liệu khởi tạo phù hợp trên server dev (data/seed/e2e/README.md)',
       );
-    let v = g.versions!.find((x) => x.status === 'NHAP')?.version;
-    if (!v) {
-      const tao = await a.can<{ version: string; status: string }>(
-        'POST',
-        `policies/packs/${g.id}/versions`,
-        {
-          body: {
-            baseVersion: daPhatHanh(g),
-            changeNote: `Bản nháp cho hành trình QT-15 (${MA_LAN_CHAY})`,
-          },
+    const tao = await a.goi<{ version: string; status: string }>(
+      'POST',
+      `policies/packs/${g.id}/versions`,
+      {
+        body: {
+          baseVersion: daPhatHanh(g) ?? moiNhat(g),
+          changeNote: `Bản nháp cho hành trình QT-15 (${MA_LAN_CHAY})`,
         },
-        [201],
-      );
+      },
+    );
+    let v: string | undefined;
+    if (tao.status === 201) {
       expect(tao.body.status).toBe('NHAP');
       v = tao.body.version;
+    } else {
+      v = g.versions!.find((x) => x.status === 'NHAP')?.version;
+      if (!v) throw new Error(`không tạo được bản nháp chính sách: ${tao.status}`);
     }
     return { goi: g.id, ban: v, nhan: v.replace(/\.0$/, '') };
   } finally {

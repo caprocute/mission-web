@@ -20,6 +20,7 @@ import vn.viettel.okrkpi.scoring.domain.OpenPeriod;
 import vn.viettel.okrkpi.scoring.domain.PolicyBindingKey;
 import vn.viettel.okrkpi.scoring.domain.ScoreJob;
 import vn.viettel.okrkpi.scoring.domain.ScoreJobKind;
+import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.kernel.Ids;
 
 /**
@@ -32,6 +33,11 @@ import vn.viettel.okrkpi.shared.kernel.Ids;
  * gói gốc (BR-13-06). Bên gọi đặt ngữ cảnh tenant và mở giao dịch.
  */
 public class IncrementalScoring {
+
+  /** Thứ tự luồng thử ghim gói khi chốt kỳ không mang phiên bản đóng băng. */
+  private static final List<String> LOCK_FLOWS = List.of("DANG", "NHA_NUOC");
+
+  private static final String NO_BINDING = "POLICY-404-NO-BINDING";
 
   private static final Logger LOG = LoggerFactory.getLogger(IncrementalScoring.class);
 
@@ -131,9 +137,7 @@ public class IncrementalScoring {
   public UUID onPeriodLocked(
       UUID tenantId, UUID eventId, UUID periodId, int periodBucket, List<UUID> frozenVersions) {
     UUID version =
-        frozenVersions.isEmpty()
-            ? policies.pin(PolicyBindingKey.of(tenantId, periodId, "DANG")).versionId()
-            : frozenVersions.get(0);
+        frozenVersions.isEmpty() ? pinAnyFlow(tenantId, periodId) : frozenVersions.get(0);
     return jobs.open(
         new ScoreJob(
             tenantId,
@@ -146,6 +150,27 @@ public class IncrementalScoring {
             eventId,
             0,
             SYSTEM_ACTOR));
+  }
+
+  /**
+   * Phiên bản ghim cho kỳ khi EVT-09 không mang phiên bản đóng băng: thử luồng Đảng rồi luồng Nhà
+   * nước, vì kỳ {@code CA_HAI} có thể mới có gói của một luồng. Trước đây chỉ thử luồng Đảng nên kỳ
+   * chỉ có gói Nhà nước nhận {@code POLICY-404-NO-BINDING}, sự kiện vào hàng thư chết và hồ sơ đứng
+   * mãi ở {@code CHUA_LAP}.
+   */
+  private UUID pinAnyFlow(UUID tenantId, UUID periodId) {
+    BusinessException last = null;
+    for (String flow : LOCK_FLOWS) {
+      try {
+        return policies.pin(PolicyBindingKey.of(tenantId, periodId, flow)).versionId();
+      } catch (BusinessException e) {
+        if (!NO_BINDING.equals(e.getMessage())) {
+          throw e;
+        }
+        last = e;
+      }
+    }
+    throw last;
   }
 
   /**
