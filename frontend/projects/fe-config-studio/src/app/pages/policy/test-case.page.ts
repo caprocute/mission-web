@@ -94,7 +94,7 @@ const time = (iso: string | null | undefined) => {
             [outlined]="true"
             data-testid="rerun"
             [loading]="ws.running()"
-            [disabled]="!ws.editable()"
+            [disabled]="!ws.editable() || ws.versionSyncing()"
             (onClick)="ws.runTests()"
           />
         }
