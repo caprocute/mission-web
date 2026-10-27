@@ -32,13 +32,13 @@ test.describe('QT-00 Đăng nhập và chọn ngữ cảnh', { tag: '@qa-04' }, 
     const m = main(page);
     await expect(m.getByRole('heading', { level: 1, name: /^Xin chào/ })).toBeVisible();
     const thongTin = m.getByRole('region', { name: 'Thông tin của tôi' });
-    await expect(thongTin.getByText('Việc của tôi hôm nay')).toBeVisible();
+    await expect(thongTin.getByText('Việc của tôi hôm nay', { exact: true })).toBeVisible();
     await expect(thongTin.getByRole('link', { name: /Xem tất cả việc của tôi/ })).toBeVisible();
     await kiemAxe(page, 'trang chủ');
 
     // Chế độ Đảng viên cao tuổi (NFR-11): trang chủ vẫn dùng được, không lỗi truy cập
     await batCaoTuoi(page);
-    await expect(thongTin.getByText('Việc của tôi hôm nay')).toBeVisible();
+    await expect(thongTin.getByText('Việc của tôi hôm nay', { exact: true })).toBeVisible();
     await kiemAxe(page, 'trang chủ, chế độ cao tuổi');
 
     // Từ trang chủ tới "Việc của tôi" trong một chạm
