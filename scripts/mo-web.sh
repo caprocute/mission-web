@@ -26,6 +26,8 @@ PORTS="${MO_WEB_PORTS:-35000 35080 35900 35088}"
 URL="http://127.0.0.1:35000"
 PID_FILE="/tmp/mission-mo-web.pid"
 LOG_FILE="/tmp/mission-mo-web.log"
+# Nhật ký riêng của ssh, đồng thời là dấu nhận ra đúng tiến trình ssh của kịch bản này (dev-tunnel.sh mở cùng cổng).
+SSH_LOG="/tmp/mission-mo-web-ssh.log"
 
 thong() { nc -z -w 2 127.0.0.1 "$1" >/dev/null 2>&1; }
 
@@ -47,7 +49,7 @@ giu_duong_ham() {
     done
     if [[ ${#args[@]} -gt 0 ]]; then
       local ssh_cmd=(ssh -N -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o ServerAliveCountMax=3
-        -o ExitOnForwardFailure=yes -o ConnectTimeout=10 -p "${PORT}" "${args[@]}" "${USER_}@${HOST}")
+        -o ExitOnForwardFailure=yes -o ConnectTimeout=10 -E "${SSH_LOG}" -p "${PORT}" "${args[@]}" "${USER_}@${HOST}")
       echo "$(date '+%F %T') nối đường hầm: ${args[*]}"
       if [[ -f "${REPO_ROOT}/.sshpass" ]] && command -v sshpass >/dev/null 2>&1; then
         sshpass -f "${REPO_ROOT}/.sshpass" "${ssh_cmd[@]}" || true
@@ -66,12 +68,14 @@ dung() {
   if [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" 2>/dev/null; then
     local pid
     pid="$(cat "${PID_FILE}")"
-    pkill -P "${pid}" 2>/dev/null || true
     kill "${pid}" 2>/dev/null || true
     echo "Đã đóng đường hầm."
   else
     echo "Không có đường hầm nào do kịch bản này mở."
   fi
+  # ssh nằm dưới sshpass nên không là con trực tiếp của vòng giữ; nhận theo tệp nhật ký riêng để không chạm
+  # đường hầm của dev-tunnel.sh.
+  pkill -f -- "-E ${SSH_LOG}" 2>/dev/null || true
   rm -f "${PID_FILE}"
 }
 
