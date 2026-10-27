@@ -251,6 +251,16 @@ test.describe('QT-01 Khởi tạo tenant và tổ chức', { tag: '@qa-04' }, ()
   });
 
   test('HT-07 QT-01 chạy đồng bộ nhân sự và xử lý sai lệch đối soát', async () => {
+    if (HE_THONG) {
+      // Đồng bộ từ hệ thống ngoài là tính năng tuỳ chọn, mặc định tắt (ADR-34): tenant chưa bật cờ thì
+      // màn hình báo chưa bật, hành trình chờ tới khi tenant thử nghiệm bật cờ
+      const c = await api(s, 'quantri');
+      const co = await c.can<{ flags?: Record<string, boolean> }>('GET', 'ui/feature-flags');
+      await c.dong();
+      if (co.body.flags?.['org.externalSync'] !== true) {
+        cho('tenant chưa bật đồng bộ nhân sự từ hệ thống ngoài (cờ org.externalSync, ADR-34)');
+      }
+    }
     const page = await s.trang('quantri', '/admin/org/sync');
     const m = main(page);
     await expect(

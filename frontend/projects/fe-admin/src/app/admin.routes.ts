@@ -64,6 +64,13 @@ export const ROUTES: Routes = [
     title: 'Đồng bộ và đối soát nhân sự',
   },
   {
+    // Cờ tắt: báo tính năng chưa bật trong khung ứng dụng thay cho trang không tìm thấy
+    path: 'org/sync',
+    canActivate: [permissionGuard('SCR-0104.xem')],
+    loadComponent: () => import('./pages/org/org-sync-off.page').then((m) => m.OrgSyncOffPage),
+    title: 'Đồng bộ và đối soát nhân sự',
+  },
+  {
     path: 'access',
     canActivate: [permissionGuard('SCR-0105.xem')],
     loadComponent: () =>

@@ -263,10 +263,14 @@ interface Kpi {
 
         <section class="box" aria-labelledby="bd-trend-h">
           <h2 class="h" id="bd-trend-h">Xu hướng tiến độ 6 tuần</h2>
-          <p class="muted">
-            Chưa có số liệu tiến độ theo từng tuần của kỳ. Tiến độ mới nhất của từng đơn vị ở bảng
-            trên.
-          </p>
+          @if (periodsRes.isLoading() || unitRes.isLoading()) {
+            <vt-skeleton variant="list" [rows]="2" label="Đang tải xu hướng tiến độ" />
+          } @else {
+            <p class="muted">
+              Chưa có số liệu tiến độ theo từng tuần của kỳ. Tiến độ mới nhất của từng đơn vị ở bảng
+              trên.
+            </p>
+          }
         </section>
       </div>
 

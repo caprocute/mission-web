@@ -106,9 +106,11 @@ test.describe('Giao việc', { tag: '@qa-05' }, () => {
       );
     }
     await m.getByRole('textbox', { name: 'Tên nhiệm vụ *' }).fill(GV.ten);
+    // Nháp sinh từ dòng kế hoạch đã mang người chủ trì của dòng đó nên ô chọn mang tên người đó thay
+    // cho chữ gợi ý: lấy ô đầu của vùng "Phân công" (người chủ trì) và chọn lại cán bộ nhận việc
     await chon(
       page,
-      m.getByRole('combobox', { name: 'Chọn người chủ trì' }),
+      m.getByRole('region', { name: 'Phân công' }).getByRole('combobox').first(),
       HE_THONG ? (await s.danhTinh('canbo')).ten : undefined,
     );
     const han = m.getByRole('textbox', { name: 'Hạn hoàn thành *' });

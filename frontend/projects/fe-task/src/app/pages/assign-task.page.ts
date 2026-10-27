@@ -908,7 +908,7 @@ export class AssignTaskPage {
         .pipe(map((p) => p.items)),
   });
   protected readonly planOptions = computed(() => [
-    ...(this.plans.value() ?? []).map((i) => ({
+    ...(this.plans.hasValue() ? this.plans.value() : []).map((i) => ({
       value: i.id,
       label: `${i.planCode} · dòng ${i.lineNo} · ${i.title} (phiên bản ${i.version})`,
     })),
@@ -1027,7 +1027,9 @@ export class AssignTaskPage {
       void this.router.navigate(['/tasks/assign', id.slice(DRAFT_PREFIX.length)]);
       return;
     }
-    const i: PlanItemRef | undefined = this.plans.value()?.find((x) => x.id === id);
+    const i: PlanItemRef | undefined = this.plans.hasValue()
+      ? this.plans.value().find((x) => x.id === id)
+      : undefined;
     this.form.update((f) =>
       f && i
         ? {
