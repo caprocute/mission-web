@@ -16,8 +16,8 @@ import { SEED, api, kiemMoiTruong, kiemSuKien, maTuDuongDan, timHoacCho } from '
  * người dùng hiện tại, KN-2026-0044 có yêu cầu giải trình gửi người dùng hiện tại, KN-2026-0040 chờ kết
  * luận, KN-2026-0042 do chính người dùng hiện tại đã thẩm định (ca tách vai trò).
  */
-const HO_SO_CON_HAN = 'ap-2026q2-dev-user';
-const HO_SO_QUA_HAN = 'ap-2026q1-dev-user';
+const HO_SO_CON_HAN = '01928f3e-7b1a-7c3e-9a51-3f2d9c1d1304';
+const HO_SO_QUA_HAN = '01928f3e-7b1a-7c3e-9a51-3f2d9c1d1313';
 
 interface HoSo {
   profileId: string;

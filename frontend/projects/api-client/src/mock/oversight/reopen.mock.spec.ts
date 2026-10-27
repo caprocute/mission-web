@@ -3,11 +3,13 @@ import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
 import { idempotencyInterceptor } from '../../lib/interceptors';
 import { ReopenRequestInput } from '../../lib/models/reopen';
+import { AppraisalApi } from '../../lib/appraisal-api';
 import { ReopenApi } from '../../lib/reopen-api';
 import { DEFAULT_RUNTIME_CONFIG, RUNTIME_CONFIG } from '../../lib/runtime-config';
 import { MOCK_API_OPTIONS, mockApiInterceptor } from '../mock-api.interceptor';
 import { resetMockData } from '../mock-registry';
 import { mockSession, mockStepUp } from '../mock-session';
+import { LOCKED_PROFILE } from '../appraisals/locked-profiles';
 
 /** WEB-043: hành vi giả lập SCR-1301 (QT-13) theo hợp đồng `oversight.yaml`. */
 function setup() {
@@ -37,10 +39,10 @@ const INPUT: ReopenRequestInput = {
   periodId: 'p-2026q1',
   auditKind: 'PHAN_ANH',
   scope: 'HO_SO',
-  scopeIds: ['ap-2026q1-nguyen-van-binh'],
+  scopeIds: [LOCKED_PROFILE.binhQ1],
   scopeDetail: {
     items: [
-      { profileId: 'ap-2026q1-nguyen-van-binh', table: 'product.acceptance', fields: ['c_factor'] },
+      { profileId: LOCKED_PROFILE.binhQ1, table: 'product.acceptance', fields: ['c_factor'] },
     ],
   },
   openWorkingDays: 3,
@@ -93,6 +95,46 @@ describe('mock oversight – SCR-1301 mở lại kỳ (WEB-043)', () => {
     expect(r.approvers?.map((s) => s.role)).toEqual(['decider', 'second_approver']);
     const dup = await errorOf(firstValueFrom(api.create(INPUT)));
     expect(dup.error.code).toBe('OVERSIGHT-409-INVALID-STATE');
+  });
+
+  it('HT-34: mã hồ sơ không phải UUID bị từ chối 400 như máy chủ, kể cả trước step-up', async () => {
+    const api = setup();
+    const typed = await errorOf(
+      firstValueFrom(api.create({ ...INPUT, scopeIds: ['KN-2026-0040'] })),
+    );
+    expect(typed.status).toBe(400);
+    expect(typed.error).toMatchObject({ title: 'Yêu cầu không hợp lệ' });
+    expect(typed.error.errors).toBeUndefined();
+    mockStepUp();
+    const item = await errorOf(
+      firstValueFrom(
+        api.create({
+          ...INPUT,
+          scopeDetail: {
+            items: [
+              { profileId: 'ho-so-tu-go', table: 'product.acceptance', fields: ['c_factor'] },
+            ],
+          },
+        }),
+      ),
+    );
+    expect(item.status).toBe(400);
+    expect((await firstValueFrom(api.create(INPUT))).scopeIds).toEqual([LOCKED_PROFILE.binhQ1]);
+  });
+
+  it('hồ sơ của kỳ đã khoá có trong danh sách hồ sơ theo kỳ (nguồn ô chọn hồ sơ SCR-1301)', async () => {
+    setup();
+    const page = await firstValueFrom(
+      TestBed.inject(AppraisalApi).profiles({ periodId: 'p-2026q1', status: ['DA_KHOA'] }),
+    );
+    expect(page.items.map((r) => r.id)).toContain(LOCKED_PROFILE.binhQ1);
+    expect(page.items.every((r) => r.period.id === 'p-2026q1' && r.status === 'DA_KHOA')).toBe(
+      true,
+    );
+    const queue = await firstValueFrom(
+      TestBed.inject(AppraisalApi).profiles({ periodId: 'p-2026q1' }),
+    );
+    expect(queue.items.map((r) => r.id)).not.toContain(LOCKED_PROFILE.binhQ1);
   });
 
   it('tính thử ảnh hưởng như Hình 11.7: 91,2 thành 92,1, hai biểu mẫu sinh lại', async () => {

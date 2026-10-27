@@ -1,5 +1,6 @@
 import { ReopenImpact, ReopenRequest } from '../../lib/models/reopen';
 import { MOCK_ME } from '../mock-session';
+import { LOCKED_PROFILE, LOCKED_PROFILE_NAMES } from '../appraisals/locked-profiles';
 
 /**
  * Dữ liệu mẫu QT-13 (WEB-043), dựng theo ví dụ MLK-2027-007 của TL-02 Hình 11.7 nhưng đặt vào Quý II/2026
@@ -15,12 +16,8 @@ export const REOPEN_PEOPLE = {
   me: { id: MOCK_ME.id, name: MOCK_ME.name },
 } as const;
 
-export const PROFILE_HOANG = 'ap-2026q2-tran-minh-hoang';
-export const PROFILE_NAMES: Record<string, string> = {
-  [PROFILE_HOANG]: 'Trần Minh Hoàng · Trưởng phòng Tổng hợp',
-  'ap-2026q2-nguyen-thi-mai': 'Nguyễn Thị Mai · Phó Trưởng phòng',
-  'ap-2026q1-vu-quoc-khanh': 'Vũ Quốc Khánh · Chuyên viên',
-};
+export const PROFILE_HOANG = LOCKED_PROFILE.hoangQ2;
+export const PROFILE_NAMES: Record<string, string> = LOCKED_PROFILE_NAMES;
 
 const Q2 = { id: 'p-2026q2', label: 'Quý II/2026', startDate: '2026-04-01', endDate: '2026-06-30' };
 const Q1 = { id: 'p-2026q1', label: 'Quý I/2026', startDate: '2026-01-01', endDate: '2026-03-31' };
@@ -92,11 +89,11 @@ export function reopenFixtures(): ReopenRequest[] {
       periodStatus: 'DA_KHOA',
       auditKind: 'DOT_XUAT',
       scope: 'HO_SO',
-      scopeIds: ['ap-2026q1-vu-quoc-khanh'],
+      scopeIds: [LOCKED_PROFILE.khanhQ1],
       scopeDetail: {
         items: [
           {
-            profileId: 'ap-2026q1-vu-quoc-khanh',
+            profileId: LOCKED_PROFILE.khanhQ1,
             table: 'product.acceptance',
             fields: ['quality_level'],
           },
@@ -125,11 +122,11 @@ export function reopenFixtures(): ReopenRequest[] {
       periodStatus: 'DA_KHOA',
       auditKind: 'KE_HOACH',
       scope: 'HO_SO',
-      scopeIds: ['ap-2026q2-nguyen-thi-mai'],
+      scopeIds: [LOCKED_PROFILE.maiQ2],
       scopeDetail: {
         items: [
           {
-            profileId: 'ap-2026q2-nguyen-thi-mai',
+            profileId: LOCKED_PROFILE.maiQ2,
             table: 'appraisal.self_assessment',
             fields: ['structured_data'],
           },
@@ -158,11 +155,11 @@ export function reopenFixtures(): ReopenRequest[] {
       periodStatus: 'DA_KHOA',
       auditKind: 'PHAN_ANH',
       scope: 'HO_SO',
-      scopeIds: ['ap-2026q2-nguyen-thi-mai'],
+      scopeIds: [LOCKED_PROFILE.maiQ2],
       scopeDetail: {
         items: [
           {
-            profileId: 'ap-2026q2-nguyen-thi-mai',
+            profileId: LOCKED_PROFILE.maiQ2,
             table: 'product.acceptance',
             fields: ['c_factor'],
           },

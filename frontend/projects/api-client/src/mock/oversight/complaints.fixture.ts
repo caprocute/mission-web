@@ -4,6 +4,7 @@ import {
   ComplaintResponseRecord,
 } from '../../lib/models/complaint';
 import { MOCK_ME } from '../mock-session';
+import { LOCKED_PROFILE } from '../appraisals/locked-profiles';
 
 /**
  * Dữ liệu mẫu QT-12 (WEB-042), dựng theo ví dụ KN-2027-0031 của TL-02 (Hình 11.3, 11.4) nhưng đặt vào kỳ
@@ -29,31 +30,31 @@ export const DANG_UY_X = { id: 'un-dang-uy-co-so-x', name: 'Đảng uỷ cơ s�
 const Q2 = { id: 'p-2026q2', label: 'Quý II/2026', startDate: '2026-04-01', endDate: '2026-06-30' };
 const Q1 = { id: 'p-2026q1', label: 'Quý I/2026', startDate: '2026-01-01', endDate: '2026-03-31' };
 
-export const MY_PROFILE_Q2 = 'ap-2026q2-dev-user';
-export const MY_PROFILE_Q1 = 'ap-2026q1-dev-user';
+export const MY_PROFILE_Q2 = LOCKED_PROFILE.meQ2;
+export const MY_PROFILE_Q1 = LOCKED_PROFILE.meQ1;
 
 /** Kết quả hiện hành của hồ sơ (để tính thử) và người đã tham gia hồ sơ (tách vai trò, BR-12-04). */
 export const PROFILE_FACTS: Record<
   string,
   { score: number; rating: 'HTXSNV' | 'HTTNV' | 'HTNV' | 'KHTNV'; participants: string[] }
 > = {
-  'ap-2026q2-tran-minh-hoang': {
+  [LOCKED_PROFILE.hoangQ2]: {
     score: 91.2,
     rating: 'HTTNV',
     participants: [COMPLAINT_PEOPLE.tam.id, 'u-phan-van-quan'],
   },
-  'ap-2026q1-nguyen-van-binh': {
+  [LOCKED_PROFILE.binhQ1]: {
     score: 84.6,
     rating: 'HTTNV',
     participants: [COMPLAINT_PEOPLE.tam.id],
   },
-  'ap-2026q2-pham-thi-lan': { score: 82, rating: 'HTTNV', participants: [COMPLAINT_PEOPLE.tam.id] },
-  'ap-2026q1-vu-quoc-khanh': {
+  [LOCKED_PROFILE.lanQ2]: { score: 82, rating: 'HTTNV', participants: [COMPLAINT_PEOPLE.tam.id] },
+  [LOCKED_PROFILE.khanhQ1]: {
     score: 68.5,
     rating: 'HTNV',
     participants: [MOCK_ME.id],
   },
-  'ap-2026q2-nguyen-thi-mai': { score: 79.4, rating: 'HTNV', participants: [MOCK_ME.id] },
+  [LOCKED_PROFILE.maiQ2]: { score: 79.4, rating: 'HTNV', participants: [MOCK_ME.id] },
   [MY_PROFILE_Q2]: { score: 88.5, rating: 'HTTNV', participants: [COMPLAINT_PEOPLE.ha.id] },
   [MY_PROFILE_Q1]: { score: 79, rating: 'HTNV', participants: [COMPLAINT_PEOPLE.ha.id] },
 };
@@ -134,7 +135,7 @@ export function complaintFixtures(): Complaint[] {
       filedAt: at(-32, '09:12'),
       responseDeadline: workingDate(-8),
       workingDaysLeft: null,
-      profileId: 'ap-2026q2-tran-minh-hoang',
+      profileId: LOCKED_PROFILE.hoangQ2,
       period: Q2,
       targets: [
         { key: 'NV-THEN-CHOT-3.C', stage: 'THAM_DINH', label: 'Nhiệm vụ then chốt 3 · C = 0,85' },
@@ -188,7 +189,7 @@ export function complaintFixtures(): Complaint[] {
       filedAt: at(-9, '14:20'),
       responseDeadline: workingDate(5),
       workingDaysLeft: 5,
-      profileId: 'ap-2026q1-nguyen-van-binh',
+      profileId: LOCKED_PROFILE.binhQ1,
       period: Q1,
       targets: [
         { key: 'NV-THEN-CHOT-2.B', stage: 'THAM_DINH', label: 'Nhiệm vụ then chốt 2 · B = 0,50' },
@@ -229,7 +230,7 @@ export function complaintFixtures(): Complaint[] {
       filedAt: at(-1, '16:45'),
       responseDeadline: workingDate(14),
       workingDaysLeft: 14,
-      profileId: 'ap-2026q2-pham-thi-lan',
+      profileId: LOCKED_PROFILE.lanQ2,
       period: Q2,
       targets: [
         { key: 'TIEU-CHI-CHUNG-3', stage: 'DE_XUAT', label: 'Tiêu chí chung 3 · Trung bình' },
@@ -259,7 +260,7 @@ export function complaintFixtures(): Complaint[] {
       filedAt: at(-2, '10:00'),
       responseDeadline: workingDate(13),
       workingDaysLeft: 13,
-      profileId: 'ap-2026q1-vu-quoc-khanh',
+      profileId: LOCKED_PROFILE.khanhQ1,
       period: Q1,
       targets: [
         {
@@ -293,7 +294,7 @@ export function complaintFixtures(): Complaint[] {
       filedAt: at(-5, '08:40'),
       responseDeadline: workingDate(10),
       workingDaysLeft: 10,
-      profileId: 'ap-2026q2-nguyen-thi-mai',
+      profileId: LOCKED_PROFILE.maiQ2,
       period: Q2,
       targets: [
         { key: 'NV-THEN-CHOT-4.B', stage: 'THAM_DINH', label: 'Nhiệm vụ then chốt 4 · B = 0,50' },

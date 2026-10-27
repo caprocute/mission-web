@@ -1,4 +1,5 @@
 import { LedgerEntry, LedgerVerifyRun } from '../../lib/models/ledger';
+import { LOCKED_PROFILE } from '../appraisals/locked-profiles';
 
 /**
  * Dữ liệu mẫu sổ cái SVC-09 (WEB-043): chuỗi bản ghi của hồ sơ Trần Minh Hoàng Quý II/2026 và các đối
@@ -26,7 +27,7 @@ export const TAMPERED_STORED = '4b07c1d2e3f405162738495a6b7c8d9e0f1a2b3c4d5e6f70
 export const TAMPERED_RECOMPUTED =
   '9d3c0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7';
 
-export const PROFILE_AGG = 'ap-2026q2-tran-minh-hoang';
+export const PROFILE_AGG = LOCKED_PROFILE.hoangQ2;
 
 /** Bản ghi kèm các băm nội bộ để dựng chi tiết và kiểm tra chuỗi. */
 export interface StoredEntry extends LedgerEntry {

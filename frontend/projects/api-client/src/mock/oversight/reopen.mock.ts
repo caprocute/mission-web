@@ -107,9 +107,38 @@ function list(req: MockRequest): MockResponse {
 const involved = (r: ReopenRequest) =>
   r.requestedBy.id === ME.id || (r.approvers ?? []).some((s) => s.approval?.approver.id === ME.id);
 
+/** Dạng `Uuid` của `common.yaml` (mọi phiên bản UUID, chữ hoa hoặc thường). */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Như mission-core: mã hồ sơ trong `scopeIds[]` (phạm vi `HO_SO`) và `scopeDetail.items[].profileId` khai
+ * báo `Uuid`, nên chuỗi khác dạng UUID làm hỏng bước đọc thân yêu cầu và máy chủ trả 400 Problem chung
+ * (không có `errors[]`) trước mọi kiểm tra nghiệp vụ. HT-34: trước đây ô tự gõ "mã hồ sơ" lọt qua giả lập.
+ * Mã đơn vị (`DON_VI`) chưa kiểm vì giả lập cây tổ chức (`org.json`) còn dùng mã dạng chữ.
+ */
+function malformedProfileIds(b: Partial<ReopenRequestInput>): MockResponse | null {
+  const ids: unknown[] = [
+    ...(b.scope !== 'HO_SO' || b.scopeIds == null
+      ? []
+      : Array.isArray(b.scopeIds)
+        ? b.scopeIds
+        : [b.scopeIds]),
+    ...(b.scopeDetail?.items ?? [])
+      .map((it) => (it as { profileId?: unknown }).profileId)
+      .filter((id) => id !== undefined && id !== null),
+  ];
+  if (ids.every((id) => typeof id === 'string' && UUID_RE.test(id))) return null;
+  return problem(400, 'Yêu cầu không hợp lệ', {
+    type: 'https://okrkpi.vn/problems/bad-request',
+    detail: 'Yêu cầu không thực hiện được. Vui lòng kiểm tra lại.',
+  });
+}
+
 function create(req: MockRequest): MockResponse {
-  if (!mockSession.recentMfa()) return stepUpRequired();
   const b = (req.body ?? {}) as Partial<ReopenRequestInput>;
+  const bad = malformedProfileIds(b);
+  if (bad) return bad;
+  if (!mockSession.recentMfa()) return stepUpRequired();
   const info = b.periodId ? mockPeriodInfo(b.periodId) : undefined;
   if (!info) return invalid('periodId', 'Chọn kỳ đánh giá.');
   const reason = (b.reason ?? '').trim();

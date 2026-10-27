@@ -6,6 +6,7 @@ import { LedgerApi, verifyRunIdOf } from '../../lib/ledger-api';
 import { DEFAULT_RUNTIME_CONFIG, RUNTIME_CONFIG } from '../../lib/runtime-config';
 import { MOCK_API_OPTIONS, mockApiInterceptor } from '../mock-api.interceptor';
 import { resetMockData } from '../mock-registry';
+import { LOCKED_PROFILE } from '../appraisals/locked-profiles';
 
 /** WEB-043: hành vi giả lập SCR-1302 (QT-13) theo hợp đồng `oversight.yaml`. */
 function setup() {
@@ -42,7 +43,7 @@ describe('mock ledger – SCR-1302 sổ cái (WEB-043)', () => {
     const page = await firstValueFrom(
       api.entries({
         aggregateType: 'appraisal_profile',
-        aggregateId: 'ap-2026q2-tran-minh-hoang',
+        aggregateId: LOCKED_PROFILE.hoangQ2,
         from: iso(90),
         to: iso(0),
       }),
