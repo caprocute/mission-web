@@ -304,30 +304,36 @@ test.describe('Minh chứng và nghiệm thu', { tag: '@qa-05' }, () => {
       rm = main(rp);
     }
 
-    // Xác nhận nghiệm thu: thiếu xác thực nhiều lớp thì không ghi nhận (huỷ hộp xác thực)
+    // Xác nhận nghiệm thu: thiếu xác thực nhiều lớp thì không ghi nhận (huỷ hộp xác thực). Dev tắt OTP cấp sẵn phiên
+    // aal2 lúc đăng nhập (tat-otp-dev.sh) nên hộp không hiện và lệnh ghi nhận ngay; khi đó bỏ ca phủ định này
     await danhGia(rp, /^1,00/);
     await rm.getByRole('textbox', { name: 'Nhận xét' }).fill(MC.nhanXet);
     const xong = thongBao(rp, /Đã xác nhận nghiệm thu/);
-    await rm.getByRole('button', { name: 'Xác nhận nghiệm thu' }).click();
-    const hop = rp.getByRole('dialog', { name: 'Xác thực nhiều lớp' });
-    await expect(hop).toBeVisible();
-    await hop.getByRole('button', { name: 'Huỷ' }).click();
-    await expect(hop).toBeHidden();
-    await expect(xong).toHaveCount(0);
-    await trenHeThong('xác nhận nghiệm thu không có xác thực bậc hai bị chặn', async () => {
-      const api = await s.apiCua('quanly');
-      // token đăng nhập thường (hộp xác thực vừa hiện chứng tỏ chưa đủ mức); kiểm xác thực đứng trước kiểm thân
-      const v = await phienBanMoi(api, evReview);
-      const r = await api.goi('POST', `evidences/${evReview}/versions/${v.no}/accept`, {
-        ifMatch: v.etag,
-        body: { qualityLevel: 1, criteriaResults: [], comment: MC.nhanXet },
-      });
-      expect([401, 403], 'thiếu step-up phải bị chặn').toContain(r.status);
-    });
-
     const tu = new Date(Date.now() - 5_000);
     await rm.getByRole('button', { name: 'Xác nhận nghiệm thu' }).click();
-    await xacThucBuocLen(rp, 'quanly', xong, true);
+    const hop = rp.getByRole('dialog', { name: 'Xác thực nhiều lớp' });
+    await expect(hop.or(xong).first()).toBeVisible({ timeout: HE_THONG ? 60_000 : 5_000 });
+    if (await hop.isVisible()) {
+      await hop.getByRole('button', { name: 'Huỷ' }).click();
+      await expect(hop).toBeHidden();
+      await expect(xong).toHaveCount(0);
+      await trenHeThong('xác nhận nghiệm thu không có xác thực bậc hai bị chặn', async () => {
+        const api = await s.apiCua('quanly');
+        // token đăng nhập thường (hộp xác thực vừa hiện chứng tỏ chưa đủ mức); kiểm xác thực đứng trước kiểm thân
+        const v = await phienBanMoi(api, evReview);
+        const r = await api.goi('POST', `evidences/${evReview}/versions/${v.no}/accept`, {
+          ifMatch: v.etag,
+          body: { qualityLevel: 1, criteriaResults: [], comment: MC.nhanXet },
+        });
+        expect([401, 403], 'thiếu step-up phải bị chặn').toContain(r.status);
+      });
+      await rm.getByRole('button', { name: 'Xác nhận nghiệm thu' }).click();
+      await xacThucBuocLen(rp, 'quanly', xong, true);
+    } else {
+      ghiCho(
+        'ca thiếu xác thực bậc hai bị chặn: dev cấp phiên aal2 khi đăng nhập (tat-otp-dev.sh), hộp không hiện',
+      );
+    }
     await kiemSuKien('EVT-08', evReview, tu);
     await kiemSuKien('EVT-06', nv?.id ?? '', tu);
     await trenHeThong('phiên bản đã xác nhận và nhiệm vụ hoàn thành', async () => {
