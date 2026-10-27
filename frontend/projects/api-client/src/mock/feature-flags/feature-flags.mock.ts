@@ -4,7 +4,8 @@ import { MockModule, ok } from '../mock-router';
 /**
  * Giả lập cờ tính năng (WEB-076) theo `config.yaml`: danh sách quản trị `GET /config/feature-flags`
  * và bản đồ cờ hiệu lực `GET /ui/feature-flags` mà shell đọc (WEB-072). Tham số trang `?ff=khoa1,khoa2`
- * bật thêm cờ khi chạy giả lập để thử giao diện của tính năng chưa phát hành. Không kiểm vai trò.
+ * bật thêm cờ khi chạy giả lập để thử giao diện của tính năng chưa phát hành, kể cả cờ chưa có trong
+ * danh sách quản trị (như `org.externalSync`, ADR-34: máy chủ coi cờ không khai là tắt). Không kiểm vai trò.
  */
 const fixture = (): FeatureFlag[] => [
   {
@@ -54,9 +55,12 @@ export const FEATURE_FLAGS_MOCK: MockModule = {
         const on = pageOverrides();
         const now = Date.now();
         return ok({
-          flags: Object.fromEntries(
-            store.map((f) => [f.flagKey, on.has(f.flagKey) || flagActive(f, now)]),
-          ),
+          flags: {
+            ...Object.fromEntries([...on].map((k) => [k, true])),
+            ...Object.fromEntries(
+              store.map((f) => [f.flagKey, on.has(f.flagKey) || flagActive(f, now)]),
+            ),
+          },
           evaluatedAt: new Date(now).toISOString(),
         });
       },
