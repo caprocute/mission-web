@@ -206,11 +206,14 @@ test.describe('QT-17 QT-18 Trợ lý AI và giao diện đơn vị', { tag: '@qa
     await m.getByRole('button', { name: 'Lưu nháp' }).click();
     await expect(m.getByRole('status').filter({ hasText: 'Đã lưu bản nháp.' })).toBeVisible();
 
-    // Xem trước (`previewUiPackVersion`) và kiểm tra tự động, trong đó ngân sách 30 KB
+    // Xem trước (`previewUiPackVersion`) và kiểm tra tự động, trong đó kích thước trong ngân sách 30 KB.
+    // Máy chủ nêu số KB ("… KB, trong ngân sách 30 KB."); giả lập theo YC-PT-24 không nêu số KB
     await expect(
       m.getByRole('figure', { name: new RegExp(`^Xem trước Bản ${ban}`) }),
     ).toBeVisible();
-    await expect(m.getByText(/Đạt: .*ngân sách 30 KB/)).toBeVisible();
+    await expect(
+      m.getByText(/Đạt: (.*ngân sách 30 KB|Dung lượng giao diện trong giới hạn cho phép)/),
+    ).toBeVisible();
     await m.getByRole('checkbox', { name: 'Xem ở chế độ người cao tuổi' }).check();
 
     // Biểu mẫu động: tạo bản nháp mới (`createUiFormVersion`), chạy bộ test (`runUiFormTests`) và đưa
