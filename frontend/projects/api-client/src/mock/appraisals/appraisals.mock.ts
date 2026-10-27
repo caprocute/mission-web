@@ -25,6 +25,7 @@ import {
   decisionQueue,
   resetBatchDecisions,
 } from './batch-decision';
+import { lockedProfileRows } from './locked-profiles';
 import { MOCK_MANAGER, PROPOSAL_BLOCKED, RESULT_MINE, ratingSheets } from './rating-sheet';
 import {
   ACCEPTED_BY_VIEWER,
@@ -337,6 +338,14 @@ function list(req: MockRequest): MockResponse {
     .filter((p) => !flow || p.flow === flow)
     .filter((p) => !q || p.person.name.toLocaleLowerCase('vi').includes(q))
     .map(row)
+    // hồ sơ của kỳ đã khoá (hậu kiểm, mở lại kỳ); chỉ hiện khi lọc đúng trạng thái `DA_KHOA`
+    .concat(
+      lockedProfileRows()
+        .filter((r) => wanted.includes(r.status))
+        .filter((r) => !period || r.period.id === period)
+        .filter((r) => !flow || r.flow === flow)
+        .filter((r) => !q || r.person.name.toLocaleLowerCase('vi').includes(q)),
+    )
     .filter((r) => !group || r.subjectGroup?.id === group)
     .sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''));
   const limit = Math.min(Number(req.params.get('limit') ?? 50), 200);

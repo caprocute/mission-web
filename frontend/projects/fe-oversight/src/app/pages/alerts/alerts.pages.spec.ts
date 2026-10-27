@@ -124,7 +124,7 @@ describe('AlertCenterPage (SCR-1401)', () => {
     expect(text(warn)).toContain('Kỳ Quý II/2026 đã khoá');
     const link = (await until(el, 'a', has('Tạo yêu cầu mở lại kỳ'))) as HTMLAnchorElement;
     expect(link.getAttribute('href')).toContain('basisKind=CANH_BAO');
-    expect(link.getAttribute('href')).toContain('profileId=ap-2026q2-tran-minh-hoang');
+    expect(link.getAttribute('href')).toContain('profileId=01928f3e-7b1a-7c3e-9a51-3f2d9c1d1301');
   });
 
   it('tách vai trò: cảnh báo về đơn vị của người xử lý bị máy chủ từ chối', async () => {

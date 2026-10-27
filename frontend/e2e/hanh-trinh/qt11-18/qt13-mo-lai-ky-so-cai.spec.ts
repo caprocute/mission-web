@@ -61,14 +61,20 @@ test.describe('QT-13 Mở lại kỳ và sổ cái', { tag: '@qa-07' }, () => {
     const ky = m.getByRole('group', { name: 'Kỳ và căn cứ' });
     await chon(page, ky.getByRole('combobox').first());
     await ky.getByRole('textbox', { name: 'Mã hoặc số căn cứ' }).fill(SEED.moLai.canCu);
+    // HT-34: hồ sơ chọn từ danh sách hồ sơ của kỳ vừa chọn (`listAppraisalProfiles`), gửi mã hồ sơ
+    // UUID; không còn ô tự gõ mã. Giả lập: kỳ khoá đầu tiên là Quý II/2026, chọn hồ sơ Phạm Thị Lan (chưa
+    // có yêu cầu đang chờ). Hệ thống thật: hồ sơ đầu tiên của kỳ khoá trong phạm vi người kiểm tra.
     const phamVi = m.getByRole('group', { name: 'Phạm vi mở lại' });
-    await phamVi
-      .getByRole('textbox', { name: 'Mã hồ sơ đánh giá' })
-      .fill(HE_THONG ? `E2E-${SEED.moLai.canCu}` : 'ap-2026q1-pham-thi-lan');
-    await phamVi.getByRole('button', { name: 'Thêm hồ sơ' }).click();
-    await expect(
-      phamVi.getByRole('list', { name: 'Đối tượng trong phạm vi' }).getByRole('listitem'),
-    ).not.toHaveText(['Chưa có đối tượng nào.']);
+    const hoSo = phamVi.getByRole('combobox', { name: 'Hồ sơ đánh giá' });
+    await expect(hoSo).toBeEnabled();
+    await chon(page, hoSo, HE_THONG ? undefined : /^Phạm Thị Lan/);
+    const doiTuong = phamVi
+      .getByRole('list', { name: 'Đối tượng trong phạm vi' })
+      .getByRole('listitem');
+    await expect(doiTuong).toHaveCount(1);
+    await expect(doiTuong).not.toHaveText(['Chưa có đối tượng nào.']);
+    await expect(doiTuong.first()).not.toHaveText(/[0-9a-f]{8}-[0-9a-f]{4}-/i);
+    if (!HE_THONG) await expect(doiTuong.first()).toContainText('Phạm Thị Lan');
     await m.getByRole('textbox', { name: /^Lý do mở lại/ }).fill(SEED.moLai.lyDo);
     await kiemAxeOnDinh(page, 'tạo yêu cầu mở lại kỳ, chế độ cao tuổi');
     await m.getByRole('button', { name: 'Tạo yêu cầu' }).click();

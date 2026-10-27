@@ -3,18 +3,23 @@
  * danh sách, ở SCR-1202 khi kết luận khiếu nại có điều chỉnh và ở SCR-1401 khi cảnh báo có vi phạm; nơi
  * gọi truyền sẵn `?periodId=&basisKind=&basisCode=&basisId=&profileId=&auditKind=`).
  * Trường: 2 kỳ (chỉ kỳ `DA_KHOA`); 3 loại hậu kiểm; 4 phạm vi (hồ sơ hoặc đơn vị, bảng và trường được sửa;
- *   toàn kỳ chỉ khi căn cứ là quyết định hậu kiểm toàn diện, BR-13-05); 5 thời hạn mở 1–10 ngày làm việc,
+ *   toàn kỳ chỉ khi căn cứ là quyết định hậu kiểm toàn diện, BR-13-05). Hồ sơ chọn từ danh sách hồ sơ
+ *   của kỳ đã chọn (`GET /appraisals/profiles?period=`, `listAppraisalProfiles`), hiện họ tên và đơn vị;
+ *   `scopeIds` và `scopeDetail.items[].profileId` là mã hồ sơ dạng `Uuid` theo hợp đồng (HT-34: không
+ *   nhận chuỗi tự gõ); 5 thời hạn mở 1–10 ngày làm việc,
  *   mặc định 3; 6 lý do 50–4.000 ký tự; 7 căn cứ. Mã yêu cầu (trường 1) do máy chủ sinh.
  * Chức năng: Tạo yêu cầu (POST /oversight/reopen-requests, AAL2, EVT-21), xong thì sang trang chi tiết để
  *   tính thử ảnh hưởng và theo dõi hai lượt duyệt. Lỗi 409 kỳ chưa khoá, trùng phạm vi; 422 theo trường.
  * Quyền (wiki/15a): SCR-1301.tao (AC-07 trong phạm vi Cd, AC-10 Tn).
  */
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { OrgApi, fieldErrors, toProblem } from '@vt/api-client';
 import {
+  AppraisalApi,
+  AppraisalProfileStatus,
   PeriodApi,
   REOPEN_AUDIT_KIND_LABEL,
   REOPEN_BASIS_LABEL,
@@ -44,6 +49,17 @@ interface DataRow {
   table: string;
   fields: string[];
 }
+
+/** Trạng thái hồ sơ có thể gặp trong kỳ đã khoá (hồ sơ đã chốt, đang khiếu nại). */
+const LOCKED_PERIOD_STATUSES: AppraisalProfileStatus[] = [
+  'DA_QUYET_DINH',
+  'DA_KY_SO',
+  'DA_KHOA',
+  'KHIEU_NAI',
+];
+
+const profileLabel = (p: { person: { name?: string }; orgUnit?: { name?: string } }) =>
+  [p.person.name, p.orgUnit?.name].filter(Boolean).join(' · ') || 'Hồ sơ đánh giá';
 
 const options = <K extends string>(labels: Record<K, string>) =>
   (Object.keys(labels) as K[]).map((value) => ({ value, label: labels[value] }));
@@ -88,7 +104,7 @@ const options = <K extends string>(labels: Record<K, string>) =>
                 optionLabel="label"
                 optionValue="value"
                 [ngModel]="periodId()"
-                (ngModelChange)="periodId.set($event)"
+                (ngModelChange)="setPeriod($event)"
                 name="periodId"
                 placeholder="Chọn kỳ"
                 [attr.aria-describedby]="errs()['periodId'] ? 'e-period' : null"
@@ -151,7 +167,7 @@ const options = <K extends string>(labels: Record<K, string>) =>
                 optionLabel="label"
                 optionValue="value"
                 [ngModel]="scope()"
-                (ngModelChange)="scope.set($event)"
+                (ngModelChange)="setScope($event)"
                 name="scope"
                 [attr.aria-describedby]="errs()['scope'] ? 'e-scope' : null"
               />
@@ -161,30 +177,36 @@ const options = <K extends string>(labels: Record<K, string>) =>
             </div>
             @if (scope() === 'HO_SO') {
               <div class="f wide">
-                <label for="rq-profile">Mã hồ sơ đánh giá</label>
-                <div class="row">
-                  <input
-                    pInputText
-                    id="rq-profile"
-                    name="profile"
-                    maxlength="64"
-                    [ngModel]="profileDraft()"
-                    (ngModelChange)="profileDraft.set($event)"
-                    (keydown.enter)="$event.preventDefault(); addProfile()"
-                    [attr.aria-describedby]="'h-profile'"
-                  />
-                  <p-button
-                    label="Thêm hồ sơ"
-                    severity="contrast"
-                    [outlined]="true"
-                    [disabled]="!profileDraft().trim()"
-                    (onClick)="addProfile()"
-                  />
-                </div>
-                <small id="h-profile" class="muted"
-                  >Mã hồ sơ ghi trong kết luận khiếu nại, cảnh báo hoặc sổ cái; mỗi lần thêm một hồ
-                  sơ.</small
-                >
+                <label for="rq-profile" id="rq-profile-l">Hồ sơ đánh giá</label>
+                <!-- tên truy cập là nhãn trường, không phải chữ gợi ý đang hiện trong ô -->
+                <p-select
+                  inputId="rq-profile"
+                  ariaLabelledBy="rq-profile-l"
+                  [options]="profileOptions()"
+                  [loading]="profilesRes.isLoading()"
+                  [disabled]="!periodId()"
+                  [filter]="true"
+                  filterBy="label"
+                  [resetFilterOnHide]="true"
+                  (onFilter)="searchProfiles($event.filter)"
+                  optionLabel="label"
+                  optionValue="value"
+                  [ngModel]="null"
+                  (ngModelChange)="addTarget($event)"
+                  name="profile"
+                  [placeholder]="periodId() ? 'Chọn hồ sơ để thêm' : 'Chọn kỳ trước'"
+                  emptyMessage="Kỳ này không có hồ sơ đánh giá nào trong phạm vi của đồng chí."
+                  emptyFilterMessage="Không tìm thấy hồ sơ phù hợp."
+                  [attr.aria-describedby]="'h-profile'"
+                />
+                <small id="h-profile" class="muted">{{
+                  periodId()
+                    ? 'Tìm theo họ tên người được đánh giá; mỗi lần chọn thêm một hồ sơ.'
+                    : 'Chọn kỳ đã khoá trước để tải danh sách hồ sơ của kỳ.'
+                }}</small>
+                @if (profilesError(); as m) {
+                  <small class="err" role="alert">{{ m }}</small>
+                }
               </div>
             } @else if (scope() === 'DON_VI') {
               <div class="f wide">
@@ -379,13 +401,6 @@ const options = <K extends string>(labels: Record<K, string>) =>
     .f.wide {
       grid-column: span 2;
     }
-    .row {
-      display: flex;
-      gap: 8px;
-    }
-    .row input {
-      flex: 1;
-    }
     label {
       font-weight: 600;
     }
@@ -452,6 +467,7 @@ export class ReopenCreatePage {
   private readonly api = inject(ReopenApi);
   private readonly periodApi = inject(PeriodApi);
   private readonly orgApi = inject(OrgApi);
+  private readonly appraisalApi = inject(AppraisalApi);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly theme = inject(ThemeService);
@@ -482,7 +498,11 @@ export class ReopenCreatePage {
   protected readonly targets = signal<string[]>(
     this.q().get('profileId') ? [this.q().get('profileId')!] : [],
   );
-  protected readonly profileDraft = signal('');
+  /** Từ khoá tìm hồ sơ phía máy chủ, chỉ dùng khi kỳ có nhiều hồ sơ hơn một trang. */
+  private readonly profileQ = signal('');
+  private profileQTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Tên đã biết của hồ sơ (giữ khi đổi từ khoá tìm), để chip không bao giờ hiện mã hồ sơ. */
+  private readonly profileNames = signal<Record<string, string>>({});
   protected readonly dataRows = signal<DataRow[]>([
     { table: 'product.acceptance', fields: ['c_factor'] },
   ]);
@@ -504,6 +524,33 @@ export class ReopenCreatePage {
     ((this.periodsRes.hasValue() ? this.periodsRes.value() : undefined) ?? [])
       .filter((p) => p.status === 'DA_KHOA')
       .map((p) => ({ value: p.id, label: p.name })),
+  );
+  protected readonly profilesRes = rxResource({
+    params: () =>
+      this.scope() === 'HO_SO' && this.periodId()
+        ? { period: this.periodId()!, q: this.profileQ() }
+        : undefined,
+    stream: ({ params }) =>
+      this.appraisalApi.profiles({
+        periodId: params.period,
+        status: LOCKED_PERIOD_STATUSES,
+        ...(params.q ? { q: params.q } : {}),
+        limit: 200,
+      }),
+  });
+  private readonly profilesPage = computed(() =>
+    this.profilesRes.hasValue() ? this.profilesRes.value() : undefined,
+  );
+  /** Hồ sơ của kỳ đã chọn: giá trị là mã hồ sơ, nhãn là họ tên và đơn vị (không hiện mã nội bộ). */
+  protected readonly profileOptions = computed(() =>
+    (this.profilesPage()?.items ?? [])
+      .filter((p) => !this.targets().includes(p.id))
+      .map((p) => ({ value: p.id, label: profileLabel(p) })),
+  );
+  protected readonly profilesError = computed(() =>
+    this.profilesRes.error()
+      ? errorText(this.profilesRes.error(), 'Không tải được danh sách hồ sơ của kỳ.')
+      : null,
   );
   protected readonly unitsRes = rxResource({
     params: () => (this.scope() === 'DON_VI' ? true : undefined),
@@ -527,18 +574,45 @@ export class ReopenCreatePage {
       this.days() <= REOPEN_LIMITS.daysMax,
   );
 
+  constructor() {
+    // nhớ tên hồ sơ đã tải để chip đã chọn vẫn có tên khi danh sách đổi theo từ khoá
+    effect(() => {
+      const items = this.profilesPage()?.items ?? [];
+      if (!items.length) return;
+      const names = { ...untracked(this.profileNames) };
+      for (const p of items) names[p.id] = profileLabel(p);
+      this.profileNames.set(names);
+    });
+  }
+
   protected targetName(id: string) {
     const unit = this.units().find((u) => u.value === id);
     if (unit) return unit.label;
-    // hồ sơ đến từ khiếu nại hoặc cảnh báo: gọi theo văn bản căn cứ thay vì mã hồ sơ
-    if (id === this.q().get('profileId') && this.basisCode().trim())
-      return `Hồ sơ đánh giá theo ${this.basisCode().trim()}`;
-    return id;
+    const name = this.profileNames()[id];
+    if (name) return name;
+    // hồ sơ đến từ khiếu nại hoặc cảnh báo chưa có trong danh sách: gọi theo căn cứ, không hiện mã
+    if (this.basisCode().trim()) return `Hồ sơ đánh giá theo ${this.basisCode().trim()}`;
+    return this.scope() === 'DON_VI' ? 'Đơn vị đã chọn' : 'Hồ sơ đánh giá đã chọn';
   }
-  protected addProfile() {
-    const id = this.profileDraft().trim();
-    if (id) this.addTarget(id);
-    this.profileDraft.set('');
+  /** Đổi kỳ thì bỏ các hồ sơ đã chọn của kỳ cũ (hồ sơ thuộc về một kỳ); đơn vị giữ nguyên. */
+  protected setPeriod(id: string | null) {
+    if (id === this.periodId()) return;
+    this.periodId.set(id);
+    if (this.scope() === 'HO_SO') this.targets.set([]);
+    this.profileQ.set('');
+  }
+  /** Đổi phạm vi thì bỏ đối tượng đã chọn: mã hồ sơ và mã đơn vị không dùng lẫn cho nhau. */
+  protected setScope(scope: ReopenScope) {
+    if (scope === this.scope()) return;
+    this.scope.set(scope);
+    this.targets.set([]);
+  }
+  /** Tìm phía máy chủ (`q`) chỉ khi trang đầu chưa đủ mọi hồ sơ; còn lại ô chọn tự lọc tại chỗ. */
+  protected searchProfiles(term: string | null | undefined) {
+    const q = (term ?? '').trim();
+    if (!this.profilesPage()?.nextCursor && !this.profileQ()) return;
+    clearTimeout(this.profileQTimer);
+    this.profileQTimer = setTimeout(() => this.profileQ.set(q), 300);
   }
   protected addTarget(id: string | null) {
     if (id && !this.targets().includes(id)) this.targets.set([...this.targets(), id]);

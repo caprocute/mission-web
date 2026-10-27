@@ -264,4 +264,9 @@ export async function spaGoto(page: Page, url: string) {
   }, url);
 }
 
-export const main = (page: Page) => page.locator('main#main');
+/**
+ * Nội dung trang đang mở: phần tử do router gắn sau `<router-outlet>` trong `main#main`. Không gồm thông báo
+ * phiên `<vt-session-notice>` của shell (cũng có `role="alert"`, ví dụ khi máy chủ trả 403 cho thao tác ghi)
+ * để `getByRole('alert')` của hành trình chỉ khớp thông báo của chính trang.
+ */
+export const main = (page: Page) => page.locator('main#main > router-outlet ~ *');
