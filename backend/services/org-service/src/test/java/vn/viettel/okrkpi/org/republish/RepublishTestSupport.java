@@ -1,6 +1,5 @@
 package vn.viettel.okrkpi.org.republish;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -10,11 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
-import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DecoderFactory;
-import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -29,7 +25,6 @@ import org.testcontainers.utility.DockerImageName;
 import vn.viettel.okrkpi.events.EventContracts;
 import vn.viettel.okrkpi.org.application.republish.Buckets;
 import vn.viettel.okrkpi.org.application.republish.EntityKind;
-import vn.viettel.okrkpi.org.infrastructure.republish.PayloadEncoder;
 import vn.vtokr.org.v1.DonViDaThayDoi;
 import vn.vtokr.org.v1.NhanSuDaThayDoi;
 import vn.vtokr.org.v1.OrgBootstrap;
@@ -53,23 +48,6 @@ final class RepublishTestSupport {
       } catch (Exception e) {
         throw new IllegalStateException(e);
       }
-    }
-  }
-
-  /** Avro nhị phân thuần; consumer thử giải mã bằng lớp sinh. */
-  static final class PlainAvroEncoder implements PayloadEncoder {
-    @Override
-    public Encoded encode(String topic, SpecificRecord payload) {
-      EventContracts.trustContractPackages();
-      ByteArrayOutputStream out = new ByteArrayOutputStream();
-      BinaryEncoder enc = EncoderFactory.get().binaryEncoder(out, null);
-      try {
-        new SpecificDatumWriter<SpecificRecord>(payload.getSchema()).write(payload, enc);
-        enc.flush();
-      } catch (IOException e) {
-        throw new IllegalStateException(e);
-      }
-      return new Encoded(out.toByteArray(), null);
     }
   }
 

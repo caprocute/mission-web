@@ -55,7 +55,15 @@ public final class ApicurioPayloadEncoder implements PayloadEncoder {
     } catch (IOException e) {
       throw new IllegalStateException("Không tuần tự hoá được " + payload.getSchema().getFullName(), e);
     }
-    return new Encoded(out.toByteArray(), lookup.getGlobalId());
+    return new Encoded(out.toByteArray(), lookup.getGlobalId(), version(lookup.getVersion()));
+  }
+
+  private static Integer version(String v) {
+    try {
+      return v == null ? null : Integer.valueOf(v);
+    } catch (NumberFormatException e) {
+      return null;
+    }
   }
 
   private SchemaLookupResult<Schema> resolve(String topic, SpecificRecord payload) {

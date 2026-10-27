@@ -4,10 +4,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import vn.viettel.okrkpi.org.infrastructure.republish.PayloadEncoder;
 
 /** Ngữ cảnh Spring đầy đủ chạy bằng {@code svc_org} trên PostgreSQL 17 Testcontainers. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK, properties = {
@@ -35,6 +37,12 @@ public abstract class IntegrationTestBase {
     @Bean
     JwtDecoder jwtDecoder() {
       return NimbusJwtDecoder.withPublicKey(TestJwt.publicKey()).build();
+    }
+
+    @Bean
+    @Primary
+    PayloadEncoder testPayloadEncoder() {
+      return new PlainAvroTestEncoder();
     }
   }
 }

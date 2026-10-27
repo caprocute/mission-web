@@ -91,6 +91,25 @@ public final class Fixtures {
         + "ORDER BY created_at", String.class, tenant, topic);
   }
 
+  /** Sự kiện {@code sys.audit.v1} trong outbox (thân Avro giải mã theo hợp đồng, tiêu đề JSON), cũ trước. */
+  public java.util.List<AuditRow> auditEvents(UUID tenant) {
+    return admin.query("SELECT payload, headers::text, schema_version FROM org.outbox_event WHERE tenant_id = ? "
+        + "AND topic = 'sys.audit.v1' ORDER BY created_at", (rs, i) -> {
+          try {
+            vn.vtokr.sys.v1.AuditEvent event = new org.apache.avro.specific.SpecificDatumReader<>(
+                vn.vtokr.sys.v1.AuditEvent.class).read(null,
+                org.apache.avro.io.DecoderFactory.get().binaryDecoder(rs.getBytes(1), null));
+            return new AuditRow(event, rs.getString(2), rs.getInt(3));
+          } catch (java.io.IOException e) {
+            throw new IllegalStateException(e);
+          }
+        }, tenant);
+  }
+
+  /** Một dòng outbox của topic kiểm toán. */
+  public record AuditRow(vn.vtokr.sys.v1.AuditEvent event, String headers, int schemaVersion) {
+  }
+
   public int outboxCount(UUID tenant, String topic) {
     Integer n = admin.queryForObject("SELECT count(*) FROM org.outbox_event WHERE tenant_id = ? AND topic = ?",
         Integer.class, tenant, topic);
