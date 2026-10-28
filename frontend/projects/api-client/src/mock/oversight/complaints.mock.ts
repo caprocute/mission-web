@@ -587,6 +587,11 @@ function simulate(req: MockRequest): MockResponse {
 }
 
 /** Giả lập QT-13 gọi khi tạo yêu cầu mở lại kỳ có căn cứ là khiếu nại (bước 9). */
+/** Kỳ của khiếu nại (căn cứ `KHIEU_NAI` của yêu cầu mở lại kỳ phải thuộc kỳ đã chọn). */
+export function complaintPeriodOf(id: string): string | undefined {
+  return store.find((c) => c.id === id)?.period.id;
+}
+
 export function linkComplaintReopen(complaintId: string, reopenRequestId: string) {
   const c = store.find((x) => x.id === complaintId);
   if (!c) return;

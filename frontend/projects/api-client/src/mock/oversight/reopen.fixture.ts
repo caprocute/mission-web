@@ -1,4 +1,4 @@
-import { ReopenImpact, ReopenRequest } from '../../lib/models/reopen';
+import { PostAudit, ReopenImpact, ReopenRequest } from '../../lib/models/reopen';
 import { MOCK_ME } from '../mock-session';
 import { LOCKED_PROFILE, LOCKED_PROFILE_NAMES } from '../appraisals/locked-profiles';
 
@@ -262,3 +262,43 @@ export const IMPACT_007: ReopenImpact = {
   ],
   formsToRegenerate: 2,
 };
+
+/**
+ * Đợt hậu kiểm của các kỳ đã khoá (`oversight.post_audit`, căn cứ `HAU_KIEM` của SCR-1301): một đợt đột
+ * xuất của Quý II/2026 đã kết luận đánh giá lại, một đợt theo kế hoạch của Quý I/2026 còn mở.
+ */
+export function postAuditFixtures(): PostAudit[] {
+  const P = REOPEN_PEOPLE;
+  return [
+    {
+      id: 'hk-2026q2-01',
+      periodId: Q2.id,
+      auditKind: 'DOT_XUAT',
+      targetType: 'HO_SO',
+      targetId: PROFILE_HOANG,
+      basis: 'QĐ 12-QĐ/UBKT ngày 05/08/2026',
+      inspector: P.lam,
+      findings: null,
+      conclusion: 'DANH_GIA_LAI',
+      reopenRequestId: null,
+      openedAt: day(-40, '08:00'),
+      closedAt: day(-20, '16:00'),
+      rowVersion: 2,
+    },
+    {
+      id: 'hk-2026q1-01',
+      periodId: Q1.id,
+      auditKind: 'THEO_KE_HOACH',
+      targetType: 'DON_VI',
+      targetId: 'u-btc',
+      basis: 'Kế hoạch kiểm tra 03-KH/UBKT năm 2026',
+      inspector: P.lam,
+      findings: null,
+      conclusion: null,
+      reopenRequestId: null,
+      openedAt: day(-15, '08:00'),
+      closedAt: null,
+      rowVersion: 1,
+    },
+  ];
+}

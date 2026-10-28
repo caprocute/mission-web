@@ -17,7 +17,7 @@ import { OVERSIGHT_STEP_UP } from '../../step-up';
 import { ReopenCreatePage } from './reopen-create.page';
 import { ReopenDetailPage } from './reopen-detail.page';
 import { ReopenListPage } from './reopen-list.page';
-import { ReopenApi } from '@vt/api-client/domains';
+import { ComplaintApi, ReopenApi } from '@vt/api-client/domains';
 
 let instance: unknown;
 
@@ -31,6 +31,15 @@ interface CreatePageView {
   setPeriod(id: string | null): void;
   addTarget(id: string | null): void;
   targets(): string[];
+  basisOptions(): { value: string; label: string }[];
+  basisRes: { isLoading(): boolean };
+  setBasisKind(k: string): void;
+  pickBasis(id: string | null): void;
+  ready(): boolean;
+}
+
+async function poll(test: () => boolean) {
+  for (let i = 0; i < 100 && !test(); i++) await new Promise((r) => setTimeout(r, 20));
 }
 
 /** WEB-043: SCR-1301 trên dữ liệu giả lập: danh sách, chi tiết hai người duyệt, tạo yêu cầu. */
@@ -198,6 +207,7 @@ describe('ReopenCreatePage (SCR-1301)', () => {
         periodId: 'p-2026q1',
         basisKind: 'KHIEU_NAI',
         basisCode: 'KN-2026-0040',
+        basisId: 'kn-2026-0040',
         profileId: BINH_Q1,
       }),
     );
@@ -205,8 +215,11 @@ describe('ReopenCreatePage (SCR-1301)', () => {
     await until(el, '.chips li', has('Nguyễn Văn Bình'));
     expect(text(el.querySelector('.chips'))).toContain('Nguyễn Văn Bình · Phòng Tổng hợp');
     expect(text(el)).not.toContain(BINH_Q1);
-    expect((el.querySelector('#rq-basis-code') as HTMLInputElement).value).toBe('KN-2026-0040');
+    // căn cứ truyền sẵn hiện bằng mã khiếu nại trong ô chọn căn cứ, không có ô tự gõ
+    expect(el.querySelector('#rq-basis-code')).toBeNull();
+    expect(text(await until(el, 'p-select[name="basisId"]'))).toContain('KN-2026-0040');
     const { input, nav } = await submitAndCapture(el);
+    expect(input?.basis).toEqual({ kind: 'KHIEU_NAI', id: 'kn-2026-0040', code: 'KN-2026-0040' });
     expect(input?.scopeIds).toEqual([BINH_Q1]);
     expect(input?.scopeDetail.items.map((i) => i.profileId)).toEqual([BINH_Q1]);
     expect(nav).toHaveBeenCalled();
@@ -214,12 +227,8 @@ describe('ReopenCreatePage (SCR-1301)', () => {
   });
 
   it('HT-34: hồ sơ chọn từ danh sách hồ sơ của kỳ đã khoá (không còn ô tự gõ mã hồ sơ)', async () => {
-    const el = await render(
-      ReopenCreatePage,
-      () => true,
-      undefined,
-      withQuery({ basisKind: 'CANH_BAO', basisCode: 'CB-2026-0120' }),
-    );
+    // mở thẳng trang: căn cứ mặc định là quyết định hậu kiểm, nhập số quyết định
+    const el = await render(ReopenCreatePage);
     const page = instance as CreatePageView;
     await until(el, '#rq-profile');
     // chưa chọn kỳ: ô chọn hồ sơ bị khoá, có hướng dẫn chọn kỳ trước, không gọi danh sách hồ sơ
@@ -251,7 +260,79 @@ describe('ReopenCreatePage (SCR-1301)', () => {
     expect(page.targets()).toEqual([]);
     page.setPeriod('p-2026q1');
     page.addTarget(BINH_Q1);
+    expect(text(el.querySelector('label[for="rq-basis-code"]'))).toBe('Số quyết định hậu kiểm');
+    type(el, '#rq-basis-code', '15-QĐ/UBKT');
+    const { input, nav } = await submitAndCapture(el);
+    expect(input).toMatchObject({
+      periodId: 'p-2026q1',
+      scope: 'HO_SO',
+      scopeIds: [BINH_Q1],
+      basis: { kind: 'QUYET_DINH', code: '15-QĐ/UBKT' },
+    });
+    expect(nav).toHaveBeenCalled();
+  });
+
+  it('mở thẳng trang, căn cứ khiếu nại: chọn khiếu nại đã có kết luận của kỳ, gửi mã khiếu nại', async () => {
+    const el = await render(ReopenCreatePage);
+    const page = instance as CreatePageView;
+    page.setBasisKind('KHIEU_NAI');
+    const pick = await until(el, 'p-select[name="basisId"]');
+    expect(text(el.querySelector('#rq-basis-l'))).toBe('Khiếu nại đã có kết luận');
+    expect(
+      pick.querySelector('.p-disabled, [aria-disabled="true"]') ?? pick.matches('.p-disabled'),
+    ).toBeTruthy();
+    expect(text(el.querySelector('#h-basis'))).toContain('Chọn kỳ đã khoá trước');
+    page.setPeriod('p-2026q1');
+    await poll(() => page.basisOptions().length > 0);
+    // khiếu nại đã trả lời hoặc đang thi hành của Quý I; nhãn là mã nghiệp vụ, người khiếu nại, trạng thái
+    expect(page.basisOptions()).toEqual([
+      {
+        value: 'kn-2026-0038',
+        code: 'KN-2026-0038',
+        label: expect.stringMatching(/^KN-2026-0038 · .+ · Đã trả lời$/),
+      },
+    ]);
+    page.addTarget(BINH_Q1);
+    type(el, '#rq-reason', REASON);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(page.ready()).toBe(false);
+    page.pickBasis('kn-2026-0038');
     const { input } = await submitAndCapture(el);
-    expect(input).toMatchObject({ periodId: 'p-2026q1', scope: 'HO_SO', scopeIds: [BINH_Q1] });
+    expect(input?.basis).toEqual({ kind: 'KHIEU_NAI', id: 'kn-2026-0038', code: 'KN-2026-0038' });
+  });
+
+  it('căn cứ đợt hậu kiểm: chọn từ danh sách đợt hậu kiểm của kỳ (listPostAudits)', async () => {
+    await render(ReopenCreatePage);
+    const page = instance as CreatePageView;
+    page.setBasisKind('HAU_KIEM');
+    page.setPeriod('p-2026q2');
+    await poll(() => page.basisOptions().length > 0);
+    expect(page.basisOptions().map((o) => o.label)).toEqual([
+      'QĐ 12-QĐ/UBKT ngày 05/08/2026 · Hậu kiểm đột xuất · Đánh giá lại',
+    ]);
+  });
+
+  it('cơ quan kiểm tra không đọc được danh sách khiếu nại: nêu nơi bắt đầu, khoá nút tạo', async () => {
+    const list = vi.spyOn(ComplaintApi.prototype, 'list');
+    const el = await render(ReopenCreatePage, only('SCR-1301.tao', 'SCR-1401.xem'));
+    const page = instance as CreatePageView;
+    page.setPeriod('p-2026q1');
+    page.addTarget(BINH_Q1);
+    page.setBasisKind('KHIEU_NAI');
+    type(el, '#rq-reason', REASON);
+    const start = await until(el, '#h-basis-start');
+    expect(text(start)).toContain('mở từ trang khiếu nại đã có kết luận');
+    expect(el.querySelector('p-select[name="basisId"]')).toBeNull();
+    expect(text(el.querySelector('#h-submit'))).toContain('chọn loại căn cứ khác');
+    const submit = [...el.querySelectorAll('button')].find((b) => text(b) === 'Tạo yêu cầu');
+    expect((submit as HTMLButtonElement).disabled).toBe(true);
+    expect(list).not.toHaveBeenCalled();
+    // cảnh báo thì đọc được: ô chọn hiện, nhưng Quý I chưa có cảnh báo kết luận có vi phạm
+    page.setBasisKind('CANH_BAO');
+    await until(el, 'p-select[name="basisId"]');
+    await poll(() => !page.basisRes.isLoading());
+    expect(page.basisOptions()).toEqual([]);
+    expect(el.querySelector('#h-submit')).toBeNull();
+    list.mockRestore();
   });
 });

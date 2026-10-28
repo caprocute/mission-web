@@ -98,6 +98,11 @@ function list(req: MockRequest): MockResponse {
   });
 }
 
+/** Kỳ của cảnh báo (căn cứ `CANH_BAO` của yêu cầu mở lại kỳ phải thuộc kỳ đã chọn). */
+export function alertPeriodOf(id: string): string | undefined {
+  return store.find((a) => a.id === id)?.period?.id;
+}
+
 function find(req: MockRequest): AnomalyAlert | MockResponse {
   return (
     store.find((a) => a.id === req.pathParams['id']) ?? problem(404, 'Không tìm thấy cảnh báo')
