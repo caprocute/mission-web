@@ -87,10 +87,32 @@ async function banNhap(s: Phien): Promise<{ goi: string; ban: string; nhan: stri
 const ketQuaKiemThu = (page: Page) =>
   page.locator('strong').filter({ hasText: /(Đạt|Chưa đạt) \d+\/\d+ ca/ });
 
-/** Chạy toàn bộ ca vàng (`runPolicyTests`) và chờ lần chạy kết thúc với kết quả `mong`. */
+/**
+ * Chạy toàn bộ ca vàng (`runPolicyTests`) và chờ lần chạy kết thúc với kết quả `mong`. Kết quả của lần
+ * chạy trước (giả lập có sẵn lần #13 "Chưa đạt 9/10 ca") còn hiện ngay sau cú bấm, trước khi trang đổi
+ * sang "Đang chạy kiểm thử…": ghi nhận dòng trạng thái đó bằng MutationObserver (lần chạy giả lập có thể
+ * xong rất nhanh) rồi mới đọc kết quả, để không lấy nhầm kết quả cũ và sửa tiếp khi lần chạy còn dở.
+ */
 async function chayKiemThu(page: Page, mong: RegExp) {
   const m = main(page);
+  await page.evaluate(() => {
+    const w = window as unknown as { __vtDangChay?: boolean };
+    w.__vtDangChay = false;
+    const o = new MutationObserver(() => {
+      if (document.querySelector('main')?.textContent?.includes('Đang chạy kiểm thử')) {
+        w.__vtDangChay = true;
+        o.disconnect();
+      }
+    });
+    o.observe(document.body, { childList: true, subtree: true, characterData: true });
+  });
   await m.getByRole('button', { name: 'Chạy kiểm thử' }).click();
+  await page.waitForFunction(
+    () => (window as unknown as { __vtDangChay?: boolean }).__vtDangChay === true,
+    undefined,
+    { timeout: 10_000 },
+  );
+  await expect(m.getByText('Đang chạy kiểm thử…')).toHaveCount(0, { timeout: 30_000 });
   await expect(ketQuaKiemThu(page)).toHaveText(mong, { timeout: 30_000 });
 }
 

@@ -246,6 +246,13 @@ class UiPackServiceTest {
                     .containsExactly("version"));
     assertThatThrownBy(() -> service.create(TENANT, AUTHOR, pack, "abc", null))
         .isInstanceOf(BusinessException.class);
+    assertThatThrownBy(() -> service.create(TENANT, AUTHOR, pack, null, null))
+        .isInstanceOf(BusinessException.class)
+        .satisfies(
+            e ->
+                assertThat(((BusinessException) e).errors())
+                    .extracting(ProblemFieldError::field)
+                    .containsExactly("version"));
     assertThatThrownBy(() -> service.create(TENANT, AUTHOR, pack, "2.0.0", "9.9.9"))
         .isInstanceOf(BusinessException.class)
         .satisfies(

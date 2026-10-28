@@ -206,28 +206,55 @@ test.describe('QT-17 QT-18 Trợ lý AI và giao diện đơn vị', { tag: '@qa
     await m.getByRole('button', { name: 'Lưu nháp' }).click();
     await expect(m.getByRole('status').filter({ hasText: 'Đã lưu bản nháp.' })).toBeVisible();
 
-    // Xem trước (`previewUiPackVersion`) và kiểm tra tự động, trong đó ngân sách 30 KB
+    // Xem trước (`previewUiPackVersion`) và kiểm tra tự động, trong đó kích thước trong ngân sách 30 KB.
+    // Máy chủ nêu số KB ("… KB, trong ngân sách 30 KB."); giả lập theo YC-PT-24 không nêu số KB
     await expect(
       m.getByRole('figure', { name: new RegExp(`^Xem trước Bản ${ban}`) }),
     ).toBeVisible();
-    await expect(m.getByText(/Đạt: .*ngân sách 30 KB/)).toBeVisible();
+    await expect(
+      m.getByText(/Đạt: (.*ngân sách 30 KB|Dung lượng giao diện trong giới hạn cho phép)/),
+    ).toBeVisible();
     await m.getByRole('checkbox', { name: 'Xem ở chế độ người cao tuổi' }).check();
 
     // Biểu mẫu động: tạo bản nháp mới (`createUiFormVersion`), chạy bộ test (`runUiFormTests`) và đưa
     // biểu mẫu đang dựng vào bản nháp giao diện (`attachUiPackForm`)
     await spaGoto(page, '/config-studio/bieu-mau');
     await expect(m.getByRole('heading', { level: 1, name: 'Biểu mẫu động' })).toBeVisible();
-    await m.getByRole('button', { name: 'Tạo bản nháp mới' }).first().click();
-    await expect(m.getByRole('heading', { level: 1, name: /^Trình dựng biểu mẫu/ })).toBeVisible();
-    await spaGoto(page, '/config-studio/bieu-mau');
+    // Lần chạy trước có thể đã tạo bản nháp: khi đó trang chỉ còn "Mở để dựng" (chưa có bản nháp mới cho tới khi
+    // phát hành), dùng lại bản nháp đó
+    const taoMau = m.getByRole('button', { name: 'Tạo bản nháp mới' });
+    await expect(taoMau.or(m.getByRole('link', { name: /^Mở để dựng/ })).first()).toBeVisible();
+    if (await taoMau.count()) {
+      await taoMau.first().click();
+      await expect(
+        m.getByRole('heading', { level: 1, name: /^Trình dựng biểu mẫu/ }),
+      ).toBeVisible();
+      await spaGoto(page, '/config-studio/bieu-mau');
+    }
     await m.getByRole('link', { name: 'Mở để dựng' }).first().click();
     await expect(m.getByRole('heading', { level: 1, name: /^Trình dựng biểu mẫu/ })).toBeVisible();
-    await m.getByRole('button', { name: 'Chạy bộ test biểu mẫu' }).click();
+    // Biểu mẫu chưa có ca test (bản dựng mới trên hệ thống thật) thì nút chạy khoá: thêm dữ liệu mẫu đang
+    // hiện làm một ca, như người dùng làm theo hướng dẫn trên màn hình
+    const khongCoCa = m.getByTestId('no-tests');
+    const daDat = m.getByText(/Bộ test (\d+)\/\1 · trình duyệt và máy chủ cùng kết quả/);
+    // Bản nháp dùng lại từ lần chạy trước có thể đã chạy đạt bộ test cho đúng nội dung này (nút chạy khoá)
     await expect(
-      m.getByText(/Bộ test (\d+)\/\1 · trình duyệt và máy chủ cùng kết quả/),
-    ).toBeVisible({
-      timeout: 30_000,
-    });
+      khongCoCa
+        .or(m.getByText(/^Chưa chạy bộ test cho nội dung hiện tại/))
+        .or(daDat)
+        .first(),
+    ).toBeVisible();
+    if (await khongCoCa.isVisible()) {
+      await m.getByRole('button', { name: 'Thêm dữ liệu đang nhập làm ca test' }).click();
+      await expect(m.getByText(/^Đã thêm ca /)).toBeVisible();
+      // Ca mới chỉ giữ khi lưu nháp; chưa lưu thì nút "Đưa vào giao diện" khoá vì còn thay đổi chưa lưu
+      await m.getByRole('button', { name: 'Lưu nháp' }).click();
+      await expect(m.getByText(/^Đã lưu bản nháp\./)).toBeVisible();
+    }
+    if (!(await daDat.isVisible()) || (await khongCoCa.count()) > 0) {
+      await m.getByRole('button', { name: 'Chạy bộ test biểu mẫu' }).click();
+    }
+    await expect(daDat).toBeVisible({ timeout: 30_000 });
     await m.getByRole('button', { name: `Đưa vào giao diện bản ${ban}` }).click();
     await expect(
       m.getByRole('status').filter({ hasText: new RegExp(`vào giao diện bản ${ban}\\.`) }),
@@ -265,22 +292,29 @@ test.describe('QT-17 QT-18 Trợ lý AI và giao diện đơn vị', { tag: '@qa
       await expect(m.getByText('Người duyệt phải khác người soạn phiên bản này.')).toBeVisible();
     }
 
-    await chiHeThong('tải lại trang nhận giao diện mới; gói vượt 30 KB bị từ chối', async () => {
-      const a = await api(s, 'quantri');
-      try {
-        const hien = await a.can<{ version?: string }>('GET', 'ui/packs/current');
-        expect(hien.body.version?.replace(/\.0$/, '')).toBe(ban);
-        await page.reload();
-        await expect(page.locator('html')).toHaveAttribute('data-tenant', /.+/);
-        const goi = await a.can<{ items: { id: string }[] }>('GET', 'ui/packs');
-        const lon = await a.goi('POST', `ui/packs/${goi.body.items[0].id}/versions`, {
-          body: { tokens: { padding: 'x'.repeat(31 * 1024) } },
-        });
-        expect([409, 413, 422], 'gói vượt 30 KB phải bị từ chối').toContain(lon.status);
-      } finally {
-        await a.dong();
-      }
-    });
+    await chiHeThong(
+      'tải lại trang nhận giao diện mới; thân tạo phiên bản sai bị từ chối',
+      async () => {
+        const a = await api(s, 'quantri');
+        try {
+          const hien = await a.can<{ version?: string }>('GET', 'ui/packs/current');
+          expect(hien.body.version?.replace(/\.0$/, '')).toBe(ban);
+          await page.reload();
+          await expect(page.locator('html')).toHaveAttribute('data-tenant', /.+/);
+          const goi = await a.can<{ items: { id: string }[] }>('GET', 'ui/packs');
+          // `createUiPackVersion` chỉ nhận `version`, `cloneFromVersion` (UiPackVersionCreate): thân sai hợp đồng phải bị
+          // từ chối 4xx, không được thành lỗi máy chủ. Ngân sách 30 KB (gzip) đã kiểm ở bước kiểm tra tự động phía trên
+          const lon = await a.goi('POST', `ui/packs/${goi.body.items[0].id}/versions`, {
+            body: { tokens: { padding: 'x'.repeat(31 * 1024) } },
+          });
+          expect([409, 413, 422], 'thân tạo phiên bản sai hợp đồng phải bị từ chối').toContain(
+            lon.status,
+          );
+        } finally {
+          await a.dong();
+        }
+      },
+    );
     await kiemSuKien('EVT-23', 'config.uipack.published.v1', ban, tu);
   });
 });

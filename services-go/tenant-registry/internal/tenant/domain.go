@@ -254,12 +254,14 @@ type Progress struct {
 	PacksComplete  bool // bước 3: Policy Pack đủ cho mọi luồng
 	UiPackSet      bool // bước 3: UI Pack
 	IdpCount       int  // bước 4
-	StaffSourceCnt int  // bước 5
+	StaffSourceCnt int  // bước 5, tuỳ chọn (ADR-34): không chặn sang bước 6
 }
 
 // Step trả bước wizard hiện tại (1..6) hoặc 0 nếu tenant không còn khởi tạo (onboardingStep = null).
 // Bước 1 xong khi đã tạo; trước cấp phát wizard chỉ đi tới bước 3; DANG_CAP_PHAT hiển thị bước 4 (tiến độ
 // saga, theo Hình 6.7); sau cấp phát đi tiếp bước 4, 5, rồi 6 (suy luận từ SCR-0102 và Hình 6.7).
+// Nguồn nhân sự ở bước 5 là tuỳ chọn (ADR-34: đồng bộ nhân sự từ hệ thống ngoài mặc định tắt, tài khoản do
+// quản trị đơn vị tạo trực tiếp), nên có IdP là sang bước 6; bước 5 vẫn ghi được nguồn khi đơn vị bật đồng bộ.
 func Step(status string, p Progress) int {
 	switch status {
 	case KhoiTao:
@@ -272,9 +274,6 @@ func Step(status string, p Progress) int {
 	case DangCauHinh:
 		if p.IdpCount == 0 {
 			return 4
-		}
-		if p.StaffSourceCnt == 0 {
-			return 5
 		}
 		return 6
 	case SanSang:

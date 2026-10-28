@@ -378,7 +378,7 @@ Dòng tiêu đề cột: AC-01 `platform_admin`, AC-02 `tenant_admin`, AC-03 `po
 | `SCR-1102.goi-con` | Nguồn không nêu ai bấm; AC-07 (người chuẩn bị) là suy luận. |
 | `SCR-1202.giai-trinh` | Bên liên quan (người nghiệm thu, đề xuất) ánh xạ AC-05 là suy luận. |
 | `SCR-1202.ky-tra-loi` | TL-01 Phụ lục C ghi `decider` cấp trên trả lời; TL-02 ghi AC-07 xử lý, AC-08 ký. |
-| `SCR-1301.tao` | TL-01 Phụ lục C ghi `org_officer`. |
+| `SCR-1301.tao` | TL-01 Phụ lục C ghi `org_officer`. Danh sách hồ sơ `GET /api/v1/appraisals/profiles` chỉ với trạng thái DA_QUYET_DINH, DA_KY_SO, DA_KHOA, KHIEU_NAI lọc dòng theo chức năng này khi người gọi không có SCR-0902.xem (chỉ mở rộng cho `inspector`; YC-PT-09, chủ dự án duyệt 28/10/2026). |
 | `SCR-1401.xu-ly` | Bảng chức năng chỉ ghi điều kiện trạng thái; AC-10 làm bước này là suy luận. |
 | `SCR-1501.soan` | AC-02 xem danh sách gói theo TL-01 Phụ lục C (`GET /policies`). |
 | `SCR-1503.ky-duyet` | TL-01 Phụ lục C ghi vai trò `policy_approver` và đường dẫn `/publish`. |

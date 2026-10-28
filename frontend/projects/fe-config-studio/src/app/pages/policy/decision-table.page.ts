@@ -76,7 +76,7 @@ const VARIABLE_HINT: Record<string, string> = {
           label="Chạy kiểm thử"
           data-testid="run-tests"
           [loading]="ws.running()"
-          [disabled]="dirty()"
+          [disabled]="dirty() || ws.versionSyncing()"
           (onClick)="ws.runTests()"
         />
       }

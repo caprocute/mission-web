@@ -101,23 +101,31 @@ export function onPrimaryOf(tree: TokenTree): string {
   return contrastRatio('#FFFFFF', p) >= contrastRatio('#000000', p) ? '#FFFFFF' : '#000000';
 }
 
-/** Các cặp màu chữ, nền phải đạt AA (4,5 : 1); chế độ cao tuổi chữ trên nền trang ≥ 7 : 1. */
+/**
+ * Các cặp màu chữ, nền phải đạt AA (4,5 : 1); chế độ cao tuổi chữ trên nền trang ≥ 7 : 1. Như bộ kiểm
+ * tra của máy chủ (`UiPackStaticChecks`), chỉ xét cặp mà gói khai đủ hai màu: gói không khai một màu
+ * (ví dụ gói mặc định không có `color.danger`) dùng màu của hệ thống thiết kế, không phải lỗi tương phản.
+ * Màu đã khai nhưng sai định dạng vẫn là chưa đạt.
+ */
 export function contrastChecks(tree: TokenTree, elderly = false): ContrastCheck[] {
   const pairs: [string, string, string, number][] = [
     ['color.onPrimary', 'color.primary', 'Chữ trên nền màu chủ đạo', 4.5],
     ['color.text', 'color.background', 'Chữ trên nền trang', elderly ? 7 : 4.5],
     ['#FFFFFF', 'color.danger', 'Chữ trên nền màu cảnh báo', 4.5],
   ];
-  return pairs.map(([fgPath, bgPath, label, need]) => {
-    const fg = fgPath.startsWith('#')
-      ? fgPath
-      : fgPath === 'color.onPrimary'
-        ? onPrimaryOf(tree)
-        : tokenText(tree, fgPath);
-    const bg = tokenText(tree, bgPath);
-    const ratio = isHex(fg) && isHex(bg) ? contrastRatio(fg, bg) : 0;
-    return { fg, bg, label, ratio, need, ok: ratio >= need };
-  });
+  return pairs
+    .map(([fgPath, bgPath, label, need]) => {
+      const fg = fgPath.startsWith('#')
+        ? fgPath
+        : fgPath === 'color.onPrimary'
+          ? onPrimaryOf(tree)
+          : tokenText(tree, fgPath);
+      const bg = tokenText(tree, bgPath);
+      if (!fg || !bg) return null;
+      const ratio = isHex(fg) && isHex(bg) ? contrastRatio(fg, bg) : 0;
+      return { fg, bg, label, ratio, need, ok: ratio >= need };
+    })
+    .filter((c): c is ContrastCheck => c !== null);
 }
 
 /** MSG-18-01 cho một cặp màu chưa đạt. */

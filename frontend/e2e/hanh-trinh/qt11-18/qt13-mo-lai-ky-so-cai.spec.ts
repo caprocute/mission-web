@@ -1,7 +1,7 @@
 import { Page, expect, test } from '@playwright/test';
 import { batCaoTuoi, chiHeThong, chon, xacThucBuocLen, kiemAxeOnDinh } from '../ho-tro/kiem-tra';
 import { HE_THONG } from '../ho-tro/moi-truong';
-import { Phien, main } from '../ho-tro/phien';
+import { Phien, main, TenTaiKhoan } from '../ho-tro/phien';
 import { SEED, api, kiemMoiTruong, kiemSuKien, maTuDuongDan, timHoacCho } from './chung';
 
 /**
@@ -33,11 +33,16 @@ async function duyet(page: Page, user: 'quyetdinh' | 'duyet2', luot: string, yKi
   return { m, user };
 }
 
+/**
+ * Người lập yêu cầu mở lại kỳ (AC-10 kiểm tra, giám sát). Đặt `E2E_HT34_NGUOI_TAO=thamdinh` để chạy trên dev trong lúc
+ * vai trò inspector chưa được đọc danh sách hồ sơ (`listAppraisalProfiles`) mà ô chọn hồ sơ của kỳ đã khoá cần.
+ */
+const NGUOI_TAO = (process.env.E2E_HT34_NGUOI_TAO?.trim() || 'kiemtra') as TenTaiKhoan;
 test.describe('QT-13 Mở lại kỳ và sổ cái', { tag: '@qa-07' }, () => {
   let s: Phien;
 
   test.beforeEach(({ browser }) => {
-    s = new Phien(browser, ['kiemtra', 'quyetdinh', 'duyet2']);
+    s = new Phien(browser, [NGUOI_TAO, 'kiemtra', 'quyetdinh', 'duyet2']);
     kiemMoiTruong();
   });
 
@@ -51,7 +56,7 @@ test.describe('QT-13 Mở lại kỳ và sổ cái', { tag: '@qa-07' }, () => {
     test.setTimeout(HE_THONG ? 600_000 : 60_000);
 
     // AC-10 tạo yêu cầu ở chế độ Đảng viên cao tuổi (`createReopenRequest`, xác thực nhiều lớp)
-    let page = await s.trang('kiemtra', '/oversight/reopen-requests');
+    let page = await s.trang(NGUOI_TAO, '/oversight/reopen-requests');
     await batCaoTuoi(page);
     let m = main(page);
     await expect(m.getByRole('heading', { level: 1, name: 'Hậu kiểm, mở lại kỳ' })).toBeVisible();
@@ -79,7 +84,7 @@ test.describe('QT-13 Mở lại kỳ và sổ cái', { tag: '@qa-07' }, () => {
     await kiemAxeOnDinh(page, 'tạo yêu cầu mở lại kỳ, chế độ cao tuổi');
     await m.getByRole('button', { name: 'Tạo yêu cầu' }).click();
     const tieuDe = m.getByRole('heading', { level: 1, name: /^Yêu cầu mở lại kỳ MLK-/ });
-    await xacThucBuocLen(page, 'kiemtra', tieuDe, !HE_THONG);
+    await xacThucBuocLen(page, NGUOI_TAO, tieuDe, !HE_THONG);
     await expect(tieuDe).toContainText('Chờ người duyệt thứ nhất');
     const moi = maTuDuongDan(page.url());
 

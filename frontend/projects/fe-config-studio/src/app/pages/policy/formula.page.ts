@@ -87,7 +87,7 @@ const GROUP_TOTAL_NHA_NUOC = 70;
           [outlined]="true"
           data-testid="run-tests"
           [loading]="ws.running()"
-          [disabled]="dirty().length > 0"
+          [disabled]="dirty().length > 0 || ws.versionSyncing()"
           (onClick)="ws.runTests()"
         />
       }

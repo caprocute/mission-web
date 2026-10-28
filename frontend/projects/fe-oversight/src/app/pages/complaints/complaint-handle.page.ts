@@ -51,7 +51,7 @@ import { SelectModule } from 'primeng/select';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
-import { forkJoin, map, Observable } from 'rxjs';
+import { forkJoin, map, Observable, switchMap } from 'rxjs';
 import { OVERSIGHT_CAN, OVERSIGHT_USER_ID } from '../../oversight-permissions';
 import { errorText, fmtDate, fmtDateTime } from '../../oversight-ui';
 import { OVERSIGHT_STEP_UP } from '../../step-up';
@@ -1012,17 +1012,27 @@ export class ComplaintHandlePage {
     this.notice.set(null);
     if (!(await this.stepUp(SIGN_REASON))) return;
     this.busy.set('respond');
-    this.api.respond(c).subscribe({
-      next: () => {
-        this.busy.set(null);
-        this.notice.set(
-          `Đã ký số văn bản trả lời ${c.conclusion?.responseDocRef ?? ''} và gửi người khiếu nại.`,
-        );
-        this.complaint.reload();
-        this.listTick.update((t) => t + 1);
-      },
-      error: (e) => this.fail(e),
-    });
+    this.api
+      .respond(c)
+      .pipe(switchMap((a) => this.api.settle(a)))
+      .subscribe({
+        next: (job) => {
+          this.busy.set(null);
+          if (job.status !== 'HOAN_TAT') {
+            this.error.set(
+              job.message || 'Chưa ký số văn bản trả lời được, đồng chí vui lòng thử lại.',
+            );
+            this.complaint.reload();
+            return;
+          }
+          this.notice.set(
+            `Đã ký số văn bản trả lời ${c.conclusion?.responseDocRef ?? ''} và gửi người khiếu nại.`,
+          );
+          this.complaint.reload();
+          this.listTick.update((t) => t + 1);
+        },
+        error: (e) => this.fail(e),
+      });
   }
 
   private run(

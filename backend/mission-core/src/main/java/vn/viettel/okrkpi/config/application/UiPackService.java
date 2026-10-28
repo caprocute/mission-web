@@ -179,6 +179,10 @@ public class UiPackService {
                         invalid(
                             "cloneFromVersion",
                             "Không có phiên bản " + cloneFrom + " để nhân bản"));
+    if (version == null || version.isBlank()) {
+      // Hợp đồng bắt buộc `version` (UiPackVersionCreate); thiếu thì 422 chứ không để NPE thành 500
+      throw invalid("version", "Đồng chí chưa nhập số phiên bản, ví dụ 1.8.0");
+    }
     UiPackVersion draft;
     try {
       draft =

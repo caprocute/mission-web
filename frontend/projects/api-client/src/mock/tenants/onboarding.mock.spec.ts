@@ -220,6 +220,14 @@ describe('mock onboarding – SCR-0102 (WEB-017, hợp đồng WEB-072)', () => 
     ).rejects.toMatchObject({ status: 422 });
   });
 
+  it('nguồn nhân sự tuỳ chọn (ADR-34): có IdP, chưa chọn nguồn vẫn sang bước 6', async () => {
+    const api = setup();
+    const tn = await firstValueFrom(api.get('t-thainguyen'));
+    const saved = await firstValueFrom(api.saveDraft(tn, { staffSources: [] }));
+    expect(saved.staffSources).toEqual([]);
+    expect(saved.onboardingStep).toBe(6);
+  });
+
   it('huỷ chỉ khi KHOI_TAO', async () => {
     const api = setup();
     const t = await firstValueFrom(api.get('t-truong-thpt-hue'));

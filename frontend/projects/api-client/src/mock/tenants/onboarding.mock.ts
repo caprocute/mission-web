@@ -257,8 +257,8 @@ function deriveStep(t: StoredTenant): number | undefined {
     case 'DANG_CAP_PHAT':
       return 4;
     case 'DANG_CAU_HINH':
+      // Nguồn nhân sự tuỳ chọn (ADR-34, như `tenant.Step` của tenant-registry): có IdP là sang bước 6
       if (!o.idps.length) return 4;
-      if (!o.staffSources.length) return 5;
       return 6;
     case 'SAN_SANG':
       return 6;
