@@ -25,7 +25,7 @@ interface YeuCau {
   period: { id: string };
 }
 
-async function duyet(page: Page, user: 'quyetdinh' | 'duyet2', luot: string, yKien: string) {
+async function duyet(page: Page, user: TenTaiKhoan, luot: string, yKien: string) {
   const m = main(page);
   const vung = m.getByRole('region', { name: `Duyệt lượt thứ ${luot}` });
   await vung.getByRole('textbox', { name: /^Ý kiến người duyệt/ }).fill(yKien);
@@ -38,11 +38,16 @@ async function duyet(page: Page, user: 'quyetdinh' | 'duyet2', luot: string, yKi
  * vai trò inspector chưa được đọc danh sách hồ sơ (`listAppraisalProfiles`) mà ô chọn hồ sơ của kỳ đã khoá cần.
  */
 const NGUOI_TAO = (process.env.E2E_HT34_NGUOI_TAO?.trim() || 'kiemtra') as TenTaiKhoan;
+/**
+ * Người duyệt lượt một (AC-08 decider). Luật bốn mắt (BR-13-02/03) loại người đã quyết định hồ sơ trong phạm vi, mà
+ * `quyetdinh` ký lô ở HT-27; đặt `E2E_HT34_DUYET1=quyetdinh2` để duyệt bằng decider thứ hai của tenant thử.
+ */
+const DUYET1 = (process.env.E2E_HT34_DUYET1?.trim() || 'quyetdinh') as TenTaiKhoan;
 test.describe('QT-13 Mở lại kỳ và sổ cái', { tag: '@qa-07' }, () => {
   let s: Phien;
 
   test.beforeEach(({ browser }) => {
-    s = new Phien(browser, [NGUOI_TAO, 'kiemtra', 'quyetdinh', 'duyet2']);
+    s = new Phien(browser, [NGUOI_TAO, 'kiemtra', DUYET1, 'duyet2']);
     kiemMoiTruong();
   });
 
@@ -155,7 +160,7 @@ test.describe('QT-13 Mở lại kỳ và sổ cái', { tag: '@qa-07' }, () => {
       luot1 = luot2 = moi;
       // Trên hệ thống thật người duyệt chưa có phiên aal2 thì giao diện mời xác thực lại ở bước dưới
       // (xacThucBuocLen), máy chủ trả 401 `insufficient_user_authentication` nếu bỏ qua bước này
-      const a = await api(s, 'quyetdinh');
+      const a = await api(s, DUYET1);
       try {
         kyMoLai = (await a.can<YeuCau>('GET', `oversight/reopen-requests/${moi}`)).body.period.id;
       } finally {
@@ -164,12 +169,12 @@ test.describe('QT-13 Mở lại kỳ và sổ cái', { tag: '@qa-07' }, () => {
     }
 
     // AC-08 duyệt lượt thứ nhất (`approveReopenRequest`, xác thực nhiều lớp)
-    page = await s.trang('quyetdinh', `/oversight/reopen-requests/${luot1}`);
+    page = await s.trang(DUYET1, `/oversight/reopen-requests/${luot1}`);
     m = main(page);
-    await duyet(page, 'quyetdinh', 'nhất', SEED.moLai.yKienDuyet1);
+    await duyet(page, DUYET1, 'nhất', SEED.moLai.yKienDuyet1);
     await xacThucBuocLen(
       page,
-      'quyetdinh',
+      DUYET1,
       m.getByRole('status').filter({ hasText: /^Đã ghi nhận phê duyệt thứ nhất/ }),
       false,
     );
@@ -183,7 +188,7 @@ test.describe('QT-13 Mở lại kỳ và sổ cái', { tag: '@qa-07' }, () => {
       ).toBeVisible();
     } else {
       await chiHeThong('cùng người duyệt hai lượt', async () => {
-        const a = await api(s, 'quyetdinh');
+        const a = await api(s, DUYET1);
         try {
           const r = await a.goi('POST', `oversight/reopen-requests/${luot1}/approvals`, {
             body: { comment: SEED.moLai.yKienDuyet2 },

@@ -49,6 +49,8 @@ export const TAI_KHOAN = {
   kiemtra: ['member', 'inspector'],
   /** decider: AC-08 ký gói hồ sơ, ký trả lời khiếu nại, duyệt lượt một, phát hành Policy Pack. */
   quyetdinh: ['decider'],
+  /** decider thứ hai cùng tenant: duyệt lượt một mở lại kỳ khi `quyetdinh` đã quyết định hồ sơ trong phạm vi (bốn mắt). */
+  quyetdinh2: ['decider'],
   /** second_approver: AC-09 duyệt lượt hai mở lại kỳ (SCR-1301). */
   duyet2: ['second_approver'],
   /** policy_author: AC-03 soạn Policy Pack, ca vàng, luồng duyệt (SCR-1501..SCR-1504). */
