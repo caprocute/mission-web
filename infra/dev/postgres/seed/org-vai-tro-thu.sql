@@ -1,5 +1,5 @@
 -- =============================================================================
--- Vai trò theo đơn vị (config.role_binding) của 13 tài khoản thử thuộc tenant d0000000-0000-4000-8000-000000000001
+-- Vai trò theo đơn vị (config.role_binding) của 14 tài khoản thử thuộc tenant d0000000-0000-4000-8000-000000000001
 -- (Sở Thử nghiệm). config.role_binding là nguồn sự thật của vai trò (WEB-058 phương án A): tài khoản chỉ có realm
 -- role thì không khai uỷ quyền được (SCR-0105, SCR-0107) và đối soát vai trò có thể gỡ realm role. Cách đặt giống bộ
 -- dữ liệu đa tenant (data/seed/da-tenant/sinh_seed.py): vai trò toàn tenant ở đơn vị gốc kèm cấp dưới; lãnh đạo ở
@@ -33,6 +33,9 @@ FROM (VALUES
   -- Ban Tổ chức thẩm định cán bộ toàn Sở: vai trò thẩm định giao ở cấp Sở kèm cấp dưới (QA-06, wiki 14)
   ('d0000000-0000-4000-8000-000000000308', 'appraiser', 'd0000000-0000-4000-8000-000000000100', 'DON_VI_VA_CAP_DUOI', NULL::uuid),
   ('d0000000-0000-4000-8000-000000000309', 'decider', 'd0000000-0000-4000-8000-000000000100', 'DON_VI_VA_CAP_DUOI', '00000000-0000-7000-8000-000000000001'::uuid),
+  -- thamdinh2: người thẩm định thứ hai, tiếp nhận khiếu nại khi thamdinh đã thẩm định hồ sơ (tách vai trò, HT-33)
+  ('d0000000-0000-4000-8000-000000000315', 'member', 'd0000000-0000-4000-8000-000000000102', 'DON_VI', NULL::uuid),
+  ('d0000000-0000-4000-8000-000000000315', 'appraiser', 'd0000000-0000-4000-8000-000000000100', 'DON_VI_VA_CAP_DUOI', NULL::uuid),
   -- quyetdinh2: người quyết định thứ hai, duyệt lượt một yêu cầu mở lại kỳ khi quyetdinh bị bốn mắt loại (HT-34)
   ('d0000000-0000-4000-8000-000000000314', 'member', 'd0000000-0000-4000-8000-000000000102', 'DON_VI', NULL::uuid),
   ('d0000000-0000-4000-8000-000000000314', 'decider', 'd0000000-0000-4000-8000-000000000100', 'DON_VI_VA_CAP_DUOI', '00000000-0000-7000-8000-000000000001'::uuid),
