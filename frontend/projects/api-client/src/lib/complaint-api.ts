@@ -1,8 +1,8 @@
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, last, map, of } from 'rxjs';
 import { apiUrl } from '@vt/api-client';
-import { Job } from '@vt/api-client';
+import { JOB_TERMINAL_STATUSES, Job, JobTracker } from '@vt/api-client';
 import {
   AppraisalSimulationInput,
   AppraisalSimulationResult,
@@ -42,6 +42,18 @@ const accepted = (res: HttpResponse<Job>): ComplaintJobAccepted => ({
 @Injectable({ providedIn: 'root' })
 export class ComplaintApi {
   private readonly http = inject(HttpClient);
+  private readonly jobs = inject(JobTracker);
+
+  /**
+   * Chờ tác vụ nền của "Ký số và gửi", "Ký số và trả lời" (202) kết thúc rồi mới đọc lại khiếu nại: máy
+   * chủ chỉ đổi trạng thái khi ký xong, đọc ngay sau 202 vẫn thấy bản nháp. Trả job cuối (`HOAN_TAT`,
+   * `THAT_BAI` hoặc `DA_HUY`).
+   */
+  settle(a: ComplaintJobAccepted): Observable<Job> {
+    return JOB_TERMINAL_STATUSES.includes(a.job.status)
+      ? of(a.job)
+      : this.jobs.track(a.location).pipe(last());
+  }
 
   /** Kết quả của tôi còn khiếu nại được, kèm hạn, hình thức được phép và cấu phần (SCR-1201 trường 1..3). */
   eligibleProfiles(): Observable<ComplainableProfile[]> {
