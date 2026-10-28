@@ -33,7 +33,7 @@ export interface paths {
     };
     /**
      * Danh sách hồ sơ đánh giá theo đơn vị (hàng đợi thẩm định, quyết định)
-     * @description Hàng đợi thẩm định (SCR-0902, mặc định `status=CHO_THAM_DINH`, sắp theo hạn) và danh sách hồ sơ chờ quyết định (SCR-0904, `status=CHO_QUYET_DINH`) trong phạm vi ABAC cây tổ chức của người gọi. Mỗi dòng có bốn mức đã đưa ra và gợi ý bất thường (dấu hiệu số 1 của QT-14) để người dùng không phải mở từng hồ sơ. Phân bố mức trên SCR-0904 tính ở client từ danh sách. Bộ lọc chỉ gồm trạng thái đã chốt (`DA_QUYET_DINH`, `DA_KY_SO`, `DA_KHOA`, `KHIEU_NAI`) lọc dòng theo chức năng SCR-1301.tao: thanh tra xem toàn tenant để chọn hồ sơ khi tạo yêu cầu mở lại kỳ (YC-PT-09); trạng thái khác vẫn chỉ cho người thẩm định, người quyết định.
+     * @description Hàng đợi thẩm định (SCR-0902, mặc định `status=CHO_THAM_DINH`, sắp theo hạn) và danh sách hồ sơ chờ quyết định (SCR-0904, `status=CHO_QUYET_DINH`) trong phạm vi ABAC cây tổ chức của người gọi. Mỗi dòng có bốn mức đã đưa ra và gợi ý bất thường (dấu hiệu số 1 của QT-14) để người dùng không phải mở từng hồ sơ. Phân bố mức trên SCR-0904 tính ở client từ danh sách. Bộ lọc chỉ gồm trạng thái đã chốt (`DA_QUYET_DINH`, `DA_KY_SO`, `DA_KHOA`, `KHIEU_NAI`) lọc dòng theo chức năng SCR-1301.tao khi người gọi không có chức năng xem của SCR-0902: thanh tra xem toàn tenant để chọn hồ sơ khi tạo yêu cầu mở lại kỳ (YC-PT-09). Người thẩm định, người quyết định luôn giữ bộ lọc cũ (tách vai trò, ghi vết C2); trạng thái khác thanh tra vẫn bị chặn.
      */
     get: operations['listAppraisalProfiles'];
     put?: never;

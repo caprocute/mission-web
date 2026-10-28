@@ -5857,7 +5857,7 @@
         "decider",
         "inspector"
       ],
-      "scope": "Cd (appraiser, decider); Tn (inspector, chỉ trạng thái đã chốt DA_QUYET_DINH, DA_KY_SO, DA_KHOA, KHIEU_NAI cho SCR-1301)",
+      "scope": "Cd (appraiser, decider, luôn theo chức năng SCR-0902/0903/0904); Tn (inspector không có chức năng đó, chỉ trạng thái đã chốt DA_QUYET_DINH, DA_KY_SO, DA_KHOA, KHIEU_NAI cho SCR-1301)",
       "aal": 1,
       "fourEyes": false,
       "source": "TL-02b SCR-0902 trường 1–2; SCR-0904 trường 1–3, 5; TL-02b part-06 bảng liên kết; TL-03 appraisal_profile.subject_group_id, policy_pack_version_id"

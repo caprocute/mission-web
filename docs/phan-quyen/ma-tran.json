@@ -3813,7 +3813,7 @@
    "api": "`POST /api/v1/oversight/reopen-requests`, `.../{id}/simulate`, `GET /api/v1/appraisals/profiles` (chỉ trạng thái đã chốt)",
    "rang_buoc": "AAL2 (TL-01 Phụ lục C)",
    "nguon": "SCR-1301 Quyền tạo: `appraiser`, `inspector`",
-   "ghi_chu": "TL-01 Phụ lục C ghi `org_officer`. Danh sách hồ sơ `GET /api/v1/appraisals/profiles` chỉ với trạng thái DA_QUYET_DINH, DA_KY_SO, DA_KHOA, KHIEU_NAI lọc dòng theo chức năng này (YC-PT-09, chủ dự án duyệt 28/10/2026)."
+   "ghi_chu": "TL-01 Phụ lục C ghi `org_officer`. Danh sách hồ sơ `GET /api/v1/appraisals/profiles` chỉ với trạng thái DA_QUYET_DINH, DA_KY_SO, DA_KHOA, KHIEU_NAI lọc dòng theo chức năng này khi người gọi không có SCR-0902.xem (chỉ mở rộng cho `inspector`; YC-PT-09, chủ dự án duyệt 28/10/2026)."
   },
   {
    "qt": "QT-13",

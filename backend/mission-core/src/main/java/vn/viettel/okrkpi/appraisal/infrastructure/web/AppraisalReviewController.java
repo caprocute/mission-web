@@ -13,6 +13,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -145,7 +146,7 @@ public class AppraisalReviewController {
         service.queue(
             tenant,
             filter,
-            scope(filter, listAction(filter)),
+            scope(filter, true),
             SelfAssessmentController.decodeCursor(cursor),
             size + 1);
     boolean more = rows.size() > size;
@@ -303,7 +304,7 @@ public class AppraisalReviewController {
             Boolean.TRUE,
             null,
             null);
-    String jobId = exports.export(tenant, filter, scope(filter, queueAction(filter)), actor());
+    String jobId = exports.export(tenant, filter, scope(filter, false), actor());
     return Jobs.accepted(
         Job.accepted(jobId, "APPRAISAL_EXPORT", OffsetDateTime.now(ZoneOffset.UTC)));
   }
@@ -342,9 +343,10 @@ public class AppraisalReviewController {
 
   /**
    * Phạm vi ABAC của người gọi dịch sang SQL bằng đánh giá từng phần của OPA. Không có OPA (môi
-   * trường phát triển tắt kiểm quyền) thì chỉ thấy hồ sơ của đơn vị phân công đang chọn.
+   * trường phát triển tắt kiểm quyền) thì chỉ thấy hồ sơ của đơn vị phân công đang chọn. {@code
+   * reopenFallback} chỉ bật cho danh sách (không cho xuất tệp), xem {@link #listPredicate}.
    */
-  private Scope scope(QueueFilter filter, String action) {
+  private Scope scope(QueueFilter filter, boolean reopenFallback) {
     OpaInput.Subject subject = subject();
     OpaSqlFilter opa = filters.getIfAvailable();
     if (opa == null) {
@@ -365,7 +367,9 @@ public class AppraisalReviewController {
             .mapString("status", "p.status")
             .build();
     try {
-      SqlPredicate predicate = opa.buildPredicate(subject, action, mapping);
+      SqlPredicate predicate =
+          listPredicate(
+              filter, reopenFallback, action -> opa.buildPredicate(subject, action, mapping));
       return new Scope(predicate.sql(), predicate.params());
     } catch (UntranslatablePolicyException e) {
       throw new BusinessException(
@@ -384,19 +388,31 @@ public class AppraisalReviewController {
           AppraisalStatus.DA_KHOA.name(),
           AppraisalStatus.KHIEU_NAI.name());
 
-  /**
-   * Chức năng của ma trận cho danh sách {@code listAppraisalProfiles}: bộ lọc chỉ gồm trạng thái đã
-   * chốt là SCR-1301.tao (appraiser giữ phạm vi Cd, inspector toàn tenant); còn lại như {@link
-   * #queueAction}. Xuất tệp không đi qua nhánh SCR-1301.
-   */
-  static String listAction(QueueFilter filter) {
-    if (filter.statuses() != null
+  /** Bộ lọc chỉ gồm trạng thái đã chốt ({@link #REOPEN_STATUSES}). */
+  static boolean reopenOnly(QueueFilter filter) {
+    return filter.statuses() != null
         && !filter.statuses().isEmpty()
-        && REOPEN_STATUSES.containsAll(filter.statuses())) {
-      return "SCR-1301.tao";
-    }
-    return queueAction(filter);
+        && REOPEN_STATUSES.containsAll(filter.statuses());
   }
+
+  /**
+   * Bộ lọc dòng của danh sách: luôn dịch chức năng cũ {@link #queueAction} trước, nên người có chức
+   * năng đó (appraiser, decider) đi đúng đường cũ, giữ tách vai trò và cờ ghi vết C2 của
+   * SCR-0902.xem. Chỉ khi bộ lọc gồm toàn trạng thái đã chốt và người gọi không có chức năng cũ
+   * (OPA trả mệnh đề luôn sai, như thanh tra) mới dịch SCR-1301.tao, phạm vi Tn của inspector
+   * (YC-PT-09).
+   */
+  static SqlPredicate listPredicate(
+      QueueFilter filter, boolean reopenFallback, Function<String, SqlPredicate> build) {
+    SqlPredicate predicate = build.apply(queueAction(filter));
+    if (reopenFallback && predicate.isAlwaysFalse() && reopenOnly(filter)) {
+      return build.apply(REOPEN_ACTION);
+    }
+    return predicate;
+  }
+
+  /** Chức năng tạo yêu cầu mở lại kỳ, dùng làm bộ lọc dòng dự phòng của danh sách. */
+  static final String REOPEN_ACTION = "SCR-1301.tao";
 
   /**
    * Chức năng xem của ma trận theo màn hình: chờ quyết định là SCR-0904, đã thẩm định chờ đề xuất
