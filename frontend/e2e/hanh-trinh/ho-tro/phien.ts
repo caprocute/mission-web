@@ -43,6 +43,8 @@ export const TAI_KHOAN = {
   giamdocso: ['member', 'leader'],
   /** member + appraiser: vai trò AAL2, bị hỏi OTP khi đăng nhập. */
   thamdinh: ['member', 'appraiser'],
+  /** appraiser thứ hai cùng tenant: xử lý khiếu nại về hồ sơ mà `thamdinh` đã thẩm định (tách vai trò, HT-33). */
+  thamdinh2: ['member', 'appraiser'],
   /** member: AC-06 "Việc của tôi", cập nhật tiến độ (SCR-0503, SCR-0601). */
   canbo: ['member'],
   /** member + inspector: AC-10 cảnh báo, sổ cái, yêu cầu mở lại kỳ (SCR-1301, SCR-1302, SCR-1401). */

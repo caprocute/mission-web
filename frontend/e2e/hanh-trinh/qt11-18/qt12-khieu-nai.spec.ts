@@ -42,7 +42,12 @@ test.describe('QT-12 Khiếu nại và giải trình', { tag: '@qa-07' }, () => 
   let s: Phien;
 
   test.beforeEach(({ browser }) => {
-    s = new Phien(browser, ['canbo', 'thamdinh', 'quanly', 'quyetdinh']);
+    s = new Phien(
+      browser,
+      HE_THONG
+        ? ['canbo', 'thamdinh', 'thamdinh2', 'quanly', 'quyetdinh', 'quyetdinh2']
+        : ['canbo', 'thamdinh', 'quanly', 'quyetdinh'],
+    );
     kiemMoiTruong();
   });
 
@@ -149,49 +154,86 @@ test.describe('QT-12 Khiếu nại và giải trình', { tag: '@qa-07' }, () => 
 
   test('HT-33 QT-12 tiếp nhận, yêu cầu giải trình, kết luận và ký văn bản trả lời', async () => {
     test.setTimeout(HE_THONG ? 600_000 : 60_000);
+    // Giả lập: mỗi bước một bản ghi dựng sẵn (KN-2026-0042 tách vai trò, 0045 tiếp nhận, 0044 giải trình, 0040 kết
+    // luận). Hệ thống thật: cả chuỗi chạy trên khiếu nại MOI về hồ sơ của canbo (HT-32 tạo); người xử lý là
+    // `thamdinh2` vì `thamdinh` đã thẩm định chính hồ sơ đó (tách vai trò), người ký trả lời là `quyetdinh2` vì
+    // `quyetdinh` đã quyết định hồ sơ đó (bốn mắt)
+    const xuLy = HE_THONG ? 'thamdinh2' : 'thamdinh';
+    const kyTraLoi = HE_THONG ? 'quyetdinh2' : 'quyetdinh';
+    let maTachVaiTro = 'KN-2026-0042';
+    let maTiepNhan = 'KN-2026-0045';
+    let maGiaiTrinh = 'KN-2026-0044';
+    let maKetLuan = 'KN-2026-0040';
     if (HE_THONG) {
-      // Trên hệ thống thật cần khiếu nại mới do canbo gửi (HT-32) và người xử lý được hệ thống chọn là
-      // thamdinh; chưa có seed phân công người xử lý cho tài khoản thử (DL-07).
-      const a = await api(s, 'thamdinh');
+      const a = await api(s, xuLy);
       try {
-        await timHoacCho<KhieuNai>(
+        const kn = await timHoacCho<KhieuNai>(
           a,
           'oversight/complaints',
           { status: 'MOI' },
           (x) => x.status === 'MOI',
-          'khiếu nại mới giao cho thamdinh',
+          `khiếu nại mới trong phạm vi ${xuLy} (HT-32 tạo)`,
         );
+        maTachVaiTro = maTiepNhan = maGiaiTrinh = maKetLuan = kn.code;
       } finally {
         await a.dong();
       }
-      cho('luồng xử lý khiếu nại trên hệ thống thật cần seed phân công người xử lý (DL-07)');
     }
 
-    // AC-07 tiếp nhận khiếu nại được giao (`acceptComplaint`)
+    // Ca phủ định tách vai trò: người đã thẩm định hồ sơ không được xử lý khiếu nại về hồ sơ đó
     let page = await s.trang('thamdinh', '/oversight/complaints');
     let m = main(page);
     await expect(m.getByRole('heading', { level: 1, name: 'Xử lý khiếu nại' })).toBeVisible();
     await kiemAxeOnDinh(page, 'xử lý khiếu nại');
+    if (HE_THONG) {
+      await chiHeThong(
+        'người đã thẩm định hồ sơ không tiếp nhận được khiếu nại về hồ sơ đó',
+        async () => {
+          const a = await api(s, 'thamdinh');
+          try {
+            const ds = await a.can<{ items: KhieuNai[] }>('GET', 'oversight/complaints', {
+              query: { status: 'MOI', limit: '200' },
+            });
+            const kn = ds.body.items.find((x) => x.code === maTachVaiTro);
+            if (kn) {
+              const r = await a.goi('POST', `oversight/complaints/${kn.id}/accept`, { body: {} });
+              expect([403, 409, 422], 'người đã thẩm định không được tiếp nhận').toContain(
+                r.status,
+              );
+            }
+          } finally {
+            await a.dong();
+          }
+        },
+      );
+    } else {
+      await moKhieuNai(page, maTachVaiTro);
+      await m.getByRole('button', { name: 'Tiếp nhận' }).click();
+      await expect(
+        m
+          .getByRole('alert')
+          .filter({ hasText: /không thể xử lý khiếu nại này vì đã tham gia thẩm định/ }),
+      ).toBeVisible();
+    }
 
-    // Ca phủ định tách vai trò: người đã thẩm định hồ sơ không được xử lý khiếu nại về hồ sơ đó
-    await moKhieuNai(page, 'KN-2026-0042');
+    // AC-07 tiếp nhận khiếu nại được giao (`acceptComplaint`)
+    if (HE_THONG) {
+      page = await s.trang(xuLy, '/oversight/complaints');
+      m = main(page);
+    }
+    await moKhieuNai(page, maTiepNhan);
     await m.getByRole('button', { name: 'Tiếp nhận' }).click();
     await expect(
-      m
-        .getByRole('alert')
-        .filter({ hasText: /không thể xử lý khiếu nại này vì đã tham gia thẩm định/ }),
+      m.getByRole('status').filter({ hasText: `Đã tiếp nhận khiếu nại ${maTiepNhan}.` }),
     ).toBeVisible();
 
-    await moKhieuNai(page, 'KN-2026-0045');
-    await m.getByRole('button', { name: 'Tiếp nhận' }).click();
-    await expect(
-      m.getByRole('status').filter({ hasText: 'Đã tiếp nhận khiếu nại KN-2026-0045.' }),
-    ).toBeVisible();
-
-    // Yêu cầu đơn vị liên quan giải trình (`requestComplaintExplanations`)
+    // Yêu cầu đơn vị liên quan giải trình (`requestComplaintExplanations`); trên hệ thống thật chọn quản lý
+    // đơn vị của cán bộ (`quanly`) nếu có trong danh sách để bước sau đăng nhập đúng bên giải trình
     await expect(m.getByRole('combobox', { name: /^Bên được yêu cầu giải trình/ })).toBeAttached();
     await m.getByText('Chọn người hoặc đơn vị').click();
-    await page.getByRole('listbox').getByRole('option').first().click();
+    const benGiaiTrinh = page.getByRole('listbox').getByRole('option');
+    const quanLy = benGiaiTrinh.filter({ hasText: /Quản Lý/ });
+    await ((await quanLy.count()) ? quanLy : benGiaiTrinh).first().click();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('listbox')).toBeHidden();
     await m.getByRole('textbox', { name: 'Nội dung yêu cầu' }).fill(SEED.khieuNai.yeuCauGiaiTrinh);
@@ -203,7 +245,7 @@ test.describe('QT-12 Khiếu nại và giải trình', { tag: '@qa-07' }, () => 
     // Bên giải trình gửi nội dung giải trình (`submitComplaintExplanation`)
     page = await s.trang('quanly', '/oversight/complaints');
     m = main(page);
-    await moKhieuNai(page, 'KN-2026-0044');
+    await moKhieuNai(page, maGiaiTrinh);
     await m
       .getByRole('textbox', { name: 'Nội dung giải trình của đồng chí' })
       .fill(SEED.khieuNai.giaiTrinh);
@@ -213,9 +255,9 @@ test.describe('QT-12 Khiếu nại và giải trình', { tag: '@qa-07' }, () => 
     ).toBeVisible();
 
     // Người xử lý ghi kết luận cho khiếu nại đã đủ giải trình (`saveComplaintConclusion`)
-    page = await s.trang('thamdinh', '/oversight/complaints');
+    page = await s.trang(xuLy, '/oversight/complaints');
     m = main(page);
-    await moKhieuNai(page, 'KN-2026-0040');
+    await moKhieuNai(page, maKetLuan);
     await chon(
       page,
       m.getByRole('combobox', { name: 'Kết quả xử lý (bắt buộc)' }),
@@ -225,23 +267,27 @@ test.describe('QT-12 Khiếu nại và giải trình', { tag: '@qa-07' }, () => 
     await m.getByRole('textbox', { name: 'Số văn bản trả lời' }).fill(SEED.ketLuan.soVanBan);
     await m.getByRole('button', { name: /^(Ghi|Cập nhật) kết luận$/ }).click();
     await expect(
-      m.getByRole('status').filter({ hasText: /^Đã ghi kết luận cho khiếu nại KN-2026-0040/ }),
+      m
+        .getByRole('status')
+        .filter({ hasText: new RegExp(`^Đã ghi kết luận cho khiếu nại ${maKetLuan}`) }),
     ).toBeVisible();
 
     // Người có thẩm quyền ký số văn bản trả lời (`respondComplaint`, xác thực nhiều lớp)
-    page = await s.trang('quyetdinh', '/oversight/complaints');
+    page = await s.trang(kyTraLoi, '/oversight/complaints');
     m = main(page);
-    await moKhieuNai(page, 'KN-2026-0040');
+    await moKhieuNai(page, maKetLuan);
     await m.getByRole('button', { name: 'Ký số và trả lời' }).click();
     await xacThucBuocLen(
       page,
-      'quyetdinh',
+      kyTraLoi,
       m
         .getByRole('status')
         .filter({ hasText: /^Đã ký số văn bản trả lời .* và gửi người khiếu nại\./ }),
-      true,
+      !HE_THONG,
     );
-    await expect(m.getByText('Đã trả lời').first()).toBeVisible();
-    await kiemSuKien('EVT-21', 'notify.message.requested.v1', 'KN-2026-0040', new Date());
+    await expect(m.getByText('Đã trả lời').first()).toBeVisible({
+      timeout: HE_THONG ? 30_000 : 5_000,
+    });
+    await kiemSuKien('EVT-21', 'notify.message.requested.v1', maKetLuan, new Date());
   });
 });
