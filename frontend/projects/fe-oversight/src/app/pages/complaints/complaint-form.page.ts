@@ -762,8 +762,15 @@ export class ComplaintFormPage {
     try {
       const fresh = !this.id();
       let c = await this.persist();
-      await firstValueFrom(this.api.submit(c));
+      const job = await firstValueFrom(this.api.settle(await firstValueFrom(this.api.submit(c))));
       c = await firstValueFrom(this.api.get(c.id));
+      if (job.status !== 'HOAN_TAT') {
+        this.current.set(c);
+        this.error.set(
+          job.message || 'Chưa ký số và gửi được khiếu nại, đồng chí vui lòng thử lại.',
+        );
+        return;
+      }
       // MSG-12-02
       const text = `Đã gửi khiếu nại ${c.code}. Kết quả hiện hành vẫn có hiệu lực cho tới khi có kết luận. Hạn trả lời: ${fmtDate(c.responseDeadline)}.`;
       if (fresh) {
