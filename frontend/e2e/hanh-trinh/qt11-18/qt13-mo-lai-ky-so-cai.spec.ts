@@ -90,6 +90,9 @@ test.describe('QT-13 Mở lại kỳ và sổ cái', { tag: '@qa-07' }, () => {
         );
     }
     await chon(page, ky.getByRole('combobox').first(), tenKy);
+    // Căn cứ nhập tay bằng số chỉ hợp lệ với "Quyết định hậu kiểm" (BasisRef QUYET_DINH cần `code`); các loại
+    // khác cần mã đối tượng trong MOD-07 (`id`), màn hình chỉ nhận qua đường dẫn từ khiếu nại, cảnh báo, hậu kiểm
+    if (HE_THONG) await chon(page, ky.locator('#rq-basis-kind'), 'Quyết định hậu kiểm');
     await ky.getByRole('textbox', { name: 'Mã hoặc số căn cứ' }).fill(SEED.moLai.canCu);
     // HT-34: hồ sơ chọn từ danh sách hồ sơ của kỳ vừa chọn (`listAppraisalProfiles`), gửi mã hồ sơ
     // UUID; không còn ô tự gõ mã. Giả lập: kỳ khoá đầu tiên là Quý II/2026, chọn hồ sơ Phạm Thị Lan (chưa

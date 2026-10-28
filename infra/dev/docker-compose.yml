@@ -830,6 +830,9 @@ services:
       ESIGN_URL: http://esign-service:8080
       MISSION_APPRAISAL_ESIGN_BASEURL: http://esign-service:8080
       MISSION_OVERSIGHT_ESIGN_BASEURL: http://esign-service:8080
+      # Tính thử ảnh hưởng khi mở lại kỳ (SCR-1301, simulateReopenRequest) gọi simulateAppraisalScore của SVC-07;
+      # thiếu thì mission-core không dựng bộ tính thử và trả 503 "Chưa tính thử được ảnh hưởng" (HT-34)
+      MISSION_OVERSIGHT_SCORING_BASEURL: http://scoring-service:8080
       # Mã hoá trường C2 (nhận xét nghiệm thu, tự đánh giá) bọc DEK qua OpenBao Transit; thiếu cấu hình thì
       # "Yêu cầu bổ sung" minh chứng trả 500 (QA-05 HT-21). KEK mỗi tenant tự tạo ở dev.
       OKRKPI_CRYPTO_OPENBAOBASEURL: http://openbao:8200
