@@ -77,7 +77,15 @@ function stepUpRequired(): MockResponse {
 const invalid = (field: string, message: string) =>
   problem(422, 'Dữ liệu không hợp lệ', { errors: [{ field, message }] });
 
-const conflict = (code: string, title: string) => problem(409, title, { code });
+/** 409 như `ProblemTypes` của mission-core: tiêu đề chung, lời giải thích nghiệp vụ ở `detail`, kèm `code`. */
+const conflict = (code: string, detail: string) =>
+  problem(409, 'Xung đột dữ liệu', { type: 'https://okrkpi.vn/problems/conflict', code, detail });
+
+/** Yêu cầu còn hiệu lực như `ReopenRequest.active()`: chờ duyệt, đã duyệt, đã mở lại mà kỳ chưa khoá lại. */
+const active = (r: ReopenRequest) =>
+  REOPEN_PENDING_STATUSES.includes(r.status) ||
+  r.status === 'DA_DUYET' ||
+  (r.status === 'DA_THUC_HIEN' && !r.relockedAt);
 
 const out = (r: ReopenRequest) => ok(structuredClone(r), etag(r.rowVersion));
 
@@ -172,24 +180,22 @@ function create(req: MockRequest): MockResponse {
   )
     return invalid('basis', 'Chọn căn cứ mở lại.');
   if (info.status !== 'DA_KHOA')
-    return conflict(
-      'OVERSIGHT-409-PERIOD-NOT-LOCKED',
-      `Kỳ ${info.ref.label} chưa khoá nên không cần mở lại.`,
-    );
+    return conflict('OVERSIGHT-409-PERIOD-NOT-LOCKED', 'Chỉ lập yêu cầu mở lại cho kỳ đã khoá.');
   if (basis.kind !== 'QUYET_DINH' && basisPeriodOf(basis.kind, basis.id!) !== info.ref.id)
     return invalid('basis', 'Không tìm thấy căn cứ trong kỳ đã chọn.');
+  // như `ReopenRequest.overlaps()`: một bên toàn kỳ, hoặc cùng loại phạm vi có mã chung
   const overlap = store.find(
     (r) =>
       r.period.id === info.ref.id &&
-      REOPEN_PENDING_STATUSES.includes(r.status) &&
+      active(r) &&
       (r.scope === 'TOAN_KY' ||
         b.scope === 'TOAN_KY' ||
-        r.scopeIds?.some((id) => b.scopeIds!.includes(id))),
+        (r.scope === b.scope && !!r.scopeIds?.some((id) => b.scopeIds!.includes(id)))),
   );
   if (overlap)
     return conflict(
       'OVERSIGHT-409-INVALID-STATE',
-      `Đã có yêu cầu ${overlap.code} đang chờ duyệt cho cùng phạm vi.`,
+      'Đã có yêu cầu mở lại đang xử lý cho cùng phạm vi của kỳ này.',
     );
   const P = REOPEN_PEOPLE;
   const r: ReopenRequest = {

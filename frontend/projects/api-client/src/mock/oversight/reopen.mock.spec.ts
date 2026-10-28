@@ -94,7 +94,13 @@ describe('mock oversight – SCR-1301 mở lại kỳ (WEB-043)', () => {
     expect(r.code).toMatch(/^MLK-\d{4}-\d{3}$/);
     expect(r.approvers?.map((s) => s.role)).toEqual(['decider', 'second_approver']);
     const dup = await errorOf(firstValueFrom(api.create(INPUT)));
-    expect(dup.error.code).toBe('OVERSIGHT-409-INVALID-STATE');
+    // như mission-core: tiêu đề chung, lời giải thích ở `detail`
+    expect(dup.status).toBe(409);
+    expect(dup.error).toMatchObject({
+      title: 'Xung đột dữ liệu',
+      code: 'OVERSIGHT-409-INVALID-STATE',
+      detail: 'Đã có yêu cầu mở lại đang xử lý cho cùng phạm vi của kỳ này.',
+    });
   });
 
   it('căn cứ như máy chủ: khiếu nại, cảnh báo, đợt hậu kiểm cần mã đối tượng của kỳ; quyết định cần số', async () => {

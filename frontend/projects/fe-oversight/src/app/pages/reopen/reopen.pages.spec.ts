@@ -272,6 +272,20 @@ describe('ReopenCreatePage (SCR-1301)', () => {
     expect(nav).toHaveBeenCalled();
   });
 
+  it('YC-PT-26: trùng phạm vi với yêu cầu đang xử lý (409) hiện lời giải thích của máy chủ', async () => {
+    const el = await render(ReopenCreatePage);
+    const page = instance as CreatePageView;
+    page.setPeriod('p-2026q1');
+    page.addTarget(BINH_Q1);
+    type(el, '#rq-basis-code', '15-QĐ/UBKT');
+    await submitAndCapture(el);
+    // lần hai cùng hồ sơ: máy chủ (giả lập) trả 409 OVERSIGHT-409-INVALID-STATE
+    await press(el, 'Tạo yêu cầu');
+    const err = await until(el, 'p-message', has('Đã có yêu cầu mở lại đang xử lý'));
+    expect(text(err)).toBe('Đã có yêu cầu mở lại đang xử lý cho cùng phạm vi của kỳ này.');
+    expect(text(el)).not.toContain('Xung đột dữ liệu');
+  });
+
   it('mở thẳng trang, căn cứ khiếu nại: chọn khiếu nại đã có kết luận của kỳ, gửi mã khiếu nại', async () => {
     const el = await render(ReopenCreatePage);
     const page = instance as CreatePageView;
