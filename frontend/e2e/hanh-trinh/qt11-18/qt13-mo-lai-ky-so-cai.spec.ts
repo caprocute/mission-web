@@ -1,6 +1,6 @@
 import { Page, expect, test } from '@playwright/test';
 import { batCaoTuoi, chiHeThong, chon, xacThucBuocLen, kiemAxeOnDinh } from '../ho-tro/kiem-tra';
-import { HE_THONG } from '../ho-tro/moi-truong';
+import { HE_THONG, cho } from '../ho-tro/moi-truong';
 import { Phien, main, TenTaiKhoan } from '../ho-tro/phien';
 import { SEED, api, kiemMoiTruong, kiemSuKien, maTuDuongDan, timHoacCho } from './chung';
 
@@ -64,7 +64,32 @@ test.describe('QT-13 Mở lại kỳ và sổ cái', { tag: '@qa-07' }, () => {
     await m.getByRole('link', { name: 'Tạo yêu cầu mở lại kỳ' }).click();
     await expect(m.getByRole('heading', { level: 1, name: 'Tạo yêu cầu mở lại kỳ' })).toBeVisible();
     const ky = m.getByRole('group', { name: 'Kỳ và căn cứ' });
-    await chon(page, ky.getByRole('combobox').first());
+    // Hệ thống thật: chọn kỳ đã khoá có hồ sơ đã chốt trong phạm vi người lập (ô hồ sơ chỉ liệt kê hồ sơ đã
+    // quyết định, đã ký, đã khoá hoặc đang khiếu nại); kỳ khoá đầu danh sách có thể chỉ còn hồ sơ đang tự đánh giá
+    let tenKy: string | undefined;
+    if (HE_THONG) {
+      const a = await api(s, NGUOI_TAO);
+      try {
+        for (const st of ['DA_KY_SO', 'DA_KHOA', 'DA_QUYET_DINH', 'KHIEU_NAI']) {
+          const r = await a.can<{ items: { period?: { label?: string } }[] }>(
+            'GET',
+            'appraisals/profiles',
+            {
+              query: { status: st, limit: '20' },
+            },
+          );
+          tenKy = r.body.items.find((x) => x.period?.label)?.period?.label;
+          if (tenKy) break;
+        }
+      } finally {
+        await a.dong();
+      }
+      if (!tenKy)
+        cho(
+          `kỳ đã khoá có hồ sơ đã chốt trong phạm vi ${NGUOI_TAO}: chạy HT-25..27 (seed-e2e-hanh-trinh.py ho-so) trước`,
+        );
+    }
+    await chon(page, ky.getByRole('combobox').first(), tenKy);
     await ky.getByRole('textbox', { name: 'Mã hoặc số căn cứ' }).fill(SEED.moLai.canCu);
     // HT-34: hồ sơ chọn từ danh sách hồ sơ của kỳ vừa chọn (`listAppraisalProfiles`), gửi mã hồ sơ
     // UUID; không còn ô tự gõ mã. Giả lập: kỳ khoá đầu tiên là Quý II/2026, chọn hồ sơ Phạm Thị Lan (chưa
