@@ -1,6 +1,6 @@
 import { Page, expect, test } from '@playwright/test';
 import { batCaoTuoi, chiHeThong, chon, xacThucBuocLen, kiemAxeOnDinh } from '../ho-tro/kiem-tra';
-import { HE_THONG, cho } from '../ho-tro/moi-truong';
+import { HE_THONG } from '../ho-tro/moi-truong';
 import { Phien, main } from '../ho-tro/phien';
 import { SEED, api, kiemMoiTruong, kiemSuKien, maTuDuongDan, timHoacCho } from './chung';
 
