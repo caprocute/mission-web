@@ -71,14 +71,26 @@ test.describe('QT-13 Mở lại kỳ và sổ cái', { tag: '@qa-07' }, () => {
       const a = await api(s, NGUOI_TAO);
       try {
         for (const st of ['DA_KY_SO', 'DA_KHOA', 'DA_QUYET_DINH', 'KHIEU_NAI']) {
-          const r = await a.can<{ items: { period?: { label?: string } }[] }>(
+          const r = await a.can<{ items: { period?: { id?: string; label?: string } }[] }>(
             'GET',
             'appraisals/profiles',
-            {
-              query: { status: st, limit: '20' },
-            },
+            { query: { status: st, limit: '20' } },
           );
-          tenKy = r.body.items.find((x) => x.period?.label)?.period?.label;
+          const p = r.body.items.find((x) => x.period?.label)?.period;
+          tenKy = p?.label;
+          if (p?.id) {
+            // Yêu cầu do lần chạy trước tạo (lý do mang tiền tố E2E-) còn đang xử lý thì máy chủ từ chối yêu cầu
+            // mới cùng phạm vi (OVERSIGHT-409-INVALID-STATE): huỷ các yêu cầu đó trước
+            const ds = await a.can<{
+              items: { id: string; reason?: string; rowVersion?: number }[];
+            }>('GET', 'oversight/reopen-requests', { query: { period: p.id, limit: '200' } });
+            for (const y of ds.body.items.filter((x) => x.reason?.startsWith('E2E-'))) {
+              await a.goi('POST', `oversight/reopen-requests/${y.id}/cancel`, {
+                ifMatch: `"${y.rowVersion ?? 0}"`,
+                body: { reason: 'Huỷ yêu cầu thử của lần chạy trước.' },
+              });
+            }
+          }
           if (tenKy) break;
         }
       } finally {
