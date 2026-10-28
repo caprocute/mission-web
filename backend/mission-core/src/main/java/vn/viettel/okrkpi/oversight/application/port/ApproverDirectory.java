@@ -28,4 +28,9 @@ public interface ApproverDirectory {
    */
   Set<UUID> participants(
       TenantId tenant, UUID periodId, Collection<UUID> profileIds, Collection<UUID> unitIds);
+
+  /** Đơn vị của các hồ sơ đánh giá (thứ tự như {@code profileIds}, bỏ hồ sơ không tìm thấy). */
+  default List<UUID> unitsOfProfiles(TenantId tenant, Collection<UUID> profileIds) {
+    return List.of();
+  }
 }

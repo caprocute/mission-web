@@ -61,4 +61,19 @@ public class ModuleApproverDirectory implements ApproverDirectory {
     }
     return out;
   }
+
+  @Override
+  public List<UUID> unitsOfProfiles(TenantId tenant, Collection<UUID> profileIds) {
+    if (participants == null || profileIds.isEmpty()) {
+      return List.of();
+    }
+    var subjects = participants.subjectsOf(tenant, profileIds);
+    return profileIds.stream()
+        .map(subjects::get)
+        .filter(Objects::nonNull)
+        .map(ProfileParticipantsApi.ProfileSubject::unitId)
+        .filter(Objects::nonNull)
+        .distinct()
+        .toList();
+  }
 }

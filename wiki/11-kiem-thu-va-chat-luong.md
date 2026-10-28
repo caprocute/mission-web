@@ -228,6 +228,7 @@ Tài khoản thử khớp realm dev `mission` (`infra/dev/keycloak/realm-mission
 | AC-06 | `member` | `canbo` | Phòng Tổng hợp |
 | AC-07 | `appraiser` | `thamdinh` | Ban Tổ chức |
 | AC-08 | `decider` | `quyetdinh` | Ban Tổ chức |
+| AC-08 | `decider` | `quyetdinh2` | Ban Tổ chức (người quyết định thứ hai: duyệt lượt một yêu cầu mở lại kỳ khi `quyetdinh` đã quyết định hồ sơ trong phạm vi, bốn mắt BR-13-02, BR-13-03) |
 | AC-09 | `second_approver` | `duyet2` | Ban Tổ chức |
 | AC-10 | `inspector` | `kiemtra` | Uỷ ban Kiểm tra |
 

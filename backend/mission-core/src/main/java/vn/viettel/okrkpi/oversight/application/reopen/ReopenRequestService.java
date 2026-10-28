@@ -344,6 +344,13 @@ public class ReopenRequestService {
     if (scopedTo != null) {
       requireWithin(tenant, scopedTo, d, units);
     }
+    if (d.scope() == ReopenScope.HO_SO && approval != null) {
+      // Thiếu đơn vị thì không chọn được người duyệt (không còn đơn vị gốc) và yêu cầu treo ở lượt
+      // 1.
+      Set<UUID> all = new LinkedHashSet<>(units);
+      all.addAll(approval.unitsOfProfiles(tenant, d.scopeIds()));
+      units = List.copyOf(all);
+    }
     for (ReopenRequest other : requests.ofPeriod(tenant, d.periodId())) {
       if (other.active() && other.overlaps(d.scope(), d.scopeIds())) {
         throw new BusinessException(

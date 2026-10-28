@@ -6,6 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -102,11 +103,11 @@ public class ReopenApprovalService {
    */
   public ReopenRequest assign(TenantId tenant, ReopenRequest r) {
     Set<UUID> excluded = new HashSet<>(excludedFor(tenant, r));
-    UUID first = pick(tenant, ReopenWorkflow.DECIDER, base(r), excluded);
+    UUID first = pick(tenant, ReopenWorkflow.DECIDER, base(tenant, r), excluded);
     if (first != null) {
       excluded.add(first);
     }
-    UUID second = pick(tenant, ReopenWorkflow.SECOND_APPROVER, base(r), excluded);
+    UUID second = pick(tenant, ReopenWorkflow.SECOND_APPROVER, base(tenant, r), excluded);
     ReopenWorkflow wf = r.workflow().assign(1, first).assign(2, second);
     ReopenRequest assigned =
         r.with(r.status(), r.executedAt(), r.cancelReason(), wf, r.rowVersion());
@@ -114,6 +115,14 @@ public class ReopenApprovalService {
       notices.approvalRequested(tenant, first, assigned, 1);
     }
     return assigned;
+  }
+
+  /**
+   * Đơn vị của các hồ sơ trong phạm vi {@code HO_SO}: người lập thường chỉ nêu hồ sơ, không nêu đơn
+   * vị, nên đơn vị gốc để tìm người duyệt và phạm vi xem lấy từ hồ sơ.
+   */
+  public List<UUID> unitsOfProfiles(TenantId tenant, Collection<UUID> profileIds) {
+    return directory.unitsOfProfiles(tenant, profileIds);
   }
 
   /**
@@ -406,10 +415,10 @@ public class ReopenApprovalService {
       if (other != null) {
         others.add(other);
       }
-      assignee = pick(tenant, role, base(r), others);
+      assignee = pick(tenant, role, base(tenant, r), others);
       wf = wf.assign(round, assignee);
     }
-    if (!me.equals(assignee) || !holdsFor(tenant, role, base(r), me)) {
+    if (!me.equals(assignee) || !holdsFor(tenant, role, base(tenant, r), me)) {
       throw fourEyes("Bạn không phải người được chỉ định duyệt lượt này.");
     }
     return wf;
@@ -431,9 +440,22 @@ public class ReopenApprovalService {
     return out;
   }
 
-  /** Đơn vị gốc để tìm người duyệt: đơn vị đầu tiên của phạm vi, nếu không có thì của người lập. */
-  private static UUID base(ReopenRequest r) {
-    return r.units().isEmpty() ? r.workflow().requesterUnit() : r.units().get(0);
+  /**
+   * Đơn vị gốc để tìm người duyệt: đơn vị đầu tiên của phạm vi, nếu không có thì của người lập, rồi
+   * của hồ sơ đầu tiên trong phạm vi (yêu cầu lập trước khi lưu đơn vị của hồ sơ).
+   */
+  private UUID base(TenantId tenant, ReopenRequest r) {
+    if (!r.units().isEmpty()) {
+      return r.units().get(0);
+    }
+    if (r.workflow().requesterUnit() != null) {
+      return r.workflow().requesterUnit();
+    }
+    if (r.scope() != ReopenScope.HO_SO) {
+      return null;
+    }
+    List<UUID> units = directory.unitsOfProfiles(tenant, r.scopeIds());
+    return units.isEmpty() ? null : units.get(0);
   }
 
   private List<UUID> chain(TenantId tenant, UUID base) {

@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -195,6 +196,21 @@ class ReopenApprovalServiceTest {
     assertThat(r.workflow().assignee(2)).isEqualTo(second);
     assertThat(notices).containsExactly("can-duyet:1:" + decider);
     assertThat(directory.lastUnits).containsExactly(unit);
+  }
+
+  @Test
+  void hoSoKhongNeuDonViThiTimNguoiDuyetTheoDonViCuaHoSo() {
+    // Thanh tra lập yêu cầu theo hồ sơ: không có đơn vị trong phạm vi, cũng không có đơn vị người
+    // lập.
+    directory.profileUnits.put(profile, unit);
+    ReopenRequest draft = request(ReopenScope.HO_SO, List.of(profile), List.of());
+    draft = draft.with(draft.status(), null, null, ReopenWorkflow.empty(null), 0);
+
+    ReopenRequest r = service.assign(T, draft);
+
+    assertThat(r.workflow().assignee(1)).isEqualTo(decider);
+    assertThat(r.workflow().assignee(2)).isEqualTo(second);
+    assertThat(notices).containsExactly("can-duyet:1:" + decider);
   }
 
   @Test
@@ -488,6 +504,7 @@ class ReopenApprovalServiceTest {
     final Map<String, List<UUID>> holders = new HashMap<>();
     final Map<UUID, List<UUID>> ancestors = new HashMap<>();
     final Set<UUID> participants = new HashSet<>();
+    final Map<UUID, UUID> profileUnits = new HashMap<>();
     Collection<UUID> lastProfiles;
     Collection<UUID> lastUnits;
 
@@ -511,6 +528,11 @@ class ReopenApprovalServiceTest {
       lastProfiles = profileIds;
       lastUnits = unitIds;
       return participants;
+    }
+
+    @Override
+    public List<UUID> unitsOfProfiles(TenantId tenant, Collection<UUID> profileIds) {
+      return profileIds.stream().map(profileUnits::get).filter(Objects::nonNull).toList();
     }
   }
 
