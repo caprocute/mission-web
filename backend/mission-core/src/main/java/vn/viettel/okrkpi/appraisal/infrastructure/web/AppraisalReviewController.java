@@ -143,7 +143,11 @@ public class AppraisalReviewController {
         filter(period, flow, unit, statuses(status), includeSubunits, subjectGroup, q);
     List<QueueItem> rows =
         service.queue(
-            tenant, filter, scope(filter), SelfAssessmentController.decodeCursor(cursor), size + 1);
+            tenant,
+            filter,
+            scope(filter, listAction(filter)),
+            SelfAssessmentController.decodeCursor(cursor),
+            size + 1);
     boolean more = rows.size() > size;
     List<QueueItem> page = more ? rows.subList(0, size) : rows;
     Map<UUID, PeriodRef> refs = new LinkedHashMap<>();
@@ -299,7 +303,7 @@ public class AppraisalReviewController {
             Boolean.TRUE,
             null,
             null);
-    String jobId = exports.export(tenant, filter, scope(filter), actor());
+    String jobId = exports.export(tenant, filter, scope(filter, queueAction(filter)), actor());
     return Jobs.accepted(
         Job.accepted(jobId, "APPRAISAL_EXPORT", OffsetDateTime.now(ZoneOffset.UTC)));
   }
@@ -340,7 +344,7 @@ public class AppraisalReviewController {
    * Phạm vi ABAC của người gọi dịch sang SQL bằng đánh giá từng phần của OPA. Không có OPA (môi
    * trường phát triển tắt kiểm quyền) thì chỉ thấy hồ sơ của đơn vị phân công đang chọn.
    */
-  private Scope scope(QueueFilter filter) {
+  private Scope scope(QueueFilter filter, String action) {
     OpaInput.Subject subject = subject();
     OpaSqlFilter opa = filters.getIfAvailable();
     if (opa == null) {
@@ -361,7 +365,7 @@ public class AppraisalReviewController {
             .mapString("status", "p.status")
             .build();
     try {
-      SqlPredicate predicate = opa.buildPredicate(subject, listAction(filter), mapping);
+      SqlPredicate predicate = opa.buildPredicate(subject, action, mapping);
       return new Scope(predicate.sql(), predicate.params());
     } catch (UntranslatablePolicyException e) {
       throw new BusinessException(
@@ -370,10 +374,35 @@ public class AppraisalReviewController {
   }
 
   /**
+   * Trạng thái hồ sơ đã chốt mà SCR-1301 (tạo yêu cầu mở lại kỳ) được liệt kê: thanh tra xem tên,
+   * đơn vị, điểm, mức của các hồ sơ này trong toàn tenant (YC-PT-09, chủ dự án duyệt 28/10/2026).
+   */
+  static final Set<String> REOPEN_STATUSES =
+      Set.of(
+          AppraisalStatus.DA_QUYET_DINH.name(),
+          AppraisalStatus.DA_KY_SO.name(),
+          AppraisalStatus.DA_KHOA.name(),
+          AppraisalStatus.KHIEU_NAI.name());
+
+  /**
+   * Chức năng của ma trận cho danh sách {@code listAppraisalProfiles}: bộ lọc chỉ gồm trạng thái đã
+   * chốt là SCR-1301.tao (appraiser giữ phạm vi Cd, inspector toàn tenant); còn lại như {@link
+   * #queueAction}. Xuất tệp không đi qua nhánh SCR-1301.
+   */
+  static String listAction(QueueFilter filter) {
+    if (filter.statuses() != null
+        && !filter.statuses().isEmpty()
+        && REOPEN_STATUSES.containsAll(filter.statuses())) {
+      return "SCR-1301.tao";
+    }
+    return queueAction(filter);
+  }
+
+  /**
    * Chức năng xem của ma trận theo màn hình: chờ quyết định là SCR-0904, đã thẩm định chờ đề xuất
    * là SCR-0903, còn lại là hàng đợi thẩm định SCR-0902.
    */
-  static String listAction(QueueFilter filter) {
+  static String queueAction(QueueFilter filter) {
     if (filter.statuses().equals(Set.of(AppraisalStatus.CHO_QUYET_DINH.name()))) {
       return "SCR-0904.xem";
     }

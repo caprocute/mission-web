@@ -767,3 +767,20 @@ test_custom_role_inherits_aal2_of_base if {
 	d2 := decide_custom(user(["tc_t1_quan_tri"]), "SCR-0108.xem", {"owner_unit_id": "u1"})
 	d2.allow == true
 }
+
+# ------------------------------------------------------------------ Danh sách hồ sơ đã chốt cho SCR-1301 (YC-PT-09)
+
+# listAppraisalProfiles chỉ với trạng thái đã chốt lọc dòng theo SCR-1301.tao: thanh tra thấy hồ sơ của mọi
+# đơn vị trong tenant, người thẩm định giữ phạm vi Cd; hàng đợi thẩm định SCR-0902.xem vẫn chặn thanh tra.
+test_inspector_lists_locked_profiles_tenant_wide if {
+	s := user(["inspector"])
+	decide(s, "SCR-1301.tao", {"owner_unit_id": "u2", "status": "DA_KHOA"}).allow
+	not decide(s, "SCR-0902.xem", {"owner_unit_id": "u1", "status": "CHO_THAM_DINH"}).allow
+	not decide(user(["appraiser"]), "SCR-1301.tao", {"owner_unit_id": "u2", "status": "DA_KHOA"}).allow
+	decide(user(["appraiser"]), "SCR-1301.tao", {"owner_unit_id": "u11", "status": "DA_KHOA"}).allow
+}
+
+test_inspector_other_tenant_denied_for_reopen_list if {
+	s := object.union(user(["inspector"]), {"tenant_id": "t2"})
+	not decide(s, "SCR-1301.tao", {"owner_unit_id": "u1"}).allow
+}

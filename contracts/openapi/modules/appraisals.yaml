@@ -127,6 +127,9 @@ paths:
         hồ sơ chờ quyết định (SCR-0904, `status=CHO_QUYET_DINH`) trong phạm vi ABAC cây tổ chức của
         người gọi. Mỗi dòng có bốn mức đã đưa ra và gợi ý bất thường (dấu hiệu số 1 của QT-14) để
         người dùng không phải mở từng hồ sơ. Phân bố mức trên SCR-0904 tính ở client từ danh sách.
+        Bộ lọc chỉ gồm trạng thái đã chốt (`DA_QUYET_DINH`, `DA_KY_SO`, `DA_KHOA`, `KHIEU_NAI`) lọc
+        dòng theo chức năng SCR-1301.tao: thanh tra xem toàn tenant để chọn hồ sơ khi tạo yêu cầu mở
+        lại kỳ (YC-PT-09); trạng thái khác vẫn chỉ cho người thẩm định, người quyết định.
       parameters:
         - $ref: '../common/common.yaml#/components/parameters/PeriodId'
         - $ref: '#/components/parameters/FlowQuery'
@@ -165,11 +168,11 @@ paths:
         '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
         default: { $ref: '../common/common.yaml#/components/responses/Problem' }
       x-mission:
-        qt: [QT-09]
-        scr: [SCR-0902, SCR-0904]
+        qt: [QT-09, QT-13]
+        scr: [SCR-0902, SCR-0904, SCR-1301]
         owner: MOD-04
-        roles: [appraiser, decider]
-        scope: Cd
+        roles: [appraiser, decider, inspector]
+        scope: 'Cd (appraiser, decider); Tn (inspector, chỉ trạng thái đã chốt DA_QUYET_DINH, DA_KY_SO, DA_KHOA, KHIEU_NAI cho SCR-1301)'
         rules: [BR-09-14]
         source: TL-02b SCR-0902 trường 1–2; SCR-0904 trường 1–3, 5; TL-02b part-06 bảng liên kết; TL-03 appraisal_profile.subject_group_id, policy_pack_version_id
 
