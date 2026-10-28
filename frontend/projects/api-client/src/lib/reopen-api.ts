@@ -4,6 +4,7 @@ import { Observable, map } from 'rxjs';
 import { apiUrl } from '@vt/api-client';
 import {
   ComplaintAdjustment,
+  PostAudit,
   ReopenImpact,
   ReopenRequest,
   ReopenRequestFilter,
@@ -30,6 +31,17 @@ export class ReopenApi {
     if (filter.awaitingMyApproval) params = params.set('awaitingMyApproval', true);
     return this.http
       .get<CursorPage<ReopenRequest>>(apiUrl('/oversight/reopen-requests'), { params })
+      .pipe(map((p) => p.items));
+  }
+
+  /**
+   * Đợt hậu kiểm của kỳ (`listPostAudits`, appraiser trong phạm vi Cd, inspector toàn tenant), để chọn
+   * căn cứ `HAU_KIEM` ở SCR-1301. Một trang tối đa 200 đợt, mới mở trước.
+   */
+  postAudits(periodId: string): Observable<PostAudit[]> {
+    const params = new HttpParams().set('limit', MAX_PAGE_LIMIT).set('period', periodId);
+    return this.http
+      .get<CursorPage<PostAudit>>(apiUrl('/oversight/post-audits'), { params })
       .pipe(map((p) => p.items));
   }
 

@@ -19,6 +19,10 @@ export type ReopenApproverSlot = S['ReopenApproverSlot'];
 export type ReopenRequest = S['ReopenRequest'];
 export type ReopenImpact = S['ReopenImpact'];
 export type ComplaintAdjustment = S['ComplaintAdjustment'];
+/** Đợt hậu kiểm (`oversight.post_audit`), căn cứ loại `HAU_KIEM` của yêu cầu mở lại kỳ. */
+export type PostAudit = S['PostAudit'];
+export type PostAuditKind = S['PostAuditKind'];
+export type PostAuditConclusion = S['PostAuditConclusion'];
 
 export interface ReopenRequestFilter {
   periodId?: string;
@@ -54,6 +58,30 @@ export const REOPEN_SCOPE_LABEL: Record<ReopenScope, string> = {
   HO_SO: 'Danh sách hồ sơ cụ thể',
   DON_VI: 'Đơn vị',
   TOAN_KY: 'Toàn kỳ (cần quyết định hậu kiểm toàn diện)',
+};
+
+/**
+ * Căn cứ cần mã đối tượng trong MOD-07 (`basis.id`: khiếu nại, cảnh báo, đợt hậu kiểm của kỳ đã chọn);
+ * quyết định hậu kiểm ngoài hệ thống chỉ cần số quyết định (`basis.code`). Như `ReopenBasis.complete()`
+ * của mission-core: thiếu thì 422 trường `basis`.
+ */
+export const REOPEN_BASIS_NEEDS_OBJECT: Record<ReopenBasisKind, boolean> = {
+  KHIEU_NAI: true,
+  CANH_BAO: true,
+  HAU_KIEM: true,
+  QUYET_DINH: false,
+};
+
+export const POST_AUDIT_KIND_LABEL: Record<PostAuditKind, string> = {
+  THEO_KE_HOACH: 'Theo kế hoạch',
+  DOT_XUAT: 'Đột xuất',
+  THEO_PHAN_ANH: 'Theo phản ánh',
+};
+
+export const POST_AUDIT_CONCLUSION_LABEL: Record<PostAuditConclusion, string> = {
+  KHONG_SAI_LECH: 'Không sai lệch',
+  HUY_KET_QUA: 'Huỷ kết quả',
+  DANH_GIA_LAI: 'Đánh giá lại',
 };
 
 export const REOPEN_BASIS_LABEL: Record<ReopenBasisKind, string> = {

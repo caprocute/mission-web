@@ -48,7 +48,7 @@ const INPUT: ReopenRequestInput = {
   openWorkingDays: 3,
   reason:
     'Thi hành kết luận khiếu nại KN-2026-0040: điều chỉnh hệ số C của nhiệm vụ thường xuyên 4 do lỗi lịch nghỉ lễ.',
-  basis: { kind: 'KHIEU_NAI', code: 'KN-2026-0040' },
+  basis: { kind: 'KHIEU_NAI', id: 'kn-2026-0040', code: 'KN-2026-0040' },
 };
 
 describe('mock oversight – SCR-1301 mở lại kỳ (WEB-043)', () => {
@@ -94,7 +94,69 @@ describe('mock oversight – SCR-1301 mở lại kỳ (WEB-043)', () => {
     expect(r.code).toMatch(/^MLK-\d{4}-\d{3}$/);
     expect(r.approvers?.map((s) => s.role)).toEqual(['decider', 'second_approver']);
     const dup = await errorOf(firstValueFrom(api.create(INPUT)));
-    expect(dup.error.code).toBe('OVERSIGHT-409-INVALID-STATE');
+    // như mission-core: tiêu đề chung, lời giải thích ở `detail`
+    expect(dup.status).toBe(409);
+    expect(dup.error).toMatchObject({
+      title: 'Xung đột dữ liệu',
+      code: 'OVERSIGHT-409-INVALID-STATE',
+      detail: 'Đã có yêu cầu mở lại đang xử lý cho cùng phạm vi của kỳ này.',
+    });
+  });
+
+  it('căn cứ như máy chủ: khiếu nại, cảnh báo, đợt hậu kiểm cần mã đối tượng của kỳ; quyết định cần số', async () => {
+    const api = setup();
+    mockStepUp();
+    const field = async (basis: ReopenRequestInput['basis']) => {
+      const e = await errorOf(firstValueFrom(api.create({ ...INPUT, basis })));
+      return [e.status, e.error.errors?.[0]?.field, e.error.errors?.[0]?.message];
+    };
+    // chỉ có mã hiển thị, thiếu mã đối tượng: 422 "Chọn căn cứ mở lại." như ReopenBasis.complete()
+    expect(await field({ kind: 'KHIEU_NAI', code: 'KN-2026-0040' })).toEqual([
+      422,
+      'basis',
+      'Chọn căn cứ mở lại.',
+    ]);
+    expect(await field({ kind: 'CANH_BAO', code: 'CB-2026-0120' })).toEqual([
+      422,
+      'basis',
+      'Chọn căn cứ mở lại.',
+    ]);
+    expect(await field({ kind: 'QUYET_DINH' })).toEqual([422, 'basis', 'Chọn căn cứ mở lại.']);
+    // đối tượng của kỳ khác: 422 như basisExists
+    expect(await field({ kind: 'KHIEU_NAI', id: 'kn-2026-0031' })).toEqual([
+      422,
+      'basis',
+      'Không tìm thấy căn cứ trong kỳ đã chọn.',
+    ]);
+    expect(await field({ kind: 'HAU_KIEM', id: 'hk-2026q2-01' })).toEqual([
+      422,
+      'basis',
+      'Không tìm thấy căn cứ trong kỳ đã chọn.',
+    ]);
+    const byAudit = await firstValueFrom(
+      api.create({ ...INPUT, basis: { kind: 'HAU_KIEM', id: 'hk-2026q1-01' } }),
+    );
+    expect(byAudit.basis).toEqual({ kind: 'HAU_KIEM', id: 'hk-2026q1-01' });
+    // quyết định hậu kiểm chỉ cần số, được chọn toàn kỳ; Quý I còn MLK-2026-008 chờ duyệt nên trùng phạm vi
+    const whole = await errorOf(
+      firstValueFrom(
+        api.create({
+          ...INPUT,
+          scope: 'TOAN_KY',
+          scopeIds: [],
+          scopeDetail: { items: [{ table: 'product.acceptance', fields: ['c_factor'] }] },
+          basis: { kind: 'QUYET_DINH', code: '15-QĐ/UBKT' },
+        }),
+      ),
+    );
+    expect(whole.error.code).toBe('OVERSIGHT-409-INVALID-STATE');
+  });
+
+  it('đợt hậu kiểm theo kỳ (nguồn ô chọn căn cứ "Đợt hậu kiểm" ở SCR-1301)', async () => {
+    const api = setup();
+    const q2 = await firstValueFrom(api.postAudits('p-2026q2'));
+    expect(q2.map((a) => a.basis)).toEqual(['QĐ 12-QĐ/UBKT ngày 05/08/2026']);
+    expect((await firstValueFrom(api.postAudits('p-2026q3'))).length).toBe(0);
   });
 
   it('HT-34: mã hồ sơ không phải UUID bị từ chối 400 như máy chủ, kể cả trước step-up', async () => {

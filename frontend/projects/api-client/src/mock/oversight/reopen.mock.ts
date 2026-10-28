@@ -1,6 +1,8 @@
 import {
   REOPEN_LIMITS,
   REOPEN_PENDING_STATUSES,
+  PostAudit,
+  REOPEN_BASIS_NEEDS_OBJECT,
   ReopenApproverSlot,
   ReopenImpact,
   ReopenRequest,
@@ -10,12 +12,20 @@ import {
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 import { mockSession } from '../mock-session';
 import { mockPeriodInfo } from '../periods/periods.mock';
-import { linkComplaintReopen } from './complaints.mock';
-import { IMPACT_007, PROFILE_NAMES, REOPEN_PEOPLE, reopenFixtures } from './reopen.fixture';
+import { alertPeriodOf } from './alerts.mock';
+import { complaintPeriodOf, linkComplaintReopen } from './complaints.mock';
+import {
+  IMPACT_007,
+  PROFILE_NAMES,
+  REOPEN_PEOPLE,
+  postAuditFixtures,
+  reopenFixtures,
+} from './reopen.fixture';
 
 /**
  * Giả lập yêu cầu mở lại kỳ của MOD-07 (QT-13, SCR-1301, WEB-043) theo `contracts/openapi/modules/oversight.yaml`.
- * Kiểm: kỳ phải `DA_KHOA` (409 `OVERSIGHT-409-PERIOD-NOT-LOCKED`), một yêu cầu đang chờ cho cùng hồ sơ
+ * Kiểm: căn cứ như `ReopenBasis.complete()` của mission-core (khiếu nại, cảnh báo, đợt hậu kiểm cần
+ * `basis.id` thuộc kỳ đã chọn, quyết định hậu kiểm cần `basis.code`; thiếu thì 422 trường `basis`), kỳ phải `DA_KHOA` (409 `OVERSIGHT-409-PERIOD-NOT-LOCKED`), một yêu cầu đang chờ cho cùng hồ sơ
  * (409 `OVERSIGHT-409-INVALID-STATE`), độ dài lý do và ý kiến (422), xác thực bước lên khi tạo, duyệt, từ
  * chối (401, BR-13-04), `If-Match` (428, 412), nguyên tắc bốn mắt BR-13-02 (403 `OVERSIGHT-403-FOUR-EYES`,
  * MSG-13-01: người dùng thử nghiệm là người tạo hoặc đã duyệt lượt trước), chỉ người tạo được huỷ. Người
@@ -25,6 +35,7 @@ import { IMPACT_007, PROFILE_NAMES, REOPEN_PEOPLE, reopenFixtures } from './reop
 const ME = REOPEN_PEOPLE.me;
 
 let store: ReopenRequest[] = reopenFixtures();
+let postAudits: PostAudit[] = postAuditFixtures();
 
 const etag = (rowVersion: number) => ({ ETag: `"${rowVersion}"` });
 
@@ -66,7 +77,15 @@ function stepUpRequired(): MockResponse {
 const invalid = (field: string, message: string) =>
   problem(422, 'Dữ liệu không hợp lệ', { errors: [{ field, message }] });
 
-const conflict = (code: string, title: string) => problem(409, title, { code });
+/** 409 như `ProblemTypes` của mission-core: tiêu đề chung, lời giải thích nghiệp vụ ở `detail`, kèm `code`. */
+const conflict = (code: string, detail: string) =>
+  problem(409, 'Xung đột dữ liệu', { type: 'https://okrkpi.vn/problems/conflict', code, detail });
+
+/** Yêu cầu còn hiệu lực như `ReopenRequest.active()`: chờ duyệt, đã duyệt, đã mở lại mà kỳ chưa khoá lại. */
+const active = (r: ReopenRequest) =>
+  REOPEN_PENDING_STATUSES.includes(r.status) ||
+  r.status === 'DA_DUYET' ||
+  (r.status === 'DA_THUC_HIEN' && !r.relockedAt);
 
 const out = (r: ReopenRequest) => ok(structuredClone(r), etag(r.rowVersion));
 
@@ -154,25 +173,29 @@ function create(req: MockRequest): MockResponse {
     return invalid('scope', 'Chỉ chọn toàn kỳ khi có quyết định hậu kiểm toàn diện làm căn cứ.');
   if (!b.scopeDetail?.items?.length)
     return invalid('scopeDetail', 'Nêu ít nhất một nhóm dữ liệu được phép sửa.');
-  if (!b.basis?.kind || !(b.basis.code ?? '').trim())
-    return invalid('basis', 'Nêu căn cứ: mã khiếu nại, cảnh báo hoặc quyết định hậu kiểm.');
+  const basis = b.basis;
+  if (
+    !basis?.kind ||
+    !(REOPEN_BASIS_NEEDS_OBJECT[basis.kind] ? basis.id : (basis.code ?? '').trim())
+  )
+    return invalid('basis', 'Chọn căn cứ mở lại.');
   if (info.status !== 'DA_KHOA')
-    return conflict(
-      'OVERSIGHT-409-PERIOD-NOT-LOCKED',
-      `Kỳ ${info.ref.label} chưa khoá nên không cần mở lại.`,
-    );
+    return conflict('OVERSIGHT-409-PERIOD-NOT-LOCKED', 'Chỉ lập yêu cầu mở lại cho kỳ đã khoá.');
+  if (basis.kind !== 'QUYET_DINH' && basisPeriodOf(basis.kind, basis.id!) !== info.ref.id)
+    return invalid('basis', 'Không tìm thấy căn cứ trong kỳ đã chọn.');
+  // như `ReopenRequest.overlaps()`: một bên toàn kỳ, hoặc cùng loại phạm vi có mã chung
   const overlap = store.find(
     (r) =>
       r.period.id === info.ref.id &&
-      REOPEN_PENDING_STATUSES.includes(r.status) &&
+      active(r) &&
       (r.scope === 'TOAN_KY' ||
         b.scope === 'TOAN_KY' ||
-        r.scopeIds?.some((id) => b.scopeIds!.includes(id))),
+        (r.scope === b.scope && !!r.scopeIds?.some((id) => b.scopeIds!.includes(id)))),
   );
   if (overlap)
     return conflict(
       'OVERSIGHT-409-INVALID-STATE',
-      `Đã có yêu cầu ${overlap.code} đang chờ duyệt cho cùng phạm vi.`,
+      'Đã có yêu cầu mở lại đang xử lý cho cùng phạm vi của kỳ này.',
     );
   const P = REOPEN_PEOPLE;
   const r: ReopenRequest = {
@@ -206,6 +229,24 @@ function create(req: MockRequest): MockResponse {
     body: structuredClone(r),
     headers: { ...etag(1), Location: `/api/v1/oversight/reopen-requests/${r.id}` },
   };
+}
+
+/** Kỳ của đối tượng căn cứ trong MOD-07 (như `basisExists` của mission-core), `undefined` nếu không có. */
+function basisPeriodOf(kind: 'KHIEU_NAI' | 'CANH_BAO' | 'HAU_KIEM', id: string) {
+  if (kind === 'KHIEU_NAI') return complaintPeriodOf(id);
+  if (kind === 'CANH_BAO') return alertPeriodOf(id);
+  return postAudits.find((a) => a.id === id)?.periodId;
+}
+
+/** `listPostAudits`: đợt hậu kiểm theo kỳ và trạng thái mở, mới mở trước. */
+function listPostAudits(req: MockRequest): MockResponse {
+  const periodId = req.params.get('period');
+  const open = req.params.get('open');
+  const items = postAudits
+    .filter((a) => !periodId || a.periodId === periodId)
+    .filter((a) => open === null || (open === 'true') === !a.closedAt)
+    .sort((a, b) => b.openedAt.localeCompare(a.openedAt));
+  return ok({ items: structuredClone(items), nextCursor: null });
 }
 
 function simulate(req: MockRequest): MockResponse {
@@ -309,6 +350,7 @@ export const REOPEN_MOCK: MockModule = {
   name: 'oversight-reopen',
   routes: [
     { method: 'GET', pattern: '/api/v1/oversight/reopen-requests', handle: list },
+    { method: 'GET', pattern: '/api/v1/oversight/post-audits', handle: listPostAudits },
     { method: 'POST', pattern: '/api/v1/oversight/reopen-requests', handle: create },
     {
       method: 'GET',
@@ -333,5 +375,6 @@ export const REOPEN_MOCK: MockModule = {
   ],
   reset: () => {
     store = reopenFixtures();
+    postAudits = postAuditFixtures();
   },
 };
