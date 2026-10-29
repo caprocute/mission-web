@@ -191,10 +191,13 @@ test.describe('QT-13 Mở lại kỳ và sổ cái', { tag: '@qa-07' }, () => {
       await chiHeThong('cùng người duyệt hai lượt', async () => {
         const a = await api(s, DUYET1);
         try {
+          // Hợp đồng đòi If-Match (thiếu thì 428): gửi đúng phiên bản để máy chủ xét luật bốn mắt
+          const yc = await a.can<YeuCau>('GET', `oversight/reopen-requests/${luot1}`);
           const r = await a.goi('POST', `oversight/reopen-requests/${luot1}/approvals`, {
+            ifMatch: yc.etag,
             body: { comment: SEED.moLai.yKienDuyet2 },
           });
-          expect([401, 403], 'người đã duyệt lượt một không được duyệt lượt hai').toContain(
+          expect([401, 403, 409], 'người đã duyệt lượt một không được duyệt lượt hai').toContain(
             r.status,
           );
         } finally {

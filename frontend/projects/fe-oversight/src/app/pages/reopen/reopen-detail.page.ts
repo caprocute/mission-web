@@ -39,7 +39,7 @@ import { DialogModule } from 'primeng/dialog';
 import { MessageModule } from 'primeng/message';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
-import { Observable } from 'rxjs';
+import { firstValueFrom, Observable } from 'rxjs';
 import { OVERSIGHT_CAN } from '../../oversight-permissions';
 import { errorText, fmtDateTime } from '../../oversight-ui';
 import { OVERSIGHT_STEP_UP } from '../../step-up';
@@ -656,14 +656,38 @@ export class ReopenDetailPage {
     const call: Observable<ReopenRequest> =
       kind === 'approve' ? this.api.approve(r, text) : this.api.reject(r, text);
     call.subscribe({
-      next: (next) => {
-        this.busy.set(null);
+      next: async (next) => {
         this.comment.set('');
-        this.current.set(next);
-        this.notice.set(this.doneText(kind, next));
+        // Phê duyệt kèm ký số: máy chủ ghi nhận lượt duyệt khi ký số xong (EVT-18), nên bản trả về ngay có thể còn ở
+        // trạng thái cũ; đọc lại tới khi trạng thái đổi rồi mới báo, tránh báo sai "đã mở lại kỳ"
+        const settled = kind === 'approve' ? await this.waitStatusChange(r, next) : next;
+        this.busy.set(null);
+        this.current.set(settled);
+        this.notice.set(
+          settled.status === r.status
+            ? `Đã gửi ký số phê duyệt cho yêu cầu ${settled.code}; hệ thống đang hoàn tất ký số, đồng chí tải lại trang sau ít phút để xem kết quả.`
+            : this.doneText(kind, settled),
+        );
       },
       error: (e) => this.fail(e),
     });
+  }
+
+  /** Đọc lại yêu cầu tới khi trạng thái khác {@code before} (tối đa khoảng 30 giây). */
+  private async waitStatusChange(
+    before: ReopenRequest,
+    first: ReopenRequest,
+  ): Promise<ReopenRequest> {
+    let cur = first;
+    for (let i = 0; i < 30 && cur.status === before.status; i++) {
+      await new Promise((ok) => setTimeout(ok, 1000));
+      try {
+        cur = await firstValueFrom(this.api.get(before.id));
+      } catch {
+        break;
+      }
+    }
+    return cur;
   }
 
   protected openCancel() {
