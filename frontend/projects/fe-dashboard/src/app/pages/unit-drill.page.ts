@@ -34,7 +34,7 @@ import { VtSkeletonComponent } from '@vt/design-system';
   template: `
     <p class="crumb">
       @if (can('SCR-1601.xem')) {
-        <a routerLink="..">Bảng điều hành</a>
+        <a routerLink=".." [queryParams]="period() ? { period: period() } : {}">Bảng điều hành</a>
       }
     </p>
     <h1>{{ name() || 'Đơn vị' }}</h1>

@@ -1,7 +1,7 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { Component, Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import {
   DEFAULT_RUNTIME_CONFIG,
   MOCK_API_OPTIONS,
@@ -28,6 +28,7 @@ async function render<T>(
   cmp: Type<T>,
   inputs: Record<string, unknown> = {},
   can: (k: string) => boolean = () => true,
+  url?: string,
 ): Promise<HTMLElement> {
   await resetMockApi();
   TestBed.configureTestingModule({
@@ -44,6 +45,7 @@ async function render<T>(
       { provide: DASHBOARD_USER_ID, useValue: () => 'dev-user' },
     ],
   });
+  if (url) await TestBed.inject(Router).navigateByUrl(url);
   const fixture = TestBed.createComponent(cmp);
   for (const [k, v] of Object.entries(inputs)) fixture.componentRef.setInput(k, v);
   instance = fixture.componentInstance;
@@ -81,6 +83,12 @@ const TECH =
   /\b(BR|MSG|QT|SCR|TL)-\d|okr\.|task\.|appraisal\.|org_unit|TOM_TAT|DA_XAC_NHAN|DA_DUYET|ledger:|ss-2026|viettel|THE_SO|RIENG|DON_VI/;
 
 describe('LeaderDashboardPage (SCR-1601)', () => {
+  it('nhận kỳ trên địa chỉ (?period=) thay cho kỳ hiện hành', async () => {
+    const el = await render(LeaderDashboardPage, {}, () => true, '/dashboard?period=p-2026q3');
+    await until(el, 'p-message', has('chậm hơn thường lệ'));
+    expect((instance as { periodId(): string }).periodId()).toBe('p-2026q3');
+  });
+
   it('bốn con số, bảng đơn vị, xu hướng, tóm tắt AI có nhãn và nguồn, việc cần chỉ đạo', async () => {
     const el = await render(LeaderDashboardPage);
     await until(el, '.kpi', has('Việc chậm cần chỉ đạo'));
