@@ -398,6 +398,11 @@ test.describe('QT-14 QT-15 QT-16 Cảnh báo, chính sách và bảng điều h�
         period: hs.period!.id,
       });
       await spaGoto(page, `/dashboard/units?${q}`);
+      // Quay về bảng điều hành từ trang đơn vị giữ nguyên kỳ đang xem (`?period=`), rồi trở lại trang đơn vị
+      await m.getByRole('link', { name: 'Bảng điều hành', exact: true }).first().click();
+      await expect(page).toHaveURL(new RegExp(`/dashboard\\?(.*&)?period=${hs.period!.id}`));
+      await expect(m.getByRole('heading', { level: 1, name: 'Bảng điều hành' })).toBeVisible();
+      await spaGoto(page, `/dashboard/units?${q}`);
     }
     await expect(m.getByRole('heading', { level: 1 })).toBeVisible();
     await m
