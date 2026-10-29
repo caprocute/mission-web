@@ -109,9 +109,11 @@ INSERT INTO seed_person VALUES
   -- (bốn mắt BR-13-02, BR-13-03; HT-34).
   ('d0000000-0000-4000-8000-000000000314', 'quyetdinh2', 'Lý Thị Quyết Định Hai',
    'd0000000-0000-4000-8000-000000000102', 'd0000000-0000-4000-8000-000000000202'),
-  -- Người thẩm định thứ hai: tiếp nhận khiếu nại về hồ sơ mà thamdinh đã thẩm định (tách vai trò; HT-33).
+  -- Người thẩm định thứ hai: tiếp nhận khiếu nại về hồ sơ mà thamdinh đã thẩm định (tách vai trò; HT-33). Công tác ở
+  -- Phòng Tổng hợp vì phạm vi người xử lý khiếu nại là đơn vị công tác kèm cấp dưới, còn khiếu nại thử
+  -- (KN-2026-0001..0003) giao cho Phòng Tổng hợp.
   ('d0000000-0000-4000-8000-000000000315', 'thamdinh2', 'Trịnh Văn Thẩm Định Hai',
-   'd0000000-0000-4000-8000-000000000102', 'd0000000-0000-4000-8000-000000000203'),
+   'd0000000-0000-4000-8000-000000000101', 'd0000000-0000-4000-8000-000000000203'),
   ('d0000000-0000-4000-8000-000000000310', 'duyet2', 'Bùi Thị Duyệt Hai',
    'd0000000-0000-4000-8000-000000000102', 'd0000000-0000-4000-8000-000000000203'),
   ('d0000000-0000-4000-8000-000000000311', 'kiemtra', 'Ngô Văn Kiểm Tra',
@@ -154,6 +156,12 @@ SELECT md5('assignment-version:' || p.id)::uuid, md5('assignment:' || p.id)::uui
        p.title_id, 'CHINH', 'CHINH_QUYEN', '2000-01-01'::date, '00000000-0000-0000-0000-000000000000'::uuid, '00000000-0000-0000-0000-000000000000'::uuid
 FROM seed_person p
 ON CONFLICT DO NOTHING;
+
+-- thamdinh2 từng được seed ở Ban Tổ chức (102): chuyển phân công chính sang Phòng Tổng hợp trên dữ liệu cũ, tăng
+-- row_version để org-republish ghi đè bản sao org_replica.
+UPDATE org.assignment a SET org_unit_id = p.unit_id, row_version = a.row_version + 1
+FROM seed_person p
+WHERE a.person_id = p.id AND a.kind = 'CHINH' AND p.username = 'thamdinh2' AND a.org_unit_id <> p.unit_id;
 
 -- Vị trí việc làm "Chuyên viên tổng hợp" của Phòng Tổng hợp gắn cho canbo, để đăng ký nhiệm vụ từ danh mục theo vị
 -- trí (SCR-0503, HT-15) có mục để chọn; danh mục công việc thử gắn vị trí này cho TH-02, TH-03
