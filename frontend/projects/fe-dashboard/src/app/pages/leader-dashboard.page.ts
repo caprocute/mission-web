@@ -15,9 +15,9 @@
  * SCR-1603.xem; hồ sơ chờ thẩm định SCR-0902.xem.
  */
 import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { OrgApi, TaskApi, TaskSummary } from '@vt/api-client';
 import {
   AiSourceList,
@@ -117,7 +117,7 @@ interface Kpi {
           optionLabel="name"
           optionValue="id"
           [ngModel]="periodId()"
-          (ngModelChange)="periodId.set($event)"
+          (ngModelChange)="selectPeriod($event)"
         />
       </div>
       <div>
@@ -498,11 +498,28 @@ export class LeaderDashboardPage {
   protected readonly periodOptions = computed(() =>
     this.periodsRes.hasValue() ? this.periodsRes.value() : [],
   );
-  /** Kỳ hiện hành: kỳ quý đang mở gần nhất. */
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  /** Kỳ trên địa chỉ (`?period=`): mở lại, chia sẻ liên kết hoặc quay về từ trang đơn vị giữ đúng kỳ đã chọn. */
+  private readonly periodParam = toSignal(this.route.queryParamMap, {
+    initialValue: this.route.snapshot.queryParamMap,
+  });
+  /** Kỳ trên địa chỉ nếu có trong danh sách, nếu không là kỳ hiện hành: kỳ quý đang mở gần nhất. */
   protected readonly periodId = linkedSignal<string | null>(() => {
     const ps = this.periodOptions();
+    const asked = this.periodParam().get('period');
+    if (asked && ps.some((p) => p.id === asked)) return asked;
     return ps.find((p) => p.status === 'MO' && !p.notStarted)?.id ?? ps[0]?.id ?? null;
   });
+  protected selectPeriod(id: string | null) {
+    this.periodId.set(id);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { period: id },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
   private readonly period = computed(() =>
     this.periodOptions().find((p) => p.id === this.periodId()),
   );
