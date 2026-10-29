@@ -360,6 +360,28 @@ test.describe('QT-14 QT-15 QT-16 Cảnh báo, chính sách và bảng điều h�
     await expect(m.getByRole('region', { name: 'Bốn chỉ số chính' })).toBeVisible();
     await kiemAxeOnDinh(page, 'bảng điều hành, chế độ cao tuổi');
 
+    // Hệ thống thật: kỳ hiện hành có thể chưa có hồ sơ đã chốt (dev chốt hồ sơ ở các kỳ đã khoá theo hiệu lực
+    // Policy Pack), nên chọn trên bảng điều hành kỳ có hồ sơ đã ký quyết định rồi mới đi xuống đơn vị
+    if (HE_THONG) {
+      const a = await api(s, 'quyetdinh');
+      let tenKy: string | undefined;
+      try {
+        for (const st of ['DA_KY_SO', 'DA_KHOA', 'KHIEU_NAI']) {
+          const r = await a.can<{ items: { period?: { label?: string } }[] }>(
+            'GET',
+            'appraisals/profiles',
+            { query: { status: st, limit: '20' } },
+          );
+          tenKy = r.body.items.find((x) => x.period?.label)?.period?.label;
+          if (tenKy) break;
+        }
+      } finally {
+        await a.dong();
+      }
+      if (!tenKy) cho('kỳ có hồ sơ đã ký quyết định: chạy HT-25..27 trước');
+      await chon(page, m.locator('#bd-period'), tenKy);
+    }
+
     // Đi xuống đơn vị, cán bộ (`listUnitAppraisalResults`, AP-09) rồi tới minh chứng (`getTraceChain`):
     // không quá ba lần chạm từ bảng điều hành
     const bang = m
