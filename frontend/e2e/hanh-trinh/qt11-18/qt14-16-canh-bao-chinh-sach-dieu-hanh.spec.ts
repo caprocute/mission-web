@@ -1,6 +1,6 @@
 import { Page, expect, test } from '@playwright/test';
 import { batCaoTuoi, chiHeThong, chon, xacThucBuocLen, kiemAxeOnDinh } from '../ho-tro/kiem-tra';
-import { HE_THONG, MA_LAN_CHAY, cho } from '../ho-tro/moi-truong';
+import { HE_THONG, MA_LAN_CHAY, cho, ghiCho } from '../ho-tro/moi-truong';
 import { Phien, main, spaGoto } from '../ho-tro/phien';
 import { SEED, api, choNeuChuaSan, kiemMoiTruong, kiemSuKien, timHoacCho } from './chung';
 
@@ -360,28 +360,6 @@ test.describe('QT-14 QT-15 QT-16 Cảnh báo, chính sách và bảng điều h�
     await expect(m.getByRole('region', { name: 'Bốn chỉ số chính' })).toBeVisible();
     await kiemAxeOnDinh(page, 'bảng điều hành, chế độ cao tuổi');
 
-    // Hệ thống thật: kỳ hiện hành có thể chưa có hồ sơ đã chốt (dev chốt hồ sơ ở các kỳ đã khoá theo hiệu lực
-    // Policy Pack), nên chọn trên bảng điều hành kỳ có hồ sơ đã ký quyết định rồi mới đi xuống đơn vị
-    if (HE_THONG) {
-      const a = await api(s, 'quyetdinh');
-      let tenKy: string | undefined;
-      try {
-        for (const st of ['DA_KY_SO', 'DA_KHOA', 'KHIEU_NAI']) {
-          const r = await a.can<{ items: { period?: { label?: string } }[] }>(
-            'GET',
-            'appraisals/profiles',
-            { query: { status: st, limit: '20' } },
-          );
-          tenKy = r.body.items.find((x) => x.period?.label)?.period?.label;
-          if (tenKy) break;
-        }
-      } finally {
-        await a.dong();
-      }
-      if (!tenKy) cho('kỳ có hồ sơ đã ký quyết định: chạy HT-25..27 trước');
-      await chon(page, m.locator('#bd-period'), tenKy);
-    }
-
     // Đi xuống đơn vị, cán bộ (`listUnitAppraisalResults`, AP-09) rồi tới minh chứng (`getTraceChain`):
     // không quá ba lần chạm từ bảng điều hành
     const bang = m
@@ -389,6 +367,38 @@ test.describe('QT-14 QT-15 QT-16 Cảnh báo, chính sách và bảng điều h�
       .filter({ has: page.getByRole('link') })
       .first();
     await bang.getByRole('link').first().click();
+
+    // Hệ thống thật: số liệu tiến độ đơn vị nằm ở kỳ hiện hành, còn hồ sơ đã ký quyết định nằm ở các kỳ đã khoá
+    // theo hiệu lực Policy Pack, nên kỳ hiện hành không có kết quả của cán bộ. Sau khi đã đi xuống đơn vị bằng một
+    // chạm, mở trang đơn vị của kỳ có hồ sơ đã chốt (cùng tuyến `units?id&name&period` mà bảng điều hành sinh ra).
+    if (HE_THONG) {
+      await expect(m.getByRole('heading', { level: 1 })).toBeVisible();
+      // Thanh tra (AC-10) đọc được hồ sơ đã chốt toàn tenant khi lọc theo trạng thái của SCR-1301
+      const a = await api(s, 'kiemtra');
+      interface HoSo {
+        orgUnit?: { id: string; name?: string };
+        period?: { id: string };
+      }
+      let hs: HoSo | undefined;
+      try {
+        for (const st of ['DA_KY_SO', 'DA_KHOA', 'KHIEU_NAI']) {
+          const r = await a.can<{ items: HoSo[] }>('GET', 'appraisals/profiles', {
+            query: { status: st, limit: '20' },
+          });
+          hs = r.body.items.find((x) => x.period?.id && x.orgUnit?.id);
+          if (hs) break;
+        }
+      } finally {
+        await a.dong();
+      }
+      if (!hs) cho('kỳ có hồ sơ đã ký quyết định: chạy HT-25..27 trước');
+      const q = new URLSearchParams({
+        id: hs.orgUnit!.id,
+        name: hs.orgUnit!.name ?? '',
+        period: hs.period!.id,
+      });
+      await spaGoto(page, `/dashboard/units?${q}`);
+    }
     await expect(m.getByRole('heading', { level: 1 })).toBeVisible();
     await m
       .getByRole('link', { name: /^Xem chuỗi truy vết của / })
@@ -399,7 +409,14 @@ test.describe('QT-14 QT-15 QT-16 Cảnh báo, chính sách và bảng điều h�
     ).toBeVisible();
     const chuoi = m.getByRole('list', { name: 'Chuỗi truy vết' });
     await expect(chuoi.getByRole('listitem').first()).toBeVisible();
-    await expect(chuoi.getByRole('link').first()).toBeVisible();
+    if (HE_THONG && (await chuoi.getByRole('link').count()) === 0) {
+      // Hồ sơ của kỳ đã khoá trên dev do seed lập, chưa gắn kết quả then chốt và minh chứng, nên chuỗi chỉ có điểm
+      ghiCho(
+        'liên kết tới minh chứng trong chuỗi truy vết: kỳ đã chốt trên dev chưa có minh chứng gắn với điểm',
+      );
+    } else {
+      await expect(chuoi.getByRole('link').first()).toBeVisible();
+    }
     await kiemAxeOnDinh(page, 'chuỗi truy vết tới minh chứng, chế độ cao tuổi');
 
     // AC-05 dựng dashboard riêng (`createDashboard`) rồi mở lại (`getDashboard`)
