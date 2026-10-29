@@ -7,6 +7,11 @@
 -- policy_author) có người duyệt kỹ thuật thứ hai (bốn mắt approved_by <> granted_by). Tài khoản nentang là quản trị
 -- nền tảng, không thuộc tenant nên không có vai trò ở đây. Chạy lại không sinh bản ghi trùng. Chỉ dữ liệu giả lập.
 -- =============================================================================
+-- thamdinh2 từng có vai trò member ở Ban Tổ chức (102); chuyển sang Phòng Tổng hợp (101) theo phân công mới (HT-33).
+UPDATE config.role_binding SET org_unit_id = 'd0000000-0000-4000-8000-000000000101', updated_at = now()
+WHERE tenant_id = 'd0000000-0000-4000-8000-000000000001' AND person_id = 'd0000000-0000-4000-8000-000000000315'
+  AND role_code = 'member' AND org_unit_id = 'd0000000-0000-4000-8000-000000000102' AND end_kind IS NULL;
+
 INSERT INTO config.role_binding (id, tenant_id, created_by, updated_by, person_id, role_code, org_unit_id,
                                  scope, valid_from, granted_by, granted_at, approved_by, approved_at, reason)
 SELECT md5('role-binding:' || r.person || ':' || r.role || ':' || r.unit)::uuid, 'd0000000-0000-4000-8000-000000000001',
@@ -34,7 +39,7 @@ FROM (VALUES
   ('d0000000-0000-4000-8000-000000000308', 'appraiser', 'd0000000-0000-4000-8000-000000000100', 'DON_VI_VA_CAP_DUOI', NULL::uuid),
   ('d0000000-0000-4000-8000-000000000309', 'decider', 'd0000000-0000-4000-8000-000000000100', 'DON_VI_VA_CAP_DUOI', '00000000-0000-7000-8000-000000000001'::uuid),
   -- thamdinh2: người thẩm định thứ hai, tiếp nhận khiếu nại khi thamdinh đã thẩm định hồ sơ (tách vai trò, HT-33)
-  ('d0000000-0000-4000-8000-000000000315', 'member', 'd0000000-0000-4000-8000-000000000102', 'DON_VI', NULL::uuid),
+  ('d0000000-0000-4000-8000-000000000315', 'member', 'd0000000-0000-4000-8000-000000000101', 'DON_VI', NULL::uuid),
   ('d0000000-0000-4000-8000-000000000315', 'appraiser', 'd0000000-0000-4000-8000-000000000100', 'DON_VI_VA_CAP_DUOI', NULL::uuid),
   -- quyetdinh2: người quyết định thứ hai, duyệt lượt một yêu cầu mở lại kỳ khi quyetdinh bị bốn mắt loại (HT-34)
   ('d0000000-0000-4000-8000-000000000314', 'member', 'd0000000-0000-4000-8000-000000000102', 'DON_VI', NULL::uuid),
